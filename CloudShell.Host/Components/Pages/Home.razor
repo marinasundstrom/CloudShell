@@ -8,7 +8,7 @@
 @{
     var navigationItems = ShellCatalog.NavigationItems;
     var customViews = ShellCatalog.CustomViews;
-    var hostedMenuItems = customViews.Sum(view => view.ViewMenuItems.Count);
+    var viewMenuItems = customViews.Sum(view => view.ViewMenuItems.Count);
     var capabilities = ShellCatalog.Extensions
         .SelectMany(extension => extension.Provides)
         .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -39,9 +39,9 @@
         <small>@L["Navigation contributions"]</small>
     </article>
     <article class="metric-card">
-        <span>@L["Hosted views"]</span>
-        <strong>@customViews.Count</strong>
-        <small>@L["{0} menu items", hostedMenuItems]</small>
+        <span>@L["View menu items"]</span>
+        <strong>@viewMenuItems</strong>
+        <small>@L["Across {0} shell views", customViews.Count]</small>
     </article>
     <article class="metric-card">
         <span>@L["Capabilities"]</span>

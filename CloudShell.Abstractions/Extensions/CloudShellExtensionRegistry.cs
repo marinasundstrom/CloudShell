@@ -82,7 +82,7 @@ public sealed class CloudShellExtensionRegistry
         {
             var owners = string.Join(", ", duplicateCustomView.Select(item => item.Id));
             throw new InvalidOperationException(
-                $"The custom shell view '{duplicateCustomView.Key}' is contributed by multiple extensions: {owners}.");
+                $"The shell-hosted view '{duplicateCustomView.Key}' is contributed by multiple extensions: {owners}.");
         }
 
         var duplicateCustomViewMenuItem = _extensions
@@ -95,7 +95,7 @@ public sealed class CloudShellExtensionRegistry
         {
             var owners = string.Join(", ", duplicateCustomViewMenuItem.Select(item => item.Id));
             throw new InvalidOperationException(
-                $"The custom shell view menu item '{duplicateCustomViewMenuItem.Key}' is contributed by multiple extensions: {owners}.");
+                $"The shell-hosted view menu item '{duplicateCustomViewMenuItem.Key}' is contributed by multiple extensions: {owners}.");
         }
 
         var duplicateResourceType = _extensions

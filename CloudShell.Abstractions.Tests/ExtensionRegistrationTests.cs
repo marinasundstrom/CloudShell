@@ -385,7 +385,7 @@ public sealed class ExtensionRegistrationTests
         public CloudShellExtensionManifest Manifest => new(
             "sample.workspace.duplicate",
             "Duplicate workspace",
-            "Contributes a duplicate custom shell view.",
+            "Contributes a duplicate shell-hosted view.",
             "1.0.0",
             [],
             []);

@@ -1393,6 +1393,44 @@ h3 {
     background: #fafafa;
 }
 
+.click-me-counter {
+    display: grid;
+    justify-items: start;
+    gap: 1rem;
+    max-width: 28rem;
+}
+
+.click-me-counter p {
+    margin-top: .25rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.click-me-value {
+    min-width: 10rem;
+    padding: .8rem;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    background: #fafafa;
+}
+
+.click-me-value span,
+.click-me-value strong {
+    display: block;
+}
+
+.click-me-value span {
+    color: #64748b;
+    font-size: .78rem;
+}
+
+.click-me-value strong {
+    margin-top: .2rem;
+    color: #111827;
+    font-size: 2rem;
+    font-weight: 650;
+}
+
 .empty-state {
     display: grid;
     gap: .25rem;

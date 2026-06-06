@@ -86,9 +86,16 @@ Views are ordinary routable Blazor components in the extension assembly. `AddVie
 
 An extension can contribute multiple views. Set `showInNavigation` to `false` for detail or workflow routes that should not appear in the sidebar.
 
-## Hosted shell views
+CloudShell supports two implementation styles for views:
 
-Use hosted shell views for CMS-like integrations that should use CloudShell's common workspace layout instead of owning an entire routable page. A hosted view contributes one sidebar navigation item and a set of extension-owned menu items. The host owns the route, layout, ordering, and validation; the extension owns the menu item components.
+- `AddView<TComponent>` contributes a standalone routable component.
+- `AddCustomView` contributes a shell-hosted view with the standard CloudShell layout and extension-owned menu item components.
+
+Both styles are first-class shell views in the product UI. The `CustomView` name is an API-level distinction for adding composed views through the shell host.
+
+## Shell-hosted views
+
+Use shell-hosted views for CMS-like integrations that should use CloudShell's common workspace layout instead of owning an entire routable page. A shell-hosted view contributes one sidebar navigation item and a set of extension-owned menu items. The host owns the route, layout, ordering, and validation; the extension owns the menu item components.
 
 ```csharp
 builder
@@ -112,7 +119,26 @@ builder
         order: 20);
 ```
 
-Menu items are rendered in the left rail using the same interaction pattern as resource configuration views. The active menu item is stored in the `item` query string, so hosted views can be linked directly, for example `/acme/workspace?item=settings`.
+Menu items are rendered in the left rail using the same interaction pattern as resource configuration views. The active menu item is stored in the `item` query string, so shell-hosted views can be linked directly, for example `/acme/workspace?item=settings`.
+
+A minimal counter view is enough to prove the view contribution path:
+
+```csharp
+builder
+    .AddCustomView(
+        id: "cloudshell.click-me",
+        title: "Click me",
+        route: "/click-me",
+        icon: "pulse",
+        order: 10,
+        description: "A simple shell view contributed through the CloudShell extension model.")
+    .AddCustomViewMenuItem<ClickMeCounter>(
+        viewId: "cloudshell.click-me",
+        id: "counter",
+        title: "Counter",
+        order: 10,
+        description: "Click the button to update local component state.");
+```
 
 ## Start page
 
@@ -286,8 +312,8 @@ CloudShell validates extension registrations at startup:
 
 - extension IDs must be unique
 - view routes must be unique
-- custom shell view IDs must be unique
-- custom shell view menu item IDs must be unique within each hosted view
+- shell-hosted view IDs must be unique
+- shell-hosted view menu item IDs must be unique within each hosted view
 - at most one extension can configure the shell start route
 - the shell start route must point at a route contributed by an installed extension
 - consumed capabilities must be provided by an installed extension
