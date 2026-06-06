@@ -1,32 +1,163 @@
 # CloudShell
 
-CloudShell is an extensible, self-hosted control-plane UI for local development and on-premise environments. It uses Blazor and Fluent UI, with an operational experience inspired by the .NET Aspire Dashboard.
+CloudShell is an extensible, self-hosted control-plane UI for local development and on-premise environments. It uses Blazor, Fluent UI, and .NET 11 preview, with an operational experience inspired by the .NET Aspire Dashboard.
 
-The host is intentionally small. Extensions can contribute:
+The goal is to make it possible to build your own cloud-platform shell: a place where teams can register resources, group them by project, inspect endpoints and state, and let extensions add focused operational tools.
 
-- Blazor views and navigation
-- Resource types with extension-owned registration UI
-- Internal resource providers that map external systems into resources
-- Resources, nested sub-resources, relationships, and endpoints
-- Extension-owned services registered with singleton, scoped, or transient lifetimes
-- Capability metadata used to validate extension dependencies
+## Current Status
 
-Resources are explicit platform registrations persisted in SQLite. Providers can discover available systems, but a root resource only appears in the shell after a user adds it. Dynamic children, such as Docker containers under a registered Docker Engine, appear as sub-resources.
+This repository is an early shell prototype. It currently includes:
+
+- A Blazor shell with Fluent UI styling and Aspire-like density.
+- Extension registration through the .NET service container.
+- A Resource Manager surface with resource groups, nested resources, endpoints, state, and details.
+- Resource type registration, where extensions provide the UI used to add resources.
+- SQLite persistence for explicitly registered root resources and resource groups.
+- A Docker reference extension that registers a local Docker Engine resource and shows containers as sub-resources.
+
+## Concepts
+
+### Resources
+
+A resource is the core domain object in CloudShell. It represents something the platform can manage or inspect, such as a Docker Engine, container, service, database, queue, or internal tool.
+
+Resources can have:
+
+- A stable ID.
+- A type ID.
+- Lifecycle state.
+- Endpoints.
+- Dependencies.
+- A detail route owned by an extension.
+- A parent resource, which makes it a sub-resource.
+
+### Resource Types
+
+Resource types are the user-facing extensibility point for adding resources.
+
+An extension registers a resource type and provides a Blazor registration component for it. The CloudShell Add Resource page shows all registered resource types in a dropdown and renders the selected type's registration UI.
+
+For example, the Docker extension registers the `docker.engine` resource type. Its registration UI discovers the local Docker socket and lets the user add the Docker Engine as a CloudShell resource.
+
+### Resource Providers
+
+Resource providers are internal implementation services. They are not shown as a product concept in the UI.
+
+Providers map external systems into CloudShell resources. A provider can discover available resources, but root resources only become visible in the shell after the user explicitly adds them. Dynamic children can appear under a registered root resource.
+
+The Docker provider follows that pattern:
+
+```text
+Local Docker Engine
+├── detail route: /resources/docker-engine
+└── Docker Container sub-resources
+```
+
+### Resource Groups
+
+Resource groups are user-managed project boundaries. They are owned by the CloudShell platform, not by providers.
+
+A root resource can be assigned to a resource group when it is added. Sub-resources inherit the group for filtering and display. Resources can also stay ungrouped.
+
+This keeps the future access-control model open: resource groups can later become the unit used to isolate resources and permissions.
 
 ## Projects
 
-- `CloudShell.Host`: Blazor shell and built-in platform extensions.
-- `CloudShell.Abstractions`: extension SDK and resource contracts.
-- `CloudShell.Persistence`: EF Core SQLite persistence for resource groups and registrations.
-- `CloudShell.Providers.Docker`: reference extension for local Docker containers.
-- `CloudShell.Abstractions.Tests`: SDK registration and validation tests.
+- `CloudShell.Host`: Blazor shell, layout, built-in Resource Manager, Extensions, and Observability views.
+- `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
+- `CloudShell.Persistence`: EF Core SQLite persistence for resource registrations and resource groups.
+- `CloudShell.Providers.Docker`: reference extension for local Docker Engine and containers.
+- `CloudShell.Abstractions.Tests`: extension registration and validation tests.
+
+## Prerequisites
+
+- .NET 11 preview SDK.
+- Docker Desktop or a local Docker daemon if you want to use the Docker sample.
+
+The repository includes `global.json` to pin the preview SDK expected by the project.
 
 ## Run
 
+From the repository root:
+
 ```bash
-dotnet run --project CloudShell.Host
+dotnet restore
+dotnet run --project CloudShell.Host --urls http://localhost:5088
 ```
 
-The current extension model is for trusted, in-process .NET extensions referenced by the host. Dynamic package and directory discovery can be added later without changing the extension contract.
+Then open:
+
+```text
+http://localhost:5088
+```
+
+Useful routes:
+
+- `/resources`: resource inventory and resource groups.
+- `/resources/add`: add a resource by choosing a registered resource type.
+- `/resources/docker-engine`: Docker Engine detail view.
+- `/extensions`: installed extensions and contributed resource types.
+
+## Test
+
+```bash
+dotnet build
+dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore
+```
+
+## Persistence
+
+CloudShell stores platform registrations in SQLite:
+
+```text
+CloudShell.Host/Data/cloudshell.db
+```
+
+The database is created automatically at startup. The `Data` directory is ignored by git because it is local runtime state.
+
+Persisted data currently includes:
+
+- Explicitly registered root resources.
+- Resource group definitions.
+- Resource-to-group assignments.
+
+Provider discovery data, such as Docker containers under a registered Docker Engine, is not persisted as platform registration data. Those resources are re-discovered and shown dynamically.
+
+## Docker Sample
+
+The Docker extension looks for a local Docker endpoint in this order:
+
+1. An endpoint configured through `AddDockerProvider`.
+2. The `DOCKER_HOST` environment variable.
+3. Docker Desktop's user socket.
+4. A rootless Docker runtime socket.
+5. `/var/run/docker.sock`.
+
+After the Docker Engine resource is added through `/resources/add`, the Resource Manager shows the engine as a root resource and containers as sub-resources.
+
+## Extension Model
+
+Extensions are trusted, in-process .NET extensions registered through DI.
+
+An extension can contribute:
+
+- Blazor views and navigation items.
+- Resource types with extension-owned registration UI.
+- Internal resource providers.
+- Services with singleton, scoped, or transient lifetimes.
+- Capability metadata used for startup validation.
+
+CloudShell validates extension registrations at startup:
+
+- Extension IDs must be unique.
+- View routes must be unique.
+- Consumed capabilities must be provided by an installed extension.
+- Resource type IDs must be unique.
 
 See [docs/extensions.md](docs/extensions.md) for the extension-authoring model.
+
+## Trust Model
+
+The current extension model loads code in-process. Extensions can register services and execute arbitrary .NET code, so only trusted extensions should be installed.
+
+Longer term, untrusted or independently deployed integrations should use an out-of-process protocol, such as HTTP or gRPC, while keeping the same resource contracts at the host boundary.
