@@ -105,6 +105,7 @@ owning provider. See [Resource templates](docs/resource-templates.md).
 - `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
 - `CloudShell.Configuration`: Microsoft `IConfiguration` provider for CloudShell configuration services.
+- `CloudShell.ConfigurationService`: standalone ASP.NET Core configuration service application.
 - `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
 - `CloudShell.Providers.Applications`: extension for executable application resources on a local development machine.
 - `CloudShell.Providers.Configuration`: extension for local configuration service resources.
@@ -141,7 +142,7 @@ Useful routes:
 - `/resources/docker-engine`: Docker Engine detail view.
 - `/extensions`: installed extensions and contributed resource types.
 - `/api/control-plane/v1`: versioned Control Plane API.
-- `/api/configuration/entries?resourceId=...`: token-authenticated configuration service API.
+- `<configuration-service-endpoint>/api/configuration/entries?resourceId=...`: token-authenticated configuration service API.
 - `/openapi/control-plane-v1.json`: OpenAPI document for generated clients.
 
 ## Test
@@ -171,9 +172,12 @@ Provider discovery data, such as Docker containers under a registered Docker Eng
 
 Executable application configuration and runtime state are provider-owned local files under `CloudShell.Host/Data` by default. Configuration is stored separately from runtime state. Runtime state includes the last known process ID, process start time, last observation time, last exit code, and log path.
 
-Configuration services are also provider-owned local files under `CloudShell.Host/Data`.
-Each configuration service is its own resource and can be assigned to a resource
-group. See [docs/configuration-services.md](docs/configuration-services.md).
+Configuration service entries are also provider-owned local files under
+`CloudShell.Host/Data`. Each configuration store is its own resource and can be
+assigned to a resource group. Each configuration store also creates its own
+executable configuration service application resource, so service instances can
+be started, stopped, logged, and depended on individually. See
+[docs/configuration-services.md](docs/configuration-services.md).
 
 Resource templates do not change that ownership model. CloudShell exports a
 provider-owned JSON payload for each supported resource, and import delegates

@@ -56,12 +56,25 @@ builder.Services.AddCloudShellPersistence(persistenceOptions);
 var authenticationOptions =
     builder.Services.AddCloudShellAuthentication(builder.Configuration);
 
+var configurationStoreDefinitionsPath = Path.GetFullPath(
+    "Data/configuration-stores.json",
+    builder.Environment.ContentRootPath);
+var configurationServiceProjectPath = Path.GetFullPath(
+    "../CloudShell.ConfigurationService/CloudShell.ConfigurationService.csproj",
+    builder.Environment.ContentRootPath);
+var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
+
 var controlPlane = builder.Services
     .AddControlPlane()
     .AddExtension<CoreShellExtension>()
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
-    .AddConfigurationProvider()
+    .AddConfigurationProvider(options =>
+    {
+        options.DefinitionsPath = configurationStoreDefinitionsPath;
+        options.ServiceProjectPath = configurationServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+    })
     .AddApplicationProvider()
     .AddDockerProvider();
 
@@ -117,7 +130,6 @@ app.UseAntiforgery();
 
 app.MapCloudShellControlPlaneOpenApi();
 app.MapCloudShellControlPlaneApi();
-app.MapCloudShellConfigurationApi();
 
 app.MapGet("/localization/set", (
     string culture,

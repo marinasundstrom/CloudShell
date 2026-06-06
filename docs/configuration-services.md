@@ -1,8 +1,10 @@
 # Configuration Services
 
 CloudShell includes a configuration provider that contributes `configuration.store`
-resources. Each resource is a separate local configuration service with its own
-entries, endpoint, access token, and resource group assignment.
+resources. Each resource is a separate local configuration store with its own
+entries, endpoint, access token, and resource group assignment. Each store also
+creates a separate executable application resource that runs the HTTP API for
+that one store instance.
 
 Use separate configuration services when different projects or resource groups
 need different settings or secrets. For example, a frontend/API group can depend
@@ -30,7 +32,7 @@ controlPlane.Resources(resources =>
 });
 ```
 
-Each service stores key-value entries:
+Each store stores key-value entries:
 
 - `Name`: the setting name.
 - `Value`: the stored value.
@@ -44,6 +46,47 @@ CloudShell.Host/Data/configuration-stores.json
 
 The core CloudShell database still stores only platform metadata such as the
 resource registration and group assignment.
+
+## Service Applications
+
+Each configuration store owns a matching executable application resource. For a
+store such as `configuration:example`, the default application resource ID is:
+
+```text
+application:configuration-service-configuration-example
+```
+
+Each application instance runs:
+
+```bash
+dotnet run --project CloudShell.ConfigurationService/CloudShell.ConfigurationService.csproj --no-launch-profile --urls http://localhost:5138
+```
+
+The actual URL is stored on the configuration store definition. If the user does
+not provide one, the provider generates a stable endpoint from
+`ServiceBasePort`, `ServiceHost`, and the resource ID. The default generated
+range starts from:
+
+```text
+http://localhost:5138
+```
+
+Configure service instance defaults in the host through
+`AddConfigurationProvider(...)`, including:
+
+```text
+ServiceBasePort
+ServiceHost
+ServiceUrlScheme
+ServiceProjectPath
+ServiceWorkingDirectory
+ServiceResourceIdPrefix
+```
+
+The generated application receives the provider-owned store file path and its
+own resource ID through `CloudShell:ConfigurationService:DefinitionsPath` and
+`CloudShell:ConfigurationService:ResourceId`. That resource ID filter is what
+keeps each process scoped to one configuration service instance.
 
 ## Application Access
 
@@ -67,8 +110,8 @@ groups use similarly named services.
 Applications fetch settings from:
 
 ```text
-GET /api/configuration/entries?resourceId=<resource-id>
-GET /api/configuration/entries/{name}?resourceId=<resource-id>
+GET <configuration-service-endpoint>/api/configuration/entries?resourceId=<resource-id>
+GET <configuration-service-endpoint>/api/configuration/entries/{name}?resourceId=<resource-id>
 ```
 
 Pass the token with either:
@@ -78,9 +121,10 @@ Authorization: Bearer <token>
 X-CloudShell-Configuration-Token: <token>
 ```
 
-The configuration API is anonymous at the ASP.NET authentication layer because it
-uses the resource token as its own authentication boundary. Missing tokens return
-`401`; invalid tokens and missing services return `404`.
+The configuration API is hosted by each standalone service application instance
+and is anonymous at the ASP.NET authentication layer because it uses the resource
+token as its own authentication boundary. Missing tokens return `401`; invalid
+tokens and missing services return `404`.
 
 ## Microsoft Configuration API
 

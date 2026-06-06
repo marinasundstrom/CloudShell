@@ -15,7 +15,7 @@ else
                 <span class="state-dot state-running"></span>
                 <div>
                     <strong>@Store.Name</strong>
-                    <span>@Store.Entries.Count entries available from the service endpoint with a resource token.</span>
+                    <span>@Store.Entries.Count entries available from @GetEndpoint() with a resource token.</span>
                 </div>
             </div>
         </div>
@@ -56,4 +56,7 @@ else
             ? null
             : ConfigurationProvider.GetStore(ResourceId);
     }
+
+    private string GetEndpoint() =>
+        Store?.Endpoint ?? "the service endpoint";
 }

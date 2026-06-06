@@ -1,13 +1,14 @@
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Providers.Applications;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace CloudShell.Providers.Configuration;
 
-public sealed partial class ConfigurationResourceProvider(
-    ConfigurationStore store,
-    ConfigurationProviderOptions options) :
+public sealed partial class ConfigurationResourceProvider :
     IResourceProvider,
     IResourceProcedureProvider,
     IResourceTemplateProvider,
@@ -15,15 +16,44 @@ public sealed partial class ConfigurationResourceProvider(
     IProgrammaticResourceDeclarationProvider
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
+    private readonly ConfigurationStore store;
+    private readonly ConfigurationProviderOptions options;
+    private readonly IHostEnvironment environment;
+    private readonly ApplicationResourceStore? _applications;
+
+    public ConfigurationResourceProvider(
+        ConfigurationStore store,
+        ConfigurationProviderOptions options,
+        IServiceProvider serviceProvider,
+        IHostEnvironment environment)
+    {
+        this.store = store;
+        this.options = options;
+        this.environment = environment;
+        _applications = serviceProvider.GetService<ApplicationResourceStore>();
+
+        foreach (var configurationStore in store.GetStores())
+        {
+            EnsureServiceApplication(EnsureServiceEndpoint(configurationStore), persist: false);
+        }
+    }
 
     public string Id => "configuration";
 
     public string DisplayName => "Configuration";
 
-    public IReadOnlyList<CloudResource> GetResources() => store
-        .GetStores()
-        .Select(CreateResource)
-        .ToArray();
+    public IReadOnlyList<CloudResource> GetResources()
+    {
+        var stores = store.GetStores();
+        foreach (var configurationStore in stores)
+        {
+            EnsureServiceApplication(configurationStore, persist: false);
+        }
+
+        return stores
+            .Select(CreateResource)
+            .ToArray();
+    }
 
     public ConfigurationStoreDefinition? GetStore(string id) => store.GetStore(id);
 
@@ -66,12 +96,21 @@ public sealed partial class ConfigurationResourceProvider(
             string.IsNullOrWhiteSpace(definition.Id)
                 ? definition with { Id = CreateUniqueId(definition.Name) }
                 : definition);
+        normalized = EnsureServiceEndpoint(normalized);
         store.Save(normalized);
+        EnsureServiceApplication(normalized, persist: true);
+
+        await registrations.RegisterAsync(
+            "applications",
+            GetServiceResourceId(normalized.Id),
+            NormalizeGroupId(resourceGroupId),
+            cancellationToken: cancellationToken);
 
         await registrations.RegisterAsync(
             Id,
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
+            GetServiceDependencies(normalized.Id),
             cancellationToken: cancellationToken);
     }
 
@@ -81,25 +120,46 @@ public sealed partial class ConfigurationResourceProvider(
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeDefinition(definition);
+        var normalized = EnsureServiceEndpoint(NormalizeDefinition(definition));
         if (store.GetStore(normalized.Id) is null)
         {
             throw new InvalidOperationException($"Configuration service '{normalized.Id}' is not configured.");
         }
 
         store.Save(normalized);
+        EnsureServiceApplication(normalized, persist: true);
+        if (registrations.GetRegistration(GetServiceResourceId(normalized.Id)) is null)
+        {
+            await registrations.RegisterAsync(
+                "applications",
+                GetServiceResourceId(normalized.Id),
+                NormalizeGroupId(resourceGroupId),
+                cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await registrations.AssignToGroupAsync(
+                GetServiceResourceId(normalized.Id),
+                NormalizeGroupId(resourceGroupId),
+                cancellationToken: cancellationToken);
+        }
+
         await registrations.AssignToGroupAsync(
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
+            GetServiceDependencies(normalized.Id),
             cancellationToken: cancellationToken);
     }
 
-    public Task<ResourceProcedureResult> DeleteAsync(
+    public async Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
         store.Remove(context.Resource.Id);
-        return RemoveRegistrationAsync(context, cancellationToken);
+        _applications?.Remove(GetServiceResourceId(context.Resource.Id));
+        await context.Registrations.RemoveAsync(GetServiceResourceId(context.Resource.Id), cancellationToken);
+        await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
+        return ResourceProcedureResult.Completed("Configuration service removed.");
     }
 
     public IReadOnlyList<EnvironmentVariableAssignment> GetEnvironmentVariables(string resourceId) =>
@@ -128,6 +188,7 @@ public sealed partial class ConfigurationResourceProvider(
             ?? throw new InvalidOperationException($"Configuration service '{resource.Id}' is not configured.");
 
         var configuration = new ConfigurationStoreTemplateConfiguration(
+            configurationStore.Endpoint,
             configurationStore.Entries
                 .Select(entry => entry.IsSecret ? entry with { Value = string.Empty } : entry)
                 .ToArray());
@@ -167,7 +228,8 @@ public sealed partial class ConfigurationResourceProvider(
         var definition = new ConfigurationStoreDefinition(
             resourceId,
             template.Name,
-            configuration.Entries);
+            configuration.Entries,
+            endpoint: configuration.Endpoint);
 
         await SetupStoreAsync(
             definition,
@@ -191,12 +253,20 @@ public sealed partial class ConfigurationResourceProvider(
             : $"configuration:{slug}";
     }
 
-    private async Task<ResourceProcedureResult> RemoveRegistrationAsync(
-        ResourceProcedureContext context,
-        CancellationToken cancellationToken)
+    public static string CreateServiceResourceId(
+        string resourceId,
+        string? prefix = null)
     {
-        await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
-        return ResourceProcedureResult.Completed("Configuration service removed.");
+        var normalizedPrefix = string.IsNullOrWhiteSpace(prefix)
+            ? "application:configuration-service"
+            : prefix.Trim().TrimEnd('-');
+        var slug = SlugPattern()
+            .Replace(resourceId.Trim().ToLowerInvariant(), "-")
+            .Trim('-');
+
+        return string.IsNullOrWhiteSpace(slug)
+            ? $"{normalizedPrefix}-{Guid.NewGuid():N}"
+            : $"{normalizedPrefix}-{slug}";
     }
 
     private CloudResource CreateResource(ConfigurationStoreDefinition configurationStore) =>
@@ -210,8 +280,104 @@ public sealed partial class ConfigurationResourceProvider(
             [new ResourceEndpoint("entries", GetEntriesEndpoint(configurationStore.Id), "http", false)],
             $"{configurationStore.Entries.Count} entries",
             DateTimeOffset.UtcNow,
-            [],
+            GetServiceDependencies(configurationStore.Id),
             TypeId: "configuration.store");
+
+    private IReadOnlyList<string> GetServiceDependencies(string resourceId) =>
+        _applications is null ? [] : [GetServiceResourceId(resourceId)];
+
+    private void EnsureServiceApplication(ConfigurationStoreDefinition definition, bool persist)
+    {
+        if (_applications is null)
+        {
+            return;
+        }
+
+        var endpoint = GetServiceBaseUrl(definition);
+        _applications.Save(new ApplicationResourceDefinition(
+            GetServiceResourceId(definition.Id),
+            $"{definition.Name} Configuration Service",
+            options.ServiceExecutablePath,
+            CreateServiceArguments(endpoint),
+            options.ServiceWorkingDirectory,
+            endpoint,
+            [
+                new("ASPNETCORE_ENVIRONMENT", environment.EnvironmentName),
+                new("CloudShell__ConfigurationService__DefinitionsPath", ResolveDefinitionsPath()),
+                new("CloudShell__ConfigurationService__ResourceId", definition.Id)
+            ],
+            ApplicationLifetime.Detached),
+            persist);
+    }
+
+    private ConfigurationStoreDefinition EnsureServiceEndpoint(ConfigurationStoreDefinition definition) =>
+        string.IsNullOrWhiteSpace(definition.Endpoint)
+            ? definition with { Endpoint = CreateUniqueServiceEndpoint(definition.Id) }
+            : definition;
+
+    private string CreateServiceArguments(string endpoint)
+    {
+        var project = string.IsNullOrWhiteSpace(options.ServiceProjectPath)
+            ? "CloudShell.ConfigurationService/CloudShell.ConfigurationService.csproj"
+            : options.ServiceProjectPath;
+
+        return $"run --project {QuoteCommandArgument(project)} --no-launch-profile --urls {QuoteCommandArgument(endpoint)}";
+    }
+
+    private string CreateUniqueServiceEndpoint(string resourceId)
+    {
+        var port = CreateServicePort(resourceId);
+        var usedEndpoints = store.GetStores()
+            .Select(GetServiceBaseUrl)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var endpoint = CreateServiceEndpoint(port);
+        while (usedEndpoints.Contains(endpoint))
+        {
+            endpoint = CreateServiceEndpoint(++port);
+        }
+
+        return endpoint;
+    }
+
+    private string GetServiceBaseUrl(ConfigurationStoreDefinition definition) =>
+        string.IsNullOrWhiteSpace(definition.Endpoint)
+            ? CreateServiceEndpoint(CreateServicePort(definition.Id))
+            : definition.Endpoint.TrimEnd('/');
+
+    private string CreateServiceEndpoint(int port) =>
+        $"{options.ServiceUrlScheme.TrimEnd(':')}://{options.ServiceHost.Trim()}:{port}";
+
+    private int CreateServicePort(string resourceId)
+    {
+        uint hash = 0;
+        foreach (var character in resourceId)
+        {
+            hash = unchecked((hash * 31) + char.ToUpperInvariant(character));
+        }
+
+        return options.ServiceBasePort + (int)(hash % 1000);
+    }
+
+    private string GetServiceResourceId(string resourceId)
+        => CreateServiceResourceId(resourceId, options.ServiceResourceIdPrefix);
+
+    private string ResolveDefinitionsPath() =>
+        Path.IsPathRooted(options.DefinitionsPath)
+            ? options.DefinitionsPath
+            : Path.GetFullPath(options.DefinitionsPath, environment.ContentRootPath);
+
+    private static string QuoteCommandArgument(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return "\"\"";
+        }
+
+        return value.Any(char.IsWhiteSpace)
+            ? $"\"{value.Replace("\"", "\\\"", StringComparison.Ordinal)}\""
+            : value;
+    }
 
     private string CreateUniqueImportId(string name) => CreateUniqueId(name);
 
@@ -256,6 +422,9 @@ public sealed partial class ConfigurationResourceProvider(
             AccessToken = string.IsNullOrWhiteSpace(definition.AccessToken)
                 ? CreateAccessToken()
                 : definition.AccessToken,
+            Endpoint = string.IsNullOrWhiteSpace(definition.Endpoint)
+                ? null
+                : definition.Endpoint.TrimEnd('/'),
             Entries = definition.Entries
                 .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
                 .Select(entry => entry with
@@ -287,8 +456,15 @@ public sealed partial class ConfigurationResourceProvider(
             System.Text.Encoding.UTF8.GetBytes(token));
     }
 
-    private string GetEntriesEndpoint(string resourceId) =>
-        $"{options.PublicBaseUrl.TrimEnd('/')}/api/configuration/entries?resourceId={Uri.EscapeDataString(resourceId)}";
+    private string GetEntriesEndpoint(string resourceId)
+    {
+        var configurationStore = store.GetStore(resourceId);
+        var endpoint = configurationStore is null
+            ? options.PublicBaseUrl.TrimEnd('/')
+            : GetServiceBaseUrl(configurationStore);
+
+        return $"{endpoint}/api/configuration/entries?resourceId={Uri.EscapeDataString(resourceId)}";
+    }
 
     private static string CreateEnvironmentName(string name)
     {
@@ -311,5 +487,6 @@ public sealed partial class ConfigurationResourceProvider(
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
     private sealed record ConfigurationStoreTemplateConfiguration(
+        string? Endpoint,
         IReadOnlyList<ConfigurationEntry> Entries);
 }

@@ -28,6 +28,12 @@ In this mode, the UI directly consumes the same in-process Control Plane
 services that own resource providers, registrations, groups, logs, templates,
 and resource procedures.
 
+The default host models each configuration service instance as its own
+executable application resource. Configuration stores remain individual
+`configuration.store` resources, and each one depends on its paired application
+resource. The provider remains responsible for store definitions and Resource
+Manager integration.
+
 ## Split Host
 
 For shared on-premise environments, the UI and Control Plane can be hosted

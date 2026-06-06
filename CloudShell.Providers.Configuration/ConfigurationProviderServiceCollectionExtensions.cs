@@ -43,15 +43,18 @@ public static class ConfigurationProviderServiceCollectionExtensions
             entries,
             accessToken);
         var declared = new DeclaredConfigurationStore(definition);
+        var options = builder.Services.GetOrAddConfigurationProviderOptions();
 
-        builder.Services
-            .GetOrAddConfigurationProviderOptions()
-            .DeclaredStores
-            .Add(declared);
+        options.DeclaredStores.Add(declared);
+
+        var serviceResource = builder.Declare(
+            "applications",
+            ConfigurationResourceProvider.CreateServiceResourceId(id, options.ServiceResourceIdPrefix));
 
         var resource = builder.Declare(
             "configuration",
             id,
+            dependsOn: [serviceResource.ResourceId],
             onChanged: declaration =>
             {
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;

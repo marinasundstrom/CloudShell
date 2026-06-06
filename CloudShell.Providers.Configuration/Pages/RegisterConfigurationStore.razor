@@ -22,6 +22,9 @@
         <label for="configuration-store-resource-id">Resource ID</label>
         <input id="configuration-store-resource-id" @bind="ResourceId" placeholder="configuration:local" />
 
+        <label for="configuration-store-endpoint">Endpoint</label>
+        <input id="configuration-store-endpoint" @bind="Endpoint" placeholder="Generated from the resource ID" />
+
         <label for="configuration-store-group">Resource group</label>
         <select id="configuration-store-group" @bind="SelectedGroupId">
             <option value="">Default group</option>
@@ -71,6 +74,7 @@
 @code {
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
+    private string? Endpoint { get; set; }
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
     private List<ConfigurationEntryInput> Entries { get; } = [new()];
@@ -106,7 +110,8 @@
         var definition = new ConfigurationStoreDefinition(
             normalizedResourceId,
             Name,
-            BuildEntries());
+            BuildEntries(),
+            endpoint: Endpoint);
 
         await ConfigurationProvider.SetupStoreAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");

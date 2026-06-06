@@ -17,6 +17,9 @@ else
             <label for="configuration-update-name">Name</label>
             <input id="configuration-update-name" @bind="Name" />
 
+            <label for="configuration-update-endpoint">Endpoint</label>
+            <input id="configuration-update-endpoint" @bind="Endpoint" />
+
             <label for="configuration-update-group">Resource group</label>
             <select id="configuration-update-group" @bind="SelectedGroupId">
                 <option value="">Default group</option>
@@ -62,6 +65,7 @@ else
 
     private ConfigurationStoreDefinition? Store { get; set; }
     private string Name { get; set; } = string.Empty;
+    private string? Endpoint { get; set; }
     private string SelectedGroupId { get; set; } = string.Empty;
     private List<ConfigurationEntryInput> Entries { get; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
@@ -75,6 +79,7 @@ else
         if (Store is not null)
         {
             Name = Store.Name;
+            Endpoint = Store.Endpoint;
             SelectedGroupId = ResourceManager.GetGroupForResource(Store.Id)?.Id ?? string.Empty;
             Entries.Clear();
             Entries.AddRange(Store.Entries
@@ -114,7 +119,8 @@ else
         var definition = new ConfigurationStoreDefinition(
             Store.Id,
             Name,
-            BuildEntries());
+            BuildEntries(),
+            endpoint: Endpoint);
 
         await ConfigurationProvider.UpdateStoreAsync(
             definition,

@@ -6,12 +6,14 @@ public sealed record ConfigurationStoreDefinition
         string id,
         string name,
         IReadOnlyList<ConfigurationEntry>? entries = null,
-        string? accessToken = null)
+        string? accessToken = null,
+        string? endpoint = null)
     {
         Id = id;
         Name = name;
         Entries = entries ?? [];
         AccessToken = accessToken;
+        Endpoint = endpoint;
     }
 
     public string Id { get; init; }
@@ -21,4 +23,6 @@ public sealed record ConfigurationStoreDefinition
     public IReadOnlyList<ConfigurationEntry> Entries { get; init; }
 
     public string? AccessToken { get; init; }
+
+    public string? Endpoint { get; init; }
 }

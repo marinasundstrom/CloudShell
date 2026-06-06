@@ -55,7 +55,7 @@ public sealed class ApplicationResourceStore
         }
     }
 
-    public void Save(ApplicationResourceDefinition definition)
+    public void Save(ApplicationResourceDefinition definition, bool persist = true)
     {
         lock (_gate)
         {
@@ -70,7 +70,10 @@ public sealed class ApplicationResourceStore
                 _definitions.Add(definition);
             }
 
-            Persist();
+            if (persist)
+            {
+                Persist();
+            }
         }
     }
 

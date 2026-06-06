@@ -85,7 +85,8 @@ CLOUDSHELL_APPLICATION=Example Web API
 ```
 
 The sample can depend on the programmatically declared `Example Configuration`
-service.
+store. That store creates its own executable configuration service application
+resource.
 CloudShell injects service-specific endpoint and token environment variables,
 and the sample uses the reusable `CloudShell.Configuration` provider to load
 settings during startup. If the configuration service is unavailable, the

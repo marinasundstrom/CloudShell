@@ -149,6 +149,9 @@ public sealed class ConfigurationStore
             AccessToken = string.IsNullOrWhiteSpace(definition.AccessToken)
                 ? CreateAccessToken()
                 : definition.AccessToken,
+            Endpoint = string.IsNullOrWhiteSpace(definition.Endpoint)
+                ? null
+                : definition.Endpoint.Trim(),
             Entries = definition.Entries
                 .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
                 .Select(entry => entry with

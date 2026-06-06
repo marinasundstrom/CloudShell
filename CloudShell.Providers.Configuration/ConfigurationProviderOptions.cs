@@ -6,6 +6,20 @@ public sealed class ConfigurationProviderOptions
 
     public string PublicBaseUrl { get; set; } = "http://localhost:5047";
 
+    public string ServiceUrlScheme { get; set; } = "http";
+
+    public string ServiceHost { get; set; } = "localhost";
+
+    public int ServiceBasePort { get; set; } = 5138;
+
+    public string ServiceResourceIdPrefix { get; set; } = "application:configuration-service";
+
+    public string ServiceExecutablePath { get; set; } = "dotnet";
+
+    public string? ServiceProjectPath { get; set; }
+
+    public string? ServiceWorkingDirectory { get; set; }
+
     public IList<ConfigurationStoreDefinition> InitialStores { get; } = [];
 
     internal IList<DeclaredConfigurationStore> DeclaredStores { get; } = [];
