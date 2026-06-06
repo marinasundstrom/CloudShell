@@ -1,12 +1,15 @@
 @inject DockerContainerResourceProvider DockerProvider
 @inject IResourceManagerStore ResourceManager
+@inject IResourceRegistrationStore Registrations
 
 @{
     var resource = string.IsNullOrWhiteSpace(ResourceId)
         ? null
         : ResourceManager.GetResource(ResourceId);
     var status = DockerProvider.ConnectionStatus;
-    var containers = DockerProvider.GetContainers();
+    IReadOnlyList<CloudResource> containers = resource is null
+        ? []
+        : ResourceManager.GetChildren(resource.Id);
 }
 
 @if (resource is null)
@@ -18,6 +21,27 @@
 }
 else
 {
+    @if (ProcedureMessage is not null)
+    {
+        <div class="procedure-message">@ProcedureMessage</div>
+    }
+
+    @if (PendingAction is not null)
+    {
+        <div class="procedure-confirmation">
+            <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
+            <span>@GetConfirmationMessage(PendingAction.Resource, PendingAction.Action)</span>
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Neutral" OnClick="CancelContainerAction">
+                    Cancel
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmContainerAction">
+                    @PendingAction.Action.DisplayName
+                </FluentButton>
+            </div>
+        </div>
+    }
+
     <div class="type-registration">
         <div class="provider-summary compact">
             <div class="provider-status">
@@ -43,10 +67,174 @@ else
             <dt>Region</dt>
             <dd>@resource.Region</dd>
         </dl>
+
+        @if (containers.Count > 0)
+        {
+            <div class="table-wrap">
+                <table class="resource-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Image</th>
+                            <th>State</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var container in containers)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@container.Name</strong>
+                                    <span>@ShortId(container.Id)</span>
+                                </td>
+                                <td>@container.Version</td>
+                                <td>
+                                    <span class="state-pill @GetStateClass(container.State)">@container.State</span>
+                                </td>
+                                <td>
+                                    <div class="inline-actions">
+                                        @foreach (var action in container.ResourceActions.Where(IsInlineAction))
+                                        {
+                                            <FluentButton Appearance="Appearance.Neutral"
+                                                          Class="action-icon-button"
+                                                          Style="width: 2rem; min-width: 2rem;"
+                                                          Title="@action.DisplayName"
+                                                          Disabled="@IsExecutingAction(container, action)"
+                                                          OnClick="() => RequestContainerAction(container, action)">
+                                                <span class="action-icon @GetActionIconClass(action)" aria-hidden="true"></span>
+                                            </FluentButton>
+                                        }
+                                        @if (GetOverflowActions(container).Count > 0)
+                                        {
+                                            <FluentMenuButton Class="action-overflow-button"
+                                                              ButtonAppearance="Appearance.Neutral"
+                                                              UseMenuService="false"
+                                                              ButtonStyle="width: 2rem; min-width: 2rem;">
+                                                <ButtonContent>
+                                                    <span class="action-overflow-label" aria-label="More actions">⋮</span>
+                                                </ButtonContent>
+                                                <ChildContent>
+                                                    @foreach (var action in GetOverflowActions(container))
+                                                    {
+                                                        <FluentMenuItem Disabled="@IsExecutingAction(container, action)"
+                                                                        OnClick="() => RequestContainerAction(container, action)">
+                                                            <span class="menu-action-content">
+                                                                <span class="action-icon @GetActionIconClass(action)" aria-hidden="true"></span>
+                                                                <span>@(IsExecutingAction(container, action) ? "Working" : action.DisplayName)</span>
+                                                            </span>
+                                                        </FluentMenuItem>
+                                                    }
+                                                </ChildContent>
+                                            </FluentMenuButton>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
 }
 
 @code {
     [Parameter]
     public string? ResourceId { get; set; }
+
+    private string? ExecutingActionKey { get; set; }
+    private string? ProcedureMessage { get; set; }
+    private PendingResourceAction? PendingAction { get; set; }
+
+    private async Task RequestContainerAction(CloudResource container, ResourceAction action)
+    {
+        if (action.RequiresConfirmation)
+        {
+            PendingAction = new PendingResourceAction(container, action);
+            ProcedureMessage = null;
+            return;
+        }
+
+        await ExecuteContainerAction(container, action);
+    }
+
+    private async Task ConfirmContainerAction()
+    {
+        if (PendingAction is null)
+        {
+            return;
+        }
+
+        var pending = PendingAction;
+        PendingAction = null;
+        await ExecuteContainerAction(pending.Resource, pending.Action);
+    }
+
+    private void CancelContainerAction() => PendingAction = null;
+
+    private async Task ExecuteContainerAction(CloudResource container, ResourceAction action)
+    {
+        ExecutingActionKey = GetActionKey(container, action);
+        ProcedureMessage = null;
+        try
+        {
+            var group = ResourceManager.GetGroupForResource(container.Id);
+            var result = await DockerProvider.ExecuteActionAsync(
+                new ResourceProcedureContext(container, null, group?.Id, Registrations),
+                action);
+
+            ProcedureMessage = result.Message;
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            ExecutingActionKey = null;
+        }
+    }
+
+    private bool IsExecutingAction(CloudResource resource, ResourceAction action) =>
+        string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
+
+    private static IReadOnlyList<ResourceAction> GetOverflowActions(CloudResource resource) =>
+        resource.ResourceActions
+            .Where(action => !IsInlineAction(action))
+            .ToArray();
+
+    private static bool IsInlineAction(ResourceAction action) =>
+        action.EffectivePresentation.DisplayStyle == ResourceActionDisplayStyle.Inline;
+
+    private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
+    {
+        ResourceActionIcon.Run => "action-icon-run",
+        ResourceActionIcon.Stop => "action-icon-stop",
+        ResourceActionIcon.Pause => "action-icon-pause",
+        ResourceActionIcon.Restart => "action-icon-restart",
+        _ => "action-icon-custom"
+    };
+
+    private static string GetConfirmationMessage(CloudResource resource, ResourceAction action) =>
+        action.Description ??
+        $"This will run the {action.DisplayName} action for {resource.Name}.";
+
+    private static string GetActionKey(CloudResource resource, ResourceAction action) =>
+        $"{resource.Id}:{action.Id}";
+
+    private static string ShortId(string value) =>
+        value.Length <= 24 ? value : value[^12..];
+
+    private static string GetStateClass(ResourceState state) => state switch
+    {
+        ResourceState.Running => "state-running",
+        ResourceState.Starting => "state-starting",
+        ResourceState.Paused => "state-paused",
+        ResourceState.Degraded => "state-degraded",
+        ResourceState.Stopped => "state-stopped",
+        _ => "state-unknown"
+    };
+
+    private sealed record PendingResourceAction(CloudResource Resource, ResourceAction Action);
 }

@@ -45,6 +45,22 @@
     <div class="procedure-message">@ProcedureMessage</div>
 }
 
+@if (PendingAction is not null)
+{
+    <div class="procedure-confirmation">
+        <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
+        <span>@GetConfirmationMessage(PendingAction.Resource, PendingAction.Action)</span>
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Neutral" OnClick="CancelResourceAction">
+                Cancel
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmResourceAction">
+                @PendingAction.Action.DisplayName
+            </FluentButton>
+        </div>
+    </div>
+}
+
 <section class="resource-explorer">
     <aside class="resource-scopes">
         <div class="scope-heading">
@@ -90,6 +106,7 @@
             <span>Group</span>
             <span>State</span>
             <span>Endpoint</span>
+            <span>Actions</span>
         </div>
 
         <div class="resource-tree" role="treegrid" aria-label="Resources">
@@ -137,6 +154,9 @@
                     <span>@(group?.Name ?? "Ungrouped")</span>
                     <span><span class="state-pill @GetStateClass(resource.State)">@resource.State</span></span>
                     <span class="endpoint">@resource.PrimaryEndpoint</span>
+                    <span class="resource-row-actions" @onclick:stopPropagation="true">
+                        @ResourceActionControls(resource)
+                    </span>
                 </div>
             }
 
@@ -184,6 +204,7 @@
                     <FluentButton Appearance="Appearance.Accent" OnClick="() => Navigation.NavigateTo(selected.DetailRoute)">
                         Open resource
                     </FluentButton>
+                    @ResourceActionControls(selected)
                     @if (CanManage(selected) && HasUpdateProcedure(selected))
                     {
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => UpdateResource(selected)">
@@ -201,6 +222,7 @@
             else
             {
                 <div class="blade-actions">
+                    @ResourceActionControls(selected)
                     @if (CanManage(selected) && HasUpdateProcedure(selected))
                     {
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => UpdateResource(selected)">
@@ -306,6 +328,8 @@
     private CloudResource? SelectedResource { get; set; }
     private string? DeleteConfirmationResourceId { get; set; }
     private string? ProcedureMessage { get; set; }
+    private string? ExecutingActionKey { get; set; }
+    private PendingResourceAction? PendingAction { get; set; }
 
     private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<CloudResource> allResources)
     {
@@ -459,6 +483,63 @@
         SelectedResource = null;
     }
 
+    private async Task RequestResourceAction(CloudResource resource, ResourceAction action)
+    {
+        if (action.RequiresConfirmation)
+        {
+            PendingAction = new PendingResourceAction(resource, action);
+            ProcedureMessage = null;
+            return;
+        }
+
+        await ExecuteResourceAction(resource, action);
+    }
+
+    private async Task ConfirmResourceAction()
+    {
+        if (PendingAction is null)
+        {
+            return;
+        }
+
+        var pending = PendingAction;
+        PendingAction = null;
+        await ExecuteResourceAction(pending.Resource, pending.Action);
+    }
+
+    private void CancelResourceAction() => PendingAction = null;
+
+    private async Task ExecuteResourceAction(CloudResource resource, ResourceAction action)
+    {
+        var provider = GetProcedureProvider(resource);
+        if (provider is null)
+        {
+            ProcedureMessage = "This provider does not support actions for the selected resource.";
+            return;
+        }
+
+        ExecutingActionKey = GetActionKey(resource, action);
+        ProcedureMessage = null;
+        try
+        {
+            var registration = GetRegistrationForResourceOrAncestor(resource);
+            var group = GetGroup(resource);
+            var result = await provider.ExecuteActionAsync(
+                new ResourceProcedureContext(resource, registration, group?.Id, Registrations),
+                action);
+
+            ProcedureMessage = result.Message;
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            ExecutingActionKey = null;
+        }
+    }
+
     private bool CanManage(CloudResource resource)
     {
         var group = GetGroup(resource);
@@ -486,6 +567,164 @@
             provider is IResourceProcedureProvider);
     }
 
+    private bool CanExecuteAction(CloudResource resource) =>
+        resource.ResourceActions.Count > 0 &&
+        CanManage(resource) &&
+        GetProcedureProvider(resource) is not null;
+
+    private bool IsExecutingAction(CloudResource resource, ResourceAction action) =>
+        string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
+
+    private IResourceProcedureProvider? GetProcedureProvider(CloudResource resource)
+    {
+        var registration = GetRegistrationForResourceOrAncestor(resource);
+        if (registration is not null)
+        {
+            return ResourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
+                as IResourceProcedureProvider;
+        }
+
+        return ResourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
+            as IResourceProcedureProvider;
+    }
+
+    private ResourceRegistration? GetRegistrationForResourceOrAncestor(CloudResource resource)
+    {
+        var current = resource;
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        while (visited.Add(current.Id))
+        {
+            var registration = Registrations.GetRegistration(current.Id);
+            if (registration is not null)
+            {
+                return registration;
+            }
+
+            if (current.ParentResourceId is null)
+            {
+                return null;
+            }
+
+            var parent = ResourceManager.GetResource(current.ParentResourceId);
+            if (parent is null)
+            {
+                return null;
+            }
+
+            current = parent;
+        }
+
+        return null;
+    }
+
+    private static string GetActionKey(CloudResource resource, ResourceAction action) =>
+        $"{resource.Id}:{action.Id}";
+
+    private RenderFragment ResourceActionControls(CloudResource resource) => builder =>
+    {
+        if (resource.ResourceActions.Count == 0)
+        {
+            return;
+        }
+
+        var sequence = 0;
+        foreach (var action in resource.ResourceActions.Where(IsInlineAction))
+        {
+            builder.OpenComponent<FluentButton>(sequence++);
+            builder.AddAttribute(sequence++, "Class", "action-icon-button");
+            builder.AddAttribute(sequence++, "Appearance", Appearance.Neutral);
+            builder.AddAttribute(sequence++, "Style", "width: 2rem; min-width: 2rem;");
+            builder.AddAttribute(sequence++, "Title", action.DisplayName);
+            builder.AddAttribute(sequence++, "Disabled",
+                !CanExecuteAction(resource) || IsExecutingAction(resource, action));
+            builder.AddAttribute(sequence++, "OnClick",
+                EventCallback.Factory.Create<MouseEventArgs>(
+                    this,
+                    () => RequestResourceAction(resource, action)));
+            builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
+            {
+                buttonBuilder.OpenElement(0, "span");
+                buttonBuilder.AddAttribute(1, "class", $"action-icon {GetActionIconClass(action)}");
+                buttonBuilder.AddAttribute(2, "aria-hidden", "true");
+                buttonBuilder.CloseElement();
+            }));
+            builder.CloseComponent();
+        }
+
+        var overflowActions = resource.ResourceActions
+            .Where(action => !IsInlineAction(action))
+            .ToArray();
+
+        if (overflowActions.Length == 0)
+        {
+            return;
+        }
+
+        builder.OpenComponent<FluentMenuButton>(sequence++);
+        builder.AddAttribute(sequence++, "Class", "action-overflow-button");
+        builder.AddAttribute(sequence++, "UseMenuService", false);
+        builder.AddAttribute(sequence++, "ButtonAppearance", Appearance.Neutral);
+        builder.AddAttribute(sequence++, "ButtonStyle", "width: 2rem; min-width: 2rem;");
+        builder.AddAttribute(sequence++, "ButtonContent", (RenderFragment)(buttonBuilder =>
+        {
+            buttonBuilder.OpenElement(0, "span");
+            buttonBuilder.AddAttribute(1, "class", "action-overflow-label");
+            buttonBuilder.AddAttribute(2, "aria-label", "More actions");
+            buttonBuilder.AddContent(3, "⋮");
+            buttonBuilder.CloseElement();
+        }));
+        builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(menuBuilder =>
+        {
+            var menuSequence = 0;
+            foreach (var action in overflowActions)
+            {
+                menuBuilder.OpenComponent<FluentMenuItem>(menuSequence++);
+                menuBuilder.AddAttribute(menuSequence++, "Disabled",
+                    !CanExecuteAction(resource) || IsExecutingAction(resource, action));
+                menuBuilder.AddAttribute(menuSequence++, "OnClick",
+                    EventCallback.Factory.Create<MouseEventArgs>(
+                        this,
+                        () => RequestResourceAction(resource, action)));
+                menuBuilder.AddAttribute(menuSequence++, "ChildContent", (RenderFragment)(itemBuilder =>
+                {
+                    itemBuilder.OpenElement(0, "span");
+                    itemBuilder.AddAttribute(1, "class", "menu-action-content");
+                    itemBuilder.OpenElement(2, "span");
+                    itemBuilder.AddAttribute(3, "class", $"action-icon {GetActionIconClass(action)}");
+                    itemBuilder.AddAttribute(4, "aria-hidden", "true");
+                    itemBuilder.CloseElement();
+                    itemBuilder.OpenElement(5, "span");
+                    itemBuilder.AddContent(6, IsExecutingAction(resource, action)
+                        ? "Working"
+                        : action.DisplayName);
+                    itemBuilder.CloseElement();
+                    itemBuilder.CloseElement();
+                }));
+                menuBuilder.CloseComponent();
+            }
+        }));
+        builder.CloseComponent();
+    };
+
+    private static bool IsInlineAction(ResourceAction action) =>
+        action.EffectivePresentation.DisplayStyle == ResourceActionDisplayStyle.Inline;
+
+    private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
+    {
+        ResourceActionIcon.Run => "action-icon-run",
+        ResourceActionIcon.Stop => "action-icon-stop",
+        ResourceActionIcon.Pause => "action-icon-pause",
+        ResourceActionIcon.Restart => "action-icon-restart",
+        _ => "action-icon-custom"
+    };
+
+    private static string GetConfirmationMessage(CloudResource resource, ResourceAction action) =>
+        action.Description ??
+        $"This will run the {action.DisplayName} action for {resource.Name}.";
+
     private static string GetResourceGlyph(string kind) =>
         kind.Contains("Docker Engine", StringComparison.OrdinalIgnoreCase) ? "D" :
         kind.Contains("Container", StringComparison.OrdinalIgnoreCase) ? "C" :
@@ -500,10 +739,13 @@
     {
         ResourceState.Running => "state-running",
         ResourceState.Starting => "state-starting",
+        ResourceState.Paused => "state-paused",
         ResourceState.Degraded => "state-degraded",
         ResourceState.Stopped => "state-stopped",
         _ => "state-unknown"
     };
 
     private sealed record ResourceRow(CloudResource Resource, int Depth, int ChildCount);
+
+    private sealed record PendingResourceAction(CloudResource Resource, ResourceAction Action);
 }

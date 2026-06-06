@@ -11,6 +11,7 @@ This repository is an early shell prototype. It currently includes:
 - A Blazor shell with Fluent UI styling and Aspire-like density.
 - Extension registration through the .NET service container.
 - A Resource Manager surface with resource groups, nested resources, endpoints, state, and details.
+- Resource-bound actions for standard lifecycle commands and provider-specific commands.
 - Resource type registration, where extensions provide the UI used to add resources.
 - EF Core persistence for explicitly registered root resources and resource groups.
 - Configurable ASP.NET Core Identity, dashboard-secret, OIDC, or external-scheme authentication.
@@ -29,6 +30,7 @@ Resources can have:
 - A stable ID.
 - A type ID.
 - Lifecycle state.
+- Resource actions, including standard lifecycle commands such as Run, Stop, Pause, and Restart.
 - Endpoints.
 - Dependencies.
 - A detail route owned by an extension.
@@ -47,6 +49,8 @@ For example, the Docker extension registers the `docker.engine` resource type. I
 Resource providers are internal implementation services. They are not shown as a product concept in the UI.
 
 Providers map external systems into CloudShell resources. A provider can discover available resources, but root resources only become visible in the shell after the user explicitly adds them. Dynamic children can appear under a registered root resource.
+
+Providers can attach actions directly to each resource. Actions are part of the `CloudResource` API, so the Resource Manager inventory, resource details, and provider-owned overview pages can render the same command set. Standard lifecycle actions use `ResourceActionKind` values for Run, Stop, Pause, and Restart. Providers can also expose custom actions with stable IDs and user-facing labels. `ResourceActionPresentation` controls UI placement, icon, and confirmation prompts separately from provider execution logic.
 
 The Docker provider follows that pattern:
 
@@ -137,6 +141,8 @@ The Docker extension looks for a local Docker endpoint in this order:
 5. `/var/run/docker.sock`.
 
 After the Docker Engine resource is added through `/resources/add`, the Resource Manager shows the engine as a root resource and containers as sub-resources.
+
+Docker container sub-resources expose lifecycle actions based on current container state. Running containers can Stop, Pause, or Restart. Stopped containers can Run. Paused containers can Resume, Stop, or Restart.
 
 ## Extension Model
 

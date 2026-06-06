@@ -80,6 +80,57 @@ public sealed class DockerContainerResourceProvider : IResourceProvider, IResour
         return ResourceProcedureResult.Completed("Docker Engine registration removed.");
     }
 
+    public async Task<ResourceProcedureResult> ExecuteActionAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(context.Resource.EffectiveTypeId, "docker.container", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"The Docker provider cannot execute action '{action.Id}' on resource '{context.Resource.Id}'.");
+        }
+
+        var containerId = GetContainerId(context.Resource);
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_options.RequestTimeout);
+
+        switch (action.Kind)
+        {
+            case ResourceActionKind.Run:
+                await _client.Containers.StartContainerAsync(
+                    containerId,
+                    new ContainerStartParameters(),
+                    timeout.Token);
+                break;
+            case ResourceActionKind.Stop:
+                await _client.Containers.StopContainerAsync(
+                    containerId,
+                    new ContainerStopParameters(),
+                    timeout.Token);
+                break;
+            case ResourceActionKind.Pause:
+                await _client.Containers.PauseContainerAsync(containerId, timeout.Token);
+                break;
+            case ResourceActionKind.Restart:
+                await _client.Containers.RestartContainerAsync(
+                    containerId,
+                    new ContainerRestartParameters(),
+                    timeout.Token);
+                break;
+            case ResourceActionKind.Custom when string.Equals(action.Id, "docker.unpause", StringComparison.OrdinalIgnoreCase):
+                await _client.Containers.UnpauseContainerAsync(containerId, timeout.Token);
+                break;
+            default:
+                throw new NotSupportedException(
+                    $"Docker does not support action '{action.DisplayName}' for containers.");
+        }
+
+        await RefreshAsync(cancellationToken);
+        return ResourceProcedureResult.Completed($"{action.DisplayName} requested for {context.Resource.Name}.");
+    }
+
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         if (!await _refreshGate.WaitAsync(0, cancellationToken))
@@ -205,8 +256,35 @@ public sealed class DockerContainerResourceProvider : IResourceProvider, IResour
             new DateTimeOffset(container.Created.ToUniversalTime()),
             [],
             ParentResourceId: EngineResourceId,
-            TypeId: "docker.container");
+            TypeId: "docker.container",
+            Actions: CreateContainerActions(container.State));
     }
+
+    private static IReadOnlyList<ResourceAction> CreateContainerActions(string? state) =>
+        state?.ToLowerInvariant() switch
+        {
+            "running" =>
+            [
+                ResourceAction.Stop,
+                ResourceAction.Pause,
+                ResourceAction.Restart
+            ],
+            "paused" =>
+            [
+                new ResourceAction("docker.unpause", "Resume"),
+                ResourceAction.Stop,
+                ResourceAction.Restart
+            ],
+            "created" or "exited" or "dead" =>
+            [
+                ResourceAction.Run
+            ],
+            "restarting" =>
+            [
+                ResourceAction.Stop
+            ],
+            _ => []
+        };
 
     private static IReadOnlyList<ResourceEndpoint> CreateEndpoints(
         string containerName,
@@ -245,9 +323,22 @@ public sealed class DockerContainerResourceProvider : IResourceProvider, IResour
         {
             "running" => ResourceState.Running,
             "created" or "restarting" => ResourceState.Starting,
+            "paused" => ResourceState.Paused,
             "exited" or "dead" => ResourceState.Stopped,
             _ => ResourceState.Unknown
         };
+
+    private static string GetContainerId(CloudResource resource)
+    {
+        const string prefix = "docker:container:";
+        if (!resource.Id.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Resource '{resource.Id}' is not a Docker container resource.");
+        }
+
+        return resource.Id[prefix.Length..];
+    }
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId;

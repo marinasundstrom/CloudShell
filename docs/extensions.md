@@ -79,12 +79,45 @@ Implement `IResourceProvider` to contribute discovered resource data:
 
 - resources
 - lifecycle state
+- resource-bound actions
 - dependencies
 - named endpoints
 
 Providers are aggregated by Resource Manager. Other extensions consume `IResourceManagerStore`; they do not depend on provider implementations.
 
 Resources can set `DetailRoute` to link to an extension-owned view. This supports the familiar cloud-portal pattern where a resource opens its own operational workspace.
+
+Resources can also expose actions through `CloudResource.ResourceActions`. These actions belong to the resource instance, not only to the resource type, so providers can vary commands by state or capability. Use the standard `ResourceActionKind` values for Run, Stop, Pause, and Restart when a command controls lifecycle. Use `ResourceActionKind.Custom` with a stable action ID for provider-specific commands.
+
+`ResourceAction` is the command contract. `ResourceActionPresentation` is the UI policy for that command, including whether the action should be shown inline or in overflow, which icon to use, and whether the UI should ask before invoking it. Providers still execute the action normally when `ExecuteActionAsync` is called; confirmation is not part of provider execution.
+
+Providers that support actions implement `IResourceProcedureProvider.ExecuteActionAsync`. The Resource Manager passes the selected `CloudResource` and `ResourceAction` back to the provider, letting the provider execute the command against the underlying system.
+
+```csharp
+return new CloudResource(
+    Id: "acme:worker:orders",
+    Name: "orders",
+    Kind: "Acme Worker",
+    Provider: "Acme",
+    Region: "local",
+    State: ResourceState.Running,
+    Endpoints: [],
+    Version: "1.0.0",
+    LastUpdated: DateTimeOffset.UtcNow,
+    DependsOn: [],
+    Actions:
+    [
+        ResourceAction.Stop,
+        ResourceAction.Restart,
+        new ResourceAction(
+            "acme.drain",
+            "Drain",
+            Presentation: new ResourceActionPresentation(
+                ResourceActionDisplayStyle.Overflow,
+                ResourceActionIcon.Custom,
+                RequiresConfirmation: true))
+    ]);
+```
 
 Root resources are persisted registrations. Discovered resources stay hidden until the user explicitly adds one through a resource type registration UI. Descendants of a registered root can appear dynamically as sub-resources.
 
@@ -100,6 +133,8 @@ Local Docker Engine
 ```
 
 Docker discovery runs in a background service and publishes an in-memory resource snapshot. Provider connectivity never blocks shell page rendering.
+
+Docker container sub-resources expose actions from the resource API. Running containers expose Stop, Pause, and Restart. Stopped containers expose Run. Paused containers expose Resume, Stop, and Restart.
 
 The Docker endpoint is discovered from:
 

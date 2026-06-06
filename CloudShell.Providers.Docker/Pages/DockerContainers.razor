@@ -2,6 +2,8 @@
 @rendermode InteractiveServer
 @inject DockerContainerResourceProvider DockerProvider
 @inject IResourceManagerStore ResourceManager
+@inject IResourceRegistrationStore Registrations
+@inject ICloudShellAuthorizationService Authorization
 
 <PageTitle>Docker</PageTitle>
 
@@ -57,6 +59,27 @@ else
     }
 </section>
 
+@if (ProcedureMessage is not null)
+{
+    <div class="procedure-message">@ProcedureMessage</div>
+}
+
+@if (PendingAction is not null)
+{
+    <div class="procedure-confirmation">
+        <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
+        <span>@GetConfirmationMessage(PendingAction.Resource, PendingAction.Action)</span>
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Neutral" OnClick="CancelContainerAction">
+                Cancel
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmContainerAction">
+                @PendingAction.Action.DisplayName
+            </FluentButton>
+        </div>
+    </div>
+}
+
 <section class="panel">
     <div class="panel-header">
         <div>
@@ -82,6 +105,7 @@ else
                         <th>Image</th>
                         <th>State</th>
                         <th>Endpoint</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -97,6 +121,44 @@ else
                                 <span class="state-pill @GetStateClass(container.State)">@container.State</span>
                             </td>
                             <td class="endpoint">@container.PrimaryEndpoint</td>
+                            <td>
+                                <div class="inline-actions">
+                                    @foreach (var action in container.ResourceActions.Where(IsInlineAction))
+                                    {
+                                        <FluentButton Appearance="Appearance.Neutral"
+                                                      Class="action-icon-button"
+                                                      Style="width: 2rem; min-width: 2rem;"
+                                                      Title="@action.DisplayName"
+                                                      Disabled="@(!CanManage(container) || IsExecutingAction(container, action))"
+                                                      OnClick="() => RequestContainerAction(container, action)">
+                                            <span class="action-icon @GetActionIconClass(action)" aria-hidden="true"></span>
+                                        </FluentButton>
+                                    }
+                                    @if (GetOverflowActions(container).Count > 0)
+                                    {
+                                        <FluentMenuButton Class="action-overflow-button"
+                                                          ButtonAppearance="Appearance.Neutral"
+                                                          UseMenuService="false"
+                                                          ButtonStyle="width: 2rem; min-width: 2rem;">
+                                            <ButtonContent>
+                                                <span class="action-overflow-label" aria-label="More actions">⋮</span>
+                                            </ButtonContent>
+                                            <ChildContent>
+                                                @foreach (var action in GetOverflowActions(container))
+                                                {
+                                                    <FluentMenuItem Disabled="@(!CanManage(container) || IsExecutingAction(container, action))"
+                                                                    OnClick="() => RequestContainerAction(container, action)">
+                                                        <span class="menu-action-content">
+                                                            <span class="action-icon @GetActionIconClass(action)" aria-hidden="true"></span>
+                                                            <span>@(IsExecutingAction(container, action) ? "Working" : action.DisplayName)</span>
+                                                        </span>
+                                                    </FluentMenuItem>
+                                                }
+                                            </ChildContent>
+                                        </FluentMenuButton>
+                                    }
+                                </div>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -107,11 +169,100 @@ else
 }
 
 @code {
+    private string? ExecutingActionKey { get; set; }
+    private string? ProcedureMessage { get; set; }
+    private PendingResourceAction? PendingAction { get; set; }
+
     private async Task Refresh()
     {
         var refresh = DockerProvider.RefreshAsync();
         await Task.WhenAny(refresh, Task.Delay(TimeSpan.FromSeconds(4)));
     }
+
+    private async Task RequestContainerAction(CloudResource container, ResourceAction action)
+    {
+        if (action.RequiresConfirmation)
+        {
+            PendingAction = new PendingResourceAction(container, action);
+            ProcedureMessage = null;
+            return;
+        }
+
+        await ExecuteContainerAction(container, action);
+    }
+
+    private async Task ConfirmContainerAction()
+    {
+        if (PendingAction is null)
+        {
+            return;
+        }
+
+        var pending = PendingAction;
+        PendingAction = null;
+        await ExecuteContainerAction(pending.Resource, pending.Action);
+    }
+
+    private void CancelContainerAction() => PendingAction = null;
+
+    private async Task ExecuteContainerAction(CloudResource container, ResourceAction action)
+    {
+        ExecutingActionKey = GetActionKey(container, action);
+        ProcedureMessage = null;
+        try
+        {
+            var group = ResourceManager.GetGroupForResource(container.Id);
+            var result = await DockerProvider.ExecuteActionAsync(
+                new ResourceProcedureContext(container, null, group?.Id, Registrations),
+                action);
+
+            ProcedureMessage = result.Message;
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            ExecutingActionKey = null;
+        }
+    }
+
+    private bool CanManage(CloudResource resource)
+    {
+        var group = ResourceManager.GetGroupForResource(resource.Id);
+        return Authorization.CanAccessResource(
+            resource.Id,
+            group?.Id,
+            CloudShellPermissions.Resources.Manage);
+    }
+
+    private bool IsExecutingAction(CloudResource resource, ResourceAction action) =>
+        string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
+
+    private static IReadOnlyList<ResourceAction> GetOverflowActions(CloudResource resource) =>
+        resource.ResourceActions
+            .Where(action => !IsInlineAction(action))
+            .ToArray();
+
+    private static bool IsInlineAction(ResourceAction action) =>
+        action.EffectivePresentation.DisplayStyle == ResourceActionDisplayStyle.Inline;
+
+    private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
+    {
+        ResourceActionIcon.Run => "action-icon-run",
+        ResourceActionIcon.Stop => "action-icon-stop",
+        ResourceActionIcon.Pause => "action-icon-pause",
+        ResourceActionIcon.Restart => "action-icon-restart",
+        _ => "action-icon-custom"
+    };
+
+    private static string GetConfirmationMessage(CloudResource resource, ResourceAction action) =>
+        action.Description ??
+        $"This will run the {action.DisplayName} action for {resource.Name}.";
+
+    private static string GetActionKey(CloudResource resource, ResourceAction action) =>
+        $"{resource.Id}:{action.Id}";
 
     private static string FormatLastChecked(DateTimeOffset value) =>
         value == DateTimeOffset.MinValue
@@ -125,8 +276,11 @@ else
     {
         ResourceState.Running => "state-running",
         ResourceState.Starting => "state-starting",
+        ResourceState.Paused => "state-paused",
         ResourceState.Degraded => "state-degraded",
         ResourceState.Stopped => "state-stopped",
         _ => "state-unknown"
     };
+
+    private sealed record PendingResourceAction(CloudResource Resource, ResourceAction Action);
 }
