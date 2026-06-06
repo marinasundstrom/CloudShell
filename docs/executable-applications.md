@@ -38,6 +38,25 @@ The runtime state file stores the last known PID, observed process start time,
 last observation time, last exit code, and log path. The `Data` directory is
 ignored by git because this is local machine state.
 
+## Resource Templates
+
+The application provider supports resource templates for
+`application.executable` resources. Export writes a provider-owned configuration
+payload with:
+
+- executable path
+- arguments
+- working directory
+- endpoint
+- environment variables
+- lifetime
+
+Import creates a new application definition in the provider's configuration
+store, assigns it to the imported group, and avoids overwriting an existing
+application with the same generated ID.
+
+See [Resource templates](resource-templates.md).
+
 ## Logs
 
 Detached applications write stdout and stderr to a per-resource log file so output

@@ -4,6 +4,11 @@ CloudShell persistence is configured under `Persistence` in
 `CloudShell.Host/appsettings.json`. Resource data and local ASP.NET Core
 Identity data use separate connection strings.
 
+Resource persistence stores platform metadata only: resource registrations,
+resource groups, and resource-to-group assignments. Provider-specific resource
+configuration is not stored in a common database column. Providers remain the
+authority for their own configuration stores.
+
 ## SQLite
 
 SQLite is the default and resolves relative data-source paths from the
@@ -55,3 +60,13 @@ dotnet tool restore
 dotnet ef migrations add <Name> --project CloudShell.Persistence/CloudShell.Persistence.csproj --startup-project CloudShell.Host/CloudShell.Host.csproj --context CloudShellDbContext --output-dir Migrations/CloudShell
 dotnet ef migrations add <Name> --project CloudShell.Persistence/CloudShell.Persistence.csproj --startup-project CloudShell.Host/CloudShell.Host.csproj --context CloudShellIdentityDbContext --output-dir Migrations/Identity
 ```
+
+## Resource Templates
+
+Resource templates provide import/export without changing the database ownership
+model. CloudShell exports a resource group envelope and asks each provider that
+implements `IResourceTemplateProvider` for a provider-owned configuration
+payload. Import creates a new resource group and delegates each resource entry
+back to the owning provider.
+
+See [Resource templates](resource-templates.md).

@@ -12,6 +12,7 @@ This repository is an early shell prototype. It currently includes:
 - Extension registration through the .NET service container.
 - A Resource Manager surface with resource groups, nested resources, endpoints, state, and details.
 - Resource-bound actions for standard lifecycle commands and provider-specific commands.
+- Resource group templates for provider-owned import/export of grouped resources.
 - A Logs section where providers and extensions can expose resource or artifact logs.
 - Resource type registration, where extensions provide the UI used to add resources.
 - EF Core persistence for explicitly registered root resources and resource groups.
@@ -61,6 +62,12 @@ Providers can attach actions directly to each resource. Actions are part of the 
 
 Providers and extensions can also register log providers. A log provider returns `LogDescriptor` values, reads recent `LogEntry` values for a selected log, and can override `StreamLogAsync` for live tailing. Descriptors can point at a `ResourceId`, an artifact ID, or provider-owned source, and opt in to live streaming through `SupportsStreaming`.
 
+Providers can opt in to resource templates through `IResourceTemplateProvider`.
+CloudShell owns the group-level template envelope and import/export orchestration,
+while providers own the schema and validation of their `configuration` payload.
+Unsupported resources are reported as template diagnostics instead of blocking
+the entire group export or import.
+
 The Docker provider follows that pattern:
 
 ```text
@@ -78,6 +85,10 @@ Resource groups are user-managed project boundaries. They are owned by the Cloud
 A root resource can be assigned to a resource group when it is added. Sub-resources inherit the group for filtering and display. Resources can also stay ungrouped.
 
 Resource groups are authorization scopes. Roles and direct claims determine which groups and inherited resources a user can read or manage.
+
+Resource groups can be exported and imported as templates from `/resources/templates`.
+Template import creates a new group and delegates each resource entry to the
+owning provider. See [Resource templates](docs/resource-templates.md).
 
 ## Projects
 
@@ -115,6 +126,7 @@ Useful routes:
 
 - `/resources`: resource inventory and resource groups.
 - `/resources/add`: add a resource by choosing a registered resource type.
+- `/resources/templates`: export and import resource group templates.
 - `/resources/docker-engine`: Docker Engine detail view.
 - `/extensions`: installed extensions and contributed resource types.
 - `/api/control-plane/v1`: versioned Control Plane API.
@@ -146,6 +158,11 @@ Persisted data currently includes:
 Provider discovery data, such as Docker containers under a registered Docker Engine, is not persisted as platform registration data. Those resources are re-discovered and shown dynamically.
 
 Executable application configuration and runtime state are provider-owned local files under `CloudShell.Host/Data` by default. Configuration is stored separately from runtime state. Runtime state includes the last known process ID, process start time, last observation time, last exit code, and log path.
+
+Resource templates do not change that ownership model. CloudShell exports a
+provider-owned JSON payload for each supported resource, and import delegates
+that payload back to the provider instead of storing configuration in the core
+resource registration table.
 
 ## Executable Application Sample
 
@@ -205,6 +222,7 @@ Deployment configuration:
 - [Authentication and authorization](docs/authentication-and-authorization.md)
 - [Localization](docs/localization.md)
 - [Persistence](docs/persistence.md)
+- [Resource templates](docs/resource-templates.md)
 - [Executable applications](docs/executable-applications.md)
 
 ## Trust Model
