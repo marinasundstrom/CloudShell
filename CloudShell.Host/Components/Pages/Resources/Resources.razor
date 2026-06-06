@@ -156,7 +156,6 @@
                     <span><span class="state-pill @GetStateClass(resource.State)">@resource.State</span></span>
                     <span class="endpoint">@resource.PrimaryEndpoint</span>
                     <span class="resource-row-actions" @onclick:stopPropagation="true">
-                        @ResourceLogShortcut(resource)
                         @ResourceActionControls(resource)
                     </span>
                 </div>
@@ -206,7 +205,6 @@
                     <FluentButton Appearance="Appearance.Accent" OnClick="() => Navigation.NavigateTo(selected.DetailRoute)">
                         Open resource
                     </FluentButton>
-                    @ResourceLogShortcut(selected, true)
                     @ResourceActionControls(selected)
                     @if (CanManage(selected) && HasUpdateProcedure(selected))
                     {
@@ -225,7 +223,6 @@
             else
             {
                 <div class="blade-actions">
-                    @ResourceLogShortcut(selected, true)
                     @ResourceActionControls(selected)
                     @if (CanManage(selected) && HasUpdateProcedure(selected))
                     {
@@ -645,7 +642,8 @@
 
     private RenderFragment ResourceActionControls(CloudResource resource) => builder =>
     {
-        if (resource.ResourceActions.Count == 0)
+        var logs = LogStore.GetLogsForResource(resource.Id);
+        if (resource.ResourceActions.Count == 0 && logs.Count == 0)
         {
             return;
         }
@@ -680,6 +678,27 @@
 
         if (overflowActions.Length == 0)
         {
+            if (logs.Count > 0)
+            {
+                builder.OpenComponent<FluentButton>(sequence++);
+                builder.AddAttribute(sequence++, "Class", "action-icon-button");
+                builder.AddAttribute(sequence++, "Appearance", Appearance.Neutral);
+                builder.AddAttribute(sequence++, "Style", "width: 2rem; min-width: 2rem;");
+                builder.AddAttribute(sequence++, "Title", GetLogsActionLabel(logs.Count));
+                builder.AddAttribute(sequence++, "OnClick",
+                    EventCallback.Factory.Create<MouseEventArgs>(
+                        this,
+                        () => OpenLogs(resource)));
+                builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
+                {
+                    buttonBuilder.OpenElement(0, "span");
+                    buttonBuilder.AddAttribute(1, "class", "action-icon action-icon-logs");
+                    buttonBuilder.AddAttribute(2, "aria-hidden", "true");
+                    buttonBuilder.CloseElement();
+                }));
+                builder.CloseComponent();
+            }
+
             return;
         }
 
@@ -725,43 +744,29 @@
                 }));
                 menuBuilder.CloseComponent();
             }
-        }));
-        builder.CloseComponent();
-    };
 
-    private RenderFragment ResourceLogShortcut(CloudResource resource, bool showLabel = false) => builder =>
-    {
-        var logs = LogStore.GetLogsForResource(resource.Id);
-        if (logs.Count == 0)
-        {
-            return;
-        }
-
-        var sequence = 0;
-        builder.OpenComponent<FluentButton>(sequence++);
-        builder.AddAttribute(sequence++, "Class", showLabel ? null : "action-icon-button");
-        builder.AddAttribute(sequence++, "Appearance", Appearance.Neutral);
-        if (!showLabel)
-        {
-            builder.AddAttribute(sequence++, "Style", "width: 2rem; min-width: 2rem;");
-        }
-        builder.AddAttribute(sequence++, "Title", logs.Count == 1 ? "Open log" : $"Open {logs.Count} logs");
-        builder.AddAttribute(sequence++, "OnClick",
-            EventCallback.Factory.Create<MouseEventArgs>(
-                this,
-                () => OpenLogs(resource)));
-        builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
-        {
-            if (showLabel)
+            if (logs.Count > 0)
             {
-                buttonBuilder.AddContent(0, logs.Count == 1 ? "Logs" : $"Logs ({logs.Count})");
-                return;
+                menuBuilder.OpenComponent<FluentMenuItem>(menuSequence++);
+                menuBuilder.AddAttribute(menuSequence++, "OnClick",
+                    EventCallback.Factory.Create<MouseEventArgs>(
+                        this,
+                        () => OpenLogs(resource)));
+                menuBuilder.AddAttribute(menuSequence++, "ChildContent", (RenderFragment)(itemBuilder =>
+                {
+                    itemBuilder.OpenElement(0, "span");
+                    itemBuilder.AddAttribute(1, "class", "menu-action-content");
+                    itemBuilder.OpenElement(2, "span");
+                    itemBuilder.AddAttribute(3, "class", "action-icon action-icon-logs");
+                    itemBuilder.AddAttribute(4, "aria-hidden", "true");
+                    itemBuilder.CloseElement();
+                    itemBuilder.OpenElement(5, "span");
+                    itemBuilder.AddContent(6, GetLogsActionLabel(logs.Count));
+                    itemBuilder.CloseElement();
+                    itemBuilder.CloseElement();
+                }));
+                menuBuilder.CloseComponent();
             }
-
-            buttonBuilder.OpenElement(0, "span");
-            buttonBuilder.AddAttribute(1, "class", "action-icon action-icon-logs");
-            buttonBuilder.AddAttribute(2, "aria-hidden", "true");
-            buttonBuilder.CloseElement();
         }));
         builder.CloseComponent();
     };
@@ -781,6 +786,9 @@
     private static string GetConfirmationMessage(CloudResource resource, ResourceAction action) =>
         action.Description ??
         $"This will run the {action.DisplayName} action for {resource.Name}.";
+
+    private static string GetLogsActionLabel(int logCount) =>
+        logCount == 1 ? "Logs" : $"Logs ({logCount})";
 
     private static string GetResourceGlyph(string kind) =>
         kind.Contains("Docker Engine", StringComparison.OrdinalIgnoreCase) ? "D" :
