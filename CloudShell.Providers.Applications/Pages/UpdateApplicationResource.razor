@@ -37,6 +37,11 @@ else
                 }
             </select>
 
+            <label>
+                <input type="checkbox" @bind="UseAspireEndpointEnvironmentVariables" />
+                Add Aspire endpoint environment variables for dependencies
+            </label>
+
             <label for="application-update-group">Resource group</label>
             <select id="application-update-group" @bind="SelectedGroupId">
                 <option value="">Default group</option>
@@ -99,10 +104,12 @@ else
     private string? WorkingDirectory { get; set; }
     private string? Endpoint { get; set; }
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
+    private bool UseAspireEndpointEnvironmentVariables { get; set; }
     private string SelectedGroupId { get; set; } = string.Empty;
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<string> ReferenceIds { get; set; } = [];
 
     protected override void OnParametersSet()
     {
@@ -118,6 +125,8 @@ else
             WorkingDirectory = Application.WorkingDirectory;
             Endpoint = Application.Endpoint;
             SelectedLifetime = Application.Lifetime.ToString();
+            UseAspireEndpointEnvironmentVariables = Application.UseAspireEndpointEnvironmentVariables;
+            ReferenceIds = Application.References;
             SelectedGroupId = ResourceManager.GetGroupForResource(Application.Id)?.Id ?? string.Empty;
             SelectedDependencyIds.Clear();
             var resource = ResourceManager.GetResource(Application.Id);
@@ -173,7 +182,9 @@ else
             Endpoint,
             BuildEnvironmentVariables(),
             ParseLifetime(),
-            BuildDependencies());
+            BuildDependencies(),
+            ReferenceIds,
+            UseAspireEndpointEnvironmentVariables);
 
         await ApplicationProvider.UpdateApplicationAsync(
             definition,

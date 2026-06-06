@@ -45,7 +45,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         string? workingDirectory = null,
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
-        ApplicationLifetime lifetime = ApplicationLifetime.Detached)
+        ApplicationLifetime lifetime = ApplicationLifetime.Detached,
+        bool useAspireEndpointEnvironmentVariables = false)
     {
         var definition = new ApplicationResourceDefinition(
             id,
@@ -55,7 +56,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             workingDirectory,
             endpoint,
             environmentVariables,
-            lifetime);
+            lifetime,
+            useAspireEndpointEnvironmentVariables: useAspireEndpointEnvironmentVariables);
         var declared = new DeclaredApplicationResource(definition);
 
         builder.Services
@@ -117,13 +119,17 @@ public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuil
 
     IExecutableApplicationResourceBuilder WithLifetime(ApplicationLifetime lifetime);
 
-    new IExecutableApplicationResourceBuilder WithResourceGroup(string? resourceGroupId);
+    IExecutableApplicationResourceBuilder WithAspireEndpointEnvironmentVariables(bool enabled = true);
 
-    new IExecutableApplicationResourceBuilder WithReference(string resourceId);
+    IExecutableApplicationResourceBuilder WaitFor(ICloudShellResourceBuilder resource);
+
+    IExecutableApplicationResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources);
+
+    new IExecutableApplicationResourceBuilder WithResourceGroup(string? resourceGroupId);
 
     new IExecutableApplicationResourceBuilder WithReference(ICloudShellResourceBuilder resource);
 
-    new IExecutableApplicationResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+    IExecutableApplicationResourceBuilder WithReferences(IEnumerable<ICloudShellResourceBuilder> resources);
 
     new IExecutableApplicationResourceBuilder Persist(bool overwrite = false);
 }
@@ -185,27 +191,68 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    public IExecutableApplicationResourceBuilder WithAspireEndpointEnvironmentVariables(bool enabled = true)
+    {
+        declared.Definition = declared.Definition with
+        {
+            UseAspireEndpointEnvironmentVariables = enabled
+        };
+        return this;
+    }
+
     public IExecutableApplicationResourceBuilder WithResourceGroup(string? resourceGroupId)
     {
         inner.WithResourceGroup(resourceGroupId);
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithReference(string resourceId)
+    public IExecutableApplicationResourceBuilder WithReference(ICloudShellResourceBuilder resource)
     {
-        inner.WithReference(resourceId);
+        ArgumentNullException.ThrowIfNull(resource);
+        declared.Definition = declared.Definition with
+        {
+            References = declared.Definition.References
+                .Append(resource.ResourceId)
+                .ToArray()
+        };
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithReference(ICloudShellResourceBuilder resource)
+    public IExecutableApplicationResourceBuilder WithReferences(IEnumerable<ICloudShellResourceBuilder> resources)
     {
+        ArgumentNullException.ThrowIfNull(resources);
+        var resourceIds = resources
+            .Select(resource =>
+            {
+                ArgumentNullException.ThrowIfNull(resource);
+                return resource.ResourceId;
+            })
+            .ToArray();
+
+        declared.Definition = declared.Definition with
+        {
+            References = declared.Definition.References
+                .Concat(resourceIds)
+                .ToArray()
+        };
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder WaitFor(ICloudShellResourceBuilder resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
         inner.WithReference(resource);
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithReferences(IEnumerable<string> resourceIds)
+    public IExecutableApplicationResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources)
     {
-        inner.WithReferences(resourceIds);
+        ArgumentNullException.ThrowIfNull(resources);
+        inner.WithReferences(resources.Select(resource =>
+        {
+            ArgumentNullException.ThrowIfNull(resource);
+            return resource.ResourceId;
+        }));
         return this;
     }
 
@@ -219,13 +266,36 @@ internal sealed class ExecutableApplicationResourceBuilder(
         WithResourceGroup(resourceGroupId);
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(string resourceId) =>
-        WithReference(resourceId);
+        AddReference(resourceId);
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(ICloudShellResourceBuilder resource) =>
         WithReference(resource);
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
-        WithReferences(resourceIds);
+        AddReferences(resourceIds);
+
+    private IExecutableApplicationResourceBuilder AddReference(string resourceId)
+    {
+        declared.Definition = declared.Definition with
+        {
+            References = declared.Definition.References
+                .Append(resourceId)
+                .ToArray()
+        };
+        return this;
+    }
+
+    private IExecutableApplicationResourceBuilder AddReferences(IEnumerable<string> resourceIds)
+    {
+        ArgumentNullException.ThrowIfNull(resourceIds);
+        declared.Definition = declared.Definition with
+        {
+            References = declared.Definition.References
+                .Concat(resourceIds)
+                .ToArray()
+        };
+        return this;
+    }
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.Persist(bool overwrite) =>
         Persist(overwrite);

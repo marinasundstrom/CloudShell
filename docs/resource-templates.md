@@ -32,7 +32,9 @@ A resource group template uses a common envelope:
         "workingDirectory": null,
         "endpoint": "http://localhost:5127",
         "environmentVariables": [],
-        "lifetime": "Detached"
+        "lifetime": "Detached",
+        "references": [],
+        "useAspireEndpointEnvironmentVariables": false
       }
     }
   ]

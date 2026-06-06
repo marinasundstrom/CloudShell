@@ -13,7 +13,9 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         ApplicationLifetime lifetime = ApplicationLifetime.Detached,
-        IReadOnlyList<string>? dependsOn = null)
+        IReadOnlyList<string>? dependsOn = null,
+        IReadOnlyList<string>? references = null,
+        bool useAspireEndpointEnvironmentVariables = false)
     {
         Id = id;
         Name = name;
@@ -24,6 +26,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         EnvironmentVariables = environmentVariables ?? [];
         Lifetime = lifetime;
         DependsOn = dependsOn ?? [];
+        References = references ?? [];
+        UseAspireEndpointEnvironmentVariables = useAspireEndpointEnvironmentVariables;
     }
 
     public string Id { get; init; }
@@ -43,6 +47,10 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public ApplicationLifetime Lifetime { get; init; }
 
     public IReadOnlyList<string> DependsOn { get; init; }
+
+    public IReadOnlyList<string> References { get; init; }
+
+    public bool UseAspireEndpointEnvironmentVariables { get; init; }
 }
 
 public enum ApplicationLifetime

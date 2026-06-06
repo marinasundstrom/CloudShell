@@ -158,6 +158,12 @@ public sealed class ApplicationResourceStore
                 .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
                 .Select(dependency => dependency.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            References = existing.References
+                .Concat(initial.References)
+                .Where(reference => !string.IsNullOrWhiteSpace(reference))
+                .Select(reference => reference.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray()
         };
 }

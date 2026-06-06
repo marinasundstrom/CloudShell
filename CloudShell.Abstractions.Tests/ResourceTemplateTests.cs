@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Providers.Applications;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using System.Text.Json;
@@ -46,7 +47,9 @@ public sealed class ResourceTemplateTests
                 "/workspace",
                 "http://localhost:5127",
                 [new("ASPNETCORE_URLS", "http://localhost:5127")],
-                dependsOn: ["postgres-main"]),
+                dependsOn: ["postgres-main"],
+                references: ["postgres-main"],
+                useAspireEndpointEnvironmentVariables: true),
             fixture.Group.Id,
             fixture.Registrations);
 
@@ -61,6 +64,14 @@ public sealed class ResourceTemplateTests
                 fixture.Group));
 
         Assert.Equal(["postgres-main"], template.DependsOn);
+        Assert.Equal(
+            ["postgres-main"],
+            template.Configuration
+                .GetProperty("references")
+                .EnumerateArray()
+                .Select(item => item.GetString()!)
+                .ToArray());
+        Assert.True(template.Configuration.GetProperty("useAspireEndpointEnvironmentVariables").GetBoolean());
     }
 
     [Fact]
@@ -116,7 +127,9 @@ public sealed class ResourceTemplateTests
                 workingDirectory = "/workspace",
                 endpoint = "http://localhost:5127",
                 environmentVariables = Array.Empty<EnvironmentVariableAssignment>(),
-                lifetime = ApplicationLifetime.Detached
+                lifetime = ApplicationLifetime.Detached,
+                references = new[] { "postgres-main" },
+                useAspireEndpointEnvironmentVariables = true
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var template = new ResourceGroupTemplate(
@@ -140,6 +153,9 @@ public sealed class ResourceTemplateTests
         var registration = fixture.Registrations.GetRegistration(imported.ResourceId);
         Assert.NotNull(registration);
         Assert.Equal(["postgres-main"], registration.DependsOn);
+        var application = fixture.Provider.GetApplication(imported.ResourceId)!;
+        Assert.Equal(["postgres-main"], application.References);
+        Assert.True(application.UseAspireEndpointEnvironmentVariables);
     }
 
     private sealed class TemplateFixture : IDisposable
@@ -157,7 +173,8 @@ public sealed class ResourceTemplateTests
             var environment = new TestHostEnvironment(_contentRoot);
             var store = new ApplicationResourceStore(options, environment);
             var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
-            Provider = new ApplicationResourceProvider(store, runtimeStates, options, environment, []);
+            var services = new ServiceCollection().BuildServiceProvider();
+            Provider = new ApplicationResourceProvider(store, runtimeStates, options, environment, services, []);
             Group = new ResourceGroup("group-1", "Local Development", "Development resources", ["application:example-web-api"]);
             Registrations = new TestRegistrationStore();
             ResourceGroups = new TestResourceGroupStore(Group);

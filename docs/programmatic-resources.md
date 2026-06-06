@@ -35,6 +35,32 @@ types. Built-in methods include:
 - `AddExecutable(...)` and `AddExecutableApplication(...)` from
   `CloudShell.Providers.Applications`.
 
+Executable application declarations can opt in to Aspire-style endpoint
+environment variables for referenced resources:
+
+```csharp
+var configuration = resources.AddConfigurationStore(
+    "configuration:example",
+    "Example Configuration");
+
+var database = resources.Declare("managed", "postgres-main");
+
+resources
+    .AddExecutableApplication(
+        "application:example-web-api",
+        "Example Web API",
+        executablePath: "dotnet",
+        arguments: "run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile",
+        endpoint: "http://localhost:5127")
+    .WithReference(configuration)
+    .WaitFor(database)
+    .WithAspireEndpointEnvironmentVariables();
+```
+
+For executable applications, `WithReference(...)` means the application should
+receive endpoint configuration for that resource. Use `WaitFor(...)` when the
+application only needs startup ordering against another resource.
+
 The host sample declares only `Example Configuration` programmatically. Other
 resources are expected to be added through the Resource Manager UI unless a host
 chooses to declare more of them in code.
@@ -43,8 +69,8 @@ chooses to declare more of them in code.
 
 Programmatic declarations are registered when CloudShell starts. They appear in
 Resource Manager, participate in authorization, can be assigned to a resource
-group with `WithResourceGroup(...)`, and can declare dependencies with
-`WithReference(...)` or `WithReferences(...)`.
+group with `WithResourceGroup(...)`, and can declare dependencies with the
+provider-specific builder methods.
 
 By default, programmatic resources are not persisted. The code declaration is
 the source of truth for the current process. If the declaration is removed from

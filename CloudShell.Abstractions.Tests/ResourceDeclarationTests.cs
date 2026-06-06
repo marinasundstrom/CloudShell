@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -81,5 +82,51 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("configuration:example", declaration.ResourceId);
         Assert.Equal("group-1", declaration.ResourceGroupId);
         Assert.Equal(ResourceDeclarationPersistence.Persisted, declaration.Persistence);
+    }
+
+    [Fact]
+    public void TypedExecutableBuilder_SeparatesReferencesFromWaitDependencies()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var settings = resources.AddConfigurationStore(
+                    "configuration:settings",
+                    "Settings");
+                var postgres = resources.Declare("managed", "postgres-main");
+
+                resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        "API",
+                        executablePath: "dotnet")
+                    .WithReference(settings)
+                    .WaitFor(postgres)
+                    .WithAspireEndpointEnvironmentVariables();
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(
+            store.GetDeclarations(),
+            declaration => declaration.ResourceId == "application:api");
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.Equal(["postgres-main"], declaration.DependsOn);
+        Assert.Equal(["configuration:settings"], application.References);
+        Assert.True(application.UseAspireEndpointEnvironmentVariables);
     }
 }

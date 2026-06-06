@@ -50,6 +50,7 @@ payload with:
 - endpoint
 - environment variables
 - lifetime
+- Aspire endpoint environment variable opt-in
 
 Import creates a new application definition in the provider's configuration
 store, assigns it to the imported group, and avoids overwriting an existing
@@ -90,6 +91,32 @@ and the sample uses the reusable `CloudShell.Configuration` provider to load
 settings during startup. If the configuration service is unavailable, the
 provider records unavailable status and the app continues running. The
 `/configuration` endpoint reports the provider status and currently loaded keys.
+
+Applications can also opt in to Aspire-style service discovery endpoint variables
+for referenced resources. When enabled, CloudShell maps dependency endpoints into
+environment variables using the .NET configuration shape:
+
+```text
+services__<resource-name>__<endpoint-name-or-scheme>__0=<endpoint-address>
+```
+
+CloudShell emits names based on both the referenced resource name and resource
+ID, normalized for environment variables. Explicit application environment
+variables are applied last, so they can override generated Aspire endpoint
+variables.
+
+Endpoint variables are generated from the application's referenced resources,
+not from its wait dependencies. For declarative application resources,
+`WithReference(...)` records an endpoint reference, while `WaitFor(...)` records
+a startup dependency. CloudShell only emits endpoint variables when the
+referenced resource is registered in the same resource group.
+
+Applications can read the generated URLs directly through `IConfiguration`:
+
+```csharp
+var apiUrl = builder.Configuration.GetCloudShellServiceEndpoint("example-api", "http");
+client.BaseAddress = builder.Configuration.GetCloudShellServiceEndpointUri("example-api", "http");
+```
 
 After adding the resource through `/resources/add`, use the Run action to start
 it and open the `http://localhost:5127` endpoint from the resource details blade.
