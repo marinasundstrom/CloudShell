@@ -1,0 +1,142 @@
+@page "/{*ViewRoute}"
+@rendermode InteractiveServer
+@inject ShellCatalog ShellCatalog
+@inject NavigationManager Navigation
+
+@{
+    var normalizedRoute = NormalizeRoute(ViewRoute);
+    var view = ShellCatalog.CustomViews.FirstOrDefault(candidate =>
+        string.Equals(candidate.Route, normalizedRoute, StringComparison.OrdinalIgnoreCase));
+    var menuItems = view?.ViewMenuItems
+        .OrderBy(item => item.Order)
+        .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+        .ToArray() ?? [];
+    var selectedItem = GetSelectedItem(menuItems);
+}
+
+@if (view is null)
+{
+    <PageTitle>Not found</PageTitle>
+    <div class="empty-state">
+        <strong>Page not found</strong>
+        <span>The requested shell view is not registered.</span>
+    </div>
+}
+else
+{
+    <PageTitle>@view.Title</PageTitle>
+
+    <section class="page-heading compact">
+        <div>
+            <span class="eyebrow">@view.Group</span>
+            <h1>@view.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(view.Description))
+            {
+                <p>@view.Description</p>
+            }
+        </div>
+    </section>
+
+    <section class="registration-layout">
+        <aside class="panel registration-options">
+            <div class="selected-type-card">
+                <span class="resource-kind-icon">@GetIconGlyph(view.Icon, view.Title)</span>
+                <div>
+                    <strong>@view.Title</strong>
+                    @if (!string.IsNullOrWhiteSpace(view.Description))
+                    {
+                        <p>@view.Description</p>
+                    }
+                </div>
+            </div>
+
+            @if (menuItems.Length > 0)
+            {
+                <div class="resource-tab-list" role="tablist" aria-label="@($"{view.Title} views")">
+                    @foreach (var menuItem in menuItems)
+                    {
+                        <button class="resource-tab-button @(selectedItem?.Id == menuItem.Id ? "active" : null)"
+                                type="button"
+                                role="tab"
+                                aria-selected="@(selectedItem?.Id == menuItem.Id)"
+                                @onclick="() => SelectMenuItem(view.Route, menuItem.Id)">
+                            <strong>@menuItem.Title</strong>
+                            @if (!string.IsNullOrWhiteSpace(menuItem.Description))
+                            {
+                                <small>@menuItem.Description</small>
+                            }
+                        </button>
+                    }
+                </div>
+            }
+        </aside>
+
+        <div class="panel registration-host">
+            @if (selectedItem is null)
+            {
+                <div class="empty-state">
+                    <strong>No view selected</strong>
+                    <span>This shell view does not have any registered menu items.</span>
+                </div>
+            }
+            else
+            {
+                <div class="panel-header">
+                    <div>
+                        <h2>@selectedItem.Title</h2>
+                        @if (!string.IsNullOrWhiteSpace(selectedItem.Description))
+                        {
+                            <p>@selectedItem.Description</p>
+                        }
+                    </div>
+                </div>
+                <DynamicComponent Type="selectedItem.ComponentType" />
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ViewRoute { get; set; }
+
+    [SupplyParameterFromQuery(Name = "item")]
+    private string? RequestedMenuItemId { get; set; }
+
+    private CustomShellViewMenuItemContribution? GetSelectedItem(
+        IReadOnlyList<CustomShellViewMenuItemContribution> menuItems)
+    {
+        if (!string.IsNullOrWhiteSpace(RequestedMenuItemId))
+        {
+            var requested = menuItems.FirstOrDefault(item =>
+                string.Equals(item.Id, RequestedMenuItemId, StringComparison.OrdinalIgnoreCase));
+            if (requested is not null)
+            {
+                return requested;
+            }
+        }
+
+        return menuItems.FirstOrDefault();
+    }
+
+    private void SelectMenuItem(string route, string menuItemId) =>
+        Navigation.NavigateTo(
+            $"{route}?item={Uri.EscapeDataString(menuItemId)}",
+            replace: true);
+
+    private static string NormalizeRoute(string? route) =>
+        string.IsNullOrWhiteSpace(route) ? "/" : "/" + route.Trim('/');
+
+    private static string GetIconGlyph(string icon, string title) => icon switch
+    {
+        "grid" => "O",
+        "server" => "R",
+        "pulse" => "T",
+        "plug" => "E",
+        "docker" => "D",
+        "document" => "L",
+        "folder" => "F",
+        "plus" => "+",
+        _ => string.IsNullOrWhiteSpace(icon) ? title[..1].ToUpperInvariant() : icon[..1].ToUpperInvariant()
+    };
+}

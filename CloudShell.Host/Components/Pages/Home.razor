@@ -1,54 +1,51 @@
 ﻿@page "/"
-@inject IResourceManagerStore ResourceManager
 @inject ShellCatalog ShellCatalog
-@inject ICloudShellAuthorizationService Authorization
+@inject NavigationManager Navigation
 
 <PageTitle>CloudShell</PageTitle>
 
 @{
-    var resources = ResourceManager.GetResources();
-    var groups = ResourceManager.GetResourceGroups();
-    var resourceTypes = ShellCatalog.ResourceTypes;
-    var degraded = resources.Count(resource => resource.State is ResourceState.Degraded or ResourceState.Stopped);
+    var navigationItems = ShellCatalog.NavigationItems;
+    var customViews = ShellCatalog.CustomViews;
+    var hostedMenuItems = customViews.Sum(view => view.ViewMenuItems.Count);
+    var capabilities = ShellCatalog.Extensions
+        .SelectMany(extension => extension.Provides)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(capability => capability, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
 }
 
 <section class="page-heading">
     <div>
-        <span class="eyebrow">Dashboard shell</span>
+        <span class="eyebrow">Composable shell</span>
         <h1>CloudShell workspace</h1>
-        <p>Resource-aware shell with extension-driven navigation, registered inventory, and Aspire-style operational density.</p>
+        <p>Extension-driven navigation, hosted workspaces, and opt-in capabilities for controlled shell customization.</p>
     </div>
     <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral">Import manifest</FluentButton>
-        @if (Authorization.HasPermission(CloudShellPermissions.Resources.Create))
-        {
-            <FluentButton Appearance="Appearance.Accent" Href="/resources/add">
-                Add resource
-            </FluentButton>
-        }
+        <FluentButton Appearance="Appearance.Neutral" Href="/extensions">Extensions</FluentButton>
     </div>
 </section>
 
 <section class="metric-grid">
     <article class="metric-card">
-        <span>Resources</span>
-        <strong>@resources.Count</strong>
-        <small>@groups.Count resource groups</small>
-    </article>
-    <article class="metric-card">
-        <span>Resource types</span>
-        <strong>@resourceTypes.Count</strong>
-        <small>Extension contributed</small>
-    </article>
-    <article class="metric-card">
         <span>Extensions</span>
         <strong>@ShellCatalog.Extensions.Count</strong>
         <small>Registered through DI</small>
     </article>
-    <article class="metric-card @(degraded > 0 ? "metric-card-warning" : null)">
-        <span>Attention</span>
-        <strong>@degraded</strong>
-        <small>degraded or stopped</small>
+    <article class="metric-card">
+        <span>Shell views</span>
+        <strong>@navigationItems.Count</strong>
+        <small>Navigation contributions</small>
+    </article>
+    <article class="metric-card">
+        <span>Hosted views</span>
+        <strong>@customViews.Count</strong>
+        <small>@hostedMenuItems menu items</small>
+    </article>
+    <article class="metric-card">
+        <span>Capabilities</span>
+        <strong>@capabilities.Length</strong>
+        <small>Opt-in feature contracts</small>
     </article>
 </section>
 
@@ -56,73 +53,70 @@
     <article class="panel panel-wide">
         <div class="panel-header">
             <div>
-                <h2>Resource groups</h2>
-                <p>User-managed project boundaries spanning multiple resource types.</p>
+                <h2>Installed capabilities</h2>
+                <p>Features contributed by the installed extension set.</p>
             </div>
-            <a href="/resources">View inventory</a>
         </div>
 
-        <div class="group-list">
-            @foreach (var group in groups)
-            {
-                var count = resources.Count(resource => ResourceManager.GetGroupForResource(resource.Id)?.Id == group.Id);
-                <div class="group-row">
-                    <div>
-                        <strong>@group.Name</strong>
-                        <span>@group.Description</span>
-                    </div>
-                    <div class="group-meta">
-                        <span>Project group</span>
-                        <strong>@count</strong>
-                    </div>
-                </div>
-            }
-            @{
-                var ungroupedCount = resources.Count(resource => ResourceManager.GetGroupForResource(resource.Id) is null);
-            }
-            <div class="group-row">
-                <div>
-                    <strong>Ungrouped</strong>
-                    <span>Resources not assigned to a project boundary.</span>
-                </div>
-                <div class="group-meta">
-                    <span>Platform scope</span>
-                    <strong>@ungroupedCount</strong>
-                </div>
+        @if (capabilities.Length == 0)
+        {
+            <div class="empty-state compact">
+                <strong>No capabilities</strong>
+                <span>Install extensions to add shell features.</span>
             </div>
-        </div>
+        }
+        else
+        {
+            <div class="tag-row">
+                @foreach (var capability in capabilities)
+                {
+                    <span>@capability</span>
+                }
+            </div>
+        }
     </article>
 
     <article class="panel">
         <div class="panel-header">
             <div>
-                <h2>Recent activity</h2>
-                <p>Sample timeline from resource state.</p>
+                <h2>Navigation</h2>
+                <p>Current shell content areas.</p>
             </div>
         </div>
 
         <div class="activity-list">
-            @foreach (var resource in resources.OrderByDescending(resource => resource.LastUpdated).Take(5))
+            @foreach (var item in navigationItems.Take(8))
             {
-                <div class="activity-row">
-                    <span class="state-dot @GetStateClass(resource.State)"></span>
+                <a class="activity-row" href="@item.Href">
+                    <span class="resource-kind-icon">@GetIconGlyph(item.Icon, item.Text)</span>
                     <div>
-                        <strong>@resource.Name</strong>
-                        <span>@resource.Kind updated @resource.LastUpdated.ToLocalTime().ToString("HH:mm:ss")</span>
+                        <strong>@item.Text</strong>
+                        <span>@item.Group</span>
                     </div>
-                </div>
+                </a>
             }
         </div>
     </article>
 </section>
 
 @code {
-    private static string GetStateClass(ResourceState state) => state switch
+    protected override void OnInitialized()
     {
-        ResourceState.Running => "state-running",
-        ResourceState.Starting => "state-starting",
-        ResourceState.Degraded => "state-degraded",
-        ResourceState.Stopped => "state-stopped",
-        _ => "state-unknown"
+        if (!string.IsNullOrWhiteSpace(ShellCatalog.StartRoute) &&
+            !ShellCatalog.StartRoute.Equals("/", StringComparison.Ordinal))
+        {
+            Navigation.NavigateTo(ShellCatalog.StartRoute, replace: true);
+        }
+    }
+
+    private static string GetIconGlyph(string icon, string title) => icon switch
+    {
+        "grid" => "O",
+        "server" => "R",
+        "pulse" => "T",
+        "plug" => "E",
+        "docker" => "D",
+        "document" => "L",
+        _ => string.IsNullOrWhiteSpace(icon) ? title[..1].ToUpperInvariant() : icon[..1].ToUpperInvariant()
     };
 }

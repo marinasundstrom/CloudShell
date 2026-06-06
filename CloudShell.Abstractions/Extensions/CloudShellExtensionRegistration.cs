@@ -7,7 +7,9 @@ public sealed class CloudShellExtensionRegistration(
     CloudShellExtensionManifest manifest,
     IReadOnlyList<NavItemContribution> navigationItems,
     IReadOnlyList<ShellViewContribution> views,
-    IReadOnlyList<ResourceTypeContribution> resourceTypes)
+    IReadOnlyList<ResourceTypeContribution> resourceTypes,
+    IReadOnlyList<CustomShellViewContribution>? customViews = null,
+    string? startRoute = null)
 {
     public CloudShellExtensionManifest Manifest { get; } = manifest;
 
@@ -28,4 +30,8 @@ public sealed class CloudShellExtensionRegistration(
     public IReadOnlyList<ShellViewContribution> Views { get; } = views;
 
     public IReadOnlyList<ResourceTypeContribution> ResourceTypes { get; } = resourceTypes;
+
+    public IReadOnlyList<CustomShellViewContribution> CustomViews { get; } = customViews ?? [];
+
+    public string? StartRoute { get; } = startRoute;
 }

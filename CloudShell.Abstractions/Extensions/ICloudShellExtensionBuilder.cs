@@ -23,6 +23,25 @@ public interface ICloudShellExtensionBuilder
         int order,
         string group = "Workspace");
 
+    ICloudShellExtensionBuilder AddCustomView(
+        string id,
+        string title,
+        string route,
+        string icon,
+        int order,
+        string group = "Workspace",
+        string? description = null,
+        bool showInNavigation = true);
+
+    ICloudShellExtensionBuilder AddCustomViewMenuItem<TComponent>(
+        string viewId,
+        string id,
+        string title,
+        int order,
+        string? description = null);
+
+    ICloudShellExtensionBuilder UseStartRoute(string route);
+
     ICloudShellExtensionBuilder AddResourceProvider<TProvider>()
         where TProvider : class, IResourceProvider;
 

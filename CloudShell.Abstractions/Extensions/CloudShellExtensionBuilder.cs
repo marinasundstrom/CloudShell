@@ -11,7 +11,9 @@ internal sealed class CloudShellExtensionBuilder(
 {
     private readonly List<NavItemContribution> _navigationItems = [];
     private readonly List<ShellViewContribution> _views = [];
+    private readonly List<CustomShellViewContribution> _customViews = [];
     private readonly List<ResourceTypeContribution> _resourceTypes = [];
+    private string? _startRoute;
 
     public IServiceCollection Services { get; } = services;
 
@@ -46,6 +48,77 @@ internal sealed class CloudShellExtensionBuilder(
         string group = "Workspace")
     {
         _navigationItems.Add(new NavItemContribution(text, NormalizeRoute(href), icon, order, group));
+        return this;
+    }
+
+    public ICloudShellExtensionBuilder AddCustomView(
+        string id,
+        string title,
+        string route,
+        string icon,
+        int order,
+        string group = "Workspace",
+        string? description = null,
+        bool showInNavigation = true)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentException.ThrowIfNullOrWhiteSpace(route);
+
+        _customViews.Add(new CustomShellViewContribution(
+            id,
+            title,
+            NormalizeRoute(route),
+            icon,
+            order,
+            group,
+            description,
+            showInNavigation));
+
+        return this;
+    }
+
+    public ICloudShellExtensionBuilder AddCustomViewMenuItem<TComponent>(
+        string viewId,
+        string id,
+        string title,
+        int order,
+        string? description = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(viewId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+
+        var viewIndex = _customViews.FindIndex(view =>
+            string.Equals(view.Id, viewId, StringComparison.OrdinalIgnoreCase));
+        if (viewIndex < 0)
+        {
+            throw new InvalidOperationException(
+                $"Custom shell view '{viewId}' must be added before adding menu items.");
+        }
+
+        var customView = _customViews[viewIndex];
+        var menuItems = customView.ViewMenuItems
+            .Append(new CustomShellViewMenuItemContribution(
+                viewId,
+                id,
+                title,
+                typeof(TComponent),
+                order,
+                description))
+            .OrderBy(item => item.Order)
+            .ThenBy(item => item.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        _customViews[viewIndex] = customView with { MenuItems = menuItems };
+        return this;
+    }
+
+    public ICloudShellExtensionBuilder UseStartRoute(string route)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(route);
+
+        _startRoute = NormalizeRoute(route);
         return this;
     }
 
@@ -208,7 +281,13 @@ internal sealed class CloudShellExtensionBuilder(
     }
 
     public CloudShellExtensionRegistration Build() =>
-        new(manifest, _navigationItems.ToArray(), _views.ToArray(), _resourceTypes.ToArray());
+        new(
+            manifest,
+            _navigationItems.ToArray(),
+            _views.ToArray(),
+            _resourceTypes.ToArray(),
+            _customViews.ToArray(),
+            _startRoute);
 
     private static string NormalizeRoute(string route) =>
         route == "/" ? route : "/" + route.Trim('/');

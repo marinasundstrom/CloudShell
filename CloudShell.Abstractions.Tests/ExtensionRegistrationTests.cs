@@ -107,6 +107,36 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void AddCustomView_RecordsMenuItemsAndStartRoute()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<CustomShellViewExtension>();
+
+        var registry = GetRegistry(services);
+        var extension = Assert.Single(registry.Extensions);
+        var customView = Assert.Single(extension.CustomViews);
+
+        Assert.Equal("sample.workspace", customView.Id);
+        Assert.Equal("/sample/workspace", customView.Route);
+        Assert.Equal("/sample/workspace", extension.StartRoute);
+        Assert.Collection(
+            customView.ViewMenuItems,
+            item =>
+            {
+                Assert.Equal("overview", item.Id);
+                Assert.Equal(typeof(SampleOverviewPage), item.ComponentType);
+            },
+            item =>
+            {
+                Assert.Equal("settings", item.Id);
+                Assert.Equal(typeof(SampleUpdatePage), item.ComponentType);
+            });
+    }
+
+    [Fact]
     public void Validate_RejectsDuplicateRoutes()
     {
         var services = new ServiceCollection();
@@ -119,6 +149,50 @@ public sealed class ExtensionRegistrationTests
         var exception = Assert.Throws<InvalidOperationException>(() => GetRegistry(services).Validate());
 
         Assert.Contains("/sample", exception.Message);
+    }
+
+    [Fact]
+    public void Validate_RejectsDuplicateCustomViewIds()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<CustomShellViewExtension>()
+            .AddExtension<DuplicateCustomShellViewExtension>();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => GetRegistry(services).Validate());
+
+        Assert.Contains("sample.workspace", exception.Message);
+    }
+
+    [Fact]
+    public void Validate_RejectsUnknownStartRoute()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<UnknownStartRouteExtension>();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => GetRegistry(services).Validate());
+
+        Assert.Contains("/missing", exception.Message);
+    }
+
+    [Fact]
+    public void Validate_RejectsMultipleStartRoutes()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<ProviderExtension>()
+            .AddExtension<CustomShellViewExtension>();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => GetRegistry(services).Validate());
+
+        Assert.Contains("Multiple extensions configure the shell start route", exception.Message);
     }
 
     [Fact]
@@ -166,6 +240,7 @@ public sealed class ExtensionRegistrationTests
         {
             builder
                 .AddView<SamplePage>("Sample", "sample", "sample", 10)
+                .UseStartRoute("/sample")
                 .AddResourceProvider<SampleResourceProvider>();
         }
     }
@@ -268,6 +343,77 @@ public sealed class ExtensionRegistrationTests
                     "overview",
                     "Overview",
                     10);
+        }
+    }
+
+    private sealed class CustomShellViewExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.workspace",
+            "Sample workspace",
+            "Contributes a hosted shell workspace.",
+            "1.0.0",
+            ["sample.workspace"],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .AddCustomView(
+                    "sample.workspace",
+                    "Sample workspace",
+                    "/sample/workspace",
+                    "sample",
+                    10,
+                    description: "A hosted workspace with extension-owned menu items.")
+                .AddCustomViewMenuItem<SampleOverviewPage>(
+                    "sample.workspace",
+                    "overview",
+                    "Overview",
+                    10)
+                .AddCustomViewMenuItem<SampleUpdatePage>(
+                    "sample.workspace",
+                    "settings",
+                    "Settings",
+                    20)
+                .UseStartRoute("/sample/workspace");
+        }
+    }
+
+    private sealed class DuplicateCustomShellViewExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.workspace.duplicate",
+            "Duplicate workspace",
+            "Contributes a duplicate custom shell view.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder.AddCustomView(
+                "sample.workspace",
+                "Duplicate workspace",
+                "/sample/workspace-duplicate",
+                "sample",
+                20);
+        }
+    }
+
+    private sealed class UnknownStartRouteExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.unknown-start",
+            "Unknown start",
+            "Configures an unknown start route.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder.UseStartRoute("/missing");
         }
     }
 

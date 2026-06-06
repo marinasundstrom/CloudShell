@@ -2,6 +2,8 @@
 
 An extension is a Razor class library or .NET class library that references `CloudShell.Abstractions`. UI extensions also reference Fluent UI Blazor.
 
+See [shell customization design goals](shell-customization.md) for the broader product objectives behind these extension points.
+
 ## Entry point
 
 Implement one `ICloudShellExtension`:
@@ -34,6 +36,24 @@ public sealed class AcmeExtension : ICloudShellExtension
                 icon: "server",
                 order: 50,
                 showInNavigation: false)
+            .AddCustomView(
+                id: "acme.workspace",
+                title: "Acme Workspace",
+                route: "/acme/workspace",
+                icon: "server",
+                order: 55,
+                description: "A hosted integration workspace.")
+            .AddCustomViewMenuItem<Pages.AcmeOverview>(
+                viewId: "acme.workspace",
+                id: "overview",
+                title: "Overview",
+                order: 10)
+            .AddCustomViewMenuItem<Pages.AcmeSettings>(
+                viewId: "acme.workspace",
+                id: "settings",
+                title: "Settings",
+                order: 20)
+            .UseStartRoute("/acme/workspace")
             .AddScoped<IAcmeClient, AcmeClient>();
     }
 }
@@ -65,6 +85,44 @@ builder.Services
 Views are ordinary routable Blazor components in the extension assembly. `AddView<TComponent>` records the component assembly so the host can include it in both Blazor routing and server endpoint mapping.
 
 An extension can contribute multiple views. Set `showInNavigation` to `false` for detail or workflow routes that should not appear in the sidebar.
+
+## Hosted shell views
+
+Use hosted shell views for CMS-like integrations that should use CloudShell's common workspace layout instead of owning an entire routable page. A hosted view contributes one sidebar navigation item and a set of extension-owned menu items. The host owns the route, layout, ordering, and validation; the extension owns the menu item components.
+
+```csharp
+builder
+    .AddCustomView(
+        id: "acme.workspace",
+        title: "Acme Workspace",
+        route: "/acme/workspace",
+        icon: "server",
+        order: 55,
+        group: "Workspace",
+        description: "A hosted integration workspace.")
+    .AddCustomViewMenuItem<Pages.AcmeOverview>(
+        viewId: "acme.workspace",
+        id: "overview",
+        title: "Overview",
+        order: 10)
+    .AddCustomViewMenuItem<Pages.AcmeSettings>(
+        viewId: "acme.workspace",
+        id: "settings",
+        title: "Settings",
+        order: 20);
+```
+
+Menu items are rendered in the left rail using the same interaction pattern as resource configuration views. The active menu item is stored in the `item` query string, so hosted views can be linked directly, for example `/acme/workspace?item=settings`.
+
+## Start page
+
+CloudShell does not require Resource Manager to own the landing experience. An extension set can choose its own start page with `UseStartRoute`. The configured route must be contributed by an installed extension through `AddView`, `AddCustomView`, or `AddNavigation`.
+
+```csharp
+builder.UseStartRoute("/acme/workspace");
+```
+
+Only one installed extension can configure the start route. This keeps customization explicit and prevents competing extensions from silently changing the root experience.
 
 ## Resource types
 
@@ -199,6 +257,10 @@ CloudShell validates extension registrations at startup:
 
 - extension IDs must be unique
 - view routes must be unique
+- custom shell view IDs must be unique
+- custom shell view menu item IDs must be unique within each hosted view
+- at most one extension can configure the shell start route
+- the shell start route must point at a route contributed by an installed extension
 - consumed capabilities must be provided by an installed extension
 
 Invalid extension sets fail during startup with a concrete error.

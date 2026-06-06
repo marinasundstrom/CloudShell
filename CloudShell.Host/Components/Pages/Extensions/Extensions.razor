@@ -1,6 +1,5 @@
 @page "/extensions"
 @inject ShellCatalog ShellCatalog
-@inject IResourceManagerStore ResourceManager
 
 <PageTitle>Extensions</PageTitle>
 
@@ -40,10 +39,15 @@
                             <span>@capability</span>
                         }
                     </div>
-                    @if (extension.Views.Any(view => view.ShowInNavigation))
+                    @if (extension.Views.Any(view => view.ShowInNavigation) ||
+                        extension.CustomViews.Any(view => view.ShowInNavigation))
                     {
                         <div class="extension-views">
                             @foreach (var view in extension.Views.Where(view => view.ShowInNavigation))
+                            {
+                                <a href="@view.Route">@view.Title</a>
+                            }
+                            @foreach (var view in extension.CustomViews.Where(view => view.ShowInNavigation))
                             {
                                 <a href="@view.Route">@view.Title</a>
                             }

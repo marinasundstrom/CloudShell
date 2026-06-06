@@ -11,6 +11,9 @@ public sealed class CloudShellExtensionRegistry
     public IReadOnlyList<Assembly> ViewAssemblies => _extensions
         .SelectMany(extension => extension.Views
             .Select(view => view.ComponentType.Assembly)
+            .Concat(extension.CustomViews
+                .SelectMany(view => view.ViewMenuItems)
+                .Select(menuItem => menuItem.ComponentType.Assembly))
             .Concat(extension.ResourceTypes.Select(type => type.RegistrationComponentType.Assembly)))
         .Distinct()
         .ToArray();
@@ -30,8 +33,10 @@ public sealed class CloudShellExtensionRegistry
     public void Validate()
     {
         var duplicateRoute = _extensions
-            .SelectMany(extension => extension.Views.Select(view => new { extension.Id, View = view }))
-            .GroupBy(item => item.View.Route, StringComparer.OrdinalIgnoreCase)
+            .SelectMany(extension => extension.Views
+                .Select(view => new { extension.Id, view.Route })
+                .Concat(extension.CustomViews.Select(view => new { extension.Id, view.Route })))
+            .GroupBy(item => item.Route, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault(group => group.Count() > 1);
 
         if (duplicateRoute is not null)
@@ -39,6 +44,58 @@ public sealed class CloudShellExtensionRegistry
             var owners = string.Join(", ", duplicateRoute.Select(item => item.Id));
             throw new InvalidOperationException(
                 $"The route '{duplicateRoute.Key}' is contributed by multiple extensions: {owners}.");
+        }
+
+        var startRouteOwners = _extensions
+            .Where(extension => !string.IsNullOrWhiteSpace(extension.StartRoute))
+            .ToArray();
+
+        if (startRouteOwners.Length > 1)
+        {
+            var owners = string.Join(", ", startRouteOwners.Select(extension => extension.Id));
+            throw new InvalidOperationException(
+                $"Multiple extensions configure the shell start route: {owners}.");
+        }
+
+        if (startRouteOwners.Length == 1)
+        {
+            var startRoute = startRouteOwners[0].StartRoute!;
+            var knownRoutes = _extensions
+                .SelectMany(extension => extension.Views.Select(view => view.Route)
+                    .Concat(extension.CustomViews.Select(view => view.Route))
+                    .Concat(extension.NavigationItems.Select(item => item.Href)))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (!knownRoutes.Contains(startRoute))
+            {
+                throw new InvalidOperationException(
+                    $"The shell start route '{startRoute}' is not contributed by any installed extension.");
+            }
+        }
+
+        var duplicateCustomView = _extensions
+            .SelectMany(extension => extension.CustomViews.Select(view => new { extension.Id, View = view }))
+            .GroupBy(item => item.View.Id, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateCustomView is not null)
+        {
+            var owners = string.Join(", ", duplicateCustomView.Select(item => item.Id));
+            throw new InvalidOperationException(
+                $"The custom shell view '{duplicateCustomView.Key}' is contributed by multiple extensions: {owners}.");
+        }
+
+        var duplicateCustomViewMenuItem = _extensions
+            .SelectMany(extension => extension.CustomViews
+                .SelectMany(view => view.ViewMenuItems.Select(menuItem => new { extension.Id, View = view, MenuItem = menuItem })))
+            .GroupBy(item => $"{item.View.Id}/{item.MenuItem.Id}", StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateCustomViewMenuItem is not null)
+        {
+            var owners = string.Join(", ", duplicateCustomViewMenuItem.Select(item => item.Id));
+            throw new InvalidOperationException(
+                $"The custom shell view menu item '{duplicateCustomViewMenuItem.Key}' is contributed by multiple extensions: {owners}.");
         }
 
         var duplicateResourceType = _extensions

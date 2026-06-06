@@ -14,13 +14,22 @@ public sealed class ShellCatalog(CloudShellExtensionRegistry extensionRegistry)
     public IReadOnlyList<NavItemContribution> NavigationItems => Extensions
         .SelectMany(extension => extension.NavigationItems.Concat(extension.Views
             .Where(view => view.ShowInNavigation)
-            .Select(view => new NavItemContribution(view.Title, view.Route, view.Icon, view.Order, view.Group))))
+            .Select(view => new NavItemContribution(view.Title, view.Route, view.Icon, view.Order, view.Group)))
+            .Concat(extension.CustomViews
+                .Where(view => view.ShowInNavigation)
+                .Select(view => new NavItemContribution(view.Title, view.Route, view.Icon, view.Order, view.Group))))
         .OrderBy(item => item.Order)
         .ThenBy(item => item.Text, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
     public IReadOnlyList<ShellViewContribution> Views => Extensions
         .SelectMany(extension => extension.Views)
+        .OrderBy(view => view.Order)
+        .ThenBy(view => view.Title, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+    public IReadOnlyList<CustomShellViewContribution> CustomViews => Extensions
+        .SelectMany(extension => extension.CustomViews)
         .OrderBy(view => view.Order)
         .ThenBy(view => view.Title, StringComparer.OrdinalIgnoreCase)
         .ToArray();
@@ -33,6 +42,13 @@ public sealed class ShellCatalog(CloudShellExtensionRegistry extensionRegistry)
 
     public IReadOnlyList<Assembly> ViewAssemblies => Views
         .Select(view => view.ComponentType.Assembly)
+        .Concat(CustomViews
+            .SelectMany(view => view.ViewMenuItems)
+            .Select(menuItem => menuItem.ComponentType.Assembly))
         .Distinct()
         .ToArray();
+
+    public string? StartRoute => Extensions
+        .Select(extension => extension.StartRoute)
+        .FirstOrDefault(route => !string.IsNullOrWhiteSpace(route));
 }
