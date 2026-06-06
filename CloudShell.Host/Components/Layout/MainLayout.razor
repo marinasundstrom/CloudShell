@@ -7,17 +7,25 @@
     <aside class="shell-sidebar">
         <div class="brand">
             <div class="brand-mark">CS</div>
-            <div>
+            <div class="brand-text">
                 <div class="brand-name">CloudShell</div>
                 <div class="brand-subtitle">@L["Platform control plane"]</div>
             </div>
+            <button type="button"
+                    class="nav-toggle"
+                    title="@L["Toggle navigation"]"
+                    aria-label="@L["Toggle navigation"]"
+                    aria-expanded="true"
+                    data-nav-toggle>
+                <span class="nav-toggle-icon" aria-hidden="true"></span>
+            </button>
         </div>
 
         <NavMenu />
 
         <div class="sidebar-footer">
             <span class="status-dot"></span>
-            <span>@L["Local workspace"]</span>
+            <span class="sidebar-footer-text">@L["Local workspace"]</span>
         </div>
     </aside>
 

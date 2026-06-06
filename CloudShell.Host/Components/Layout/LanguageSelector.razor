@@ -10,15 +10,20 @@
 
 @if (cultures.Count > 0)
 {
-    <label class="language-selector">
+    var selectedCulture = GetSelectedCulture(cultures);
+
+    <div class="language-selector">
         <span>@L["Language"]</span>
-        <select aria-label="@L["Language"]" value="@CultureInfo.CurrentUICulture.Name" @onchange="ChangeCulture">
-            @foreach (var culture in cultures)
-            {
-                <option value="@culture.Name">@GetCultureDisplayName(culture)</option>
-            }
-        </select>
-    </label>
+        <FluentSelect TOption="CultureInfo"
+                      Class="language-select"
+                      Items="@cultures"
+                      OptionText="GetCultureDisplayName"
+                      OptionValue="@(culture => culture.Name)"
+                      SelectedOption="@selectedCulture"
+                      SelectedOptionChanged="ChangeCulture"
+                      AriaLabel="@L["Language"]"
+                      Appearance="Appearance.Neutral" />
+    </div>
 }
 
 @code {
@@ -33,9 +38,14 @@
             ? culture.Name
             : char.ToUpper(culture.NativeName[0], culture) + culture.NativeName[1..];
 
-    private void ChangeCulture(ChangeEventArgs args)
+    private static CultureInfo GetSelectedCulture(IReadOnlyList<CultureInfo> cultures) =>
+        cultures.FirstOrDefault(culture =>
+            culture.Name.Equals(CultureInfo.CurrentUICulture.Name, StringComparison.OrdinalIgnoreCase))
+        ?? cultures[0];
+
+    private void ChangeCulture(CultureInfo? culture)
     {
-        var cultureName = Convert.ToString(args.Value, CultureInfo.InvariantCulture);
+        var cultureName = culture?.Name;
         if (string.IsNullOrWhiteSpace(cultureName))
         {
             return;

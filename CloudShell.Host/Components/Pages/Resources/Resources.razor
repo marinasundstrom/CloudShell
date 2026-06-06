@@ -14,7 +14,7 @@
     var allResources = ResourceManager.GetResources();
     var groups = ResourceManager.GetResourceGroups();
     var rows = BuildRows(allResources);
-    var selected = SelectedResource ?? rows.FirstOrDefault()?.Resource;
+    var selected = SelectedResource;
 }
 
 <section class="page-heading compact">
@@ -63,7 +63,7 @@
     </div>
 }
 
-<section class="resource-explorer">
+<section class="resource-explorer @(selected is null ? "resource-explorer-no-blade" : null)">
     <aside class="resource-scopes">
         <div class="scope-heading">
             <h2>@L["Scope"]</h2>
@@ -172,13 +172,13 @@
         </div>
     </div>
 
-    <aside class="resource-blade panel">
-        @if (selected is not null)
-        {
-            var group = GetGroup(selected);
-            var parent = selected.ParentResourceId is null ? null : ResourceManager.GetResource(selected.ParentResourceId);
-            var children = ResourceManager.GetChildren(selected.Id);
+    @if (selected is not null)
+    {
+        var group = GetGroup(selected);
+        var parent = selected.ParentResourceId is null ? null : ResourceManager.GetResource(selected.ParentResourceId);
+        var children = ResourceManager.GetChildren(selected.Id);
 
+        <aside class="resource-blade panel">
             @if (parent is not null)
             {
                 <button class="parent-link" @onclick="() => SelectResource(parent)">
@@ -192,6 +192,13 @@
                     <h2>@selected.Name</h2>
                     <p>@selected.Kind</p>
                 </div>
+                <button type="button"
+                        class="blade-dismiss"
+                        title="@L["Dismiss details"]"
+                        aria-label="@L["Dismiss details"]"
+                        @onclick="DismissResource">
+                    x
+                </button>
             </div>
 
             <div class="blade-status">
@@ -328,8 +335,8 @@
                     </div>
                 </section>
             }
-        }
-    </aside>
+        </aside>
+    }
 </section>
 
 @code {
@@ -444,18 +451,15 @@
         }
     }
 
-    private void OpenResource(CloudResource resource)
-    {
-        if (resource.DetailRoute is not null)
-        {
-            Navigation.NavigateTo(resource.DetailRoute);
-            return;
-        }
-
-        SelectResource(resource);
-    }
+    private void OpenResource(CloudResource resource) => SelectResource(resource);
 
     private void SelectResource(CloudResource resource) => SelectedResource = resource;
+
+    private void DismissResource()
+    {
+        SelectedResource = null;
+        DeleteConfirmationResourceId = null;
+    }
 
     private void CreateGroup() => Navigation.NavigateTo("/resources/groups/new");
 
