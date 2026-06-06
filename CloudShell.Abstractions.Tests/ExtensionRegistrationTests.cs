@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -38,6 +39,22 @@ public sealed class ExtensionRegistrationTests
             descriptor.ServiceType == typeof(SampleResourceProvider));
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IResourceProvider) &&
+            descriptor.ImplementationFactory is not null);
+    }
+
+    [Fact]
+    public void AddExtension_RegistersLogProvidersInTheServiceCollection()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<LogProviderExtension>();
+
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(SampleLogProvider));
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(ILogProvider) &&
             descriptor.ImplementationFactory is not null);
     }
 
@@ -184,6 +201,22 @@ public sealed class ExtensionRegistrationTests
         }
     }
 
+    private sealed class LogProviderExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.logs",
+            "Sample logs",
+            "Contributes log sources.",
+            "1.0.0",
+            ["sample.logs"],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder.AddLogProvider<SampleLogProvider>();
+        }
+    }
+
     private sealed class ResourceProcedureExtension : ICloudShellExtension
     {
         public CloudShellExtensionManifest Manifest => new(
@@ -245,6 +278,21 @@ public sealed class ExtensionRegistrationTests
         public string DisplayName => "Sample";
 
         public IReadOnlyList<CloudResource> GetResources() => [];
+    }
+
+    private sealed class SampleLogProvider : ILogProvider
+    {
+        public string Id => "sample";
+
+        public string DisplayName => "Sample";
+
+        public IReadOnlyList<LogDescriptor> GetLogs() => [];
+
+        public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+            string logId,
+            int maxEntries = 200,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<LogEntry>>([]);
     }
 
     private sealed class SamplePage;

@@ -1,0 +1,232 @@
+@page "/logs"
+@page "/observability"
+@rendermode InteractiveServer
+@inject ILogStore LogStore
+@inject IResourceManagerStore ResourceManager
+@inject NavigationManager Navigation
+
+<PageTitle>Logs</PageTitle>
+
+@{
+    var logs = GetVisibleLogs();
+    var selected = GetSelectedLog(logs);
+    var selectedResource = selected?.ResourceId is null ? null : ResourceManager.GetResource(selected.ResourceId);
+}
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">Logs</span>
+        <h1>Logs</h1>
+        <p>Browse logs registered by resources, providers, and extension-owned artifacts.</p>
+    </div>
+    <div class="heading-actions">
+        @if (!string.IsNullOrWhiteSpace(ResourceId))
+        {
+            <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllLogs">
+                All logs
+            </FluentButton>
+        }
+        <FluentButton Appearance="Appearance.Neutral" OnClick="RefreshSelectedLog">
+            Refresh
+        </FluentButton>
+    </div>
+</section>
+
+<section class="logs-workspace">
+    <aside class="log-source-list">
+        <div class="scope-heading">
+            <h2>@(selectedResource?.Name ?? "Sources")</h2>
+            <span>@logs.Count logs</span>
+        </div>
+
+        @foreach (var log in logs)
+        {
+            <button class="log-source-item @(selected?.Id == log.Id ? "active" : null)"
+                    @onclick="() => SelectLog(log)">
+                <span>
+                    <strong>@log.SourceName</strong>
+                    <small>@log.Name</small>
+                </span>
+                @if (log.SupportsStreaming)
+                {
+                    <em>stream</em>
+                }
+            </button>
+        }
+
+        @if (logs.Count == 0)
+        {
+            <div class="empty-state compact">
+                <strong>No logs</strong>
+                <span>No registered log sources match this scope.</span>
+            </div>
+        }
+    </aside>
+
+    <div class="log-viewer panel">
+        @if (selected is null)
+        {
+            <div class="empty-state">
+                <strong>No log selected</strong>
+                <span>Select a log source to inspect recent entries.</span>
+            </div>
+        }
+        else
+        {
+            <div class="panel-header log-viewer-header">
+                <div>
+                    <h2>@selected.SourceName</h2>
+                    <p>@selected.Name / @selected.Provider / @selected.SourceKind</p>
+                </div>
+                <div class="log-viewer-actions">
+                    <label class="log-wrap-toggle">
+                        <input type="checkbox" @bind="WrapLogMessages" />
+                        <span>Wrap</span>
+                    </label>
+                    @if (selected.SupportsStreaming)
+                    {
+                        <span class="stream-pill">Streaming capable</span>
+                    }
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(selected.Description))
+            {
+                <p class="log-description">@selected.Description</p>
+            }
+
+            @if (IsLoading)
+            {
+                <div class="empty-state compact">
+                    <strong>Loading log entries</strong>
+                    <span>Reading recent output from @selected.Provider.</span>
+                </div>
+            }
+            else if (ReadError is not null)
+            {
+                <div class="procedure-message">@ReadError</div>
+            }
+            else if (Entries.Count == 0)
+            {
+                <div class="empty-state compact">
+                    <strong>No entries</strong>
+                    <span>This log source did not return recent entries.</span>
+                </div>
+            }
+            else
+            {
+                <div class="log-entry-list @(WrapLogMessages ? "wrap" : null)" role="log" aria-label="@selected.Name">
+                    @foreach (var entry in Entries)
+                    {
+                        <div class="log-entry">
+                            <time>@entry.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
+                            <span class="log-entry-source">@entry.Source</span>
+                            <span class="log-entry-level">@entry.Level</span>
+                            <pre>@entry.Message</pre>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ResourceId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? LogId { get; set; }
+
+    private IReadOnlyList<LogEntry> Entries { get; set; } = [];
+    private string? LoadedLogId { get; set; }
+    private string? ReadError { get; set; }
+    private bool IsLoading { get; set; }
+    private bool WrapLogMessages { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var selected = GetSelectedLog(GetVisibleLogs());
+        if (selected is null)
+        {
+            Entries = [];
+            LoadedLogId = null;
+            return;
+        }
+
+        if (!string.Equals(LoadedLogId, selected.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            await LoadLogAsync(selected);
+        }
+    }
+
+    private IReadOnlyList<LogDescriptor> GetVisibleLogs() =>
+        string.IsNullOrWhiteSpace(ResourceId)
+            ? LogStore.GetLogs()
+            : LogStore.GetLogsForResource(ResourceId);
+
+    private LogDescriptor? GetSelectedLog(IReadOnlyList<LogDescriptor> logs)
+    {
+        if (!string.IsNullOrWhiteSpace(LogId))
+        {
+            var requested = logs.FirstOrDefault(log =>
+                string.Equals(log.Id, LogId, StringComparison.OrdinalIgnoreCase));
+            if (requested is not null)
+            {
+                return requested;
+            }
+        }
+
+        return logs.FirstOrDefault();
+    }
+
+    private void SelectLog(LogDescriptor log) =>
+        Navigation.NavigateTo(BuildLogRoute(log));
+
+    private void ShowAllLogs() => Navigation.NavigateTo("/logs");
+
+    private async Task RefreshSelectedLog()
+    {
+        var selected = GetSelectedLog(GetVisibleLogs());
+        if (selected is not null)
+        {
+            await LoadLogAsync(selected);
+        }
+    }
+
+    private async Task LoadLogAsync(LogDescriptor log)
+    {
+        IsLoading = true;
+        ReadError = null;
+        try
+        {
+            Entries = await LogStore.ReadLogAsync(log.Id, 200);
+            LoadedLogId = log.Id;
+        }
+        catch (Exception exception)
+        {
+            Entries = [];
+            ReadError = exception.Message;
+            LoadedLogId = log.Id;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private static string BuildLogRoute(LogDescriptor log)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["logId"] = log.Id
+        };
+
+        if (!string.IsNullOrWhiteSpace(log.ResourceId))
+        {
+            query["resourceId"] = log.ResourceId;
+        }
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
+    }
+}

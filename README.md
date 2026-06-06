@@ -12,6 +12,7 @@ This repository is an early shell prototype. It currently includes:
 - Extension registration through the .NET service container.
 - A Resource Manager surface with resource groups, nested resources, endpoints, state, and details.
 - Resource-bound actions for standard lifecycle commands and provider-specific commands.
+- A Logs section where providers and extensions can expose resource or artifact logs.
 - Resource type registration, where extensions provide the UI used to add resources.
 - EF Core persistence for explicitly registered root resources and resource groups.
 - Configurable ASP.NET Core Identity, dashboard-secret, OIDC, or external-scheme authentication.
@@ -36,6 +37,8 @@ Resources can have:
 - A detail route owned by an extension.
 - A parent resource, which makes it a sub-resource.
 
+Resources can also be associated with logs. Logs are separate services, not fields on the resource itself, so multiple providers or extensions can expose one or more logs for the same resource or for a non-resource artifact. Resource Manager shows a shortcut when a resource has registered logs, and the Logs section can open a resource-scoped view.
+
 ### Resource Types
 
 Resource types are the user-facing extensibility point for adding resources.
@@ -51,6 +54,8 @@ Resource providers are internal implementation services. They are not shown as a
 Providers map external systems into CloudShell resources. A provider can discover available resources, but root resources only become visible in the shell after the user explicitly adds them. Dynamic children can appear under a registered root resource.
 
 Providers can attach actions directly to each resource. Actions are part of the `CloudResource` API, so the Resource Manager inventory, resource details, and provider-owned overview pages can render the same command set. Standard lifecycle actions use `ResourceActionKind` values for Run, Stop, Pause, and Restart. Providers can also expose custom actions with stable IDs and user-facing labels. `ResourceActionPresentation` controls UI placement, icon, and confirmation prompts separately from provider execution logic.
+
+Providers and extensions can also register log providers. A log provider returns `LogDescriptor` values and reads recent `LogEntry` values for a selected log. Descriptors can point at a `ResourceId`, an artifact ID, or provider-owned source, and can opt in to streaming support through `SupportsStreaming`.
 
 The Docker provider follows that pattern:
 
@@ -144,6 +149,8 @@ After the Docker Engine resource is added through `/resources/add`, the Resource
 
 Docker container sub-resources expose lifecycle actions based on current container state. Running containers can Stop, Pause, or Restart. Stopped containers can Run. Paused containers can Resume, Stop, or Restart.
 
+Docker also contributes logs. The Docker Engine resource exposes provider diagnostics, and each container sub-resource exposes a container log source. Resource log shortcuts open `/logs` with the selected resource and log preselected when there is only one matching log.
+
 ## Extension Model
 
 Extensions are trusted, in-process .NET extensions registered through DI.
@@ -153,6 +160,7 @@ An extension can contribute:
 - Blazor views and navigation items.
 - Resource types with extension-owned registration UI.
 - Internal resource providers.
+- Log providers for resources, providers, or extension-owned artifacts.
 - Services with singleton, scoped, or transient lifetimes.
 - Capability metadata used for startup validation.
 

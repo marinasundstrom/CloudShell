@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Logs;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.Abstractions.Extensions;
@@ -24,6 +25,9 @@ public interface ICloudShellExtensionBuilder
 
     ICloudShellExtensionBuilder AddResourceProvider<TProvider>()
         where TProvider : class, IResourceProvider;
+
+    ICloudShellExtensionBuilder AddLogProvider<TProvider>()
+        where TProvider : class, ILogProvider;
 
     ICloudShellExtensionBuilder AddResourceType<TRegistrationComponent>(
         string id,

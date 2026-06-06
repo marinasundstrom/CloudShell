@@ -21,6 +21,7 @@ public sealed class AcmeExtension : ICloudShellExtension
     {
         builder
             .AddResourceProvider<AcmeResourceProvider>()
+            .AddLogProvider<AcmeLogProvider>()
             .AddResourceType<Pages.RegisterAcmeCluster>(
                 id: "acme.cluster",
                 displayName: "Acme Cluster",
@@ -122,6 +123,44 @@ return new CloudResource(
 Root resources are persisted registrations. Discovered resources stay hidden until the user explicitly adds one through a resource type registration UI. Descendants of a registered root can appear dynamically as sub-resources.
 
 Resource groups are user-managed project boundaries owned by the platform, not by providers. A root resource can be assigned to a group during registration, and its sub-resources inherit that group for filtering and display.
+
+## Log providers
+
+Logs are first-class services registered independently of resources. Implement `ILogProvider` when an extension can expose logs for resources, providers, or extension-owned artifacts, then register it with `AddLogProvider<TProvider>()`.
+
+Each provider returns `LogDescriptor` values. A descriptor can point at a resource through `ResourceId`, an extension artifact through `ArtifactId`, or a provider-owned source through `SourceKind`. A single resource can have multiple logs, and multiple providers can expose logs for the same resource. The Resource Manager shows a log shortcut for resources with matching descriptors, and the Logs view opens resource-scoped log lists through `/logs?resourceId=...`.
+
+Use `SupportsStreaming = true` only when the provider can support live tail semantics. The current Logs view reads recent entries through `ReadLogAsync`; streaming-capable logs are marked in the UI so the provider capability is visible before live tail controls are added.
+
+```csharp
+public sealed class AcmeLogProvider : ILogProvider
+{
+    public string Id => "acme";
+
+    public string DisplayName => "Acme";
+
+    public IReadOnlyList<LogDescriptor> GetLogs() =>
+    [
+        new LogDescriptor(
+            Id: "acme:worker:orders:stdout",
+            Name: "stdout",
+            Provider: DisplayName,
+            SourceName: "orders",
+            SourceKind: LogSourceKind.Resource,
+            ResourceId: "acme:worker:orders",
+            SupportsStreaming: true)
+    ];
+
+    public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+        string logId,
+        int maxEntries = 200,
+        CancellationToken cancellationToken = default)
+    {
+        // Read from the backing system and return newest entries.
+        return Task.FromResult<IReadOnlyList<LogEntry>>([]);
+    }
+}
+```
 
 The Docker reference extension uses this hierarchy:
 

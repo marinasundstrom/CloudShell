@@ -1,10 +1,12 @@
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using System.Text.RegularExpressions;
 
 namespace CloudShell.Providers.Docker;
 
-public sealed class DockerContainerResourceProvider : IResourceProvider, IResourceProcedureProvider, IDisposable
+public sealed partial class DockerContainerResourceProvider : IResourceProvider, ILogProvider, IResourceProcedureProvider, IDisposable
 {
     private const string EngineResourceId = "docker:engine";
     private readonly object _gate = new();
@@ -38,6 +40,67 @@ public sealed class DockerContainerResourceProvider : IResourceProvider, IResour
     public IReadOnlyList<CloudResource> GetContainers() => GetSnapshot().Resources
         .Where(resource => resource.Kind == "Docker Container")
         .ToArray();
+
+    public IReadOnlyList<LogDescriptor> GetLogs() => GetResources()
+        .SelectMany(CreateLogDescriptors)
+        .OrderBy(log => log.SourceName, StringComparer.OrdinalIgnoreCase)
+        .ThenBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+    public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+        string logId,
+        int maxEntries = 200,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.Equals(logId, GetEngineLogId(), StringComparison.OrdinalIgnoreCase))
+        {
+            var status = ConnectionStatus;
+            return
+            [
+                new LogEntry(
+                    status.LastChecked,
+                    status.IsConnected
+                        ? $"Connected to Docker Engine at {status.Endpoint}."
+                        : $"Docker Engine unavailable at {status.Endpoint}: {status.Error}",
+                    status.IsConnected ? "Information" : "Error",
+                    "docker-engine")
+            ];
+        }
+
+        const string containerPrefix = "docker:container:";
+        const string logsSuffix = ":logs";
+        if (!logId.StartsWith(containerPrefix, StringComparison.OrdinalIgnoreCase) ||
+            !logId.EndsWith(logsSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return [];
+        }
+
+        var containerId = logId[containerPrefix.Length..^logsSuffix.Length];
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_options.RequestTimeout);
+
+        var parameters = new ContainerLogsParameters
+        {
+            ShowStdout = true,
+            ShowStderr = true,
+            Timestamps = true,
+            Follow = false,
+            Tail = Math.Max(1, maxEntries).ToString()
+        };
+
+        using var stream = await _client.Containers.GetContainerLogsAsync(
+            containerId,
+            tty: false,
+            parameters,
+            timeout.Token);
+        var (stdout, stderr) = await stream.ReadOutputToEndAsync(timeout.Token);
+
+        return ParseLogOutput(stdout, "stdout", null)
+            .Concat(ParseLogOutput(stderr, "stderr", "Error"))
+            .OrderBy(entry => entry.Timestamp)
+            .TakeLast(maxEntries)
+            .ToArray();
+    }
 
     public async Task SetupEngineAsync(
         string? resourceGroupId,
@@ -235,6 +298,74 @@ public sealed class DockerContainerResourceProvider : IResourceProvider, IResour
             [],
             "/resources/docker-engine",
             TypeId: "docker.engine");
+
+    private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(CloudResource resource) =>
+        resource.EffectiveTypeId switch
+        {
+            "docker.engine" =>
+            [
+                new LogDescriptor(
+                    GetEngineLogId(),
+                    "Engine diagnostics",
+                    "Docker",
+                    resource.Name,
+                    LogSourceKind.Resource,
+                    ResourceId: resource.Id,
+                    Description: "Docker provider connection and discovery diagnostics.")
+            ],
+            "docker.container" =>
+            [
+                new LogDescriptor(
+                    $"{resource.Id}:logs",
+                    "Container logs",
+                    "Docker",
+                    resource.Name,
+                    LogSourceKind.Resource,
+                    ResourceId: resource.Id,
+                    SupportsStreaming: true,
+                    Description: "Combined stdout and stderr from the Docker container.")
+            ],
+            _ => []
+        };
+
+    private static string GetEngineLogId() => $"{EngineResourceId}:diagnostics";
+
+    private static IReadOnlyList<LogEntry> ParseLogOutput(
+        string? output,
+        string source,
+        string? level)
+    {
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            return [];
+        }
+
+        var entries = new List<LogEntry>();
+        foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = line.TrimEnd('\r');
+            var normalized = StripAnsiEscapeSequences(trimmed);
+            var timestamp = DateTimeOffset.UtcNow;
+            var message = normalized;
+            var separatorIndex = normalized.IndexOf(' ');
+            if (separatorIndex > 0 &&
+                DateTimeOffset.TryParse(normalized[..separatorIndex], out var parsedTimestamp))
+            {
+                timestamp = parsedTimestamp;
+                message = normalized[(separatorIndex + 1)..];
+            }
+
+            entries.Add(new LogEntry(timestamp, message, level, source));
+        }
+
+        return entries;
+    }
+
+    private static string StripAnsiEscapeSequences(string value) =>
+        AnsiEscapeSequence().Replace(value, string.Empty);
+
+    [GeneratedRegex(@"\x1B\[[0-?]*[ -/]*[@-~]")]
+    private static partial Regex AnsiEscapeSequence();
 
     private static CloudResource MapContainer(ContainerListResponse container)
     {

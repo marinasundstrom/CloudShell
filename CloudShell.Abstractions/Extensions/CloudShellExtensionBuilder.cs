@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,6 +54,15 @@ internal sealed class CloudShellExtensionBuilder(
     {
         Services.AddSingleton<TProvider>();
         Services.AddSingleton<IResourceProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<TProvider>());
+        return this;
+    }
+
+    public ICloudShellExtensionBuilder AddLogProvider<TProvider>()
+        where TProvider : class, ILogProvider
+    {
+        Services.AddSingleton<TProvider>();
+        Services.AddSingleton<ILogProvider>(
             serviceProvider => serviceProvider.GetRequiredService<TProvider>());
         return this;
     }

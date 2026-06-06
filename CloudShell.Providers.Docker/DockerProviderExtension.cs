@@ -21,6 +21,7 @@ public sealed class DockerProviderExtension : ICloudShellExtension
 
         builder
             .AddResourceProvider<DockerContainerResourceProvider>()
+            .AddLogProvider<DockerContainerResourceProvider>()
             .AddResourceType<Pages.RegisterDockerEngine>(
                 "docker.engine",
                 "Docker Engine",

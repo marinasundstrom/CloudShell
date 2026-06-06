@@ -3,6 +3,8 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Host.Authentication;
+using CloudShell.Abstractions.Logs;
+using CloudShell.Host.Logs;
 using CloudShell.Host.ResourceManager;
 using CloudShell.Host.Shell;
 using Microsoft.FluentUI.AspNetCore.Components;
@@ -41,6 +43,7 @@ builder.Services.AddSingleton<ShellCatalog>();
 builder.Services.AddScoped<IResourceGroupStore, AuthorizedResourceGroupStore>();
 builder.Services.AddScoped<IResourceRegistrationStore, AuthorizedResourceRegistrationStore>();
 builder.Services.AddScoped<IResourceManagerStore, ResourceManagerStore>();
+builder.Services.AddScoped<ILogStore, LogStore>();
 
 var app = builder.Build();
 var usesLocalIdentity =

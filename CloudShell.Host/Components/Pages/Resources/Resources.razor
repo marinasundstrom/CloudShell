@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject IResourceManagerStore ResourceManager
 @inject IResourceRegistrationStore Registrations
+@inject ILogStore LogStore
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
@@ -155,6 +156,7 @@
                     <span><span class="state-pill @GetStateClass(resource.State)">@resource.State</span></span>
                     <span class="endpoint">@resource.PrimaryEndpoint</span>
                     <span class="resource-row-actions" @onclick:stopPropagation="true">
+                        @ResourceLogShortcut(resource)
                         @ResourceActionControls(resource)
                     </span>
                 </div>
@@ -204,6 +206,7 @@
                     <FluentButton Appearance="Appearance.Accent" OnClick="() => Navigation.NavigateTo(selected.DetailRoute)">
                         Open resource
                     </FluentButton>
+                    @ResourceLogShortcut(selected, true)
                     @ResourceActionControls(selected)
                     @if (CanManage(selected) && HasUpdateProcedure(selected))
                     {
@@ -222,6 +225,7 @@
             else
             {
                 <div class="blade-actions">
+                    @ResourceLogShortcut(selected, true)
                     @ResourceActionControls(selected)
                     @if (CanManage(selected) && HasUpdateProcedure(selected))
                     {
@@ -451,6 +455,22 @@
 
     private void UpdateResource(CloudResource resource) =>
         Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");
+
+    private void OpenLogs(CloudResource resource)
+    {
+        var logs = LogStore.GetLogsForResource(resource.Id);
+        var query = new Dictionary<string, string?>
+        {
+            ["resourceId"] = resource.Id
+        };
+
+        if (logs.Count == 1)
+        {
+            query["logId"] = logs[0].Id;
+        }
+
+        Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
+    }
 
     private void PromptDelete(CloudResource resource)
     {
@@ -705,6 +725,43 @@
                 }));
                 menuBuilder.CloseComponent();
             }
+        }));
+        builder.CloseComponent();
+    };
+
+    private RenderFragment ResourceLogShortcut(CloudResource resource, bool showLabel = false) => builder =>
+    {
+        var logs = LogStore.GetLogsForResource(resource.Id);
+        if (logs.Count == 0)
+        {
+            return;
+        }
+
+        var sequence = 0;
+        builder.OpenComponent<FluentButton>(sequence++);
+        builder.AddAttribute(sequence++, "Class", showLabel ? null : "action-icon-button");
+        builder.AddAttribute(sequence++, "Appearance", Appearance.Neutral);
+        if (!showLabel)
+        {
+            builder.AddAttribute(sequence++, "Style", "width: 2rem; min-width: 2rem;");
+        }
+        builder.AddAttribute(sequence++, "Title", logs.Count == 1 ? "Open log" : $"Open {logs.Count} logs");
+        builder.AddAttribute(sequence++, "OnClick",
+            EventCallback.Factory.Create<MouseEventArgs>(
+                this,
+                () => OpenLogs(resource)));
+        builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
+        {
+            if (showLabel)
+            {
+                buttonBuilder.AddContent(0, logs.Count == 1 ? "Logs" : $"Logs ({logs.Count})");
+                return;
+            }
+
+            buttonBuilder.OpenElement(0, "span");
+            buttonBuilder.AddAttribute(1, "class", "action-icon action-icon-logs");
+            buttonBuilder.AddAttribute(2, "aria-hidden", "true");
+            buttonBuilder.CloseElement();
         }));
         builder.CloseComponent();
     };
