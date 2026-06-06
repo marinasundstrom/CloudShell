@@ -1,0 +1,44 @@
+@page "/resources/groups/new"
+@rendermode InteractiveServer
+@inject IResourceGroupStore ResourceGroups
+@inject NavigationManager Navigation
+
+<PageTitle>Create resource group</PageTitle>
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">Resource Manager</span>
+        <h1>Create resource group</h1>
+        <p>Create a project boundary for organizing resources across resource types.</p>
+    </div>
+</section>
+
+<section class="form-panel panel">
+    <label for="group-name">Name</label>
+    <FluentTextField Id="group-name" @bind-Value="Name" Placeholder="Project development" />
+
+    <label for="group-description">Description</label>
+    <FluentTextArea Id="group-description" @bind-Value="Description" Rows="4" Placeholder="Resources for the project development environment." />
+
+    <div class="form-actions">
+        <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
+            Cancel
+        </FluentButton>
+        <FluentButton Appearance="Appearance.Accent" Disabled="@string.IsNullOrWhiteSpace(Name)" OnClick="CreateGroup">
+            Create
+        </FluentButton>
+    </div>
+</section>
+
+@code {
+    private string Name { get; set; } = string.Empty;
+    private string Description { get; set; } = string.Empty;
+
+    private void Cancel() => Navigation.NavigateTo("/resources");
+
+    private async Task CreateGroup()
+    {
+        await ResourceGroups.CreateAsync(Name, Description);
+        Navigation.NavigateTo("/resources/add");
+    }
+}

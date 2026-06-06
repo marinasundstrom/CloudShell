@@ -1,0 +1,64 @@
+@inject DockerContainerResourceProvider DockerProvider
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+@inject NavigationManager Navigation
+
+@{
+    var status = DockerProvider.ConnectionStatus;
+    var engine = DockerProvider.GetResources().FirstOrDefault(resource => resource.EffectiveTypeId == "docker.engine");
+    var groups = ResourceGroups.GetResourceGroups();
+}
+
+<div class="type-registration">
+    <div class="provider-summary compact">
+        <div class="provider-status">
+            <span class="state-dot @(status.IsConnected ? "state-running" : "state-stopped")"></span>
+            <div>
+                <strong>@(status.IsConnected ? "Local Docker Engine discovered" : "Docker Engine unavailable")</strong>
+                <span>@status.Endpoint</span>
+            </div>
+        </div>
+        @if (!status.IsConnected && status.Error is not null)
+        {
+            <div class="provider-error">@status.Error</div>
+        }
+    </div>
+
+    <label for="docker-group">Resource group</label>
+    <select id="docker-group" @bind="SelectedGroupId">
+        <option value="">Ungrouped</option>
+        @foreach (var group in groups)
+        {
+            <option value="@group.Id">@group.Name</option>
+        }
+    </select>
+
+    <div class="candidate-row single">
+        <span class="resource-kind-icon">D</span>
+        <div>
+            <strong>@(engine?.Name ?? "Local Docker Engine")</strong>
+            <span>Docker Engine · local</span>
+            <small>@DockerProvider.GetContainers().Count discovered containers will appear as sub-resources.</small>
+        </div>
+        <FluentButton Appearance="Appearance.Accent"
+                      Disabled="@(engine is null)"
+                      OnClick="Register">
+            Add
+        </FluentButton>
+    </div>
+</div>
+
+@code {
+    private string SelectedGroupId { get; set; } = string.Empty;
+
+    private async Task Register()
+    {
+        var engine = DockerProvider.GetResources()
+            .First(resource => resource.EffectiveTypeId == "docker.engine");
+        await Registrations.RegisterAsync(
+            DockerProvider.Id,
+            engine.Id,
+            string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId);
+        Navigation.NavigateTo("/resources");
+    }
+}

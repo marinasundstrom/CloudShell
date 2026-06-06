@@ -1,0 +1,79 @@
+@page "/observability"
+@inject IResourceManagerStore ResourceManager
+
+<PageTitle>Observability</PageTitle>
+
+@{
+    var resources = ResourceManager.GetResources();
+}
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">Observability</span>
+        <h1>Telemetry workspace</h1>
+        <p>Placeholder surface for logs, traces, metrics, and resource-aware diagnostics.</p>
+    </div>
+    <div class="heading-actions">
+        <FluentButton Appearance="Appearance.Neutral">Import OTLP</FluentButton>
+        <FluentButton Appearance="Appearance.Accent">Connect collector</FluentButton>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel panel-wide">
+        <div class="panel-header">
+            <div>
+                <h2>Signal coverage</h2>
+                <p>Telemetry tabs will bind to resources through Resource Manager.</p>
+            </div>
+        </div>
+
+        <div class="signal-grid">
+            <div>
+                <span>Logs</span>
+                <strong>@resources.Count(resource => resource.State != ResourceState.Stopped)</strong>
+            </div>
+            <div>
+                <span>Traces</span>
+                <strong>@resources.Count(resource => resource.Kind.Contains("Service", StringComparison.OrdinalIgnoreCase) || resource.Kind.Contains("App", StringComparison.OrdinalIgnoreCase))</strong>
+            </div>
+            <div>
+                <span>Metrics</span>
+                <strong>@resources.Count</strong>
+            </div>
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>Resource focus</h2>
+                <p>Current inventory states.</p>
+            </div>
+        </div>
+
+        <div class="activity-list">
+            @foreach (var resource in resources.Take(8))
+            {
+                <div class="activity-row">
+                    <span class="state-dot @GetStateClass(resource.State)"></span>
+                    <div>
+                        <strong>@resource.Name</strong>
+                        <span>@resource.Kind</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </article>
+</section>
+
+@code {
+    private static string GetStateClass(ResourceState state) => state switch
+    {
+        ResourceState.Running => "state-running",
+        ResourceState.Starting => "state-starting",
+        ResourceState.Degraded => "state-degraded",
+        ResourceState.Stopped => "state-stopped",
+        _ => "state-unknown"
+    };
+}

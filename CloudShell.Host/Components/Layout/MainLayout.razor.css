@@ -1,0 +1,127 @@
+.shell {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 16rem minmax(0, 1fr);
+}
+
+.shell-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #e0e0e0;
+    background: #ffffff;
+    color: #242424;
+}
+
+.brand {
+    display: flex;
+    gap: .7rem;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.brand-mark {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    border-radius: 6px;
+    background: #2563eb;
+    color: white;
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+.brand-name {
+    font-weight: 700;
+}
+
+.brand-subtitle {
+    color: #707070;
+    font-size: .76rem;
+}
+
+.sidebar-footer {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .85rem 1rem;
+    border-top: 1px solid #e0e0e0;
+    color: #616161;
+    font-size: .82rem;
+}
+
+.status-dot {
+    width: .55rem;
+    height: .55rem;
+    border-radius: 999px;
+    background: #22c55e;
+}
+
+.shell-main {
+    min-width: 0;
+}
+
+.shell-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    min-height: 3.9rem;
+    padding: .7rem 1.2rem;
+    border-bottom: 1px solid #e0e0e0;
+    background: rgba(255, 255, 255, .92);
+    backdrop-filter: blur(10px);
+}
+
+.environment-picker strong {
+    display: block;
+}
+
+.shell-content {
+    padding: 1.1rem;
+}
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: #fff7d6;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(15, 23, 42, .2);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: .7rem 1rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: .75rem;
+    top: .5rem;
+}
+
+@media (max-width: 900px) {
+    .shell {
+        grid-template-columns: 1fr;
+    }
+
+    .shell-sidebar {
+        position: relative;
+        height: auto;
+    }
+
+    .shell-topbar {
+        position: relative;
+        align-items: stretch;
+        flex-direction: column;
+    }
+}

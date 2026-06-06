@@ -1,0 +1,8 @@
+bin/
+obj/
+.DS_Store
+*.user
+*.suo
+.vs/
+.vscode/
+CloudShell.Host/Data/

@@ -1,0 +1,87 @@
+@page "/resources/add"
+@rendermode InteractiveServer
+@inject ShellCatalog ShellCatalog
+@inject NavigationManager Navigation
+
+<PageTitle>Add resource</PageTitle>
+
+@{
+    var resourceTypes = ShellCatalog.ResourceTypes;
+    var selectedType = resourceTypes.FirstOrDefault(type => type.Id == SelectedTypeId)
+        ?? resourceTypes.FirstOrDefault();
+}
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">Resource Manager</span>
+        <h1>Add resource</h1>
+        <p>Select the type of resource to register. Extensions own the registration experience for their resource types.</p>
+    </div>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
+        Cancel
+    </FluentButton>
+</section>
+
+<section class="registration-layout">
+    <aside class="panel registration-options">
+        <h2>Resource type</h2>
+        <label for="resource-type">Type</label>
+        <select id="resource-type" @bind="SelectedTypeId">
+            @foreach (var type in resourceTypes)
+            {
+                <option value="@type.Id">@type.DisplayName</option>
+            }
+        </select>
+
+        @if (selectedType is not null)
+        {
+            <div class="selected-type-card">
+                <span class="resource-kind-icon">@GetTypeGlyph(selectedType)</span>
+                <div>
+                    <strong>@selectedType.DisplayName</strong>
+                    <p>@selectedType.Description</p>
+                </div>
+            </div>
+        }
+
+        <a href="/resources/groups/new">Create a resource group</a>
+    </aside>
+
+    <div class="panel registration-host">
+        @if (selectedType is null)
+        {
+            <div class="empty-state">
+                <strong>No resource types are installed</strong>
+                <span>Install an extension that contributes at least one resource type.</span>
+            </div>
+        }
+        else
+        {
+            <div class="panel-header">
+                <div>
+                    <h2>@selectedType.DisplayName</h2>
+                    <p>@selectedType.Description</p>
+                </div>
+            </div>
+            <DynamicComponent Type="selectedType.RegistrationComponentType" />
+        }
+    </div>
+</section>
+
+@code {
+    private string? SelectedTypeId { get; set; }
+
+    protected override void OnInitialized()
+    {
+        SelectedTypeId ??= ShellCatalog.ResourceTypes.FirstOrDefault()?.Id;
+    }
+
+    private void Cancel() => Navigation.NavigateTo("/resources");
+
+    private static string GetTypeGlyph(ResourceTypeContribution type) =>
+        type.Icon switch
+        {
+            "docker" => "D",
+            _ => type.DisplayName[..1].ToUpperInvariant()
+        };
+}

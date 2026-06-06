@@ -1,0 +1,122 @@
+﻿@page "/"
+@inject IResourceManagerStore ResourceManager
+@inject ShellCatalog ShellCatalog
+
+<PageTitle>CloudShell</PageTitle>
+
+@{
+    var resources = ResourceManager.GetResources();
+    var groups = ResourceManager.GetResourceGroups();
+    var resourceTypes = ShellCatalog.ResourceTypes;
+    var degraded = resources.Count(resource => resource.State is ResourceState.Degraded or ResourceState.Stopped);
+}
+
+<section class="page-heading">
+    <div>
+        <span class="eyebrow">Dashboard shell</span>
+        <h1>CloudShell workspace</h1>
+        <p>Resource-aware shell with extension-driven navigation, registered inventory, and Aspire-style operational density.</p>
+    </div>
+    <div class="heading-actions">
+        <FluentButton Appearance="Appearance.Neutral">Import manifest</FluentButton>
+        <FluentButton Appearance="Appearance.Accent" Href="/resources/add">Add resource</FluentButton>
+    </div>
+</section>
+
+<section class="metric-grid">
+    <article class="metric-card">
+        <span>Resources</span>
+        <strong>@resources.Count</strong>
+        <small>@groups.Count resource groups</small>
+    </article>
+    <article class="metric-card">
+        <span>Resource types</span>
+        <strong>@resourceTypes.Count</strong>
+        <small>Extension contributed</small>
+    </article>
+    <article class="metric-card">
+        <span>Extensions</span>
+        <strong>@ShellCatalog.Extensions.Count</strong>
+        <small>Registered through DI</small>
+    </article>
+    <article class="metric-card @(degraded > 0 ? "metric-card-warning" : null)">
+        <span>Attention</span>
+        <strong>@degraded</strong>
+        <small>degraded or stopped</small>
+    </article>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel panel-wide">
+        <div class="panel-header">
+            <div>
+                <h2>Resource groups</h2>
+                <p>User-managed project boundaries spanning multiple resource types.</p>
+            </div>
+            <a href="/resources">View inventory</a>
+        </div>
+
+        <div class="group-list">
+            @foreach (var group in groups)
+            {
+                var count = resources.Count(resource => ResourceManager.GetGroupForResource(resource.Id)?.Id == group.Id);
+                <div class="group-row">
+                    <div>
+                        <strong>@group.Name</strong>
+                        <span>@group.Description</span>
+                    </div>
+                    <div class="group-meta">
+                        <span>Project group</span>
+                        <strong>@count</strong>
+                    </div>
+                </div>
+            }
+            @{
+                var ungroupedCount = resources.Count(resource => ResourceManager.GetGroupForResource(resource.Id) is null);
+            }
+            <div class="group-row">
+                <div>
+                    <strong>Ungrouped</strong>
+                    <span>Resources not assigned to a project boundary.</span>
+                </div>
+                <div class="group-meta">
+                    <span>Platform scope</span>
+                    <strong>@ungroupedCount</strong>
+                </div>
+            </div>
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>Recent activity</h2>
+                <p>Sample timeline from resource state.</p>
+            </div>
+        </div>
+
+        <div class="activity-list">
+            @foreach (var resource in resources.OrderByDescending(resource => resource.LastUpdated).Take(5))
+            {
+                <div class="activity-row">
+                    <span class="state-dot @GetStateClass(resource.State)"></span>
+                    <div>
+                        <strong>@resource.Name</strong>
+                        <span>@resource.Kind updated @resource.LastUpdated.ToLocalTime().ToString("HH:mm:ss")</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </article>
+</section>
+
+@code {
+    private static string GetStateClass(ResourceState state) => state switch
+    {
+        ResourceState.Running => "state-running",
+        ResourceState.Starting => "state-starting",
+        ResourceState.Degraded => "state-degraded",
+        ResourceState.Stopped => "state-stopped",
+        _ => "state-unknown"
+    };
+}

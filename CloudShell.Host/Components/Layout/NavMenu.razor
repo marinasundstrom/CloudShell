@@ -1,0 +1,33 @@
+﻿@inject ShellCatalog ShellCatalog
+
+<nav class="nav-shell" aria-label="Primary">
+    @foreach (var group in ShellCatalog.NavigationItems.GroupBy(item => item.Group))
+    {
+        <section class="nav-group">
+            <div class="nav-group-title">@group.Key</div>
+
+            @foreach (var item in group)
+            {
+                <NavLink class="nav-link" href="@item.Href" Match="@GetMatch(item.Href)">
+                    <span class="nav-icon" data-icon="@GetIconGlyph(item.Icon)" aria-hidden="true"></span>
+                    <span>@item.Text</span>
+                </NavLink>
+            }
+        </section>
+    }
+</nav>
+
+@code {
+    private static NavLinkMatch GetMatch(string href) =>
+        href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
+
+    private static string GetIconGlyph(string icon) => icon switch
+    {
+        "grid" => "O",
+        "server" => "R",
+        "pulse" => "T",
+        "plug" => "E",
+        "docker" => "D",
+        _ => icon[..1].ToUpperInvariant()
+    };
+}

@@ -1,0 +1,50 @@
+﻿@inherits LayoutComponentBase
+@inject ShellCatalog ShellCatalog
+
+<div class="shell">
+    <aside class="shell-sidebar">
+        <div class="brand">
+            <div class="brand-mark">CS</div>
+            <div>
+                <div class="brand-name">CloudShell</div>
+                <div class="brand-subtitle">Platform control plane</div>
+            </div>
+        </div>
+
+        <NavMenu />
+
+        <div class="sidebar-footer">
+            <span class="status-dot"></span>
+            <span>Local workspace</span>
+        </div>
+    </aside>
+
+    <main class="shell-main">
+        <header class="shell-topbar">
+            <div class="environment-picker">
+                <span class="eyebrow">Environment</span>
+                <strong>Development</strong>
+            </div>
+            <div class="command-surface">
+                <FluentButton Appearance="Appearance.Neutral">Refresh</FluentButton>
+                <FluentButton Appearance="Appearance.Accent">New resource</FluentButton>
+            </div>
+        </header>
+
+        <article class="shell-content">
+            @Body
+        </article>
+    </main>
+</div>
+
+<FluentToastProvider />
+<FluentDialogProvider />
+<FluentTooltipProvider />
+<FluentMessageBarProvider />
+<FluentMenuProvider />
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">x</span>
+</div>

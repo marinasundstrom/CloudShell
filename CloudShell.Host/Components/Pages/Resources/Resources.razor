@@ -1,0 +1,383 @@
+@page "/resources"
+@rendermode InteractiveServer
+@inject IResourceManagerStore ResourceManager
+@inject NavigationManager Navigation
+
+<PageTitle>Resources</PageTitle>
+
+@{
+    var allResources = ResourceManager.GetResources();
+    var groups = ResourceManager.GetResourceGroups();
+    var rows = BuildRows(allResources);
+    var selected = SelectedResource ?? rows.FirstOrDefault()?.Resource;
+}
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">Resource Manager</span>
+        <h1>Resources</h1>
+        <p>Explore registered resources, project groups, endpoints, dependencies, and nested sub-resources.</p>
+    </div>
+    <div class="heading-actions">
+        <FluentButton Appearance="Appearance.Neutral">Refresh</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" OnClick="CreateGroup">
+            Create group
+        </FluentButton>
+        <FluentButton Appearance="Appearance.Accent" OnClick="AddResource">
+            Add resource
+        </FluentButton>
+    </div>
+</section>
+
+<section class="resource-explorer">
+    <aside class="resource-scopes">
+        <div class="scope-heading">
+            <h2>Scope</h2>
+            <span>@allResources.Count resources</span>
+        </div>
+
+        <button class="scope-item @(SelectedScope is null ? "active" : null)" @onclick="() => SelectScope(null)">
+            <span>All resources</span>
+            <strong>@allResources.Count</strong>
+        </button>
+
+        <div class="scope-label">Resource groups</div>
+        @foreach (var group in groups)
+        {
+            var count = allResources.Count(resource => GetGroup(resource)?.Id == group.Id);
+            <button class="scope-item @(SelectedScope == group.Id ? "active" : null)" @onclick="() => SelectScope(group.Id)">
+                <span>@group.Name</span>
+                <small>@group.Description</small>
+                <strong>@count</strong>
+            </button>
+        }
+
+        @{
+            var ungroupedCount = allResources.Count(resource => GetGroup(resource) is null);
+        }
+        <button class="scope-item @(SelectedScope == UngroupedScope ? "active" : null)" @onclick="() => SelectScope(UngroupedScope)">
+            <span>Ungrouped</span>
+            <small>Outside a project group</small>
+            <strong>@ungroupedCount</strong>
+        </button>
+    </aside>
+
+    <div class="resource-list panel">
+        <div class="inventory-toolbar">
+            <FluentSearch @bind-Value="Filter" Placeholder="Filter by name or type" />
+            <div class="toolbar-meta">@rows.Count shown</div>
+        </div>
+
+        <div class="resource-list-header">
+            <span>Name</span>
+            <span>Type</span>
+            <span>Group</span>
+            <span>State</span>
+            <span>Endpoint</span>
+        </div>
+
+        <div class="resource-tree" role="treegrid" aria-label="Resources">
+            @foreach (var row in rows)
+            {
+                var resource = row.Resource;
+                var group = GetGroup(resource);
+                <div class="resource-tree-row @(selected?.Id == resource.Id ? "selected" : null)"
+                     role="row"
+                     @onclick="() => OpenResource(resource)">
+                    <div class="resource-name-cell" style="--resource-depth: @row.Depth">
+                        @if (row.ChildCount > 0)
+                        {
+                            <button class="tree-toggle"
+                                    title="Toggle sub-resources"
+                                    @onclick="() => ToggleResource(resource.Id)"
+                                    @onclick:stopPropagation="true">
+                                @(CollapsedResourceIds.Contains(resource.Id) ? "+" : "-")
+                            </button>
+                        }
+                        else
+                        {
+                            <span class="tree-spacer"></span>
+                        }
+
+                        <span class="resource-kind-icon">@GetResourceGlyph(resource.Kind)</span>
+                        <div>
+                            @if (resource.DetailRoute is not null)
+                            {
+                                <a class="resource-link"
+                                   href="@resource.DetailRoute"
+                                   @onclick:stopPropagation="true">@resource.Name</a>
+                            }
+                            else
+                            {
+                                <strong>@resource.Name</strong>
+                            }
+                            @if (row.ChildCount > 0)
+                            {
+                                <small>@row.ChildCount sub-resources</small>
+                            }
+                        </div>
+                    </div>
+                    <span>@resource.Kind</span>
+                    <span>@(group?.Name ?? "Ungrouped")</span>
+                    <span><span class="state-pill @GetStateClass(resource.State)">@resource.State</span></span>
+                    <span class="endpoint">@resource.PrimaryEndpoint</span>
+                </div>
+            }
+
+            @if (rows.Count == 0)
+            {
+                <div class="empty-state">
+                    <strong>No resources in this scope</strong>
+                    <span>Change the scope or filter to view other resources.</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <aside class="resource-blade panel">
+        @if (selected is not null)
+        {
+            var group = GetGroup(selected);
+            var parent = selected.ParentResourceId is null ? null : ResourceManager.GetResource(selected.ParentResourceId);
+            var children = ResourceManager.GetChildren(selected.Id);
+
+            @if (parent is not null)
+            {
+                <button class="parent-link" @onclick="() => SelectResource(parent)">
+                    Back to @parent.Name
+                </button>
+            }
+
+            <div class="detail-heading">
+                <span class="resource-kind-icon large">@GetResourceGlyph(selected.Kind)</span>
+                <div>
+                    <h2>@selected.Name</h2>
+                    <p>@selected.Kind</p>
+                </div>
+            </div>
+
+            <div class="blade-status">
+                <span class="state-dot @GetStateClass(selected.State)"></span>
+                <strong>@selected.State</strong>
+                <span>Updated @selected.LastUpdated.ToLocalTime().ToString("HH:mm:ss")</span>
+            </div>
+
+            @if (selected.DetailRoute is not null)
+            {
+                <FluentButton Appearance="Appearance.Accent" OnClick="() => Navigation.NavigateTo(selected.DetailRoute)">
+                    Open resource
+                </FluentButton>
+            }
+
+            <section class="blade-section">
+                <h3>Essentials</h3>
+                <dl class="detail-list">
+                    <dt>Type</dt>
+                    <dd>@selected.EffectiveTypeId</dd>
+                    <dt>Resource group</dt>
+                    <dd>@(group?.Name ?? "Ungrouped")</dd>
+                    <dt>Region</dt>
+                    <dd>@selected.Region</dd>
+                    <dt>Version</dt>
+                    <dd>@selected.Version</dd>
+                    <dt>Resource ID</dt>
+                    <dd>@selected.Id</dd>
+                </dl>
+            </section>
+
+            @if (children.Count > 0)
+            {
+                <section class="blade-section">
+                    <h3>Sub-resources</h3>
+                    <div class="subresource-list">
+                        @foreach (var child in children)
+                        {
+                            <button @onclick="() => SelectResource(child)">
+                                <span class="resource-kind-icon">@GetResourceGlyph(child.Kind)</span>
+                                <span>
+                                    <strong>@child.Name</strong>
+                                    <small>@child.Kind</small>
+                                </span>
+                                <span class="state-dot @GetStateClass(child.State)"></span>
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
+
+            <section class="blade-section">
+                <h3>Endpoints</h3>
+                <div class="endpoint-list">
+                    @foreach (var endpoint in selected.Endpoints)
+                    {
+                        <div>
+                            <strong>@endpoint.Name</strong>
+                            <span>@endpoint.Address</span>
+                            <small>@endpoint.Protocol @(endpoint.IsExternal ? "external" : "internal")</small>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            @if (selected.DependsOn.Count > 0)
+            {
+                <section class="blade-section">
+                    <h3>Dependencies</h3>
+                    <div class="dependency-list">
+                        @foreach (var dependency in selected.DependsOn)
+                        {
+                            <span>@dependency</span>
+                        }
+                    </div>
+                </section>
+            }
+        }
+    </aside>
+</section>
+
+@code {
+    private const string UngroupedScope = "__ungrouped";
+    private readonly HashSet<string> CollapsedResourceIds = new(StringComparer.OrdinalIgnoreCase);
+    private string? Filter { get; set; }
+    private string? SelectedScope { get; set; }
+    private CloudResource? SelectedResource { get; set; }
+
+    private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<CloudResource> allResources)
+    {
+        var scoped = allResources
+            .Where(IsInSelectedScope)
+            .ToArray();
+        var scopedIds = scoped.Select(resource => resource.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var childrenByParent = scoped
+            .Where(resource => resource.ParentResourceId is not null)
+            .GroupBy(resource => resource.ParentResourceId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.OrderBy(resource => resource.Name).ToArray(), StringComparer.OrdinalIgnoreCase);
+
+        HashSet<string>? visibleIds = null;
+        if (!string.IsNullOrWhiteSpace(Filter))
+        {
+            visibleIds = scoped
+                .Where(MatchesFilter)
+                .Select(resource => resource.Id)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var resource in scoped.Where(resource => visibleIds.Contains(resource.Id)))
+            {
+                var parentId = resource.ParentResourceId;
+                while (parentId is not null && scopedIds.Contains(parentId) && visibleIds.Add(parentId))
+                {
+                    parentId = scoped.First(item => item.Id == parentId).ParentResourceId;
+                }
+            }
+        }
+
+        var rows = new List<ResourceRow>();
+        var roots = scoped
+            .Where(resource => resource.ParentResourceId is null || !scopedIds.Contains(resource.ParentResourceId))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var root in roots)
+        {
+            AddResourceRow(root, 0, childrenByParent, visibleIds, rows);
+        }
+
+        return rows;
+    }
+
+    private void AddResourceRow(
+        CloudResource resource,
+        int depth,
+        IReadOnlyDictionary<string, CloudResource[]> childrenByParent,
+        HashSet<string>? visibleIds,
+        List<ResourceRow> rows)
+    {
+        if (visibleIds is not null && !visibleIds.Contains(resource.Id))
+        {
+            return;
+        }
+
+        var children = childrenByParent.GetValueOrDefault(resource.Id) ?? [];
+        rows.Add(new ResourceRow(resource, depth, children.Length));
+
+        if (CollapsedResourceIds.Contains(resource.Id) && visibleIds is null)
+        {
+            return;
+        }
+
+        foreach (var child in children)
+        {
+            AddResourceRow(child, depth + 1, childrenByParent, visibleIds, rows);
+        }
+    }
+
+    private bool IsInSelectedScope(CloudResource resource)
+    {
+        var group = GetGroup(resource);
+        return SelectedScope switch
+        {
+            null => true,
+            UngroupedScope => group is null,
+            _ => group?.Id == SelectedScope
+        };
+    }
+
+    private bool MatchesFilter(CloudResource resource) =>
+        resource.Name.Contains(Filter!, StringComparison.OrdinalIgnoreCase) ||
+        resource.Kind.Contains(Filter!, StringComparison.OrdinalIgnoreCase) ||
+        resource.EffectiveTypeId.Contains(Filter!, StringComparison.OrdinalIgnoreCase);
+
+    private ResourceGroup? GetGroup(CloudResource resource) =>
+        ResourceManager.GetGroupForResource(resource.Id);
+
+    private void SelectScope(string? scope)
+    {
+        SelectedScope = scope;
+        SelectedResource = null;
+    }
+
+    private void ToggleResource(string resourceId)
+    {
+        if (!CollapsedResourceIds.Add(resourceId))
+        {
+            CollapsedResourceIds.Remove(resourceId);
+        }
+    }
+
+    private void OpenResource(CloudResource resource)
+    {
+        if (resource.DetailRoute is not null)
+        {
+            Navigation.NavigateTo(resource.DetailRoute);
+            return;
+        }
+
+        SelectResource(resource);
+    }
+
+    private void SelectResource(CloudResource resource) => SelectedResource = resource;
+
+    private void CreateGroup() => Navigation.NavigateTo("/resources/groups/new");
+
+    private void AddResource() => Navigation.NavigateTo("/resources/add");
+
+    private static string GetResourceGlyph(string kind) =>
+        kind.Contains("Docker Engine", StringComparison.OrdinalIgnoreCase) ? "D" :
+        kind.Contains("Container", StringComparison.OrdinalIgnoreCase) ? "C" :
+        kind.Contains("Database", StringComparison.OrdinalIgnoreCase) || kind.Contains("SQL", StringComparison.OrdinalIgnoreCase) ? "DB" :
+        kind.Contains("Redis", StringComparison.OrdinalIgnoreCase) ? "R" :
+        kind.Contains("Collector", StringComparison.OrdinalIgnoreCase) ? "T" :
+        kind.Contains("Worker", StringComparison.OrdinalIgnoreCase) ? "W" :
+        kind.Contains("Broker", StringComparison.OrdinalIgnoreCase) ? "Q" :
+        "S";
+
+    private static string GetStateClass(ResourceState state) => state switch
+    {
+        ResourceState.Running => "state-running",
+        ResourceState.Starting => "state-starting",
+        ResourceState.Degraded => "state-degraded",
+        ResourceState.Stopped => "state-stopped",
+        _ => "state-unknown"
+    };
+
+    private sealed record ResourceRow(CloudResource Resource, int Depth, int ChildCount);
+}

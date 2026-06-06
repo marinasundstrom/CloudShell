@@ -1,0 +1,81 @@
+@page "/extensions"
+@inject ShellCatalog ShellCatalog
+@inject IResourceManagerStore ResourceManager
+
+<PageTitle>Extensions</PageTitle>
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">Platform</span>
+        <h1>Extensions</h1>
+        <p>Shell extensions registered through the service container. Extensions can add views, services, and resource types.</p>
+    </div>
+    <div class="heading-actions">
+        <FluentButton Appearance="Appearance.Neutral">Reload</FluentButton>
+        <FluentButton Appearance="Appearance.Accent">Install</FluentButton>
+    </div>
+</section>
+
+<section class="dashboard-grid">
+    <article class="panel panel-wide">
+        <div class="panel-header">
+            <div>
+                <h2>Shell extensions</h2>
+                <p>@ShellCatalog.Extensions.Count registered extensions</p>
+            </div>
+        </div>
+
+        <div class="extension-grid">
+            @foreach (var extension in ShellCatalog.Extensions)
+            {
+                <div class="extension-card">
+                    <div>
+                        <strong>@extension.DisplayName</strong>
+                        <span>@extension.Id · v@(extension.Version)</span>
+                    </div>
+                    <p>@extension.Description</p>
+                    <div class="tag-row">
+                        @foreach (var capability in extension.Provides)
+                        {
+                            <span>@capability</span>
+                        }
+                    </div>
+                    @if (extension.Views.Any(view => view.ShowInNavigation))
+                    {
+                        <div class="extension-views">
+                            @foreach (var view in extension.Views.Where(view => view.ShowInNavigation))
+                            {
+                                <a href="@view.Route">@view.Title</a>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </article>
+
+    <article class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>Resource types</h2>
+                <p>@ShellCatalog.ResourceTypes.Count available</p>
+            </div>
+        </div>
+
+        <div class="provider-list">
+            @foreach (var resourceType in ShellCatalog.ResourceTypes)
+            {
+                <div class="provider-row">
+                    <div>
+                        <strong>@resourceType.DisplayName</strong>
+                        <span>@resourceType.Id</span>
+                    </div>
+                    <div>
+                        <strong>@resourceType.Icon</strong>
+                        <span>type</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </article>
+</section>

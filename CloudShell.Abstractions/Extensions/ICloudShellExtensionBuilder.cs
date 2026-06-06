@@ -1,0 +1,55 @@
+using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace CloudShell.Abstractions.Extensions;
+
+public interface ICloudShellExtensionBuilder
+{
+    IServiceCollection Services { get; }
+
+    ICloudShellExtensionBuilder AddView<TComponent>(
+        string title,
+        string route,
+        string icon,
+        int order,
+        string group = "Workspace",
+        bool showInNavigation = true);
+
+    ICloudShellExtensionBuilder AddNavigation(
+        string text,
+        string href,
+        string icon,
+        int order,
+        string group = "Workspace");
+
+    ICloudShellExtensionBuilder AddResourceProvider<TProvider>()
+        where TProvider : class, IResourceProvider;
+
+    ICloudShellExtensionBuilder AddResourceType<TRegistrationComponent>(
+        string id,
+        string displayName,
+        string description,
+        string icon,
+        int order);
+
+    ICloudShellExtensionBuilder AddSingleton<TService>()
+        where TService : class;
+
+    ICloudShellExtensionBuilder AddSingleton<TService, TImplementation>()
+        where TService : class
+        where TImplementation : class, TService;
+
+    ICloudShellExtensionBuilder AddScoped<TService>()
+        where TService : class;
+
+    ICloudShellExtensionBuilder AddScoped<TService, TImplementation>()
+        where TService : class
+        where TImplementation : class, TService;
+
+    ICloudShellExtensionBuilder AddTransient<TService>()
+        where TService : class;
+
+    ICloudShellExtensionBuilder AddTransient<TService, TImplementation>()
+        where TService : class
+        where TImplementation : class, TService;
+}
