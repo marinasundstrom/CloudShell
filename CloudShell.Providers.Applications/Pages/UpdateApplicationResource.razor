@@ -29,6 +29,14 @@ else
             <label for="application-update-endpoint">Endpoint</label>
             <input id="application-update-endpoint" @bind="Endpoint" />
 
+            <label for="application-update-lifetime">Lifetime</label>
+            <select id="application-update-lifetime" @bind="SelectedLifetime">
+                @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
+                {
+                    <option value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</option>
+                }
+            </select>
+
             <label for="application-update-group">Resource group</label>
             <select id="application-update-group" @bind="SelectedGroupId">
                 <option value="">Ungrouped</option>
@@ -74,6 +82,7 @@ else
     private string? Arguments { get; set; }
     private string? WorkingDirectory { get; set; }
     private string? Endpoint { get; set; }
+    private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private string SelectedGroupId { get; set; } = string.Empty;
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
@@ -91,6 +100,7 @@ else
             Arguments = Application.Arguments;
             WorkingDirectory = Application.WorkingDirectory;
             Endpoint = Application.Endpoint;
+            SelectedLifetime = Application.Lifetime.ToString();
             SelectedGroupId = ResourceManager.GetGroupForResource(Application.Id)?.Id ?? string.Empty;
             EnvironmentVariables.Clear();
             EnvironmentVariables.AddRange(Application.EnvironmentVariables
@@ -134,7 +144,8 @@ else
             Arguments,
             WorkingDirectory,
             Endpoint,
-            BuildEnvironmentVariables());
+            BuildEnvironmentVariables(),
+            ParseLifetime());
 
         await ApplicationProvider.UpdateApplicationAsync(
             definition,
@@ -150,6 +161,18 @@ else
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
             .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
             .ToArray();
+
+    private ApplicationLifetime ParseLifetime() =>
+        Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)
+            ? lifetime
+            : ApplicationLifetime.Detached;
+
+    private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
+        lifetime switch
+        {
+            ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
+            _ => "Detached"
+        };
 
     private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
     {

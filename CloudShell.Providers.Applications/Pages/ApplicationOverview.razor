@@ -20,6 +20,8 @@ else
             <dd>@(Application.WorkingDirectory ?? "executable directory")</dd>
             <dt>Endpoint</dt>
             <dd>@(Application.Endpoint ?? "none")</dd>
+            <dt>Lifetime</dt>
+            <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
         </dl>
     </section>
 
@@ -54,4 +56,11 @@ else
             ? null
             : ApplicationProvider.GetApplication(ResourceId);
     }
+
+    private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
+        lifetime switch
+        {
+            ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
+            _ => "Detached"
+        };
 }

@@ -20,6 +20,7 @@ This repository is an early shell prototype. It currently includes:
 - Host UI localization with a persisted language picker.
 - SQLite or SQL Server persistence selected through configuration.
 - A Docker reference extension that registers a local Docker Engine resource and shows containers as sub-resources.
+- An executable application extension for local dev services, with configurable process lifetime and environment variables.
 
 ## Concepts
 
@@ -48,6 +49,8 @@ An extension registers a resource type and provides a Blazor registration compon
 
 For example, the Docker extension registers the `docker.engine` resource type. Its registration UI discovers the local Docker socket and lets the user add the Docker Engine as a CloudShell resource.
 
+The executable application extension registers the `application.executable` resource type. Its registration UI lets the user add a local command, pass environment variables, choose a working directory and endpoint, and configure whether the process is detached from or scoped to the CloudShell control plane.
+
 ### Resource Providers
 
 Resource providers are internal implementation services. They are not shown as a product concept in the UI.
@@ -66,6 +69,8 @@ Local Docker Engine
 └── Docker Container sub-resources
 ```
 
+Executable application resources are local dev processes. By default, they use a detached lifetime: CloudShell starts the process, persists the last known PID and process start time, and does not stop it when CloudShell exits. When CloudShell restarts, the provider uses that persisted process metadata to rediscover a still-running process without trusting a PID alone. A control-plane-scoped lifetime is also available for temporary helpers that should stop with CloudShell.
+
 ### Resource Groups
 
 Resource groups are user-managed project boundaries. They are owned by the CloudShell platform, not by providers.
@@ -80,6 +85,7 @@ Resource groups are authorization scopes. Roles and direct claims determine whic
 - `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
 - `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
+- `CloudShell.Providers.Applications`: extension for executable application resources on a local development machine.
 - `CloudShell.Providers.Docker`: reference extension for local Docker Engine and containers.
 - `CloudShell.Abstractions.Tests`: extension registration and validation tests.
 
@@ -139,6 +145,22 @@ Persisted data currently includes:
 
 Provider discovery data, such as Docker containers under a registered Docker Engine, is not persisted as platform registration data. Those resources are re-discovered and shown dynamically.
 
+Executable application configuration and runtime state are provider-owned local files under `CloudShell.Host/Data` by default. Configuration is stored separately from runtime state. Runtime state includes the last known process ID, process start time, last observation time, last exit code, and log path.
+
+## Executable Application Sample
+
+The executable application extension is intended for local dev services: APIs, frontend dev servers, emulators, workers, and similar commands that should appear in Resource Manager without requiring Docker.
+
+The host contributes an initial `Example Web API` executable application. After adding it through `/resources/add`, the Run action starts:
+
+```bash
+dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile
+```
+
+The sample runs on `http://localhost:5127` through `ASPNETCORE_URLS`, and that endpoint is rendered as a real link in the resource details blade.
+
+Executable applications default to detached lifetime, so a service can continue running if CloudShell is restarted. Choose control-plane-scoped lifetime when the process should be stopped with CloudShell. Detached application stdout and stderr are written to per-resource files under `CloudShell.Host/Data/application-logs` so the Logs view can read them after restart.
+
 ## Docker Sample
 
 The Docker extension looks for a local Docker endpoint in this order:
@@ -183,6 +205,7 @@ Deployment configuration:
 - [Authentication and authorization](docs/authentication-and-authorization.md)
 - [Localization](docs/localization.md)
 - [Persistence](docs/persistence.md)
+- [Executable applications](docs/executable-applications.md)
 
 ## Trust Model
 

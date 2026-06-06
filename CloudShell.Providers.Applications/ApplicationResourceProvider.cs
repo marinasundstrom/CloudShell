@@ -4,11 +4,15 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Hosting;
 
 namespace CloudShell.Providers.Applications;
 
 public sealed partial class ApplicationResourceProvider(
-    ApplicationResourceStore store) : IResourceProvider, ILogProvider, IResourceProcedureProvider, IDisposable
+    ApplicationResourceStore store,
+    ApplicationRuntimeStateStore runtimeStates,
+    ApplicationProviderOptions options,
+    IHostEnvironment environment) : IResourceProvider, ILogProvider, IResourceProcedureProvider, IDisposable
 {
     private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
         new(StringComparer.OrdinalIgnoreCase);
@@ -32,7 +36,7 @@ public sealed partial class ApplicationResourceProvider(
             LogSourceKind.Resource,
             ResourceId: application.Id,
             SupportsStreaming: true,
-            Description: "Combined stdout and stderr from the launched process."))
+            Description: "Application stdout, stderr, and lifecycle events."))
         .ToArray();
 
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
@@ -42,13 +46,13 @@ public sealed partial class ApplicationResourceProvider(
         CancellationToken cancellationToken = default)
     {
         var applicationId = GetApplicationIdFromLogId(logId);
-        if (applicationId is null ||
-            !_processes.TryGetValue(applicationId, out var state))
+        if (applicationId is null)
         {
             return Task.FromResult<IReadOnlyList<LogEntry>>([]);
         }
 
-        return Task.FromResult(state.Log.Read(maxEntries, before));
+        var log = GetProcessLog(applicationId);
+        return Task.FromResult(log.Read(maxEntries, before));
     }
 
     public async IAsyncEnumerable<LogEntry> StreamLogAsync(
@@ -56,22 +60,27 @@ public sealed partial class ApplicationResourceProvider(
         int initialEntries = 50,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        DateTimeOffset? lastTimestamp = null;
-
-        foreach (var entry in await ReadLogAsync(logId, initialEntries, cancellationToken: cancellationToken))
+        var applicationId = GetApplicationIdFromLogId(logId);
+        if (applicationId is null)
         {
-            lastTimestamp = entry.Timestamp;
+            yield break;
+        }
+
+        var log = GetProcessLog(applicationId);
+        foreach (var entry in log.Read(initialEntries, before: null))
+        {
             yield return entry;
         }
 
+        var seenEntries = log.CountEntries();
         while (!cancellationToken.IsCancellationRequested)
         {
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
 
-            var entries = await ReadLogAsync(logId, 100, cancellationToken: cancellationToken);
-            foreach (var entry in entries.Where(entry => lastTimestamp is null || entry.Timestamp > lastTimestamp))
+            var entries = log.ReadAfter(seenEntries);
+            seenEntries += entries.Count;
+            foreach (var entry in entries)
             {
-                lastTimestamp = entry.Timestamp;
                 yield return entry;
             }
         }
@@ -117,8 +126,9 @@ public sealed partial class ApplicationResourceProvider(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
-        await StopApplicationAsync(context.Resource.Id, cancellationToken);
+        await StopApplicationAsync(context.Resource.Id, force: true, cancellationToken);
         store.Remove(context.Resource.Id);
+        runtimeStates.Remove(context.Resource.Id);
         await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
         return ResourceProcedureResult.Completed("Application registration removed.");
     }
@@ -140,10 +150,10 @@ public sealed partial class ApplicationResourceProvider(
                 await StartApplicationAsync(context.Resource.Id, cancellationToken);
                 return ResourceProcedureResult.Completed($"Started {context.Resource.Name}.");
             case ResourceActionKind.Stop:
-                await StopApplicationAsync(context.Resource.Id, cancellationToken);
+                await StopApplicationAsync(context.Resource.Id, force: true, cancellationToken);
                 return ResourceProcedureResult.Completed($"Stopped {context.Resource.Name}.");
             case ResourceActionKind.Restart:
-                await StopApplicationAsync(context.Resource.Id, cancellationToken);
+                await StopApplicationAsync(context.Resource.Id, force: true, cancellationToken);
                 await StartApplicationAsync(context.Resource.Id, cancellationToken);
                 return ResourceProcedureResult.Completed($"Restarted {context.Resource.Name}.");
             default:
@@ -157,17 +167,27 @@ public sealed partial class ApplicationResourceProvider(
     public IReadOnlyList<ApplicationResourceDefinition> GetApplications() => store.GetApplications();
 
     public bool IsRunning(string applicationId) =>
-        _processes.TryGetValue(applicationId, out var state) && !state.Process.HasExited;
+        TryGetRunningProcess(
+            store.GetApplication(applicationId),
+            out _);
 
     public void Dispose()
     {
-        foreach (var state in _processes.Values)
+        foreach (var (applicationId, state) in _processes)
         {
             try
             {
-                if (!state.Process.HasExited)
+                if (state.Lifetime == ApplicationLifetime.ControlPlaneScoped &&
+                    !state.Process.HasExited)
                 {
                     state.Process.Kill(entireProcessTree: true);
+                    runtimeStates.Save(new ApplicationRuntimeState(
+                        applicationId,
+                        state.Process.Id,
+                        null,
+                        DateTimeOffset.UtcNow,
+                        TryGetExitCode(state.Process),
+                        state.LogPath));
                 }
             }
             catch (InvalidOperationException)
@@ -183,22 +203,17 @@ public sealed partial class ApplicationResourceProvider(
         var definition = store.GetApplication(applicationId)
             ?? throw new InvalidOperationException($"Application resource '{applicationId}' is not configured.");
 
-        if (_processes.TryGetValue(definition.Id, out var existing) &&
-            !existing.Process.HasExited)
+        if (TryGetRunningProcess(definition, out _))
         {
             return;
         }
 
-        var processLog = existing?.Log ?? new ApplicationProcessLog();
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = definition.ExecutablePath,
-            Arguments = definition.Arguments ?? string.Empty,
-            WorkingDirectory = ResolveWorkingDirectory(definition),
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
+        var logPath = GetLogPath(definition.Id);
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        var processLog = new ApplicationProcessLog(logPath);
+        var startInfo = definition.Lifetime == ApplicationLifetime.Detached
+            ? CreateDetachedStartInfo(definition, logPath)
+            : CreateScopedStartInfo(definition);
 
         foreach (var variable in definition.EnvironmentVariables)
         {
@@ -209,6 +224,7 @@ public sealed partial class ApplicationResourceProvider(
 
             startInfo.Environment[variable.Name] = variable.Value;
         }
+        startInfo.Environment["CLOUDSHELL_RESOURCE_ID"] = definition.Id;
 
         var process = new Process
         {
@@ -216,41 +232,80 @@ public sealed partial class ApplicationResourceProvider(
             EnableRaisingEvents = true
         };
 
-        process.OutputDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stdout");
-        process.ErrorDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stderr", "Error");
+        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+        {
+            process.OutputDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stdout");
+            process.ErrorDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stderr", "Error");
+        }
+
         process.Exited += (_, _) =>
         {
             processLog.Append(
                 $"Process exited with code {process.ExitCode}.",
                 "process",
                 process.ExitCode == 0 ? "Information" : "Error");
+            runtimeStates.Save(new ApplicationRuntimeState(
+                definition.Id,
+                process.Id,
+                null,
+                DateTimeOffset.UtcNow,
+                process.ExitCode,
+                logPath));
         };
 
         cancellationToken.ThrowIfCancellationRequested();
         process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+
+        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+        {
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+        }
+
+        var startedAt = TryGetStartTime(process);
+        runtimeStates.Save(new ApplicationRuntimeState(
+            definition.Id,
+            process.Id,
+            startedAt,
+            DateTimeOffset.UtcNow,
+            LogPath: logPath));
 
         processLog.Append(
-            $"Started '{definition.ExecutablePath}' with process id {process.Id}.",
+            $"Started '{definition.ExecutablePath}' with process id {process.Id} using {definition.Lifetime} lifetime.",
             "process",
             "Information");
 
-        _processes[definition.Id] = new ApplicationProcessState(process, processLog);
+        _processes[definition.Id] = new ApplicationProcessState(
+            process,
+            processLog,
+            definition.Lifetime,
+            logPath);
         await Task.CompletedTask;
     }
 
-    private async Task StopApplicationAsync(string applicationId, CancellationToken cancellationToken)
+    private async Task StopApplicationAsync(
+        string applicationId,
+        bool force,
+        CancellationToken cancellationToken)
     {
-        if (!_processes.TryGetValue(applicationId, out var state) ||
-            state.Process.HasExited)
+        var application = store.GetApplication(applicationId);
+        var log = GetProcessLog(applicationId);
+
+        if (!TryGetRunningProcess(application, out var process))
         {
             return;
         }
 
-        state.Log.Append("Stopping process.", "process", "Information");
-        state.Process.Kill(entireProcessTree: true);
-        await state.Process.WaitForExitAsync(cancellationToken);
+        log.Append(force ? "Stopping process." : "Stopping control-plane-scoped process.", "process", "Information");
+        process.Kill(entireProcessTree: true);
+        await process.WaitForExitAsync(cancellationToken);
+        runtimeStates.Save(new ApplicationRuntimeState(
+            applicationId,
+            process.Id,
+            null,
+            DateTimeOffset.UtcNow,
+            TryGetExitCode(process),
+            GetLogPath(applicationId)));
     }
 
     private CloudResource CreateResource(ApplicationResourceDefinition application)
@@ -273,14 +328,11 @@ public sealed partial class ApplicationResourceProvider(
 
     private ResourceState GetState(string applicationId)
     {
-        if (!_processes.TryGetValue(applicationId, out var state))
-        {
-            return ResourceState.Stopped;
-        }
-
-        return state.Process.HasExited
-            ? ResourceState.Stopped
-            : ResourceState.Running;
+        return TryGetRunningProcess(
+            store.GetApplication(applicationId),
+            out _)
+            ? ResourceState.Running
+            : ResourceState.Stopped;
     }
 
     private static IReadOnlyList<ResourceAction> CreateActions(ResourceState state) =>
@@ -303,6 +355,189 @@ public sealed partial class ApplicationResourceProvider(
         return [new("application", endpoint, protocol, true)];
     }
 
+    private static ProcessStartInfo CreateScopedStartInfo(ApplicationResourceDefinition definition) =>
+        new()
+        {
+            FileName = definition.ExecutablePath,
+            Arguments = definition.Arguments ?? string.Empty,
+            WorkingDirectory = ResolveWorkingDirectory(definition),
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+    private static ProcessStartInfo CreateDetachedStartInfo(
+        ApplicationResourceDefinition definition,
+        string logPath)
+    {
+        var workingDirectory = ResolveWorkingDirectory(definition);
+        var arguments = definition.Arguments ?? string.Empty;
+
+        if (OperatingSystem.IsWindows())
+        {
+            var command = $"\"{EscapeWindowsCommandArgument(definition.ExecutablePath)}\" {arguments} >> \"{EscapeWindowsCommandArgument(logPath)}\" 2>&1";
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe",
+                WorkingDirectory = workingDirectory,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("/d");
+            startInfo.ArgumentList.Add("/s");
+            startInfo.ArgumentList.Add("/c");
+            startInfo.ArgumentList.Add(command);
+            return startInfo;
+        }
+
+        var shellCommand = $"exec {QuoteUnixShellArgument(definition.ExecutablePath)} {arguments} >> {QuoteUnixShellArgument(logPath)} 2>&1";
+        var unixStartInfo = new ProcessStartInfo
+        {
+            FileName = "/bin/sh",
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        unixStartInfo.ArgumentList.Add("-c");
+        unixStartInfo.ArgumentList.Add(shellCommand);
+        return unixStartInfo;
+    }
+
+    private bool TryGetRunningProcess(
+        ApplicationResourceDefinition? definition,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Process? process)
+    {
+        process = null;
+        if (definition is null)
+        {
+            return false;
+        }
+
+        if (_processes.TryGetValue(definition.Id, out var state))
+        {
+            if (!state.Process.HasExited)
+            {
+                process = state.Process;
+                return true;
+            }
+
+            runtimeStates.Save(new ApplicationRuntimeState(
+                definition.Id,
+                state.Process.Id,
+                null,
+                DateTimeOffset.UtcNow,
+                TryGetExitCode(state.Process),
+                state.LogPath));
+        }
+
+        var runtimeState = runtimeStates.Get(definition.Id);
+        if (runtimeState?.LastKnownProcessId is null ||
+            runtimeState.LastKnownProcessStartedAt is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var candidate = Process.GetProcessById(runtimeState.LastKnownProcessId.Value);
+            if (candidate.HasExited ||
+                !ProcessStartMatches(candidate, runtimeState.LastKnownProcessStartedAt.Value))
+            {
+                return false;
+            }
+
+            var logPath = runtimeState.LogPath ?? GetLogPath(definition.Id);
+            var log = new ApplicationProcessLog(logPath);
+            candidate.EnableRaisingEvents = true;
+            candidate.Exited += (_, _) =>
+            {
+                log.Append(
+                    $"Process exited with code {TryGetExitCode(candidate)?.ToString() ?? "unknown"}.",
+                    "process",
+                    TryGetExitCode(candidate) == 0 ? "Information" : "Error");
+                runtimeStates.Save(new ApplicationRuntimeState(
+                    definition.Id,
+                    candidate.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    TryGetExitCode(candidate),
+                    logPath));
+            };
+
+            _processes[definition.Id] = new ApplicationProcessState(
+                candidate,
+                log,
+                definition.Lifetime,
+                logPath);
+            process = candidate;
+            return true;
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private ApplicationProcessLog GetProcessLog(string applicationId)
+    {
+        if (_processes.TryGetValue(applicationId, out var state))
+        {
+            return state.Log;
+        }
+
+        return new ApplicationProcessLog(
+            runtimeStates.Get(applicationId)?.LogPath ?? GetLogPath(applicationId));
+    }
+
+    private string GetLogPath(string applicationId)
+    {
+        var logDirectory = Path.IsPathRooted(options.LogDirectory)
+            ? options.LogDirectory
+            : Path.GetFullPath(options.LogDirectory, environment.ContentRootPath);
+        var logFileName = SlugPattern()
+            .Replace(applicationId.ToLowerInvariant(), "-")
+            .Trim('-');
+
+        return Path.Combine(logDirectory, $"{logFileName}.log");
+    }
+
+    private static bool ProcessStartMatches(
+        Process process,
+        DateTimeOffset expectedStartedAt)
+    {
+        var actualStartedAt = TryGetStartTime(process);
+        if (actualStartedAt is null)
+        {
+            return true;
+        }
+
+        return (actualStartedAt.Value - expectedStartedAt).Duration() <= TimeSpan.FromSeconds(2);
+    }
+
+    private static DateTimeOffset? TryGetStartTime(Process process)
+    {
+        try
+        {
+            return new DateTimeOffset(process.StartTime.ToUniversalTime(), TimeSpan.Zero);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    private static int? TryGetExitCode(Process process)
+    {
+        try
+        {
+            return process.HasExited ? process.ExitCode : null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
     private static ApplicationResourceDefinition NormalizeDefinition(ApplicationResourceDefinition definition)
     {
         var id = string.IsNullOrWhiteSpace(definition.Id)
@@ -317,6 +552,7 @@ public sealed partial class ApplicationResourceProvider(
             Arguments = NormalizeNullable(definition.Arguments),
             WorkingDirectory = NormalizeNullable(definition.WorkingDirectory),
             Endpoint = NormalizeNullable(definition.Endpoint),
+            Lifetime = definition.Lifetime,
             EnvironmentVariables = definition.EnvironmentVariables
                 .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
                 .Select(variable => variable with { Name = variable.Name.Trim() })
@@ -354,6 +590,12 @@ public sealed partial class ApplicationResourceProvider(
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId;
 
+    private static string QuoteUnixShellArgument(string value) =>
+        "'" + value.Replace("'", "'\"'\"'", StringComparison.Ordinal) + "'";
+
+    private static string EscapeWindowsCommandArgument(string value) =>
+        value.Replace("\"", "\\\"", StringComparison.Ordinal);
+
     private static string GetLogId(string applicationId) => $"{applicationId}:logs";
 
     private static string? GetApplicationIdFromLogId(string logId) =>
@@ -366,5 +608,7 @@ public sealed partial class ApplicationResourceProvider(
 
     private sealed record ApplicationProcessState(
         Process Process,
-        ApplicationProcessLog Log);
+        ApplicationProcessLog Log,
+        ApplicationLifetime Lifetime,
+        string LogPath);
 }
