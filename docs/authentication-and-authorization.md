@@ -136,7 +136,7 @@ Identity providers can issue permissions and scopes directly:
 | Claim type | Value |
 | --- | --- |
 | `cloudshell.permission` | A permission name or `*` |
-| `cloudshell.resource-group` | A resource-group ID, `__ungrouped`, or `*` |
+| `cloudshell.resource-group` | A resource-group ID, `__ungrouped` for the default group, or `*` |
 | `cloudshell.resource` | A resource ID or `*` |
 
 Access requires both an operation permission and a matching scope. A direct

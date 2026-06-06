@@ -15,7 +15,8 @@ public sealed record ResourceTemplateDefinition(
     string ResourceType,
     IReadOnlyList<string> DependsOn,
     string ProviderConfigurationVersion,
-    JsonElement Configuration);
+    JsonElement Configuration,
+    string? ResourceId = null);
 
 public sealed record ResourceTemplateExportContext(
     ResourceRegistration Registration,

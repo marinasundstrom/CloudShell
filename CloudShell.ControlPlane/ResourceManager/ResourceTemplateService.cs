@@ -19,9 +19,9 @@ public sealed class ResourceTemplateService(
             .Where(resource => group.ResourceIds.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        var resourceNamesById = resources.ToDictionary(
+        var resourceTemplateKeysById = resources.ToDictionary(
             resource => resource.Id,
-            resource => resource.Name,
+            resource => resource.Id,
             StringComparer.OrdinalIgnoreCase);
 
         var exportedResources = new List<ResourceTemplateDefinition>();
@@ -55,8 +55,11 @@ public sealed class ResourceTemplateService(
                 cancellationToken);
             exportedResources.Add(exported with
             {
+                ResourceId = string.IsNullOrWhiteSpace(exported.ResourceId)
+                    ? resource.Id
+                    : exported.ResourceId.Trim(),
                 DependsOn = exported.DependsOn
-                    .Select(dependency => resourceNamesById.GetValueOrDefault(dependency) ?? dependency)
+                    .Select(dependency => resourceTemplateKeysById.GetValueOrDefault(dependency) ?? dependency)
                     .ToArray()
             });
         }
@@ -93,10 +96,20 @@ public sealed class ResourceTemplateService(
 
         var diagnostics = new List<ResourceTemplateDiagnostic>();
         var importedResources = new List<ResourceTemplateImportResult>();
-        var importedResourceIdsByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var importedResourceIdsByTemplateKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var resourceTemplate in OrderByDependencies(template.Resources, diagnostics))
         {
+            var explicitResourceId = GetExplicitResourceId(resourceTemplate);
+            if (explicitResourceId is not null &&
+                IsResourceIdInUse(explicitResourceId))
+            {
+                diagnostics.Add(ResourceTemplateDiagnostic.Error(
+                    resourceTemplate.Name,
+                    $"Resource id '{explicitResourceId}' is already in use."));
+                continue;
+            }
+
             var provider = resourceManager.Providers.FirstOrDefault(item =>
                 string.Equals(item.Id, resourceTemplate.ProviderId, StringComparison.OrdinalIgnoreCase));
             if (provider is not IResourceTemplateProvider templateProvider ||
@@ -111,7 +124,7 @@ public sealed class ResourceTemplateService(
             try
             {
                 var dependsOn = resourceTemplate.DependsOn
-                    .Select(dependency => importedResourceIdsByName.GetValueOrDefault(dependency) ?? dependency)
+                    .Select(dependency => importedResourceIdsByTemplateKey.GetValueOrDefault(dependency) ?? dependency)
                     .ToArray();
                 var imported = await templateProvider.ImportAsync(
                     resourceTemplate,
@@ -124,7 +137,8 @@ public sealed class ResourceTemplateService(
                     cancellationToken);
 
                 importedResources.Add(imported);
-                importedResourceIdsByName[resourceTemplate.Name] = imported.ResourceId;
+                importedResourceIdsByTemplateKey[GetTemplateKey(resourceTemplate)] = imported.ResourceId;
+                importedResourceIdsByTemplateKey[resourceTemplate.Name] = imported.ResourceId;
             }
             catch (Exception exception)
             {
@@ -161,6 +175,7 @@ public sealed class ResourceTemplateService(
             foreach (var resource in ready)
             {
                 ordered.Add(resource);
+                resolved.Add(GetTemplateKey(resource));
                 resolved.Add(resource.Name);
                 pending.Remove(resource);
             }
@@ -168,6 +183,21 @@ public sealed class ResourceTemplateService(
 
         return ordered;
     }
+
+    private static string GetTemplateKey(ResourceTemplateDefinition resource) =>
+        string.IsNullOrWhiteSpace(resource.ResourceId)
+            ? resource.Name
+            : resource.ResourceId.Trim();
+
+    private static string? GetExplicitResourceId(ResourceTemplateDefinition resource) =>
+        string.IsNullOrWhiteSpace(resource.ResourceId)
+            ? null
+            : resource.ResourceId.Trim();
+
+    private bool IsResourceIdInUse(string resourceId) =>
+        resourceManager.GetAvailableResources().Any(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) ||
+        registrations.GetRegistration(resourceId) is not null;
 }
 
 public sealed record ResourceGroupTemplateExportResult(

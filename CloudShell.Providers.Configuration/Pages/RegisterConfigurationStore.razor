@@ -1,4 +1,5 @@
 @inject ConfigurationResourceProvider ConfigurationProvider
+@inject IResourceManagerStore ResourceManager
 @inject IResourceGroupStore ResourceGroups
 @inject IResourceRegistrationStore Registrations
 @inject NavigationManager Navigation
@@ -18,9 +19,12 @@
         <label for="configuration-store-name">Name</label>
         <input id="configuration-store-name" @bind="Name" />
 
+        <label for="configuration-store-resource-id">Resource ID</label>
+        <input id="configuration-store-resource-id" @bind="ResourceId" placeholder="configuration:local" />
+
         <label for="configuration-store-group">Resource group</label>
         <select id="configuration-store-group" @bind="SelectedGroupId">
-            <option value="">Ungrouped</option>
+            <option value="">Default group</option>
             @foreach (var group in ResourceGroups.GetResourceGroups())
             {
                 <option value="@group.Id">@group.Name</option>
@@ -65,6 +69,7 @@
 </div>
 
 @code {
+    private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
@@ -90,8 +95,16 @@
             return;
         }
 
+        var normalizedResourceId = ResourceId.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedResourceId) &&
+            IsResourceIdInUse(normalizedResourceId))
+        {
+            ErrorMessage = $"Resource ID '{normalizedResourceId}' is already in use.";
+            return;
+        }
+
         var definition = new ConfigurationStoreDefinition(
-            string.Empty,
+            normalizedResourceId,
             Name,
             BuildEntries());
 
@@ -107,6 +120,12 @@
                 entry.Value ?? string.Empty,
                 entry.IsSecret))
             .ToArray();
+
+    private bool IsResourceIdInUse(string resourceId) =>
+        ResourceManager.GetAvailableResources().Any(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) ||
+        Registrations.GetRegistration(resourceId) is not null ||
+        ConfigurationProvider.GetStore(resourceId) is not null;
 
     private sealed class ConfigurationEntryInput(string? name = null, string? value = null, bool isSecret = false)
     {

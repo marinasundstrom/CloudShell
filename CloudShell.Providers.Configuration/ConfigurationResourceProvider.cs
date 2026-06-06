@@ -110,7 +110,8 @@ public sealed partial class ConfigurationResourceProvider(
             "configuration.store",
             resource.DependsOn,
             "1.0",
-            JsonSerializer.SerializeToElement(configuration, TemplateSerializerOptions)));
+            JsonSerializer.SerializeToElement(configuration, TemplateSerializerOptions),
+            configurationStore.Id));
     }
 
     public bool CanImport(ResourceTemplateDefinition template) =>
@@ -132,7 +133,9 @@ public sealed partial class ConfigurationResourceProvider(
             TemplateSerializerOptions)
             ?? throw new InvalidOperationException("The configuration service template configuration is invalid.");
 
-        var resourceId = CreateUniqueImportId(template.Name);
+        var resourceId = string.IsNullOrWhiteSpace(template.ResourceId)
+            ? CreateUniqueImportId(template.Name)
+            : ValidateAvailableImportId(template.ResourceId);
         var definition = new ConfigurationStoreDefinition(
             resourceId,
             template.Name,
@@ -183,6 +186,17 @@ public sealed partial class ConfigurationResourceProvider(
             TypeId: "configuration.store");
 
     private string CreateUniqueImportId(string name) => CreateUniqueId(name);
+
+    private string ValidateAvailableImportId(string resourceId)
+    {
+        var normalized = resourceId.Trim();
+        if (store.GetStore(normalized) is not null)
+        {
+            throw new InvalidOperationException($"Resource id '{normalized}' is already in use.");
+        }
+
+        return normalized;
+    }
 
     private string CreateUniqueId(string name)
     {

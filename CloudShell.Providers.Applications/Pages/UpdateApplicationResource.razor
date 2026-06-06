@@ -39,7 +39,7 @@ else
 
             <label for="application-update-group">Resource group</label>
             <select id="application-update-group" @bind="SelectedGroupId">
-                <option value="">Ungrouped</option>
+                <option value="">Default group</option>
                 @foreach (var group in ResourceGroups.GetResourceGroups())
                 {
                     <option value="@group.Id">@group.Name</option>
@@ -123,7 +123,10 @@ else
             var resource = ResourceManager.GetResource(Application.Id);
             foreach (var dependency in resource?.DependsOn ?? Application.DependsOn)
             {
-                SelectedDependencyIds.Add(dependency);
+                if (IsInSelectedGroup(dependency))
+                {
+                    SelectedDependencyIds.Add(dependency);
+                }
             }
 
             EnvironmentVariables.Clear();
@@ -189,6 +192,7 @@ else
 
     private IReadOnlyList<string> BuildDependencies() =>
         SelectedDependencyIds
+            .Where(IsInSelectedGroup)
             .Where(dependency => Application is null ||
                 !string.Equals(dependency, Application.Id, StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -197,6 +201,7 @@ else
         ResourceManager.GetResources()
             .Where(resource => Application is null ||
                 !string.Equals(resource.Id, Application.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => IsInSelectedGroup(resource.Id))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -210,6 +215,14 @@ else
         {
             SelectedDependencyIds.Remove(resourceId);
         }
+    }
+
+    private bool IsInSelectedGroup(string resourceId)
+    {
+        var group = ResourceManager.GetGroupForResource(resourceId);
+        return string.IsNullOrWhiteSpace(SelectedGroupId)
+            ? group is null
+            : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
     }
 
     private ApplicationLifetime ParseLifetime() =>

@@ -25,6 +25,7 @@ public sealed class ResourceTemplateTests
                 fixture.Group));
 
         Assert.Equal("applications", template.ProviderId);
+        Assert.Equal("application:example-web-api", template.ResourceId);
         Assert.Equal("application.executable", template.ResourceType);
         Assert.Equal("1.0", template.ProviderConfigurationVersion);
         Assert.Equal("dotnet", template.Configuration.GetProperty("executablePath").GetString());
@@ -69,7 +70,13 @@ public sealed class ResourceTemplateTests
         var service = fixture.CreateTemplateService();
 
         var export = await service.ExportGroupAsync(fixture.Group.Id);
-        var import = await service.ImportGroupAsync(export.Template);
+        var importTemplate = export.Template with
+        {
+            Resources = export.Template.Resources
+                .Select(resource => resource with { ResourceId = $"{resource.ResourceId}-copy" })
+                .ToArray()
+        };
+        var import = await service.ImportGroupAsync(importTemplate);
 
         Assert.Empty(export.Diagnostics);
         Assert.Empty(import.Diagnostics);
@@ -78,7 +85,22 @@ public sealed class ResourceTemplateTests
         Assert.Equal(2, fixture.Provider.GetApplications().Count);
         Assert.Contains(
             fixture.Provider.GetApplications(),
-            application => application.Id == "application:example-web-api-2");
+            application => application.Id == "application:example-web-api-copy");
+    }
+
+    [Fact]
+    public async Task TemplateService_RejectsDuplicateResourceIds()
+    {
+        using var fixture = new TemplateFixture();
+        var service = fixture.CreateTemplateService();
+
+        var export = await service.ExportGroupAsync(fixture.Group.Id);
+        var import = await service.ImportGroupAsync(export.Template);
+
+        Assert.Empty(import.ImportedResources);
+        var diagnostic = Assert.Single(import.Diagnostics);
+        Assert.Equal("Error", diagnostic.Severity);
+        Assert.Contains("Resource id 'application:example-web-api' is already in use.", diagnostic.Message);
     }
 
     [Fact]

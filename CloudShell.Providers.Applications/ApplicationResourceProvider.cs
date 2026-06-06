@@ -101,7 +101,10 @@ public sealed partial class ApplicationResourceProvider(
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeDefinition(definition);
+        var normalized = NormalizeDefinition(
+            string.IsNullOrWhiteSpace(definition.Id)
+                ? definition with { Id = CreateUniqueImportId(definition.Name) }
+                : definition);
         store.Save(normalized);
 
         await registrations.RegisterAsync(
@@ -199,7 +202,8 @@ public sealed partial class ApplicationResourceProvider(
             "application.executable",
             resource.DependsOn,
             "1.0",
-            JsonSerializer.SerializeToElement(configuration, TemplateSerializerOptions)));
+            JsonSerializer.SerializeToElement(configuration, TemplateSerializerOptions),
+            application.Id));
     }
 
     public bool CanImport(ResourceTemplateDefinition template) =>
@@ -221,7 +225,9 @@ public sealed partial class ApplicationResourceProvider(
             TemplateSerializerOptions)
             ?? throw new InvalidOperationException("The application resource template configuration is invalid.");
 
-        var resourceId = CreateUniqueImportId(template.Name);
+        var resourceId = string.IsNullOrWhiteSpace(template.ResourceId)
+            ? CreateUniqueImportId(template.Name)
+            : ValidateAvailableImportId(template.ResourceId);
         var definition = new ApplicationResourceDefinition(
             resourceId,
             template.Name,
@@ -674,16 +680,30 @@ public sealed partial class ApplicationResourceProvider(
             : $"application:{slug}";
     }
 
-    private string CreateUniqueImportId(string name)
+    private string CreateUniqueImportId(string name) =>
+        CreateUniqueId(name, resourceId => store.GetApplication(resourceId) is not null);
+
+    private string ValidateAvailableImportId(string resourceId)
+    {
+        var normalized = resourceId.Trim();
+        if (store.GetApplication(normalized) is not null)
+        {
+            throw new InvalidOperationException($"Resource id '{normalized}' is already in use.");
+        }
+
+        return normalized;
+    }
+
+    private static string CreateUniqueId(string name, Func<string, bool> exists)
     {
         var candidate = CreateId(name);
-        if (store.GetApplication(candidate) is null)
+        if (!exists(candidate))
         {
             return candidate;
         }
 
         var suffix = 2;
-        while (store.GetApplication($"{candidate}-{suffix}") is not null)
+        while (exists($"{candidate}-{suffix}"))
         {
             suffix++;
         }

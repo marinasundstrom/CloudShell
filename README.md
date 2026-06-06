@@ -83,7 +83,9 @@ Executable application resources are local dev processes. By default, they use a
 
 Resource groups are user-managed project boundaries. They are owned by the CloudShell platform, not by providers.
 
-A root resource can be assigned to a resource group when it is added. Sub-resources inherit the group for filtering and display. Resources can also stay ungrouped.
+A root resource can be assigned to a resource group when it is added. Sub-resources inherit the group for filtering and display. Resources without an explicit group are shown in the default group.
+
+Resource dependencies are group-scoped by default. In the application registration and update flows, dependency candidates come from the selected resource group; default-group resources only see other default-group resources.
 
 Resource groups are authorization scopes. Roles and direct claims determine which groups and inherited resources a user can read or manage.
 

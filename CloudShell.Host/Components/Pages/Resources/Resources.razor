@@ -122,7 +122,7 @@
             var ungroupedCount = allResources.Count(resource => GetGroup(resource) is null);
         }
         <button class="scope-item @(SelectedScope == UngroupedScope ? "active" : null)" @onclick="() => SelectScope(UngroupedScope)">
-            <span>@L["Ungrouped"]</span>
+            <span>@L["Default group"]</span>
             <small>@L["Outside a project group"]</small>
             <strong>@ungroupedCount</strong>
         </button>
@@ -185,7 +185,7 @@
                         </div>
                     </div>
                     <span>@resource.Kind</span>
-                    <span>@(group?.Name ?? L["Ungrouped"])</span>
+                    <span>@(group?.Name ?? L["Default group"])</span>
                     <span><span class="state-pill @GetStateClass(resource.State)">@resource.State</span></span>
                     <span class="endpoint">@resource.PrimaryEndpoint</span>
                     <span class="resource-row-actions" @onclick:stopPropagation="true">
@@ -301,7 +301,7 @@
                     <dt>@L["Type"]</dt>
                     <dd>@selected.EffectiveTypeId</dd>
                     <dt>@L["Resource group"]</dt>
-                    <dd>@(group?.Name ?? L["Ungrouped"])</dd>
+                    <dd>@(group?.Name ?? L["Default group"])</dd>
                     <dt>@L["Region"]</dt>
                     <dd>@selected.Region</dd>
                     <dt>@L["Version"]</dt>

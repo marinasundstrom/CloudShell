@@ -12,7 +12,7 @@ on one configuration service while a worker group depends on another.
 
 A configuration service is added from `/resources/add` by choosing
 **Configuration service**. It can be assigned to any resource group, or left
-ungrouped.
+in the default group.
 
 Each service stores key-value entries:
 

@@ -28,6 +28,9 @@
         <label for="application-name">Name</label>
         <input id="application-name" @bind="Name" />
 
+        <label for="application-resource-id">Resource ID</label>
+        <input id="application-resource-id" @bind="ResourceId" placeholder="application:example-api" />
+
         <label for="application-executable">Executable path</label>
         <input id="application-executable" @bind="ExecutablePath" />
 
@@ -50,7 +53,7 @@
 
         <label for="application-group">Resource group</label>
         <select id="application-group" @bind="SelectedGroupId">
-            <option value="">Ungrouped</option>
+            <option value="">Default group</option>
             @foreach (var group in ResourceGroups.GetResourceGroups())
             {
                 <option value="@group.Id">@group.Name</option>
@@ -108,6 +111,7 @@
 
 @code {
     private string? ApplicationId { get; set; }
+    private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string ExecutablePath { get; set; } = string.Empty;
     private string? Arguments { get; set; }
@@ -134,6 +138,7 @@
         if (string.IsNullOrWhiteSpace(applicationId))
         {
             ApplicationId = null;
+            ResourceId = string.Empty;
             Name = string.Empty;
             ExecutablePath = string.Empty;
             Arguments = null;
@@ -156,16 +161,21 @@
     private void LoadApplication(ApplicationResourceDefinition application)
     {
         ApplicationId = application.Id;
+        ResourceId = application.Id;
         Name = application.Name;
         ExecutablePath = application.ExecutablePath;
         Arguments = application.Arguments;
         WorkingDirectory = application.WorkingDirectory;
         Endpoint = application.Endpoint;
         SelectedLifetime = application.Lifetime.ToString();
+        SelectedGroupId = ResourceManager.GetGroupForResource(application.Id)?.Id ?? string.Empty;
         SelectedDependencyIds.Clear();
         foreach (var dependency in application.DependsOn)
         {
-            SelectedDependencyIds.Add(dependency);
+            if (IsInSelectedGroup(dependency))
+            {
+                SelectedDependencyIds.Add(dependency);
+            }
         }
 
         EnvironmentVariables.Clear();
@@ -197,8 +207,16 @@
             return;
         }
 
+        var normalizedResourceId = ResourceId.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedResourceId) &&
+            IsResourceIdInUse(normalizedResourceId, ApplicationId))
+        {
+            ErrorMessage = $"Resource ID '{normalizedResourceId}' is already in use.";
+            return;
+        }
+
         var definition = new ApplicationResourceDefinition(
-            ApplicationId ?? string.Empty,
+            normalizedResourceId,
             Name,
             ExecutablePath,
             Arguments,
@@ -220,14 +238,36 @@
 
     private IReadOnlyList<string> BuildDependencies() =>
         SelectedDependencyIds
-            .Where(dependency => !string.Equals(dependency, ApplicationId, StringComparison.OrdinalIgnoreCase))
+            .Where(IsInSelectedGroup)
+            .Where(dependency => !string.Equals(dependency, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
     private IReadOnlyList<CloudResource> GetDependencyCandidates() =>
         ResourceManager.GetResources()
-            .Where(resource => !string.Equals(resource.Id, ApplicationId, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => !string.Equals(resource.Id, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
+            .Where(resource => IsInSelectedGroup(resource.Id))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private string? GetCurrentResourceId() =>
+        string.IsNullOrWhiteSpace(ResourceId)
+            ? ApplicationId
+            : ResourceId.Trim();
+
+    private bool IsResourceIdInUse(string resourceId, string? currentResourceId) =>
+        !string.Equals(resourceId, currentResourceId, StringComparison.OrdinalIgnoreCase) &&
+        (ResourceManager.GetAvailableResources().Any(resource =>
+                string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) ||
+        Registrations.GetRegistration(resourceId) is not null ||
+            ApplicationProvider.GetApplication(resourceId) is not null);
+
+    private bool IsInSelectedGroup(string resourceId)
+    {
+        var group = ResourceManager.GetGroupForResource(resourceId);
+        return string.IsNullOrWhiteSpace(SelectedGroupId)
+            ? group is null
+            : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
+    }
 
     private void ToggleDependency(string resourceId, ChangeEventArgs args)
     {

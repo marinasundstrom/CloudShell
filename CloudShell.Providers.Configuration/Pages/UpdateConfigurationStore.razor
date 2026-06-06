@@ -19,7 +19,7 @@ else
 
             <label for="configuration-update-group">Resource group</label>
             <select id="configuration-update-group" @bind="SelectedGroupId">
-                <option value="">Ungrouped</option>
+                <option value="">Default group</option>
                 @foreach (var group in ResourceGroups.GetResourceGroups())
                 {
                     <option value="@group.Id">@group.Name</option>

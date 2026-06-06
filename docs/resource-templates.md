@@ -25,6 +25,7 @@ A resource group template uses a common envelope:
       "resourceType": "application.executable",
       "dependsOn": [],
       "providerConfigurationVersion": "1.0",
+      "resourceId": "application:example-web-api",
       "configuration": {
         "executablePath": "dotnet",
         "arguments": "run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile",
@@ -40,6 +41,13 @@ A resource group template uses a common envelope:
 
 The `configuration` object is provider-owned JSON. CloudShell carries it in the
 template document, but does not interpret the provider-specific fields.
+
+`name` is the friendly display name. `resourceId` is the stable resource
+identifier used by registrations, links, logs, configuration endpoints, and
+authorization. New exports include `resourceId`; older templates without it are
+still accepted and providers allocate a unique ID from the friendly name.
+Explicit `resourceId` values must not already exist in the target CloudShell
+instance.
 
 Configuration service templates include non-secret entry values. Secret entries
 are exported as empty placeholders so templates do not leak secrets by default.
@@ -73,6 +81,11 @@ The page can:
 
 Import creates a new resource group. Providers create new resource definitions
 using their own storage and registration flow.
+
+Resource dependencies are treated as resource communication boundaries by
+default. In the built-in application forms, dependency candidates are limited to
+the selected resource group; resources in the default group only see other
+default-group resources.
 
 ## Persistence Boundary
 
