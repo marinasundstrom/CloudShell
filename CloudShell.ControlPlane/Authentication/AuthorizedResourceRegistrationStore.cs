@@ -2,7 +2,7 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Persistence;
 
-namespace CloudShell.Host.Authentication;
+namespace CloudShell.ControlPlane.Authentication;
 
 public sealed class AuthorizedResourceRegistrationStore(
     EfCoreResourceStore inner,

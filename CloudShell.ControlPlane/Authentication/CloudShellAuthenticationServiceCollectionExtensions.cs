@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 
-namespace CloudShell.Host.Authentication;
+namespace CloudShell.ControlPlane.Authentication;
 
 public static class CloudShellAuthenticationServiceCollectionExtensions
 {

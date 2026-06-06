@@ -1,8 +1,8 @@
 # CloudShell
 
-CloudShell is an extensible, self-hosted control-plane UI for local development and on-premise environments. It uses Blazor, Fluent UI, and .NET 11 preview, with an operational experience inspired by the .NET Aspire Dashboard.
+CloudShell is an extensible, self-hosted cloud-portal shell for local development and on-premise environments. It uses Blazor, Fluent UI, and .NET 11 preview, with an operational experience inspired by the .NET Aspire Dashboard.
 
-The goal is to make it possible to build your own cloud-platform shell: a place where teams can register resources, group them by project, inspect endpoints and state, and let extensions add focused operational tools.
+The goal is to make it possible to build your own cloud-platform shell: a place where teams can register resources, group them by project, inspect endpoints and state, and let extensions add focused operational tools. Control-plane services are separate versioned services; shell integrations connect the WebUI to those services.
 
 ## Current Status
 
@@ -77,6 +77,7 @@ Resource groups are authorization scopes. Roles and direct claims determine whic
 ## Projects
 
 - `CloudShell.Host`: Blazor shell, layout, built-in Resource Manager, Extensions, and Observability views.
+- `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
 - `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
 - `CloudShell.Providers.Docker`: reference extension for local Docker Engine and containers.
@@ -110,6 +111,8 @@ Useful routes:
 - `/resources/add`: add a resource by choosing a registered resource type.
 - `/resources/docker-engine`: Docker Engine detail view.
 - `/extensions`: installed extensions and contributed resource types.
+- `/api/control-plane/v1`: versioned Control Plane API.
+- `/openapi/control-plane-v1.json`: OpenAPI document for generated clients.
 
 ## Test
 
@@ -176,12 +179,13 @@ See [docs/extensions.md](docs/extensions.md) for the extension-authoring model.
 
 Deployment configuration:
 
+- [Control plane API and generated clients](docs/control-plane-api.md)
 - [Authentication and authorization](docs/authentication-and-authorization.md)
 - [Localization](docs/localization.md)
 - [Persistence](docs/persistence.md)
 
 ## Trust Model
 
-The current extension model loads code in-process. Extensions can register services and execute arbitrary .NET code, so only trusted extensions should be installed.
+The current shell extension model loads code in-process. Extensions can register services and execute arbitrary .NET code, so only trusted extensions should be installed.
 
-Longer term, untrusted or independently deployed integrations should use an out-of-process protocol, such as HTTP or gRPC, while keeping the same resource contracts at the host boundary.
+Independently deployed control-plane integrations should use versioned out-of-process protocols, starting with the HTTP OpenAPI contract exposed by the CloudShell Control Plane API. Shell integrations should consume generated clients for those contracts rather than taking direct dependencies on the service implementation.

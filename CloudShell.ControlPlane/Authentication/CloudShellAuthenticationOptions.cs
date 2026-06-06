@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using System.Security.Claims;
 
-namespace CloudShell.Host.Authentication;
+namespace CloudShell.ControlPlane.Authentication;
 
 public sealed class CloudShellAuthenticationOptions
 {

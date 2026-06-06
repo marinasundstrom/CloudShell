@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using CloudShell.Abstractions.Authorization;
-using CloudShell.Host.Authentication;
+using CloudShell.ControlPlane.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 

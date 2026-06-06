@@ -2,7 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
-namespace CloudShell.Host.Authentication;
+namespace CloudShell.ControlPlane.Authentication;
 
 public sealed class CloudShellIdentitySeeder(
     RoleManager<IdentityRole> roleManager,

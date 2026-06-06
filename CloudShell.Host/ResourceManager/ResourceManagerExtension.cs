@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Host.Components.Pages.Resources;
 
 namespace CloudShell.Host.ResourceManager;

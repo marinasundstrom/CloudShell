@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="11.0.0-preview.4.26230.115" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="11.0.0-preview.4.26230.115" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
+    <ProjectReference Include="..\CloudShell.Persistence\CloudShell.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

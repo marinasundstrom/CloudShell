@@ -3,9 +3,10 @@ using System.Security.Cryptography;
 using System.Text;
 using CloudShell.Abstractions.Authorization;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
-namespace CloudShell.Host.Authentication;
+namespace CloudShell.ControlPlane.Authentication;
 
 public sealed class CloudShellSecretSignInService(
     IHttpContextAccessor httpContextAccessor,

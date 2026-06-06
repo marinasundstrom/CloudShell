@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 
-namespace CloudShell.Host.Logs;
+namespace CloudShell.ControlPlane.Logs;
 
 public sealed class LogStore(
     IEnumerable<ILogProvider> providers,

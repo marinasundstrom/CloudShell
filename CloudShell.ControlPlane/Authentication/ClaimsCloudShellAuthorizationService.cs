@@ -1,8 +1,9 @@
 using System.Security.Claims;
 using CloudShell.Abstractions.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
-namespace CloudShell.Host.Authentication;
+namespace CloudShell.ControlPlane.Authentication;
 
 public sealed class ClaimsCloudShellAuthorizationService(
     IHttpContextAccessor httpContextAccessor,

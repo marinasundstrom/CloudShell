@@ -2,10 +2,12 @@ using CloudShell.Host.Components;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Host.Authentication;
+using CloudShell.ControlPlane.Api;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.Abstractions.Logs;
-using CloudShell.Host.Logs;
+using CloudShell.ControlPlane.Logs;
 using CloudShell.Host.Localization;
+using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Host.ResourceManager;
 using CloudShell.Host.Shell;
 using Microsoft.AspNetCore.Localization;
@@ -26,6 +28,7 @@ builder.Services.AddFluentUIComponents();
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddCloudShellControlPlaneOpenApi();
 
 var localizationOptions = builder.Configuration
     .GetSection(CloudShellLocalizationOptions.SectionName)
@@ -95,6 +98,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
+app.MapCloudShellControlPlaneOpenApi();
+app.MapCloudShellControlPlaneApi();
+
 app.MapGet("/localization/set", (
     string culture,
     string? returnUrl,
@@ -118,7 +124,9 @@ app.MapGet("/localization/set", (
     }
 
     return Results.LocalRedirect(IsLocalReturnUrl(returnUrl) ? returnUrl! : "/");
-}).AllowAnonymous();
+})
+.AllowAnonymous()
+.ExcludeFromDescription();
 
 if (authenticationOptions.Enabled &&
     (authenticationOptions.Mode.Equals("OpenIdConnect", StringComparison.OrdinalIgnoreCase) ||
@@ -137,7 +145,8 @@ if (authenticationOptions.Enabled &&
             },
             [options.ChallengeScheme]);
     })
-    .AllowAnonymous();
+    .AllowAnonymous()
+    .ExcludeFromDescription();
 }
 
 app.MapStaticAssets().AllowAnonymous();
