@@ -17,6 +17,7 @@ This repository is an early shell prototype. It currently includes:
 - EF Core persistence for explicitly registered root resources and resource groups.
 - Configurable ASP.NET Core Identity, dashboard-secret, OIDC, or external-scheme authentication.
 - Role, permission, resource-group, and resource-scoped authorization.
+- Host UI localization with a persisted language picker.
 - SQLite or SQL Server persistence selected through configuration.
 - A Docker reference extension that registers a local Docker Engine resource and shows containers as sub-resources.
 
@@ -176,6 +177,7 @@ See [docs/extensions.md](docs/extensions.md) for the extension-authoring model.
 Deployment configuration:
 
 - [Authentication and authorization](docs/authentication-and-authorization.md)
+- [Localization](docs/localization.md)
 - [Persistence](docs/persistence.md)
 
 ## Trust Model

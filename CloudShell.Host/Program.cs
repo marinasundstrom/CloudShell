@@ -5,23 +5,42 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Host.Authentication;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Host.Logs;
+using CloudShell.Host.Localization;
 using CloudShell.Host.ResourceManager;
 using CloudShell.Host.Shell;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.FluentUI.AspNetCore.Components;
 using CloudShell.Providers.Docker;
 using CloudShell.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddHttpClient();
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 builder.Services.AddFluentUIComponents();
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+var localizationOptions = builder.Configuration
+    .GetSection(CloudShellLocalizationOptions.SectionName)
+    .Get<CloudShellLocalizationOptions>()
+    ?? new CloudShellLocalizationOptions();
+var supportedCultures = GetSupportedCultures(localizationOptions);
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.DefaultRequestCulture = new RequestCulture(
+        GetDefaultCulture(localizationOptions, supportedCultures));
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+});
+builder.Services.Configure<CloudShellLocalizationOptions>(
+    builder.Configuration.GetSection(CloudShellLocalizationOptions.SectionName));
 
 var persistenceOptions = builder.Configuration
     .GetSection(CloudShellPersistenceOptions.SectionName)
@@ -70,10 +89,36 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+app.UseRequestLocalization();
 
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
+
+app.MapGet("/localization/set", (
+    string culture,
+    string? returnUrl,
+    HttpContext httpContext,
+    IOptions<RequestLocalizationOptions> options) =>
+{
+    var supported = options.Value.SupportedUICultures ?? [];
+    if (supported.Any(supportedCulture =>
+            supportedCulture.Name.Equals(culture, StringComparison.OrdinalIgnoreCase)))
+    {
+        httpContext.Response.Cookies.Append(
+            CookieRequestCultureProvider.DefaultCookieName,
+            CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
+            new CookieOptions
+            {
+                Expires = DateTimeOffset.UtcNow.AddYears(1),
+                IsEssential = true,
+                SameSite = SameSiteMode.Lax,
+                Secure = httpContext.Request.IsHttps
+            });
+    }
+
+    return Results.LocalRedirect(IsLocalReturnUrl(returnUrl) ? returnUrl! : "/");
+}).AllowAnonymous();
 
 if (authenticationOptions.Enabled &&
     (authenticationOptions.Mode.Equals("OpenIdConnect", StringComparison.OrdinalIgnoreCase) ||
@@ -147,3 +192,44 @@ static bool IsLocalReturnUrl(string? returnUrl) =>
     !string.IsNullOrWhiteSpace(returnUrl) &&
     returnUrl.StartsWith('/') &&
     !returnUrl.StartsWith("//", StringComparison.Ordinal);
+
+static List<CultureInfo> GetSupportedCultures(CloudShellLocalizationOptions options)
+{
+    var cultures = options.SupportedCultures
+        .Append(options.DefaultCulture)
+        .Select(CreateCulture)
+        .OfType<CultureInfo>()
+        .DistinctBy(culture => culture.Name)
+        .ToList();
+
+    return cultures.Count == 0
+        ? [CultureInfo.GetCultureInfo("en")]
+        : cultures;
+}
+
+static CultureInfo GetDefaultCulture(
+    CloudShellLocalizationOptions options,
+    IReadOnlyList<CultureInfo> supportedCultures)
+{
+    var defaultCulture = CreateCulture(options.DefaultCulture);
+    if (defaultCulture is not null &&
+        supportedCultures.Any(culture =>
+            culture.Name.Equals(defaultCulture.Name, StringComparison.OrdinalIgnoreCase)))
+    {
+        return defaultCulture;
+    }
+
+    return supportedCultures[0];
+}
+
+static CultureInfo? CreateCulture(string cultureName)
+{
+    try
+    {
+        return CultureInfo.GetCultureInfo(cultureName);
+    }
+    catch (CultureNotFoundException)
+    {
+        return null;
+    }
+}

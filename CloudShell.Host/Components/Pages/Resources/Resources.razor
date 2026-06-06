@@ -6,8 +6,9 @@
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Resources</PageTitle>
+<PageTitle>@L["Resources"]</PageTitle>
 
 @{
     var allResources = ResourceManager.GetResources();
@@ -18,24 +19,24 @@
 
 <section class="page-heading compact">
     <div>
-        <span class="eyebrow">Resource Manager</span>
-        <h1>Resources</h1>
-        <p>Explore registered resources, project groups, endpoints, dependencies, and nested sub-resources.</p>
+        <span class="eyebrow">@L["Resource Manager"]</span>
+        <h1>@L["Resources"]</h1>
+        <p>@L["Explore registered resources, project groups, endpoints, dependencies, and nested sub-resources."]</p>
     </div>
     <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral">Refresh</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral">@L["Refresh"]</FluentButton>
         @if (Authorization.CanAccessResourceGroup(
             "__new_resource_group",
             CloudShellPermissions.ResourceGroups.Create))
         {
             <FluentButton Appearance="Appearance.Neutral" OnClick="CreateGroup">
-                Create group
+                @L["Create group"]
             </FluentButton>
         }
         @if (Authorization.HasPermission(CloudShellPermissions.Resources.Create))
         {
             <FluentButton Appearance="Appearance.Accent" OnClick="AddResource">
-                Add resource
+                @L["Add resource"]
             </FluentButton>
         }
     </div>
@@ -53,7 +54,7 @@
         <span>@GetConfirmationMessage(PendingAction.Resource, PendingAction.Action)</span>
         <div class="form-actions">
             <FluentButton Appearance="Appearance.Neutral" OnClick="CancelResourceAction">
-                Cancel
+                @L["Cancel"]
             </FluentButton>
             <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmResourceAction">
                 @PendingAction.Action.DisplayName
@@ -65,16 +66,16 @@
 <section class="resource-explorer">
     <aside class="resource-scopes">
         <div class="scope-heading">
-            <h2>Scope</h2>
-            <span>@allResources.Count resources</span>
+            <h2>@L["Scope"]</h2>
+            <span>@L["{0} resources", allResources.Count]</span>
         </div>
 
         <button class="scope-item @(SelectedScope is null ? "active" : null)" @onclick="() => SelectScope(null)">
-            <span>All resources</span>
+            <span>@L["All resources"]</span>
             <strong>@allResources.Count</strong>
         </button>
 
-        <div class="scope-label">Resource groups</div>
+        <div class="scope-label">@L["Resource groups"]</div>
         @foreach (var group in groups)
         {
             var count = allResources.Count(resource => GetGroup(resource)?.Id == group.Id);
@@ -89,28 +90,28 @@
             var ungroupedCount = allResources.Count(resource => GetGroup(resource) is null);
         }
         <button class="scope-item @(SelectedScope == UngroupedScope ? "active" : null)" @onclick="() => SelectScope(UngroupedScope)">
-            <span>Ungrouped</span>
-            <small>Outside a project group</small>
+            <span>@L["Ungrouped"]</span>
+            <small>@L["Outside a project group"]</small>
             <strong>@ungroupedCount</strong>
         </button>
     </aside>
 
     <div class="resource-list panel">
         <div class="inventory-toolbar">
-            <FluentSearch @bind-Value="Filter" Placeholder="Filter by name or type" />
-            <div class="toolbar-meta">@rows.Count shown</div>
+            <FluentSearch @bind-Value="Filter" Placeholder="@L["Filter by name or type"]" />
+            <div class="toolbar-meta">@L["{0} shown", rows.Count]</div>
         </div>
 
         <div class="resource-list-header">
-            <span>Name</span>
-            <span>Type</span>
-            <span>Group</span>
-            <span>State</span>
-            <span>Endpoint</span>
-            <span>Actions</span>
+            <span>@L["Name"]</span>
+            <span>@L["Type"]</span>
+            <span>@L["Group"]</span>
+            <span>@L["State"]</span>
+            <span>@L["Endpoint"]</span>
+            <span>@L["Actions"]</span>
         </div>
 
-        <div class="resource-tree" role="treegrid" aria-label="Resources">
+        <div class="resource-tree" role="treegrid" aria-label="@L["Resources"]">
             @foreach (var row in rows)
             {
                 var resource = row.Resource;
@@ -122,7 +123,7 @@
                         @if (row.ChildCount > 0)
                         {
                             <button class="tree-toggle"
-                                    title="Toggle sub-resources"
+                                    title="@L["Toggle sub-resources"]"
                                     @onclick="() => ToggleResource(resource.Id)"
                                     @onclick:stopPropagation="true">
                                 @(CollapsedResourceIds.Contains(resource.Id) ? "+" : "-")
@@ -147,12 +148,12 @@
                             }
                             @if (row.ChildCount > 0)
                             {
-                                <small>@row.ChildCount sub-resources</small>
+                                <small>@L["{0} sub-resources", row.ChildCount]</small>
                             }
                         </div>
                     </div>
                     <span>@resource.Kind</span>
-                    <span>@(group?.Name ?? "Ungrouped")</span>
+                    <span>@(group?.Name ?? L["Ungrouped"])</span>
                     <span><span class="state-pill @GetStateClass(resource.State)">@resource.State</span></span>
                     <span class="endpoint">@resource.PrimaryEndpoint</span>
                     <span class="resource-row-actions" @onclick:stopPropagation="true">
@@ -164,8 +165,8 @@
             @if (rows.Count == 0)
             {
                 <div class="empty-state">
-                    <strong>No resources in this scope</strong>
-                    <span>Change the scope or filter to view other resources.</span>
+                    <strong>@L["No resources in this scope"]</strong>
+                    <span>@L["Change the scope or filter to view other resources."]</span>
                 </div>
             }
         </div>
@@ -181,7 +182,7 @@
             @if (parent is not null)
             {
                 <button class="parent-link" @onclick="() => SelectResource(parent)">
-                    Back to @parent.Name
+                    @L["Back to {0}", parent.Name]
                 </button>
             }
 
@@ -196,26 +197,26 @@
             <div class="blade-status">
                 <span class="state-dot @GetStateClass(selected.State)"></span>
                 <strong>@selected.State</strong>
-                <span>Updated @selected.LastUpdated.ToLocalTime().ToString("HH:mm:ss")</span>
+                <span>@L["Updated {0}", selected.LastUpdated.ToLocalTime().ToString("HH:mm:ss")]</span>
             </div>
 
             @if (selected.DetailRoute is not null)
             {
                 <div class="blade-actions">
                     <FluentButton Appearance="Appearance.Accent" OnClick="() => Navigation.NavigateTo(selected.DetailRoute)">
-                        Open resource
+                        @L["Open resource"]
                     </FluentButton>
                     @ResourceActionControls(selected)
                     @if (CanManage(selected) && HasUpdateProcedure(selected))
                     {
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => UpdateResource(selected)">
-                            Update
+                            @L["Update"]
                         </FluentButton>
                     }
                     @if (CanDelete(selected))
                     {
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => PromptDelete(selected)">
-                            Delete
+                            @L["Delete"]
                         </FluentButton>
                     }
                 </div>
@@ -227,13 +228,13 @@
                     @if (CanManage(selected) && HasUpdateProcedure(selected))
                     {
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => UpdateResource(selected)">
-                            Update
+                            @L["Update"]
                         </FluentButton>
                     }
                     @if (CanDelete(selected))
                     {
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => PromptDelete(selected)">
-                            Delete
+                            @L["Delete"]
                         </FluentButton>
                     }
                 </div>
@@ -242,31 +243,31 @@
             @if (DeleteConfirmationResourceId == selected.Id)
             {
                 <div class="procedure-confirmation">
-                    <strong>Delete registration?</strong>
-                    <span>The provider will commit the delete procedure for this resource.</span>
+                    <strong>@L["Delete registration?"]</strong>
+                    <span>@L["The provider will commit the delete procedure for this resource."]</span>
                     <div class="form-actions">
                         <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">
-                            Cancel
+                            @L["Cancel"]
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Accent" OnClick="() => DeleteResource(selected)">
-                            Delete
+                            @L["Delete"]
                         </FluentButton>
                     </div>
                 </div>
             }
 
             <section class="blade-section">
-                <h3>Essentials</h3>
+                <h3>@L["Essentials"]</h3>
                 <dl class="detail-list">
-                    <dt>Type</dt>
+                    <dt>@L["Type"]</dt>
                     <dd>@selected.EffectiveTypeId</dd>
-                    <dt>Resource group</dt>
-                    <dd>@(group?.Name ?? "Ungrouped")</dd>
-                    <dt>Region</dt>
+                    <dt>@L["Resource group"]</dt>
+                    <dd>@(group?.Name ?? L["Ungrouped"])</dd>
+                    <dt>@L["Region"]</dt>
                     <dd>@selected.Region</dd>
-                    <dt>Version</dt>
+                    <dt>@L["Version"]</dt>
                     <dd>@selected.Version</dd>
-                    <dt>Resource ID</dt>
+                    <dt>@L["Resource ID"]</dt>
                     <dd>@selected.Id</dd>
                 </dl>
             </section>
@@ -274,7 +275,7 @@
             @if (children.Count > 0)
             {
                 <section class="blade-section">
-                    <h3>Sub-resources</h3>
+                    <h3>@L["Sub-resources"]</h3>
                     <div class="subresource-list">
                         @foreach (var child in children)
                         {
@@ -292,14 +293,14 @@
             }
 
             <section class="blade-section">
-                <h3>Endpoints</h3>
+                <h3>@L["Endpoints"]</h3>
                 <div class="endpoint-list">
                     @foreach (var endpoint in selected.Endpoints)
                     {
                         <div>
                             <strong>@endpoint.Name</strong>
                             <span>@endpoint.Address</span>
-                            <small>@endpoint.Protocol @(endpoint.IsExternal ? "external" : "internal")</small>
+                            <small>@endpoint.Protocol @(endpoint.IsExternal ? L["external"] : L["internal"])</small>
                         </div>
                     }
                 </div>
@@ -308,7 +309,7 @@
             @if (selected.DependsOn.Count > 0)
             {
                 <section class="blade-section">
-                    <h3>Dependencies</h3>
+                    <h3>@L["Dependencies"]</h3>
                     <div class="dependency-list">
                         @foreach (var dependency in selected.DependsOn)
                         {
@@ -487,7 +488,7 @@
 
         if (provider is not IResourceProcedureProvider procedureProvider)
         {
-            ProcedureMessage = "This provider does not support deleting the selected resource.";
+            ProcedureMessage = L["This provider does not support deleting the selected resource."].Value;
             return;
         }
 
@@ -531,7 +532,7 @@
         var provider = GetProcedureProvider(resource);
         if (provider is null)
         {
-            ProcedureMessage = "This provider does not support actions for the selected resource.";
+            ProcedureMessage = L["This provider does not support actions for the selected resource."].Value;
             return;
         }
 
@@ -711,7 +712,7 @@
         {
             buttonBuilder.OpenElement(0, "span");
             buttonBuilder.AddAttribute(1, "class", "action-overflow-label");
-            buttonBuilder.AddAttribute(2, "aria-label", "More actions");
+            buttonBuilder.AddAttribute(2, "aria-label", L["More actions"]);
             buttonBuilder.AddContent(3, "⋮");
             buttonBuilder.CloseElement();
         }));
@@ -737,7 +738,7 @@
                     itemBuilder.CloseElement();
                     itemBuilder.OpenElement(5, "span");
                     itemBuilder.AddContent(6, IsExecutingAction(resource, action)
-                        ? "Working"
+                        ? L["Working"]
                         : action.DisplayName);
                     itemBuilder.CloseElement();
                     itemBuilder.CloseElement();
@@ -783,12 +784,12 @@
         _ => "action-icon-custom"
     };
 
-    private static string GetConfirmationMessage(CloudResource resource, ResourceAction action) =>
+    private string GetConfirmationMessage(CloudResource resource, ResourceAction action) =>
         action.Description ??
-        $"This will run the {action.DisplayName} action for {resource.Name}.";
+        L["This will run the {0} action for {1}.", action.DisplayName, resource.Name].Value;
 
-    private static string GetLogsActionLabel(int logCount) =>
-        logCount == 1 ? "Logs" : $"Logs ({logCount})";
+    private string GetLogsActionLabel(int logCount) =>
+        logCount == 1 ? L["Logs"].Value : L["Logs ({0})", logCount].Value;
 
     private static string GetResourceGlyph(string kind) =>
         kind.Contains("Docker Engine", StringComparison.OrdinalIgnoreCase) ? "D" :

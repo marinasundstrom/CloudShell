@@ -1352,6 +1352,11 @@ h3 {
     display: flex;
     align-items: center;
     gap: 12px;
+    justify-content: space-between;
+}
+
+.account-brand > div {
+    min-width: 0;
 }
 
 .account-panel {

@@ -1,7 +1,8 @@
 @page "/observability"
 @inject IResourceManagerStore ResourceManager
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Observability</PageTitle>
+<PageTitle>@L["Observability"]</PageTitle>
 
 @{
     var resources = ResourceManager.GetResources();
@@ -9,13 +10,13 @@
 
 <section class="page-heading compact">
     <div>
-        <span class="eyebrow">Observability</span>
-        <h1>Telemetry workspace</h1>
-        <p>Placeholder surface for logs, traces, metrics, and resource-aware diagnostics.</p>
+        <span class="eyebrow">@L["Observability"]</span>
+        <h1>@L["Telemetry workspace"]</h1>
+        <p>@L["Placeholder surface for logs, traces, metrics, and resource-aware diagnostics."]</p>
     </div>
     <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral">Import OTLP</FluentButton>
-        <FluentButton Appearance="Appearance.Accent">Connect collector</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral">@L["Import OTLP"]</FluentButton>
+        <FluentButton Appearance="Appearance.Accent">@L["Connect collector"]</FluentButton>
     </div>
 </section>
 
@@ -23,22 +24,22 @@
     <article class="panel panel-wide">
         <div class="panel-header">
             <div>
-                <h2>Signal coverage</h2>
-                <p>Telemetry tabs will bind to resources through Resource Manager.</p>
+                <h2>@L["Signal coverage"]</h2>
+                <p>@L["Telemetry tabs will bind to resources through Resource Manager."]</p>
             </div>
         </div>
 
         <div class="signal-grid">
             <div>
-                <span>Logs</span>
+                <span>@L["Logs"]</span>
                 <strong>@resources.Count(resource => resource.State != ResourceState.Stopped)</strong>
             </div>
             <div>
-                <span>Traces</span>
+                <span>@L["Traces"]</span>
                 <strong>@resources.Count(resource => resource.Kind.Contains("Service", StringComparison.OrdinalIgnoreCase) || resource.Kind.Contains("App", StringComparison.OrdinalIgnoreCase))</strong>
             </div>
             <div>
-                <span>Metrics</span>
+                <span>@L["Metrics"]</span>
                 <strong>@resources.Count</strong>
             </div>
         </div>
@@ -47,8 +48,8 @@
     <article class="panel">
         <div class="panel-header">
             <div>
-                <h2>Resource focus</h2>
-                <p>Current inventory states.</p>
+                <h2>@L["Resource focus"]</h2>
+                <p>@L["Current inventory states."]</p>
             </div>
         </div>
 

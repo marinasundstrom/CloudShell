@@ -3,8 +3,9 @@
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Add resource</PageTitle>
+<PageTitle>@L["Add resource"]</PageTitle>
 
 @{
     var resourceTypes = ShellCatalog.ResourceTypes;
@@ -14,19 +15,19 @@
 
 <section class="page-heading compact">
     <div>
-        <span class="eyebrow">Resource Manager</span>
-        <h1>Add resource</h1>
-        <p>Select the type of resource to register. Extensions own the registration experience for their resource types.</p>
+        <span class="eyebrow">@L["Resource Manager"]</span>
+        <h1>@L["Add resource"]</h1>
+        <p>@L["Select the type of resource to register. Extensions own the registration experience for their resource types."]</p>
     </div>
     <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
-        Cancel
+        @L["Cancel"]
     </FluentButton>
 </section>
 
 <section class="registration-layout">
     <aside class="panel registration-options">
-        <h2>Resource type</h2>
-        <label for="resource-type">Type</label>
+        <h2>@L["Resource type"]</h2>
+        <label for="resource-type">@L["Type"]</label>
         <select id="resource-type" @bind="SelectedTypeId">
             @foreach (var type in resourceTypes)
             {
@@ -45,15 +46,15 @@
             </div>
         }
 
-        <a href="/resources/groups/new">Create a resource group</a>
+        <a href="/resources/groups/new">@L["Create a resource group"]</a>
     </aside>
 
     <div class="panel registration-host">
         @if (selectedType is null)
         {
             <div class="empty-state">
-                <strong>No resource types are installed</strong>
-                <span>Install an extension that contributes at least one resource type.</span>
+                <strong>@L["No resource types are installed"]</strong>
+                <span>@L["Install an extension that contributes at least one resource type."]</span>
             </div>
         }
         else

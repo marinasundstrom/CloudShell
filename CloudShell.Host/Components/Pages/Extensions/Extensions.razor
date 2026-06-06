@@ -1,17 +1,18 @@
 @page "/extensions"
 @inject ShellCatalog ShellCatalog
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Extensions</PageTitle>
+<PageTitle>@L["Extensions"]</PageTitle>
 
 <section class="page-heading compact">
     <div>
-        <span class="eyebrow">Platform</span>
-        <h1>Extensions</h1>
-        <p>Shell extensions registered through the service container. Extensions can add views, services, and resource types.</p>
+        <span class="eyebrow">@L["Platform"]</span>
+        <h1>@L["Extensions"]</h1>
+        <p>@L["Shell extensions registered through the service container. Extensions can add views, services, and resource types."]</p>
     </div>
     <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral">Reload</FluentButton>
-        <FluentButton Appearance="Appearance.Accent">Install</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral">@L["Reload"]</FluentButton>
+        <FluentButton Appearance="Appearance.Accent">@L["Install"]</FluentButton>
     </div>
 </section>
 
@@ -19,8 +20,8 @@
     <article class="panel panel-wide">
         <div class="panel-header">
             <div>
-                <h2>Shell extensions</h2>
-                <p>@ShellCatalog.Extensions.Count registered extensions</p>
+                <h2>@L["Shell extensions"]</h2>
+                <p>@L["{0} registered extensions", ShellCatalog.Extensions.Count]</p>
             </div>
         </div>
 
@@ -45,11 +46,11 @@
                         <div class="extension-views">
                             @foreach (var view in extension.Views.Where(view => view.ShowInNavigation))
                             {
-                                <a href="@view.Route">@view.Title</a>
+                                <a href="@view.Route">@L[view.Title]</a>
                             }
                             @foreach (var view in extension.CustomViews.Where(view => view.ShowInNavigation))
                             {
-                                <a href="@view.Route">@view.Title</a>
+                                <a href="@view.Route">@L[view.Title]</a>
                             }
                         </div>
                     }
@@ -61,8 +62,8 @@
     <article class="panel">
         <div class="panel-header">
             <div>
-                <h2>Resource types</h2>
-                <p>@ShellCatalog.ResourceTypes.Count available</p>
+                <h2>@L["Resource types"]</h2>
+                <p>@L["{0} available", ShellCatalog.ResourceTypes.Count]</p>
             </div>
         </div>
 
@@ -76,7 +77,7 @@
                     </div>
                     <div>
                         <strong>@resourceType.Icon</strong>
-                        <span>type</span>
+                        <span>@L["type"]</span>
                     </div>
                 </div>
             }

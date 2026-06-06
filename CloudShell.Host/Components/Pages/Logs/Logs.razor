@@ -4,8 +4,9 @@
 @inject ILogStore LogStore
 @inject IResourceManagerStore ResourceManager
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Logs</PageTitle>
+<PageTitle>@L["Logs"]</PageTitle>
 
 @{
     var logs = GetVisibleLogs();
@@ -15,19 +16,19 @@
 
 <section class="page-heading compact">
     <div>
-        <span class="eyebrow">Logs</span>
-        <h1>Logs</h1>
-        <p>Browse logs registered by resources, providers, and extension-owned artifacts.</p>
+        <span class="eyebrow">@L["Logs"]</span>
+        <h1>@L["Logs"]</h1>
+        <p>@L["Browse logs registered by resources, providers, and extension-owned artifacts."]</p>
     </div>
     <div class="heading-actions">
         @if (!string.IsNullOrWhiteSpace(ResourceId))
         {
             <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllLogs">
-                All logs
+                @L["All logs"]
             </FluentButton>
         }
         <FluentButton Appearance="Appearance.Neutral" OnClick="RefreshSelectedLog">
-            Refresh
+            @L["Refresh"]
         </FluentButton>
     </div>
 </section>
@@ -35,8 +36,8 @@
 <section class="logs-workspace">
     <aside class="log-source-list">
         <div class="scope-heading">
-            <h2>@(selectedResource?.Name ?? "Sources")</h2>
-            <span>@logs.Count logs</span>
+            <h2>@(selectedResource?.Name ?? L["Sources"])</h2>
+            <span>@L["{0} logs", logs.Count]</span>
         </div>
 
         @foreach (var log in logs)
@@ -49,7 +50,7 @@
                 </span>
                 @if (log.SupportsStreaming)
                 {
-                    <em>stream</em>
+                    <em>@L["stream"]</em>
                 }
             </button>
         }
@@ -57,8 +58,8 @@
         @if (logs.Count == 0)
         {
             <div class="empty-state compact">
-                <strong>No logs</strong>
-                <span>No registered log sources match this scope.</span>
+                <strong>@L["No logs"]</strong>
+                <span>@L["No registered log sources match this scope."]</span>
             </div>
         }
     </aside>
@@ -67,8 +68,8 @@
         @if (selected is null)
         {
             <div class="empty-state">
-                <strong>No log selected</strong>
-                <span>Select a log source to inspect recent entries.</span>
+                <strong>@L["No log selected"]</strong>
+                <span>@L["Select a log source to inspect recent entries."]</span>
             </div>
         }
         else
@@ -81,11 +82,11 @@
                 <div class="log-viewer-actions">
                     <label class="log-wrap-toggle">
                         <input type="checkbox" @bind="WrapLogMessages" />
-                        <span>Wrap</span>
+                        <span>@L["Wrap"]</span>
                     </label>
                     @if (selected.SupportsStreaming)
                     {
-                        <span class="stream-pill">Streaming capable</span>
+                        <span class="stream-pill">@L["Streaming capable"]</span>
                     }
                 </div>
             </div>
@@ -98,8 +99,8 @@
             @if (IsLoading)
             {
                 <div class="empty-state compact">
-                    <strong>Loading log entries</strong>
-                    <span>Reading recent output from @selected.Provider.</span>
+                    <strong>@L["Loading log entries"]</strong>
+                    <span>@L["Reading recent output from {0}.", selected.Provider]</span>
                 </div>
             }
             else if (ReadError is not null)
@@ -109,8 +110,8 @@
             else if (Entries.Count == 0)
             {
                 <div class="empty-state compact">
-                    <strong>No entries</strong>
-                    <span>This log source did not return recent entries.</span>
+                    <strong>@L["No entries"]</strong>
+                    <span>@L["This log source did not return recent entries."]</span>
                 </div>
             }
             else

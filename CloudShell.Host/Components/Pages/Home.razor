@@ -1,6 +1,7 @@
 ﻿@page "/"
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
 
 <PageTitle>CloudShell</PageTitle>
 
@@ -17,35 +18,35 @@
 
 <section class="page-heading">
     <div>
-        <span class="eyebrow">Composable shell</span>
-        <h1>CloudShell workspace</h1>
-        <p>Extension-driven navigation, hosted workspaces, and opt-in capabilities for controlled shell customization.</p>
+        <span class="eyebrow">@L["Composable shell"]</span>
+        <h1>@L["CloudShell workspace"]</h1>
+        <p>@L["Extension-driven navigation, hosted workspaces, and opt-in capabilities for controlled shell customization."]</p>
     </div>
     <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral" Href="/extensions">Extensions</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" Href="/extensions">@L["Extensions"]</FluentButton>
     </div>
 </section>
 
 <section class="metric-grid">
     <article class="metric-card">
-        <span>Extensions</span>
+        <span>@L["Extensions"]</span>
         <strong>@ShellCatalog.Extensions.Count</strong>
-        <small>Registered through DI</small>
+        <small>@L["Registered through DI"]</small>
     </article>
     <article class="metric-card">
-        <span>Shell views</span>
+        <span>@L["Shell views"]</span>
         <strong>@navigationItems.Count</strong>
-        <small>Navigation contributions</small>
+        <small>@L["Navigation contributions"]</small>
     </article>
     <article class="metric-card">
-        <span>Hosted views</span>
+        <span>@L["Hosted views"]</span>
         <strong>@customViews.Count</strong>
-        <small>@hostedMenuItems menu items</small>
+        <small>@L["{0} menu items", hostedMenuItems]</small>
     </article>
     <article class="metric-card">
-        <span>Capabilities</span>
+        <span>@L["Capabilities"]</span>
         <strong>@capabilities.Length</strong>
-        <small>Opt-in feature contracts</small>
+        <small>@L["Opt-in feature contracts"]</small>
     </article>
 </section>
 
@@ -53,16 +54,16 @@
     <article class="panel panel-wide">
         <div class="panel-header">
             <div>
-                <h2>Installed capabilities</h2>
-                <p>Features contributed by the installed extension set.</p>
+                <h2>@L["Installed capabilities"]</h2>
+                <p>@L["Features contributed by the installed extension set."]</p>
             </div>
         </div>
 
         @if (capabilities.Length == 0)
         {
             <div class="empty-state compact">
-                <strong>No capabilities</strong>
-                <span>Install extensions to add shell features.</span>
+                <strong>@L["No capabilities"]</strong>
+                <span>@L["Install extensions to add shell features."]</span>
             </div>
         }
         else
@@ -79,8 +80,8 @@
     <article class="panel">
         <div class="panel-header">
             <div>
-                <h2>Navigation</h2>
-                <p>Current shell content areas.</p>
+                <h2>@L["Navigation"]</h2>
+                <p>@L["Current shell content areas."]</p>
             </div>
         </div>
 
@@ -90,8 +91,8 @@
                 <a class="activity-row" href="@item.Href">
                     <span class="resource-kind-icon">@GetIconGlyph(item.Icon, item.Text)</span>
                     <div>
-                        <strong>@item.Text</strong>
-                        <span>@item.Group</span>
+                        <strong>@L[item.Text]</strong>
+                        <span>@L[item.Group]</span>
                     </div>
                 </a>
             }

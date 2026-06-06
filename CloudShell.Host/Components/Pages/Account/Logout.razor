@@ -2,13 +2,14 @@
 @layout AccountLayout
 @inject CloudShellAccountService Accounts
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Sign out</PageTitle>
+<PageTitle>@L["Sign out"]</PageTitle>
 
 <div class="account-heading">
-    <span class="eyebrow">Authentication</span>
-    <h1>Sign out</h1>
-    <p>End the current CloudShell session.</p>
+    <span class="eyebrow">@L["Authentication"]</span>
+    <h1>@L["Sign out"]</h1>
+    <p>@L["End the current CloudShell session."]</p>
 </div>
 
 <EditForm Model="@Input"
@@ -17,10 +18,10 @@
           FormName="logout"
           Enhance="false">
     <FluentButton Appearance="Appearance.Accent" Type="ButtonType.Submit">
-        Sign out
+        @L["Sign out"]
     </FluentButton>
     <FluentButton Appearance="Appearance.Neutral" Href="/">
-        Cancel
+        @L["Cancel"]
     </FluentButton>
 </EditForm>
 

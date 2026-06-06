@@ -1,0 +1,55 @@
+@using System.Globalization
+@using Microsoft.AspNetCore.Localization
+@inject Microsoft.Extensions.Options.IOptions<RequestLocalizationOptions> LocalizationOptions
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
+
+@{
+    var cultures = GetSupportedCultures();
+}
+
+@if (cultures.Count > 0)
+{
+    <label class="language-selector">
+        <span>@L["Language"]</span>
+        <select aria-label="@L["Language"]" value="@CultureInfo.CurrentUICulture.Name" @onchange="ChangeCulture">
+            @foreach (var culture in cultures)
+            {
+                <option value="@culture.Name">@GetCultureDisplayName(culture)</option>
+            }
+        </select>
+    </label>
+}
+
+@code {
+    private IReadOnlyList<CultureInfo> GetSupportedCultures() =>
+        (LocalizationOptions.Value.SupportedUICultures ?? [])
+            .DistinctBy(culture => culture.Name)
+            .OrderBy(culture => culture.NativeName, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+
+    private static string GetCultureDisplayName(CultureInfo culture) =>
+        culture.NativeName.Length == 0
+            ? culture.Name
+            : char.ToUpper(culture.NativeName[0], culture) + culture.NativeName[1..];
+
+    private void ChangeCulture(ChangeEventArgs args)
+    {
+        var cultureName = Convert.ToString(args.Value, CultureInfo.InvariantCulture);
+        if (string.IsNullOrWhiteSpace(cultureName))
+        {
+            return;
+        }
+
+        var returnUrl = new Uri(Navigation.Uri).PathAndQuery;
+        var target = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            "/localization/set",
+            new Dictionary<string, string?>
+            {
+                ["culture"] = cultureName,
+                ["returnUrl"] = returnUrl
+            });
+
+        Navigation.NavigateTo(target, forceLoad: true);
+    }
+}

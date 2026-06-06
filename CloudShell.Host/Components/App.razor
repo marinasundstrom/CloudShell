@@ -1,5 +1,7 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿@using System.Globalization
+
+<!DOCTYPE html>
+<html lang="@CultureInfo.CurrentUICulture.Name" dir="@GetTextDirection()">
 
 <head>
     <meta charset="utf-8" />
@@ -23,3 +25,8 @@
 </body>
 
 </html>
+
+@code {
+    private static string GetTextDirection() =>
+        CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? "rtl" : "ltr";
+}

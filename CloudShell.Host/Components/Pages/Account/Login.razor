@@ -3,26 +3,27 @@
 @layout AccountLayout
 @inject CloudShellAccountService Accounts
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Sign in</PageTitle>
+<PageTitle>@L["Sign in"]</PageTitle>
 
 <div class="account-heading">
-    <span class="eyebrow">Authentication</span>
-    <h1>Sign in to CloudShell</h1>
+    <span class="eyebrow">@L["Authentication"]</span>
+    <h1>@L["Sign in to CloudShell"]</h1>
 </div>
 
 @if (RequiresSetup)
 {
     <FluentMessageBar Intent="MessageIntent.Info">
-        No local administrator exists yet.
-        <a href="/account/setup">Set up CloudShell</a>
+        @L["No local administrator exists yet."]
+        <a href="/account/setup">@L["Set up CloudShell"]</a>
     </FluentMessageBar>
 }
 else if (UsesExternalProvider)
 {
-    <p>Continue with the authentication provider configured for this dashboard.</p>
+    <p>@L["Continue with the authentication provider configured for this dashboard."]</p>
     <FluentButton Appearance="Appearance.Accent" Href="@ChallengeUrl">
-        Continue
+        @L["Continue"]
     </FluentButton>
 }
 else
@@ -36,7 +37,7 @@ else
 
         @if (Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase))
         {
-            <label for="login-user">Email</label>
+            <label for="login-user">@L["Email"]</label>
             <InputText id="login-user"
                        @bind-Value="Input!.UserName"
                        autocomplete="email" />
@@ -44,8 +45,8 @@ else
 
         <label for="login-credential">
             @(Accounts.Mode.Equals("Secret", StringComparison.OrdinalIgnoreCase)
-                ? "Dashboard secret"
-                : "Password")
+                ? L["Dashboard secret"]
+                : L["Password"])
         </label>
         <InputText id="login-credential"
                    type="password"
@@ -65,7 +66,7 @@ else
         }
 
         <FluentButton Appearance="Appearance.Accent" Type="ButtonType.Submit">
-            Sign in
+            @L["Sign in"]
         </FluentButton>
     </EditForm>
 }
@@ -102,7 +103,7 @@ else
         if (Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase) &&
             string.IsNullOrWhiteSpace(Input!.UserName))
         {
-            Errors.Add("Email is required.");
+            Errors.Add(L["Email is required."].Value);
             return;
         }
 

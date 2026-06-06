@@ -3,30 +3,31 @@
 @inject IResourceGroupStore ResourceGroups
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Create resource group</PageTitle>
+<PageTitle>@L["Create resource group"]</PageTitle>
 
 <section class="page-heading compact">
     <div>
-        <span class="eyebrow">Resource Manager</span>
-        <h1>Create resource group</h1>
-        <p>Create a project boundary for organizing resources across resource types.</p>
+        <span class="eyebrow">@L["Resource Manager"]</span>
+        <h1>@L["Create resource group"]</h1>
+        <p>@L["Create a project boundary for organizing resources across resource types."]</p>
     </div>
 </section>
 
 <section class="form-panel panel">
-    <label for="group-name">Name</label>
-    <FluentTextField Id="group-name" @bind-Value="Name" Placeholder="Project development" />
+    <label for="group-name">@L["Name"]</label>
+    <FluentTextField Id="group-name" @bind-Value="Name" Placeholder="@L["Project development"]" />
 
-    <label for="group-description">Description</label>
-    <FluentTextArea Id="group-description" @bind-Value="Description" Rows="4" Placeholder="Resources for the project development environment." />
+    <label for="group-description">@L["Description"]</label>
+    <FluentTextArea Id="group-description" @bind-Value="Description" Rows="4" Placeholder="@L["Resources for the project development environment."]" />
 
     <div class="form-actions">
         <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
-            Cancel
+            @L["Cancel"]
         </FluentButton>
         <FluentButton Appearance="Appearance.Accent" Disabled="@string.IsNullOrWhiteSpace(Name)" OnClick="CreateGroup">
-            Create
+            @L["Create"]
         </FluentButton>
     </div>
 </section>

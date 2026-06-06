@@ -4,9 +4,10 @@
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IStringLocalizer<SharedResource> L
 @implements IDisposable
 
-<PageTitle>Resource configuration</PageTitle>
+<PageTitle>@L["Resource configuration"]</PageTitle>
 
 @{
     var resource = string.IsNullOrWhiteSpace(ResourceId)
@@ -23,20 +24,20 @@
 
 <section class="page-heading compact">
     <div>
-        <span class="eyebrow">Resource Manager</span>
-        <h1>@(resource?.Name ?? "Resource")</h1>
-        <p>Provider-contributed information and configuration views for this resource.</p>
+        <span class="eyebrow">@L["Resource Manager"]</span>
+        <h1>@(resource?.Name ?? L["Resource"])</h1>
+        <p>@L["Provider-contributed information and configuration views for this resource."]</p>
     </div>
     <div class="heading-actions">
         <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
-            Close
+            @L["Close"]
         </FluentButton>
         @if (selectedTab?.ShowsApplyButton == true)
         {
             <FluentButton Appearance="Appearance.Accent"
                           Disabled="@(ConfigurationContext?.CanApply != true || IsApplying)"
                           OnClick="ApplyChanges">
-                @(IsApplying ? "Applying" : "Apply")
+                @(IsApplying ? L["Applying"] : L["Apply"])
             </FluentButton>
         }
     </div>
@@ -49,7 +50,7 @@
 
 <section class="registration-layout">
     <aside class="panel registration-options">
-        <h2>Resource</h2>
+        <h2>@L["Resource"]</h2>
         @if (resource is not null)
         {
             <div class="selected-type-card">
@@ -60,16 +61,16 @@
                 </div>
             </div>
             <dl class="detail-list">
-                <dt>Group</dt>
-                <dd>@(group?.Name ?? "Ungrouped")</dd>
-                <dt>Provider</dt>
+                <dt>@L["Group"]</dt>
+                <dd>@(group?.Name ?? L["Ungrouped"])</dd>
+                <dt>@L["Provider"]</dt>
                 <dd>@resource.Provider</dd>
             </dl>
         }
 
         @if (tabs.Count > 0)
         {
-            <div class="resource-tab-list" role="tablist" aria-label="Resource views">
+            <div class="resource-tab-list" role="tablist" aria-label="@L["Resource views"]">
                 @foreach (var tab in tabs)
                 {
                     <button class="resource-tab-button @(selectedTab?.Id == tab.Id ? "active" : null)"
@@ -88,15 +89,15 @@
         @if (resource is null)
         {
             <div class="empty-state">
-                <strong>Resource not found</strong>
-                <span>The resource may have been removed or is no longer visible.</span>
+                <strong>@L["Resource not found"]</strong>
+                <span>@L["The resource may have been removed or is no longer visible."]</span>
             </div>
         }
         else if (selectedTab is null)
         {
             <div class="empty-state">
-                <strong>No resource views</strong>
-                <span>This provider has not contributed tabs for this resource type.</span>
+                <strong>@L["No resource views"]</strong>
+                <span>@L["This provider has not contributed tabs for this resource type."]</span>
             </div>
         }
         else

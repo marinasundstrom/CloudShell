@@ -84,6 +84,25 @@
     display: block;
 }
 
+.language-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    color: #64748b;
+    font-size: .78rem;
+    font-weight: 650;
+}
+
+.language-selector select {
+    min-width: 7rem;
+    border: 1px solid #d0d5dd;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #242424;
+    font: inherit;
+    padding: .32rem .45rem;
+}
+
 .shell-content {
     padding: 1.1rem;
 }

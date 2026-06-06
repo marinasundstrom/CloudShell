@@ -3,22 +3,23 @@
 @layout AccountLayout
 @inject CloudShellAccountService Accounts
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Set up CloudShell</PageTitle>
+<PageTitle>@L["Set up CloudShell"]</PageTitle>
 
 <div class="account-heading">
-    <span class="eyebrow">First run</span>
-    <h1>Create the administrator</h1>
-    <p>This local account receives full access to all resource groups and resources.</p>
+    <span class="eyebrow">@L["First run"]</span>
+    <h1>@L["Create the administrator"]</h1>
+    <p>@L["This local account receives full access to all resource groups and resources."]</p>
 </div>
 
 @if (!CanSetUp)
 {
     <FluentMessageBar Intent="MessageIntent.Warning">
-        Local account setup is unavailable or has already been completed.
+        @L["Local account setup is unavailable or has already been completed."]
     </FluentMessageBar>
     <FluentButton Appearance="Appearance.Accent" Href="/account/login">
-        Return to sign in
+        @L["Return to sign in"]
     </FluentButton>
 }
 else
@@ -30,19 +31,19 @@ else
               Enhance="false">
         <DataAnnotationsValidator />
 
-        <label for="setup-email">Email</label>
+        <label for="setup-email">@L["Email"]</label>
         <InputText id="setup-email"
                    @bind-Value="Input!.Email"
                    autocomplete="email" />
 
-        <label for="setup-password">Password</label>
+        <label for="setup-password">@L["Password"]</label>
         <InputText id="setup-password"
                    type="password"
                    @bind-Value="Input!.Password"
                    autocomplete="new-password" />
-        <small>Use at least 12 characters with upper and lowercase letters, a number, and a symbol.</small>
+        <small>@L["Use at least 12 characters with upper and lowercase letters, a number, and a symbol."]</small>
 
-        <label for="setup-confirm">Confirm password</label>
+        <label for="setup-confirm">@L["Confirm password"]</label>
         <InputText id="setup-confirm"
                    type="password"
                    @bind-Value="Input!.ConfirmPassword"
@@ -61,7 +62,7 @@ else
         }
 
         <FluentButton Appearance="Appearance.Accent" Type="ButtonType.Submit">
-            Create administrator
+            @L["Create administrator"]
         </FluentButton>
     </EditForm>
 }

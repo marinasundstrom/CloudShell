@@ -1,16 +1,17 @@
 ﻿@inject ShellCatalog ShellCatalog
+@inject IStringLocalizer<SharedResource> L
 
-<nav class="nav-shell" aria-label="Primary">
+<nav class="nav-shell" aria-label="@L["Primary"]">
     @foreach (var group in ShellCatalog.NavigationItems.GroupBy(item => item.Group))
     {
         <section class="nav-group">
-            <div class="nav-group-title">@group.Key</div>
+            <div class="nav-group-title">@L[group.Key]</div>
 
             @foreach (var item in group)
             {
                 <NavLink class="nav-link" href="@item.Href" Match="@GetMatch(item.Href)">
                     <span class="nav-icon" data-icon="@GetIconGlyph(item.Icon)" aria-hidden="true"></span>
-                    <span>@item.Text</span>
+                    <span>@L[item.Text]</span>
                 </NavLink>
             }
         </section>
