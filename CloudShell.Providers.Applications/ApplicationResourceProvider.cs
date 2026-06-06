@@ -3,6 +3,7 @@ using CloudShell.Abstractions.ResourceManager;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Hosting;
 
@@ -12,8 +13,15 @@ public sealed partial class ApplicationResourceProvider(
     ApplicationResourceStore store,
     ApplicationRuntimeStateStore runtimeStates,
     ApplicationProviderOptions options,
-    IHostEnvironment environment) : IResourceProvider, ILogProvider, IResourceProcedureProvider, IDisposable
+    IHostEnvironment environment) :
+    IResourceProvider,
+    ILogProvider,
+    IResourceProcedureProvider,
+    IResourceTemplateProvider,
+    IDisposable
 {
+    private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
+
     private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -160,6 +168,76 @@ public sealed partial class ApplicationResourceProvider(
                 throw new NotSupportedException(
                     $"Applications do not support action '{action.DisplayName}'.");
         }
+    }
+
+    public bool CanExport(CloudResource resource) =>
+        string.Equals(resource.EffectiveTypeId, "application.executable", StringComparison.OrdinalIgnoreCase) &&
+        store.GetApplication(resource.Id) is not null;
+
+    public Task<ResourceTemplateDefinition> ExportAsync(
+        CloudResource resource,
+        ResourceTemplateExportContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var application = store.GetApplication(resource.Id)
+            ?? throw new InvalidOperationException($"Application resource '{resource.Id}' is not configured.");
+
+        var configuration = new ApplicationResourceTemplateConfiguration(
+            application.ExecutablePath,
+            application.Arguments,
+            application.WorkingDirectory,
+            application.Endpoint,
+            application.EnvironmentVariables,
+            application.Lifetime);
+
+        return Task.FromResult(new ResourceTemplateDefinition(
+            application.Name,
+            Id,
+            "application.executable",
+            resource.DependsOn,
+            "1.0",
+            JsonSerializer.SerializeToElement(configuration, TemplateSerializerOptions)));
+    }
+
+    public bool CanImport(ResourceTemplateDefinition template) =>
+        string.Equals(template.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(template.ResourceType, "application.executable", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(template.ProviderConfigurationVersion, "1.0", StringComparison.OrdinalIgnoreCase);
+
+    public async Task<ResourceTemplateImportResult> ImportAsync(
+        ResourceTemplateDefinition template,
+        ResourceTemplateImportContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanImport(template))
+        {
+            throw new InvalidOperationException("The application resource template is not supported.");
+        }
+
+        var configuration = template.Configuration.Deserialize<ApplicationResourceTemplateConfiguration>(
+            TemplateSerializerOptions)
+            ?? throw new InvalidOperationException("The application resource template configuration is invalid.");
+
+        var resourceId = CreateUniqueImportId(template.Name);
+        var definition = new ApplicationResourceDefinition(
+            resourceId,
+            template.Name,
+            configuration.ExecutablePath,
+            configuration.Arguments,
+            configuration.WorkingDirectory,
+            configuration.Endpoint,
+            configuration.EnvironmentVariables,
+            configuration.Lifetime);
+
+        await SetupApplicationAsync(
+            definition,
+            context.ResourceGroupId,
+            context.Registrations,
+            cancellationToken);
+
+        return new ResourceTemplateImportResult(
+            resourceId,
+            $"Imported application resource '{template.Name}'.");
     }
 
     public ApplicationResourceDefinition? GetApplication(string id) => store.GetApplication(id);
@@ -571,6 +649,23 @@ public sealed partial class ApplicationResourceProvider(
             : $"application:{slug}";
     }
 
+    private string CreateUniqueImportId(string name)
+    {
+        var candidate = CreateId(name);
+        if (store.GetApplication(candidate) is null)
+        {
+            return candidate;
+        }
+
+        var suffix = 2;
+        while (store.GetApplication($"{candidate}-{suffix}") is not null)
+        {
+            suffix++;
+        }
+
+        return $"{candidate}-{suffix}";
+    }
+
     private static string ResolveWorkingDirectory(ApplicationResourceDefinition definition)
     {
         if (!string.IsNullOrWhiteSpace(definition.WorkingDirectory))
@@ -611,4 +706,12 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationProcessLog Log,
         ApplicationLifetime Lifetime,
         string LogPath);
+
+    private sealed record ApplicationResourceTemplateConfiguration(
+        string ExecutablePath,
+        string? Arguments,
+        string? WorkingDirectory,
+        string? Endpoint,
+        IReadOnlyList<EnvironmentVariableAssignment> EnvironmentVariables,
+        ApplicationLifetime Lifetime);
 }

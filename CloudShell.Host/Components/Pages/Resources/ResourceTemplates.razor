@@ -1,0 +1,214 @@
+@page "/resources/templates"
+@rendermode InteractiveServer
+@using System.Text.Json
+@inject IResourceManagerStore ResourceManager
+@inject ResourceTemplateService Templates
+@inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
+@inject IStringLocalizer<SharedResource> L
+
+<PageTitle>@L["Resource templates"]</PageTitle>
+
+@{
+    var groups = ResourceManager.GetResourceGroups();
+    SelectedGroupId ??= groups.FirstOrDefault()?.Id;
+    var selectedGroup = groups.FirstOrDefault(group =>
+        string.Equals(group.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase));
+    var canImport = Authorization.HasPermission(CloudShellPermissions.Resources.Create) &&
+        Authorization.CanAccessResourceGroup(
+            "__new_resource_group",
+            CloudShellPermissions.ResourceGroups.Create);
+}
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">@L["Resource Manager"]</span>
+        <h1>@L["Resource templates"]</h1>
+        <p>@L["Export resource groups as portable templates and import templates through providers that support the resource type."]</p>
+    </div>
+    <div class="heading-actions">
+        <FluentButton Appearance="Appearance.Neutral" OnClick="BackToResources">
+            @L["Back to resources"]
+        </FluentButton>
+    </div>
+</section>
+
+@if (StatusMessage is not null)
+{
+    <div class="procedure-message">@StatusMessage</div>
+}
+
+<section class="template-layout">
+    <div class="panel template-panel">
+        <div class="panel-header">
+            <div>
+                <h2>@L["Export group"]</h2>
+                <p>@L["CloudShell writes the group envelope and asks each provider for its own configuration payload."]</p>
+            </div>
+        </div>
+
+        <label for="export-group">@L["Resource group"]</label>
+        <select id="export-group" @bind="SelectedGroupId">
+            @foreach (var group in groups)
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        @if (selectedGroup is not null)
+        {
+            <div class="template-summary">
+                <strong>@selectedGroup.Name</strong>
+                <span>@L["{0} registered resources", selectedGroup.ResourceIds.Count]</span>
+            </div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent"
+                          Disabled="@(selectedGroup is null || IsBusy)"
+                          OnClick="ExportSelectedGroup">
+                @L["Export JSON"]
+            </FluentButton>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(ExportJson))
+        {
+            <label for="export-json">@L["Template JSON"]</label>
+            <textarea id="export-json"
+                      class="template-json"
+                      readonly
+                      rows="24">@ExportJson</textarea>
+        }
+    </div>
+
+    <div class="panel template-panel">
+        <div class="panel-header">
+            <div>
+                <h2>@L["Import group"]</h2>
+                <p>@L["Paste a resource group template. Unsupported resource types are reported and skipped."]</p>
+            </div>
+        </div>
+
+        <label for="import-json">@L["Template JSON"]</label>
+        <textarea id="import-json"
+                  class="template-json"
+                  rows="24"
+                  placeholder="@L["Paste a resource group template JSON document"]"
+                  @bind="ImportJson"></textarea>
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Neutral" OnClick="ClearImport">
+                @L["Clear"]
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Accent"
+                          Disabled="@(!canImport || string.IsNullOrWhiteSpace(ImportJson) || IsBusy)"
+                          OnClick="ImportTemplate">
+                @L["Import group"]
+            </FluentButton>
+        </div>
+
+        @if (!canImport)
+        {
+            <small class="template-note">@L["Import requires permission to create resource groups and resources."]</small>
+        }
+    </div>
+</section>
+
+@if (Diagnostics.Count > 0)
+{
+    <section class="panel template-diagnostics">
+        <h2>@L["Template diagnostics"]</h2>
+        @foreach (var diagnostic in Diagnostics)
+        {
+            <div class="template-diagnostic @diagnostic.Severity.ToLowerInvariant()">
+                <strong>@diagnostic.Severity</strong>
+                <span>@diagnostic.ResourceName</span>
+                <p>@diagnostic.Message</p>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true
+    };
+
+    private string? SelectedGroupId { get; set; }
+    private string? ExportJson { get; set; }
+    private string? ImportJson { get; set; }
+    private string? StatusMessage { get; set; }
+    private bool IsBusy { get; set; }
+    private List<ResourceTemplateDiagnostic> Diagnostics { get; } = [];
+
+    private void BackToResources() => Navigation.NavigateTo("/resources");
+
+    private async Task ExportSelectedGroup()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedGroupId))
+        {
+            return;
+        }
+
+        IsBusy = true;
+        Diagnostics.Clear();
+        StatusMessage = null;
+
+        try
+        {
+            var result = await Templates.ExportGroupAsync(SelectedGroupId);
+            ExportJson = JsonSerializer.Serialize(result.Template, SerializerOptions);
+            ImportJson = ExportJson;
+            Diagnostics.AddRange(result.Diagnostics);
+            StatusMessage = L["Exported {0} resources.", result.Template.Resources.Count].Value;
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = exception.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ImportTemplate()
+    {
+        if (string.IsNullOrWhiteSpace(ImportJson))
+        {
+            return;
+        }
+
+        IsBusy = true;
+        Diagnostics.Clear();
+        StatusMessage = null;
+
+        try
+        {
+            var template = JsonSerializer.Deserialize<ResourceGroupTemplate>(ImportJson, SerializerOptions)
+                ?? throw new InvalidOperationException("Template JSON is empty or invalid.");
+            var result = await Templates.ImportGroupAsync(template);
+            Diagnostics.AddRange(result.Diagnostics);
+            StatusMessage = L[
+                "Imported group {0} with {1} resources.",
+                result.ResourceGroup.Name,
+                result.ImportedResources.Count].Value;
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = exception.Message;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private void ClearImport()
+    {
+        ImportJson = null;
+        Diagnostics.Clear();
+        StatusMessage = null;
+    }
+}

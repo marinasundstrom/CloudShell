@@ -85,6 +85,7 @@ builder.Services.AddScoped<IResourceGroupStore, AuthorizedResourceGroupStore>();
 builder.Services.AddScoped<IResourceRegistrationStore, AuthorizedResourceRegistrationStore>();
 builder.Services.AddScoped<IResourceManagerStore, ResourceManagerStore>();
 builder.Services.AddScoped<ILogStore, LogStore>();
+builder.Services.AddScoped<ResourceTemplateService>();
 
 var app = builder.Build();
 var usesLocalIdentity =

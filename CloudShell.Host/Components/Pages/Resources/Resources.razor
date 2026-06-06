@@ -25,6 +25,9 @@
     </div>
     <div class="heading-actions">
         <FluentButton Appearance="Appearance.Neutral">@L["Refresh"]</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" OnClick="OpenTemplates">
+            @L["Templates"]
+        </FluentButton>
         @if (Authorization.CanAccessResourceGroup(
             "__new_resource_group",
             CloudShellPermissions.ResourceGroups.Create))
@@ -464,6 +467,8 @@
     private void CreateGroup() => Navigation.NavigateTo("/resources/groups/new");
 
     private void AddResource() => Navigation.NavigateTo("/resources/add");
+
+    private void OpenTemplates() => Navigation.NavigateTo("/resources/templates");
 
     private void UpdateResource(CloudResource resource) =>
         Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");

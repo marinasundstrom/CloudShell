@@ -20,6 +20,7 @@ public sealed class ResourceManagerExtension : ICloudShellExtension
             .AddView<Resources>("Resources", "/resources", "server", 10)
             .AddView<AddResource>("Add resource", "/resources/add", "plus", 11, showInNavigation: false)
             .AddView<CreateResourceGroup>("Create resource group", "/resources/groups/new", "folder", 12, showInNavigation: false)
+            .AddView<ResourceTemplates>("Resource templates", "/resources/templates", "document", 13, showInNavigation: false)
             .AddResourceProvider<CloudShellResourceProvider>()
             .AddResourceProvider<ManagedResourceProvider>();
     }
