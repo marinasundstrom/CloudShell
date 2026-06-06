@@ -19,8 +19,10 @@ SQLite is the default and resolves relative data-source paths from the
 }
 ```
 
-The Identity database is only initialized when
-`Authentication:Mode` is `Identity`.
+The application applies EF Core migrations at startup. Existing databases
+created by the previous `EnsureCreated` startup path are baselined to the
+initial migration when their expected tables already exist. The Identity
+database is only migrated when `Authentication:Mode` is `Identity`.
 
 ## SQL Server
 
@@ -45,8 +47,11 @@ Persistence__ConnectionString="..."
 Persistence__IdentityConnectionString="..."
 ```
 
-Use separate empty databases/catalogs for resources and Identity. The current
-startup initialization uses EF Core `EnsureCreated`, which doesn't add a
-second context's tables to a database that already contains tables. A future
-production migration workflow can replace `EnsureCreated` without changing
-the store interfaces.
+Use separate empty databases/catalogs for resources and Identity. To add a
+future migration, use the local EF Core tool from the repository root:
+
+```bash
+dotnet tool restore
+dotnet ef migrations add <Name> --project CloudShell.Persistence/CloudShell.Persistence.csproj --startup-project CloudShell.Host/CloudShell.Host.csproj --context CloudShellDbContext --output-dir Migrations/CloudShell
+dotnet ef migrations add <Name> --project CloudShell.Persistence/CloudShell.Persistence.csproj --startup-project CloudShell.Host/CloudShell.Host.csproj --context CloudShellIdentityDbContext --output-dir Migrations/Identity
+```
