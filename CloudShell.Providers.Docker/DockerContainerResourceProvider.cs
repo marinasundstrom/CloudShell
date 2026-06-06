@@ -2,6 +2,10 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using System.Buffers;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace CloudShell.Providers.Docker;
@@ -50,6 +54,7 @@ public sealed partial class DockerContainerResourceProvider : IResourceProvider,
     public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
         int maxEntries = 200,
+        DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
     {
         if (string.Equals(logId, GetEngineLogId(), StringComparison.OrdinalIgnoreCase))
@@ -67,15 +72,11 @@ public sealed partial class DockerContainerResourceProvider : IResourceProvider,
             ];
         }
 
-        const string containerPrefix = "docker:container:";
-        const string logsSuffix = ":logs";
-        if (!logId.StartsWith(containerPrefix, StringComparison.OrdinalIgnoreCase) ||
-            !logId.EndsWith(logsSuffix, StringComparison.OrdinalIgnoreCase))
+        if (!TryGetContainerIdFromLogId(logId, out var containerId))
         {
             return [];
         }
 
-        var containerId = logId[containerPrefix.Length..^logsSuffix.Length];
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_options.RequestTimeout);
 
@@ -85,7 +86,8 @@ public sealed partial class DockerContainerResourceProvider : IResourceProvider,
             ShowStderr = true,
             Timestamps = true,
             Follow = false,
-            Tail = Math.Max(1, maxEntries).ToString()
+            Tail = Math.Max(1, maxEntries).ToString(CultureInfo.InvariantCulture),
+            Until = before?.AddTicks(-1).UtcDateTime.ToString("O", CultureInfo.InvariantCulture)
         };
 
         using var stream = await _client.Containers.GetContainerLogsAsync(
@@ -100,6 +102,47 @@ public sealed partial class DockerContainerResourceProvider : IResourceProvider,
             .OrderBy(entry => entry.Timestamp)
             .TakeLast(maxEntries)
             .ToArray();
+    }
+
+    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
+        string logId,
+        int initialEntries = 50,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (!TryGetContainerIdFromLogId(logId, out var containerId))
+        {
+            yield break;
+        }
+
+        if (initialEntries > 0)
+        {
+            var entries = await ReadLogAsync(logId, initialEntries, cancellationToken: cancellationToken);
+            foreach (var entry in entries)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return entry;
+            }
+        }
+
+        var parameters = new ContainerLogsParameters
+        {
+            ShowStdout = true,
+            ShowStderr = true,
+            Timestamps = true,
+            Follow = true,
+            Tail = "0"
+        };
+
+        using var stream = await _client.Containers.GetContainerLogsAsync(
+            containerId,
+            tty: false,
+            parameters,
+            cancellationToken);
+
+        await foreach (var entry in ReadContainerLogStreamAsync(stream, cancellationToken))
+        {
+            yield return entry;
+        }
     }
 
     public async Task SetupEngineAsync(
@@ -330,6 +373,78 @@ public sealed partial class DockerContainerResourceProvider : IResourceProvider,
 
     private static string GetEngineLogId() => $"{EngineResourceId}:diagnostics";
 
+    private static bool TryGetContainerIdFromLogId(
+        string logId,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? containerId)
+    {
+        const string containerPrefix = "docker:container:";
+        const string logsSuffix = ":logs";
+        if (logId.StartsWith(containerPrefix, StringComparison.OrdinalIgnoreCase) &&
+            logId.EndsWith(logsSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            containerId = logId[containerPrefix.Length..^logsSuffix.Length];
+            return true;
+        }
+
+        containerId = null;
+        return false;
+    }
+
+    private static async IAsyncEnumerable<LogEntry> ReadContainerLogStreamAsync(
+        MultiplexedStream stream,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(81920);
+        var stdout = new StringBuilder();
+        var stderr = new StringBuilder();
+
+        try
+        {
+            while (true)
+            {
+                var result = await stream.ReadOutputAsync(
+                    buffer,
+                    0,
+                    buffer.Length,
+                    cancellationToken);
+                if (result.EOF)
+                {
+                    foreach (var entry in FlushLogChunk(stdout, "stdout", null, final: true))
+                    {
+                        yield return entry;
+                    }
+
+                    foreach (var entry in FlushLogChunk(stderr, "stderr", "Error", final: true))
+                    {
+                        yield return entry;
+                    }
+
+                    yield break;
+                }
+
+                var source = result.Target == MultiplexedStream.TargetStream.StandardError
+                    ? "stderr"
+                    : "stdout";
+                var level = result.Target == MultiplexedStream.TargetStream.StandardError
+                    ? "Error"
+                    : null;
+                var pending = result.Target == MultiplexedStream.TargetStream.StandardError
+                    ? stderr
+                    : stdout;
+                var chunk = Encoding.UTF8.GetString(buffer, 0, result.Count);
+
+                foreach (var entry in AppendLogChunk(pending, chunk, source, level))
+                {
+                    yield return entry;
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
     private static IReadOnlyList<LogEntry> ParseLogOutput(
         string? output,
         string source,
@@ -343,22 +458,77 @@ public sealed partial class DockerContainerResourceProvider : IResourceProvider,
         var entries = new List<LogEntry>();
         foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
-            var trimmed = line.TrimEnd('\r');
-            var normalized = StripAnsiEscapeSequences(trimmed);
-            var timestamp = DateTimeOffset.UtcNow;
-            var message = normalized;
-            var separatorIndex = normalized.IndexOf(' ');
-            if (separatorIndex > 0 &&
-                DateTimeOffset.TryParse(normalized[..separatorIndex], out var parsedTimestamp))
-            {
-                timestamp = parsedTimestamp;
-                message = normalized[(separatorIndex + 1)..];
-            }
-
-            entries.Add(new LogEntry(timestamp, message, level, source));
+            entries.Add(ParseLogLine(line, source, level));
         }
 
         return entries;
+    }
+
+    private static IEnumerable<LogEntry> AppendLogChunk(
+        StringBuilder pending,
+        string chunk,
+        string source,
+        string? level)
+    {
+        pending.Append(chunk);
+
+        var text = pending.ToString();
+        var lineStart = 0;
+        for (var index = 0; index < text.Length; index++)
+        {
+            if (text[index] != '\n')
+            {
+                continue;
+            }
+
+            if (index > lineStart)
+            {
+                yield return ParseLogLine(text[lineStart..index], source, level);
+            }
+            lineStart = index + 1;
+        }
+
+        pending.Clear();
+        if (lineStart < text.Length)
+        {
+            pending.Append(text[lineStart..]);
+        }
+    }
+
+    private static IEnumerable<LogEntry> FlushLogChunk(
+        StringBuilder pending,
+        string source,
+        string? level,
+        bool final)
+    {
+        if (!final || pending.Length == 0)
+        {
+            yield break;
+        }
+
+        var line = pending.ToString();
+        pending.Clear();
+        yield return ParseLogLine(line, source, level);
+    }
+
+    private static LogEntry ParseLogLine(
+        string line,
+        string source,
+        string? level)
+    {
+        var trimmed = line.TrimEnd('\r');
+        var normalized = StripAnsiEscapeSequences(trimmed);
+        var timestamp = DateTimeOffset.UtcNow;
+        var message = normalized;
+        var separatorIndex = normalized.IndexOf(' ');
+        if (separatorIndex > 0 &&
+            DateTimeOffset.TryParse(normalized[..separatorIndex], out var parsedTimestamp))
+        {
+            timestamp = parsedTimestamp;
+            message = normalized[(separatorIndex + 1)..];
+        }
+
+        return new LogEntry(timestamp, message, level, source);
     }
 
     private static string StripAnsiEscapeSequences(string value) =>

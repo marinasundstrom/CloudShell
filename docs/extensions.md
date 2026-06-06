@@ -188,7 +188,7 @@ Logs are first-class services registered independently of resources. Implement `
 
 Each provider returns `LogDescriptor` values. A descriptor can point at a resource through `ResourceId`, an extension artifact through `ArtifactId`, or a provider-owned source through `SourceKind`. A single resource can have multiple logs, and multiple providers can expose logs for the same resource. The Resource Manager shows a log shortcut for resources with matching descriptors, and the Logs view opens resource-scoped log lists through `/logs?resourceId=...`.
 
-Use `SupportsStreaming = true` only when the provider can support live tail semantics. The current Logs view reads recent entries through `ReadLogAsync`; streaming-capable logs are marked in the UI so the provider capability is visible before live tail controls are added.
+Use `SupportsStreaming = true` only when the provider can support live tail semantics. Streaming-capable logs are tailed automatically in the Logs view when selected, and users can pause or resume streaming from the log header. The viewer keeps a bounded entry window: it loads the newest page first, appends streamed entries into that window, and fetches older pages only when requested. It follows the latest entry only while the user is already at the latest content; if they scroll back, new entries continue to append without moving their position.
 
 ```csharp
 public sealed class AcmeLogProvider : ILogProvider
@@ -212,13 +212,42 @@ public sealed class AcmeLogProvider : ILogProvider
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
         int maxEntries = 200,
+        DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
     {
-        // Read from the backing system and return newest entries.
+        // Read one bounded page. Use before to page back from the oldest visible entry.
         return Task.FromResult<IReadOnlyList<LogEntry>>([]);
+    }
+
+    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
+        string logId,
+        int initialEntries = 50,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        foreach (var entry in await ReadLogAsync(logId, initialEntries, cancellationToken: cancellationToken))
+        {
+            yield return entry;
+        }
+
+        await foreach (var entry in TailBackingSystemAsync(logId, cancellationToken))
+        {
+            yield return entry;
+        }
     }
 }
 ```
+
+Streaming implementation guidance:
+
+- Keep `ReadLogAsync` as the bounded snapshot API. It should return recent entries and complete quickly. When `before` is supplied, return the newest entries older than that timestamp so the view can page backward.
+- Override `StreamLogAsync` only for descriptors that set `SupportsStreaming = true`.
+- Honor cancellation promptly. The Logs view cancels the stream when users pause streaming, select another log, or leave the page.
+- Yield parsed `LogEntry` values as complete lines/events arrive. Do not buffer indefinitely.
+- Use `initialEntries` to optionally replay recent context before live events. Pass `0` through to the backing system when the caller wants only new entries.
+- The control-plane endpoint `GET /api/cloudshell/logs/{logId}/stream?initialEntries=50` streams newline-delimited JSON (`application/x-ndjson`) for API clients.
+- The snapshot endpoint `GET /api/cloudshell/logs/{logId}/entries?maxEntries=100&before=...` returns one bounded history page. Use it to load older entries incrementally instead of loading complete logs.
+
+The Docker provider is the reference implementation. Container log descriptors set `SupportsStreaming: true`; `ReadLogAsync` calls Docker logs with `Follow = false` and a bounded `Tail`, while `StreamLogAsync` optionally replays recent entries and then calls Docker logs with `Follow = true` and `Tail = "0"`. Docker stdout and stderr frames are read incrementally with `MultiplexedStream.ReadOutputAsync`, converted into `LogEntry` values, and yielded as each newline is completed.
 
 The Docker reference extension uses this hierarchy:
 

@@ -36,16 +36,45 @@ public sealed class LogStore(
     public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
         int maxEntries = 200,
+        DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
     {
         foreach (var provider in Providers)
         {
             if (provider.GetLogs().Any(log => string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase)))
             {
-                return await provider.ReadLogAsync(logId, maxEntries, cancellationToken);
+                return await provider.ReadLogAsync(logId, maxEntries, before, cancellationToken);
             }
         }
 
         return [];
+    }
+
+    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
+        string logId,
+        int initialEntries = 50,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        foreach (var provider in Providers)
+        {
+            var log = provider.GetLogs().FirstOrDefault(log =>
+                string.Equals(log.Id, logId, StringComparison.OrdinalIgnoreCase));
+            if (log is null)
+            {
+                continue;
+            }
+
+            if (!log.SupportsStreaming)
+            {
+                yield break;
+            }
+
+            await foreach (var entry in provider.StreamLogAsync(logId, initialEntries, cancellationToken))
+            {
+                yield return entry;
+            }
+
+            yield break;
+        }
     }
 }

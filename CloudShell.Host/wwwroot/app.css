@@ -1104,7 +1104,8 @@ h3 {
     flex-wrap: wrap;
 }
 
-.log-wrap-toggle {
+.log-wrap-toggle,
+.log-stream-toggle {
     display: inline-flex;
     align-items: center;
     gap: .35rem;
@@ -1114,16 +1115,35 @@ h3 {
     white-space: nowrap;
 }
 
-.log-wrap-toggle input {
+.log-wrap-toggle input,
+.log-stream-toggle input {
     width: .95rem;
     height: .95rem;
     margin: 0;
+}
+
+.log-stream-toggle {
+    padding: .2rem .45rem;
+    border: 1px solid #b9d7f3;
+    border-radius: 999px;
+    background: #f0f7ff;
+    color: #0f6cbd;
 }
 
 .log-description {
     margin-bottom: .75rem;
     color: #64748b;
     font-size: .84rem;
+}
+
+.log-history-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: .45rem;
+    color: #64748b;
+    font-size: .78rem;
 }
 
 .log-entry-list {

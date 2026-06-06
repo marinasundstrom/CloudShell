@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Api;
 
@@ -78,6 +79,9 @@ public static class CloudShellControlPlaneApiExtensions
 
         api.MapGet("/logs/{logId}/entries", ReadLogEntries)
             .WithName("CloudShellControlPlane_ReadLogEntries");
+
+        api.MapGet("/logs/{logId}/stream", StreamLogEntries)
+            .WithName("CloudShellControlPlane_StreamLogEntries");
 
         return api;
     }
@@ -342,6 +346,7 @@ public static class CloudShellControlPlaneApiExtensions
     private static async Task<IResult> ReadLogEntries(
         string logId,
         int? maxEntries,
+        DateTimeOffset? before,
         ILogStore logs,
         CancellationToken cancellationToken)
     {
@@ -353,9 +358,49 @@ public static class CloudShellControlPlaneApiExtensions
         var entries = await logs.ReadLogAsync(
             logId,
             Math.Clamp(maxEntries ?? 200, 1, 1000),
+            before,
             cancellationToken);
 
         return Results.Ok(entries.Select(entry => entry.ToResponse()).ToArray());
+    }
+
+    private static IResult StreamLogEntries(
+        string logId,
+        int? initialEntries,
+        ILogStore logs,
+        CancellationToken cancellationToken)
+    {
+        var log = logs.GetLog(logId);
+        if (log is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (!log.SupportsStreaming)
+        {
+            return Problem(
+                StatusCodes.Status405MethodNotAllowed,
+                "Log streaming is unavailable",
+                "The selected log source does not support streaming.");
+        }
+
+        return Results.Stream(
+            async stream =>
+            {
+                await foreach (var entry in logs.StreamLogAsync(
+                    logId,
+                    Math.Clamp(initialEntries ?? 50, 0, 1000),
+                    cancellationToken))
+                {
+                    await JsonSerializer.SerializeAsync(
+                        stream,
+                        entry.ToResponse(),
+                        cancellationToken: cancellationToken);
+                    await stream.WriteAsync("\n"u8.ToArray(), cancellationToken);
+                    await stream.FlushAsync(cancellationToken);
+                }
+            },
+            "application/x-ndjson");
     }
 
     private static ResourceResponse CreateResourceResponse(

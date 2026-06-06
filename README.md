@@ -56,7 +56,7 @@ Providers map external systems into CloudShell resources. A provider can discove
 
 Providers can attach actions directly to each resource. Actions are part of the `CloudResource` API, so the Resource Manager inventory, resource details, and provider-owned overview pages can render the same command set. Standard lifecycle actions use `ResourceActionKind` values for Run, Stop, Pause, and Restart. Providers can also expose custom actions with stable IDs and user-facing labels. `ResourceActionPresentation` controls UI placement, icon, and confirmation prompts separately from provider execution logic.
 
-Providers and extensions can also register log providers. A log provider returns `LogDescriptor` values and reads recent `LogEntry` values for a selected log. Descriptors can point at a `ResourceId`, an artifact ID, or provider-owned source, and can opt in to streaming support through `SupportsStreaming`.
+Providers and extensions can also register log providers. A log provider returns `LogDescriptor` values, reads recent `LogEntry` values for a selected log, and can override `StreamLogAsync` for live tailing. Descriptors can point at a `ResourceId`, an artifact ID, or provider-owned source, and opt in to live streaming through `SupportsStreaming`.
 
 The Docker provider follows that pattern:
 

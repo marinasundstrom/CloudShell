@@ -1,9 +1,11 @@
 @page "/logs"
 @page "/observability"
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 @inject ILogStore LogStore
 @inject IResourceManagerStore ResourceManager
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Logs"]</PageTitle>
@@ -86,7 +88,13 @@
                     </label>
                     @if (selected.SupportsStreaming)
                     {
-                        <span class="stream-pill">@L["Streaming capable"]</span>
+                        <label class="log-stream-toggle">
+                            <input type="checkbox"
+                                   checked="@IsSelectedLogStreaming(selected)"
+                                   disabled="@IsLoading"
+                                   @onchange="args => SetStreamingEnabled(selected, args)" />
+                            <span>@(IsSelectedLogStreaming(selected) ? L["Streaming"] : L["Stream"])</span>
+                        </label>
                     }
                 </div>
             </div>
@@ -110,13 +118,26 @@
             else if (Entries.Count == 0)
             {
                 <div class="empty-state compact">
-                    <strong>@L["No entries"]</strong>
-                    <span>@L["This log source did not return recent entries."]</span>
+                    <strong>@(IsSelectedLogStreaming(selected) ? L["Waiting for entries"] : L["No entries"])</strong>
+                    <span>@(IsSelectedLogStreaming(selected)
+                        ? L["Streaming is active for this log source."]
+                        : L["This log source did not return recent entries."])</span>
                 </div>
             }
             else
             {
-                <div class="log-entry-list @(WrapLogMessages ? "wrap" : null)" role="log" aria-label="@selected.Name">
+                <div class="log-history-bar">
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@(!CanLoadOlderEntries || IsLoadingOlder)"
+                                  OnClick="LoadOlderEntriesAsync">
+                        @(IsLoadingOlder ? L["Loading older"] : L["Load older"])
+                    </FluentButton>
+                    <span>@L["{0} entries in view", Entries.Count]</span>
+                </div>
+                <div @ref="LogEntryList"
+                     class="log-entry-list @(WrapLogMessages ? "wrap" : null)"
+                     role="log"
+                     aria-label="@selected.Name">
                     @foreach (var entry in Entries)
                     {
                         <div class="log-entry">
@@ -141,24 +162,65 @@
 
     private IReadOnlyList<LogEntry> Entries { get; set; } = [];
     private string? LoadedLogId { get; set; }
+    private string? StreamingLogId { get; set; }
     private string? ReadError { get; set; }
+    private CancellationTokenSource? StreamingCancellation { get; set; }
+    private Task? StreamingTask { get; set; }
+    private ElementReference LogEntryList { get; set; }
+    private IJSObjectReference? LogModule { get; set; }
+    private HashSet<string> DisabledStreamingLogIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private bool IsLoading { get; set; }
+    private bool IsLoadingOlder { get; set; }
+    private bool CanLoadOlderEntries { get; set; }
+    private bool IsStreaming { get; set; }
     private bool WrapLogMessages { get; set; }
+    private bool ShouldScrollToLatest { get; set; }
+    private double? PreservePrependedScrollHeight { get; set; }
+    private bool IsDisposed { get; set; }
+
+    private const int InitialWindowEntries = 100;
+    private const int HistoryPageEntries = 100;
+    private const int MaxWindowEntries = 500;
 
     protected override async Task OnParametersSetAsync()
     {
         var selected = GetSelectedLog(GetVisibleLogs());
         if (selected is null)
         {
+            await StopStreamingAsync();
             Entries = [];
             LoadedLogId = null;
+            CanLoadOlderEntries = false;
             return;
         }
 
         if (!string.Equals(LoadedLogId, selected.Id, StringComparison.OrdinalIgnoreCase))
         {
+            await StopStreamingAsync();
             await LoadLogAsync(selected);
+            await StartStreamingByDefaultAsync(selected);
         }
+        else
+        {
+            await StartStreamingByDefaultAsync(selected);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!ShouldScrollToLatest)
+        {
+            if (PreservePrependedScrollHeight is { } previousScrollHeight)
+            {
+                PreservePrependedScrollHeight = null;
+                await PreservePrependedScrollAsync(previousScrollHeight);
+            }
+
+            return;
+        }
+
+        ShouldScrollToLatest = false;
+        await ScrollLogToLatestAsync();
     }
 
     private IReadOnlyList<LogDescriptor> GetVisibleLogs() =>
@@ -191,7 +253,9 @@
         var selected = GetSelectedLog(GetVisibleLogs());
         if (selected is not null)
         {
+            await StopStreamingAsync();
             await LoadLogAsync(selected);
+            await StartStreamingByDefaultAsync(selected);
         }
     }
 
@@ -201,12 +265,15 @@
         ReadError = null;
         try
         {
-            Entries = await LogStore.ReadLogAsync(log.Id, 200);
+            Entries = await LogStore.ReadLogAsync(log.Id, InitialWindowEntries);
+            CanLoadOlderEntries = Entries.Count >= InitialWindowEntries;
+            ShouldScrollToLatest = Entries.Count > 0;
             LoadedLogId = log.Id;
         }
         catch (Exception exception)
         {
             Entries = [];
+            CanLoadOlderEntries = false;
             ReadError = exception.Message;
             LoadedLogId = log.Id;
         }
@@ -215,6 +282,245 @@
             IsLoading = false;
         }
     }
+
+    private async Task LoadOlderEntriesAsync()
+    {
+        var selected = GetSelectedLog(GetVisibleLogs());
+        if (selected is null ||
+            Entries.Count == 0 ||
+            IsLoadingOlder)
+        {
+            return;
+        }
+
+        IsLoadingOlder = true;
+        ReadError = null;
+        var previousScrollHeight = await GetLogScrollHeightAsync();
+
+        try
+        {
+            var before = Entries.Min(entry => entry.Timestamp);
+            var olderEntries = await LogStore.ReadLogAsync(
+                selected.Id,
+                HistoryPageEntries,
+                before);
+
+            CanLoadOlderEntries = olderEntries.Count >= HistoryPageEntries;
+            Entries = olderEntries
+                .Concat(Entries)
+                .DistinctBy(GetEntryKey)
+                .OrderBy(entry => entry.Timestamp)
+                .Take(MaxWindowEntries)
+                .ToArray();
+            ShouldScrollToLatest = false;
+            PreservePrependedScrollHeight = previousScrollHeight;
+        }
+        catch (Exception exception)
+        {
+            ReadError = exception.Message;
+        }
+        finally
+        {
+            IsLoadingOlder = false;
+        }
+    }
+
+    private async Task SetStreamingEnabled(LogDescriptor log, ChangeEventArgs args)
+    {
+        if (IsChecked(args))
+        {
+            DisabledStreamingLogIds.Remove(log.Id);
+            await StartStreamingAsync(log);
+            return;
+        }
+
+        DisabledStreamingLogIds.Add(log.Id);
+        await StopStreamingAsync();
+    }
+
+    private async Task StartStreamingByDefaultAsync(LogDescriptor log)
+    {
+        if (log.SupportsStreaming && !DisabledStreamingLogIds.Contains(log.Id))
+        {
+            await StartStreamingAsync(log);
+        }
+    }
+
+    private async Task StartStreamingAsync(LogDescriptor log)
+    {
+        if (!log.SupportsStreaming ||
+            IsSelectedLogStreaming(log))
+        {
+            return;
+        }
+
+        await StopStreamingAsync();
+
+        ReadError = null;
+        var cancellation = new CancellationTokenSource();
+        StreamingCancellation = cancellation;
+        StreamingLogId = log.Id;
+        IsStreaming = true;
+        StreamingTask = StreamEntriesAsync(log, cancellation);
+    }
+
+    private async Task StopStreamingAsync()
+    {
+        var cancellation = StreamingCancellation;
+        if (cancellation is null)
+        {
+            IsStreaming = false;
+            StreamingLogId = null;
+            StreamingTask = null;
+            return;
+        }
+
+        cancellation.Cancel();
+        StreamingCancellation = null;
+        StreamingTask = null;
+        StreamingLogId = null;
+        IsStreaming = false;
+        await Task.CompletedTask;
+    }
+
+    private async Task StreamEntriesAsync(LogDescriptor log, CancellationTokenSource cancellation)
+    {
+        try
+        {
+            await foreach (var entry in LogStore.StreamLogAsync(log.Id, 0, cancellation.Token))
+            {
+                var shouldFollowLatest = true;
+                await InvokeAsync(async () =>
+                {
+                    shouldFollowLatest = await IsLogAtLatestAsync();
+                });
+                await InvokeAsync(() =>
+                {
+                    if (!string.Equals(LoadedLogId, log.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    Entries = Entries
+                        .Concat([entry])
+                        .TakeLast(MaxWindowEntries)
+                        .ToArray();
+                    ShouldScrollToLatest = shouldFollowLatest;
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            if (!cancellation.IsCancellationRequested)
+            {
+                await InvokeAsync(() => ReadError = exception.Message);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(StreamingCancellation, cancellation))
+            {
+                StreamingCancellation = null;
+                StreamingTask = null;
+                StreamingLogId = null;
+                IsStreaming = false;
+                cancellation.Dispose();
+
+                if (!IsDisposed)
+                {
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            else
+            {
+                cancellation.Dispose();
+            }
+        }
+    }
+
+    private bool IsSelectedLogStreaming(LogDescriptor log) =>
+        IsStreaming &&
+        string.Equals(StreamingLogId, log.Id, StringComparison.OrdinalIgnoreCase);
+
+    private async Task<bool> IsLogAtLatestAsync()
+    {
+        if (Entries.Count == 0)
+        {
+            return true;
+        }
+
+        try
+        {
+            var module = await GetLogModuleAsync();
+            return await module.InvokeAsync<bool>("isAtLatest", LogEntryList);
+        }
+        catch (JSException)
+        {
+            return true;
+        }
+    }
+
+    private async Task ScrollLogToLatestAsync()
+    {
+        try
+        {
+            var module = await GetLogModuleAsync();
+            await module.InvokeVoidAsync("scrollToLatest", LogEntryList);
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task<double> GetLogScrollHeightAsync()
+    {
+        try
+        {
+            var module = await GetLogModuleAsync();
+            return await module.InvokeAsync<double>("getScrollHeight", LogEntryList);
+        }
+        catch (JSException)
+        {
+            return 0;
+        }
+    }
+
+    private async Task PreservePrependedScrollAsync(double previousScrollHeight)
+    {
+        try
+        {
+            var module = await GetLogModuleAsync();
+            await module.InvokeVoidAsync("preservePrependedScroll", LogEntryList, previousScrollHeight);
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task<IJSObjectReference> GetLogModuleAsync()
+    {
+        if (LogModule is null)
+        {
+            LogModule = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./Components/Pages/Logs/Logs.razor.js");
+        }
+
+        return LogModule;
+    }
+
+    private static bool IsChecked(ChangeEventArgs args) =>
+        args.Value is bool value
+            ? value
+            : string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(args.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
+
+    private static (DateTimeOffset Timestamp, string Message, string? Level, string? Source) GetEntryKey(LogEntry entry) =>
+        (entry.Timestamp, entry.Message, entry.Level, entry.Source);
 
     private static string BuildLogRoute(LogDescriptor log)
     {
@@ -229,5 +535,15 @@
         }
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        IsDisposed = true;
+        await StopStreamingAsync();
+        if (LogModule is not null)
+        {
+            await LogModule.DisposeAsync();
+        }
     }
 }

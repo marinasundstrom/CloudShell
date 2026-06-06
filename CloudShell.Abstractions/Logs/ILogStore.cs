@@ -13,5 +13,11 @@ public interface ILogStore
     Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
         int maxEntries = 200,
+        DateTimeOffset? before = null,
+        CancellationToken cancellationToken = default);
+
+    IAsyncEnumerable<LogEntry> StreamLogAsync(
+        string logId,
+        int initialEntries = 50,
         CancellationToken cancellationToken = default);
 }

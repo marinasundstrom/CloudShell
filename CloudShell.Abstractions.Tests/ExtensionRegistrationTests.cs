@@ -437,6 +437,7 @@ public sealed class ExtensionRegistrationTests
         public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
             string logId,
             int maxEntries = 200,
+            DateTimeOffset? before = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<LogEntry>>([]);
     }
