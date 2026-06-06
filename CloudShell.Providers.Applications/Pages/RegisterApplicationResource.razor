@@ -1,0 +1,189 @@
+@inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+@inject NavigationManager Navigation
+
+<div class="type-registration">
+    <div class="provider-summary compact">
+        <div class="provider-status">
+            <span class="state-dot state-running"></span>
+            <div>
+                <strong>Local executable applications</strong>
+                <span>Register a command on this development machine and launch it from CloudShell.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-panel">
+        <label for="application-template">Configured application</label>
+        <select id="application-template" @onchange="SelectTemplate">
+            <option value="">New application</option>
+            @foreach (var application in ApplicationProvider.GetApplications())
+            {
+                <option value="@application.Id">@application.Name</option>
+            }
+        </select>
+
+        <label for="application-name">Name</label>
+        <input id="application-name" @bind="Name" />
+
+        <label for="application-executable">Executable path</label>
+        <input id="application-executable" @bind="ExecutablePath" />
+
+        <label for="application-arguments">Arguments</label>
+        <input id="application-arguments" @bind="Arguments" />
+
+        <label for="application-working-directory">Working directory</label>
+        <input id="application-working-directory" @bind="WorkingDirectory" />
+
+        <label for="application-endpoint">Endpoint</label>
+        <input id="application-endpoint" @bind="Endpoint" />
+
+        <label for="application-group">Resource group</label>
+        <select id="application-group" @bind="SelectedGroupId">
+            <option value="">Ungrouped</option>
+            @foreach (var group in ResourceGroups.GetResourceGroups())
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Environment variables</strong>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
+                    Add variable
+                </FluentButton>
+            </div>
+
+            @foreach (var variable in EnvironmentVariables)
+            {
+                <div class="environment-row">
+                    <input aria-label="Environment variable name" @bind="variable.Name" />
+                    <input aria-label="Environment variable value" @bind="variable.Value" />
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
+                        Remove
+                    </FluentButton>
+                </div>
+            }
+        </div>
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? ApplicationId { get; set; }
+    private string Name { get; set; } = string.Empty;
+    private string ExecutablePath { get; set; } = string.Empty;
+    private string? Arguments { get; set; }
+    private string? WorkingDirectory { get; set; }
+    private string? Endpoint { get; set; }
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; }
+    private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
+
+    protected override void OnInitialized()
+    {
+        var firstApplication = ApplicationProvider.GetApplications().FirstOrDefault();
+        if (firstApplication is not null)
+        {
+            LoadApplication(firstApplication);
+        }
+    }
+
+    private void SelectTemplate(ChangeEventArgs args)
+    {
+        var applicationId = args.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(applicationId))
+        {
+            ApplicationId = null;
+            Name = string.Empty;
+            ExecutablePath = string.Empty;
+            Arguments = null;
+            WorkingDirectory = null;
+            Endpoint = null;
+            EnvironmentVariables.Clear();
+            EnvironmentVariables.Add(new());
+            return;
+        }
+
+        var application = ApplicationProvider.GetApplication(applicationId);
+        if (application is not null)
+        {
+            LoadApplication(application);
+        }
+    }
+
+    private void LoadApplication(ApplicationResourceDefinition application)
+    {
+        ApplicationId = application.Id;
+        Name = application.Name;
+        ExecutablePath = application.ExecutablePath;
+        Arguments = application.Arguments;
+        WorkingDirectory = application.WorkingDirectory;
+        Endpoint = application.Endpoint;
+        EnvironmentVariables.Clear();
+        EnvironmentVariables.AddRange(application.EnvironmentVariables
+            .Select(variable => new EnvironmentVariableInput(variable.Name, variable.Value)));
+        if (EnvironmentVariables.Count == 0)
+        {
+            EnvironmentVariables.Add(new());
+        }
+    }
+
+    private void AddEnvironmentVariable() => EnvironmentVariables.Add(new());
+
+    private void RemoveEnvironmentVariable(EnvironmentVariableInput variable)
+    {
+        EnvironmentVariables.Remove(variable);
+        if (EnvironmentVariables.Count == 0)
+        {
+            EnvironmentVariables.Add(new());
+        }
+    }
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(ExecutablePath))
+        {
+            ErrorMessage = "Name and executable path are required.";
+            return;
+        }
+
+        var definition = new ApplicationResourceDefinition(
+            ApplicationId ?? string.Empty,
+            Name,
+            ExecutablePath,
+            Arguments,
+            WorkingDirectory,
+            Endpoint,
+            BuildEnvironmentVariables());
+
+        await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
+        Navigation.NavigateTo("/resources");
+    }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
+        EnvironmentVariables
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
+            .ToArray();
+
+    private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
+    {
+        public string? Name { get; set; } = name;
+
+        public string? Value { get; set; } = value;
+    }
+}

@@ -299,7 +299,17 @@
                     {
                         <div>
                             <strong>@endpoint.Name</strong>
-                            <span>@endpoint.Address</span>
+                            @if (IsLinkEndpoint(endpoint))
+                            {
+                                <a class="endpoint-link"
+                                   href="@endpoint.Address"
+                                   target="_blank"
+                                   rel="noopener noreferrer">@endpoint.Address</a>
+                            }
+                            else
+                            {
+                                <span>@endpoint.Address</span>
+                            }
                             <small>@endpoint.Protocol @(endpoint.IsExternal ? L["external"] : L["internal"])</small>
                         </div>
                     }
@@ -790,6 +800,11 @@
 
     private string GetLogsActionLabel(int logCount) =>
         logCount == 1 ? L["Logs"].Value : L["Logs ({0})", logCount].Value;
+
+    private static bool IsLinkEndpoint(ResourceEndpoint endpoint) =>
+        Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) &&
+        (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+         uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
 
     private static string GetResourceGlyph(string kind) =>
         kind.Contains("Docker Engine", StringComparison.OrdinalIgnoreCase) ? "D" :

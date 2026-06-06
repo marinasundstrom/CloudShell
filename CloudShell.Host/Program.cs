@@ -12,6 +12,7 @@ using CloudShell.Host.ResourceManager;
 using CloudShell.Host.Shell;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.FluentUI.AspNetCore.Components;
+using CloudShell.Providers.Applications;
 using CloudShell.Providers.Docker;
 using CloudShell.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -59,6 +60,24 @@ builder.Services
     .AddExtension<CoreShellExtension>()
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
+    .AddApplicationProvider(options =>
+    {
+        var sampleProjectPath = Path.GetFullPath(
+            "../samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
+            builder.Environment.ContentRootPath);
+
+        options.InitialApplications.Add(new ApplicationResourceDefinition(
+            "application:example-web-api",
+            "Example Web API",
+            "dotnet",
+            $"run --project \"{sampleProjectPath}\" --no-launch-profile",
+            Path.GetDirectoryName(sampleProjectPath),
+            "http://localhost:5127",
+            [
+                new("ASPNETCORE_URLS", "http://localhost:5127"),
+                new("CLOUDSHELL_APPLICATION", "Example Web API")
+            ]));
+    })
     .AddDockerProvider();
 
 builder.Services.AddSingleton<ShellCatalog>();

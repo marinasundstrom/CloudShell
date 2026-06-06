@@ -1,0 +1,160 @@
+@inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+
+@if (Application is null)
+{
+    <div class="empty-state">
+        <strong>Application is unavailable</strong>
+        <span>The resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <div class="type-registration">
+        <div class="form-panel">
+            <label for="application-update-name">Name</label>
+            <input id="application-update-name" @bind="Name" />
+
+            <label for="application-update-executable">Executable path</label>
+            <input id="application-update-executable" @bind="ExecutablePath" />
+
+            <label for="application-update-arguments">Arguments</label>
+            <input id="application-update-arguments" @bind="Arguments" />
+
+            <label for="application-update-working-directory">Working directory</label>
+            <input id="application-update-working-directory" @bind="WorkingDirectory" />
+
+            <label for="application-update-endpoint">Endpoint</label>
+            <input id="application-update-endpoint" @bind="Endpoint" />
+
+            <label for="application-update-group">Resource group</label>
+            <select id="application-update-group" @bind="SelectedGroupId">
+                <option value="">Ungrouped</option>
+                @foreach (var group in ResourceGroups.GetResourceGroups())
+                {
+                    <option value="@group.Id">@group.Name</option>
+                }
+            </select>
+
+            <div class="environment-editor">
+                <div class="environment-header">
+                    <strong>Environment variables</strong>
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
+                        Add variable
+                    </FluentButton>
+                </div>
+
+                @foreach (var variable in EnvironmentVariables)
+                {
+                    <div class="environment-row">
+                        <input aria-label="Environment variable name" @bind="variable.Name" />
+                        <input aria-label="Environment variable value" @bind="variable.Value" />
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
+                            Remove
+                        </FluentButton>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private ApplicationResourceDefinition? Application { get; set; }
+    private string Name { get; set; } = string.Empty;
+    private string ExecutablePath { get; set; } = string.Empty;
+    private string? Arguments { get; set; }
+    private string? WorkingDirectory { get; set; }
+    private string? Endpoint { get; set; }
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [];
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        Application = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ApplicationProvider.GetApplication(ResourceId);
+
+        if (Application is not null)
+        {
+            Name = Application.Name;
+            ExecutablePath = Application.ExecutablePath;
+            Arguments = Application.Arguments;
+            WorkingDirectory = Application.WorkingDirectory;
+            Endpoint = Application.Endpoint;
+            SelectedGroupId = ResourceManager.GetGroupForResource(Application.Id)?.Id ?? string.Empty;
+            EnvironmentVariables.Clear();
+            EnvironmentVariables.AddRange(Application.EnvironmentVariables
+                .Select(variable => new EnvironmentVariableInput(variable.Name, variable.Value)));
+            if (EnvironmentVariables.Count == 0)
+            {
+                EnvironmentVariables.Add(new());
+            }
+        }
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private void AddEnvironmentVariable() => EnvironmentVariables.Add(new());
+
+    private void RemoveEnvironmentVariable(EnvironmentVariableInput variable)
+    {
+        EnvironmentVariables.Remove(variable);
+        if (EnvironmentVariables.Count == 0)
+        {
+            EnvironmentVariables.Add(new());
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        if (Application is null)
+        {
+            return ResourceProcedureResult.Completed("Application resource is unavailable.");
+        }
+
+        var definition = new ApplicationResourceDefinition(
+            Application.Id,
+            Name,
+            ExecutablePath,
+            Arguments,
+            WorkingDirectory,
+            Endpoint,
+            BuildEnvironmentVariables());
+
+        await ApplicationProvider.UpdateApplicationAsync(
+            definition,
+            SelectedGroupId,
+            Registrations,
+            cancellationToken);
+
+        return ResourceProcedureResult.Completed("Application configuration updated.");
+    }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
+        EnvironmentVariables
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
+            .ToArray();
+
+    private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
+    {
+        public string? Name { get; set; } = name;
+
+        public string? Value { get; set; } = value;
+    }
+}

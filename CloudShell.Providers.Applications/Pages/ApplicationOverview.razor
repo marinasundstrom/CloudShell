@@ -1,0 +1,57 @@
+@inject ApplicationResourceProvider ApplicationProvider
+
+@if (Application is null)
+{
+    <div class="empty-state">
+        <strong>Application is unavailable</strong>
+        <span>The resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <section class="blade-section">
+        <h3>Command</h3>
+        <dl class="detail-list">
+            <dt>Executable</dt>
+            <dd>@Application.ExecutablePath</dd>
+            <dt>Arguments</dt>
+            <dd>@(Application.Arguments ?? "none")</dd>
+            <dt>Working directory</dt>
+            <dd>@(Application.WorkingDirectory ?? "executable directory")</dd>
+            <dt>Endpoint</dt>
+            <dd>@(Application.Endpoint ?? "none")</dd>
+        </dl>
+    </section>
+
+    <section class="blade-section">
+        <h3>Environment</h3>
+        @if (Application.EnvironmentVariables.Count == 0)
+        {
+            <p class="muted">No environment variables are configured.</p>
+        }
+        else
+        {
+            <dl class="detail-list">
+                @foreach (var variable in Application.EnvironmentVariables)
+                {
+                    <dt>@variable.Name</dt>
+                    <dd>@variable.Value</dd>
+                }
+            </dl>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private ApplicationResourceDefinition? Application { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        Application = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ApplicationProvider.GetApplication(ResourceId);
+    }
+}

@@ -752,6 +752,14 @@ h3 {
     background: #ffffff;
 }
 
+.type-registration input {
+    min-height: 2.2rem;
+    padding: .35rem .5rem;
+    border: 1px solid #b3b3b3;
+    border-radius: 4px;
+    background: #ffffff;
+}
+
 .provider-summary.compact {
     grid-template-columns: 1fr;
     margin-bottom: 0;
@@ -801,6 +809,24 @@ h3 {
 .form-panel label {
     margin-top: .35rem;
     font-weight: 650;
+}
+
+.environment-editor {
+    display: grid;
+    gap: .45rem;
+    margin-top: .35rem;
+}
+
+.environment-header,
+.environment-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .5rem;
+    align-items: center;
+}
+
+.environment-row {
+    grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.5fr) auto;
 }
 
 .form-actions {
@@ -990,9 +1016,18 @@ h3 {
 }
 
 .endpoint-list span,
+.endpoint-list a,
 .endpoint-list small {
     overflow-wrap: anywhere;
+}
+
+.endpoint-list span,
+.endpoint-list small {
     color: #64748b;
+}
+
+.endpoint-link {
+    color: #2563eb;
 }
 
 .signal-grid {
