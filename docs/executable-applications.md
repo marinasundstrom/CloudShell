@@ -114,8 +114,7 @@ referenced resource is registered in the same resource group.
 Applications can read the generated URLs directly through `IConfiguration`:
 
 ```csharp
-var apiUrl = builder.Configuration.GetCloudShellServiceDiscoveryEndpoint("example-api", "http");
-client.BaseAddress = builder.Configuration.GetResourceUri("example-api", "http");
+client.BaseAddress = builder.Configuration.GetResourceEndpoint("example-api", "http");
 ```
 
 After adding the resource through `/resources/add`, use the Run action to start

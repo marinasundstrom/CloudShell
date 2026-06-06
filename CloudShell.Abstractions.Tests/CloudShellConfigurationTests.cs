@@ -6,7 +6,7 @@ namespace CloudShell.Abstractions.Tests;
 public sealed class CloudShellConfigurationTests
 {
     [Fact]
-    public void GetCloudShellServiceDiscoveryEndpoint_ReturnsNamedEndpointUrl()
+    public void GetResourceEndpoint_ReturnsNamedEndpointUri()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -16,29 +16,16 @@ public sealed class CloudShellConfigurationTests
             })
             .Build();
 
-        var endpoint = configuration.GetCloudShellServiceDiscoveryEndpoint("example-api", "https");
+        var endpoint = configuration.GetResourceEndpoint("example-api", "https");
 
-        Assert.Equal("https://localhost:7127", endpoint);
+        Assert.NotNull(endpoint);
+        Assert.Equal("https", endpoint.Scheme);
+        Assert.Equal("localhost", endpoint.Host);
+        Assert.Equal(7127, endpoint.Port);
     }
 
     [Fact]
-    public void GetCloudShellServiceDiscoveryEndpoint_ReturnsFirstEndpointUrl()
-    {
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["services:postgres-main:postgres:0"] = "postgres://main.internal",
-                ["services:postgres-main:postgres:1"] = "postgres://replica.internal"
-            })
-            .Build();
-
-        var endpoint = configuration.GetCloudShellServiceDiscoveryEndpoint("postgres-main");
-
-        Assert.Equal("postgres://main.internal", endpoint);
-    }
-
-    [Fact]
-    public void GetResourceUri_ReturnsAbsoluteEndpointUri()
+    public void GetResourceEndpoint_ReturnsNullWhenEndpointIsMissing()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -47,10 +34,8 @@ public sealed class CloudShellConfigurationTests
             })
             .Build();
 
-        var endpoint = configuration.GetResourceUri("redis-cache", "tcp");
+        var endpoint = configuration.GetResourceEndpoint("redis-cache", "http");
 
-        Assert.NotNull(endpoint);
-        Assert.Equal("redis", endpoint.Scheme);
-        Assert.Equal("cache.internal", endpoint.Host);
+        Assert.Null(endpoint);
     }
 }

@@ -88,9 +88,13 @@ The reusable `CloudShell.Configuration` package also includes small helpers for
 HttpClient-style setup:
 
 ```csharp
-var endpoint = builder.Configuration.GetResourceUri(
+var endpoint = builder.Configuration.GetResourceEndpoint(
     "configuration-example",
     "entries");
+
+var managementEndpoint = builder.Configuration.GetResourceEndpoint(
+    "rabbitmq",
+    "management");
 
 if (endpoint is not null)
 {

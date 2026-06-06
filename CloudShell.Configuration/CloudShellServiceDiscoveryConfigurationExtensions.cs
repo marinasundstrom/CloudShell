@@ -4,43 +4,30 @@ namespace CloudShell.Configuration;
 
 public static class CloudShellServiceDiscoveryConfigurationExtensions
 {
-    public static string? GetCloudShellServiceDiscoveryEndpoint(
+    public static Uri? GetResourceEndpoint(
         this IConfiguration configuration,
-        string providerName,
-        string? endpointName = null)
+        string resourceId,
+        string endpointName)
     {
         ArgumentNullException.ThrowIfNull(configuration);
-        ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(endpointName);
 
         var serviceSection = configuration
             .GetSection("services")
-            .GetSection(providerName);
+            .GetSection(resourceId);
         if (!serviceSection.Exists())
         {
             return null;
         }
 
-        if (!string.IsNullOrWhiteSpace(endpointName))
-        {
-            return GetFirstEndpointValue(serviceSection.GetSection(endpointName));
-        }
-
-        return serviceSection
-            .GetChildren()
-            .Select(GetFirstEndpointValue)
-            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-    }
-
-    public static Uri? GetResourceUri(
-        this IConfiguration configuration,
-        string providerName,
-        string? endpointName = null) =>
-        Uri.TryCreate(
-            configuration.GetCloudShellServiceDiscoveryEndpoint(providerName, endpointName),
+        return Uri.TryCreate(
+            GetFirstEndpointValue(serviceSection.GetSection(endpointName)),
             UriKind.Absolute,
             out var uri)
             ? uri
             : null;
+    }
 
     private static string? GetFirstEndpointValue(IConfigurationSection endpointSection)
     {
