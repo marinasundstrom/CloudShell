@@ -69,15 +69,19 @@ uses the resource token as its own authentication boundary. Missing tokens retur
 ## Sample
 
 The host registers an initial `Example Configuration` service and the
-`Example Web API` application depends on it by default. When the sample app is
-started from Resource Manager, open:
+`Example Web API` application depends on it by default. The sample app includes
+a small `IConfigurationProvider` that reads the injected CloudShell endpoint and
+token, attempts to load settings at startup, logs connection failures, and
+leaves the app running if the service is unavailable.
+
+When the sample app is started from Resource Manager, open:
 
 ```text
 http://localhost:5127/configuration
 ```
 
-The sample calls the CloudShell configuration endpoint with the injected token
-and masks secret values in its response.
+The sample returns the provider status and loaded keys from `IConfiguration`.
+Secret values are masked in the response.
 
 ## Templates
 

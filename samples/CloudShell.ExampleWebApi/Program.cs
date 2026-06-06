@@ -1,7 +1,9 @@
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddHttpClient();
+builder.Configuration.AddCloudShellConfiguration();
 
 var app = builder.Build();
+
+LogCloudShellConfigurationStatus(app);
 
 app.MapGet("/", () => Results.Redirect("/health"));
 
@@ -13,38 +15,26 @@ app.MapGet("/health", () => Results.Ok(new
     timestamp = DateTimeOffset.UtcNow
 }));
 
-app.MapGet("/configuration", async (IHttpClientFactory httpClientFactory) =>
+app.MapGet("/configuration", (IConfiguration configuration) =>
 {
-    var endpoint = Environment.GetEnvironmentVariable("CLOUDSHELL_CONFIGURATION_EXAMPLE_CONFIGURATION_ENDPOINT");
-    var token = Environment.GetEnvironmentVariable("CLOUDSHELL_CONFIGURATION_EXAMPLE_CONFIGURATION_TOKEN");
-    if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(token))
-    {
-        return Results.Problem(
-            "The Example Configuration service endpoint or token was not injected into this application.",
-            statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
+    var loadedKeys = configuration["CloudShell:Configuration:LoadedKeys"]?
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        ?? [];
+    var secretKeys = configuration["CloudShell:Configuration:SecretKeys"]?
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase)
+        ?? [];
 
-    using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
-    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-    var client = httpClientFactory.CreateClient();
-    var response = await client.SendAsync(request);
-    if (!response.IsSuccessStatusCode)
-    {
-        return Results.Problem(
-            $"CloudShell configuration service returned {(int)response.StatusCode}.",
-            statusCode: StatusCodes.Status502BadGateway);
-    }
-
-    var entries = await response.Content.ReadFromJsonAsync<IReadOnlyList<ConfigurationEntryResponse>>();
     return Results.Ok(new
     {
-        source = endpoint,
-        entries = entries?.Select(entry => new
+        status = configuration["CloudShell:Configuration:Status"] ?? "unavailable",
+        detail = configuration["CloudShell:Configuration:Detail"],
+        source = configuration["CloudShell:Configuration:Source"],
+        entries = loadedKeys.Select(key => new
         {
-            entry.Name,
-            Value = entry.IsSecret ? "Secret" : entry.Value,
-            entry.IsSecret
+            Name = key,
+            Value = secretKeys.Contains(key) ? "Secret" : configuration[key],
+            IsSecret = secretKeys.Contains(key)
         })
     });
 });
@@ -57,7 +47,19 @@ app.MapGet("/echo/{message}", (string message) => Results.Ok(new
 
 app.Run();
 
-public sealed record ConfigurationEntryResponse(
-    string Name,
-    string Value,
-    bool IsSecret);
+static void LogCloudShellConfigurationStatus(WebApplication app)
+{
+    var status = app.Configuration["CloudShell:Configuration:Status"];
+    if (string.Equals(status, "connected", StringComparison.OrdinalIgnoreCase))
+    {
+        app.Logger.LogInformation(
+            "CloudShell configuration provider loaded {LoadedKeys} from {Source}.",
+            app.Configuration["CloudShell:Configuration:LoadedKeys"],
+            app.Configuration["CloudShell:Configuration:Source"]);
+        return;
+    }
+
+    app.Logger.LogWarning(
+        "CloudShell configuration provider is unavailable. {Detail}",
+        app.Configuration["CloudShell:Configuration:Detail"] ?? "No configuration service was loaded.");
+}

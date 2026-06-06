@@ -23,12 +23,22 @@ public sealed class ApplicationResourceStore
 
         foreach (var application in options.InitialApplications)
         {
-            if (_definitions.Any(item => string.Equals(item.Id, application.Id, StringComparison.OrdinalIgnoreCase)))
+            var index = _definitions.FindIndex(item =>
+                string.Equals(item.Id, application.Id, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0)
             {
+                var merged = MergeInitialApplication(_definitions[index], application);
+                if (!Equals(_definitions[index], merged))
+                {
+                    _definitions[index] = merged;
+                    Persist();
+                }
+
                 continue;
             }
 
             _definitions.Add(application);
+            Persist();
         }
     }
 
@@ -101,4 +111,22 @@ public sealed class ApplicationResourceStore
         Path.IsPathRooted(path)
             ? path
             : Path.GetFullPath(path, contentRootPath);
+
+    private static ApplicationResourceDefinition MergeInitialApplication(
+        ApplicationResourceDefinition existing,
+        ApplicationResourceDefinition initial) =>
+        existing with
+        {
+            EnvironmentVariables = existing.EnvironmentVariables
+                .Concat(initial.EnvironmentVariables
+                    .Where(initialVariable => existing.EnvironmentVariables.All(existingVariable =>
+                        !string.Equals(existingVariable.Name, initialVariable.Name, StringComparison.OrdinalIgnoreCase))))
+                .ToArray(),
+            DependsOn = existing.DependsOn
+                .Concat(initial.DependsOn)
+                .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+                .Select(dependency => dependency.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+        };
 }

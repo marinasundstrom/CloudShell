@@ -161,14 +161,14 @@ public sealed partial class ApplicationResourceProvider(
         switch (action.Kind)
         {
             case ResourceActionKind.Run:
-                await StartApplicationAsync(context.Resource.Id, cancellationToken);
+                await StartApplicationAsync(context.Resource.Id, context.Resource.DependsOn, cancellationToken);
                 return ResourceProcedureResult.Completed($"Started {context.Resource.Name}.");
             case ResourceActionKind.Stop:
                 await StopApplicationAsync(context.Resource.Id, force: true, cancellationToken);
                 return ResourceProcedureResult.Completed($"Stopped {context.Resource.Name}.");
             case ResourceActionKind.Restart:
                 await StopApplicationAsync(context.Resource.Id, force: true, cancellationToken);
-                await StartApplicationAsync(context.Resource.Id, cancellationToken);
+                await StartApplicationAsync(context.Resource.Id, context.Resource.DependsOn, cancellationToken);
                 return ResourceProcedureResult.Completed($"Restarted {context.Resource.Name}.");
             default:
                 throw new NotSupportedException(
@@ -286,7 +286,10 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    private async Task StartApplicationAsync(string applicationId, CancellationToken cancellationToken)
+    private async Task StartApplicationAsync(
+        string applicationId,
+        IReadOnlyList<string> dependsOn,
+        CancellationToken cancellationToken)
     {
         var definition = store.GetApplication(applicationId)
             ?? throw new InvalidOperationException($"Application resource '{applicationId}' is not configured.");
@@ -303,7 +306,7 @@ public sealed partial class ApplicationResourceProvider(
             ? CreateDetachedStartInfo(definition, logPath)
             : CreateScopedStartInfo(definition);
 
-        foreach (var variable in ResolveDependencyEnvironmentVariables(definition))
+        foreach (var variable in ResolveDependencyEnvironmentVariables(definition, dependsOn))
         {
             if (string.IsNullOrWhiteSpace(variable.Name))
             {
@@ -382,8 +385,11 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveDependencyEnvironmentVariables(
-        ApplicationResourceDefinition definition) =>
+        ApplicationResourceDefinition definition,
+        IReadOnlyList<string> dependsOn) =>
         definition.DependsOn
+            .Concat(dependsOn)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .SelectMany(dependency => environmentVariableProviders
                 .SelectMany(provider => provider.GetEnvironmentVariables(dependency)))
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))

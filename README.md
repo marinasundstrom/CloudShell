@@ -186,8 +186,9 @@ dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.c
 The sample runs on `http://localhost:5127` through `ASPNETCORE_URLS`, and that endpoint is rendered as a real link in the resource details blade.
 
 The sample application depends on the initial `Example Configuration` service.
-When it is started from CloudShell, `/configuration` fetches settings from the
-configuration service using the injected endpoint and resource token.
+When it is started from CloudShell, a sample-local `IConfigurationProvider`
+loads settings from the injected configuration endpoint and token. The
+`/configuration` endpoint reports provider status and loaded keys.
 
 Executable applications default to detached lifetime, so a service can continue running if CloudShell is restarted. Choose control-plane-scoped lifetime when the process should be stopped with CloudShell. Detached application stdout and stderr are written to per-resource files under `CloudShell.Host/Data/application-logs` so the Logs view can read them after restart.
 
