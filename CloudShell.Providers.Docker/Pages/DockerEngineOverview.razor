@@ -1,0 +1,52 @@
+@inject DockerContainerResourceProvider DockerProvider
+@inject IResourceManagerStore ResourceManager
+
+@{
+    var resource = string.IsNullOrWhiteSpace(ResourceId)
+        ? null
+        : ResourceManager.GetResource(ResourceId);
+    var status = DockerProvider.ConnectionStatus;
+    var containers = DockerProvider.GetContainers();
+}
+
+@if (resource is null)
+{
+    <div class="empty-state">
+        <strong>Docker Engine is unavailable</strong>
+        <span>The resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <div class="type-registration">
+        <div class="provider-summary compact">
+            <div class="provider-status">
+                <span class="state-dot @(status.IsConnected ? "state-running" : "state-stopped")"></span>
+                <div>
+                    <strong>@(status.IsConnected ? "Docker Engine connected" : "Docker Engine unavailable")</strong>
+                    <span>@status.Endpoint</span>
+                </div>
+            </div>
+            @if (!status.IsConnected && status.Error is not null)
+            {
+                <div class="provider-error">@status.Error</div>
+            }
+        </div>
+
+        <dl class="detail-list">
+            <dt>State</dt>
+            <dd>@resource.State</dd>
+            <dt>Containers</dt>
+            <dd>@containers.Count</dd>
+            <dt>Version</dt>
+            <dd>@resource.Version</dd>
+            <dt>Region</dt>
+            <dd>@resource.Region</dd>
+        </dl>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+}

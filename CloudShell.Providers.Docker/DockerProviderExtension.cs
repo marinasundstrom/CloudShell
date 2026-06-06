@@ -27,6 +27,17 @@ public sealed class DockerProviderExtension : ICloudShellExtension
                 "Register a local Docker Engine and show its containers as sub-resources.",
                 "docker",
                 10)
+            .AddResourceTab<Pages.DockerEngineOverview>(
+                "docker.engine",
+                "overview",
+                "Overview",
+                10)
+            .AddResourceTab<Pages.UpdateDockerEngine>(
+                "docker.engine",
+                "configuration",
+                "Configuration",
+                20,
+                showsApplyButton: true)
             .AddView<Pages.DockerContainers>(
                 "Docker",
                 "/resources/docker-engine",

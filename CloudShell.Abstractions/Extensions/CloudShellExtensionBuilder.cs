@@ -64,6 +64,81 @@ internal sealed class CloudShellExtensionBuilder(
         string icon,
         int order)
     {
+        AddResourceType(
+            id,
+            displayName,
+            description,
+            icon,
+            order,
+            typeof(TRegistrationComponent),
+            null);
+
+        return this;
+    }
+
+    public ICloudShellExtensionBuilder AddResourceType<TRegistrationComponent, TUpdateComponent>(
+        string id,
+        string displayName,
+        string description,
+        string icon,
+        int order)
+    {
+        AddResourceType(
+            id,
+            displayName,
+            description,
+            icon,
+            order,
+            typeof(TRegistrationComponent),
+            typeof(TUpdateComponent));
+
+        return this;
+    }
+
+    public ICloudShellExtensionBuilder AddResourceTab<TComponent>(
+        string resourceTypeId,
+        string id,
+        string title,
+        int order,
+        bool showsApplyButton = false)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceTypeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+
+        var typeIndex = _resourceTypes.FindIndex(type =>
+            string.Equals(type.Id, resourceTypeId, StringComparison.OrdinalIgnoreCase));
+        if (typeIndex < 0)
+        {
+            throw new InvalidOperationException(
+                $"Resource type '{resourceTypeId}' must be added before adding resource tabs.");
+        }
+
+        var resourceType = _resourceTypes[typeIndex];
+        var tabs = resourceType.ResourceTabs
+            .Append(new ResourceTabContribution(
+                id,
+                title,
+                order,
+                typeof(TComponent),
+                showsApplyButton))
+            .OrderBy(tab => tab.Order)
+            .ThenBy(tab => tab.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        _resourceTypes[typeIndex] = resourceType with { Tabs = tabs };
+        return this;
+    }
+
+    private void AddResourceType(
+        string id,
+        string displayName,
+        string description,
+        string icon,
+        int order,
+        Type registrationComponentType,
+        Type? updateComponentType)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
 
@@ -73,9 +148,8 @@ internal sealed class CloudShellExtensionBuilder(
             description,
             icon,
             order,
-            typeof(TRegistrationComponent)));
-
-        return this;
+            registrationComponentType,
+            updateComponentType));
     }
 
     public ICloudShellExtensionBuilder AddSingleton<TService>()

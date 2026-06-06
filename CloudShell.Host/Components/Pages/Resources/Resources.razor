@@ -1,6 +1,8 @@
 @page "/resources"
 @rendermode InteractiveServer
 @inject IResourceManagerStore ResourceManager
+@inject IResourceRegistrationStore Registrations
+@inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 
@@ -37,6 +39,11 @@
         }
     </div>
 </section>
+
+@if (ProcedureMessage is not null)
+{
+    <div class="procedure-message">@ProcedureMessage</div>
+}
 
 <section class="resource-explorer">
     <aside class="resource-scopes">
@@ -173,9 +180,56 @@
 
             @if (selected.DetailRoute is not null)
             {
-                <FluentButton Appearance="Appearance.Accent" OnClick="() => Navigation.NavigateTo(selected.DetailRoute)">
-                    Open resource
-                </FluentButton>
+                <div class="blade-actions">
+                    <FluentButton Appearance="Appearance.Accent" OnClick="() => Navigation.NavigateTo(selected.DetailRoute)">
+                        Open resource
+                    </FluentButton>
+                    @if (CanManage(selected) && HasUpdateProcedure(selected))
+                    {
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => UpdateResource(selected)">
+                            Update
+                        </FluentButton>
+                    }
+                    @if (CanDelete(selected))
+                    {
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => PromptDelete(selected)">
+                            Delete
+                        </FluentButton>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="blade-actions">
+                    @if (CanManage(selected) && HasUpdateProcedure(selected))
+                    {
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => UpdateResource(selected)">
+                            Update
+                        </FluentButton>
+                    }
+                    @if (CanDelete(selected))
+                    {
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => PromptDelete(selected)">
+                            Delete
+                        </FluentButton>
+                    }
+                </div>
+            }
+
+            @if (DeleteConfirmationResourceId == selected.Id)
+            {
+                <div class="procedure-confirmation">
+                    <strong>Delete registration?</strong>
+                    <span>The provider will commit the delete procedure for this resource.</span>
+                    <div class="form-actions">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelDelete">
+                            Cancel
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="() => DeleteResource(selected)">
+                            Delete
+                        </FluentButton>
+                    </div>
+                </div>
             }
 
             <section class="blade-section">
@@ -250,6 +304,8 @@
     private string? Filter { get; set; }
     private string? SelectedScope { get; set; }
     private CloudResource? SelectedResource { get; set; }
+    private string? DeleteConfirmationResourceId { get; set; }
+    private string? ProcedureMessage { get; set; }
 
     private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<CloudResource> allResources)
     {
@@ -368,6 +424,67 @@
     private void CreateGroup() => Navigation.NavigateTo("/resources/groups/new");
 
     private void AddResource() => Navigation.NavigateTo("/resources/add");
+
+    private void UpdateResource(CloudResource resource) =>
+        Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");
+
+    private void PromptDelete(CloudResource resource)
+    {
+        DeleteConfirmationResourceId = resource.Id;
+        ProcedureMessage = null;
+    }
+
+    private void CancelDelete() => DeleteConfirmationResourceId = null;
+
+    private async Task DeleteResource(CloudResource resource)
+    {
+        var registration = Registrations.GetRegistration(resource.Id);
+        var provider = registration is null
+            ? null
+            : ResourceManager.Providers.FirstOrDefault(item =>
+                string.Equals(item.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase));
+
+        if (provider is not IResourceProcedureProvider procedureProvider)
+        {
+            ProcedureMessage = "This provider does not support deleting the selected resource.";
+            return;
+        }
+
+        var group = GetGroup(resource);
+        var result = await procedureProvider.DeleteAsync(
+            new ResourceProcedureContext(resource, registration, group?.Id, Registrations));
+
+        ProcedureMessage = result.Message;
+        DeleteConfirmationResourceId = null;
+        SelectedResource = null;
+    }
+
+    private bool CanManage(CloudResource resource)
+    {
+        var group = GetGroup(resource);
+        return Authorization.CanAccessResource(
+            resource.Id,
+            group?.Id,
+            CloudShellPermissions.Resources.Manage);
+    }
+
+    private bool HasUpdateProcedure(CloudResource resource) =>
+        ShellCatalog.ResourceTypes.Any(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase) &&
+            (type.UpdateComponentType is not null || type.ResourceTabs.Count > 0));
+
+    private bool CanDelete(CloudResource resource)
+    {
+        var registration = Registrations.GetRegistration(resource.Id);
+        if (registration is null || !CanManage(resource))
+        {
+            return false;
+        }
+
+        return ResourceManager.Providers.Any(provider =>
+            string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase) &&
+            provider is IResourceProcedureProvider);
+    }
 
     private static string GetResourceGlyph(string kind) =>
         kind.Contains("Docker Engine", StringComparison.OrdinalIgnoreCase) ? "D" :

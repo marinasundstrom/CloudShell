@@ -1,0 +1,238 @@
+@page "/resources/{ResourceId}/edit"
+@rendermode InteractiveServer
+@inject IResourceManagerStore ResourceManager
+@inject ShellCatalog ShellCatalog
+@inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
+@implements IDisposable
+
+<PageTitle>Resource configuration</PageTitle>
+
+@{
+    var resource = string.IsNullOrWhiteSpace(ResourceId)
+        ? null
+        : ResourceManager.GetResource(ResourceId);
+    var group = resource is null ? null : ResourceManager.GetGroupForResource(resource.Id);
+    var resourceType = resource is null
+        ? null
+        : ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
+    var tabs = BuildTabs(resourceType);
+    var selectedTab = tabs.FirstOrDefault(tab => tab.Id == SelectedTabId) ?? tabs.FirstOrDefault();
+}
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">Resource Manager</span>
+        <h1>@(resource?.Name ?? "Resource")</h1>
+        <p>Provider-contributed information and configuration views for this resource.</p>
+    </div>
+    <div class="heading-actions">
+        <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
+            Close
+        </FluentButton>
+        @if (selectedTab?.ShowsApplyButton == true)
+        {
+            <FluentButton Appearance="Appearance.Accent"
+                          Disabled="@(ConfigurationContext?.CanApply != true || IsApplying)"
+                          OnClick="ApplyChanges">
+                @(IsApplying ? "Applying" : "Apply")
+            </FluentButton>
+        }
+    </div>
+</section>
+
+@if (ProcedureMessage is not null)
+{
+    <div class="procedure-message">@ProcedureMessage</div>
+}
+
+<section class="registration-layout">
+    <aside class="panel registration-options">
+        <h2>Resource</h2>
+        @if (resource is not null)
+        {
+            <div class="selected-type-card">
+                <span class="resource-kind-icon">@GetTypeGlyph(resource)</span>
+                <div>
+                    <strong>@resource.Name</strong>
+                    <p>@resource.Kind</p>
+                </div>
+            </div>
+            <dl class="detail-list">
+                <dt>Group</dt>
+                <dd>@(group?.Name ?? "Ungrouped")</dd>
+                <dt>Provider</dt>
+                <dd>@resource.Provider</dd>
+            </dl>
+        }
+
+        @if (tabs.Count > 0)
+        {
+            <div class="resource-tab-list" role="tablist" aria-label="Resource views">
+                @foreach (var tab in tabs)
+                {
+                    <button class="resource-tab-button @(selectedTab?.Id == tab.Id ? "active" : null)"
+                            type="button"
+                            role="tab"
+                            aria-selected="@(selectedTab?.Id == tab.Id)"
+                            @onclick="() => SelectTab(tab.Id)">
+                        @tab.Title
+                    </button>
+                }
+            </div>
+        }
+    </aside>
+
+    <div class="panel registration-host">
+        @if (resource is null)
+        {
+            <div class="empty-state">
+                <strong>Resource not found</strong>
+                <span>The resource may have been removed or is no longer visible.</span>
+            </div>
+        }
+        else if (selectedTab is null)
+        {
+            <div class="empty-state">
+                <strong>No resource views</strong>
+                <span>This provider has not contributed tabs for this resource type.</span>
+            </div>
+        }
+        else
+        {
+            <div class="panel-header">
+                <div>
+                    <h2>@selectedTab.Title</h2>
+                    <p>@resourceType?.DisplayName</p>
+                </div>
+            </div>
+            <CascadingValue Value="ConfigurationContext">
+                <DynamicComponent Type="selectedTab.ComponentType"
+                                  Parameters="@(new Dictionary<string, object?> { ["ResourceId"] = resource.Id })" />
+            </CascadingValue>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tab")]
+    private string? RequestedTabId { get; set; }
+
+    private ResourceConfigurationContext? ConfigurationContext { get; set; }
+    private string? SelectedTabId { get; set; }
+    private string? ProcedureMessage { get; set; }
+    private bool IsApplying { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        var resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ResourceManager.GetResource(ResourceId);
+        var group = resource is null ? null : ResourceManager.GetGroupForResource(resource.Id);
+
+        if (resource is not null &&
+            !Authorization.CanAccessResource(resource.Id, group?.Id, CloudShellPermissions.Resources.Manage))
+        {
+            Navigation.NavigateTo("/account/access-denied");
+        }
+
+        if (!string.IsNullOrWhiteSpace(RequestedTabId))
+        {
+            SelectedTabId = RequestedTabId;
+        }
+
+        if (resource is not null && ConfigurationContext?.ResourceId != resource.Id)
+        {
+            if (ConfigurationContext is not null)
+            {
+                ConfigurationContext.StateChanged -= HandleConfigurationStateChanged;
+            }
+
+            ConfigurationContext = new ResourceConfigurationContext(resource.Id);
+            ConfigurationContext.StateChanged += HandleConfigurationStateChanged;
+        }
+    }
+
+    private void Cancel() => Navigation.NavigateTo("/resources");
+
+    private void SelectTab(string tabId)
+    {
+        SelectedTabId = tabId;
+        ProcedureMessage = null;
+        if (!string.IsNullOrWhiteSpace(ResourceId))
+        {
+            Navigation.NavigateTo(
+                $"/resources/{Uri.EscapeDataString(ResourceId)}/edit?tab={Uri.EscapeDataString(tabId)}",
+                replace: true);
+        }
+
+        if (ConfigurationContext is not null)
+        {
+            ConfigurationContext.StateChanged -= HandleConfigurationStateChanged;
+            ConfigurationContext = new ResourceConfigurationContext(ConfigurationContext.ResourceId);
+            ConfigurationContext.StateChanged += HandleConfigurationStateChanged;
+        }
+    }
+
+    private async Task ApplyChanges()
+    {
+        if (ConfigurationContext is null)
+        {
+            return;
+        }
+
+        IsApplying = true;
+        try
+        {
+            var result = await ConfigurationContext.ApplyAsync();
+            ProcedureMessage = result.Message;
+        }
+        finally
+        {
+            IsApplying = false;
+        }
+    }
+
+    private void HandleConfigurationStateChanged() => InvokeAsync(StateHasChanged);
+
+    private static IReadOnlyList<ResourceTabContribution> BuildTabs(ResourceTypeContribution? resourceType)
+    {
+        if (resourceType is null)
+        {
+            return [];
+        }
+
+        if (resourceType.ResourceTabs.Count > 0)
+        {
+            return resourceType.ResourceTabs;
+        }
+
+        return resourceType.UpdateComponentType is null
+            ? []
+            :
+            [
+                new ResourceTabContribution(
+                    "configuration",
+                    "Configuration",
+                    0,
+                    resourceType.UpdateComponentType,
+                    ShowsApplyButton: true)
+            ];
+    }
+
+    public void Dispose()
+    {
+        if (ConfigurationContext is not null)
+        {
+            ConfigurationContext.StateChanged -= HandleConfigurationStateChanged;
+        }
+    }
+
+    private static string GetTypeGlyph(CloudResource resource) =>
+        resource.Kind.Contains("Docker", StringComparison.OrdinalIgnoreCase) ? "D" :
+        resource.Name[..1].ToUpperInvariant();
+}

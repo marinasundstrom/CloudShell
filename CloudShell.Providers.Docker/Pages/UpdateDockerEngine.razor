@@ -1,0 +1,71 @@
+@inject DockerContainerResourceProvider DockerProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+
+@if (Resource is null)
+{
+    <div class="empty-state">
+        <strong>Docker Engine is unavailable</strong>
+        <span>The resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <div class="type-registration">
+        <div class="provider-summary compact">
+            <div class="provider-status">
+                <span class="state-dot @(DockerProvider.ConnectionStatus.IsConnected ? "state-running" : "state-stopped")"></span>
+                <div>
+                    <strong>@Resource.Name</strong>
+                    <span>@Resource.PrimaryEndpoint</span>
+                </div>
+            </div>
+        </div>
+
+        <label for="docker-update-group">Resource group</label>
+        <select id="docker-update-group" @bind="SelectedGroupId">
+            <option value="">Ungrouped</option>
+            @foreach (var group in ResourceGroups.GetResourceGroups())
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private CloudResource? Resource { get; set; }
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ResourceManager.GetResource(ResourceId);
+
+        SelectedGroupId = Resource is null
+            ? string.Empty
+            : ResourceManager.GetGroupForResource(Resource.Id)?.Id ?? string.Empty;
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        await DockerProvider.UpdateEngineAsync(SelectedGroupId, Registrations, cancellationToken);
+        return ResourceProcedureResult.Completed("Docker Engine configuration updated.");
+    }
+}

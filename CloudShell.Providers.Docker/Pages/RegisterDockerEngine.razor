@@ -53,12 +53,7 @@
 
     private async Task Register()
     {
-        var engine = DockerProvider.GetResources()
-            .First(resource => resource.EffectiveTypeId == "docker.engine");
-        await Registrations.RegisterAsync(
-            DockerProvider.Id,
-            engine.Id,
-            string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId);
+        await DockerProvider.SetupEngineAsync(SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");
     }
 }

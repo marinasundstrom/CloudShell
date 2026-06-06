@@ -4,7 +4,7 @@ using Docker.DotNet.Models;
 
 namespace CloudShell.Providers.Docker;
 
-public sealed class DockerContainerResourceProvider : IResourceProvider, IDisposable
+public sealed class DockerContainerResourceProvider : IResourceProvider, IResourceProcedureProvider, IDisposable
 {
     private const string EngineResourceId = "docker:engine";
     private readonly object _gate = new();
@@ -39,6 +39,47 @@ public sealed class DockerContainerResourceProvider : IResourceProvider, IDispos
         .Where(resource => resource.Kind == "Docker Container")
         .ToArray();
 
+    public async Task SetupEngineAsync(
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var engine = GetEngineResource();
+
+        await registrations.RegisterAsync(
+            Id,
+            engine.Id,
+            NormalizeGroupId(resourceGroupId),
+            cancellationToken);
+    }
+
+    public async Task UpdateEngineAsync(
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var engine = GetEngineResource();
+
+        await registrations.AssignToGroupAsync(
+            engine.Id,
+            NormalizeGroupId(resourceGroupId),
+            cancellationToken);
+    }
+
+    public async Task<ResourceProcedureResult> DeleteAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(context.Resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"The Docker provider cannot delete resource '{context.Resource.Id}'.");
+        }
+
+        await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
+        return ResourceProcedureResult.Completed("Docker Engine registration removed.");
+    }
+
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         if (!await _refreshGate.WaitAsync(0, cancellationToken))
@@ -69,6 +110,11 @@ public sealed class DockerContainerResourceProvider : IResourceProvider, IDispos
             return _snapshot;
         }
     }
+
+    private CloudResource GetEngineResource() =>
+        GetResources().FirstOrDefault(resource =>
+            string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException("The Docker Engine resource is not available.");
 
     private async Task QueryDockerAsync(CancellationToken cancellationToken)
     {
@@ -202,6 +248,9 @@ public sealed class DockerContainerResourceProvider : IResourceProvider, IDispos
             "exited" or "dead" => ResourceState.Stopped,
             _ => ResourceState.Unknown
         };
+
+    private static string? NormalizeGroupId(string? resourceGroupId) =>
+        string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId;
 
     private static string GetErrorMessage(Exception exception)
     {

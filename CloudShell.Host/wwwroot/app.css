@@ -449,6 +449,30 @@ h3 {
     color: #242424;
 }
 
+.blade-actions {
+    display: flex;
+    gap: .45rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.procedure-confirmation,
+.procedure-message {
+    display: grid;
+    gap: .35rem;
+    margin-bottom: 1rem;
+    padding: .65rem;
+    border: 1px solid #f2c94c;
+    border-radius: 4px;
+    background: #fffaf0;
+    font-size: .82rem;
+}
+
+.procedure-confirmation span,
+.procedure-message {
+    color: #5b677a;
+}
+
 .blade-section {
     padding-top: .2rem;
 }
@@ -534,6 +558,33 @@ h3 {
 
 .selected-type-card p {
     margin-top: .2rem;
+}
+
+.resource-tab-list {
+    display: grid;
+    gap: .25rem;
+    margin-top: .35rem;
+}
+
+.resource-tab-button {
+    width: 100%;
+    padding: .55rem .65rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: #242424;
+    text-align: left;
+    cursor: pointer;
+}
+
+.resource-tab-button:hover {
+    background: #ffffff;
+}
+
+.resource-tab-button.active {
+    border-color: #c7ddf5;
+    background: #eaf2ff;
+    box-shadow: inset 3px 0 0 #0f6cbd;
 }
 
 .registration-host {

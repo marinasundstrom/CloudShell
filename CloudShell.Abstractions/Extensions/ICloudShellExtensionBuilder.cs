@@ -32,6 +32,20 @@ public interface ICloudShellExtensionBuilder
         string icon,
         int order);
 
+    ICloudShellExtensionBuilder AddResourceType<TRegistrationComponent, TUpdateComponent>(
+        string id,
+        string displayName,
+        string description,
+        string icon,
+        int order);
+
+    ICloudShellExtensionBuilder AddResourceTab<TComponent>(
+        string resourceTypeId,
+        string id,
+        string title,
+        int order,
+        bool showsApplyButton = false);
+
     ICloudShellExtensionBuilder AddSingleton<TService>()
         where TService : class;
 
