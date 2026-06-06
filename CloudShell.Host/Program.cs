@@ -57,7 +57,7 @@ var authenticationOptions =
     builder.Services.AddCloudShellAuthentication(builder.Configuration);
 
 var controlPlane = builder.Services
-    .AddCloudShellControlPlane()
+    .AddControlPlane()
     .AddExtension<CoreShellExtension>()
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
@@ -65,11 +65,11 @@ var controlPlane = builder.Services
     .AddApplicationProvider()
     .AddDockerProvider();
 
-controlPlane.ConfigureResources(resources =>
+controlPlane.Resources(resources =>
 {
-    resources.AddConfigurationStore(
-        "configuration:example",
-        "Example Configuration",
+    resources
+        .AddConfigurationStore("configuration:example", "Example Configuration")
+        .WithEntries(
         [
             new("SampleMessage", "Hello from CloudShell configuration"),
             new("SampleSecret", "local-development-secret", IsSecret: true)

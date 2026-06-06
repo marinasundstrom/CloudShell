@@ -15,6 +15,9 @@ public sealed class ControlPlaneBuilder(
 
 public static class CloudShellBuilderExtensions
 {
+    public static IControlPlaneBuilder AddControlPlane(this IServiceCollection services) =>
+        services.AddCloudShellControlPlane();
+
     public static IControlPlaneBuilder AddCloudShellControlPlane(this IServiceCollection services)
     {
         var registry = services

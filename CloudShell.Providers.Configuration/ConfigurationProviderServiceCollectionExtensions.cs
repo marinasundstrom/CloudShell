@@ -30,7 +30,7 @@ public static class ConfigurationProviderServiceCollectionExtensions
         configure?.Invoke(options);
     }
 
-    public static ICloudShellResourceBuilder AddConfigurationStore(
+    public static IConfigurationStoreResourceBuilder AddConfigurationStore(
         this ICloudShellResourceDeclarationBuilder builder,
         string id,
         string name,
@@ -49,7 +49,7 @@ public static class ConfigurationProviderServiceCollectionExtensions
             .DeclaredStores
             .Add(declared);
 
-        return builder.Declare(
+        var resource = builder.Declare(
             "configuration",
             id,
             onChanged: declaration =>
@@ -57,6 +57,8 @@ public static class ConfigurationProviderServiceCollectionExtensions
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
+
+        return new ConfigurationStoreResourceBuilder(resource, declared);
     }
 
     private static ConfigurationProviderOptions GetOrAddConfigurationProviderOptions(
@@ -77,4 +79,106 @@ public static class ConfigurationProviderServiceCollectionExtensions
         services.AddSingleton(options);
         return options;
     }
+}
+
+public interface IConfigurationStoreResourceBuilder : ICloudShellResourceBuilder
+{
+    IConfigurationStoreResourceBuilder WithEntries(IReadOnlyList<ConfigurationEntry> entries);
+
+    IConfigurationStoreResourceBuilder WithEntry(
+        string name,
+        string value,
+        bool isSecret = false);
+
+    IConfigurationStoreResourceBuilder WithAccessToken(string? accessToken);
+
+    new IConfigurationStoreResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IConfigurationStoreResourceBuilder WithReference(string resourceId);
+
+    new IConfigurationStoreResourceBuilder WithReference(ICloudShellResourceBuilder resource);
+
+    new IConfigurationStoreResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+
+    new IConfigurationStoreResourceBuilder Persist(bool overwrite = false);
+}
+
+internal sealed class ConfigurationStoreResourceBuilder(
+    ICloudShellResourceBuilder inner,
+    DeclaredConfigurationStore declared) : IConfigurationStoreResourceBuilder
+{
+    public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
+
+    public string ResourceId => inner.ResourceId;
+
+    public IConfigurationStoreResourceBuilder WithEntries(IReadOnlyList<ConfigurationEntry> entries)
+    {
+        declared.Definition = declared.Definition with { Entries = entries };
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder WithEntry(
+        string name,
+        string value,
+        bool isSecret = false)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Entries = declared.Definition.Entries
+                .Append(new ConfigurationEntry(name, value, isSecret))
+                .ToArray()
+        };
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder WithAccessToken(string? accessToken)
+    {
+        declared.Definition = declared.Definition with { AccessToken = accessToken };
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder WithResourceGroup(string? resourceGroupId)
+    {
+        inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder WithReference(string resourceId)
+    {
+        inner.WithReference(resourceId);
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder WithReference(ICloudShellResourceBuilder resource)
+    {
+        inner.WithReference(resource);
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder WithReferences(IEnumerable<string> resourceIds)
+    {
+        inner.WithReferences(resourceIds);
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder Persist(bool overwrite = false)
+    {
+        inner.Persist(overwrite);
+        return this;
+    }
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
+        WithResourceGroup(resourceGroupId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(string resourceId) =>
+        WithReference(resourceId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(ICloudShellResourceBuilder resource) =>
+        WithReference(resource);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
+        WithReferences(resourceIds);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.Persist(bool overwrite) =>
+        Persist(overwrite);
 }

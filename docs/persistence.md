@@ -15,7 +15,7 @@ configuration provider in `CloudShell.Host/Data/configuration-stores.json`.
 
 ## Programmatic Declarations
 
-Resources declared with `ConfigureResources` in the Control Plane host are
+Resources declared with `Resources` in the Control Plane host are
 startup configuration by default. They appear in Resource Manager without
 writing provider-owned configuration or core registration rows, so the
 checked-in code remains the source of truth.

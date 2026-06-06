@@ -3,24 +3,24 @@
 CloudShell resources can be declared in code as an alternative to the Add
 Resource UI. Declarations are a Control Plane concern: install the providers you
 need in the Control Plane host, then declare provider-specific resources inside
-`ConfigureResources`. This lets a host check in its baseline configuration
+`Resources`. This lets a host check in its baseline configuration
 instead of relying on every developer or operator to add the same resources by
 hand.
 
 ```csharp
 var controlPlane = builder.Services
-    .AddCloudShellControlPlane()
+    .AddControlPlane()
     .AddExtension<CoreShellExtension>()
     .AddExtension<ResourceManagerExtension>()
     .AddConfigurationProvider()
     .AddApplicationProvider()
     .AddDockerProvider();
 
-controlPlane.ConfigureResources(resources =>
+controlPlane.Resources(resources =>
 {
-    resources.AddConfigurationStore(
-        "configuration:example",
-        "Example Configuration",
+    resources
+        .AddConfigurationStore("configuration:example", "Example Configuration")
+        .WithEntries(
         [
             new("SampleMessage", "Hello from CloudShell configuration"),
             new("SampleSecret", "local-development-secret", IsSecret: true)
@@ -32,7 +32,8 @@ Provider packages expose specialized extension methods for their own resource
 types. Built-in methods include:
 
 - `AddConfigurationStore(...)` from `CloudShell.Providers.Configuration`.
-- `AddExecutableApplication(...)` from `CloudShell.Providers.Applications`.
+- `AddExecutable(...)` and `AddExecutableApplication(...)` from
+  `CloudShell.Providers.Applications`.
 
 The host sample declares only `Example Configuration` programmatically. Other
 resources are expected to be added through the Resource Manager UI unless a host
@@ -55,13 +56,11 @@ configuration and the core resource registration store using the same provider
 setup logic as the UI:
 
 ```csharp
-controlPlane.ConfigureResources(resources =>
+controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore(
-            "configuration:shared",
-            "Shared Configuration",
-            [new("FeatureFlags:UseNewFlow", "true")])
+        .AddConfigurationStore("configuration:shared", "Shared Configuration")
+        .WithEntry("FeatureFlags:UseNewFlow", "true")
         .Persist();
 });
 ```
@@ -75,13 +74,11 @@ declaration is removed from code.
 current persisted provider configuration and registration metadata:
 
 ```csharp
-controlPlane.ConfigureResources(resources =>
+controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore(
-            "configuration:shared",
-            "Shared Configuration",
-            [new("FeatureFlags:UseNewFlow", "true")])
+        .AddConfigurationStore("configuration:shared", "Shared Configuration")
+        .WithEntry("FeatureFlags:UseNewFlow", "true")
         .Persist(overwrite: true);
 });
 ```

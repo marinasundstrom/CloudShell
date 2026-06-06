@@ -9,19 +9,18 @@ process. This is the default shape used by `CloudShell.Host`.
 
 ```csharp
 var controlPlane = builder.Services
-    .AddCloudShellControlPlane()
+    .AddControlPlane()
     .AddExtension<CoreShellExtension>()
     .AddExtension<ResourceManagerExtension>()
     .AddConfigurationProvider()
     .AddApplicationProvider()
     .AddDockerProvider();
 
-controlPlane.ConfigureResources(resources =>
+controlPlane.Resources(resources =>
 {
-    resources.AddConfigurationStore(
-        "configuration:example",
-        "Example Configuration",
-        [new("SampleMessage", "Hello from checked-in configuration")]);
+    resources
+        .AddConfigurationStore("configuration:example", "Example Configuration")
+        .WithEntry("SampleMessage", "Hello from checked-in configuration");
 });
 ```
 
@@ -54,15 +53,14 @@ Declarative resources must be configured in the Control Plane host:
 
 ```csharp
 var controlPlane = builder.Services
-    .AddCloudShellControlPlane()
+    .AddControlPlane()
     .AddConfigurationProvider();
 
-controlPlane.ConfigureResources(resources =>
+controlPlane.Resources(resources =>
 {
-    resources.AddConfigurationStore(
-        "configuration:shared",
-        "Shared Configuration",
-        [new("FeatureFlags:UseNewFlow", "true")]);
+    resources
+        .AddConfigurationStore("configuration:shared", "Shared Configuration")
+        .WithEntry("FeatureFlags:UseNewFlow", "true");
 });
 ```
 

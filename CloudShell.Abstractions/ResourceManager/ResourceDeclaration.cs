@@ -51,6 +51,10 @@ public interface ICloudShellResourceDeclarationBuilder
         Action<ResourceDeclaration>? onChanged = null);
 }
 
+public interface IResourceGraphBuilder : ICloudShellResourceDeclarationBuilder
+{
+}
+
 public interface IProgrammaticResourceDeclarationProvider
 {
     bool CanApplyDeclaration(ResourceDeclaration declaration);
@@ -63,25 +67,26 @@ public interface IProgrammaticResourceDeclarationProvider
 
 public static class CloudShellResourceDeclarationBuilderExtensions
 {
+    public static IControlPlaneBuilder Resources(
+        this IControlPlaneBuilder builder,
+        Action<IResourceGraphBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var declarations = GetOrAddDeclarationStore(builder.Services);
+        configure(new ResourceGraphBuilder(builder, declarations));
+        return builder;
+    }
+
     public static IControlPlaneBuilder ConfigureResources(
         this IControlPlaneBuilder builder,
         Action<ICloudShellResourceDeclarationBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
 
-        var declarations = builder.Services
-            .Where(descriptor => descriptor.ServiceType == typeof(ResourceDeclarationStore))
-            .Select(descriptor => descriptor.ImplementationInstance)
-            .OfType<ResourceDeclarationStore>()
-            .SingleOrDefault();
+        var declarations = GetOrAddDeclarationStore(builder.Services);
 
-        if (declarations is null)
-        {
-            declarations = new ResourceDeclarationStore();
-            builder.Services.AddSingleton(declarations);
-        }
-
-        configure(new CloudShellResourceDeclarationBuilder(builder, declarations));
+        configure(new ResourceGraphBuilder(builder, declarations));
         return builder;
     }
 
@@ -89,11 +94,29 @@ public static class CloudShellResourceDeclarationBuilderExtensions
         this IControlPlaneBuilder builder,
         Action<ICloudShellResourceDeclarationBuilder> configure) =>
         builder.ConfigureResources(configure);
+
+    private static ResourceDeclarationStore GetOrAddDeclarationStore(IServiceCollection services)
+    {
+        var declarations = services
+            .Where(descriptor => descriptor.ServiceType == typeof(ResourceDeclarationStore))
+            .Select(descriptor => descriptor.ImplementationInstance)
+            .OfType<ResourceDeclarationStore>()
+            .SingleOrDefault();
+
+        if (declarations is not null)
+        {
+            return declarations;
+        }
+
+        declarations = new ResourceDeclarationStore();
+        services.AddSingleton(declarations);
+        return declarations;
+    }
 }
 
-internal sealed class CloudShellResourceDeclarationBuilder(
+internal sealed class ResourceGraphBuilder(
     ICloudShellBuilder cloudShellBuilder,
-    ResourceDeclarationStore declarations) : ICloudShellResourceDeclarationBuilder
+    ResourceDeclarationStore declarations) : IResourceGraphBuilder
 {
     public ICloudShellBuilder CloudShellBuilder { get; } = cloudShellBuilder;
 

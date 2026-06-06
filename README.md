@@ -11,7 +11,7 @@ This repository is an early shell prototype. It currently includes:
 - A Blazor shell with Fluent UI styling and Aspire-like density.
 - Extension registration through the .NET service container.
 - A Resource Manager surface with resource groups, nested resources, endpoints, state, and details.
-- Programmatic Control Plane resource declarations through checked-in `ConfigureResources` code.
+- Programmatic Control Plane resource declarations through checked-in `Resources` code.
 - Resource-bound actions for standard lifecycle commands and provider-specific commands.
 - Resource group templates for provider-owned import/export of grouped resources.
 - Configuration service resources for sharing settings and secrets between dependent resources.
@@ -55,7 +55,7 @@ For example, the Docker extension registers the `docker.engine` resource type. I
 The executable application extension registers the `application.executable` resource type. Its registration UI lets the user add a local command, pass environment variables, choose a working directory and endpoint, and configure whether the process is detached from or scoped to the CloudShell control plane.
 
 Control Plane hosts can also declare selected baseline resources in code with
-`ConfigureResources`. The sample host declares an `Example Configuration`
+`Resources`. The sample host declares an `Example Configuration`
 service this way, while leaving other resources to be added through the UI.
 See [Programmatic resources](docs/programmatic-resources.md).
 

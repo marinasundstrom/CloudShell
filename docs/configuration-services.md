@@ -18,11 +18,11 @@ Control Plane hosts can also declare configuration services in checked-in
 startup code:
 
 ```csharp
-controlPlane.ConfigureResources(resources =>
+controlPlane.Resources(resources =>
 {
-    resources.AddConfigurationStore(
-        "configuration:example",
-        "Example Configuration",
+    resources
+        .AddConfigurationStore("configuration:example", "Example Configuration")
+        .WithEntries(
         [
             new("SampleMessage", "Hello from CloudShell configuration"),
             new("SampleSecret", "local-development-secret", IsSecret: true)
