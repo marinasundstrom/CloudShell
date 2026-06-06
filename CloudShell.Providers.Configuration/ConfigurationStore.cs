@@ -24,13 +24,16 @@ public sealed class ConfigurationStore
 
         foreach (var configurationStore in options.InitialStores)
         {
-            if (_definitions.Any(item =>
-                    string.Equals(item.Id, configurationStore.Id, StringComparison.OrdinalIgnoreCase)))
-            {
-                continue;
-            }
+            UpsertDefinition(configurationStore, persist: false, replaceExisting: false);
+        }
 
-            _definitions.Add(Normalize(configurationStore));
+        foreach (var configurationStore in options.DeclaredStores)
+        {
+            UpsertDefinition(
+                configurationStore.Definition,
+                persist: false,
+                replaceExisting: !configurationStore.Persist ||
+                    configurationStore.OverwritePersistedState);
         }
     }
 
@@ -100,6 +103,40 @@ public sealed class ConfigurationStore
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_definitionsPath)!);
         File.WriteAllText(_definitionsPath, JsonSerializer.Serialize(_definitions, SerializerOptions));
+    }
+
+    private void UpsertDefinition(
+        ConfigurationStoreDefinition definition,
+        bool persist,
+        bool replaceExisting)
+    {
+        var normalized = Normalize(definition);
+        var index = _definitions.FindIndex(item =>
+            string.Equals(item.Id, normalized.Id, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0)
+        {
+            if (!replaceExisting)
+            {
+                return;
+            }
+
+            if (!Equals(_definitions[index], normalized))
+            {
+                _definitions[index] = normalized;
+                if (persist)
+                {
+                    Persist();
+                }
+            }
+
+            return;
+        }
+
+        _definitions.Add(normalized);
+        if (persist)
+        {
+            Persist();
+        }
     }
 
     private static ConfigurationStoreDefinition Normalize(ConfigurationStoreDefinition definition) =>

@@ -9,4 +9,15 @@ public sealed class ApplicationProviderOptions
     public string LogDirectory { get; set; } = "Data/application-logs";
 
     public IList<ApplicationResourceDefinition> InitialApplications { get; } = [];
+
+    internal IList<DeclaredApplicationResource> DeclaredApplications { get; } = [];
+}
+
+internal sealed class DeclaredApplicationResource(ApplicationResourceDefinition definition)
+{
+    public ApplicationResourceDefinition Definition { get; set; } = definition;
+
+    public bool Persist { get; set; }
+
+    public bool OverwritePersistedState { get; set; }
 }

@@ -6,10 +6,14 @@ namespace CloudShell.ControlPlane.Authentication;
 
 public sealed class AuthorizedResourceRegistrationStore(
     EfCoreResourceStore inner,
+    ResourceDeclarationStore declarations,
     ICloudShellAuthorizationService authorization) : IResourceRegistrationStore
 {
     public IReadOnlyList<ResourceRegistration> GetRegistrations() =>
         inner.GetRegistrations()
+            .Concat(declarations.GetDeclarations()
+                .Where(declaration => inner.GetRegistration(declaration.ResourceId) is null)
+                .Select(ToRegistration))
             .Where(registration => CanAccess(
                 registration,
                 CloudShellPermissions.Resources.Read))
@@ -17,7 +21,10 @@ public sealed class AuthorizedResourceRegistrationStore(
 
     public ResourceRegistration? GetRegistration(string resourceId)
     {
-        var registration = inner.GetRegistration(resourceId);
+        var registration = inner.GetRegistration(resourceId)
+            ?? (declarations.GetDeclaration(resourceId) is { } declaration
+                ? ToRegistration(declaration)
+                : null);
         return registration is not null &&
                CanAccess(registration, CloudShellPermissions.Resources.Read)
             ? registration
@@ -48,6 +55,11 @@ public sealed class AuthorizedResourceRegistrationStore(
         var registration = inner.GetRegistration(resourceId);
         if (registration is null)
         {
+            if (declarations.GetDeclaration(resourceId) is not null)
+            {
+                declarations.Remove(resourceId);
+            }
+
             return;
         }
 
@@ -61,8 +73,23 @@ public sealed class AuthorizedResourceRegistrationStore(
         IReadOnlyList<string>? dependsOn = null,
         CancellationToken cancellationToken = default)
     {
-        var registration = inner.GetRegistration(resourceId)
-            ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+        var registration = inner.GetRegistration(resourceId);
+        if (registration is null)
+        {
+            var declaration = declarations.GetDeclaration(resourceId)
+                ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+            registration = ToRegistration(declaration);
+
+            EnsureAccess(registration, CloudShellPermissions.Resources.Manage);
+            EnsureAccess(resourceId, resourceGroupId, CloudShellPermissions.Resources.Manage);
+            declarations.AssignToGroup(resourceId, resourceGroupId);
+            if (dependsOn is not null)
+            {
+                declarations.SetDependencies(resourceId, dependsOn);
+            }
+
+            return;
+        }
 
         EnsureAccess(registration, CloudShellPermissions.Resources.Manage);
         EnsureAccess(resourceId, resourceGroupId, CloudShellPermissions.Resources.Manage);
@@ -74,8 +101,17 @@ public sealed class AuthorizedResourceRegistrationStore(
         IReadOnlyList<string> dependsOn,
         CancellationToken cancellationToken = default)
     {
-        var registration = inner.GetRegistration(resourceId)
-            ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+        var registration = inner.GetRegistration(resourceId);
+        if (registration is null)
+        {
+            var declaration = declarations.GetDeclaration(resourceId)
+                ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+            registration = ToRegistration(declaration);
+
+            EnsureAccess(registration, CloudShellPermissions.Resources.Manage);
+            declarations.SetDependencies(resourceId, dependsOn);
+            return;
+        }
 
         EnsureAccess(registration, CloudShellPermissions.Resources.Manage);
         await inner.SetDependenciesAsync(resourceId, dependsOn, cancellationToken);
@@ -98,4 +134,12 @@ public sealed class AuthorizedResourceRegistrationStore(
                 $"The '{permission}' permission is required for resource '{resourceId}'.");
         }
     }
+
+    private static ResourceRegistration ToRegistration(ResourceDeclaration declaration) =>
+        new(
+            declaration.ResourceId,
+            declaration.ProviderId,
+            declaration.ResourceGroupId,
+            declaration.DeclaredAt,
+            declaration.DependsOn);
 }

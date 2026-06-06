@@ -11,7 +11,8 @@ public sealed partial class ConfigurationResourceProvider(
     IResourceProvider,
     IResourceProcedureProvider,
     IResourceTemplateProvider,
-    IResourceEnvironmentVariableProvider
+    IResourceEnvironmentVariableProvider,
+    IProgrammaticResourceDeclarationProvider
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -27,6 +28,33 @@ public sealed partial class ConfigurationResourceProvider(
     public ConfigurationStoreDefinition? GetStore(string id) => store.GetStore(id);
 
     public IReadOnlyList<ConfigurationStoreDefinition> GetStores() => store.GetStores();
+
+    public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
+        string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
+
+    public Task ApplyDeclarationAsync(
+        ResourceDeclaration declaration,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var declaredStore = options.DeclaredStores.FirstOrDefault(store =>
+            string.Equals(store.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException(
+                $"Configuration service declaration '{declaration.ResourceId}' was not found.");
+
+        if (!declaration.OverwritePersistedState &&
+            (registrations.GetRegistration(declaration.ResourceId) is not null ||
+             store.GetStore(declaration.ResourceId) is not null))
+        {
+            return Task.CompletedTask;
+        }
+
+        return SetupStoreAsync(
+            declaredStore.Definition,
+            declaration.ResourceGroupId,
+            registrations,
+            cancellationToken);
+    }
 
     public async Task SetupStoreAsync(
         ConfigurationStoreDefinition definition,

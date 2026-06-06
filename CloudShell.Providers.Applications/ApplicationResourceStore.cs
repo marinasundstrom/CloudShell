@@ -23,22 +23,16 @@ public sealed class ApplicationResourceStore
 
         foreach (var application in options.InitialApplications)
         {
-            var index = _definitions.FindIndex(item =>
-                string.Equals(item.Id, application.Id, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0)
-            {
-                var merged = MergeInitialApplication(_definitions[index], application);
-                if (!Equals(_definitions[index], merged))
-                {
-                    _definitions[index] = merged;
-                    Persist();
-                }
+            UpsertDefinition(application, persist: true, mergeEnvironment: true);
+        }
 
-                continue;
-            }
-
-            _definitions.Add(application);
-            Persist();
+        foreach (var application in options.DeclaredApplications)
+        {
+            UpsertDefinition(
+                application.Definition,
+                persist: false,
+                mergeEnvironment: false,
+                replaceExisting: !application.Persist || application.OverwritePersistedState);
         }
     }
 
@@ -111,6 +105,43 @@ public sealed class ApplicationResourceStore
         Path.IsPathRooted(path)
             ? path
             : Path.GetFullPath(path, contentRootPath);
+
+    private void UpsertDefinition(
+        ApplicationResourceDefinition definition,
+        bool persist,
+        bool mergeEnvironment,
+        bool replaceExisting = true)
+    {
+        var index = _definitions.FindIndex(item =>
+            string.Equals(item.Id, definition.Id, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0)
+        {
+            if (!replaceExisting)
+            {
+                return;
+            }
+
+            var updated = mergeEnvironment
+                ? MergeInitialApplication(_definitions[index], definition)
+                : definition;
+            if (!Equals(_definitions[index], updated))
+            {
+                _definitions[index] = updated;
+                if (persist)
+                {
+                    Persist();
+                }
+            }
+
+            return;
+        }
+
+        _definitions.Add(definition);
+        if (persist)
+        {
+            Persist();
+        }
+    }
 
     private static ApplicationResourceDefinition MergeInitialApplication(
         ApplicationResourceDefinition existing,

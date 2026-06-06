@@ -19,6 +19,7 @@ public sealed partial class ApplicationResourceProvider(
     ILogProvider,
     IResourceProcedureProvider,
     IResourceTemplateProvider,
+    IProgrammaticResourceDeclarationProvider,
     IDisposable
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
@@ -253,6 +254,33 @@ public sealed partial class ApplicationResourceProvider(
     public ApplicationResourceDefinition? GetApplication(string id) => store.GetApplication(id);
 
     public IReadOnlyList<ApplicationResourceDefinition> GetApplications() => store.GetApplications();
+
+    public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
+        string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
+
+    public Task ApplyDeclarationAsync(
+        ResourceDeclaration declaration,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var declaredApplication = options.DeclaredApplications.FirstOrDefault(application =>
+            string.Equals(application.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException(
+                $"Application resource declaration '{declaration.ResourceId}' was not found.");
+
+        if (!declaration.OverwritePersistedState &&
+            (registrations.GetRegistration(declaration.ResourceId) is not null ||
+             store.GetApplication(declaration.ResourceId) is not null))
+        {
+            return Task.CompletedTask;
+        }
+
+        return SetupApplicationAsync(
+            declaredApplication.Definition with { DependsOn = declaration.DependsOn },
+            declaration.ResourceGroupId,
+            registrations,
+            cancellationToken);
+    }
 
     public bool IsRunning(string applicationId) =>
         TryGetRunningProcess(

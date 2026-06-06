@@ -56,41 +56,25 @@ builder.Services.AddCloudShellPersistence(persistenceOptions);
 var authenticationOptions =
     builder.Services.AddCloudShellAuthentication(builder.Configuration);
 
-builder.Services
-    .AddCloudShell()
+var controlPlane = builder.Services
+    .AddCloudShellControlPlane()
     .AddExtension<CoreShellExtension>()
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
-    .AddConfigurationProvider(options =>
-    {
-        options.InitialStores.Add(new ConfigurationStoreDefinition(
-            "configuration:example",
-            "Example Configuration",
-            [
-                new("SampleMessage", "Hello from CloudShell configuration"),
-                new("SampleSecret", "local-development-secret", IsSecret: true)
-            ]));
-    })
-    .AddApplicationProvider(options =>
-    {
-        var sampleProjectPath = Path.GetFullPath(
-            "../samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-            builder.Environment.ContentRootPath);
-
-        options.InitialApplications.Add(new ApplicationResourceDefinition(
-            "application:example-web-api",
-            "Example Web API",
-            "dotnet",
-            $"run --project \"{sampleProjectPath}\" --no-launch-profile",
-            Path.GetDirectoryName(sampleProjectPath),
-            "http://localhost:5127",
-            [
-                new("ASPNETCORE_URLS", "http://localhost:5127"),
-                new("CLOUDSHELL_APPLICATION", "Example Web API")
-            ],
-            dependsOn: ["configuration:example"]));
-    })
+    .AddConfigurationProvider()
+    .AddApplicationProvider()
     .AddDockerProvider();
+
+controlPlane.ConfigureResources(resources =>
+{
+    resources.AddConfigurationStore(
+        "configuration:example",
+        "Example Configuration",
+        [
+            new("SampleMessage", "Hello from CloudShell configuration"),
+            new("SampleSecret", "local-development-secret", IsSecret: true)
+        ]);
+});
 
 builder.Services.AddSingleton<ShellCatalog>();
 builder.Services.AddScoped<IResourceGroupStore, AuthorizedResourceGroupStore>();
@@ -104,6 +88,7 @@ var usesLocalIdentity =
     authenticationOptions.Enabled &&
     authenticationOptions.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase);
 app.Services.InitializeCloudShellDatabase(usesLocalIdentity);
+app.Services.PersistProgrammaticResourceDeclarations();
 if (usesLocalIdentity)
 {
     await using var scope = app.Services.CreateAsyncScope();

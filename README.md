@@ -11,6 +11,7 @@ This repository is an early shell prototype. It currently includes:
 - A Blazor shell with Fluent UI styling and Aspire-like density.
 - Extension registration through the .NET service container.
 - A Resource Manager surface with resource groups, nested resources, endpoints, state, and details.
+- Programmatic Control Plane resource declarations through checked-in `ConfigureResources` code.
 - Resource-bound actions for standard lifecycle commands and provider-specific commands.
 - Resource group templates for provider-owned import/export of grouped resources.
 - Configuration service resources for sharing settings and secrets between dependent resources.
@@ -52,6 +53,11 @@ An extension registers a resource type and provides a Blazor registration compon
 For example, the Docker extension registers the `docker.engine` resource type. Its registration UI discovers the local Docker socket and lets the user add the Docker Engine as a CloudShell resource.
 
 The executable application extension registers the `application.executable` resource type. Its registration UI lets the user add a local command, pass environment variables, choose a working directory and endpoint, and configure whether the process is detached from or scoped to the CloudShell control plane.
+
+Control Plane hosts can also declare selected baseline resources in code with
+`ConfigureResources`. The sample host declares an `Example Configuration`
+service this way, while leaving other resources to be added through the UI.
+See [Programmatic resources](docs/programmatic-resources.md).
 
 ### Resource Providers
 
@@ -178,7 +184,8 @@ resource registration table.
 
 The executable application extension is intended for local dev services: APIs, frontend dev servers, emulators, workers, and similar commands that should appear in Resource Manager without requiring Docker.
 
-The host contributes an initial `Example Web API` executable application. After adding it through `/resources/add`, the Run action starts:
+You can add the sample web API through `/resources/add` as an executable
+application. Configure it to run:
 
 ```bash
 dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile
@@ -186,7 +193,8 @@ dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.c
 
 The sample runs on `http://localhost:5127` through `ASPNETCORE_URLS`, and that endpoint is rendered as a real link in the resource details blade.
 
-The sample application depends on the initial `Example Configuration` service.
+The sample can depend on the programmatically declared `Example Configuration`
+service.
 When it is started from CloudShell, the reusable `CloudShell.Configuration`
 provider loads settings from the injected configuration endpoint and token. The
 `/configuration` endpoint reports provider status and loaded keys.
@@ -235,8 +243,10 @@ Deployment configuration:
 
 - [Control plane API and generated clients](docs/control-plane-api.md)
 - [Authentication and authorization](docs/authentication-and-authorization.md)
+- [Hosting model](docs/hosting-model.md)
 - [Localization](docs/localization.md)
 - [Persistence](docs/persistence.md)
+- [Programmatic resources](docs/programmatic-resources.md)
 - [Resource templates](docs/resource-templates.md)
 - [Configuration services](docs/configuration-services.md)
 - [Executable applications](docs/executable-applications.md)

@@ -14,6 +14,22 @@ A configuration service is added from `/resources/add` by choosing
 **Configuration service**. It can be assigned to any resource group, or left
 in the default group.
 
+Control Plane hosts can also declare configuration services in checked-in
+startup code:
+
+```csharp
+controlPlane.ConfigureResources(resources =>
+{
+    resources.AddConfigurationStore(
+        "configuration:example",
+        "Example Configuration",
+        [
+            new("SampleMessage", "Hello from CloudShell configuration"),
+            new("SampleSecret", "local-development-secret", IsSecret: true)
+        ]);
+});
+```
+
 Each service stores key-value entries:
 
 - `Name`: the setting name.
@@ -105,11 +121,11 @@ application can continue running and log the state.
 
 ## Sample
 
-The host registers an initial `Example Configuration` service and the
-`Example Web API` application depends on it by default. The sample app uses
+The host declares an `Example Configuration` service programmatically. If an
+executable application depends on that service, the sample app can use
 `CloudShell.Configuration` to read the injected CloudShell endpoint and token,
-attempts to load settings at startup, logs connection failures, and leaves the
-app running if the service is unavailable.
+load settings at startup, log connection failures, and continue running if the
+service is unavailable.
 
 When the sample app is started from Resource Manager, open:
 
@@ -119,6 +135,9 @@ http://localhost:5127/configuration
 
 The sample returns the provider status and loaded keys from `IConfiguration`.
 Secret values are masked in the response.
+
+See [Programmatic resources](programmatic-resources.md) for the declaration and
+persistence model.
 
 ## Templates
 

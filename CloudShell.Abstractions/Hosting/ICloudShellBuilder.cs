@@ -6,3 +6,7 @@ public interface ICloudShellBuilder
 {
     IServiceCollection Services { get; }
 }
+
+public interface IControlPlaneBuilder : ICloudShellBuilder
+{
+}

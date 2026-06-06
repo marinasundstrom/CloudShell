@@ -69,7 +69,8 @@ also written to the per-resource log file.
 
 ## Sample
 
-The host registers an initial `Example Web API` executable application that runs:
+Add the sample web API through `/resources/add` as an executable application
+that runs:
 
 ```bash
 dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile
@@ -82,7 +83,8 @@ ASPNETCORE_URLS=http://localhost:5127
 CLOUDSHELL_APPLICATION=Example Web API
 ```
 
-The sample also depends on the initial `Example Configuration` service.
+The sample can depend on the programmatically declared `Example Configuration`
+service.
 CloudShell injects service-specific endpoint and token environment variables,
 and the sample uses the reusable `CloudShell.Configuration` provider to load
 settings during startup. If the configuration service is unavailable, the

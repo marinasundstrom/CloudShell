@@ -31,10 +31,28 @@ public sealed class ResourceManagerStore(
             .ToArray();
     }
 
-    public IReadOnlyList<ResourceGroup> GetResourceGroups() => resourceGroups
-        .GetResourceGroups()
-        .OrderBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
-        .ToArray();
+    public IReadOnlyList<ResourceGroup> GetResourceGroups()
+    {
+        var registeredByGroup = registrations.GetRegistrations()
+            .Where(registration => !string.IsNullOrWhiteSpace(registration.ResourceGroupId))
+            .GroupBy(registration => registration.ResourceGroupId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(registration => registration.ResourceId).ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+
+        return resourceGroups
+            .GetResourceGroups()
+            .OrderBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group with
+            {
+                ResourceIds = group.ResourceIds
+                    .Concat(registeredByGroup.GetValueOrDefault(group.Id) ?? [])
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()
+            })
+            .ToArray();
+    }
 
     public CloudResource? GetResource(string id) =>
         GetResources().FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
@@ -53,6 +71,13 @@ public sealed class ResourceManagerStore(
 
         while (visited.Add(currentId))
         {
+            var registration = registrations.GetRegistration(currentId);
+            if (!string.IsNullOrWhiteSpace(registration?.ResourceGroupId))
+            {
+                return GetResourceGroups().FirstOrDefault(group =>
+                    string.Equals(group.Id, registration.ResourceGroupId, StringComparison.OrdinalIgnoreCase));
+            }
+
             var directGroup = resourceGroups.GetGroupForResource(currentId);
             if (directGroup is not null)
             {
