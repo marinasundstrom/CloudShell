@@ -1,0 +1,145 @@
+@inject ConfigurationResourceProvider ConfigurationProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+
+@if (Store is null)
+{
+    <div class="empty-state">
+        <strong>Configuration service is unavailable</strong>
+        <span>The resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <div class="type-registration">
+        <div class="form-panel">
+            <label for="configuration-update-name">Name</label>
+            <input id="configuration-update-name" @bind="Name" />
+
+            <label for="configuration-update-group">Resource group</label>
+            <select id="configuration-update-group" @bind="SelectedGroupId">
+                <option value="">Ungrouped</option>
+                @foreach (var group in ResourceGroups.GetResourceGroups())
+                {
+                    <option value="@group.Id">@group.Name</option>
+                }
+            </select>
+
+            <div class="environment-editor">
+                <div class="environment-header">
+                    <strong>Entries</strong>
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="AddEntry">
+                        Add entry
+                    </FluentButton>
+                </div>
+
+                @foreach (var entry in Entries)
+                {
+                    <div class="environment-row configuration-entry-row">
+                        <input aria-label="Configuration entry name" @bind="entry.Name" />
+                        <input aria-label="Configuration entry value" @bind="entry.Value" />
+                        <label class="inline-checkbox">
+                            <input type="checkbox" @bind="entry.IsSecret" />
+                            Secret
+                        </label>
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEntry(entry)">
+                            Remove
+                        </FluentButton>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private ConfigurationStoreDefinition? Store { get; set; }
+    private string Name { get; set; } = string.Empty;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private List<ConfigurationEntryInput> Entries { get; } = [];
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        Store = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ConfigurationProvider.GetStore(ResourceId);
+
+        if (Store is not null)
+        {
+            Name = Store.Name;
+            SelectedGroupId = ResourceManager.GetGroupForResource(Store.Id)?.Id ?? string.Empty;
+            Entries.Clear();
+            Entries.AddRange(Store.Entries
+                .Select(entry => new ConfigurationEntryInput(entry.Name, entry.Value, entry.IsSecret)));
+            if (Entries.Count == 0)
+            {
+                Entries.Add(new());
+            }
+        }
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private void AddEntry() => Entries.Add(new());
+
+    private void RemoveEntry(ConfigurationEntryInput entry)
+    {
+        Entries.Remove(entry);
+        if (Entries.Count == 0)
+        {
+            Entries.Add(new());
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        if (Store is null)
+        {
+            return ResourceProcedureResult.Completed("Configuration service is unavailable.");
+        }
+
+        var definition = new ConfigurationStoreDefinition(
+            Store.Id,
+            Name,
+            BuildEntries());
+
+        await ConfigurationProvider.UpdateStoreAsync(
+            definition,
+            SelectedGroupId,
+            Registrations,
+            cancellationToken);
+
+        return ResourceProcedureResult.Completed("Configuration service updated.");
+    }
+
+    private IReadOnlyList<ConfigurationEntry> BuildEntries() =>
+        Entries
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
+            .Select(entry => new ConfigurationEntry(
+                entry.Name!.Trim(),
+                entry.Value ?? string.Empty,
+                entry.IsSecret))
+            .ToArray();
+
+    private sealed class ConfigurationEntryInput(string? name = null, string? value = null, bool isSecret = false)
+    {
+        public string? Name { get; set; } = name;
+
+        public string? Value { get; set; } = value;
+
+        public bool IsSecret { get; set; } = isSecret;
+    }
+}

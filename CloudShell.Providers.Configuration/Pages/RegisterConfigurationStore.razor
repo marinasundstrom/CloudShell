@@ -1,0 +1,119 @@
+@inject ConfigurationResourceProvider ConfigurationProvider
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+@inject NavigationManager Navigation
+
+<div class="type-registration">
+    <div class="provider-summary compact">
+            <div class="provider-status">
+                <span class="state-dot state-running"></span>
+                <div>
+                    <strong>Shared configuration</strong>
+                    <span>Create a local configuration service resource for applications and other dependent resources.</span>
+                </div>
+            </div>
+        </div>
+
+    <div class="form-panel">
+        <label for="configuration-store-name">Name</label>
+        <input id="configuration-store-name" @bind="Name" />
+
+        <label for="configuration-store-group">Resource group</label>
+        <select id="configuration-store-group" @bind="SelectedGroupId">
+            <option value="">Ungrouped</option>
+            @foreach (var group in ResourceGroups.GetResourceGroups())
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Entries</strong>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="AddEntry">
+                    Add entry
+                </FluentButton>
+            </div>
+
+            @foreach (var entry in Entries)
+            {
+                <div class="environment-row configuration-entry-row">
+                    <input aria-label="Configuration entry name" @bind="entry.Name" />
+                    <input aria-label="Configuration entry value" @bind="entry.Value" />
+                    <label class="inline-checkbox">
+                        <input type="checkbox" @bind="entry.IsSecret" />
+                        Secret
+                    </label>
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEntry(entry)">
+                        Remove
+                    </FluentButton>
+                </div>
+            }
+        </div>
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string Name { get; set; } = string.Empty;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; }
+    private List<ConfigurationEntryInput> Entries { get; } = [new()];
+
+    private void AddEntry() => Entries.Add(new());
+
+    private void RemoveEntry(ConfigurationEntryInput entry)
+    {
+        Entries.Remove(entry);
+        if (Entries.Count == 0)
+        {
+            Entries.Add(new());
+        }
+    }
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ErrorMessage = "Name is required.";
+            return;
+        }
+
+        var definition = new ConfigurationStoreDefinition(
+            string.Empty,
+            Name,
+            BuildEntries());
+
+        await ConfigurationProvider.SetupStoreAsync(definition, SelectedGroupId, Registrations);
+        Navigation.NavigateTo("/resources");
+    }
+
+    private IReadOnlyList<ConfigurationEntry> BuildEntries() =>
+        Entries
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
+            .Select(entry => new ConfigurationEntry(
+                entry.Name!.Trim(),
+                entry.Value ?? string.Empty,
+                entry.IsSecret))
+            .ToArray();
+
+    private sealed class ConfigurationEntryInput(string? name = null, string? value = null, bool isSecret = false)
+    {
+        public string? Name { get; set; } = name;
+
+        public string? Value { get; set; } = value;
+
+        public bool IsSecret { get; set; } = isSecret;
+    }
+}

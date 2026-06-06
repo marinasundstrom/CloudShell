@@ -22,6 +22,12 @@ The matching OpenAPI document is:
 /openapi/control-plane-v1.json
 ```
 
+Configuration services expose a provider-owned runtime API under
+`/api/configuration`. That API is separate from the Control Plane API because it
+is consumed directly by resource processes and uses configuration-service access
+tokens instead of user/session authentication. See
+[Configuration services](configuration-services.md).
+
 Keep breaking changes behind a new route and document, such as `/api/control-plane/v2` and `/openapi/control-plane-v2.json`. Shell integrations should pin the generated client to the major API version they support.
 
 ## Shell integrations

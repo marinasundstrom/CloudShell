@@ -833,6 +833,37 @@ h3 {
     grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.5fr) auto;
 }
 
+.configuration-entry-row {
+    grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.5fr) auto auto;
+}
+
+.inline-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    margin: 0;
+    font-weight: 500;
+}
+
+.inline-checkbox input {
+    min-height: auto;
+}
+
+.configuration-entry-summary {
+    display: grid;
+    grid-template-columns: minmax(8rem, 1fr) minmax(0, 1.5fr);
+    gap: .75rem;
+    padding: .55rem .65rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    background: #fafafa;
+}
+
+.configuration-entry-summary span {
+    color: #64748b;
+    overflow-wrap: anywhere;
+}
+
 .form-actions {
     display: flex;
     justify-content: flex-end;

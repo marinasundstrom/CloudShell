@@ -21,6 +21,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D20
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ExampleWebApi", "samples\CloudShell.ExampleWebApi\CloudShell.ExampleWebApi.csproj", "{E84B9637-9560-40B8-8EB9-2B53DAA397B4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.Providers.Configuration", "CloudShell.Providers.Configuration\CloudShell.Providers.Configuration.csproj", "{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -127,6 +129,18 @@ Global
 		{E84B9637-9560-40B8-8EB9-2B53DAA397B4}.Release|x64.Build.0 = Release|Any CPU
 		{E84B9637-9560-40B8-8EB9-2B53DAA397B4}.Release|x86.ActiveCfg = Release|Any CPU
 		{E84B9637-9560-40B8-8EB9-2B53DAA397B4}.Release|x86.Build.0 = Release|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Debug|x64.Build.0 = Debug|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Debug|x86.Build.0 = Debug|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Release|x64.ActiveCfg = Release|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Release|x64.Build.0 = Release|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Release|x86.ActiveCfg = Release|Any CPU
+		{412E9195-B99C-4A64-B2B1-11CD8CF23C4B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

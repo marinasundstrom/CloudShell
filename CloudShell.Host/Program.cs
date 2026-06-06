@@ -13,6 +13,7 @@ using CloudShell.Host.Shell;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.FluentUI.AspNetCore.Components;
 using CloudShell.Providers.Applications;
+using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
 using CloudShell.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -60,6 +61,16 @@ builder.Services
     .AddExtension<CoreShellExtension>()
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
+    .AddConfigurationProvider(options =>
+    {
+        options.InitialStores.Add(new ConfigurationStoreDefinition(
+            "configuration:example",
+            "Example Configuration",
+            [
+                new("SampleMessage", "Hello from CloudShell configuration"),
+                new("SampleSecret", "local-development-secret", IsSecret: true)
+            ]));
+    })
     .AddApplicationProvider(options =>
     {
         var sampleProjectPath = Path.GetFullPath(
@@ -76,7 +87,8 @@ builder.Services
             [
                 new("ASPNETCORE_URLS", "http://localhost:5127"),
                 new("CLOUDSHELL_APPLICATION", "Example Web API")
-            ]));
+            ],
+            dependsOn: ["configuration:example"]));
     })
     .AddDockerProvider();
 
@@ -120,6 +132,7 @@ app.UseAntiforgery();
 
 app.MapCloudShellControlPlaneOpenApi();
 app.MapCloudShellControlPlaneApi();
+app.MapCloudShellConfigurationApi();
 
 app.MapGet("/localization/set", (
     string culture,

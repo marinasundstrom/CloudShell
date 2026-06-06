@@ -82,5 +82,12 @@ ASPNETCORE_URLS=http://localhost:5127
 CLOUDSHELL_APPLICATION=Example Web API
 ```
 
+The sample also depends on the initial `Example Configuration` service. At
+startup, CloudShell injects service-specific endpoint and token environment
+variables, and the sample exposes `/configuration` to fetch settings from that
+configuration service.
+
 After adding the resource through `/resources/add`, use the Run action to start
 it and open the `http://localhost:5127` endpoint from the resource details blade.
+
+See [Configuration services](configuration-services.md).

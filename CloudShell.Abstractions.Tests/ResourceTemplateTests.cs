@@ -135,7 +135,7 @@ public sealed class ResourceTemplateTests
             var environment = new TestHostEnvironment(_contentRoot);
             var store = new ApplicationResourceStore(options, environment);
             var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
-            Provider = new ApplicationResourceProvider(store, runtimeStates, options, environment);
+            Provider = new ApplicationResourceProvider(store, runtimeStates, options, environment, []);
             Group = new ResourceGroup("group-1", "Local Development", "Development resources", ["application:example-web-api"]);
             Registrations = new TestRegistrationStore();
             ResourceGroups = new TestResourceGroupStore(Group);

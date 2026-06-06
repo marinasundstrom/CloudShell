@@ -9,6 +9,10 @@ resource groups, and resource-to-group assignments. Provider-specific resource
 configuration is not stored in a common database column. Providers remain the
 authority for their own configuration stores.
 
+For example, configuration service resources are registered and grouped in the
+core database, but their key-value entries and access tokens are stored by the
+configuration provider in `CloudShell.Host/Data/configuration-stores.json`.
+
 ## SQLite
 
 SQLite is the default and resolves relative data-source paths from the

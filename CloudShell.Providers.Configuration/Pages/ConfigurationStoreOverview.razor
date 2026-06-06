@@ -1,0 +1,59 @@
+@inject ConfigurationResourceProvider ConfigurationProvider
+
+@if (Store is null)
+{
+    <div class="empty-state">
+        <strong>Configuration service is unavailable</strong>
+        <span>The resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <div class="type-registration">
+        <div class="provider-summary compact">
+            <div class="provider-status">
+                <span class="state-dot state-running"></span>
+                <div>
+                    <strong>@Store.Name</strong>
+                    <span>@Store.Entries.Count entries available from the service endpoint with a resource token.</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Entries</strong>
+            </div>
+
+            @foreach (var entry in Store.Entries)
+            {
+                <div class="configuration-entry-summary">
+                    <strong>@entry.Name</strong>
+                    <span>@(entry.IsSecret ? "Secret" : entry.Value)</span>
+                </div>
+            }
+
+            @if (Store.Entries.Count == 0)
+            {
+                <div class="empty-state">
+                    <strong>No entries</strong>
+                    <span>Add settings or secrets from the Configuration tab.</span>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private ConfigurationStoreDefinition? Store { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        Store = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ConfigurationProvider.GetStore(ResourceId);
+    }
+}

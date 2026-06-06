@@ -13,7 +13,8 @@ public sealed partial class ApplicationResourceProvider(
     ApplicationResourceStore store,
     ApplicationRuntimeStateStore runtimeStates,
     ApplicationProviderOptions options,
-    IHostEnvironment environment) :
+    IHostEnvironment environment,
+    IEnumerable<IResourceEnvironmentVariableProvider> environmentVariableProviders) :
     IResourceProvider,
     ILogProvider,
     IResourceProcedureProvider,
@@ -296,6 +297,16 @@ public sealed partial class ApplicationResourceProvider(
             ? CreateDetachedStartInfo(definition, logPath)
             : CreateScopedStartInfo(definition);
 
+        foreach (var variable in ResolveDependencyEnvironmentVariables(definition))
+        {
+            if (string.IsNullOrWhiteSpace(variable.Name))
+            {
+                continue;
+            }
+
+            startInfo.Environment[variable.Name] = variable.Value;
+        }
+
         foreach (var variable in definition.EnvironmentVariables)
         {
             if (string.IsNullOrWhiteSpace(variable.Name))
@@ -363,6 +374,16 @@ public sealed partial class ApplicationResourceProvider(
             logPath);
         await Task.CompletedTask;
     }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> ResolveDependencyEnvironmentVariables(
+        ApplicationResourceDefinition definition) =>
+        definition.DependsOn
+            .SelectMany(dependency => environmentVariableProviders
+                .SelectMany(provider => provider.GetEnvironmentVariables(dependency)))
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
 
     private async Task StopApplicationAsync(
         string applicationId,

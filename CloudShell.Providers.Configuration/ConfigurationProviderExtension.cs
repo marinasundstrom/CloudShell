@@ -1,0 +1,47 @@
+using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace CloudShell.Providers.Configuration;
+
+public sealed class ConfigurationProviderExtension : ICloudShellExtension
+{
+    public CloudShellExtensionManifest Manifest => new(
+        "cloudshell.configuration",
+        "Configuration",
+        "Adds local configuration service resources that expose shared settings and secrets to dependent resources.",
+        "0.1.0",
+        ["resource-type.configuration.store", "resource-trait.environment-variables"],
+        ["resource-manager.resources"]);
+
+    public void Configure(ICloudShellExtensionBuilder builder)
+    {
+        builder.Services.TryAddSingleton<ConfigurationProviderOptions>();
+        builder.Services.TryAddSingleton<ConfigurationStore>();
+        builder.Services.AddSingleton<ConfigurationResourceProvider>();
+        builder.Services.AddSingleton<IResourceProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
+        builder.Services.AddSingleton<IResourceEnvironmentVariableProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
+
+        builder
+            .AddResourceType<Pages.RegisterConfigurationStore>(
+                "configuration.store",
+                "Configuration service",
+                "Create a local configuration service for settings and secrets that dependent resources can consume.",
+                "key",
+                15)
+            .AddResourceTab<Pages.ConfigurationStoreOverview>(
+                "configuration.store",
+                "overview",
+                "Overview",
+                10)
+            .AddResourceTab<Pages.UpdateConfigurationStore>(
+                "configuration.store",
+                "configuration",
+                "Configuration",
+                20,
+                showsApplyButton: true);
+    }
+}

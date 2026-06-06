@@ -13,6 +13,7 @@ This repository is an early shell prototype. It currently includes:
 - A Resource Manager surface with resource groups, nested resources, endpoints, state, and details.
 - Resource-bound actions for standard lifecycle commands and provider-specific commands.
 - Resource group templates for provider-owned import/export of grouped resources.
+- Configuration service resources for sharing settings and secrets between dependent resources.
 - A Logs section where providers and extensions can expose resource or artifact logs.
 - Resource type registration, where extensions provide the UI used to add resources.
 - EF Core persistence for explicitly registered root resources and resource groups.
@@ -97,6 +98,7 @@ owning provider. See [Resource templates](docs/resource-templates.md).
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
 - `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
 - `CloudShell.Providers.Applications`: extension for executable application resources on a local development machine.
+- `CloudShell.Providers.Configuration`: extension for local configuration service resources.
 - `CloudShell.Providers.Docker`: reference extension for local Docker Engine and containers.
 - `CloudShell.Abstractions.Tests`: extension registration and validation tests.
 
@@ -130,6 +132,7 @@ Useful routes:
 - `/resources/docker-engine`: Docker Engine detail view.
 - `/extensions`: installed extensions and contributed resource types.
 - `/api/control-plane/v1`: versioned Control Plane API.
+- `/api/configuration/entries?resourceId=...`: token-authenticated configuration service API.
 - `/openapi/control-plane-v1.json`: OpenAPI document for generated clients.
 
 ## Test
@@ -159,6 +162,10 @@ Provider discovery data, such as Docker containers under a registered Docker Eng
 
 Executable application configuration and runtime state are provider-owned local files under `CloudShell.Host/Data` by default. Configuration is stored separately from runtime state. Runtime state includes the last known process ID, process start time, last observation time, last exit code, and log path.
 
+Configuration services are also provider-owned local files under `CloudShell.Host/Data`.
+Each configuration service is its own resource and can be assigned to a resource
+group. See [docs/configuration-services.md](docs/configuration-services.md).
+
 Resource templates do not change that ownership model. CloudShell exports a
 provider-owned JSON payload for each supported resource, and import delegates
 that payload back to the provider instead of storing configuration in the core
@@ -175,6 +182,10 @@ dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.c
 ```
 
 The sample runs on `http://localhost:5127` through `ASPNETCORE_URLS`, and that endpoint is rendered as a real link in the resource details blade.
+
+The sample application depends on the initial `Example Configuration` service.
+When it is started from CloudShell, `/configuration` fetches settings from the
+configuration service using the injected endpoint and resource token.
 
 Executable applications default to detached lifetime, so a service can continue running if CloudShell is restarted. Choose control-plane-scoped lifetime when the process should be stopped with CloudShell. Detached application stdout and stderr are written to per-resource files under `CloudShell.Host/Data/application-logs` so the Logs view can read them after restart.
 
@@ -223,6 +234,7 @@ Deployment configuration:
 - [Localization](docs/localization.md)
 - [Persistence](docs/persistence.md)
 - [Resource templates](docs/resource-templates.md)
+- [Configuration services](docs/configuration-services.md)
 - [Executable applications](docs/executable-applications.md)
 
 ## Trust Model

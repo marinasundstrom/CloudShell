@@ -41,6 +41,9 @@ A resource group template uses a common envelope:
 The `configuration` object is provider-owned JSON. CloudShell carries it in the
 template document, but does not interpret the provider-specific fields.
 
+Configuration service templates include non-secret entry values. Secret entries
+are exported as empty placeholders so templates do not leak secrets by default.
+
 ## Provider Contract
 
 Providers opt in by implementing `IResourceTemplateProvider`.
@@ -84,3 +87,6 @@ The core database remains responsible for platform metadata:
 Provider configuration remains provider-owned. For example, the application
 provider continues to store executable application definitions in
 `CloudShell.Host/Data/application-resources.json`.
+
+The configuration provider stores configuration service definitions in
+`CloudShell.Host/Data/configuration-stores.json`.
