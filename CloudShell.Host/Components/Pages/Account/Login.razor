@@ -1,0 +1,133 @@
+@page "/account/login"
+@attribute [AllowAnonymous]
+@layout AccountLayout
+@inject CloudShellAccountService Accounts
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in</PageTitle>
+
+<div class="account-heading">
+    <span class="eyebrow">Authentication</span>
+    <h1>Sign in to CloudShell</h1>
+</div>
+
+@if (RequiresSetup)
+{
+    <FluentMessageBar Intent="MessageIntent.Info">
+        No local administrator exists yet.
+        <a href="/account/setup">Set up CloudShell</a>
+    </FluentMessageBar>
+}
+else if (UsesExternalProvider)
+{
+    <p>Continue with the authentication provider configured for this dashboard.</p>
+    <FluentButton Appearance="Appearance.Accent" Href="@ChallengeUrl">
+        Continue
+    </FluentButton>
+}
+else
+{
+    <EditForm Model="@Input"
+              method="post"
+              OnValidSubmit="SignIn"
+              FormName="login"
+              Enhance="false">
+        <DataAnnotationsValidator />
+
+        @if (Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase))
+        {
+            <label for="login-user">Email</label>
+            <InputText id="login-user"
+                       @bind-Value="Input!.UserName"
+                       autocomplete="email" />
+        }
+
+        <label for="login-credential">
+            @(Accounts.Mode.Equals("Secret", StringComparison.OrdinalIgnoreCase)
+                ? "Dashboard secret"
+                : "Password")
+        </label>
+        <InputText id="login-credential"
+                   type="password"
+                   @bind-Value="Input!.Credential"
+                   autocomplete="current-password" />
+
+        <ValidationSummary />
+
+        @if (Errors.Count > 0)
+        {
+            <FluentMessageBar Intent="MessageIntent.Error">
+                @foreach (var error in Errors)
+                {
+                    <div>@error</div>
+                }
+            </FluentMessageBar>
+        }
+
+        <FluentButton Appearance="Appearance.Accent" Type="ButtonType.Submit">
+            Sign in
+        </FluentButton>
+    </EditForm>
+}
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginInput? Input { get; set; }
+
+    [SupplyParameterFromQuery(Name = "ReturnUrl")]
+    private string? ReturnUrl { get; set; }
+
+    private bool RequiresSetup { get; set; }
+    private List<string> Errors { get; } = [];
+
+    private bool UsesExternalProvider =>
+        Accounts.Mode.Equals("OpenIdConnect", StringComparison.OrdinalIgnoreCase) ||
+        Accounts.Mode.Equals("External", StringComparison.OrdinalIgnoreCase);
+
+    private string ChallengeUrl =>
+        $"/account/challenge?returnUrl={Uri.EscapeDataString(GetReturnUrl())}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new LoginInput();
+        RequiresSetup =
+            Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase) &&
+            Accounts.AllowLocalSetup &&
+            !await Accounts.HasLocalUsersAsync();
+    }
+
+    private async Task SignIn()
+    {
+        Errors.Clear();
+        if (Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrWhiteSpace(Input!.UserName))
+        {
+            Errors.Add("Email is required.");
+            return;
+        }
+
+        var result = await Accounts.SignInAsync(Input!.UserName, Input.Credential);
+        if (!result.Succeeded)
+        {
+            Errors.AddRange(result.Errors);
+            return;
+        }
+
+        Navigation.NavigateTo(GetReturnUrl(), forceLoad: true);
+    }
+
+    private string GetReturnUrl() =>
+        !string.IsNullOrWhiteSpace(ReturnUrl) &&
+        ReturnUrl.StartsWith('/') &&
+        !ReturnUrl.StartsWith("//", StringComparison.Ordinal)
+            ? ReturnUrl
+            : "/";
+
+    private sealed class LoginInput
+    {
+        public string UserName { get; set; } = string.Empty;
+
+        [Required]
+        public string Credential { get; set; } = string.Empty;
+    }
+}

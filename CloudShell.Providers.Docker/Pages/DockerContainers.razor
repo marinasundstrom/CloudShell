@@ -1,13 +1,27 @@
 @page "/resources/docker-engine"
 @rendermode InteractiveServer
 @inject DockerContainerResourceProvider DockerProvider
+@inject IResourceManagerStore ResourceManager
 
 <PageTitle>Docker</PageTitle>
 
 @{
-    var status = DockerProvider.ConnectionStatus;
-    var containers = DockerProvider.GetContainers();
+    var engine = DockerProvider.GetResources()
+        .FirstOrDefault(resource => resource.EffectiveTypeId == "docker.engine");
+    var canView = engine is not null && ResourceManager.GetResource(engine.Id) is not null;
 }
+
+@if (!canView)
+{
+    <section class="empty-state">
+        <strong>Access denied</strong>
+        <span>You do not have access to this Docker resource.</span>
+    </section>
+}
+else
+{
+    var status = DockerProvider.ConnectionStatus;
+    var containers = ResourceManager.GetChildren(engine!.Id);
 
 <section class="page-heading compact">
     <div>
@@ -90,6 +104,7 @@
         </div>
     }
 </section>
+}
 
 @code {
     private async Task Refresh()

@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
 
 <PageTitle>Add resource</PageTitle>
 
@@ -73,6 +74,12 @@
 
     protected override void OnInitialized()
     {
+        if (!Authorization.HasPermission(CloudShellPermissions.Resources.Create))
+        {
+            Navigation.NavigateTo("/account/access-denied");
+            return;
+        }
+
         SelectedTypeId ??= ShellCatalog.ResourceTypes.FirstOrDefault()?.Id;
     }
 

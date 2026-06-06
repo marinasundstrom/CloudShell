@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject IResourceGroupStore ResourceGroups
 @inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
 
 <PageTitle>Create resource group</PageTitle>
 
@@ -33,6 +34,16 @@
 @code {
     private string Name { get; set; } = string.Empty;
     private string Description { get; set; } = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        if (!Authorization.CanAccessResourceGroup(
+                "__new_resource_group",
+                CloudShellPermissions.ResourceGroups.Create))
+        {
+            Navigation.NavigateTo("/account/access-denied");
+        }
+    }
 
     private void Cancel() => Navigation.NavigateTo("/resources");
 

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CloudShell.Persistence;
 
-public sealed class SqliteResourceStore(
+public sealed class EfCoreResourceStore(
     IDbContextFactory<CloudShellDbContext> contextFactory) :
     IResourceRegistrationStore,
     IResourceGroupStore

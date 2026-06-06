@@ -1,0 +1,15 @@
+@page "/account/access-denied"
+@attribute [AllowAnonymous]
+@layout AccountLayout
+
+<PageTitle>Access denied</PageTitle>
+
+<div class="account-heading">
+    <span class="eyebrow">Authorization</span>
+    <h1>Access denied</h1>
+    <p>Your identity does not have permission to access this CloudShell operation.</p>
+</div>
+
+<FluentButton Appearance="Appearance.Accent" Href="/">
+    Return to CloudShell
+</FluentButton>

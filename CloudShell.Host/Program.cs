@@ -2,11 +2,15 @@ using CloudShell.Host.Components;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Host.Authentication;
 using CloudShell.Host.ResourceManager;
 using CloudShell.Host.Shell;
 using Microsoft.FluentUI.AspNetCore.Components;
 using CloudShell.Providers.Docker;
 using CloudShell.Persistence;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,10 +21,14 @@ builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogL
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-var dataDirectory = Path.Combine(builder.Environment.ContentRootPath, "Data");
-Directory.CreateDirectory(dataDirectory);
-builder.Services.AddCloudShellPersistence(
-    $"Data Source={Path.Combine(dataDirectory, "cloudshell.db")}");
+var persistenceOptions = builder.Configuration
+    .GetSection(CloudShellPersistenceOptions.SectionName)
+    .Get<CloudShellPersistenceOptions>()
+    ?? new CloudShellPersistenceOptions();
+ResolveSqlitePaths(persistenceOptions, builder.Environment.ContentRootPath);
+builder.Services.AddCloudShellPersistence(persistenceOptions);
+var authenticationOptions =
+    builder.Services.AddCloudShellAuthentication(builder.Configuration);
 
 builder.Services
     .AddCloudShell()
@@ -30,10 +38,23 @@ builder.Services
     .AddDockerProvider();
 
 builder.Services.AddSingleton<ShellCatalog>();
-builder.Services.AddSingleton<IResourceManagerStore, ResourceManagerStore>();
+builder.Services.AddScoped<IResourceGroupStore, AuthorizedResourceGroupStore>();
+builder.Services.AddScoped<IResourceRegistrationStore, AuthorizedResourceRegistrationStore>();
+builder.Services.AddScoped<IResourceManagerStore, ResourceManagerStore>();
 
 var app = builder.Build();
-app.Services.InitializeCloudShellDatabase();
+var usesLocalIdentity =
+    authenticationOptions.Enabled &&
+    authenticationOptions.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase);
+app.Services.InitializeCloudShellDatabase(usesLocalIdentity);
+if (usesLocalIdentity)
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider
+        .GetRequiredService<CloudShellIdentitySeeder>()
+        .SeedAsync();
+}
+
 var extensionRegistry = app.Services.GetRequiredService<CloudShellExtensionRegistry>();
 extensionRegistry.Validate();
 
@@ -47,9 +68,31 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+if (authenticationOptions.Enabled &&
+    (authenticationOptions.Mode.Equals("OpenIdConnect", StringComparison.OrdinalIgnoreCase) ||
+     authenticationOptions.Mode.Equals("External", StringComparison.OrdinalIgnoreCase)))
+{
+    app.MapGet("/account/challenge", (
+        string? returnUrl,
+        IOptions<CloudShellAuthenticationOptions> configuredOptions) =>
+    {
+        var options = configuredOptions.Value;
+        var redirectUri = IsLocalReturnUrl(returnUrl) ? returnUrl! : "/";
+        return Results.Challenge(
+            new Microsoft.AspNetCore.Authentication.AuthenticationProperties
+            {
+                RedirectUri = redirectUri
+            },
+            [options.ChallengeScheme]);
+    })
+    .AllowAnonymous();
+}
+
+app.MapStaticAssets().AllowAnonymous();
 var razorComponents = app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
@@ -63,3 +106,41 @@ if (extensionAssemblies.Length > 0)
 }
 
 app.Run();
+
+static void ResolveSqlitePaths(
+    CloudShellPersistenceOptions options,
+    string contentRootPath)
+{
+    if (!options.Provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+    {
+        return;
+    }
+
+    options.ConnectionString = ResolveSqlitePath(
+        options.ConnectionString,
+        contentRootPath);
+    options.IdentityConnectionString = ResolveSqlitePath(
+        options.IdentityConnectionString,
+        contentRootPath);
+}
+
+static string ResolveSqlitePath(string connectionString, string contentRootPath)
+{
+    var builder = new SqliteConnectionStringBuilder(connectionString);
+    if (string.IsNullOrWhiteSpace(builder.DataSource) ||
+        builder.DataSource.Equals(":memory:", StringComparison.OrdinalIgnoreCase) ||
+        Path.IsPathRooted(builder.DataSource))
+    {
+        return connectionString;
+    }
+
+    var fullPath = Path.GetFullPath(builder.DataSource, contentRootPath);
+    Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+    builder.DataSource = fullPath;
+    return builder.ConnectionString;
+}
+
+static bool IsLocalReturnUrl(string? returnUrl) =>
+    !string.IsNullOrWhiteSpace(returnUrl) &&
+    returnUrl.StartsWith('/') &&
+    !returnUrl.StartsWith("//", StringComparison.Ordinal);

@@ -1,6 +1,7 @@
 ﻿@page "/"
 @inject IResourceManagerStore ResourceManager
 @inject ShellCatalog ShellCatalog
+@inject ICloudShellAuthorizationService Authorization
 
 <PageTitle>CloudShell</PageTitle>
 
@@ -19,7 +20,12 @@
     </div>
     <div class="heading-actions">
         <FluentButton Appearance="Appearance.Neutral">Import manifest</FluentButton>
-        <FluentButton Appearance="Appearance.Accent" Href="/resources/add">Add resource</FluentButton>
+        @if (Authorization.HasPermission(CloudShellPermissions.Resources.Create))
+        {
+            <FluentButton Appearance="Appearance.Accent" Href="/resources/add">
+                Add resource
+            </FluentButton>
+        }
     </div>
 </section>
 

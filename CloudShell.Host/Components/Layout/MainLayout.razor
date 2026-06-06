@@ -1,5 +1,6 @@
 ﻿@inherits LayoutComponentBase
 @inject ShellCatalog ShellCatalog
+@inject ICloudShellAuthorizationService Authorization
 
 <div class="shell">
     <aside class="shell-sidebar">
@@ -27,7 +28,20 @@
             </div>
             <div class="command-surface">
                 <FluentButton Appearance="Appearance.Neutral">Refresh</FluentButton>
-                <FluentButton Appearance="Appearance.Accent">New resource</FluentButton>
+                @if (Authorization.HasPermission(CloudShellPermissions.Resources.Create))
+                {
+                    <FluentButton Appearance="Appearance.Accent" Href="/resources/add">
+                        New resource
+                    </FluentButton>
+                }
+                <AuthorizeView>
+                    <Authorized Context="authentication">
+                        <span class="signed-in-user">
+                            @(authentication.User.Identity?.Name ?? "Authenticated user")
+                        </span>
+                        <a href="/account/logout">Sign out</a>
+                    </Authorized>
+                </AuthorizeView>
             </div>
         </header>
 

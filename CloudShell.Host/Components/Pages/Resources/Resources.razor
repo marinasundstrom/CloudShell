@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject IResourceManagerStore ResourceManager
 @inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
 
 <PageTitle>Resources</PageTitle>
 
@@ -20,12 +21,20 @@
     </div>
     <div class="heading-actions">
         <FluentButton Appearance="Appearance.Neutral">Refresh</FluentButton>
-        <FluentButton Appearance="Appearance.Neutral" OnClick="CreateGroup">
-            Create group
-        </FluentButton>
-        <FluentButton Appearance="Appearance.Accent" OnClick="AddResource">
-            Add resource
-        </FluentButton>
+        @if (Authorization.CanAccessResourceGroup(
+            "__new_resource_group",
+            CloudShellPermissions.ResourceGroups.Create))
+        {
+            <FluentButton Appearance="Appearance.Neutral" OnClick="CreateGroup">
+                Create group
+            </FluentButton>
+        }
+        @if (Authorization.HasPermission(CloudShellPermissions.Resources.Create))
+        {
+            <FluentButton Appearance="Appearance.Accent" OnClick="AddResource">
+                Add resource
+            </FluentButton>
+        }
     </div>
 </section>
 

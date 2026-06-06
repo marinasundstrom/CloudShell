@@ -12,7 +12,10 @@ This repository is an early shell prototype. It currently includes:
 - Extension registration through the .NET service container.
 - A Resource Manager surface with resource groups, nested resources, endpoints, state, and details.
 - Resource type registration, where extensions provide the UI used to add resources.
-- SQLite persistence for explicitly registered root resources and resource groups.
+- EF Core persistence for explicitly registered root resources and resource groups.
+- Configurable ASP.NET Core Identity, dashboard-secret, OIDC, or external-scheme authentication.
+- Role, permission, resource-group, and resource-scoped authorization.
+- SQLite or SQL Server persistence selected through configuration.
 - A Docker reference extension that registers a local Docker Engine resource and shows containers as sub-resources.
 
 ## Concepts
@@ -59,13 +62,13 @@ Resource groups are user-managed project boundaries. They are owned by the Cloud
 
 A root resource can be assigned to a resource group when it is added. Sub-resources inherit the group for filtering and display. Resources can also stay ungrouped.
 
-This keeps the future access-control model open: resource groups can later become the unit used to isolate resources and permissions.
+Resource groups are authorization scopes. Roles and direct claims determine which groups and inherited resources a user can read or manage.
 
 ## Projects
 
 - `CloudShell.Host`: Blazor shell, layout, built-in Resource Manager, Extensions, and Observability views.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
-- `CloudShell.Persistence`: EF Core SQLite persistence for resource registrations and resource groups.
+- `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
 - `CloudShell.Providers.Docker`: reference extension for local Docker Engine and containers.
 - `CloudShell.Abstractions.Tests`: extension registration and validation tests.
 
@@ -107,13 +110,13 @@ dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj -
 
 ## Persistence
 
-CloudShell stores platform registrations in SQLite:
+By default, CloudShell stores platform registrations in SQLite:
 
 ```text
 CloudShell.Host/Data/cloudshell.db
 ```
 
-The database is created automatically at startup. The `Data` directory is ignored by git because it is local runtime state.
+The database is created automatically at startup. The `Data` directory is ignored by git because it is local runtime state. SQL Server can be selected in `appsettings.json`; see [docs/persistence.md](docs/persistence.md).
 
 Persisted data currently includes:
 
@@ -155,6 +158,11 @@ CloudShell validates extension registrations at startup:
 - Resource type IDs must be unique.
 
 See [docs/extensions.md](docs/extensions.md) for the extension-authoring model.
+
+Deployment configuration:
+
+- [Authentication and authorization](docs/authentication-and-authorization.md)
+- [Persistence](docs/persistence.md)
 
 ## Trust Model
 

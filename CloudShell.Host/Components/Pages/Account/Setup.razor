@@ -1,0 +1,111 @@
+@page "/account/setup"
+@attribute [AllowAnonymous]
+@layout AccountLayout
+@inject CloudShellAccountService Accounts
+@inject NavigationManager Navigation
+
+<PageTitle>Set up CloudShell</PageTitle>
+
+<div class="account-heading">
+    <span class="eyebrow">First run</span>
+    <h1>Create the administrator</h1>
+    <p>This local account receives full access to all resource groups and resources.</p>
+</div>
+
+@if (!CanSetUp)
+{
+    <FluentMessageBar Intent="MessageIntent.Warning">
+        Local account setup is unavailable or has already been completed.
+    </FluentMessageBar>
+    <FluentButton Appearance="Appearance.Accent" Href="/account/login">
+        Return to sign in
+    </FluentButton>
+}
+else
+{
+    <EditForm Model="@Input"
+              method="post"
+              OnValidSubmit="CreateAdministrator"
+              FormName="setup"
+              Enhance="false">
+        <DataAnnotationsValidator />
+
+        <label for="setup-email">Email</label>
+        <InputText id="setup-email"
+                   @bind-Value="Input!.Email"
+                   autocomplete="email" />
+
+        <label for="setup-password">Password</label>
+        <InputText id="setup-password"
+                   type="password"
+                   @bind-Value="Input!.Password"
+                   autocomplete="new-password" />
+        <small>Use at least 12 characters with upper and lowercase letters, a number, and a symbol.</small>
+
+        <label for="setup-confirm">Confirm password</label>
+        <InputText id="setup-confirm"
+                   type="password"
+                   @bind-Value="Input!.ConfirmPassword"
+                   autocomplete="new-password" />
+
+        <ValidationSummary />
+
+        @if (Errors.Count > 0)
+        {
+            <FluentMessageBar Intent="MessageIntent.Error">
+                @foreach (var error in Errors)
+                {
+                    <div>@error</div>
+                }
+            </FluentMessageBar>
+        }
+
+        <FluentButton Appearance="Appearance.Accent" Type="ButtonType.Submit">
+            Create administrator
+        </FluentButton>
+    </EditForm>
+}
+
+@code {
+    [SupplyParameterFromForm]
+    private SetupInput? Input { get; set; }
+
+    private bool CanSetUp { get; set; }
+    private List<string> Errors { get; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new SetupInput();
+        CanSetUp =
+            Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase) &&
+            Accounts.AllowLocalSetup &&
+            !await Accounts.HasLocalUsersAsync();
+    }
+
+    private async Task CreateAdministrator()
+    {
+        Errors.Clear();
+        var result = await Accounts.CreateAdministratorAsync(Input!.Email, Input.Password);
+        if (!result.Succeeded)
+        {
+            Errors.AddRange(result.Errors);
+            return;
+        }
+
+        Navigation.NavigateTo("/", forceLoad: true);
+    }
+
+    private sealed class SetupInput
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [MinLength(12)]
+        public string Password { get; set; } = string.Empty;
+
+        [Compare(nameof(Password))]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}
