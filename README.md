@@ -98,6 +98,7 @@ owning provider. See [Resource templates](docs/resource-templates.md).
 - `CloudShell.Host`: Blazor shell, layout, built-in Resource Manager, Extensions, and Observability views.
 - `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
+- `CloudShell.Configuration`: Microsoft `IConfiguration` provider for CloudShell configuration services.
 - `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
 - `CloudShell.Providers.Applications`: extension for executable application resources on a local development machine.
 - `CloudShell.Providers.Configuration`: extension for local configuration service resources.
@@ -186,8 +187,8 @@ dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.c
 The sample runs on `http://localhost:5127` through `ASPNETCORE_URLS`, and that endpoint is rendered as a real link in the resource details blade.
 
 The sample application depends on the initial `Example Configuration` service.
-When it is started from CloudShell, a sample-local `IConfigurationProvider`
-loads settings from the injected configuration endpoint and token. The
+When it is started from CloudShell, the reusable `CloudShell.Configuration`
+provider loads settings from the injected configuration endpoint and token. The
 `/configuration` endpoint reports provider status and loaded keys.
 
 Executable applications default to detached lifetime, so a service can continue running if CloudShell is restarted. Choose control-plane-scoped lifetime when the process should be stopped with CloudShell. Detached application stdout and stderr are written to per-resource files under `CloudShell.Host/Data/application-logs` so the Logs view can read them after restart.

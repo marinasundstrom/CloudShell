@@ -66,13 +66,50 @@ The configuration API is anonymous at the ASP.NET authentication layer because i
 uses the resource token as its own authentication boundary. Missing tokens return
 `401`; invalid tokens and missing services return `404`.
 
+## Microsoft Configuration API
+
+Applications can consume CloudShell configuration through the reusable
+`CloudShell.Configuration` project. It implements the standard
+`Microsoft.Extensions.Configuration` provider contract:
+
+```csharp
+using CloudShell.Configuration;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddCloudShellConfiguration();
+```
+
+By default, the provider discovers the first injected
+`CLOUDSHELL_CONFIGURATION_*_ENDPOINT` and matching `*_TOKEN` environment
+variable pair. To select a specific service or configure explicit connection
+details:
+
+```csharp
+builder.Configuration.AddCloudShellConfiguration(options =>
+{
+    options.ServiceName = "Example Configuration";
+    options.Timeout = TimeSpan.FromSeconds(5);
+});
+```
+
+Loaded entries are available through normal `IConfiguration` lookup:
+
+```csharp
+var value = builder.Configuration["SampleMessage"];
+```
+
+Provider diagnostics are exposed under `CloudShell:Configuration:*`, including
+`Status`, `Detail`, `Source`, `LoadedKeys`, and `SecretKeys`. The provider does
+not throw when the service is unavailable; it records unavailable status so the
+application can continue running and log the state.
+
 ## Sample
 
 The host registers an initial `Example Configuration` service and the
-`Example Web API` application depends on it by default. The sample app includes
-a small `IConfigurationProvider` that reads the injected CloudShell endpoint and
-token, attempts to load settings at startup, logs connection failures, and
-leaves the app running if the service is unavailable.
+`Example Web API` application depends on it by default. The sample app uses
+`CloudShell.Configuration` to read the injected CloudShell endpoint and token,
+attempts to load settings at startup, logs connection failures, and leaves the
+app running if the service is unavailable.
 
 When the sample app is started from Resource Manager, open:
 

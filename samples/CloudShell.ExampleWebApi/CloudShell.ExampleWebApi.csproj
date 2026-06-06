@@ -6,4 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\CloudShell.Configuration\CloudShell.Configuration.csproj" />
+  </ItemGroup>
+
 </Project>

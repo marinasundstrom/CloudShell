@@ -1,3 +1,5 @@
+using CloudShell.Configuration;
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddCloudShellConfiguration();
 
