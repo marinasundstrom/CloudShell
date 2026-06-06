@@ -35,8 +35,21 @@ types. Built-in methods include:
 - `AddExecutable(...)` and `AddExecutableApplication(...)` from
   `CloudShell.Providers.Applications`.
 
-Executable application declarations can opt in to Aspire-style endpoint
-environment variables for referenced resources:
+## Aspire-Like Application Workflow
+
+Programmatic resources can also be used in an Aspire-like style for local
+development. In this workflow, resource declarations return builder objects that
+can be passed to executable applications. This keeps resource relationships
+strongly connected in code instead of repeating string IDs at each call site.
+
+Executable applications distinguish endpoint references from startup ordering:
+
+- `WithReference(resource)` means the application should receive endpoint
+  configuration for that resource.
+- `WaitFor(resource)` means the application should wait for or start after that
+  resource, without automatically receiving its endpoint.
+- `WithAspireEndpointEnvironmentVariables()` enables Aspire-style service
+  discovery variables for the application's referenced resources.
 
 ```csharp
 var configuration = resources.AddConfigurationStore(
@@ -57,9 +70,40 @@ resources
     .WithAspireEndpointEnvironmentVariables();
 ```
 
-For executable applications, `WithReference(...)` means the application should
-receive endpoint configuration for that resource. Use `WaitFor(...)` when the
-application only needs startup ordering against another resource.
+When the application starts, CloudShell maps referenced resource endpoints into
+the .NET configuration shape used by Aspire service discovery:
+
+```text
+services__<resource-name-or-id>__<endpoint-name-or-scheme>__0=<endpoint-address>
+```
+
+Endpoint variables are emitted only for referenced resources registered in the
+same resource group as the application. Explicit application environment
+variables are applied after generated values, so they can override generated
+endpoint variables when needed.
+
+Applications can consume the generated values through normal `IConfiguration`.
+The reusable `CloudShell.Configuration` package also includes small helpers for
+HttpClient-style setup:
+
+```csharp
+var endpoint = builder.Configuration.GetCloudShellServiceEndpointUri(
+    "configuration-example",
+    "entries");
+
+if (endpoint is not null)
+{
+    builder.Services.AddHttpClient("configuration", client =>
+    {
+        client.BaseAddress = endpoint;
+    });
+}
+```
+
+The generic `ICloudShellResourceBuilder` still supports string IDs as a lower
+level escape hatch, but typed executable application builders prefer passing
+resource objects to `WithReference(...)`, `WithReferences(...)`, and
+`WaitFor(...)`.
 
 The host sample declares only `Example Configuration` programmatically. Other
 resources are expected to be added through the Resource Manager UI unless a host
