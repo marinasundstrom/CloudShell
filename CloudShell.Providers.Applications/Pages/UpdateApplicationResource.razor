@@ -38,8 +38,8 @@ else
             </select>
 
             <label>
-                <input type="checkbox" @bind="UseAspireEndpointEnvironmentVariables" />
-                Add Aspire endpoint environment variables for dependencies
+                <input type="checkbox" @bind="UseServiceDiscovery" />
+                Enable service discovery for references
             </label>
 
             <label for="application-update-group">Resource group</label>
@@ -104,7 +104,7 @@ else
     private string? WorkingDirectory { get; set; }
     private string? Endpoint { get; set; }
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
-    private bool UseAspireEndpointEnvironmentVariables { get; set; }
+    private bool UseServiceDiscovery { get; set; }
     private string SelectedGroupId { get; set; } = string.Empty;
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
@@ -125,7 +125,7 @@ else
             WorkingDirectory = Application.WorkingDirectory;
             Endpoint = Application.Endpoint;
             SelectedLifetime = Application.Lifetime.ToString();
-            UseAspireEndpointEnvironmentVariables = Application.UseAspireEndpointEnvironmentVariables;
+            UseServiceDiscovery = Application.UseServiceDiscovery;
             ReferenceIds = Application.References;
             SelectedGroupId = ResourceManager.GetGroupForResource(Application.Id)?.Id ?? string.Empty;
             SelectedDependencyIds.Clear();
@@ -184,7 +184,7 @@ else
             ParseLifetime(),
             BuildDependencies(),
             ReferenceIds,
-            UseAspireEndpointEnvironmentVariables);
+            UseServiceDiscovery);
 
         await ApplicationProvider.UpdateApplicationAsync(
             definition,

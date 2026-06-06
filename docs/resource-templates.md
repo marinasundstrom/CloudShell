@@ -34,7 +34,7 @@ A resource group template uses a common envelope:
         "environmentVariables": [],
         "lifetime": "Detached",
         "references": [],
-        "useAspireEndpointEnvironmentVariables": false
+        "useServiceDiscovery": false
       }
     }
   ]

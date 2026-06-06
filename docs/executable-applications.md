@@ -50,7 +50,7 @@ payload with:
 - endpoint
 - environment variables
 - lifetime
-- Aspire endpoint environment variable opt-in
+- service discovery opt-in
 
 Import creates a new application definition in the provider's configuration
 store, assigns it to the imported group, and avoids overwriting an existing
@@ -92,9 +92,9 @@ settings during startup. If the configuration service is unavailable, the
 provider records unavailable status and the app continues running. The
 `/configuration` endpoint reports the provider status and currently loaded keys.
 
-Applications can also opt in to Aspire-style service discovery endpoint variables
-for referenced resources. When enabled, CloudShell maps dependency endpoints into
-environment variables using the .NET configuration shape:
+Applications can also opt in to service discovery for referenced resources. When
+enabled, CloudShell maps referenced resource endpoints into environment variables
+using the .NET configuration shape:
 
 ```text
 services__<resource-name>__<endpoint-name-or-scheme>__0=<endpoint-address>
@@ -102,7 +102,7 @@ services__<resource-name>__<endpoint-name-or-scheme>__0=<endpoint-address>
 
 CloudShell emits names based on both the referenced resource name and resource
 ID, normalized for environment variables. Explicit application environment
-variables are applied last, so they can override generated Aspire endpoint
+variables are applied last, so they can override generated service discovery
 variables.
 
 Endpoint variables are generated from the application's referenced resources,
@@ -114,8 +114,8 @@ referenced resource is registered in the same resource group.
 Applications can read the generated URLs directly through `IConfiguration`:
 
 ```csharp
-var apiUrl = builder.Configuration.GetCloudShellServiceEndpoint("example-api", "http");
-client.BaseAddress = builder.Configuration.GetCloudShellServiceEndpointUri("example-api", "http");
+var apiUrl = builder.Configuration.GetCloudShellServiceDiscoveryEndpoint("example-api", "http");
+client.BaseAddress = builder.Configuration.GetResourceUri("example-api", "http");
 ```
 
 After adding the resource through `/resources/add`, use the Run action to start

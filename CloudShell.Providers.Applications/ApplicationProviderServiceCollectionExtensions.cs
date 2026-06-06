@@ -46,7 +46,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         ApplicationLifetime lifetime = ApplicationLifetime.Detached,
-        bool useAspireEndpointEnvironmentVariables = false)
+        bool useServiceDiscovery = false)
     {
         var definition = new ApplicationResourceDefinition(
             id,
@@ -57,7 +57,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             endpoint,
             environmentVariables,
             lifetime,
-            useAspireEndpointEnvironmentVariables: useAspireEndpointEnvironmentVariables);
+            useServiceDiscovery: useServiceDiscovery);
         var declared = new DeclaredApplicationResource(definition);
 
         builder.Services
@@ -119,7 +119,7 @@ public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuil
 
     IExecutableApplicationResourceBuilder WithLifetime(ApplicationLifetime lifetime);
 
-    IExecutableApplicationResourceBuilder WithAspireEndpointEnvironmentVariables(bool enabled = true);
+    IExecutableApplicationResourceBuilder WithServiceDiscovery(bool enabled = true);
 
     IExecutableApplicationResourceBuilder WaitFor(ICloudShellResourceBuilder resource);
 
@@ -191,11 +191,11 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithAspireEndpointEnvironmentVariables(bool enabled = true)
+    public IExecutableApplicationResourceBuilder WithServiceDiscovery(bool enabled = true)
     {
         declared.Definition = declared.Definition with
         {
-            UseAspireEndpointEnvironmentVariables = enabled
+            UseServiceDiscovery = enabled
         };
         return this;
     }

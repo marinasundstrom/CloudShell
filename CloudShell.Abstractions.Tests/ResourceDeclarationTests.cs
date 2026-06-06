@@ -105,7 +105,7 @@ public sealed class ResourceDeclarationTests
                         executablePath: "dotnet")
                     .WithReference(settings)
                     .WaitFor(postgres)
-                    .WithAspireEndpointEnvironmentVariables();
+                    .WithServiceDiscovery();
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -127,6 +127,6 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal(["postgres-main"], declaration.DependsOn);
         Assert.Equal(["configuration:settings"], application.References);
-        Assert.True(application.UseAspireEndpointEnvironmentVariables);
+        Assert.True(application.UseServiceDiscovery);
     }
 }

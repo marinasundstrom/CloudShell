@@ -52,8 +52,8 @@
         </select>
 
         <label>
-            <input type="checkbox" @bind="UseAspireEndpointEnvironmentVariables" />
-            Add Aspire endpoint environment variables for dependencies
+            <input type="checkbox" @bind="UseServiceDiscovery" />
+            Enable service discovery for references
         </label>
 
         <label for="application-group">Resource group</label>
@@ -123,7 +123,7 @@
     private string? WorkingDirectory { get; set; }
     private string? Endpoint { get; set; }
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
-    private bool UseAspireEndpointEnvironmentVariables { get; set; }
+    private bool UseServiceDiscovery { get; set; }
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
@@ -152,7 +152,7 @@
             WorkingDirectory = null;
             Endpoint = null;
             SelectedLifetime = ApplicationLifetime.Detached.ToString();
-            UseAspireEndpointEnvironmentVariables = false;
+            UseServiceDiscovery = false;
             SelectedDependencyIds.Clear();
             ReferenceIds = [];
             EnvironmentVariables.Clear();
@@ -177,7 +177,7 @@
         WorkingDirectory = application.WorkingDirectory;
         Endpoint = application.Endpoint;
         SelectedLifetime = application.Lifetime.ToString();
-        UseAspireEndpointEnvironmentVariables = application.UseAspireEndpointEnvironmentVariables;
+        UseServiceDiscovery = application.UseServiceDiscovery;
         ReferenceIds = application.References;
         SelectedGroupId = ResourceManager.GetGroupForResource(application.Id)?.Id ?? string.Empty;
         SelectedDependencyIds.Clear();
@@ -237,7 +237,7 @@
             ParseLifetime(),
             BuildDependencies(),
             ReferenceIds,
-            UseAspireEndpointEnvironmentVariables);
+            UseServiceDiscovery);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");

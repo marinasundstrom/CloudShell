@@ -15,7 +15,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ApplicationLifetime lifetime = ApplicationLifetime.Detached,
         IReadOnlyList<string>? dependsOn = null,
         IReadOnlyList<string>? references = null,
-        bool useAspireEndpointEnvironmentVariables = false)
+        bool useServiceDiscovery = false)
     {
         Id = id;
         Name = name;
@@ -27,7 +27,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         Lifetime = lifetime;
         DependsOn = dependsOn ?? [];
         References = references ?? [];
-        UseAspireEndpointEnvironmentVariables = useAspireEndpointEnvironmentVariables;
+        UseServiceDiscovery = useServiceDiscovery;
     }
 
     public string Id { get; init; }
@@ -50,7 +50,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
 
     public IReadOnlyList<string> References { get; init; }
 
-    public bool UseAspireEndpointEnvironmentVariables { get; init; }
+    public bool UseServiceDiscovery { get; init; }
 }
 
 public enum ApplicationLifetime

@@ -49,7 +49,7 @@ public sealed class ResourceTemplateTests
                 [new("ASPNETCORE_URLS", "http://localhost:5127")],
                 dependsOn: ["postgres-main"],
                 references: ["postgres-main"],
-                useAspireEndpointEnvironmentVariables: true),
+                useServiceDiscovery: true),
             fixture.Group.Id,
             fixture.Registrations);
 
@@ -71,7 +71,7 @@ public sealed class ResourceTemplateTests
                 .EnumerateArray()
                 .Select(item => item.GetString()!)
                 .ToArray());
-        Assert.True(template.Configuration.GetProperty("useAspireEndpointEnvironmentVariables").GetBoolean());
+        Assert.True(template.Configuration.GetProperty("useServiceDiscovery").GetBoolean());
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class ResourceTemplateTests
                 environmentVariables = Array.Empty<EnvironmentVariableAssignment>(),
                 lifetime = ApplicationLifetime.Detached,
                 references = new[] { "postgres-main" },
-                useAspireEndpointEnvironmentVariables = true
+                useServiceDiscovery = true
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var template = new ResourceGroupTemplate(
@@ -155,7 +155,7 @@ public sealed class ResourceTemplateTests
         Assert.Equal(["postgres-main"], registration.DependsOn);
         var application = fixture.Provider.GetApplication(imported.ResourceId)!;
         Assert.Equal(["postgres-main"], application.References);
-        Assert.True(application.UseAspireEndpointEnvironmentVariables);
+        Assert.True(application.UseServiceDiscovery);
     }
 
     private sealed class TemplateFixture : IDisposable

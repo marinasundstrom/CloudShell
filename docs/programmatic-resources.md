@@ -48,8 +48,8 @@ Executable applications distinguish endpoint references from startup ordering:
   configuration for that resource.
 - `WaitFor(resource)` means the application should wait for or start after that
   resource, without automatically receiving its endpoint.
-- `WithAspireEndpointEnvironmentVariables()` enables Aspire-style service
-  discovery variables for the application's referenced resources.
+- `WithServiceDiscovery()` enables service discovery variables for the
+  application's referenced resources.
 
 ```csharp
 var configuration = resources.AddConfigurationStore(
@@ -67,11 +67,12 @@ resources
         endpoint: "http://localhost:5127")
     .WithReference(configuration)
     .WaitFor(database)
-    .WithAspireEndpointEnvironmentVariables();
+    .WithServiceDiscovery();
 ```
 
 When the application starts, CloudShell maps referenced resource endpoints into
-the .NET configuration shape used by Aspire service discovery:
+the .NET configuration shape used for service discovery, which provides a level
+of compatibility with Aspire applications:
 
 ```text
 services__<resource-name-or-id>__<endpoint-name-or-scheme>__0=<endpoint-address>
@@ -87,7 +88,7 @@ The reusable `CloudShell.Configuration` package also includes small helpers for
 HttpClient-style setup:
 
 ```csharp
-var endpoint = builder.Configuration.GetCloudShellServiceEndpointUri(
+var endpoint = builder.Configuration.GetResourceUri(
     "configuration-example",
     "entries");
 

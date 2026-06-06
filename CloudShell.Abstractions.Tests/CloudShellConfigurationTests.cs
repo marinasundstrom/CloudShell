@@ -6,7 +6,7 @@ namespace CloudShell.Abstractions.Tests;
 public sealed class CloudShellConfigurationTests
 {
     [Fact]
-    public void GetCloudShellServiceEndpoint_ReturnsNamedEndpointUrl()
+    public void GetCloudShellServiceDiscoveryEndpoint_ReturnsNamedEndpointUrl()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -16,13 +16,13 @@ public sealed class CloudShellConfigurationTests
             })
             .Build();
 
-        var endpoint = configuration.GetCloudShellServiceEndpoint("example-api", "https");
+        var endpoint = configuration.GetCloudShellServiceDiscoveryEndpoint("example-api", "https");
 
         Assert.Equal("https://localhost:7127", endpoint);
     }
 
     [Fact]
-    public void GetCloudShellServiceEndpoint_ReturnsFirstEndpointUrl()
+    public void GetCloudShellServiceDiscoveryEndpoint_ReturnsFirstEndpointUrl()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -32,13 +32,13 @@ public sealed class CloudShellConfigurationTests
             })
             .Build();
 
-        var endpoint = configuration.GetCloudShellServiceEndpoint("postgres-main");
+        var endpoint = configuration.GetCloudShellServiceDiscoveryEndpoint("postgres-main");
 
         Assert.Equal("postgres://main.internal", endpoint);
     }
 
     [Fact]
-    public void GetCloudShellServiceEndpointUri_ReturnsAbsoluteEndpointUri()
+    public void GetResourceUri_ReturnsAbsoluteEndpointUri()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -47,7 +47,7 @@ public sealed class CloudShellConfigurationTests
             })
             .Build();
 
-        var endpoint = configuration.GetCloudShellServiceEndpointUri("redis-cache", "tcp");
+        var endpoint = configuration.GetResourceUri("redis-cache", "tcp");
 
         Assert.NotNull(endpoint);
         Assert.Equal("redis", endpoint.Scheme);

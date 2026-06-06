@@ -2,9 +2,9 @@ using Microsoft.Extensions.Configuration;
 
 namespace CloudShell.Configuration;
 
-public static class CloudShellServiceEndpointConfigurationExtensions
+public static class CloudShellServiceDiscoveryConfigurationExtensions
 {
-    public static string? GetCloudShellServiceEndpoint(
+    public static string? GetCloudShellServiceDiscoveryEndpoint(
         this IConfiguration configuration,
         string providerName,
         string? endpointName = null)
@@ -31,12 +31,12 @@ public static class CloudShellServiceEndpointConfigurationExtensions
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
     }
 
-    public static Uri? GetCloudShellServiceEndpointUri(
+    public static Uri? GetResourceUri(
         this IConfiguration configuration,
         string providerName,
         string? endpointName = null) =>
         Uri.TryCreate(
-            configuration.GetCloudShellServiceEndpoint(providerName, endpointName),
+            configuration.GetCloudShellServiceDiscoveryEndpoint(providerName, endpointName),
             UriKind.Absolute,
             out var uri)
             ? uri

@@ -209,7 +209,7 @@ public sealed partial class ApplicationResourceProvider(
             application.EnvironmentVariables,
             application.Lifetime,
             application.References,
-            application.UseAspireEndpointEnvironmentVariables);
+            application.UseServiceDiscovery);
 
         return Task.FromResult(new ResourceTemplateDefinition(
             application.Name,
@@ -254,7 +254,7 @@ public sealed partial class ApplicationResourceProvider(
             configuration.Lifetime,
             context.DependsOn,
             configuration.References,
-            configuration.UseAspireEndpointEnvironmentVariables);
+            configuration.UseServiceDiscovery);
 
         await SetupApplicationAsync(
             definition,
@@ -362,9 +362,9 @@ public sealed partial class ApplicationResourceProvider(
             startInfo.Environment[variable.Name] = variable.Value;
         }
 
-        if (definition.UseAspireEndpointEnvironmentVariables)
+        if (definition.UseServiceDiscovery)
         {
-            foreach (var variable in ResolveAspireEndpointEnvironmentVariables(
+            foreach (var variable in ResolveServiceDiscoveryEnvironmentVariables(
                 definition,
                 resourceGroupId,
                 registrations))
@@ -459,7 +459,7 @@ public sealed partial class ApplicationResourceProvider(
             .Select(group => group.Last())
             .ToArray();
 
-    private IReadOnlyList<EnvironmentVariableAssignment> ResolveAspireEndpointEnvironmentVariables(
+    private IReadOnlyList<EnvironmentVariableAssignment> ResolveServiceDiscoveryEnvironmentVariables(
         ApplicationResourceDefinition definition,
         string? resourceGroupId,
         IResourceRegistrationStore registrations)
@@ -479,7 +479,7 @@ public sealed partial class ApplicationResourceProvider(
             .GetServices<IResourceProvider>()
             .SelectMany(provider => provider.GetResources())
             .Where(resource => references.Contains(resource.Id))
-            .SelectMany(CreateAspireEndpointEnvironmentVariables)
+            .SelectMany(CreateServiceDiscoveryEndpointEnvironmentVariables)
             .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToArray();
@@ -494,10 +494,10 @@ public sealed partial class ApplicationResourceProvider(
             NormalizeGroupId(resourceGroupId),
             StringComparison.OrdinalIgnoreCase);
 
-    private static IEnumerable<EnvironmentVariableAssignment> CreateAspireEndpointEnvironmentVariables(
+    private static IEnumerable<EnvironmentVariableAssignment> CreateServiceDiscoveryEndpointEnvironmentVariables(
         CloudResource resource)
     {
-        var serviceNames = CreateAspireServiceNames(resource).ToArray();
+        var serviceNames = CreateServiceDiscoveryServiceNames(resource).ToArray();
         if (serviceNames.Length == 0)
         {
             yield break;
@@ -512,7 +512,7 @@ public sealed partial class ApplicationResourceProvider(
                 continue;
             }
 
-            foreach (var endpointKey in CreateAspireEndpointKeys(endpoint))
+            foreach (var endpointKey in CreateServiceDiscoveryEndpointKeys(endpoint))
             {
                 foreach (var serviceName in serviceNames)
                 {
@@ -524,12 +524,12 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    private static IEnumerable<string> CreateAspireServiceNames(CloudResource resource)
+    private static IEnumerable<string> CreateServiceDiscoveryServiceNames(CloudResource resource)
     {
         var names = new[]
             {
-                CreateAspireConfigurationSegment(resource.Name),
-                CreateAspireConfigurationSegment(resource.Id)
+                CreateServiceDiscoveryConfigurationSegment(resource.Name),
+                CreateServiceDiscoveryConfigurationSegment(resource.Id)
             }
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase);
@@ -540,12 +540,12 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    private static IEnumerable<string> CreateAspireEndpointKeys(ResourceEndpoint endpoint)
+    private static IEnumerable<string> CreateServiceDiscoveryEndpointKeys(ResourceEndpoint endpoint)
     {
         var keys = new[]
             {
-                CreateAspireConfigurationSegment(endpoint.Name),
-                CreateAspireConfigurationSegment(endpoint.Protocol)
+                CreateServiceDiscoveryConfigurationSegment(endpoint.Name),
+                CreateServiceDiscoveryConfigurationSegment(endpoint.Protocol)
             }
             .Where(key => !string.IsNullOrWhiteSpace(key))
             .Distinct(StringComparer.OrdinalIgnoreCase);
@@ -826,7 +826,7 @@ public sealed partial class ApplicationResourceProvider(
             WorkingDirectory = NormalizeNullable(definition.WorkingDirectory),
             Endpoint = NormalizeNullable(definition.Endpoint),
             Lifetime = definition.Lifetime,
-            UseAspireEndpointEnvironmentVariables = definition.UseAspireEndpointEnvironmentVariables,
+            UseServiceDiscovery = definition.UseServiceDiscovery,
             DependsOn = NormalizeDependencies(definition.DependsOn, id),
             References = NormalizeReferences(definition.References, id),
             EnvironmentVariables = definition.EnvironmentVariables
@@ -923,8 +923,8 @@ public sealed partial class ApplicationResourceProvider(
     private static string EscapeWindowsCommandArgument(string value) =>
         value.Replace("\"", "\\\"", StringComparison.Ordinal);
 
-    private static string CreateAspireConfigurationSegment(string value) =>
-        AspireConfigurationSegmentPattern()
+    private static string CreateServiceDiscoveryConfigurationSegment(string value) =>
+        ServiceDiscoveryConfigurationSegmentPattern()
             .Replace(value.Trim().ToLowerInvariant(), "-")
             .Trim('-');
 
@@ -939,7 +939,7 @@ public sealed partial class ApplicationResourceProvider(
     private static partial Regex SlugPattern();
 
     [GeneratedRegex("[^a-z0-9_.-]+")]
-    private static partial Regex AspireConfigurationSegmentPattern();
+    private static partial Regex ServiceDiscoveryConfigurationSegmentPattern();
 
     private sealed record ApplicationProcessState(
         Process Process,
@@ -955,5 +955,5 @@ public sealed partial class ApplicationResourceProvider(
         IReadOnlyList<EnvironmentVariableAssignment> EnvironmentVariables,
         ApplicationLifetime Lifetime,
         IReadOnlyList<string>? References = null,
-        bool UseAspireEndpointEnvironmentVariables = false);
+        bool UseServiceDiscovery = false);
 }
