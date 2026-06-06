@@ -28,6 +28,7 @@ public sealed class AuthorizedResourceRegistrationStore(
         string providerId,
         string resourceId,
         string? resourceGroupId = null,
+        IReadOnlyList<string>? dependsOn = null,
         CancellationToken cancellationToken = default)
     {
         var existing = inner.GetRegistration(resourceId);
@@ -37,7 +38,7 @@ public sealed class AuthorizedResourceRegistrationStore(
         }
 
         EnsureAccess(resourceId, resourceGroupId, CloudShellPermissions.Resources.Create);
-        await inner.RegisterAsync(providerId, resourceId, resourceGroupId, cancellationToken);
+        await inner.RegisterAsync(providerId, resourceId, resourceGroupId, dependsOn, cancellationToken);
     }
 
     public async Task RemoveAsync(
@@ -57,6 +58,7 @@ public sealed class AuthorizedResourceRegistrationStore(
     public async Task AssignToGroupAsync(
         string resourceId,
         string? resourceGroupId,
+        IReadOnlyList<string>? dependsOn = null,
         CancellationToken cancellationToken = default)
     {
         var registration = inner.GetRegistration(resourceId)
@@ -64,7 +66,19 @@ public sealed class AuthorizedResourceRegistrationStore(
 
         EnsureAccess(registration, CloudShellPermissions.Resources.Manage);
         EnsureAccess(resourceId, resourceGroupId, CloudShellPermissions.Resources.Manage);
-        await inner.AssignToGroupAsync(resourceId, resourceGroupId, cancellationToken);
+        await inner.AssignToGroupAsync(resourceId, resourceGroupId, dependsOn, cancellationToken);
+    }
+
+    public async Task SetDependenciesAsync(
+        string resourceId,
+        IReadOnlyList<string> dependsOn,
+        CancellationToken cancellationToken = default)
+    {
+        var registration = inner.GetRegistration(resourceId)
+            ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+
+        EnsureAccess(registration, CloudShellPermissions.Resources.Manage);
+        await inner.SetDependenciesAsync(resourceId, dependsOn, cancellationToken);
     }
 
     private bool CanAccess(ResourceRegistration registration, string permission) =>

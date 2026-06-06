@@ -4,4 +4,5 @@ public sealed record ResourceRegistration(
     string ResourceId,
     string ProviderId,
     string? ResourceGroupId,
-    DateTimeOffset RegisteredAt);
+    DateTimeOffset RegisteredAt,
+    IReadOnlyList<string> DependsOn);

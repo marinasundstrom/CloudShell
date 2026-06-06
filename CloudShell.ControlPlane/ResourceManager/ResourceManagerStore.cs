@@ -19,12 +19,15 @@ public sealed class ResourceManagerStore(
     public IReadOnlyList<CloudResource> GetResources()
     {
         var available = GetAvailableResources();
-        var registeredIds = registrations.GetRegistrations()
-            .Select(registration => registration.ResourceId)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var registrationsById = registrations.GetRegistrations()
+            .ToDictionary(
+                registration => registration.ResourceId,
+                StringComparer.OrdinalIgnoreCase);
+        var registeredIds = registrationsById.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return available
             .Where(resource => IsRegisteredOrDescendant(resource, available, registeredIds))
+            .Select(resource => ApplyRegistrationMetadata(resource, registrationsById))
             .ToArray();
     }
 
@@ -103,5 +106,27 @@ public sealed class ResourceManagerStore(
         }
 
         return false;
+    }
+
+    private static CloudResource ApplyRegistrationMetadata(
+        CloudResource resource,
+        IReadOnlyDictionary<string, ResourceRegistration> registrationsById)
+    {
+        if (!registrationsById.TryGetValue(resource.Id, out var registration) ||
+            registration.DependsOn.Count == 0)
+        {
+            return resource;
+        }
+
+        return resource with
+        {
+            DependsOn = resource.DependsOn
+                .Concat(registration.DependsOn)
+                .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+                .Select(dependency => dependency.Trim())
+                .Where(dependency => !string.Equals(dependency, resource.Id, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+        };
     }
 }

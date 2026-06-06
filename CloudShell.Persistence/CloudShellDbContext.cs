@@ -26,6 +26,7 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
             entity.Property(registration => registration.ResourceId).HasMaxLength(500);
             entity.Property(registration => registration.ProviderId).HasMaxLength(200).IsRequired();
             entity.Property(registration => registration.ResourceGroupId).HasMaxLength(100);
+            entity.Property(registration => registration.DependsOnJson).IsRequired();
             entity.HasOne<ResourceGroupEntity>()
                 .WithMany()
                 .HasForeignKey(registration => registration.ResourceGroupId)

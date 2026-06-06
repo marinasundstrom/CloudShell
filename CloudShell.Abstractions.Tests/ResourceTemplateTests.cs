@@ -3,6 +3,7 @@ using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using System.Text.Json;
 
 namespace CloudShell.Abstractions.Tests;
 
@@ -31,6 +32,37 @@ public sealed class ResourceTemplateTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ExportsConfiguredDependencies()
+    {
+        using var fixture = new TemplateFixture();
+
+        await fixture.Provider.UpdateApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:example-web-api",
+                "Example Web API",
+                "dotnet",
+                "run",
+                "/workspace",
+                "http://localhost:5127",
+                [new("ASPNETCORE_URLS", "http://localhost:5127")],
+                dependsOn: ["postgres-main"]),
+            fixture.Group.Id,
+            fixture.Registrations);
+
+        var resource = Assert.Single(fixture.ResourceManager.GetResources());
+        var provider = Assert.IsAssignableFrom<IResourceTemplateProvider>(
+            Assert.Single(fixture.ResourceManager.Providers));
+
+        var template = await provider.ExportAsync(
+            resource,
+            new ResourceTemplateExportContext(
+                fixture.Registrations.GetRegistration(resource.Id)!,
+                fixture.Group));
+
+        Assert.Equal(["postgres-main"], template.DependsOn);
+    }
+
+    [Fact]
     public async Task TemplateService_ExportsAndImportsAResourceGroup()
     {
         using var fixture = new TemplateFixture();
@@ -47,6 +79,45 @@ public sealed class ResourceTemplateTests
         Assert.Contains(
             fixture.Provider.GetApplications(),
             application => application.Id == "application:example-web-api-2");
+    }
+
+    [Fact]
+    public async Task TemplateService_ImportsDependenciesIntoRegistration()
+    {
+        using var fixture = new TemplateFixture();
+        var service = fixture.CreateTemplateService();
+        var configuration = JsonSerializer.SerializeToElement(
+            new
+            {
+                executablePath = "dotnet",
+                arguments = "run",
+                workingDirectory = "/workspace",
+                endpoint = "http://localhost:5127",
+                environmentVariables = Array.Empty<EnvironmentVariableAssignment>(),
+                lifetime = ApplicationLifetime.Detached
+            },
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var template = new ResourceGroupTemplate(
+            "1.0",
+            "resourceGroup",
+            "Imported group",
+            null,
+            [
+                new ResourceTemplateDefinition(
+                    "Imported API",
+                    "applications",
+                    "application.executable",
+                    ["postgres-main"],
+                    "1.0",
+                    configuration)
+            ]);
+
+        var result = await service.ImportGroupAsync(template);
+
+        var imported = Assert.Single(result.ImportedResources);
+        var registration = fixture.Registrations.GetRegistration(imported.ResourceId);
+        Assert.NotNull(registration);
+        Assert.Equal(["postgres-main"], registration.DependsOn);
     }
 
     private sealed class TemplateFixture : IDisposable
@@ -184,13 +255,15 @@ public sealed class ResourceTemplateTests
             string providerId,
             string resourceId,
             string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
             CancellationToken cancellationToken = default)
         {
             _registrations[resourceId] = new ResourceRegistration(
                 resourceId,
                 providerId,
                 resourceGroupId,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UtcNow,
+                NormalizeDependencies(dependsOn ?? []));
             return Task.CompletedTask;
         }
 
@@ -203,11 +276,38 @@ public sealed class ResourceTemplateTests
         public Task AssignToGroupAsync(
             string resourceId,
             string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
             CancellationToken cancellationToken = default)
         {
             var registration = _registrations[resourceId];
-            _registrations[resourceId] = registration with { ResourceGroupId = resourceGroupId };
+            _registrations[resourceId] = registration with
+            {
+                ResourceGroupId = resourceGroupId,
+                DependsOn = dependsOn is null
+                    ? registration.DependsOn
+                    : NormalizeDependencies(dependsOn)
+            };
             return Task.CompletedTask;
         }
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default)
+        {
+            var registration = _registrations[resourceId];
+            _registrations[resourceId] = registration with
+            {
+                DependsOn = NormalizeDependencies(dependsOn)
+            };
+            return Task.CompletedTask;
+        }
+
+        private static IReadOnlyList<string> NormalizeDependencies(IReadOnlyList<string> dependsOn) =>
+            dependsOn
+                .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+                .Select(dependency => dependency.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
     }
 }

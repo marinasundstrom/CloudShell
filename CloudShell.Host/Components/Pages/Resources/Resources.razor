@@ -53,16 +53,45 @@
 @if (PendingAction is not null)
 {
     <div class="procedure-confirmation">
-        <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
-        <span>@GetConfirmationMessage(PendingAction.Resource, PendingAction.Action)</span>
-        <div class="form-actions">
-            <FluentButton Appearance="Appearance.Neutral" OnClick="CancelResourceAction">
-                @L["Cancel"]
-            </FluentButton>
-            <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmResourceAction">
-                @PendingAction.Action.DisplayName
-            </FluentButton>
-        </div>
+        @if (PendingAction.RequiresDependencyChoice)
+        {
+            <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
+            <span>@GetDependencyConfirmationMessage(PendingAction)</span>
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Accent" OnClick="() => ConfirmResourceAction(startDependencies: true)">
+                    @L["Yes"]
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="() => ConfirmResourceAction(startDependencies: false)">
+                    @L["No, only this resource"]
+                </FluentButton>
+            </div>
+        }
+        else if (PendingAction.RequiresDependentWarning)
+        {
+            <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
+            <span>@GetDependentWarningMessage(PendingAction)</span>
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Neutral" OnClick="CancelResourceAction">
+                    @L["No"]
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmDependentWarning">
+                    @L["Yes, I'm sure"]
+                </FluentButton>
+            </div>
+        }
+        else
+        {
+            <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
+            <span>@GetConfirmationMessage(PendingAction.Resource, PendingAction.Action)</span>
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Neutral" OnClick="CancelResourceAction">
+                    @L["Cancel"]
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Accent" OnClick="() => ConfirmResourceAction()">
+                    @PendingAction.Action.DisplayName
+                </FluentButton>
+            </div>
+        }
     </div>
 }
 
@@ -522,17 +551,55 @@
 
     private async Task RequestResourceAction(CloudResource resource, ResourceAction action)
     {
-        if (action.RequiresConfirmation)
+        var stoppedDependencies = ShouldStartDependencies(action)
+            ? GetStoppedDependencies(resource)
+            : [];
+        var activeDependents = ShouldWarnDependents(action)
+            ? GetActiveDependents(resource)
+            : [];
+        if (activeDependents.Count > 0)
         {
-            PendingAction = new PendingResourceAction(resource, action);
+            PendingAction = new PendingResourceAction(
+                resource,
+                action,
+                stoppedDependencies,
+                activeDependents,
+                RequiresDependencyChoice: false,
+                RequiresDependentWarning: true);
             ProcedureMessage = null;
             return;
         }
 
-        await ExecuteResourceAction(resource, action);
+        if (stoppedDependencies.Count > 0)
+        {
+            PendingAction = new PendingResourceAction(
+                resource,
+                action,
+                stoppedDependencies,
+                activeDependents,
+                RequiresDependencyChoice: true,
+                RequiresDependentWarning: false);
+            ProcedureMessage = null;
+            return;
+        }
+
+        if (action.RequiresConfirmation)
+        {
+            PendingAction = new PendingResourceAction(
+                resource,
+                action,
+                [],
+                [],
+                RequiresDependencyChoice: false,
+                RequiresDependentWarning: false);
+            ProcedureMessage = null;
+            return;
+        }
+
+        await ExecuteResourceAction(resource, action, startDependencies: false);
     }
 
-    private async Task ConfirmResourceAction()
+    private async Task ConfirmResourceAction(bool startDependencies = false)
     {
         if (PendingAction is null)
         {
@@ -541,12 +608,37 @@
 
         var pending = PendingAction;
         PendingAction = null;
-        await ExecuteResourceAction(pending.Resource, pending.Action);
+        await ExecuteResourceAction(pending.Resource, pending.Action, startDependencies);
+    }
+
+    private async Task ConfirmDependentWarning()
+    {
+        if (PendingAction is null)
+        {
+            return;
+        }
+
+        var pending = PendingAction;
+        if (pending.StoppedDependencies.Count > 0)
+        {
+            PendingAction = pending with
+            {
+                RequiresDependencyChoice = true,
+                RequiresDependentWarning = false
+            };
+            return;
+        }
+
+        PendingAction = null;
+        await ExecuteResourceAction(pending.Resource, pending.Action, startDependencies: false);
     }
 
     private void CancelResourceAction() => PendingAction = null;
 
-    private async Task ExecuteResourceAction(CloudResource resource, ResourceAction action)
+    private async Task ExecuteResourceAction(
+        CloudResource resource,
+        ResourceAction action,
+        bool startDependencies)
     {
         var provider = GetProcedureProvider(resource);
         if (provider is null)
@@ -559,6 +651,14 @@
         ProcedureMessage = null;
         try
         {
+            if (startDependencies && ShouldStartDependencies(action))
+            {
+                await StartDependenciesAsync(
+                    resource,
+                    new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                    new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            }
+
             var registration = GetRegistrationForResourceOrAncestor(resource);
             var group = GetGroup(resource);
             var result = await provider.ExecuteActionAsync(
@@ -576,6 +676,109 @@
             ExecutingActionKey = null;
         }
     }
+
+    private async Task StartDependenciesAsync(
+        CloudResource resource,
+        HashSet<string> visiting,
+        HashSet<string> completed)
+    {
+        if (!visiting.Add(resource.Id))
+        {
+            throw new InvalidOperationException(
+                L["Resource dependency cycle detected at '{0}'.", resource.Id].Value);
+        }
+
+        foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (completed.Contains(dependencyId))
+            {
+                continue;
+            }
+
+            var dependency = ResourceManager.GetResource(dependencyId)
+                ?? throw new InvalidOperationException(
+                    L["Dependency resource '{0}' could not be found.", dependencyId].Value);
+
+            await StartDependenciesAsync(dependency, visiting, completed);
+
+            if (dependency.State == ResourceState.Running)
+            {
+                completed.Add(dependency.Id);
+                continue;
+            }
+
+            var runAction = dependency.ResourceActions.FirstOrDefault(action =>
+                action.Kind == ResourceActionKind.Run);
+            if (runAction is null)
+            {
+                throw new InvalidOperationException(
+                    L["Dependency resource '{0}' is not running and does not expose a Run action.", dependency.Name].Value);
+            }
+
+            var dependencyProvider = GetProcedureProvider(dependency)
+                ?? throw new InvalidOperationException(
+                    L["Dependency resource '{0}' does not support actions.", dependency.Name].Value);
+            if (!CanManage(dependency))
+            {
+                throw new UnauthorizedAccessException(
+                    L["You do not have permission to start dependency resource '{0}'.", dependency.Name].Value);
+            }
+
+            var registration = GetRegistrationForResourceOrAncestor(dependency);
+            var group = GetGroup(dependency);
+            await dependencyProvider.ExecuteActionAsync(
+                new ResourceProcedureContext(dependency, registration, group?.Id, Registrations),
+                runAction);
+
+            completed.Add(dependency.Id);
+        }
+
+        visiting.Remove(resource.Id);
+    }
+
+    private IReadOnlyList<CloudResource> GetStoppedDependencies(CloudResource resource)
+    {
+        var dependencies = new List<CloudResource>();
+        CollectStoppedDependencies(
+            resource,
+            dependencies,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        return dependencies;
+    }
+
+    private void CollectStoppedDependencies(
+        CloudResource resource,
+        List<CloudResource> dependencies,
+        HashSet<string> visited)
+    {
+        if (!visited.Add(resource.Id))
+        {
+            return;
+        }
+
+        foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var dependency = ResourceManager.GetResource(dependencyId);
+            if (dependency is null)
+            {
+                continue;
+            }
+
+            CollectStoppedDependencies(dependency, dependencies, visited);
+            if (dependency.State != ResourceState.Running &&
+                dependencies.All(item => !string.Equals(item.Id, dependency.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                dependencies.Add(dependency);
+            }
+        }
+    }
+
+    private IReadOnlyList<CloudResource> GetActiveDependents(CloudResource resource) =>
+        ResourceManager.GetResources()
+            .Where(candidate => candidate.DependsOn.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
+            .Where(candidate => IsActiveDependencyState(candidate.State))
+            .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     private bool CanManage(CloudResource resource)
     {
@@ -807,6 +1010,31 @@
         action.Description ??
         L["This will run the {0} action for {1}.", action.DisplayName, resource.Name].Value;
 
+    private string GetDependencyConfirmationMessage(PendingResourceAction pending)
+    {
+        var names = string.Join(", ", pending.StoppedDependencies.Select(dependency => dependency.Name));
+        return L[
+            "The following dependencies are not running: {0}. Start them as well?",
+            names].Value;
+    }
+
+    private string GetDependentWarningMessage(PendingResourceAction pending)
+    {
+        var names = string.Join(", ", pending.ActiveDependents.Select(dependent => dependent.Name));
+        return L[
+            "The following running resources depend on this resource: {0}. Stopping it may disrupt them. Do you want to stop the resource?",
+            names].Value;
+    }
+
+    private static bool ShouldStartDependencies(ResourceAction action) =>
+        action.Kind is ResourceActionKind.Run or ResourceActionKind.Restart;
+
+    private static bool ShouldWarnDependents(ResourceAction action) =>
+        action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart;
+
+    private static bool IsActiveDependencyState(ResourceState state) =>
+        state is not ResourceState.Stopped and not ResourceState.Unknown;
+
     private string GetLogsActionLabel(int logCount) =>
         logCount == 1 ? L["Logs"].Value : L["Logs ({0})", logCount].Value;
 
@@ -837,5 +1065,11 @@
 
     private sealed record ResourceRow(CloudResource Resource, int Depth, int ChildCount);
 
-    private sealed record PendingResourceAction(CloudResource Resource, ResourceAction Action);
+    private sealed record PendingResourceAction(
+        CloudResource Resource,
+        ResourceAction Action,
+        IReadOnlyList<CloudResource> StoppedDependencies,
+        IReadOnlyList<CloudResource> ActiveDependents,
+        bool RequiresDependencyChoice,
+        bool RequiresDependentWarning);
 }

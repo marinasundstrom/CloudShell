@@ -12,7 +12,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? workingDirectory = null,
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
-        ApplicationLifetime lifetime = ApplicationLifetime.Detached)
+        ApplicationLifetime lifetime = ApplicationLifetime.Detached,
+        IReadOnlyList<string>? dependsOn = null)
     {
         Id = id;
         Name = name;
@@ -22,6 +23,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         Endpoint = endpoint;
         EnvironmentVariables = environmentVariables ?? [];
         Lifetime = lifetime;
+        DependsOn = dependsOn ?? [];
     }
 
     public string Id { get; init; }
@@ -39,6 +41,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public IReadOnlyList<EnvironmentVariableAssignment> EnvironmentVariables { get; init; }
 
     public ApplicationLifetime Lifetime { get; init; }
+
+    public IReadOnlyList<string> DependsOn { get; init; }
 }
 
 public enum ApplicationLifetime

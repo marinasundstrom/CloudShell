@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace CloudShell.Persistence;
 
@@ -19,7 +20,8 @@ public sealed class EfCoreResourceStore(
                 registration.ResourceId,
                 registration.ProviderId,
                 registration.ResourceGroupId,
-                registration.RegisteredAt))
+                registration.RegisteredAt,
+                DeserializeDependencies(registration.DependsOnJson)))
             .ToArray();
     }
 
@@ -36,13 +38,15 @@ public sealed class EfCoreResourceStore(
                 registration.ResourceId,
                 registration.ProviderId,
                 registration.ResourceGroupId,
-                registration.RegisteredAt);
+                registration.RegisteredAt,
+                DeserializeDependencies(registration.DependsOnJson));
     }
 
     public async Task RegisterAsync(
         string providerId,
         string resourceId,
         string? resourceGroupId = null,
+        IReadOnlyList<string>? dependsOn = null,
         CancellationToken cancellationToken = default)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
@@ -56,13 +60,18 @@ public sealed class EfCoreResourceStore(
                 ResourceId = resourceId,
                 ProviderId = providerId,
                 ResourceGroupId = NormalizeGroupId(resourceGroupId),
-                RegisteredAt = DateTimeOffset.UtcNow
+                RegisteredAt = DateTimeOffset.UtcNow,
+                DependsOnJson = SerializeDependencies(dependsOn ?? [])
             });
         }
         else
         {
             registration.ProviderId = providerId;
             registration.ResourceGroupId = NormalizeGroupId(resourceGroupId);
+            if (dependsOn is not null)
+            {
+                registration.DependsOnJson = SerializeDependencies(dependsOn);
+            }
         }
 
         await context.SaveChangesAsync(cancellationToken);
@@ -88,6 +97,7 @@ public sealed class EfCoreResourceStore(
     public async Task AssignToGroupAsync(
         string resourceId,
         string? resourceGroupId,
+        IReadOnlyList<string>? dependsOn = null,
         CancellationToken cancellationToken = default)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
@@ -96,6 +106,24 @@ public sealed class EfCoreResourceStore(
             ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
 
         registration.ResourceGroupId = NormalizeGroupId(resourceGroupId);
+        if (dependsOn is not null)
+        {
+            registration.DependsOnJson = SerializeDependencies(dependsOn);
+        }
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SetDependenciesAsync(
+        string resourceId,
+        IReadOnlyList<string> dependsOn,
+        CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        var registration = await context.ResourceRegistrations
+            .SingleOrDefaultAsync(item => item.ResourceId == resourceId, cancellationToken)
+            ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+
+        registration.DependsOnJson = SerializeDependencies(dependsOn);
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -177,4 +205,25 @@ public sealed class EfCoreResourceStore(
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId;
+
+    private static string SerializeDependencies(IReadOnlyList<string> dependsOn) =>
+        JsonSerializer.Serialize(NormalizeDependencies(dependsOn));
+
+    private static IReadOnlyList<string> DeserializeDependencies(string? dependsOnJson)
+    {
+        if (string.IsNullOrWhiteSpace(dependsOnJson))
+        {
+            return [];
+        }
+
+        return NormalizeDependencies(
+            JsonSerializer.Deserialize<IReadOnlyList<string>>(dependsOnJson) ?? []);
+    }
+
+    private static IReadOnlyList<string> NormalizeDependencies(IReadOnlyList<string> dependsOn) =>
+        dependsOn
+            .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+            .Select(dependency => dependency.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 }

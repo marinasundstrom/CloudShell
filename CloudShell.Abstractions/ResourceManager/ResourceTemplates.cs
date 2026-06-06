@@ -23,7 +23,8 @@ public sealed record ResourceTemplateExportContext(
 
 public sealed record ResourceTemplateImportContext(
     string ResourceGroupId,
-    IResourceRegistrationStore Registrations);
+    IResourceRegistrationStore Registrations,
+    IReadOnlyList<string> DependsOn);
 
 public sealed record ResourceTemplateImportResult(
     string ResourceId,

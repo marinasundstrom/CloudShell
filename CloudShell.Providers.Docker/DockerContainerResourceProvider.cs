@@ -156,7 +156,7 @@ public sealed partial class DockerContainerResourceProvider : IResourceProvider,
             Id,
             engine.Id,
             NormalizeGroupId(resourceGroupId),
-            cancellationToken);
+            cancellationToken: cancellationToken);
     }
 
     public async Task UpdateEngineAsync(
@@ -169,7 +169,7 @@ public sealed partial class DockerContainerResourceProvider : IResourceProvider,
         await registrations.AssignToGroupAsync(
             engine.Id,
             NormalizeGroupId(resourceGroupId),
-            cancellationToken);
+            cancellationToken: cancellationToken);
     }
 
     public async Task<ResourceProcedureResult> DeleteAsync(

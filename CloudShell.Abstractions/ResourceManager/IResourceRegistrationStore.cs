@@ -10,6 +10,7 @@ public interface IResourceRegistrationStore
         string providerId,
         string resourceId,
         string? resourceGroupId = null,
+        IReadOnlyList<string>? dependsOn = null,
         CancellationToken cancellationToken = default);
 
     Task RemoveAsync(
@@ -19,5 +20,11 @@ public interface IResourceRegistrationStore
     Task AssignToGroupAsync(
         string resourceId,
         string? resourceGroupId,
+        IReadOnlyList<string>? dependsOn = null,
+        CancellationToken cancellationToken = default);
+
+    Task SetDependenciesAsync(
+        string resourceId,
+        IReadOnlyList<string> dependsOn,
         CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,5 @@
 @inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManagerStore ResourceManager
 @inject IResourceGroupStore ResourceGroups
 @inject IResourceRegistrationStore Registrations
 @inject NavigationManager Navigation
@@ -58,6 +59,22 @@
 
         <div class="environment-editor">
             <div class="environment-header">
+                <strong>Dependencies</strong>
+            </div>
+
+            @foreach (var resource in GetDependencyCandidates())
+            {
+                <label>
+                    <input type="checkbox"
+                           checked="@SelectedDependencyIds.Contains(resource.Id)"
+                           @onchange="args => ToggleDependency(resource.Id, args)" />
+                    @resource.Name
+                </label>
+            }
+        </div>
+
+        <div class="environment-editor">
+            <div class="environment-header">
                 <strong>Environment variables</strong>
                 <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
                     Add variable
@@ -100,6 +117,7 @@
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
+    private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     protected override void OnInitialized()
     {
@@ -122,6 +140,7 @@
             WorkingDirectory = null;
             Endpoint = null;
             SelectedLifetime = ApplicationLifetime.Detached.ToString();
+            SelectedDependencyIds.Clear();
             EnvironmentVariables.Clear();
             EnvironmentVariables.Add(new());
             return;
@@ -143,6 +162,12 @@
         WorkingDirectory = application.WorkingDirectory;
         Endpoint = application.Endpoint;
         SelectedLifetime = application.Lifetime.ToString();
+        SelectedDependencyIds.Clear();
+        foreach (var dependency in application.DependsOn)
+        {
+            SelectedDependencyIds.Add(dependency);
+        }
+
         EnvironmentVariables.Clear();
         EnvironmentVariables.AddRange(application.EnvironmentVariables
             .Select(variable => new EnvironmentVariableInput(variable.Name, variable.Value)));
@@ -180,7 +205,8 @@
             WorkingDirectory,
             Endpoint,
             BuildEnvironmentVariables(),
-            ParseLifetime());
+            ParseLifetime(),
+            BuildDependencies());
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");
@@ -191,6 +217,29 @@
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
             .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
             .ToArray();
+
+    private IReadOnlyList<string> BuildDependencies() =>
+        SelectedDependencyIds
+            .Where(dependency => !string.Equals(dependency, ApplicationId, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+    private IReadOnlyList<CloudResource> GetDependencyCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => !string.Equals(resource.Id, ApplicationId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private void ToggleDependency(string resourceId, ChangeEventArgs args)
+    {
+        if (args.Value is true)
+        {
+            SelectedDependencyIds.Add(resourceId);
+        }
+        else
+        {
+            SelectedDependencyIds.Remove(resourceId);
+        }
+    }
 
     private ApplicationLifetime ParseLifetime() =>
         Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)

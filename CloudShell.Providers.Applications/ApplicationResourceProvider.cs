@@ -107,6 +107,7 @@ public sealed partial class ApplicationResourceProvider(
             Id,
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
+            normalized.DependsOn,
             cancellationToken);
     }
 
@@ -127,6 +128,7 @@ public sealed partial class ApplicationResourceProvider(
         await registrations.AssignToGroupAsync(
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
+            normalized.DependsOn,
             cancellationToken);
     }
 
@@ -227,7 +229,8 @@ public sealed partial class ApplicationResourceProvider(
             configuration.WorkingDirectory,
             configuration.Endpoint,
             configuration.EnvironmentVariables,
-            configuration.Lifetime);
+            configuration.Lifetime,
+            context.DependsOn);
 
         await SetupApplicationAsync(
             definition,
@@ -399,7 +402,7 @@ public sealed partial class ApplicationResourceProvider(
             CreateEndpoints(application),
             Path.GetFileName(application.ExecutablePath),
             DateTimeOffset.UtcNow,
-            [],
+            application.DependsOn,
             TypeId: "application.executable",
             Actions: CreateActions(state));
     }
@@ -631,6 +634,7 @@ public sealed partial class ApplicationResourceProvider(
             WorkingDirectory = NormalizeNullable(definition.WorkingDirectory),
             Endpoint = NormalizeNullable(definition.Endpoint),
             Lifetime = definition.Lifetime,
+            DependsOn = NormalizeDependencies(definition.DependsOn, id),
             EnvironmentVariables = definition.EnvironmentVariables
                 .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
                 .Select(variable => variable with { Name = variable.Name.Trim() })
@@ -684,6 +688,16 @@ public sealed partial class ApplicationResourceProvider(
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId;
+
+    private static IReadOnlyList<string> NormalizeDependencies(
+        IReadOnlyList<string> dependsOn,
+        string resourceId) =>
+        dependsOn
+            .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+            .Select(dependency => dependency.Trim())
+            .Where(dependency => !string.Equals(dependency, resourceId, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     private static string QuoteUnixShellArgument(string value) =>
         "'" + value.Replace("'", "'\"'\"'", StringComparison.Ordinal) + "'";

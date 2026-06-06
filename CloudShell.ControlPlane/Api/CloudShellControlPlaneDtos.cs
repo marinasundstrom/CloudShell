@@ -47,7 +47,8 @@ public sealed record ResourceRegistrationResponse(
     string ResourceId,
     string ProviderId,
     string? ResourceGroupId,
-    DateTimeOffset RegisteredAt);
+    DateTimeOffset RegisteredAt,
+    IReadOnlyList<string> DependsOn);
 
 public sealed record CreateResourceGroupRequest(
     string Name,
@@ -56,9 +57,12 @@ public sealed record CreateResourceGroupRequest(
 public sealed record RegisterResourceRequest(
     string ProviderId,
     string ResourceId,
-    string? ResourceGroupId);
+    string? ResourceGroupId,
+    IReadOnlyList<string>? DependsOn);
 
 public sealed record AssignResourceGroupRequest(string? ResourceGroupId);
+
+public sealed record SetResourceDependenciesRequest(IReadOnlyList<string> DependsOn);
 
 public sealed record ResourceProcedureResponse(string Message);
 
@@ -127,7 +131,8 @@ internal static class CloudShellControlPlaneDtoMapper
             registration.ResourceId,
             registration.ProviderId,
             registration.ResourceGroupId,
-            registration.RegisteredAt);
+            registration.RegisteredAt,
+            registration.DependsOn);
 
     public static LogResponse ToResponse(this LogDescriptor log) =>
         new(

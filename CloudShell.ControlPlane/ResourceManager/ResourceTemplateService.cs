@@ -93,6 +93,7 @@ public sealed class ResourceTemplateService(
 
         var diagnostics = new List<ResourceTemplateDiagnostic>();
         var importedResources = new List<ResourceTemplateImportResult>();
+        var importedResourceIdsByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var resourceTemplate in OrderByDependencies(template.Resources, diagnostics))
         {
@@ -109,10 +110,21 @@ public sealed class ResourceTemplateService(
 
             try
             {
-                importedResources.Add(await templateProvider.ImportAsync(
+                var dependsOn = resourceTemplate.DependsOn
+                    .Select(dependency => importedResourceIdsByName.GetValueOrDefault(dependency) ?? dependency)
+                    .ToArray();
+                var imported = await templateProvider.ImportAsync(
                     resourceTemplate,
-                    new ResourceTemplateImportContext(group.Id, registrations),
-                    cancellationToken));
+                    new ResourceTemplateImportContext(group.Id, registrations, dependsOn),
+                    cancellationToken);
+
+                await registrations.SetDependenciesAsync(
+                    imported.ResourceId,
+                    dependsOn,
+                    cancellationToken);
+
+                importedResources.Add(imported);
+                importedResourceIdsByName[resourceTemplate.Name] = imported.ResourceId;
             }
             catch (Exception exception)
             {

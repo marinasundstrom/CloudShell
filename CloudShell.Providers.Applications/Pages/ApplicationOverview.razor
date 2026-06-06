@@ -1,4 +1,5 @@
 @inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManagerStore ResourceManager
 
 @if (Application is null)
 {
@@ -20,9 +21,11 @@ else
             <dd>@(Application.WorkingDirectory ?? "executable directory")</dd>
             <dt>Endpoint</dt>
             <dd>@(Application.Endpoint ?? "none")</dd>
-            <dt>Lifetime</dt>
-            <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
-        </dl>
+        <dt>Lifetime</dt>
+        <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
+        <dt>Dependencies</dt>
+        <dd>@(EffectiveDependencies.Count == 0 ? "none" : string.Join(", ", EffectiveDependencies))</dd>
+    </dl>
     </section>
 
     <section class="blade-section">
@@ -49,12 +52,16 @@ else
     public string? ResourceId { get; set; }
 
     private ApplicationResourceDefinition? Application { get; set; }
+    private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
 
     protected override void OnParametersSet()
     {
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : ApplicationProvider.GetApplication(ResourceId);
+        EffectiveDependencies = Application is null
+            ? []
+            : ResourceManager.GetResource(Application.Id)?.DependsOn ?? Application.DependsOn;
     }
 
     private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
