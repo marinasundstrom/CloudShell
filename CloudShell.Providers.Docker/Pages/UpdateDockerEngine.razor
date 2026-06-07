@@ -18,7 +18,7 @@ else
                 <span class="state-dot @(DockerProvider.ConnectionStatus.IsConnected ? "state-running" : "state-stopped")"></span>
                 <div>
                     <strong>@Resource.Name</strong>
-                    <span>@Resource.PrimaryEndpoint</span>
+                    <span>@EndpointLink(Resource.PrimaryEndpoint)</span>
                 </div>
             </div>
         </div>
@@ -68,4 +68,32 @@ else
         await DockerProvider.UpdateEngineAsync(SelectedGroupId, Registrations, cancellationToken);
         return ResourceProcedureResult.Completed("Docker Engine configuration updated.");
     }
+
+    private static RenderFragment EndpointLink(string? address) => builder =>
+    {
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            builder.AddContent(0, "none");
+            return;
+        }
+
+        if (!IsLinkEndpoint(address))
+        {
+            builder.AddContent(1, address);
+            return;
+        }
+
+        builder.OpenElement(2, "a");
+        builder.AddAttribute(3, "class", "endpoint-link");
+        builder.AddAttribute(4, "href", address);
+        builder.AddAttribute(5, "target", "_blank");
+        builder.AddAttribute(6, "rel", "noopener noreferrer");
+        builder.AddContent(7, address);
+        builder.CloseElement();
+    };
+
+    private static bool IsLinkEndpoint(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
+        (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+         uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
 }

@@ -1087,6 +1087,12 @@ h3 {
     text-overflow: ellipsis;
 }
 
+.endpoint a {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .detail-heading {
     display: flex;
     align-items: center;

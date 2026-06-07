@@ -20,12 +20,12 @@ else
             <dt>Working directory</dt>
             <dd>@(Application.WorkingDirectory ?? "executable directory")</dd>
             <dt>Endpoint</dt>
-            <dd>@(Application.Endpoint ?? "none")</dd>
-        <dt>Lifetime</dt>
-        <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
-        <dt>Dependencies</dt>
-        <dd>@(EffectiveDependencies.Count == 0 ? "none" : string.Join(", ", EffectiveDependencies))</dd>
-    </dl>
+            <dd>@EndpointLink(Application.Endpoint)</dd>
+            <dt>Lifetime</dt>
+            <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
+            <dt>Dependencies</dt>
+            <dd>@(EffectiveDependencies.Count == 0 ? "none" : string.Join(", ", EffectiveDependencies))</dd>
+        </dl>
     </section>
 
     <section class="blade-section">
@@ -70,4 +70,32 @@ else
             ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
             _ => "Detached"
         };
+
+    private static RenderFragment EndpointLink(string? address) => builder =>
+    {
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            builder.AddContent(0, "none");
+            return;
+        }
+
+        if (!IsLinkEndpoint(address))
+        {
+            builder.AddContent(1, address);
+            return;
+        }
+
+        builder.OpenElement(2, "a");
+        builder.AddAttribute(3, "class", "endpoint-link");
+        builder.AddAttribute(4, "href", address);
+        builder.AddAttribute(5, "target", "_blank");
+        builder.AddAttribute(6, "rel", "noopener noreferrer");
+        builder.AddContent(7, address);
+        builder.CloseElement();
+    };
+
+    private static bool IsLinkEndpoint(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
+        (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+         uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
 }

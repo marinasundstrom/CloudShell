@@ -50,7 +50,7 @@ else
                 <span class="state-dot @(status.IsConnected ? "state-running" : "state-stopped")"></span>
                 <div>
                     <strong>@(status.IsConnected ? "Docker Engine connected" : "Docker Engine unavailable")</strong>
-                    <span>@status.Endpoint</span>
+                    <span>@EndpointLink(status.Endpoint.ToString())</span>
                 </div>
             </div>
             @if (!status.IsConnected && status.Error is not null)
@@ -354,6 +354,34 @@ else
 
     private static string GetLogsActionLabel(int logCount) =>
         logCount == 1 ? "Logs" : $"Logs ({logCount})";
+
+    private static RenderFragment EndpointLink(string? address) => builder =>
+    {
+        if (string.IsNullOrWhiteSpace(address))
+        {
+            builder.AddContent(0, "none");
+            return;
+        }
+
+        if (!IsLinkEndpoint(address))
+        {
+            builder.AddContent(1, address);
+            return;
+        }
+
+        builder.OpenElement(2, "a");
+        builder.AddAttribute(3, "class", "endpoint-link");
+        builder.AddAttribute(4, "href", address);
+        builder.AddAttribute(5, "target", "_blank");
+        builder.AddAttribute(6, "rel", "noopener noreferrer");
+        builder.AddContent(7, address);
+        builder.CloseElement();
+    };
+
+    private static bool IsLinkEndpoint(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
+        (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+         uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
 
     private static string BuildLogsRoute(Dictionary<string, string?> query) =>
         "/logs?" + string.Join(
