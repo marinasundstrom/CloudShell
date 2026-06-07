@@ -327,6 +327,23 @@ public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuil
 
     IExecutableApplicationResourceBuilder WithEndpoint(string? endpoint);
 
+    IExecutableApplicationResourceBuilder WithEndpointPort(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "http",
+        ResourceExposureScope exposure = ResourceExposureScope.Local);
+
+    IExecutableApplicationResourceBuilder WithHttpEndpoint(
+        int? port = null,
+        int targetPort = 80,
+        string name = "http");
+
+    IExecutableApplicationResourceBuilder WithHttpsEndpoint(
+        int? port = null,
+        int targetPort = 443,
+        string name = "https");
+
     IExecutableApplicationResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
 
@@ -416,6 +433,37 @@ internal sealed class ExecutableApplicationResourceBuilder(
         };
         return this;
     }
+
+    public IExecutableApplicationResourceBuilder WithEndpointPort(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "http",
+        ResourceExposureScope exposure = ResourceExposureScope.Local)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        declared.Definition = declared.Definition with
+        {
+            Endpoint = null,
+            EndpointPorts = declared.Definition.EndpointPorts
+                .Where(endpoint => !string.Equals(endpoint.Name, name, StringComparison.OrdinalIgnoreCase))
+                .Append(new ServicePort(name, targetPort, port, protocol, exposure))
+                .ToArray()
+        };
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder WithHttpEndpoint(
+        int? port = null,
+        int targetPort = 80,
+        string name = "http") =>
+        WithEndpointPort(name, targetPort, port, "http");
+
+    public IExecutableApplicationResourceBuilder WithHttpsEndpoint(
+        int? port = null,
+        int targetPort = 443,
+        string name = "https") =>
+        WithEndpointPort(name, targetPort, port, "https");
 
     public IExecutableApplicationResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)

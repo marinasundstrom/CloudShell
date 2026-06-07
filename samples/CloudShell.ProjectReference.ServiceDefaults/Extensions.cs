@@ -11,7 +11,13 @@ public static class Extensions
     public static WebApplicationBuilder AddServiceDefaults(this WebApplicationBuilder builder)
     {
         builder.Services.AddHealthChecks();
+        builder.Services.AddServiceDiscovery();
         builder.Services.AddHttpClient();
+        builder.Services.ConfigureHttpClientDefaults(http =>
+        {
+            http.AddServiceDiscovery();
+        });
+
         return builder;
     }
 
@@ -33,10 +39,13 @@ public static class Extensions
         string name,
         string resourceName,
         string endpointName) =>
-        services.AddHttpClient(name, (serviceProvider, client) =>
+        services.AddHttpClient(name, client =>
         {
-            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-            client.BaseAddress = configuration.GetRequiredResourceUri(resourceName, endpointName);
+            var host = string.Equals(endpointName, "http", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(endpointName, "https", StringComparison.OrdinalIgnoreCase)
+                ? resourceName
+                : $"_{endpointName}.{resourceName}";
+            client.BaseAddress = new Uri($"https+http://{host}");
         });
 
     public static Uri GetRequiredResourceUri(

@@ -26,6 +26,7 @@ app.MapGet("/upstream", async (
     return Results.Ok(new
     {
         frontend = "Project Reference Frontend",
+        logicalApiEndpoint = "https+http://project-reference-api",
         resolvedApiEndpoint = endpoint.ToString(),
         upstream = message
     });

@@ -18,13 +18,16 @@ The frontend resource uses:
 
 Both projects reference `CloudShell.ProjectReference.ServiceDefaults`, similar
 to an Aspire ServiceDefaults project. It registers common health endpoints,
-HTTP client defaults, and a `AddResourceHttpClient(...)` helper for resolving
-CloudShell service discovery endpoints.
+HTTP client defaults, `Microsoft.Extensions.ServiceDiscovery`, and a
+`AddResourceHttpClient(...)` helper that uses Aspire-style logical URIs such as
+`https+http://project-reference-api`.
 
 CloudShell starts both projects with `dotnet watch` by default. The API omits a
 port, so CloudShell assigns a stable local HTTP endpoint. The frontend receives
 that resolved endpoint through Aspire-compatible service discovery environment
 variables and uses a named `HttpClient` registered from the resource reference.
+The logical client URI is resolved by the service discovery handler at request
+time.
 
 ## Run
 
