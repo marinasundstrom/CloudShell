@@ -21,7 +21,7 @@ internal sealed class CloudShellExtensionBuilder(
     public IServiceCollection Services { get; } = services;
 
     public ICloudShellExtensionBuilder RegisterView<TComponent>() =>
-        RegisterView<TComponent>(NavItemTarget.GetViewId(typeof(TComponent)));
+        RegisterView<TComponent>(ShellViewKeys.For<TComponent>());
 
     public ICloudShellExtensionBuilder RegisterView<TComponent>(string id)
     {

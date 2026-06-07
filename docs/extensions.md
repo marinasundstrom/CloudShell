@@ -219,6 +219,16 @@ public static class AcmeViews
 }
 ```
 
+If the component type itself is the public contract, use `ShellViewKeys` to
+publish the same default key that `RegisterView<TComponent>()` uses:
+
+```csharp
+public static class AcmeViews
+{
+    public static readonly string Cluster = ShellViewKeys.For<Pages.AcmeCluster>();
+}
+```
+
 Register the view with that key:
 
 ```csharp

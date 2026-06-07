@@ -30,6 +30,13 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void ShellViewKeys_MapsComponentTypesToDefaultViewIds()
+    {
+        Assert.Equal(typeof(SamplePage).FullName, ShellViewKeys.For<SamplePage>());
+        Assert.Equal(typeof(SamplePage).FullName, ShellViewKeys.For(typeof(SamplePage)));
+    }
+
+    [Fact]
     public void AddExtension_RegistersResourceProvidersInTheServiceCollection()
     {
         var services = new ServiceCollection();
