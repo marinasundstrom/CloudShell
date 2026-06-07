@@ -10,6 +10,11 @@ The explicit UI and Control Plane registrations are useful for split
 deployments. The combined registration is the convenience path for local
 development and self-contained deployments.
 
+The reusable shell UI and hosting helpers live in `CloudShell.Hosting`, a Razor
+class library that references ASP.NET Core. Web SDK projects reference
+`CloudShell.Hosting` and keep their own `Program.cs`, appsettings, environment,
+and scenario-specific extension registrations.
+
 ## UI-Only Host
 
 Use the UI-only host when an application wants CloudShell navigation, layout,
@@ -17,6 +22,9 @@ localization, authentication plumbing, and extension-provided views without
 hosting Control Plane stores or APIs.
 
 ```csharp
+using CloudShell.Hosting;
+using CloudShell.Hosting.Components;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder
@@ -40,10 +48,13 @@ See `samples/CloudShell.UiExtensionHost`.
 ## Combined Host
 
 For local development, the UI and Control Plane can run in the same ASP.NET Core
-process. This is the default shape used by `CloudShell.Host` and is available
-through the convenience `AddCloudShell` registration.
+process. This is the shape used by the `CloudShell.Host` development sample and
+is available through the convenience `AddCloudShell` registration.
 
 ```csharp
+using CloudShell.Hosting;
+using CloudShell.Hosting.Components;
+
 var builder = WebApplication.CreateBuilder(args);
 
 var cloudShell = builder

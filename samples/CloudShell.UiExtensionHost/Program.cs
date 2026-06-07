@@ -1,6 +1,6 @@
 using CloudShell.Abstractions.Hosting;
-using CloudShell.Host.Components;
-using CloudShell.Host.Hosting;
+using CloudShell.Hosting;
+using CloudShell.Hosting.Components;
 using CloudShell.UiExtensionHost;
 
 var builder = WebApplication.CreateBuilder(args);

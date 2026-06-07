@@ -1,15 +1,17 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.ControlPlane.Hosting;
-using CloudShell.Host.Localization;
+using CloudShell.Hosting.Localization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
-namespace CloudShell.Host.Hosting;
+namespace CloudShell.Hosting;
 
 public static class CloudShellHostApplicationExtensions
 {

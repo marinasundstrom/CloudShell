@@ -12,16 +12,14 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.14.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
-    <ProjectReference Include="..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
+    <ProjectReference Include="..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
     <ProjectReference Include="..\CloudShell.Providers.Applications\CloudShell.Providers.Applications.csproj" />
     <ProjectReference Include="..\CloudShell.Providers.Configuration\CloudShell.Providers.Configuration.csproj" />
     <ProjectReference Include="..\CloudShell.Providers.Docker\CloudShell.Providers.Docker.csproj" />
-    <ProjectReference Include="..\CloudShell.Persistence\CloudShell.Persistence.csproj" />
   </ItemGroup>
 
 </Project>

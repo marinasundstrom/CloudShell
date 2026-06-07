@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Host.Components;
-using CloudShell.Host.Hosting;
+using CloudShell.Hosting;
+using CloudShell.Hosting.Components;
 using CloudShell.ResourceHost;
 
 var builder = WebApplication.CreateBuilder(args);

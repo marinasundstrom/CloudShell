@@ -112,7 +112,8 @@ owning provider. See [Resource templates](docs/resource-templates.md).
 
 ## Projects
 
-- `CloudShell.Host`: Blazor shell, layout, built-in Resource Manager, Extensions, and Observability views.
+- `CloudShell.Hosting`: Razor class library for the Blazor shell, layout, static assets, built-in Resource Manager, Extensions, and Observability views.
+- `CloudShell.Host`: development sample host that wires CloudShell UI, Control Plane, and local provider extensions together.
 - `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
 - `CloudShell.Configuration`: Microsoft `IConfiguration` provider for CloudShell configuration services.
@@ -155,6 +156,11 @@ Useful routes:
 - `/api/control-plane/v1`: versioned Control Plane API.
 - `<configuration-service-endpoint>/api/configuration/entries?resourceId=...`: token-authenticated configuration service API.
 - `/openapi/control-plane-v1.json`: OpenAPI document for generated clients.
+
+Minimal host samples are also available:
+
+- `samples/CloudShell.UiExtensionHost`: hosts only the CloudShell UI and a custom UI extension.
+- `samples/CloudShell.ResourceHost`: hosts CloudShell UI and Control Plane together with a sample resource provider.
 
 ## Test
 

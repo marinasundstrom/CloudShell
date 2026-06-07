@@ -4,7 +4,9 @@ CloudShell uses ASP.NET Core localization for host-owned UI. The selected UI lan
 
 ## Configure available languages
 
-The language picker shows the cultures listed in `CloudShell.Host/appsettings.json`:
+The language picker shows the cultures listed by the consuming host's
+`Localization` configuration section. The development sample configures this in
+`CloudShell.Host/appsettings.json`:
 
 ```json
 {
@@ -19,10 +21,11 @@ Add a culture code to `SupportedCultures` only after the host has resources for 
 
 ## Add host translations
 
-Host-owned strings use `IStringLocalizer<SharedResource>`. Add translations under `CloudShell.Host/Resources` using the shared resource name:
+Shell-owned strings use `IStringLocalizer<SharedResource>`. Add translations
+under `CloudShell.Hosting/Resources` using the shared resource name:
 
 ```text
-CloudShell.Host/Resources/SharedResource.sv-SE.resx
+CloudShell.Hosting/Resources/SharedResource.sv-SE.resx
 ```
 
 Use the English source text as the resource key. If a key is missing, ASP.NET Core falls back to the key text.

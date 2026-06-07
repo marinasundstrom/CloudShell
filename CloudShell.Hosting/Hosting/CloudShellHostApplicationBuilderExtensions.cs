@@ -1,17 +1,18 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.Authentication;
-using CloudShell.Host.Localization;
-using CloudShell.Host.ResourceManager;
-using CloudShell.Host.Shell;
+using CloudShell.Hosting.Localization;
+using CloudShell.Hosting.ResourceManager;
+using CloudShell.Hosting.Shell;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FluentUI.AspNetCore.Components;
 using System.Globalization;
 
-namespace CloudShell.Host.Hosting;
+namespace CloudShell.Hosting;
 
 public static class CloudShellHostApplicationBuilderExtensions
 {
@@ -54,6 +55,9 @@ public static class CloudShellHostApplicationBuilderExtensions
 
     private static void AddCloudShellUiServices(WebApplicationBuilder builder)
     {
+        builder.Configuration["ReloadStaticAssetsAtRuntime"] ??= "false";
+        StaticWebAssetsLoader.UseStaticWebAssets(builder.Environment, builder.Configuration);
+
         builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
         builder.Services.AddFluentUIComponents();
         builder.Services.AddRazorComponents()

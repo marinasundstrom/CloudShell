@@ -1,7 +1,7 @@
 using CloudShell.Abstractions.Extensions;
-using CloudShell.Host.Components.Pages.Logs;
+using CloudShell.Hosting.Components.Pages.Logs;
 
-namespace CloudShell.Host.Shell;
+namespace CloudShell.Hosting.Shell;
 
 public sealed class ObservabilityExtension : ICloudShellExtension
 {

@@ -1,8 +1,7 @@
 using CloudShell.Abstractions.Extensions;
-using CloudShell.Host.Components.Pages;
-using CloudShell.Host.Components.Pages.ClickMe;
+using CloudShell.Hosting.Components.Pages;
 
-namespace CloudShell.Host.Shell;
+namespace CloudShell.Hosting.Shell;
 
 public sealed class CoreShellExtension : ICloudShellExtension
 {
@@ -18,19 +17,6 @@ public sealed class CoreShellExtension : ICloudShellExtension
     {
         builder
             .AddView<Home>("Overview", "/", "grid", 0)
-            .AddCustomView(
-                "cloudshell.click-me",
-                "Click me",
-                "/click-me",
-                "pulse",
-                10,
-                description: "A simple shell view contributed through the CloudShell extension model.")
-            .AddCustomViewMenuItem<ClickMeCounter>(
-                "cloudshell.click-me",
-                "counter",
-                "Counter",
-                10,
-                "Click the button to update local component state.")
             .AddView<Components.Pages.Extensions.Extensions>("Extensions", "/extensions", "plug", 90, "Platform");
     }
 }

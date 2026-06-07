@@ -1,8 +1,8 @@
 ﻿@inject ShellCatalog ShellCatalog
 
-<Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="ShellCatalog.ViewAssemblies" NotFoundPage="typeof(Pages.NotFound)">
+<Router AppAssembly="typeof(Routes).Assembly" AdditionalAssemblies="ShellCatalog.ViewAssemblies" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
-        @if (routeData.PageType.Assembly == typeof(Program).Assembly ||
+        @if (routeData.PageType.Assembly == typeof(Routes).Assembly ||
             ShellCatalog.IsActiveRouteComponent(routeData.PageType))
         {
             <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />

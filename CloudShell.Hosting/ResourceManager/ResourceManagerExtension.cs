@@ -1,8 +1,8 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.ControlPlane.ResourceManager;
-using CloudShell.Host.Components.Pages.Resources;
+using CloudShell.Hosting.Components.Pages.Resources;
 
-namespace CloudShell.Host.ResourceManager;
+namespace CloudShell.Hosting.ResourceManager;
 
 public sealed class ResourceManagerExtension : ICloudShellExtension
 {

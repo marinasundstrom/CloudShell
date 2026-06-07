@@ -1,8 +1,9 @@
 # Persistence configuration
 
-CloudShell persistence is configured under `Persistence` in
-`CloudShell.Host/appsettings.json`. Resource data and local ASP.NET Core
-Identity data use separate connection strings.
+CloudShell persistence is configured under `Persistence` in the consuming host's
+configuration. The development sample uses `CloudShell.Host/appsettings.json`.
+Resource data and local ASP.NET Core Identity data use separate connection
+strings.
 
 Resource persistence stores platform metadata only: resource registrations,
 resource groups, and resource-to-group assignments. Provider-specific resource
@@ -11,7 +12,8 @@ authority for their own configuration stores.
 
 For example, configuration service resources are registered and grouped in the
 core database, but their key-value entries and access tokens are stored by the
-configuration provider in `CloudShell.Host/Data/configuration-stores.json`.
+configuration provider. The development sample stores them in
+`CloudShell.Host/Data/configuration-stores.json`.
 
 ## Programmatic Declarations
 
@@ -28,8 +30,8 @@ See [Programmatic resources](programmatic-resources.md).
 
 ## SQLite
 
-SQLite is the default and resolves relative data-source paths from the
-`CloudShell.Host` content root.
+SQLite is the default and resolves relative data-source paths from the consuming
+host's content root.
 
 ```json
 {

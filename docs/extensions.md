@@ -145,23 +145,23 @@ builder
 
 Menu items are rendered in the left rail using the same interaction pattern as resource configuration views. The active menu item is stored in the `item` query string, so shell-hosted views can be linked directly, for example `/acme/workspace?item=settings`.
 
-A minimal counter view is enough to prove the view contribution path:
+A minimal workspace view is enough to prove the view contribution path:
 
 ```csharp
 builder
     .AddCustomView(
-        id: "cloudshell.click-me",
-        title: "Click me",
-        route: "/click-me",
+        id: "sample.workspace",
+        title: "Sample workspace",
+        route: "/sample-workspace",
         icon: "pulse",
         order: 10,
         description: "A simple shell view contributed through the CloudShell extension model.")
-    .AddCustomViewMenuItem<ClickMeCounter>(
-        viewId: "cloudshell.click-me",
-        id: "counter",
-        title: "Counter",
+    .AddCustomViewMenuItem<SampleWorkspaceOverview>(
+        viewId: "sample.workspace",
+        id: "overview",
+        title: "Overview",
         order: 10,
-        description: "Click the button to update local component state.");
+        description: "Show the sample workspace overview.");
 ```
 
 ## Start page

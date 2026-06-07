@@ -3,7 +3,7 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
 
-namespace CloudShell.Host.Shell;
+namespace CloudShell.Hosting.Shell;
 
 public sealed class ShellCatalog(
     CloudShellExtensionRegistry extensionRegistry,

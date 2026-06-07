@@ -9,10 +9,10 @@
     <base href="/" />
     <ResourcePreloader />
     <link rel="stylesheet" href="@Assets["_content/Microsoft.FluentUI.AspNetCore.Components/css/reboot.css"]" />
-    <link rel="stylesheet" href="@Assets["app.css"]" />
-    <link rel="stylesheet" href="@Assets["CloudShell.Host.styles.css"]" />
+    <link rel="stylesheet" href="@Assets["_content/CloudShell.Hosting/app.css"]" />
+    <link rel="stylesheet" href="@Assets["_content/CloudShell.Hosting/CloudShell.Hosting.bundle.scp.css"]" />
     <ImportMap />
-    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="icon" type="image/png" href="@Assets["_content/CloudShell.Hosting/favicon.png"]" />
     <script>
         try {
             var navCollapsed = localStorage.getItem("cloudshell.navCollapsed");
@@ -30,7 +30,7 @@
     <Routes />
     <ReconnectModal />
     <script src="@Assets["_content/Microsoft.FluentUI.AspNetCore.Components/Microsoft.FluentUI.AspNetCore.Components.lib.module.js"]" type="module" async></script>
-    <script src="@Assets["shell.js"]"></script>
+    <script src="@Assets["_content/CloudShell.Hosting/shell.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
 

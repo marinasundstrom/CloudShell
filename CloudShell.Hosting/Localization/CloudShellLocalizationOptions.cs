@@ -1,4 +1,4 @@
-namespace CloudShell.Host.Localization;
+namespace CloudShell.Hosting.Localization;
 
 public sealed class CloudShellLocalizationOptions
 {

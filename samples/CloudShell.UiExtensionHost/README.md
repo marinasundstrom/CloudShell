@@ -26,9 +26,13 @@ http://localhost:5101/sample-workspace
 
 ## What To Look For
 
+- The project references `CloudShell.Hosting`, the reusable Razor class library
+  that carries CloudShell shell components and static assets.
 - `Program.cs` uses `builder.AddCloudShellUi()`.
 - `SampleWorkspaceExtension` contributes a shell navigation item and start
   route.
+- `Pages/SampleWorkspace.razor` is a normal routable Razor component
+  contributed by the sample extension.
 - The sample uses `app.UseCloudShellUiAsync()` and
   `app.MapCloudShellUi<App>()`, so unknown routes fall back to the Blazor shell
   but Control Plane endpoints such as `/api/control-plane/v1/resources` are not
