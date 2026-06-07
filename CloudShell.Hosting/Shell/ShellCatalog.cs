@@ -92,6 +92,11 @@ public sealed class ShellCatalog(
             .FirstOrDefault(view => string.Equals(view.Id, viewId, StringComparison.OrdinalIgnoreCase))
         ?? GetCustomViewAsShellView(viewId);
 
+    public ShellViewContribution? GetView(Type viewType) =>
+        Extensions
+            .SelectMany(extension => extension.Views)
+            .FirstOrDefault(view => view.ComponentType == viewType);
+
     public string? GetViewRoute(string viewId) =>
         GetView(viewId)?.Route;
 

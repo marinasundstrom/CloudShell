@@ -34,6 +34,10 @@ CloudShell-owned pages navigate by component type or view ID, validates route
 arguments against registered views, and still permits direct href navigation for
 external or non-registered paths.
 
+Extensions should expose stable view-key constants when other extensions need
+to navigate without referencing the UI component assembly. Callers that already
+reference the UI assembly should prefer component-type navigation.
+
 The `AddCustomView` API name describes the implementation path: the extension is
 adding a composed view hosted by the shell instead of a standalone `@page`
 component. In the product experience, these are still ordinary shell views and

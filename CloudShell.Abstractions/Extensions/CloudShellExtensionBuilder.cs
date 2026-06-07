@@ -44,7 +44,7 @@ internal sealed class CloudShellExtensionBuilder(
         int order,
         string group = "Workspace") =>
         AddNavigationItem<TView>(
-            NavItemTarget.GetViewId(typeof(TView)),
+            GetRegisteredView(typeof(TView)).Id,
             text,
             icon,
             order,
@@ -198,7 +198,7 @@ internal sealed class CloudShellExtensionBuilder(
     }
 
     public ICloudShellExtensionBuilder UseStartView<TView>() =>
-        UseStartView(NavItemTarget.GetViewId(typeof(TView)));
+        UseStartView(GetRegisteredView(typeof(TView)).Id);
 
     public ICloudShellExtensionBuilder AddResourceProvider<TProvider>()
         where TProvider : class, IResourceProvider
@@ -347,11 +347,21 @@ internal sealed class CloudShellExtensionBuilder(
         ?? throw new InvalidOperationException(
             $"View '{viewId}' must be registered before adding navigation items or start routes that reference it.");
 
+    private ShellViewContribution GetRegisteredView(Type viewType) =>
+        _views.FirstOrDefault(view => view.ComponentType == viewType)
+        ?? throw new InvalidOperationException(
+            $"View component '{viewType.FullName}' must be registered before adding navigation items or start routes that reference it.");
+
     private string ResolveTargetHref(NavItemTarget target)
     {
         if (!string.IsNullOrWhiteSpace(target.ViewId))
         {
             return GetRegisteredView(target.ViewId).Route;
+        }
+
+        if (target.ViewType is not null)
+        {
+            return GetRegisteredView(target.ViewType).Route;
         }
 
         if (!string.IsNullOrWhiteSpace(target.Href))

@@ -17,11 +17,12 @@ public sealed class ResourceManagerExtension : ICloudShellExtension
     public void Configure(ICloudShellExtensionBuilder builder)
     {
         builder
-            .RegisterView<Resources>()
+            .RegisterView<Resources>(ResourceManagerViews.Resources)
             .AddNavigationItem<Resources>("Resources", "server", 10)
-            .RegisterView<AddResource>()
-            .RegisterView<CreateResourceGroup>()
-            .RegisterView<ResourceTemplates>()
+            .RegisterView<AddResource>(ResourceManagerViews.AddResource)
+            .RegisterView<CreateResourceGroup>(ResourceManagerViews.CreateResourceGroup)
+            .RegisterView<ResourceTemplates>(ResourceManagerViews.ResourceTemplates)
+            .RegisterView<UpdateResource>(ResourceManagerViews.UpdateResource)
             .AddResourceProvider<CloudShellResourceProvider>()
             .AddResourceProvider<ManagedResourceProvider>();
     }

@@ -11,7 +11,10 @@ public sealed class CloudShellNavigator(
     NavigationManager navigationManager) : ICloudShellNavigator
 {
     public string GetHref<TView>(object? routeValues = null) =>
-        GetHref(NavItemTarget.ForView<TView>(), routeValues);
+        BuildViewHref(
+            shellCatalog.GetView(typeof(TView))
+                ?? throw new InvalidOperationException($"View component '{typeof(TView).FullName}' is not registered or is not active."),
+            routeValues);
 
     public string GetHref(string viewId, object? routeValues = null)
     {
@@ -30,6 +33,14 @@ public sealed class CloudShellNavigator(
         if (!string.IsNullOrWhiteSpace(target.ViewId))
         {
             return GetHref(target.ViewId, routeValues);
+        }
+
+        if (target.ViewType is not null)
+        {
+            return BuildViewHref(
+                shellCatalog.GetView(target.ViewType)
+                    ?? throw new InvalidOperationException($"View component '{target.ViewType.FullName}' is not registered or is not active."),
+                routeValues);
         }
 
         if (!string.IsNullOrWhiteSpace(target.Href))

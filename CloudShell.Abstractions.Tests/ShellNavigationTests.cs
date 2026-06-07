@@ -37,6 +37,19 @@ public sealed class ShellNavigationTests
     }
 
     [Fact]
+    public void GetHref_UsesComponentTypeForViewsRegisteredWithStableIds()
+    {
+        var navigator = CreateNavigator<ExplicitViewIdExtension>();
+
+        var href = navigator.GetHref<ParameterizedPage>(new
+        {
+            ResourceId = "docker:engine"
+        });
+
+        Assert.Equal("/resources/docker%3Aengine/edit", href);
+    }
+
+    [Fact]
     public void GetHref_RejectsMissingRequiredRouteValues()
     {
         var navigator = CreateNavigator<ParameterizedViewExtension>();

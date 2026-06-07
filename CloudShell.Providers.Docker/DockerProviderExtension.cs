@@ -39,6 +39,6 @@ public sealed class DockerProviderExtension : ICloudShellExtension
                 "Configuration",
                 20,
                 showsApplyButton: true)
-            .RegisterView<Pages.DockerContainers>();
+            .RegisterView<Pages.DockerContainers>(DockerProviderViews.Containers);
     }
 }

@@ -199,6 +199,46 @@ Use direct href navigation when there is no registered view:
 Navigator.NavigateTo(NavItemTarget.ForHref("https://docs.example.com/acme"));
 ```
 
+## Cross-extension navigation
+
+Use component types whenever the caller intentionally depends on the UI assembly
+that owns the view:
+
+```csharp
+Navigator.NavigateTo<Pages.AcmeCluster>(
+    new { ClusterId = "west-eu" });
+```
+
+When another extension should not reference the UI assembly, expose stable view
+keys from the extension itself or from a small abstractions package:
+
+```csharp
+public static class AcmeViews
+{
+    public const string Cluster = "acme.cluster";
+}
+```
+
+Register the view with that key:
+
+```csharp
+builder.RegisterView<Pages.AcmeCluster>(AcmeViews.Cluster);
+```
+
+Consumers can then navigate by ID while staying decoupled from the component
+type:
+
+```csharp
+Navigator.NavigateToView(
+    AcmeViews.Cluster,
+    new { ClusterId = "west-eu" });
+```
+
+This gives CloudShell extensions two predictable contracts: strongly typed
+navigation for close dependencies, and stable view IDs for cross-extension or
+abstractions-only dependencies. Direct href targets remain appropriate for
+external links and routes that are not registered as shell views.
+
 ## Shell-hosted views
 
 Use shell-hosted views for CMS-like integrations that should use CloudShell's common workspace layout instead of owning an entire routable page. A shell-hosted view contributes one sidebar navigation item and a set of extension-owned menu items. The host owns the route, layout, ordering, and validation; the extension owns the menu item components.

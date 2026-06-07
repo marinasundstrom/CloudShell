@@ -153,7 +153,7 @@ public sealed class ExtensionRegistrationTests
 
         Assert.Equal("sample.nav", item.Id);
         Assert.Equal("/sample-overview", item.Href);
-        Assert.Equal(typeof(SampleOverviewPage).FullName, item.Target.ViewId);
+        Assert.Equal(typeof(SampleOverviewPage), item.Target.ViewType);
         Assert.False(item.ReplacesExisting);
     }
 
