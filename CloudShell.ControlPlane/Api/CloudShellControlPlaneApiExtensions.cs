@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
@@ -86,6 +87,14 @@ public static class CloudShellControlPlaneApiExtensions
 
         api.MapGet("/logs/{logId}/stream", StreamLogEntries)
             .WithName("CloudShellControlPlane_StreamLogEntries");
+
+        api.MapGet("/traces", ListTraceSpans)
+            .WithName("CloudShellControlPlane_ListTraceSpans");
+
+        api.MapPost("/traces/ingest", IngestTraceSpans)
+            .WithName("CloudShellControlPlane_IngestTraceSpans")
+            .AllowAnonymous()
+            .ExcludeFromDescription();
 
         return api;
     }
@@ -418,6 +427,24 @@ public static class CloudShellControlPlaneApiExtensions
             "application/x-ndjson");
     }
 
+    private static IResult ListTraceSpans(
+        string? resourceId,
+        string? traceId,
+        int? maxSpans,
+        ITraceStore traces) =>
+        Results.Ok(traces.GetSpans(
+            resourceId,
+            traceId,
+            Math.Clamp(maxSpans ?? 200, 1, 1000)));
+
+    private static IResult IngestTraceSpans(
+        TraceIngestRequest request,
+        ITraceStore traces)
+    {
+        traces.AddSpans(request.Spans);
+        return Results.Accepted();
+    }
+
     private static ResourceResponse CreateResourceResponse(
         IResourceManagerStore resourceManager,
         CloudResource resource) =>
@@ -455,4 +482,6 @@ public static class CloudShellControlPlaneApiExtensions
             Title = title,
             Detail = detail
         });
+
+    private sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);
 }

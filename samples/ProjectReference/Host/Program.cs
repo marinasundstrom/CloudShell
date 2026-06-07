@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"];
 var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];
+var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"];
 
 var cloudShell = builder
     .AddCloudShell()
@@ -25,7 +26,8 @@ cloudShell.Resources(resources =>
         "../Api/CloudShell.ProjectReferenceApi.csproj")
         .WithHttpHealthCheck("/health")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
-        .WithOtlpExporter(otlpEndpoint, otlpProtocol);
+        .WithOtlpExporter(otlpEndpoint, otlpProtocol)
+        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty);
 
     resources
         .AddAspNetCoreProject(
@@ -36,6 +38,7 @@ cloudShell.Resources(resources =>
         .WithHttpHealthCheck("/healthz")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
+        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
         .WithReference(api)
         .DependsOn(api);
 });

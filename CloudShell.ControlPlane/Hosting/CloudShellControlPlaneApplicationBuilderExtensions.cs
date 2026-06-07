@@ -1,9 +1,11 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Logs;
+using CloudShell.ControlPlane.Observability;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Persistence;
 using Microsoft.AspNetCore.Builder;
@@ -37,6 +39,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<IResourceRegistrationStore, AuthorizedResourceRegistrationStore>();
         builder.Services.AddScoped<IResourceManagerStore, ResourceManagerStore>();
         builder.Services.AddScoped<ILogStore, LogStore>();
+        builder.Services.AddSingleton<ITraceStore, InMemoryTraceStore>();
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
         builder.Services.AddSingleton<ResourceOrchestratorSelectionStore>();

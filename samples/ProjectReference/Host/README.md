@@ -22,16 +22,25 @@ Both resources also enable OTLP export explicitly:
 ```
 
 The host reads that endpoint from `Observability:OtlpEndpoint` and
-`Observability:OtlpProtocol` in `appsettings.json`. The sample default is:
+`Observability:OtlpProtocol` in `appsettings.json`. The sample default points
+back at this host:
 
 ```text
-http://localhost:4317
+http://localhost:5104
 ```
 
-Run an OpenTelemetry collector, Aspire Dashboard, or another OTLP receiver on
-that endpoint before starting the resources if you want traces and metrics to
-be collected. CloudShell still writes stdout and stderr to the resource Logs
-view independently of OTLP export.
+The sample ServiceDefaults project instruments ASP.NET Core and HttpClient
+activity and posts span summaries back to CloudShell through:
+
+```text
+http://localhost:5104/api/control-plane/v1/traces/ingest
+```
+
+To see traces, run the host, start the API and frontend resources from Resource
+Manager, open `http://localhost:5218/upstream`, then open
+`/observability/traces`. The trace page refreshes while it is open. CloudShell
+keeps these spans in memory while the host is running. CloudShell still writes
+stdout and stderr to the resource Logs view independently of trace collection.
 
 Both projects reference `CloudShell.ProjectReference.ServiceDefaults`, similar
 to an Aspire ServiceDefaults project. It registers common health endpoints,

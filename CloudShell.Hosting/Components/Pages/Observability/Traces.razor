@@ -1,4 +1,7 @@
 @page "/observability/traces"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject ITraceStore TraceStore
 @inject IResourceManagerStore ResourceManager
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
@@ -62,6 +65,7 @@
         else
         {
             var observability = selected.EffectiveObservability;
+            var spans = TraceStore.GetSpans(selected.Id, maxSpans: 200);
 
             <div class="panel-header log-viewer-header">
                 <div>
@@ -91,10 +95,37 @@
                 <dd>@GetResourceAttributes(selected, observability)</dd>
             </dl>
 
-            <div class="empty-state compact">
-                <strong>@L["Trace ingestion is not connected"]</strong>
-                <span>@L["CloudShell can configure resources for OTLP export. A trace store/reader still needs to be connected before spans can be listed here."]</span>
+            <div class="panel-header log-viewer-header">
+                <div>
+                    <h2>@L["Recent spans"]</h2>
+                    <p>@L["{0} spans retained in memory", spans.Count]</p>
+                </div>
             </div>
+
+            @if (spans.Count == 0)
+            {
+                <div class="empty-state compact">
+                    <strong>@L["No spans received"]</strong>
+                    <span>@L["Start this resource and send traffic through it. Spans are retained only while CloudShell is running."]</span>
+                </div>
+            }
+            else
+            {
+                <div class="log-entry-list wrap" role="log" aria-label="@L["Recent spans"]">
+                    @foreach (var span in spans)
+                    {
+                        <div class="log-entry">
+                            <time>@span.StartTime.ToLocalTime().ToString("HH:mm:ss")</time>
+                            <span class="log-entry-source">@span.Kind</span>
+                            <span class="log-entry-level">@span.Duration.TotalMilliseconds.ToString("0.#")ms</span>
+                            <pre>@span.Name
+trace @span.TraceId
+span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.ParentSpanId}")
+@GetSpanAttributes(span)</pre>
+                        </div>
+                    }
+                </div>
+            }
         }
     </div>
 </section>
@@ -102,6 +133,22 @@
 @code {
     [SupplyParameterFromQuery]
     public string? ResourceId { get; set; }
+
+    private System.Threading.Timer? refreshTimer;
+
+    protected override void OnInitialized()
+    {
+        refreshTimer = new System.Threading.Timer(
+            _ => _ = InvokeAsync(StateHasChanged),
+            null,
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(2));
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
 
     private IReadOnlyList<CloudResource> GetTraceResources() =>
         ResourceManager.GetResources()
@@ -170,4 +217,9 @@
 
         return string.Join(", ", attributes.Select(attribute => $"{attribute.Key}={attribute.Value}"));
     }
+
+    private static string GetSpanAttributes(TraceSpan span) =>
+        span.SpanAttributes.Count == 0
+            ? string.Empty
+            : string.Join(", ", span.SpanAttributes.Select(attribute => $"{attribute.Key}={attribute.Value}"));
 }
