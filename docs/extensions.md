@@ -316,6 +316,26 @@ Docker discovery runs in a background service and publishes an in-memory resourc
 
 Docker container sub-resources expose actions from the resource API. Running containers expose Stop, Pause, and Restart. Stopped containers expose Run. Paused containers expose Resume, Stop, and Restart.
 
+Docker can also be declared programmatically in the resource graph. The
+declarative API models Docker as the parent resource and containers as
+sub-resources:
+
+```csharp
+controlPlane.Resources(resources =>
+{
+    var docker = resources.AddDocker("docker:dev", "Development Docker");
+
+    var redis = docker
+        .AddContainer("redis", "redis", "7.2")
+        .DependsOn("configuration:settings");
+});
+```
+
+`AddDocker()` declares the default local Docker Engine. `AddDocker(id, name)`
+allows more than one Docker parent to be modeled. Containers created from a
+Docker builder are parented to that specific Docker resource, while
+`DependsOn(...)` records normal resource graph dependencies.
+
 The Docker endpoint is discovered from:
 
 1. An endpoint configured through `AddDockerProvider`.

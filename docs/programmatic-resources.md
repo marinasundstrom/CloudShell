@@ -36,21 +36,34 @@ types. Built-in methods include:
   `CloudShell.Providers.Applications`.
 - `AddDocker(...)` from `CloudShell.Providers.Docker`.
 
-## Aspire-Like Application Workflow
+## Declarative Resource Graph
 
 Programmatic resources can also be used in an Aspire-like style for local
 development. In this workflow, resource declarations return builder objects that
 can be passed to executable applications. This keeps resource relationships
 strongly connected in code instead of repeating string IDs at each call site.
 
-Executable applications distinguish endpoint references from startup ordering:
+CloudShell uses the same terminology across providers for resource graph
+relationships:
 
-- `WithReference(resource)` means the application should receive endpoint
-  configuration for that resource.
-- `WaitFor(resource)` means the application should wait for or start after that
-  resource, without automatically receiving its endpoint.
-- `WithServiceDiscovery()` enables service discovery variables for the
-  application's referenced resources.
+- `DependsOn(resource)` is the standard dependency relationship. It records that
+  one resource depends on another resource for topology or ordering.
+- Provider builders can expose parent-child APIs such as
+  `resources.AddDocker().AddContainer(...)` when a resource is owned by another
+  resource.
+- String IDs remain available as a lower-level escape hatch, but typed builders
+  should be preferred when both resources are declared in the same callback.
+
+Executable applications have one additional Aspire-compatible concept:
+endpoint references. `WithReference(resource)` records that the application wants
+endpoint/configuration values for another resource. It does not, by itself,
+enable service discovery variables. `WithServiceDiscovery()` is the opt-in that
+maps referenced resource endpoints into the .NET configuration shape. This keeps
+CloudShell open to other service discovery mechanisms, such as a dedicated
+service discovery service running in a container.
+
+`WaitFor(resource)` is the application-specific dependency method. It records a
+startup dependency without automatically passing endpoint configuration.
 
 ```csharp
 var configuration = resources.AddConfigurationStore(
@@ -76,16 +89,25 @@ resources
     .WithServiceDiscovery();
 ```
 
-`AddDocker()` declares the local Docker Engine resource. Containers are declared
-from that Docker resource with `AddContainer(name, image, tag)`, following the
-Aspire-style logical name shape. CloudShell derives the stable resource ID as
-`docker:container:<name>` and declares the container as a sub-resource of
-`docker:engine`. Use `DependsOn(...)` to add startup or topology dependencies
-without changing the container's parent relationship to the local Docker Engine.
-When you need a custom resource ID or display name, use
-`AddDocker().AddDockerContainer(id, name, image)`. To model more than one
-Docker parent, use `AddDocker(id, name)` and add containers from the returned
-Docker resource builder.
+`AddDocker()` declares the default local Docker Engine resource. Containers are
+declared from that Docker resource with `AddContainer(name, image, tag)`,
+following the Aspire-style logical name shape. CloudShell derives the stable
+container resource ID as `docker:container:<name>` and declares the container as
+a sub-resource of the Docker resource that created it.
+
+Use `DependsOn(...)` to add topology dependencies without changing the
+container's parent relationship to Docker. When you need a custom container
+resource ID or display name, use `AddDocker().AddDockerContainer(id, name,
+image)`. To model more than one Docker parent, use `AddDocker(id, name)` and
+add containers from the returned Docker resource builder:
+
+```csharp
+var devDocker = resources.AddDocker("docker:dev", "Development Docker");
+var testDocker = resources.AddDocker("docker:test", "Test Docker");
+
+var devRedis = devDocker.AddContainer("redis-dev", "redis", "7.2");
+var testRedis = testDocker.AddContainer("redis-test", "redis", "7.2");
+```
 
 When the application starts, CloudShell maps referenced resource endpoints into
 the .NET configuration shape used for service discovery, which provides a level
@@ -123,9 +145,8 @@ if (endpoint is not null)
 ```
 
 The generic `ICloudShellResourceBuilder` still supports string IDs as a lower
-level escape hatch, but typed executable application builders prefer passing
-resource objects to `WithReference(...)`, `WithReferences(...)`, and
-`WaitFor(...)`.
+level escape hatch, but typed builders should prefer resource-builder overloads
+for dependencies, endpoint references, and provider-specific relationships.
 
 The host sample declares only `Example Configuration` programmatically. Other
 resources are expected to be added through the Resource Manager UI unless a host
@@ -135,8 +156,8 @@ chooses to declare more of them in code.
 
 Programmatic declarations are registered when CloudShell starts. They appear in
 Resource Manager, participate in authorization, can be assigned to a resource
-group with `WithResourceGroup(...)`, and can declare dependencies with the
-provider-specific builder methods.
+group with `WithResourceGroup(...)`, and can declare dependencies with
+`DependsOn(...)` or provider-specific dependency methods.
 
 By default, programmatic resources are not persisted. The code declaration is
 the source of truth for the current process. If the declaration is removed from

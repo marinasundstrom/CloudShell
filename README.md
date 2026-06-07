@@ -83,6 +83,17 @@ Local Docker Engine
 └── Docker Container sub-resources
 ```
 
+Docker resources can also be declared in code. The fluent API models Docker as
+the parent resource and containers as sub-resources:
+
+```csharp
+controlPlane.Resources(resources =>
+{
+    var docker = resources.AddDocker("docker:dev", "Development Docker");
+    var redis = docker.AddContainer("redis", "redis", "7.2");
+});
+```
+
 Executable application resources are local dev processes. By default, they use a detached lifetime: CloudShell starts the process, persists the last known PID and process start time, and does not stop it when CloudShell exits. When CloudShell restarts, the provider uses that persisted process metadata to rediscover a still-running process without trusting a PID alone. A control-plane-scoped lifetime is also available for temporary helpers that should stop with CloudShell.
 
 ### Resource Groups
@@ -216,6 +227,11 @@ The Docker extension looks for a local Docker endpoint in this order:
 5. `/var/run/docker.sock`.
 
 After the Docker Engine resource is added through `/resources/add`, the Resource Manager shows the engine as a root resource and containers as sub-resources.
+
+The same shape is available declaratively through `resources.AddDocker()` or
+`resources.AddDocker(id, name)`. Containers are added from the returned Docker
+builder with `AddContainer(name, image, tag)` or `AddDockerContainer(id, name,
+image)`.
 
 Docker container sub-resources expose lifecycle actions based on current container state. Running containers can Stop, Pause, or Restart. Stopped containers can Run. Paused containers can Resume, Stop, or Restart.
 

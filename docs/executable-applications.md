@@ -93,9 +93,11 @@ settings during startup. If the configuration service is unavailable, the
 provider records unavailable status and the app continues running. The
 `/configuration` endpoint reports the provider status and currently loaded keys.
 
-Applications can also opt in to service discovery for referenced resources. When
-enabled, CloudShell maps referenced resource endpoints into environment variables
-using the .NET configuration shape:
+Applications can also opt in to Aspire-compatible service discovery for
+referenced resources. `WithReference(...)` records that an application wants
+endpoint/configuration values for another resource; `WithServiceDiscovery()` is
+the separate opt-in that maps those referenced resource endpoints into
+environment variables using the .NET configuration shape:
 
 ```text
 services__<resource-name>__<endpoint-name-or-scheme>__0=<endpoint-address>
@@ -109,8 +111,15 @@ variables.
 Endpoint variables are generated from the application's referenced resources,
 not from its wait dependencies. For declarative application resources,
 `WithReference(...)` records an endpoint reference, while `WaitFor(...)` records
-a startup dependency. CloudShell only emits endpoint variables when the
-referenced resource is registered in the same resource group.
+a startup dependency. The broader resource model uses `DependsOn(...)` as the
+standard dependency relationship; `WaitFor(...)` is the executable application
+builder's lifecycle-oriented dependency API. CloudShell only emits endpoint
+variables when the referenced resource is registered in the same resource group.
+
+Service discovery is intentionally opt-in. An application can reference or
+depend on resources without receiving generated environment variables, which
+leaves room for other discovery mechanisms such as a service discovery service
+running in a container.
 
 Applications can read the generated URLs directly through `IConfiguration`:
 
