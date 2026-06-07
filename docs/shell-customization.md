@@ -22,11 +22,17 @@ The current implementation supports programmatic customization:
 - `AddCustomView` for shell-hosted views that use CloudShell's common layout.
 - `AddCustomViewMenuItem<TComponent>` for menu items inside shell-hosted views.
 - `UseStartView` and `UseStartRoute` for selecting the shell start experience.
+- `ICloudShellNavigator` for optional strongly typed or view ID-based navigation.
 
 The built-in Overview item has the special navigation ID `overview`. A
 replacement changes the sidebar contribution and points to either a registered
 view or a direct href. Registered views still own routing through their
 component's `@page` directive.
+
+The navigator is deliberately a small layer over Blazor navigation. It lets
+CloudShell-owned pages navigate by component type or view ID, validates route
+arguments against registered views, and still permits direct href navigation for
+external or non-registered paths.
 
 The `AddCustomView` API name describes the implementation path: the extension is
 adding a composed view hosted by the shell instead of a standalone `@page`

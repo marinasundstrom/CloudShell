@@ -1,6 +1,6 @@
 ﻿@page "/"
 @inject ShellCatalog ShellCatalog
-@inject NavigationManager Navigation
+@inject ICloudShellNavigator ShellNavigator
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>CloudShell</PageTitle>
@@ -106,7 +106,7 @@
         if (!string.IsNullOrWhiteSpace(ShellCatalog.StartRoute) &&
             !ShellCatalog.StartRoute.Equals("/", StringComparison.Ordinal))
         {
-            Navigation.NavigateTo(ShellCatalog.StartRoute, replace: true);
+            ShellNavigator.NavigateToHref(ShellCatalog.StartRoute, replace: true);
         }
     }
 

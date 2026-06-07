@@ -86,12 +86,25 @@ public sealed class ShellCatalog(
                     .Select(menuItem => menuItem.ComponentType)))
             .Any(type => type == componentType);
 
-    public string? GetViewRoute(string viewId) =>
+    public ShellViewContribution? GetView(string viewId) =>
         Extensions
-            .SelectMany(extension => extension.Views.Select(view => new { view.Id, view.Route })
-                .Concat(extension.CustomViews.Select(view => new { view.Id, view.Route })))
+            .SelectMany(extension => extension.Views)
             .FirstOrDefault(view => string.Equals(view.Id, viewId, StringComparison.OrdinalIgnoreCase))
-            ?.Route;
+        ?? GetCustomViewAsShellView(viewId);
+
+    public string? GetViewRoute(string viewId) =>
+        GetView(viewId)?.Route;
+
+    private ShellViewContribution? GetCustomViewAsShellView(string viewId)
+    {
+        var customView = Extensions
+            .SelectMany(extension => extension.CustomViews)
+            .FirstOrDefault(view => string.Equals(view.Id, viewId, StringComparison.OrdinalIgnoreCase));
+
+        return customView is null
+            ? null
+            : new ShellViewContribution(customView.Id, customView.Route, typeof(Components.Pages.Shell.CustomShellView), []);
+    }
 
     private IReadOnlySet<string> GetReplacementNavigationItemIds() =>
         Extensions

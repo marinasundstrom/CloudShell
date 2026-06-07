@@ -161,6 +161,44 @@ builder
         order: 0);
 ```
 
+## Navigation
+
+Components can still use Blazor's `NavigationManager` directly for ordinary URL
+navigation. CloudShell also registers `ICloudShellNavigator` as an optional
+helper for product navigation where strongly typed views or stable view IDs are
+preferable to scattered route strings.
+
+```razor
+@inject ICloudShellNavigator Navigator
+
+<FluentButton OnClick="OpenCluster">Open</FluentButton>
+
+@code {
+    private void OpenCluster()
+    {
+        Navigator.NavigateTo<Pages.AcmeCluster>(
+            new { ClusterId = "west-eu" });
+    }
+}
+```
+
+The navigator validates route values against the registered view's `@page`
+template. Required route parameters must be supplied, route values are encoded,
+and extra values are added as query string parameters. The same behavior is
+available by explicit view ID:
+
+```csharp
+var href = Navigator.GetHref(
+    "acme.cluster",
+    new { ClusterId = "west-eu", tab = "logs" });
+```
+
+Use direct href navigation when there is no registered view:
+
+```csharp
+Navigator.NavigateTo(NavItemTarget.ForHref("https://docs.example.com/acme"));
+```
+
 ## Shell-hosted views
 
 Use shell-hosted views for CMS-like integrations that should use CloudShell's common workspace layout instead of owning an entire routable page. A shell-hosted view contributes one sidebar navigation item and a set of extension-owned menu items. The host owns the route, layout, ordering, and validation; the extension owns the menu item components.

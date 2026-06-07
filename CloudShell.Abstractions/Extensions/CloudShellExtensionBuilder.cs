@@ -28,10 +28,12 @@ internal sealed class CloudShellExtensionBuilder(
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
         var componentType = typeof(TComponent);
+        var route = GetPrimaryRoute(componentType);
         _views.Add(new ShellViewContribution(
             id,
-            GetPrimaryRoute(componentType),
-            componentType));
+            route,
+            componentType,
+            GetRouteParameters(route)));
 
         return this;
     }
@@ -442,5 +444,59 @@ internal sealed class CloudShellExtensionBuilder(
         }
 
         return routes[0];
+    }
+
+    private static IReadOnlyList<ShellViewRouteParameter> GetRouteParameters(string route)
+    {
+        var parameters = new List<ShellViewRouteParameter>();
+        var searchIndex = 0;
+
+        while (searchIndex < route.Length)
+        {
+            var startIndex = route.IndexOf('{', searchIndex);
+            if (startIndex < 0)
+            {
+                break;
+            }
+
+            var endIndex = route.IndexOf('}', startIndex + 1);
+            if (endIndex < 0)
+            {
+                break;
+            }
+
+            var token = route[startIndex..(endIndex + 1)];
+            var content = route[(startIndex + 1)..endIndex];
+            var isCatchAll = content.StartsWith('*');
+            if (isCatchAll)
+            {
+                content = content[1..];
+            }
+
+            var isOptional = content.EndsWith('?');
+            if (isOptional)
+            {
+                content = content[..^1];
+            }
+
+            var constraintIndex = content.IndexOf(':');
+            if (constraintIndex >= 0)
+            {
+                content = content[..constraintIndex];
+            }
+
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                parameters.Add(new ShellViewRouteParameter(
+                    content,
+                    token,
+                    isOptional,
+                    isCatchAll));
+            }
+
+            searchIndex = endIndex + 1;
+        }
+
+        return parameters;
     }
 }
