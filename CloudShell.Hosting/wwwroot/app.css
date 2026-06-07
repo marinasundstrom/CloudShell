@@ -946,6 +946,7 @@ h3 {
     display: grid;
     grid-template-columns: minmax(8rem, 1fr) minmax(0, 1.5fr);
     gap: .75rem;
+    align-items: center;
     padding: .55rem .65rem;
     border: 1px solid var(--cloudshell-divider);
     border-radius: 4px;
@@ -955,6 +956,52 @@ h3 {
 .configuration-entry-summary span {
     color: var(--cloudshell-text-muted);
     overflow-wrap: anywhere;
+}
+
+.configuration-secret-value {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .5rem;
+    min-width: 0;
+}
+
+.configuration-secret-value span,
+.configuration-secret-placeholder {
+    color: var(--cloudshell-text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    letter-spacing: .05em;
+    overflow-wrap: anywhere;
+}
+
+.configuration-secret-toggle {
+    width: 2rem;
+    min-width: 2rem;
+}
+
+.configuration-secret-toggle::part(control) {
+    min-width: 2rem;
+    padding-inline: 0;
+}
+
+.configuration-entry-row.locked-secret fluent-text-field:first-child::part(control) {
+    color: var(--cloudshell-text-muted);
+}
+
+.configuration-secret-placeholder {
+    display: flex;
+    align-items: center;
+    min-height: 2rem;
+    padding: 0 .65rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.configuration-secret-status {
+    color: var(--cloudshell-text-subtle);
+    font-size: .88rem;
+    font-weight: 650;
 }
 
 .form-actions {

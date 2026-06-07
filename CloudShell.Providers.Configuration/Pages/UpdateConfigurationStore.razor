@@ -42,12 +42,28 @@ else
 
                 @foreach (var entry in Entries)
                 {
-                    <div class="environment-row configuration-entry-row">
-                        <FluentTextField AriaLabel="Configuration entry name" @bind-Value="entry.Name" />
-                        <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" />
-                        <FluentCheckbox @bind-Value="entry.IsSecret">
-                            Secret
-                        </FluentCheckbox>
+                    <div class="environment-row configuration-entry-row @(entry.IsLockedSecret ? "locked-secret" : null)">
+                        <FluentTextField AriaLabel="Configuration entry name"
+                                         Disabled="@entry.IsLockedSecret"
+                                         @bind-Value="entry.Name" />
+                        @if (entry.IsLockedSecret)
+                        {
+                            <span class="configuration-secret-placeholder">@CreateMask(entry.Value)</span>
+                        }
+                        else
+                        {
+                            <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" />
+                        }
+                        @if (entry.IsLockedSecret)
+                        {
+                            <span class="configuration-secret-status">Secret</span>
+                        }
+                        else
+                        {
+                            <FluentCheckbox @bind-Value="entry.IsSecret">
+                                Secret
+                            </FluentCheckbox>
+                        }
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEntry(entry)">
                             Remove
                         </FluentButton>
@@ -85,7 +101,7 @@ else
             SelectedGroupId = ResourceManager.GetGroupForResource(Store.Id)?.Id ?? string.Empty;
             Entries.Clear();
             Entries.AddRange(Store.Entries
-                .Select(entry => new ConfigurationEntryInput(entry.Name, entry.Value, entry.IsSecret)));
+                .Select(ConfigurationEntryInput.FromEntry));
             if (Entries.Count == 0)
             {
                 Entries.Add(new());
@@ -143,6 +159,9 @@ else
                 entry.IsSecret))
             .ToArray();
 
+    private static string CreateMask(string? value) =>
+        new('*', Math.Clamp(value?.Length ?? 0, 8, 24));
+
     private sealed class ConfigurationEntryInput(string? name = null, string? value = null, bool isSecret = false)
     {
         public string? Name { get; set; } = name;
@@ -150,5 +169,13 @@ else
         public string? Value { get; set; } = value;
 
         public bool IsSecret { get; set; } = isSecret;
+
+        public bool IsLockedSecret { get; init; }
+
+        public static ConfigurationEntryInput FromEntry(ConfigurationEntry entry) =>
+            new(entry.Name, entry.Value, entry.IsSecret)
+            {
+                IsLockedSecret = entry.IsSecret
+            };
     }
 }

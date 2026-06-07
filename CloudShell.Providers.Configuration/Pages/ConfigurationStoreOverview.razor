@@ -31,7 +31,14 @@ else
             {
                 <div class="configuration-entry-summary">
                     <strong>@entry.Name</strong>
-                    <span>@(entry.IsSecret ? "Secret" : entry.Value)</span>
+                    @if (entry.IsSecret)
+                    {
+                        <ConfigurationSecretValue Name="@entry.Name" Value="@entry.Value" />
+                    }
+                    else
+                    {
+                        <span>@entry.Value</span>
+                    }
                 </div>
             }
 
