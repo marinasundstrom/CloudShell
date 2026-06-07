@@ -1,7 +1,10 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
+using CloudShell.Hosting.ResourceManager;
+using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,8 +13,12 @@ var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"];
 var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];
 var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"];
 
-var cloudShell = builder
-    .AddCloudShell()
+var cloudShell = builder.AddCloudShellControlPlane();
+builder.AddCloudShell();
+
+cloudShell
+    .AddExtension<ResourceManagerExtension>()
+    .AddExtension<ObservabilityExtension>()
     .AddApplicationProvider(options =>
     {
         options.OtlpEndpoint = otlpEndpoint;
@@ -45,7 +52,9 @@ cloudShell.Resources(resources =>
 
 var app = builder.Build();
 
+await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
+app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

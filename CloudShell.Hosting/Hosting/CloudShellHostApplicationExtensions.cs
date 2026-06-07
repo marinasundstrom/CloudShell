@@ -1,5 +1,4 @@
 using CloudShell.Abstractions.Extensions;
-using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting.Localization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
@@ -16,22 +15,12 @@ namespace CloudShell.Hosting;
 public static class CloudShellHostApplicationExtensions
 {
     public static Task<WebApplication> UseCloudShellAsync(this WebApplication app) =>
-        app.UseCloudShellHostAsync();
+        app.UseCloudShellUiAsync();
 
     public static Task<WebApplication> UseCloudShellUiAsync(this WebApplication app) =>
-        UseCloudShellUiCoreAsync(app, initializeControlPlane: false);
+        UseCloudShellUiCoreAsync(app);
 
-    public static async Task<WebApplication> UseCloudShellHostAsync(this WebApplication app)
-    {
-        ArgumentNullException.ThrowIfNull(app);
-
-        await UseCloudShellUiCoreAsync(app, initializeControlPlane: true);
-        return app;
-    }
-
-    private static async Task<WebApplication> UseCloudShellUiCoreAsync(
-        WebApplication app,
-        bool initializeControlPlane)
+    private static Task<WebApplication> UseCloudShellUiCoreAsync(WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 
@@ -45,28 +34,21 @@ public static class CloudShellHostApplicationExtensions
         app.UseHttpsRedirection();
         app.UseRequestLocalization();
 
-        if (initializeControlPlane)
-        {
-            await app.UseCloudShellControlPlaneAsync();
-        }
-        else
-        {
-            var extensionRegistry = app.Services.GetRequiredService<CloudShellExtensionRegistry>();
-            extensionRegistry.Validate(app.Services.GetRequiredService<ICloudShellExtensionActivationStore>());
+        var extensionRegistry = app.Services.GetRequiredService<CloudShellExtensionRegistry>();
+        extensionRegistry.Validate(app.Services.GetRequiredService<ICloudShellExtensionActivationStore>());
 
-            app.UseAuthentication();
-            app.UseAuthorization();
-        }
+        app.UseAuthentication();
+        app.UseAuthorization();
 
         app.UseAntiforgery();
 
-        return app;
+        return Task.FromResult(app);
     }
 
     public static RazorComponentsEndpointConventionBuilder MapCloudShell<TRootComponent>(
         this WebApplication app)
         where TRootComponent : IComponent =>
-        app.MapCloudShellHost<TRootComponent>();
+        app.MapCloudShellUi<TRootComponent>();
 
     public static RazorComponentsEndpointConventionBuilder MapCloudShellUi<TRootComponent>(
         this WebApplication app)
@@ -74,19 +56,6 @@ public static class CloudShellHostApplicationExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        app.MapCloudShellLocalization();
-        app.MapStaticAssets().AllowAnonymous();
-
-        return app.MapCloudShellRazorComponents<TRootComponent>();
-    }
-
-    public static RazorComponentsEndpointConventionBuilder MapCloudShellHost<TRootComponent>(
-        this WebApplication app)
-        where TRootComponent : IComponent
-    {
-        ArgumentNullException.ThrowIfNull(app);
-
-        app.MapCloudShellControlPlane();
         app.MapCloudShellLocalization();
         app.MapStaticAssets().AllowAnonymous();
 

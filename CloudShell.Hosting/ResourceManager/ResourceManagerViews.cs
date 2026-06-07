@@ -10,5 +10,7 @@ public static class ResourceManagerViews
 
     public const string ResourceTemplates = "cloudshell.resource-manager.resources.templates";
 
+    public const string ResourceSettings = "cloudshell.resource-manager.resources.settings";
+
     public const string UpdateResource = "cloudshell.resource-manager.resources.update";
 }

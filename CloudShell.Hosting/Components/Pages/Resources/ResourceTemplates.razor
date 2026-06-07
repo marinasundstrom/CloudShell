@@ -1,8 +1,8 @@
 @page "/resources/templates"
 @rendermode InteractiveServer
 @using System.Text.Json
-@inject IResourceManagerStore ResourceManager
-@inject ResourceTemplateService Templates
+@inject IResourceManager ResourceManager
+@inject IResourceTemplateManager Templates
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
@@ -10,9 +10,7 @@
 <PageTitle>@L["Resource templates"]</PageTitle>
 
 @{
-    var groups = ResourceManager.GetResourceGroups();
-    SelectedGroupId ??= groups.FirstOrDefault()?.Id;
-    var selectedGroup = groups.FirstOrDefault(group =>
+    var selectedGroup = Groups.FirstOrDefault(group =>
         string.Equals(group.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase));
     var canImport = Authorization.HasPermission(CloudShellPermissions.Resources.Create) &&
         Authorization.CanAccessResourceGroup(
@@ -52,7 +50,7 @@
                       Id="export-group"
                       @bind-Value="SelectedGroupId"
                       Appearance="Appearance.Outline">
-            @foreach (var group in groups)
+            @foreach (var group in Groups)
             {
                 <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
@@ -144,7 +142,14 @@
     private string? ImportJson { get; set; }
     private string? StatusMessage { get; set; }
     private bool IsBusy { get; set; }
+    private IReadOnlyList<ResourceGroup> Groups { get; set; } = [];
     private List<ResourceTemplateDiagnostic> Diagnostics { get; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGroupsAsync();
+        SelectedGroupId ??= Groups.FirstOrDefault()?.Id;
+    }
 
     private void BackToResources() => Navigation.NavigateTo("/resources");
 
@@ -161,7 +166,7 @@
 
         try
         {
-            var result = await Templates.ExportGroupAsync(SelectedGroupId);
+            var result = await Templates.ExportResourceGroupTemplateAsync(SelectedGroupId);
             ExportJson = JsonSerializer.Serialize(result.Template, SerializerOptions);
             ImportJson = ExportJson;
             Diagnostics.AddRange(result.Diagnostics);
@@ -192,7 +197,9 @@
         {
             var template = JsonSerializer.Deserialize<ResourceGroupTemplate>(ImportJson, SerializerOptions)
                 ?? throw new InvalidOperationException("Template JSON is empty or invalid.");
-            var result = await Templates.ImportGroupAsync(template);
+            var result = await Templates.ImportResourceGroupTemplateAsync(template);
+            await LoadGroupsAsync();
+            SelectedGroupId = result.ResourceGroup.Id;
             Diagnostics.AddRange(result.Diagnostics);
             StatusMessage = L[
                 "Imported group {0} with {1} resources.",
@@ -214,5 +221,10 @@
         ImportJson = null;
         Diagnostics.Clear();
         StatusMessage = null;
+    }
+
+    private async Task LoadGroupsAsync()
+    {
+        Groups = await ResourceManager.ListResourceGroupsAsync();
     }
 }

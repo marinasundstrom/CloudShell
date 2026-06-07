@@ -1,8 +1,8 @@
 using CloudShell.Abstractions.Authorization;
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -46,11 +46,20 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapGet("/resources/available", ListAvailableResources)
             .WithName("CloudShellControlPlane_ListAvailableResources");
 
+        api.MapPost("/resources", CreateResource)
+            .WithName("CloudShellControlPlane_CreateResource");
+
+        api.MapPost("/resources/capabilities", GetResourceOperationCapabilities)
+            .WithName("CloudShellControlPlane_GetResourceOperationCapabilities");
+
         api.MapGet("/resources/{resourceId}", GetResource)
             .WithName("CloudShellControlPlane_GetResource");
 
         api.MapGet("/resources/{resourceId}/children", ListResourceChildren)
             .WithName("CloudShellControlPlane_ListResourceChildren");
+
+        api.MapGet("/resources/{resourceId}/resource-group", GetResourceGroupForResource)
+            .WithName("CloudShellControlPlane_GetResourceGroupForResource");
 
         api.MapDelete("/resources/{resourceId}", DeleteResource)
             .WithName("CloudShellControlPlane_DeleteResource");
@@ -64,8 +73,17 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resource-groups", CreateResourceGroup)
             .WithName("CloudShellControlPlane_CreateResourceGroup");
 
+        api.MapGet("/resource-groups/{resourceGroupId}/template", ExportResourceGroupTemplate)
+            .WithName("CloudShellControlPlane_ExportResourceGroupTemplate");
+
+        api.MapPost("/resource-group-templates/import", ImportResourceGroupTemplate)
+            .WithName("CloudShellControlPlane_ImportResourceGroupTemplate");
+
         api.MapGet("/registrations", ListRegistrations)
             .WithName("CloudShellControlPlane_ListRegistrations");
+
+        api.MapGet("/registrations/{resourceId}", GetRegistration)
+            .WithName("CloudShellControlPlane_GetRegistration");
 
         api.MapPost("/registrations", RegisterResource)
             .WithName("CloudShellControlPlane_RegisterResource");
@@ -81,6 +99,9 @@ public static class CloudShellControlPlaneApiExtensions
 
         api.MapGet("/logs", ListLogs)
             .WithName("CloudShellControlPlane_ListLogs");
+
+        api.MapGet("/logs/{logId}", GetLog)
+            .WithName("CloudShellControlPlane_GetLog");
 
         api.MapGet("/logs/{logId}/entries", ReadLogEntries)
             .WithName("CloudShellControlPlane_ReadLogEntries");
@@ -99,77 +120,131 @@ public static class CloudShellControlPlaneApiExtensions
         return api;
     }
 
-    private static IResult ListResources(IResourceManagerStore resourceManager) =>
-        Results.Ok(resourceManager
-            .GetResources()
-            .Select(resource => CreateResourceResponse(resourceManager, resource))
-            .ToArray());
+    private static async Task<IResult> ListResources(
+        string? resourceGroupId,
+        string? parentResourceId,
+        string? resourceType,
+        bool? isRegistered,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        var resources = await resourceManager.ListResourcesAsync(
+            new ResourceQuery(resourceGroupId, parentResourceId, resourceType, isRegistered),
+            cancellationToken);
 
-    private static IResult ListAvailableResources(
-        IResourceManagerStore resourceManager,
-        ICloudShellAuthorizationService authorization)
+        return Results.Ok(await CreateResourceResponses(resourceManager, resources, cancellationToken));
+    }
+
+    private static async Task<IResult> ListAvailableResources(
+        IResourceManager resourceManager,
+        ICloudShellAuthorizationService authorization,
+        CancellationToken cancellationToken)
     {
         if (!authorization.HasPermission(CloudShellPermissions.Resources.Create))
         {
             return Results.Forbid();
         }
 
-        return Results.Ok(resourceManager
-            .GetAvailableResources()
-            .Select(resource => CreateResourceResponse(resourceManager, resource))
-            .ToArray());
+        var resources = await resourceManager.ListAvailableResourcesAsync(cancellationToken);
+        return Results.Ok(await CreateResourceResponses(resourceManager, resources, cancellationToken));
     }
 
-    private static IResult GetResource(
+    private static async Task<IResult> GetResource(
         string resourceId,
-        IResourceManagerStore resourceManager)
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
     {
-        var resource = resourceManager.GetResource(resourceId);
+        var resource = await resourceManager.GetResourceAsync(resourceId, cancellationToken);
         return resource is null
             ? Results.NotFound()
-            : Results.Ok(CreateResourceResponse(resourceManager, resource));
+            : Results.Ok(await CreateResourceResponse(resourceManager, resource, cancellationToken));
     }
 
-    private static IResult ListResourceChildren(
+    private static async Task<IResult> ListResourceChildren(
         string resourceId,
-        IResourceManagerStore resourceManager)
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
     {
-        if (resourceManager.GetResource(resourceId) is null)
+        if (await resourceManager.GetResourceAsync(resourceId, cancellationToken) is null)
         {
             return Results.NotFound();
         }
 
-        return Results.Ok(resourceManager
-            .GetChildren(resourceId)
-            .Select(resource => CreateResourceResponse(resourceManager, resource))
-            .ToArray());
+        var resources = await resourceManager.ListResourceChildrenAsync(resourceId, cancellationToken);
+        return Results.Ok(await CreateResourceResponses(resourceManager, resources, cancellationToken));
+    }
+
+    private static async Task<IResult> GetResourceGroupForResource(
+        string resourceId,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        if (await resourceManager.GetResourceAsync(resourceId, cancellationToken) is null)
+        {
+            return Results.NotFound();
+        }
+
+        var group = await resourceManager.GetResourceGroupForResourceAsync(resourceId, cancellationToken);
+        return group is null
+            ? Results.NoContent()
+            : Results.Ok(group.ToResponse());
+    }
+
+    private static async Task<IResult> GetResourceOperationCapabilities(
+        ResourceOperationCapabilitiesRequest request,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        var capabilities = await resourceManager.GetResourceOperationCapabilitiesAsync(
+            request.ResourceIds,
+            cancellationToken);
+
+        return Results.Ok(capabilities.Values.Select(capability => capability.ToResponse()).ToArray());
+    }
+
+    private static async Task<IResult> CreateResource(
+        CreateResourceRequest request,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await resourceManager.CreateResourceAsync(
+                new CreateResourceCommand(
+                    request.ProviderId,
+                    request.ResourceType,
+                    request.ResourceId,
+                    request.Name,
+                    request.Configuration,
+                    request.ResourceGroupId),
+                cancellationToken);
+
+            var resource = await resourceManager.GetResourceAsync(request.ResourceId, cancellationToken);
+            return resource is null
+                ? Results.NoContent()
+                : Results.Created(
+                    $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/resources/{Uri.EscapeDataString(resource.Id)}",
+                    await CreateResourceResponse(resourceManager, resource, cancellationToken));
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
     }
 
     private static async Task<IResult> DeleteResource(
         string resourceId,
-        IResourceManagerStore resourceManager,
-        ResourceOrchestrationService orchestration,
-        ICloudShellAuthorizationService authorization,
+        IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
-        var resource = resourceManager.GetResource(resourceId);
-        if (resource is null)
+        if (await resourceManager.GetResourceAsync(resourceId, cancellationToken) is null)
         {
             return Results.NotFound();
         }
 
-        var group = resourceManager.GetGroupForResource(resource.Id);
-        if (!authorization.CanAccessResource(
-                resource.Id,
-                group?.Id,
-                CloudShellPermissions.Resources.Manage))
-        {
-            return Results.Forbid();
-        }
-
         try
         {
-            var result = await orchestration.DeleteAsync(resource, cancellationToken);
+            var result = await resourceManager.DeleteResourceAsync(resourceId, cancellationToken);
             return Results.Ok(new ResourceProcedureResponse(result.Message));
         }
         catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
@@ -183,12 +258,10 @@ public static class CloudShellControlPlaneApiExtensions
         string actionId,
         bool startDependencies,
         bool ignoreDependentWarning,
-        IResourceManagerStore resourceManager,
-        ResourceOrchestrationService orchestration,
-        ICloudShellAuthorizationService authorization,
+        IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
-        var resource = resourceManager.GetResource(resourceId);
+        var resource = await resourceManager.GetResourceAsync(resourceId, cancellationToken);
         if (resource is null)
         {
             return Results.NotFound();
@@ -201,37 +274,24 @@ public static class CloudShellControlPlaneApiExtensions
             return Results.NotFound();
         }
 
-        var group = resourceManager.GetGroupForResource(resource.Id);
-        if (!authorization.CanAccessResource(
-                resource.Id,
-                group?.Id,
-                CloudShellPermissions.Resources.Manage))
-        {
-            return Results.Forbid();
-        }
-
         try
         {
-            if (!ignoreDependentWarning && ShouldWarnDependents(action))
-            {
-                var activeDependents = GetActiveDependents(resource, resourceManager);
-                if (activeDependents.Count > 0)
-                {
-                    return Problem(
-                        StatusCodes.Status409Conflict,
-                        "Dependent resources are running",
-                        $"The following running resources depend on this resource: {string.Join(", ", activeDependents.Select(dependent => dependent.Name))}. Stopping it may disrupt them. Do you want to stop the resource?");
-                }
-            }
-
-            var result = await orchestration.ExecuteActionAsync(
-                resource,
-                action,
-                startDependencies,
-                authorization,
+            var result = await resourceManager.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    resourceId,
+                    actionId,
+                    startDependencies,
+                    ignoreDependentWarning),
                 cancellationToken);
 
             return Results.Ok(new ResourceProcedureResponse(result.Message));
+        }
+        catch (InvalidOperationException exception) when (ShouldWarnDependents(action) && IsDependentWarning(exception))
+        {
+            return Problem(
+                StatusCodes.Status409Conflict,
+                "Dependent resources are running",
+                $"{exception.Message} Do you want to stop the resource?");
         }
         catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
         {
@@ -239,22 +299,22 @@ public static class CloudShellControlPlaneApiExtensions
         }
     }
 
-    private static IResult ListResourceGroups(IResourceManagerStore resourceManager) =>
-        Results.Ok(resourceManager
-            .GetResourceGroups()
+    private static async Task<IResult> ListResourceGroups(
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken) =>
+        Results.Ok((await resourceManager.ListResourceGroupsAsync(cancellationToken))
             .Select(group => group.ToResponse())
             .ToArray());
 
     private static async Task<IResult> CreateResourceGroup(
         CreateResourceGroupRequest request,
-        IResourceGroupStore groups,
+        IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
         try
         {
-            var group = await groups.CreateAsync(
-                request.Name,
-                request.Description ?? string.Empty,
+            var group = await resourceManager.CreateResourceGroupAsync(
+                new CreateResourceGroupCommand(request.Name, request.Description ?? string.Empty),
                 cancellationToken);
 
             return Results.Created(
@@ -267,27 +327,72 @@ public static class CloudShellControlPlaneApiExtensions
         }
     }
 
-    private static IResult ListRegistrations(IResourceRegistrationStore registrations) =>
-        Results.Ok(registrations
-            .GetRegistrations()
-            .Select(registration => registration.ToResponse())
-            .ToArray());
-
-    private static async Task<IResult> RegisterResource(
-        RegisterResourceRequest request,
-        IResourceRegistrationStore registrations,
+    private static async Task<IResult> ExportResourceGroupTemplate(
+        string resourceGroupId,
+        IResourceTemplateManager templates,
         CancellationToken cancellationToken)
     {
         try
         {
-            await registrations.RegisterAsync(
-                request.ProviderId,
-                request.ResourceId,
-                request.ResourceGroupId,
-                request.DependsOn,
+            return Results.Ok(await templates.ExportResourceGroupTemplateAsync(resourceGroupId, cancellationToken));
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ImportResourceGroupTemplate(
+        ResourceGroupTemplate template,
+        IResourceTemplateManager templates,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok(await templates.ImportResourceGroupTemplateAsync(template, cancellationToken));
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ListRegistrations(
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken) =>
+        Results.Ok((await resourceManager.ListResourceRegistrationsAsync(cancellationToken))
+            .Select(registration => registration.ToResponse())
+            .ToArray());
+
+    private static async Task<IResult> GetRegistration(
+        string resourceId,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        var registration = await resourceManager.GetResourceRegistrationAsync(resourceId, cancellationToken);
+        return registration is null
+            ? Results.NotFound()
+            : Results.Ok(registration.ToResponse());
+    }
+
+    private static async Task<IResult> RegisterResource(
+        RegisterResourceRequest request,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await resourceManager.RegisterResourceAsync(
+                new RegisterResourceCommand(
+                    request.ProviderId,
+                    request.ResourceId,
+                    request.ResourceGroupId,
+                    request.DependsOn),
                 cancellationToken);
 
-            var registration = registrations.GetRegistration(request.ResourceId);
+            var registration = await resourceManager.GetResourceRegistrationAsync(
+                request.ResourceId,
+                cancellationToken);
             return registration is null
                 ? Results.NoContent()
                 : Results.Created(
@@ -302,12 +407,12 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static async Task<IResult> RemoveRegistration(
         string resourceId,
-        IResourceRegistrationStore registrations,
+        IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
         try
         {
-            await registrations.RemoveAsync(resourceId, cancellationToken);
+            await resourceManager.RemoveResourceRegistrationAsync(resourceId, cancellationToken);
             return Results.NoContent();
         }
         catch (UnauthorizedAccessException exception)
@@ -319,17 +424,16 @@ public static class CloudShellControlPlaneApiExtensions
     private static async Task<IResult> AssignResourceGroup(
         string resourceId,
         AssignResourceGroupRequest request,
-        IResourceRegistrationStore registrations,
+        IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
         try
         {
-            await registrations.AssignToGroupAsync(
-                resourceId,
-                request.ResourceGroupId,
-                cancellationToken: cancellationToken);
+            await resourceManager.AssignResourceGroupAsync(
+                new AssignResourceGroupCommand(resourceId, request.ResourceGroupId, request.DependsOn),
+                cancellationToken);
 
-            var registration = registrations.GetRegistration(resourceId);
+            var registration = await resourceManager.GetResourceRegistrationAsync(resourceId, cancellationToken);
             return registration is null
                 ? Results.NoContent()
                 : Results.Ok(registration.ToResponse());
@@ -343,17 +447,16 @@ public static class CloudShellControlPlaneApiExtensions
     private static async Task<IResult> SetResourceDependencies(
         string resourceId,
         SetResourceDependenciesRequest request,
-        IResourceRegistrationStore registrations,
+        IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
         try
         {
-            await registrations.SetDependenciesAsync(
-                resourceId,
-                request.DependsOn,
+            await resourceManager.SetResourceDependenciesAsync(
+                new SetResourceDependenciesCommand(resourceId, request.DependsOn),
                 cancellationToken);
 
-            var registration = registrations.GetRegistration(resourceId);
+            var registration = await resourceManager.GetResourceRegistrationAsync(resourceId, cancellationToken);
             return registration is null
                 ? Results.NoContent()
                 : Results.Ok(registration.ToResponse());
@@ -364,37 +467,56 @@ public static class CloudShellControlPlaneApiExtensions
         }
     }
 
-    private static IResult ListLogs(ILogStore logs) =>
-        Results.Ok(logs.GetLogs().Select(log => log.ToResponse()).ToArray());
+    private static async Task<IResult> ListLogs(
+        string? resourceId,
+        string? artifactId,
+        LogSourceKind? sourceKind,
+        ILogManager logs,
+        CancellationToken cancellationToken) =>
+        Results.Ok((await logs.ListLogsAsync(
+                new LogQuery(resourceId, artifactId, sourceKind),
+                cancellationToken))
+            .Select(log => log.ToResponse())
+            .ToArray());
+
+    private static async Task<IResult> GetLog(
+        string logId,
+        ILogManager logs,
+        CancellationToken cancellationToken)
+    {
+        var log = await logs.GetLogAsync(logId, cancellationToken);
+        return log is null
+            ? Results.NotFound()
+            : Results.Ok(log.ToResponse());
+    }
 
     private static async Task<IResult> ReadLogEntries(
         string logId,
         int? maxEntries,
         DateTimeOffset? before,
-        ILogStore logs,
+        ILogManager logs,
         CancellationToken cancellationToken)
     {
-        if (logs.GetLog(logId) is null)
+        if (await logs.GetLogAsync(logId, cancellationToken) is null)
         {
             return Results.NotFound();
         }
 
         var entries = await logs.ReadLogAsync(
             logId,
-            Math.Clamp(maxEntries ?? 200, 1, 1000),
-            before,
+            new ReadLogOptions(Math.Clamp(maxEntries ?? 200, 1, 1000), before),
             cancellationToken);
 
         return Results.Ok(entries.Select(entry => entry.ToResponse()).ToArray());
     }
 
-    private static IResult StreamLogEntries(
+    private static async Task<IResult> StreamLogEntries(
         string logId,
         int? initialEntries,
-        ILogStore logs,
+        ILogManager logs,
         CancellationToken cancellationToken)
     {
-        var log = logs.GetLog(logId);
+        var log = await logs.GetLogAsync(logId, cancellationToken);
         if (log is null)
         {
             return Results.NotFound();
@@ -413,7 +535,7 @@ public static class CloudShellControlPlaneApiExtensions
             {
                 await foreach (var entry in logs.StreamLogAsync(
                     logId,
-                    Math.Clamp(initialEntries ?? 50, 0, 1000),
+                    new StreamLogOptions(Math.Clamp(initialEntries ?? 50, 0, 1000)),
                     cancellationToken))
                 {
                     await JsonSerializer.SerializeAsync(
@@ -427,45 +549,54 @@ public static class CloudShellControlPlaneApiExtensions
             "application/x-ndjson");
     }
 
-    private static IResult ListTraceSpans(
+    private static async Task<IResult> ListTraceSpans(
         string? resourceId,
         string? traceId,
         int? maxSpans,
-        ITraceStore traces) =>
-        Results.Ok(traces.GetSpans(
-            resourceId,
-            traceId,
-            Math.Clamp(maxSpans ?? 200, 1, 1000)));
+        ITraceManager traces,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await traces.ListTraceSpansAsync(
+                new TraceQuery(resourceId, traceId, Math.Clamp(maxSpans ?? 200, 1, 1000)),
+                cancellationToken));
 
-    private static IResult IngestTraceSpans(
+    private static async Task<IResult> IngestTraceSpans(
         TraceIngestRequest request,
-        ITraceStore traces)
+        ITraceManager traces,
+        CancellationToken cancellationToken)
     {
-        traces.AddSpans(request.Spans);
+        await traces.IngestTraceSpansAsync(request.Spans, cancellationToken);
         return Results.Accepted();
     }
 
-    private static ResourceResponse CreateResourceResponse(
-        IResourceManagerStore resourceManager,
-        CloudResource resource) =>
-        resource.ToResponse(
-            resourceManager.GetGroupForResource(resource.Id),
-            resourceManager.IsRegistered(resource.Id));
+    private static async Task<IReadOnlyList<ResourceResponse>> CreateResourceResponses(
+        IResourceManager resourceManager,
+        IReadOnlyList<CloudResource> resources,
+        CancellationToken cancellationToken)
+    {
+        var responses = new List<ResourceResponse>(resources.Count);
+        foreach (var resource in resources)
+        {
+            responses.Add(await CreateResourceResponse(resourceManager, resource, cancellationToken));
+        }
+
+        return responses;
+    }
+
+    private static async Task<ResourceResponse> CreateResourceResponse(
+        IResourceManager resourceManager,
+        CloudResource resource,
+        CancellationToken cancellationToken)
+    {
+        var group = await resourceManager.GetResourceGroupForResourceAsync(resource.Id, cancellationToken);
+        var registration = await resourceManager.GetResourceRegistrationAsync(resource.Id, cancellationToken);
+        return resource.ToResponse(group, registration is not null);
+    }
 
     private static bool ShouldWarnDependents(ResourceAction action) =>
-        action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart;
+        action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart or ResourceActionKind.Pause;
 
-    private static IReadOnlyList<CloudResource> GetActiveDependents(
-        CloudResource resource,
-        IResourceManagerStore resourceManager) =>
-        resourceManager.GetResources()
-            .Where(candidate => candidate.DependsOn.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
-            .Where(candidate => IsActiveDependencyState(candidate.State))
-            .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-    private static bool IsActiveDependencyState(ResourceState state) =>
-        state is not ResourceState.Stopped and not ResourceState.Unknown;
+    private static bool IsDependentWarning(InvalidOperationException exception) =>
+        exception.Message.Contains("depend on this resource", StringComparison.OrdinalIgnoreCase);
 
     private static IResult ToProblem(Exception exception) =>
         exception is UnauthorizedAccessException

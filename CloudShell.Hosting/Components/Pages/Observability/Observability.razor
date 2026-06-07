@@ -1,12 +1,8 @@
 @page "/observability"
-@inject IResourceManagerStore ResourceManager
+@inject IResourceManager ResourceManager
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Observability"]</PageTitle>
-
-@{
-    var resources = ResourceManager.GetResources();
-}
 
 <section class="page-heading compact">
     <div>
@@ -32,15 +28,15 @@
         <div class="signal-grid">
             <div>
                 <span>@L["Logs"]</span>
-                <strong>@resources.Count(resource => resource.EffectiveObservability.Logs)</strong>
+                <strong>@Resources.Count(resource => resource.EffectiveObservability.Logs)</strong>
             </div>
             <div>
                 <span>@L["Traces"]</span>
-                <strong>@resources.Count(resource => resource.EffectiveObservability.Traces)</strong>
+                <strong>@Resources.Count(resource => resource.EffectiveObservability.Traces)</strong>
             </div>
             <div>
                 <span>@L["Metrics"]</span>
-                <strong>@resources.Count(resource => resource.EffectiveObservability.Metrics)</strong>
+                <strong>@Resources.Count(resource => resource.EffectiveObservability.Metrics)</strong>
             </div>
         </div>
     </article>
@@ -54,7 +50,7 @@
         </div>
 
         <div class="activity-list">
-            @foreach (var resource in resources.Take(8))
+            @foreach (var resource in Resources.Take(8))
             {
                 <div class="activity-row">
                     <span class="state-dot @GetStateClass(resource.State)"></span>
@@ -69,6 +65,13 @@
 </section>
 
 @code {
+    private IReadOnlyList<CloudResource> Resources { get; set; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Resources = await ResourceManager.ListResourcesAsync();
+    }
+
     private static string GetStateClass(ResourceState state) => state switch
     {
         ResourceState.Running => "state-running",

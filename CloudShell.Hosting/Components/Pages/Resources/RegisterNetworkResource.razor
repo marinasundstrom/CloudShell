@@ -1,6 +1,5 @@
-@inject PlatformResourceProvider PlatformProvider
-@inject IResourceGroupStore ResourceGroups
-@inject IResourceRegistrationStore Registrations
+@using System.Text.Json
+@inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 
 <div class="type-registration">
@@ -31,7 +30,7 @@
                       @bind-Value="SelectedGroupId"
                       Appearance="Appearance.Outline">
             <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups.GetResourceGroups())
+            @foreach (var group in ResourceGroups)
             {
                 <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
@@ -51,11 +50,20 @@
 </div>
 
 @code {
+    private const string PlatformProviderId = "cloudshell.platform";
+    private const string NetworkResourceType = "cloudshell.network";
+
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private bool IsDefault { get; set; }
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
+    private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+    }
 
     private async Task Register()
     {
@@ -66,10 +74,14 @@
             return;
         }
 
-        await PlatformProvider.SetupNetworkAsync(
-            new NetworkResourceDefinition(ResourceId, Name, IsDefault),
-            SelectedGroupId,
-            Registrations);
+        await ResourceManager.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformProviderId,
+                NetworkResourceType,
+                ResourceId,
+                Name,
+                JsonSerializer.SerializeToElement(new NetworkResourceDefinition(ResourceId, Name, IsDefault)),
+                string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 
         Navigation.NavigateTo("/resources");
     }

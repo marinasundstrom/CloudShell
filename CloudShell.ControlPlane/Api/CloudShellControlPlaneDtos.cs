@@ -1,5 +1,7 @@
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Api;
 
@@ -54,15 +56,33 @@ public sealed record CreateResourceGroupRequest(
     string Name,
     string? Description);
 
+public sealed record CreateResourceRequest(
+    string ProviderId,
+    string ResourceType,
+    string ResourceId,
+    string Name,
+    JsonElement Configuration,
+    string? ResourceGroupId);
+
 public sealed record RegisterResourceRequest(
     string ProviderId,
     string ResourceId,
     string? ResourceGroupId,
     IReadOnlyList<string>? DependsOn);
 
-public sealed record AssignResourceGroupRequest(string? ResourceGroupId);
+public sealed record AssignResourceGroupRequest(
+    string? ResourceGroupId,
+    IReadOnlyList<string>? DependsOn = null);
 
 public sealed record SetResourceDependenciesRequest(IReadOnlyList<string> DependsOn);
+
+public sealed record ResourceOperationCapabilitiesRequest(IReadOnlyList<string> ResourceIds);
+
+public sealed record ResourceOperationCapabilitiesResponse(
+    string ResourceId,
+    bool CanManage,
+    bool CanDelete,
+    IReadOnlySet<string> ExecutableActionIds);
 
 public sealed record ResourceProcedureResponse(string Message);
 
@@ -133,6 +153,14 @@ internal static class CloudShellControlPlaneDtoMapper
             registration.ResourceGroupId,
             registration.RegisteredAt,
             registration.DependsOn);
+
+    public static ResourceOperationCapabilitiesResponse ToResponse(
+        this ResourceOperationCapabilities capabilities) =>
+        new(
+            capabilities.ResourceId,
+            capabilities.CanManage,
+            capabilities.CanDelete,
+            capabilities.ExecutableActionIds);
 
     public static LogResponse ToResponse(this LogDescriptor log) =>
         new(

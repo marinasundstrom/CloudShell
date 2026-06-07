@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authentication;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Persistence;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -27,6 +28,8 @@ public static class CloudShellAuthenticationServiceCollectionExtensions
         services.AddScoped<ICloudShellAuthorizationService, ClaimsCloudShellAuthorizationService>();
         services.AddScoped<CloudShellSecretSignInService>();
         services.AddScoped<CloudShellAccountService>();
+        services.AddScoped<IAccountService>(
+            serviceProvider => serviceProvider.GetRequiredService<CloudShellAccountService>());
         services.AddCascadingAuthenticationState();
 
         if (!options.Enabled)

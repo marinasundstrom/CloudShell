@@ -1,6 +1,6 @@
 @page "/resources/{ResourceId}/edit"
 @rendermode InteractiveServer
-@inject IResourceManagerStore ResourceManager
+@inject IResourceManager ResourceManager
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
@@ -10,10 +10,8 @@
 <PageTitle>@L["Resource configuration"]</PageTitle>
 
 @{
-    var resource = string.IsNullOrWhiteSpace(ResourceId)
-        ? null
-        : ResourceManager.GetResource(ResourceId);
-    var group = resource is null ? null : ResourceManager.GetGroupForResource(resource.Id);
+    var resource = Resource;
+    var group = ResourceGroup;
     var resourceType = resource is null
         ? null
         : ShellCatalog.ResourceTypes.FirstOrDefault(type =>
@@ -124,19 +122,23 @@
     private string? RequestedTabId { get; set; }
 
     private ResourceConfigurationContext? ConfigurationContext { get; set; }
+    private CloudResource? Resource { get; set; }
+    private ResourceGroup? ResourceGroup { get; set; }
     private string? SelectedTabId { get; set; }
     private string? ProcedureMessage { get; set; }
     private bool IsApplying { get; set; }
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        var resource = string.IsNullOrWhiteSpace(ResourceId)
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
-            : ResourceManager.GetResource(ResourceId);
-        var group = resource is null ? null : ResourceManager.GetGroupForResource(resource.Id);
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        ResourceGroup = Resource is null
+            ? null
+            : await ResourceManager.GetResourceGroupForResourceAsync(Resource.Id);
 
-        if (resource is not null &&
-            !Authorization.CanAccessResource(resource.Id, group?.Id, CloudShellPermissions.Resources.Manage))
+        if (Resource is not null &&
+            !Authorization.CanAccessResource(Resource.Id, ResourceGroup?.Id, CloudShellPermissions.Resources.Manage))
         {
             Navigation.NavigateTo("/account/access-denied");
         }
@@ -146,14 +148,14 @@
             SelectedTabId = RequestedTabId;
         }
 
-        if (resource is not null && ConfigurationContext?.ResourceId != resource.Id)
+        if (Resource is not null && ConfigurationContext?.ResourceId != Resource.Id)
         {
             if (ConfigurationContext is not null)
             {
                 ConfigurationContext.StateChanged -= HandleConfigurationStateChanged;
             }
 
-            ConfigurationContext = new ResourceConfigurationContext(resource.Id);
+            ConfigurationContext = new ResourceConfigurationContext(Resource.Id);
             ConfigurationContext.StateChanged += HandleConfigurationStateChanged;
         }
     }

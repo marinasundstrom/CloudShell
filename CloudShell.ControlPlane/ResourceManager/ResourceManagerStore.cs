@@ -186,12 +186,20 @@ public sealed class ResourceManagerStore(
 
     private bool IsProviderActive(IResourceProvider provider)
     {
-        var activeProviderTypes = extensionRegistry
+        var extensionProviderTypes = extensionRegistry
+            .Extensions
+            .SelectMany(extension => extension.ResourceProviderTypes)
+            .ToArray();
+        var providerType = provider.GetType();
+        var isExtensionProvider = extensionProviderTypes.Any(type => type.IsAssignableFrom(providerType));
+        if (!isExtensionProvider)
+        {
+            return true;
+        }
+
+        return extensionRegistry
             .GetActiveExtensions(activationStore)
             .SelectMany(extension => extension.ResourceProviderTypes)
-            .ToHashSet();
-
-        var providerType = provider.GetType();
-        return activeProviderTypes.Any(type => type.IsAssignableFrom(providerType));
+            .Any(type => type.IsAssignableFrom(providerType));
     }
 }

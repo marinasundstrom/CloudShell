@@ -86,12 +86,20 @@ public sealed class LogStore(
 
     private bool IsProviderActive(ILogProvider provider)
     {
-        var activeProviderTypes = extensionRegistry
+        var extensionProviderTypes = extensionRegistry
+            .Extensions
+            .SelectMany(extension => extension.LogProviderTypes)
+            .ToArray();
+        var providerType = provider.GetType();
+        var isExtensionProvider = extensionProviderTypes.Any(type => type.IsAssignableFrom(providerType));
+        if (!isExtensionProvider)
+        {
+            return true;
+        }
+
+        return extensionRegistry
             .GetActiveExtensions(activationStore)
             .SelectMany(extension => extension.LogProviderTypes)
-            .ToHashSet();
-
-        var providerType = provider.GetType();
-        return activeProviderTypes.Any(type => type.IsAssignableFrom(providerType));
+            .Any(type => type.IsAssignableFrom(providerType));
     }
 }

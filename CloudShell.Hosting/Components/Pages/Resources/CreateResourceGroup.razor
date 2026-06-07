@@ -1,6 +1,6 @@
 @page "/resources/groups/new"
 @rendermode InteractiveServer
-@inject IResourceGroupStore ResourceGroups
+@inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
@@ -50,7 +50,8 @@
 
     private async Task CreateGroup()
     {
-        await ResourceGroups.CreateAsync(Name, Description);
+        await ResourceManager.CreateResourceGroupAsync(
+            new CreateResourceGroupCommand(Name, Description));
         Navigation.NavigateTo("/resources/add");
     }
 }

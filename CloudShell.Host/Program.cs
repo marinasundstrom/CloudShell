@@ -1,8 +1,11 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
+using CloudShell.Hosting.ResourceManager;
+using CloudShell.Hosting.Shell;
 using CloudShell.Host.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
@@ -18,8 +21,12 @@ var configurationServiceProjectPath = Path.GetFullPath(
     builder.Environment.ContentRootPath);
 var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
 
-var cloudShell = builder
-    .AddCloudShell()
+var cloudShell = builder.AddCloudShellControlPlane();
+builder.AddCloudShell();
+
+cloudShell
+    .AddExtension<ResourceManagerExtension>()
+    .AddExtension<ObservabilityExtension>()
     .AddExtension<DevelopmentShellExtension>()
     .AddConfigurationProvider(options =>
     {
@@ -43,7 +50,9 @@ cloudShell.Resources(resources =>
 
 var app = builder.Build();
 
+await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
+app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();

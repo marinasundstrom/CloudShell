@@ -199,24 +199,3 @@ public sealed class ResourceTemplateService(
             string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) ||
         registrations.GetRegistration(resourceId) is not null;
 }
-
-public sealed record ResourceGroupTemplateExportResult(
-    ResourceGroupTemplate Template,
-    IReadOnlyList<ResourceTemplateDiagnostic> Diagnostics);
-
-public sealed record ResourceGroupTemplateImportResult(
-    ResourceGroup ResourceGroup,
-    IReadOnlyList<ResourceTemplateImportResult> ImportedResources,
-    IReadOnlyList<ResourceTemplateDiagnostic> Diagnostics);
-
-public sealed record ResourceTemplateDiagnostic(
-    string Severity,
-    string ResourceName,
-    string Message)
-{
-    public static ResourceTemplateDiagnostic Warning(string resourceName, string message) =>
-        new("Warning", resourceName, message);
-
-    public static ResourceTemplateDiagnostic Error(string resourceName, string message) =>
-        new("Error", resourceName, message);
-}

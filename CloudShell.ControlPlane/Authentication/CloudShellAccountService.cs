@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -11,7 +12,7 @@ public sealed class CloudShellAccountService(
     IServiceProvider services,
     IHttpContextAccessor httpContextAccessor,
     CloudShellSecretSignInService secretSignIn,
-    IOptions<CloudShellAuthenticationOptions> options)
+    IOptions<CloudShellAuthenticationOptions> options) : IAccountService
 {
     public string Mode => options.Value.Mode;
 
@@ -123,11 +124,4 @@ public sealed class CloudShellAccountService(
 
     private bool IsMode(string mode) =>
         string.Equals(Mode, mode, StringComparison.OrdinalIgnoreCase);
-}
-
-public sealed record AccountOperationResult(bool Succeeded, IReadOnlyList<string> Errors)
-{
-    public static AccountOperationResult Success() => new(true, []);
-
-    public static AccountOperationResult Failure(params string[] errors) => new(false, errors);
 }

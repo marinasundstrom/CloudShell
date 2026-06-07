@@ -1,7 +1,9 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane;
 using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Logs;
@@ -42,7 +44,28 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddSingleton<ITraceStore, InMemoryTraceStore>();
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
+        builder.Services.TryAddSingleton(new PlatformResourceOptions());
+        builder.Services.TryAddSingleton<PlatformResourceStore>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOrchestrationDescriptorProvider, PlatformResourceProvider>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceProvider, PlatformResourceProvider>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceProvider, CloudShellResourceProvider>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceProvider, ManagedResourceProvider>());
+        builder.Services.AddScoped<IControlPlane, InProcessControlPlane>();
+        builder.Services.AddScoped<IResourceManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<IResourceTemplateManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<ILogManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<ITraceManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddSingleton<ResourceOrchestratorSelectionStore>();
+        builder.Services.AddSingleton<IResourceOrchestrationSettings>(
+            serviceProvider => serviceProvider.GetRequiredService<ResourceOrchestratorSelectionStore>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IResourceOrchestrator, DefaultResourceOrchestrator>());
 

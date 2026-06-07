@@ -1,7 +1,5 @@
-@inject PlatformResourceProvider PlatformProvider
-@inject IResourceManagerStore ResourceManager
-@inject IResourceGroupStore ResourceGroups
-@inject IResourceRegistrationStore Registrations
+@using System.Text.Json
+@inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 
 <div class="type-registration">
@@ -28,7 +26,7 @@
                       @bind-Value="SelectedGroupId"
                       Appearance="Appearance.Outline">
             <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups.GetResourceGroups())
+            @foreach (var group in ResourceGroups)
             {
                 <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
@@ -107,6 +105,10 @@
 </div>
 
 @code {
+    private const string PlatformProviderId = "cloudshell.platform";
+    private const string NetworkResourceType = "cloudshell.network";
+    private const string ServiceResourceType = "cloudshell.service";
+
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string SelectedGroupId { get; set; } = string.Empty;
@@ -118,25 +120,47 @@
     private string Protocol { get; set; } = "tcp";
     private string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
     private string? ErrorMessage { get; set; }
+    private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+    private IReadOnlyList<CloudResource> Resources { get; set; } = [];
+    private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
+        new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+        Resources = await ResourceManager.ListResourcesAsync();
+
+        var groupsByResourceId = new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in Resources)
+        {
+            var group = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
+            if (group is not null)
+            {
+                groupsByResourceId[resource.Id] = group;
+            }
+        }
+
+        ResourceGroupsByResourceId = groupsByResourceId;
+    }
 
     private IReadOnlyList<CloudResource> GetTargetCandidates() =>
-        ResourceManager.GetResources()
-            .Where(resource => !string.Equals(resource.EffectiveTypeId, PlatformResourceProvider.ServiceResourceType, StringComparison.OrdinalIgnoreCase))
-            .Where(resource => !string.Equals(resource.EffectiveTypeId, PlatformResourceProvider.NetworkResourceType, StringComparison.OrdinalIgnoreCase))
+        Resources
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(IsInSelectedGroup)
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<CloudResource> GetNetworkCandidates() =>
-        ResourceManager.GetResources()
-            .Where(resource => string.Equals(resource.EffectiveTypeId, PlatformResourceProvider.NetworkResourceType, StringComparison.OrdinalIgnoreCase))
+        Resources
+            .Where(resource => string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(IsInSelectedGroup)
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private bool IsInSelectedGroup(CloudResource resource)
     {
-        var group = ResourceManager.GetGroupForResource(resource.Id);
+        var group = ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
         return string.IsNullOrWhiteSpace(SelectedGroupId)
             ? group is null
             : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
@@ -186,10 +210,14 @@
             [new ServicePort(PortName, TargetPort, Port, Protocol, exposure)],
             SelectedNetworkIds.ToArray());
 
-        await PlatformProvider.SetupServiceAsync(
-            definition,
-            SelectedGroupId,
-            Registrations);
+        await ResourceManager.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformProviderId,
+                ServiceResourceType,
+                ResourceId,
+                Name,
+                JsonSerializer.SerializeToElement(definition),
+                string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 
         Navigation.NavigateTo("/resources");
     }

@@ -7,8 +7,7 @@ CloudShell supports three registration shapes:
 - Combined: host both in one ASP.NET Core process.
 
 The explicit UI and Control Plane registrations are useful for split
-deployments. The combined registration is the convenience path for local
-development and self-contained deployments.
+deployments. Combined hosts compose those same registrations in one process.
 
 The reusable shell UI and hosting helpers live in `CloudShell.Hosting`, a Razor
 class library that references ASP.NET Core. Web SDK projects reference
@@ -48,17 +47,23 @@ See `samples/CloudShell.UiExtensionHost`.
 ## Combined Host
 
 For local development, the UI and Control Plane can run in the same ASP.NET Core
-process. This is the shape used by the `CloudShell.Host` development sample and
-is available through the convenience `AddCloudShell` registration.
+process. This is the shape used by the `CloudShell.Host` development sample.
 
 ```csharp
+using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
+using CloudShell.Hosting.ResourceManager;
+using CloudShell.Hosting.Shell;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var cloudShell = builder
-    .AddCloudShell()
+var cloudShell = builder.AddCloudShellControlPlane();
+builder.AddCloudShell();
+
+cloudShell
+    .AddExtension<ResourceManagerExtension>()
+    .AddExtension<ObservabilityExtension>()
     .AddConfigurationProvider()
     .AddApplicationProvider()
     .AddDockerProvider();
@@ -72,15 +77,17 @@ cloudShell.Resources(resources =>
 
 var app = builder.Build();
 
+await app.UseCloudShellControlPlaneAsync();
 await app.UseCloudShellAsync();
+app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();
 ```
 
-In this mode, the UI directly consumes the same in-process Control Plane
-services that own resource providers, registrations, groups, logs, templates,
-and resource procedures.
+In this mode, the UI consumes the same `IControlPlane` abstraction as a split
+host, but the registered implementation is in-process and backed by Control
+Plane services.
 
 The default host models each configuration service instance as an individual
 `configuration.store` resource. The configuration provider owns the local
@@ -134,8 +141,16 @@ The UI host owns:
 
 - Blazor shell rendering.
 - Navigation and layout.
-- Calls to the remote Control Plane API.
+- An `IControlPlane` implementation backed by the remote Control
+  Plane API.
 - Authentication challenge UX when required by the deployment.
+
+```csharp
+builder.Services.AddRemoteControlPlane(options =>
+{
+    options.BaseAddress = new Uri("https://control-plane.example.com");
+});
+```
 
 Declarative resources must be configured in the Control Plane host:
 
@@ -153,7 +168,7 @@ controlPlane.Resources(resources =>
 ```
 
 The UI host should not declare resources. It should discover resources through
-the Control Plane API so one shared Control Plane remains the authority for
+`IControlPlane` so one shared Control Plane remains the authority for
 checked-in configuration, persisted state, provider actions, and authorization.
 
 ## Persistence

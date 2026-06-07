@@ -1,13 +1,11 @@
 @page "/resources"
 @rendermode InteractiveServer
 @implements IAsyncDisposable
-@inject IResourceManagerStore ResourceManager
-@inject IResourceRegistrationStore Registrations
-@inject ILogStore LogStore
+@inject IResourceManager ResourceManager
+@inject ILogManager LogManager
 @inject ShellCatalog ShellCatalog
-@inject ResourceOrchestrationService Orchestration
 @inject ResourceHealthCheckService HealthChecks
-@inject ResourceOrchestratorSelectionStore SelectionStore
+@inject IResourceOrchestrationSettings OrchestrationSettings
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
@@ -15,8 +13,8 @@
 <PageTitle>@L["Resources"]</PageTitle>
 
 @{
-    var allResources = ResourceManager.GetResources();
-    var groups = ResourceManager.GetResourceGroups();
+    var allResources = ResourceInventory;
+    var groups = ResourceGroups;
     var resourceTypes = GetResourceTypeOptions(allResources);
     var resourceGroupFilters = GetResourceGroupFilterOptions(groups);
     var rows = BuildRows(allResources);
@@ -38,7 +36,7 @@
         <FluentButton Appearance="Appearance.Neutral" OnClick="OpenTemplates">
             @L["Templates"]
         </FluentButton>
-        @if (Authorization.HasPermission(CloudShellPermissions.Resources.Manage))
+        @if (CanOpenSettings)
         {
             <FluentButton Appearance="Appearance.Neutral" OnClick="OpenSettings">
                 @L["Settings"]
@@ -274,8 +272,14 @@
     @if (selected is not null)
     {
         var group = GetGroup(selected);
-        var parent = selected.ParentResourceId is null ? null : ResourceManager.GetResource(selected.ParentResourceId);
-        var children = ResourceManager.GetChildren(selected.Id);
+        var parent = selected.ParentResourceId is null
+            ? null
+            : allResources.FirstOrDefault(resource =>
+                string.Equals(resource.Id, selected.ParentResourceId, StringComparison.OrdinalIgnoreCase));
+        var children = allResources
+            .Where(resource => string.Equals(resource.ParentResourceId, selected.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         <aside class="resource-blade panel">
             @if (parent is not null)
@@ -391,7 +395,7 @@
                 </dl>
             </section>
 
-            @if (children.Count > 0)
+            @if (children.Length > 0)
             {
                 <section class="blade-section">
                     <h3>@L["Sub-resources"]</h3>
@@ -470,6 +474,14 @@
     private CancellationTokenSource? HealthPollingCancellation { get; set; }
     private Task? HealthPollingTask { get; set; }
     private bool IsDisposed { get; set; }
+    private IReadOnlyList<CloudResource> ResourceInventory { get; set; } = [];
+    private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+    private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
+        new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, ResourceOperationCapabilities> ResourceCapabilities { get; set; } =
+        new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> LogsByResourceId { get; set; } =
+        new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
 
     private string? NameFilter
     {
@@ -521,14 +533,19 @@
         SelectedTypeFilter != AllResourceTypesFilter ||
         SelectedResourceGroupFilter != AllResourceGroupsFilter;
 
-    protected override Task OnInitializedAsync()
+    private bool CanOpenSettings =>
+        Authorization.HasPermission(CloudShellPermissions.Resources.Manage) &&
+        ShellCatalog.GetViewRoute(ResourceManagerViews.ResourceSettings) is not null;
+
+    protected override async Task OnInitializedAsync()
     {
         ApplyPaginationFromUrl();
+        await LoadResourceModelAsync();
 
         HealthPollingCancellation = new CancellationTokenSource();
         HealthPollingTask = PollResourceHealthAsync(HealthPollingCancellation.Token);
 
-        return RefreshResourceHealthAsync();
+        await RefreshResourceHealthAsync();
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -632,7 +649,41 @@
         string.Equals(resource.EffectiveTypeId, SelectedTypeFilter, StringComparison.OrdinalIgnoreCase);
 
     private ResourceGroup? GetGroup(CloudResource resource) =>
-        ResourceManager.GetGroupForResource(resource.Id);
+        ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
+
+    private async Task LoadResourceModelAsync()
+    {
+        ResourceInventory = await ResourceManager.ListResourcesAsync();
+        ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+        ResourceCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(
+            ResourceInventory.Select(resource => resource.Id).ToArray());
+
+        var logs = await LogManager.ListLogsAsync();
+        LogsByResourceId = logs
+            .Where(log => !string.IsNullOrWhiteSpace(log.ResourceId))
+            .GroupBy(log => log.ResourceId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<LogDescriptor>)group.ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+
+        var groupsByResourceId = new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in ResourceInventory)
+        {
+            var group = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
+            if (group is not null)
+            {
+                groupsByResourceId[resource.Id] = group;
+            }
+        }
+
+        ResourceGroupsByResourceId = groupsByResourceId;
+        if (SelectedResource is not null)
+        {
+            SelectedResource = ResourceInventory.FirstOrDefault(resource =>
+                string.Equals(resource.Id, SelectedResource.Id, StringComparison.OrdinalIgnoreCase));
+        }
+    }
 
     private IReadOnlyList<ResourceTypeFilterOption> GetResourceTypeOptions(IReadOnlyList<CloudResource> resources) =>
     [
@@ -818,9 +869,20 @@
 
     private void OpenTemplates() => Navigation.NavigateTo("/resources/templates");
 
-    private void OpenSettings() => Navigation.NavigateTo("/resources/settings");
+    private void OpenSettings()
+    {
+        var route = ShellCatalog.GetViewRoute(ResourceManagerViews.ResourceSettings);
+        if (route is not null)
+        {
+            Navigation.NavigateTo(route);
+        }
+    }
 
-    private async Task RefreshResourcesAsync() => await RefreshResourceHealthAsync();
+    private async Task RefreshResourcesAsync()
+    {
+        await LoadResourceModelAsync();
+        await RefreshResourceHealthAsync();
+    }
 
     private async Task RefreshResourceHealthAsync(CancellationToken cancellationToken = default)
     {
@@ -838,8 +900,7 @@
                 StateHasChanged();
             });
 
-            var resources = ResourceManager.GetResources();
-            var healthResults = await HealthChecks.CheckAsync(resources, cancellationToken);
+            var healthResults = await HealthChecks.CheckAsync(ResourceInventory, cancellationToken);
 
             await InvokeAsync(() =>
             {
@@ -881,7 +942,7 @@
     }
 
     private TimeSpan GetHealthCheckInterval() =>
-        TimeSpan.FromSeconds(SelectionStore.GetHealthCheckIntervalSettings().Seconds);
+        TimeSpan.FromSeconds(OrchestrationSettings.GetHealthCheckIntervalSettings().Seconds);
 
     public async ValueTask DisposeAsync()
     {
@@ -912,7 +973,7 @@
 
     private void OpenLogs(CloudResource resource)
     {
-        var logs = LogStore.GetLogsForResource(resource.Id);
+        var logs = GetLogs(resource);
         var query = new Dictionary<string, string?>
         {
             ["resourceId"] = resource.Id
@@ -926,6 +987,9 @@
         Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
     }
 
+    private IReadOnlyList<LogDescriptor> GetLogs(CloudResource resource) =>
+        LogsByResourceId.GetValueOrDefault(resource.Id) ?? [];
+
     private void PromptDelete(CloudResource resource)
     {
         DeleteConfirmationResourceId = resource.Id;
@@ -938,10 +1002,11 @@
     {
         try
         {
-            var result = await Orchestration.DeleteAsync(resource);
+            var result = await ResourceManager.DeleteResourceAsync(resource.Id);
             ProcedureMessage = result.Message;
             DeleteConfirmationResourceId = null;
             SelectedResource = null;
+            await LoadResourceModelAsync();
         }
         catch (Exception exception)
         {
@@ -1044,12 +1109,14 @@
         ProcedureMessage = null;
         try
         {
-            var result = await Orchestration.ExecuteActionAsync(
-                resource,
-                action,
-                startDependencies,
-                Authorization);
+            var result = await ResourceManager.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    resource.Id,
+                    action.Id,
+                    StartDependencies: startDependencies,
+                    IgnoreDependentWarning: true));
             ProcedureMessage = result.Message;
+            await LoadResourceModelAsync();
         }
         catch (Exception exception)
         {
@@ -1083,7 +1150,8 @@
 
         foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            var dependency = ResourceManager.GetResource(dependencyId);
+            var dependency = ResourceInventory.FirstOrDefault(resource =>
+                string.Equals(resource.Id, dependencyId, StringComparison.OrdinalIgnoreCase));
             if (dependency is null)
             {
                 continue;
@@ -1099,43 +1167,29 @@
     }
 
     private IReadOnlyList<CloudResource> GetActiveDependents(CloudResource resource) =>
-        ResourceManager.GetResources()
+        ResourceInventory
             .Where(candidate => candidate.DependsOn.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
             .Where(candidate => IsActiveDependencyState(candidate.State))
             .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private bool CanManage(CloudResource resource)
-    {
-        var group = GetGroup(resource);
-        return Authorization.CanAccessResource(
-            resource.Id,
-            group?.Id,
-            CloudShellPermissions.Resources.Manage);
-    }
+    private bool CanManage(CloudResource resource) =>
+        GetCapabilities(resource).CanManage;
 
     private bool HasUpdateProcedure(CloudResource resource) =>
         ShellCatalog.ResourceTypes.Any(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase) &&
             (type.UpdateComponentType is not null || type.ResourceTabs.Count > 0));
 
-    private bool CanDelete(CloudResource resource)
-    {
-        var registration = Registrations.GetRegistration(resource.Id);
-        if (registration is null || !CanManage(resource))
-        {
-            return false;
-        }
+    private bool CanDelete(CloudResource resource) =>
+        GetCapabilities(resource).CanDelete;
 
-        return ResourceManager.Providers.Any(provider =>
-            string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase) &&
-            provider is IResourceProcedureProvider);
-    }
+    private bool CanExecuteAction(CloudResource resource, ResourceAction action) =>
+        GetCapabilities(resource).ExecutableActionIds.Contains(action.Id);
 
-    private bool CanExecuteAction(CloudResource resource) =>
-        resource.ResourceActions.Count > 0 &&
-        CanManage(resource) &&
-        GetProcedureProvider(resource) is not null;
+    private ResourceOperationCapabilities GetCapabilities(CloudResource resource) =>
+        ResourceCapabilities.GetValueOrDefault(resource.Id) ??
+        new ResourceOperationCapabilities(resource.Id, false, false, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
     private bool IsExecutingAction(CloudResource resource, ResourceAction action) =>
         string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
@@ -1185,57 +1239,12 @@
             _ => "health-pending"
         };
 
-    private IResourceProcedureProvider? GetProcedureProvider(CloudResource resource)
-    {
-        var registration = GetRegistrationForResourceOrAncestor(resource);
-        if (registration is not null)
-        {
-            return ResourceManager.Providers.FirstOrDefault(provider =>
-                string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
-                as IResourceProcedureProvider;
-        }
-
-        return ResourceManager.Providers.FirstOrDefault(provider =>
-            string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
-            as IResourceProcedureProvider;
-    }
-
-    private ResourceRegistration? GetRegistrationForResourceOrAncestor(CloudResource resource)
-    {
-        var current = resource;
-        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        while (visited.Add(current.Id))
-        {
-            var registration = Registrations.GetRegistration(current.Id);
-            if (registration is not null)
-            {
-                return registration;
-            }
-
-            if (current.ParentResourceId is null)
-            {
-                return null;
-            }
-
-            var parent = ResourceManager.GetResource(current.ParentResourceId);
-            if (parent is null)
-            {
-                return null;
-            }
-
-            current = parent;
-        }
-
-        return null;
-    }
-
     private static string GetActionKey(CloudResource resource, ResourceAction action) =>
         $"{resource.Id}:{action.Id}";
 
     private RenderFragment ResourceActionControls(CloudResource resource) => builder =>
     {
-        var logs = LogStore.GetLogsForResource(resource.Id);
+        var logs = GetLogs(resource);
         if (resource.ResourceActions.Count == 0 && logs.Count == 0)
         {
             return;
@@ -1250,7 +1259,7 @@
             builder.AddAttribute(sequence++, "Style", "width: 2rem; min-width: 2rem;");
             builder.AddAttribute(sequence++, "Title", action.DisplayName);
             builder.AddAttribute(sequence++, "Disabled",
-                !CanExecuteAction(resource) || IsExecutingAction(resource, action));
+                !CanExecuteAction(resource, action) || IsExecutingAction(resource, action));
             builder.AddAttribute(sequence++, "OnClick",
                 EventCallback.Factory.Create<MouseEventArgs>(
                     this,
@@ -1315,7 +1324,7 @@
             {
                 menuBuilder.OpenComponent<FluentMenuItem>(menuSequence++);
                 menuBuilder.AddAttribute(menuSequence++, "Disabled",
-                    !CanExecuteAction(resource) || IsExecutingAction(resource, action));
+                    !CanExecuteAction(resource, action) || IsExecutingAction(resource, action));
                 menuBuilder.AddAttribute(menuSequence++, "OnClick",
                     EventCallback.Factory.Create<MouseEventArgs>(
                         this,

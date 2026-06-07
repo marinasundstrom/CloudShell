@@ -7,6 +7,7 @@ public sealed class PlatformResourceProvider(
     PlatformResourceStore store,
     PlatformResourceOptions options) :
     IResourceProvider,
+    IResourceCreationProvider,
     IResourceProcedureProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceOrchestrationDescriptorProvider
@@ -26,6 +27,51 @@ public sealed class PlatformResourceProvider(
         .. store.GetNetworks().Select(CreateNetworkResource),
         .. store.GetServices().Select(CreateServiceResource)
     ];
+
+    public bool CanCreate(ResourceCreationRequest request) =>
+        string.Equals(request.ResourceType, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(request.ResourceType, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
+
+    public async Task CreateAsync(
+        ResourceCreationRequest request,
+        ResourceCreationContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.Equals(request.ResourceType, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            var definition = request.Configuration.Deserialize<NetworkResourceDefinition>(SerializerOptions)
+                ?? throw new InvalidOperationException("Network resource configuration is required.");
+            await SetupNetworkAsync(
+                definition with
+                {
+                    Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
+                    Name = string.IsNullOrWhiteSpace(definition.Name) ? request.Name : definition.Name
+                },
+                request.ResourceGroupId,
+                context.Registrations,
+                cancellationToken);
+            return;
+        }
+
+        if (string.Equals(request.ResourceType, ServiceResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            var definition = request.Configuration.Deserialize<ServiceResourceDefinition>(SerializerOptions)
+                ?? throw new InvalidOperationException("Service resource configuration is required.");
+            await SetupServiceAsync(
+                definition with
+                {
+                    Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
+                    Name = string.IsNullOrWhiteSpace(definition.Name) ? request.Name : definition.Name
+                },
+                request.ResourceGroupId,
+                context.Registrations,
+                cancellationToken);
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Platform resource type '{request.ResourceType}' is not supported.");
+    }
 
     public async Task SetupNetworkAsync(
         NetworkResourceDefinition definition,

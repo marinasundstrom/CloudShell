@@ -1,15 +1,15 @@
 @page "/observability/traces"
 @rendermode InteractiveServer
 @implements IDisposable
-@inject ITraceStore TraceStore
-@inject IResourceManagerStore ResourceManager
+@inject ITraceManager TraceManager
+@inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Traces"]</PageTitle>
 
 @{
-    var resources = GetTraceResources();
+    var resources = TraceResources;
     var selected = GetSelectedResource(resources);
 }
 
@@ -65,7 +65,7 @@
         else
         {
             var observability = selected.EffectiveObservability;
-            var spans = TraceStore.GetSpans(selected.Id, maxSpans: 200);
+            var spans = RecentSpans;
 
             <div class="panel-header log-viewer-header">
                 <div>
@@ -135,26 +135,32 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     public string? ResourceId { get; set; }
 
     private System.Threading.Timer? refreshTimer;
+    private IReadOnlyList<CloudResource> TraceResources { get; set; } = [];
+    private IReadOnlyList<TraceSpan> RecentSpans { get; set; } = [];
 
     protected override void OnInitialized()
     {
         refreshTimer = new System.Threading.Timer(
-            _ => _ = InvokeAsync(StateHasChanged),
+            _ => _ = InvokeAsync(RefreshSpansAsync),
             null,
             TimeSpan.FromSeconds(2),
             TimeSpan.FromSeconds(2));
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        TraceResources = (await ResourceManager.ListResourcesAsync())
+            .Where(resource => resource.EffectiveObservability.Traces)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        await RefreshSpansAsync();
     }
 
     public void Dispose()
     {
         refreshTimer?.Dispose();
     }
-
-    private IReadOnlyList<CloudResource> GetTraceResources() =>
-        ResourceManager.GetResources()
-            .Where(resource => resource.EffectiveObservability.Traces)
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
 
     private CloudResource? GetSelectedResource(IReadOnlyList<CloudResource> resources)
     {
@@ -169,6 +175,18 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         }
 
         return resources.FirstOrDefault();
+    }
+
+    private async Task RefreshSpansAsync()
+    {
+        var selected = GetSelectedResource(TraceResources);
+        RecentSpans = selected is null
+            ? []
+            : await TraceManager.ListTraceSpansAsync(new TraceQuery(
+                ResourceId: selected.Id,
+                MaxSpans: 200));
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private void SelectResource(CloudResource resource) =>

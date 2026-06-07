@@ -6,7 +6,7 @@
 @inject IEnumerable<IResourceOrchestrationDescriptorProvider> DescriptorProviders
 @inject IResourceManagerStore ResourceManager
 @inject IResourceRegistrationStore Registrations
-@inject ResourceOrchestratorSelectionStore SelectionStore
+@inject IResourceOrchestrationSettings OrchestrationSettings
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
@@ -93,8 +93,8 @@
             <label for="health-check-interval-seconds">@L["Health check interval"]</label>
             <FluentNumberField TValue="int"
                                Id="health-check-interval-seconds"
-                               Min="@ResourceOrchestratorSelectionStore.MinimumHealthCheckIntervalSeconds.ToString()"
-                               Max="@ResourceOrchestratorSelectionStore.MaximumHealthCheckIntervalSeconds.ToString()"
+                               Min="@ResourceOrchestratorSelectionDefaults.MinimumHealthCheckIntervalSeconds.ToString()"
+                               Max="@ResourceOrchestratorSelectionDefaults.MaximumHealthCheckIntervalSeconds.ToString()"
                                Step="1"
                                Disabled="@IsHealthCheckIntervalConfigured"
                                @bind-Value="SelectedHealthCheckIntervalSeconds" />
@@ -142,26 +142,26 @@
     private string SelectedOrchestratorId { get; set; } = "default";
     private string? SelectedContainerEngineId { get; set; }
     private int SelectedHealthCheckIntervalSeconds { get; set; } =
-        ResourceOrchestratorSelectionStore.DefaultHealthCheckIntervalSeconds;
+        ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds;
     private IReadOnlyList<ContainerEngineOption> ContainerEngines { get; set; } = [];
     private IReadOnlyList<string> ConfigurationWarnings { get; set; } = [];
     private bool PendingChange { get; set; }
 
     private bool IsHealthCheckIntervalConfigured =>
-        SelectionStore.GetHealthCheckIntervalSettings().IsConfigured;
+        OrchestrationSettings.GetHealthCheckIntervalSettings().IsConfigured;
 
     private bool CanApply =>
         !string.Equals(
             SelectedOrchestratorId,
-            SelectionStore.Get().OrchestratorId,
+            OrchestrationSettings.Get().OrchestratorId,
             StringComparison.OrdinalIgnoreCase) ||
         !string.Equals(
             NormalizeOptional(SelectedContainerEngineId),
-            SelectionStore.Get().PreferredContainerEngineId,
+            OrchestrationSettings.Get().PreferredContainerEngineId,
             StringComparison.OrdinalIgnoreCase) ||
         (!IsHealthCheckIntervalConfigured &&
-            ResourceOrchestratorSelectionStore.NormalizeHealthCheckInterval(SelectedHealthCheckIntervalSeconds) !=
-            SelectionStore.Get().HealthCheckIntervalSeconds);
+            ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(SelectedHealthCheckIntervalSeconds) !=
+            OrchestrationSettings.Get().HealthCheckIntervalSeconds);
 
     protected override void OnInitialized()
     {
@@ -171,7 +171,7 @@
             return;
         }
 
-        var selection = SelectionStore.Get();
+        var selection = OrchestrationSettings.Get();
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerEngineId = selection.PreferredContainerEngineId;
         SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
@@ -187,7 +187,7 @@
 
     private string GetCurrentOrchestratorName()
     {
-        var current = SelectionStore.Get().OrchestratorId;
+        var current = OrchestrationSettings.Get().OrchestratorId;
         return GetOrchestrators().FirstOrDefault(orchestrator =>
                 string.Equals(orchestrator.Id, current, StringComparison.OrdinalIgnoreCase))
             ?.DisplayName
@@ -201,7 +201,7 @@
 
     private void CancelChange()
     {
-        var selection = SelectionStore.Get();
+        var selection = OrchestrationSettings.Get();
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerEngineId = selection.PreferredContainerEngineId;
         SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
@@ -211,11 +211,11 @@
 
     private void ConfirmChange()
     {
-        SelectionStore.Select(
+        OrchestrationSettings.Select(
             SelectedOrchestratorId,
             SelectedContainerEngineId,
             SelectedHealthCheckIntervalSeconds);
-        SelectedHealthCheckIntervalSeconds = SelectionStore.Get().HealthCheckIntervalSeconds;
+        SelectedHealthCheckIntervalSeconds = OrchestrationSettings.Get().HealthCheckIntervalSeconds;
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
     }
@@ -223,7 +223,7 @@
     private void Cancel() => Navigation.NavigateTo("/resources");
 
     private ResourceHealthCheckIntervalSettings GetEffectiveHealthCheckInterval() =>
-        SelectionStore.GetHealthCheckIntervalSettings();
+        OrchestrationSettings.GetHealthCheckIntervalSettings();
 
     private IReadOnlyList<ContainerEngineOption> GetContainerEngines() =>
         ContainerEngineProviders

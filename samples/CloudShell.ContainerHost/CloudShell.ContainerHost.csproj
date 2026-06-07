@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\CloudShell.ControlPlane\CloudShell.ControlPlane.csproj" />
     <ProjectReference Include="..\..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
     <ProjectReference Include="..\..\CloudShell.Providers.Applications\CloudShell.Providers.Applications.csproj" />
     <ProjectReference Include="..\..\CloudShell.Providers.Docker\CloudShell.Providers.Docker.csproj" />

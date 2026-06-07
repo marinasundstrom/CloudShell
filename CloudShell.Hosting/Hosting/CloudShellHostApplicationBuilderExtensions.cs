@@ -1,14 +1,18 @@
+using CloudShell.Abstractions.Authentication;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
-using CloudShell.ControlPlane.Hosting;
-using CloudShell.ControlPlane.Authentication;
+using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Hosting.Authentication;
 using CloudShell.Hosting.Localization;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.StaticWebAssets;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.FluentUI.AspNetCore.Components;
 using System.Globalization;
 
@@ -18,7 +22,7 @@ public static class CloudShellHostApplicationBuilderExtensions
 {
     public static IControlPlaneBuilder AddCloudShell(
         this WebApplicationBuilder builder) =>
-        builder.AddCloudShellHost();
+        builder.AddCloudShellUi();
 
     public static IControlPlaneBuilder AddCloudShellUi(
         this WebApplicationBuilder builder)
@@ -26,7 +30,13 @@ public static class CloudShellHostApplicationBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.Services.AddHttpClient();
-        builder.Services.AddCloudShellAuthentication(builder.Configuration);
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddAuthentication();
+        builder.Services.AddAuthorization();
+        builder.Services.AddCascadingAuthenticationState();
+        builder.Services.TryAddScoped<ICloudShellAuthorizationService, PermissiveAuthorizationService>();
+        builder.Services.TryAddScoped<IAccountService, ExternalAccountService>();
+        builder.Services.TryAddSingleton<IResourceOrchestrationSettings, LocalResourceOrchestrationSettings>();
 
         var cloudShell = builder.Services
             .AddCloudShell()
@@ -35,22 +45,6 @@ public static class CloudShellHostApplicationBuilderExtensions
         AddCloudShellUiServices(builder);
 
         return cloudShell;
-    }
-
-    public static IControlPlaneBuilder AddCloudShellHost(
-        this WebApplicationBuilder builder)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        var controlPlane = builder
-            .AddCloudShellControlPlane()
-            .AddExtension<CoreShellExtension>()
-            .AddExtension<ResourceManagerExtension>()
-            .AddExtension<ObservabilityExtension>();
-
-        AddCloudShellUiServices(builder);
-
-        return controlPlane;
     }
 
     private static void AddCloudShellUiServices(WebApplicationBuilder builder)

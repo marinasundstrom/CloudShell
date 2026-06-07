@@ -1,14 +1,18 @@
+using CloudShell.Abstractions.ResourceManager;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
-public sealed class ResourceOrchestratorSelectionStore
+public sealed class ResourceOrchestratorSelectionStore : IResourceOrchestrationSettings
 {
-    public const int DefaultHealthCheckIntervalSeconds = 10;
-    public const int MinimumHealthCheckIntervalSeconds = 1;
-    public const int MaximumHealthCheckIntervalSeconds = 3600;
+    public const int DefaultHealthCheckIntervalSeconds =
+        ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds;
+    public const int MinimumHealthCheckIntervalSeconds =
+        ResourceOrchestratorSelectionDefaults.MinimumHealthCheckIntervalSeconds;
+    public const int MaximumHealthCheckIntervalSeconds =
+        ResourceOrchestratorSelectionDefaults.MaximumHealthCheckIntervalSeconds;
 
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -95,10 +99,7 @@ public sealed class ResourceOrchestratorSelectionStore
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     public static int NormalizeHealthCheckInterval(int value) =>
-        Math.Clamp(
-            value,
-            MinimumHealthCheckIntervalSeconds,
-            MaximumHealthCheckIntervalSeconds);
+        ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(value);
 
     private static ResourceOrchestratorSelection NormalizeSelection(ResourceOrchestratorSelection selection) =>
         selection with
@@ -113,20 +114,3 @@ public sealed class ResourceOrchestratorSelectionStore
                     : selection.HealthCheckIntervalSeconds)
         };
 }
-
-public sealed record ResourceOrchestratorSelection(
-    string OrchestratorId,
-    string? PreferredContainerEngineId,
-    int HealthCheckIntervalSeconds,
-    DateTimeOffset UpdatedAt)
-{
-    public static ResourceOrchestratorSelection Default { get; } = new(
-        "default",
-        null,
-        ResourceOrchestratorSelectionStore.DefaultHealthCheckIntervalSeconds,
-        DateTimeOffset.MinValue);
-}
-
-public sealed record ResourceHealthCheckIntervalSettings(
-    int Seconds,
-    bool IsConfigured);
