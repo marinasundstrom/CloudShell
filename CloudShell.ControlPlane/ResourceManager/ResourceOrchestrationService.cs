@@ -10,6 +10,7 @@ public sealed class ResourceOrchestrationService(
     IEnumerable<IContainerEngineProvider> containerEngineProviders,
     IResourceManagerStore resourceManager,
     IResourceRegistrationStore registrations,
+    ResourceDeclarationStore declarations,
     ResourceOrchestratorSelectionStore selectionStore)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
@@ -83,18 +84,24 @@ public sealed class ResourceOrchestrationService(
                 ?? throw new InvalidOperationException(
                     $"Dependency resource '{dependencyId}' could not be found.");
 
+            if (dependency.State == ResourceState.Running)
+            {
+                completed.Add(dependency.Id);
+                continue;
+            }
+
+            if (!declarations.ShouldAutoStart(dependency.Id))
+            {
+                throw new InvalidOperationException(
+                    $"Dependency resource '{dependency.Name}' is not running and has auto-start disabled.");
+            }
+
             await StartResourceDependenciesAsync(
                 dependency,
                 authorization,
                 visiting,
                 completed,
                 cancellationToken);
-
-            if (dependency.State == ResourceState.Running)
-            {
-                completed.Add(dependency.Id);
-                continue;
-            }
 
             var runAction = dependency.ResourceActions.FirstOrDefault(action =>
                 action.Kind == ResourceActionKind.Run);

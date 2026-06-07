@@ -232,6 +232,44 @@ Resource Manager, participate in authorization, can be assigned to a resource
 group with `WithResourceGroup(...)`, and can declare dependencies with
 `DependsOn(...)` or provider-specific dependency methods.
 
+Dependency auto-start is enabled by default for programmatic resource graphs.
+When a Run action is executed with dependency startup enabled, CloudShell starts
+stopped dependencies before starting the requested resource. This matches the
+Aspire-style expectation that a declared application graph can be run from the
+top-level application.
+
+Configure the graph default with `resources.WithAutoStart(...)`:
+
+```csharp
+controlPlane.Resources(resources =>
+{
+    resources.WithAutoStart(false);
+
+    var database = resources
+        .AddContainer("postgres", "postgres:16-alpine")
+        .WithAutoStart(true);
+
+    resources
+        .AddAspNetCoreProject(
+            "application:api",
+            "API",
+            "src/Api/Api.csproj")
+        .DependsOn(database);
+});
+```
+
+The graph default is inherited by resources that do not set their own value.
+Use `WithAutoStart(false)` on a resource when it should not be started
+automatically as a dependency, such as an expensive local database or an
+externally managed service. Explicitly running that resource still works. If a
+resource depends on a stopped dependency whose effective auto-start setting is
+disabled, CloudShell stops the action with a clear error instead of silently
+starting that dependency.
+
+`WithAutoStart(...)` does not mean "start every declared resource when
+CloudShell starts." It only controls whether stopped dependencies may be started
+as part of another resource's lifecycle action.
+
 Lifecycle execution is selected through `IResourceOrchestrator`. CloudShell
 ships a default orchestrator that preserves the current provider-backed
 behavior and treats service exposure as host-local. Extensions can add

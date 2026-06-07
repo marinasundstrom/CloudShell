@@ -17,7 +17,8 @@ public sealed record ResourceDeclaration(
     DateTimeOffset DeclaredAt,
     IReadOnlyList<string> DependsOn,
     ResourceDeclarationPersistence Persistence,
-    bool OverwritePersistedState = false);
+    bool OverwritePersistedState = false,
+    bool? AutoStartOverride = null);
 
 public interface ICloudShellResourceBuilder
 {
@@ -109,6 +110,38 @@ public static class CloudShellResourceDeclarationBuilderExtensions
         Action<ICloudShellResourceDeclarationBuilder> configure) =>
         builder.ConfigureResources(configure);
 
+    public static ICloudShellResourceDeclarationBuilder WithAutoStart(
+        this ICloudShellResourceDeclarationBuilder builder,
+        bool autoStart = true)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.Services).SetDefaultAutoStart(autoStart);
+        return builder;
+    }
+
+    public static IResourceGraphBuilder WithAutoStart(
+        this IResourceGraphBuilder builder,
+        bool autoStart = true)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.Services).SetDefaultAutoStart(autoStart);
+        return builder;
+    }
+
+    public static TBuilder WithAutoStart<TBuilder>(
+        this TBuilder builder,
+        bool autoStart = true)
+        where TBuilder : ICloudShellResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .SetAutoStart(builder.ResourceId, autoStart);
+        return builder;
+    }
+
     private static ResourceDeclarationStore GetOrAddDeclarationStore(IServiceCollection services)
     {
         var declarations = services
@@ -164,6 +197,18 @@ public sealed class ResourceDeclarationStore
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<Action<ResourceDeclaration>>> _changeHandlers =
         new(StringComparer.OrdinalIgnoreCase);
+    private bool _defaultAutoStart = true;
+
+    public bool DefaultAutoStart
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _defaultAutoStart;
+            }
+        }
+    }
 
     public ICloudShellResourceBuilder Declare(
         ICloudShellBuilder builder,
@@ -183,6 +228,7 @@ public sealed class ResourceDeclarationStore
         ResourceDeclaration declaration;
         lock (_gate)
         {
+            var existing = _declarations.GetValueOrDefault(resourceId.Trim());
             var normalized = Normalize(
                 providerId,
                 resourceId,
@@ -190,9 +236,10 @@ public sealed class ResourceDeclarationStore
                 resourceGroupId,
                 dependsOn ?? [],
                 persistence,
-                overwritePersistedState);
+                overwritePersistedState,
+                existing?.AutoStartOverride);
 
-            declaration = _declarations.TryGetValue(normalized.ResourceId, out var existing)
+            declaration = existing is not null
                 ? normalized with { DeclaredAt = existing.DeclaredAt }
                 : normalized;
 
@@ -273,6 +320,31 @@ public sealed class ResourceDeclarationStore
         });
     }
 
+    public void SetDefaultAutoStart(bool autoStart)
+    {
+        lock (_gate)
+        {
+            _defaultAutoStart = autoStart;
+        }
+    }
+
+    public void SetAutoStart(string resourceId, bool autoStart)
+    {
+        Update(resourceId, declaration => declaration with
+        {
+            AutoStartOverride = autoStart
+        });
+    }
+
+    public bool ShouldAutoStart(string resourceId)
+    {
+        lock (_gate)
+        {
+            return _declarations.GetValueOrDefault(resourceId)?.AutoStartOverride ??
+                _defaultAutoStart;
+        }
+    }
+
     private void Update(
         string resourceId,
         Func<ResourceDeclaration, ResourceDeclaration> update)
@@ -312,7 +384,8 @@ public sealed class ResourceDeclarationStore
         string? resourceGroupId,
         IReadOnlyList<string> dependsOn,
         ResourceDeclarationPersistence persistence,
-        bool overwritePersistedState) =>
+        bool overwritePersistedState,
+        bool? autoStartOverride = null) =>
         new(
             providerId.Trim(),
             resourceId.Trim(),
@@ -321,7 +394,8 @@ public sealed class ResourceDeclarationStore
             DateTimeOffset.UtcNow,
             NormalizeDependencies(dependsOn),
             persistence,
-            overwritePersistedState);
+            overwritePersistedState,
+            autoStartOverride);
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId.Trim();

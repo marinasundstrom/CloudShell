@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
@@ -142,6 +143,109 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal(ResourceDeclarationPersistence.Persisted, declaration.Persistence);
         Assert.True(declaration.OverwritePersistedState);
+    }
+
+    [Fact]
+    public void WithAutoStart_ConfiguresDefaultAndResourceOverrides()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources.WithAutoStart(false);
+
+                resources.Declare("configuration", "configuration:inherited");
+                resources
+                    .Declare("configuration", "configuration:enabled")
+                    .WithAutoStart(true);
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var inherited = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "configuration:inherited");
+        var enabled = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "configuration:enabled");
+
+        Assert.False(store.DefaultAutoStart);
+        Assert.Null(inherited.AutoStartOverride);
+        Assert.True(enabled.AutoStartOverride);
+        Assert.False(store.ShouldAutoStart("configuration:inherited"));
+        Assert.True(store.ShouldAutoStart("configuration:enabled"));
+    }
+
+    [Fact]
+    public void WithAutoStart_PreservesTypedBuilderFluentChains()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddConfigurationStore("configuration:example", "Example Configuration")
+                    .WithAutoStart(false)
+                    .WithEntry("SampleMessage", "Hello");
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations());
+
+        Assert.False(declaration.AutoStartOverride);
+    }
+
+    [Fact]
+    public async Task ExecuteAction_DoesNotStartDependencyWhenAutoStartIsDisabled()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var dependency = resources
+                    .Declare("auto-start", "dependency")
+                    .WithAutoStart(false);
+
+                resources
+                    .Declare("auto-start", "target")
+                    .DependsOn(dependency);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var provider = new AutoStartResourceProvider();
+        var registrations = new DeclarationRegistrationStore(declarations);
+        var resourceManager = new TestResourceManagerStore(provider, registrations);
+        var selectionStore = new ResourceOrchestratorSelectionStore(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))),
+            new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            [],
+            resourceManager,
+            registrations,
+            declarations,
+            selectionStore);
+        var target = resourceManager.GetResource("target")!;
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            orchestration.ExecuteActionAsync(
+                target,
+                ResourceAction.Run,
+                startDependencies: true,
+                new AllowAllAuthorizationService()));
+
+        Assert.Equal(
+            "Dependency resource 'Dependency' is not running and has auto-start disabled.",
+            exception.Message);
+        Assert.Empty(provider.ExecutedResources);
     }
 
     [Fact]
@@ -913,6 +1017,115 @@ public sealed class ResourceDeclarationTests
             IReadOnlyList<string> dependsOn,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class AutoStartResourceProvider :
+        IResourceProvider,
+        IResourceProcedureProvider
+    {
+        private readonly Dictionary<string, ResourceState> states = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["dependency"] = ResourceState.Stopped,
+            ["target"] = ResourceState.Stopped
+        };
+
+        public string Id => "auto-start";
+
+        public string DisplayName => "Auto Start";
+
+        public List<string> ExecutedResources { get; } = [];
+
+        public IReadOnlyList<CloudResource> GetResources() =>
+            states
+                .Select(item => new CloudResource(
+                    item.Key,
+                    item.Key == "dependency" ? "Dependency" : "Target",
+                    "Sample",
+                    DisplayName,
+                    "local",
+                    item.Value,
+                    [],
+                    "1.0",
+                    DateTimeOffset.UtcNow,
+                    [],
+                    Actions: [ResourceAction.Run]))
+                .ToArray();
+
+        public Task<ResourceProcedureResult> DeleteAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ResourceProcedureResult> ExecuteActionAsync(
+            ResourceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            ExecutedResources.Add(context.Resource.Id);
+            states[context.Resource.Id] = ResourceState.Running;
+            return Task.FromResult(ResourceProcedureResult.Completed("Completed."));
+        }
+    }
+
+    private sealed class TestResourceManagerStore(
+        IResourceProvider provider,
+        IResourceRegistrationStore registrations) : IResourceManagerStore
+    {
+        public IReadOnlyList<IResourceProvider> Providers => [provider];
+
+        public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
+
+        public IReadOnlyList<CloudResource> GetAvailableResources() =>
+            provider.GetResources();
+
+        public IReadOnlyList<CloudResource> GetResources() =>
+            GetAvailableResources()
+                .Select(resource =>
+                {
+                    var registration = registrations.GetRegistration(resource.Id);
+                    return registration is null
+                        ? resource
+                        : resource with
+                        {
+                            DependsOn = resource.DependsOn
+                                .Concat(registration.DependsOn)
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToArray()
+                        };
+                })
+                .ToArray();
+
+        public CloudResource? GetResource(string id) =>
+            GetResources().FirstOrDefault(resource =>
+                string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
+
+        public IReadOnlyList<CloudResource> GetChildren(string resourceId) => [];
+
+        public ResourceGroup? GetGroupForResource(string resourceId) => null;
+
+        public bool IsRegistered(string resourceId) =>
+            registrations.GetRegistration(resourceId) is not null;
+    }
+
+    private sealed class AllowAllAuthorizationService : ICloudShellAuthorizationService
+    {
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => true;
+
+        public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => true;
+
+        public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) => true;
+    }
+
+    private sealed class TestOptionsMonitor<TOptions>(TOptions currentValue) :
+        Microsoft.Extensions.Options.IOptionsMonitor<TOptions>
+    {
+        public TOptions CurrentValue { get; } = currentValue;
+
+        public TOptions Get(string? name) => CurrentValue;
+
+        public IDisposable? OnChange(Action<TOptions, string?> listener) => null;
     }
 
     private sealed class EmptyResourceGroupStore : IResourceGroupStore
