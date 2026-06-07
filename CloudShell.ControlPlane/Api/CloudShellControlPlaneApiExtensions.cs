@@ -245,7 +245,7 @@ public static class CloudShellControlPlaneApiExtensions
         try
         {
             var result = await resourceManager.DeleteResourceAsync(resourceId, cancellationToken);
-            return Results.Ok(new ResourceProcedureResponse(result.Message));
+            return Results.Ok(ToResponse(result));
         }
         catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
         {
@@ -284,7 +284,7 @@ public static class CloudShellControlPlaneApiExtensions
                     ignoreDependentWarning),
                 cancellationToken);
 
-            return Results.Ok(new ResourceProcedureResponse(result.Message));
+            return Results.Ok(ToResponse(result));
         }
         catch (InvalidOperationException exception) when (ShouldWarnDependents(action) && IsDependentWarning(exception))
         {
@@ -597,6 +597,13 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static bool IsDependentWarning(InvalidOperationException exception) =>
         exception.Message.Contains("depend on this resource", StringComparison.OrdinalIgnoreCase);
+
+    private static ResourceProcedureResponse ToResponse(ResourceProcedureResult result) =>
+        new(
+            result.Message,
+            result.RestartRequired,
+            result.RestartResourceId,
+            result.RestartMessage);
 
     private static IResult ToProblem(Exception exception) =>
         exception is UnauthorizedAccessException

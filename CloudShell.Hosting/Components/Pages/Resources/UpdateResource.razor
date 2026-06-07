@@ -46,6 +46,26 @@
     <div class="procedure-message">@ProcedureMessage</div>
 }
 
+@if (PendingRestart is not null)
+{
+    <div class="procedure-confirmation" role="alert">
+        <strong>@L["Restart {0}?", PendingRestart.ResourceName]</strong>
+        <span>@PendingRestart.Message</span>
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent"
+                          Disabled="@IsRestarting"
+                          OnClick="RestartPendingResource">
+                @(IsRestarting ? L["Restarting"] : L["Restart now"])
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral"
+                          Disabled="@IsRestarting"
+                          OnClick="DismissRestartPrompt">
+                @L["Later"]
+            </FluentButton>
+        </div>
+    </div>
+}
+
 <section class="registration-layout">
     <aside class="panel registration-options">
         <h2>@L["Resource"]</h2>
@@ -126,7 +146,9 @@
     private ResourceGroup? ResourceGroup { get; set; }
     private string? SelectedTabId { get; set; }
     private string? ProcedureMessage { get; set; }
+    private PendingResourceRestart? PendingRestart { get; set; }
     private bool IsApplying { get; set; }
+    private bool IsRestarting { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -166,6 +188,7 @@
     {
         SelectedTabId = tabId;
         ProcedureMessage = null;
+        PendingRestart = null;
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
             Navigation.NavigateTo(
@@ -193,12 +216,78 @@
         {
             var result = await ConfigurationContext.ApplyAsync();
             ProcedureMessage = result.Message;
+            PendingRestart = CreatePendingRestart(result);
         }
         finally
         {
             IsApplying = false;
         }
     }
+
+    private PendingResourceRestart? CreatePendingRestart(ResourceProcedureResult result)
+    {
+        if (!result.RestartRequired)
+        {
+            return null;
+        }
+
+        var resourceId = string.IsNullOrWhiteSpace(result.RestartResourceId)
+            ? Resource?.Id
+            : result.RestartResourceId;
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            return null;
+        }
+
+        var resourceName = Resource is not null &&
+            string.Equals(resourceId, Resource.Id, StringComparison.OrdinalIgnoreCase)
+            ? Resource.Name
+            : resourceId;
+        var message = string.IsNullOrWhiteSpace(result.RestartMessage)
+            ? L["This change requires a restart before it takes effect."].Value
+            : result.RestartMessage;
+
+        return new PendingResourceRestart(resourceId, resourceName, message);
+    }
+
+    private async Task RestartPendingResource()
+    {
+        if (PendingRestart is null)
+        {
+            return;
+        }
+
+        IsRestarting = true;
+        try
+        {
+            var result = await ResourceManager.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    PendingRestart.ResourceId,
+                    ResourceAction.Restart.Id,
+                    StartDependencies: false,
+                    IgnoreDependentWarning: true));
+            ProcedureMessage = result.Message;
+            PendingRestart = null;
+
+            if (!string.IsNullOrWhiteSpace(ResourceId))
+            {
+                Resource = await ResourceManager.GetResourceAsync(ResourceId);
+                ResourceGroup = Resource is null
+                    ? null
+                    : await ResourceManager.GetResourceGroupForResourceAsync(Resource.Id);
+            }
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            IsRestarting = false;
+        }
+    }
+
+    private void DismissRestartPrompt() => PendingRestart = null;
 
     private void HandleConfigurationStateChanged() => InvokeAsync(StateHasChanged);
 
@@ -238,4 +327,9 @@
     private static string GetTypeGlyph(CloudResource resource) =>
         resource.Kind.Contains("Docker", StringComparison.OrdinalIgnoreCase) ? "D" :
         resource.Name[..1].ToUpperInvariant();
+
+    private sealed record PendingResourceRestart(
+        string ResourceId,
+        string ResourceName,
+        string Message);
 }

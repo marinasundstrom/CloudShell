@@ -232,14 +232,55 @@ else
             healthChecks: Application.HealthChecks,
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
 
+        var restartRequired =
+            ApplicationProvider.IsRunning(Application.Id) &&
+            IsRuntimeSensitiveChange(Application, definition);
+
         await ApplicationProvider.UpdateApplicationAsync(
             definition,
             SelectedGroupId,
             Registrations,
             cancellationToken);
 
-        return ResourceProcedureResult.Completed("Application configuration updated.");
+        return restartRequired
+            ? ResourceProcedureResult.CompletedWithRestartRequired(
+                "Application configuration updated.",
+                Application.Id,
+                "The resource is running. Restart it now to apply runtime configuration changes.")
+            : ResourceProcedureResult.Completed("Application configuration updated.");
     }
+
+    private static bool IsRuntimeSensitiveChange(
+        ApplicationResourceDefinition existing,
+        ApplicationResourceDefinition updated)
+    {
+        if (!string.Equals(existing.ExecutablePath, updated.ExecutablePath, StringComparison.Ordinal) ||
+            !string.Equals(existing.Arguments, updated.Arguments, StringComparison.Ordinal) ||
+            !string.Equals(existing.WorkingDirectory, updated.WorkingDirectory, StringComparison.Ordinal) ||
+            !string.Equals(existing.Endpoint, updated.Endpoint, StringComparison.Ordinal) ||
+            existing.Lifetime != updated.Lifetime ||
+            existing.UseServiceDiscovery != updated.UseServiceDiscovery ||
+            !string.Equals(existing.ContainerImage, updated.ContainerImage, StringComparison.Ordinal) ||
+            !string.Equals(existing.ContainerBuildContext, updated.ContainerBuildContext, StringComparison.Ordinal) ||
+            !string.Equals(existing.ContainerDockerfile, updated.ContainerDockerfile, StringComparison.Ordinal) ||
+            !string.Equals(existing.ContainerEngineId, updated.ContainerEngineId, StringComparison.Ordinal) ||
+            existing.Replicas != updated.Replicas ||
+            !HasSameObservabilitySignals(existing.Observability, updated.Observability) ||
+            !existing.EnvironmentVariables.SequenceEqual(updated.EnvironmentVariables) ||
+            !existing.EndpointPorts.SequenceEqual(updated.EndpointPorts))
+        {
+            return true;
+        }
+
+        return (existing.UseServiceDiscovery || updated.UseServiceDiscovery) &&
+            !existing.References.SequenceEqual(updated.References, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool HasSameObservabilitySignals(
+        ResourceObservability? existing,
+        ResourceObservability? updated) =>
+        (existing ?? ResourceObservability.Default).HasAnySignal ==
+        (updated ?? ResourceObservability.Default).HasAnySignal;
 
     private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
         EnvironmentVariables

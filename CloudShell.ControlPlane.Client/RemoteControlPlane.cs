@@ -495,7 +495,11 @@ file sealed record ResourceOperationCapabilitiesResponse(
     bool CanDelete,
     IReadOnlySet<string> ExecutableActionIds);
 
-file sealed record ResourceProcedureResponse(string Message);
+file sealed record ResourceProcedureResponse(
+    string Message,
+    bool RestartRequired = false,
+    string? RestartResourceId = null,
+    string? RestartMessage = null);
 
 file sealed record LogResponse(
     string Id,
@@ -570,7 +574,11 @@ file static class RemoteControlPlaneMapper
             response.ExecutableActionIds);
 
     public static ResourceProcedureResult ToProcedureResult(this ResourceProcedureResponse response) =>
-        new(response.Message);
+        new(
+            response.Message,
+            response.RestartRequired,
+            response.RestartResourceId,
+            response.RestartMessage);
 
     public static LogDescriptor ToLogDescriptor(this LogResponse response) =>
         new(

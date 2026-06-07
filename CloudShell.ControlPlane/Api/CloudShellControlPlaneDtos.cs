@@ -84,7 +84,11 @@ public sealed record ResourceOperationCapabilitiesResponse(
     bool CanDelete,
     IReadOnlySet<string> ExecutableActionIds);
 
-public sealed record ResourceProcedureResponse(string Message);
+public sealed record ResourceProcedureResponse(
+    string Message,
+    bool RestartRequired = false,
+    string? RestartResourceId = null,
+    string? RestartMessage = null);
 
 public sealed record LogResponse(
     string Id,
