@@ -10,8 +10,8 @@ internal sealed class CloudShellExtensionBuilder(
     CloudShellExtensionManifest manifest,
     CloudShellExtensionActivationPolicy activationPolicy) : ICloudShellExtensionBuilder
 {
-    private readonly List<NavItemContribution> _navigationItems = [];
     private readonly List<ShellViewContribution> _views = [];
+    private readonly List<NavItemContribution> _navigationItems = [];
     private readonly List<CustomShellViewContribution> _customViews = [];
     private readonly List<ResourceTypeContribution> _resourceTypes = [];
     private readonly List<Type> _resourceProviderTypes = [];
@@ -20,37 +20,99 @@ internal sealed class CloudShellExtensionBuilder(
 
     public IServiceCollection Services { get; } = services;
 
-    public ICloudShellExtensionBuilder AddView<TComponent>(
-        string title,
-        string route,
-        string icon,
-        int order,
-        string group = "Workspace",
-        bool showInNavigation = true)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        ArgumentException.ThrowIfNullOrWhiteSpace(route);
+    public ICloudShellExtensionBuilder RegisterView<TComponent>() =>
+        RegisterView<TComponent>(NavItemTarget.GetViewId(typeof(TComponent)));
 
+    public ICloudShellExtensionBuilder RegisterView<TComponent>(string id)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+
+        var componentType = typeof(TComponent);
         _views.Add(new ShellViewContribution(
-            title,
-            NormalizeRoute(route),
-            typeof(TComponent),
-            icon,
-            order,
-            group,
-            showInNavigation));
+            id,
+            GetPrimaryRoute(componentType),
+            componentType));
 
         return this;
     }
 
-    public ICloudShellExtensionBuilder AddNavigation(
+    public ICloudShellExtensionBuilder AddNavigationItem<TView>(
         string text,
-        string href,
+        string icon,
+        int order,
+        string group = "Workspace") =>
+        AddNavigationItem<TView>(
+            NavItemTarget.GetViewId(typeof(TView)),
+            text,
+            icon,
+            order,
+            group);
+
+    public ICloudShellExtensionBuilder AddNavigationItem<TView>(
+        string id,
+        string text,
+        string icon,
+        int order,
+        string group = "Workspace") =>
+        AddNavigationItem(
+            id,
+            text,
+            NavItemTarget.ForView<TView>(),
+            icon,
+            order,
+            group);
+
+    public ICloudShellExtensionBuilder AddNavigationItem(
+        string id,
+        string text,
+        NavItemTarget target,
         string icon,
         int order,
         string group = "Workspace")
     {
-        _navigationItems.Add(new NavItemContribution(text, NormalizeRoute(href), icon, order, group));
+        AddNavigationItem(
+            id,
+            text,
+            target,
+            icon,
+            order,
+            group,
+            replacesExisting: false);
+
+        return this;
+    }
+
+    public ICloudShellExtensionBuilder ReplaceNavigationItem<TView>(
+        string id,
+        string text,
+        string icon,
+        int order,
+        string group = "Workspace") =>
+        ReplaceNavigationItem(
+            id,
+            text,
+            NavItemTarget.ForView<TView>(),
+            icon,
+            order,
+            group);
+
+    public ICloudShellExtensionBuilder ReplaceNavigationItem(
+        string id,
+        string text,
+        NavItemTarget target,
+        string icon,
+        int order,
+        string group = "Workspace")
+    {
+        AddNavigationItem(
+            id,
+            text,
+            target,
+            icon,
+            order,
+            group,
+            replacesExisting: true);
+
         return this;
     }
 
@@ -124,6 +186,17 @@ internal sealed class CloudShellExtensionBuilder(
         _startRoute = NormalizeRoute(route);
         return this;
     }
+
+    public ICloudShellExtensionBuilder UseStartView(string viewId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(viewId);
+
+        _startRoute = GetRegisteredView(viewId).Route;
+        return this;
+    }
+
+    public ICloudShellExtensionBuilder UseStartView<TView>() =>
+        UseStartView(NavItemTarget.GetViewId(typeof(TView)));
 
     public ICloudShellExtensionBuilder AddResourceProvider<TProvider>()
         where TProvider : class, IResourceProvider
@@ -240,6 +313,53 @@ internal sealed class CloudShellExtensionBuilder(
             updateComponentType));
     }
 
+    private void AddNavigationItem(
+        string id,
+        string text,
+        NavItemTarget target,
+        string icon,
+        int order,
+        string group,
+        bool replacesExisting)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+        ArgumentNullException.ThrowIfNull(target);
+
+        var href = ResolveTargetHref(target);
+
+        _navigationItems.Add(new NavItemContribution(
+            id,
+            text,
+            href,
+            target,
+            icon,
+            order,
+            group,
+            replacesExisting));
+    }
+
+    private ShellViewContribution GetRegisteredView(string viewId) =>
+        _views.FirstOrDefault(view =>
+            string.Equals(view.Id, viewId, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidOperationException(
+            $"View '{viewId}' must be registered before adding navigation items or start routes that reference it.");
+
+    private string ResolveTargetHref(NavItemTarget target)
+    {
+        if (!string.IsNullOrWhiteSpace(target.ViewId))
+        {
+            return GetRegisteredView(target.ViewId).Route;
+        }
+
+        if (!string.IsNullOrWhiteSpace(target.Href))
+        {
+            return NormalizeHref(target.Href);
+        }
+
+        throw new InvalidOperationException("Navigation item targets must specify a view id or href.");
+    }
+
     public ICloudShellExtensionBuilder AddSingleton<TService>()
         where TService : class
     {
@@ -299,4 +419,28 @@ internal sealed class CloudShellExtensionBuilder(
 
     private static string NormalizeRoute(string route) =>
         route == "/" ? route : "/" + route.Trim('/');
+
+    private static string NormalizeHref(string href) =>
+        Uri.TryCreate(href, UriKind.Absolute, out _)
+            ? href
+            : NormalizeRoute(href);
+
+    private static string GetPrimaryRoute(Type componentType)
+    {
+        var routes = componentType
+            .GetCustomAttributes(inherit: false)
+            .Where(attribute => attribute.GetType().FullName == "Microsoft.AspNetCore.Components.RouteAttribute")
+            .Select(attribute => attribute.GetType().GetProperty("Template")?.GetValue(attribute) as string)
+            .Where(route => !string.IsNullOrWhiteSpace(route))
+            .Select(route => NormalizeRoute(route!))
+            .ToArray();
+
+        if (routes.Length == 0)
+        {
+            throw new InvalidOperationException(
+                $"View component '{componentType.FullName}' must declare at least one @page route.");
+        }
+
+        return routes[0];
+    }
 }

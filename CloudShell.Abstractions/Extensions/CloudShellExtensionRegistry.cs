@@ -109,6 +109,20 @@ public sealed class CloudShellExtensionRegistry
             .Select(status => status.Extension)
             .ToArray();
 
+        ValidateNavigationItems(activeExtensions);
+
+        var duplicateView = activeExtensions
+            .SelectMany(extension => extension.Views.Select(view => new { extension.Id, View = view }))
+            .GroupBy(item => item.View.Id, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+
+        if (duplicateView is not null)
+        {
+            var owners = string.Join(", ", duplicateView.Select(item => item.Id));
+            throw new InvalidOperationException(
+                $"The view '{duplicateView.Key}' is contributed by multiple extensions: {owners}.");
+        }
+
         var duplicateRoute = activeExtensions
             .SelectMany(extension => extension.Views
                 .Select(view => new { extension.Id, view.Route })
@@ -187,6 +201,62 @@ public sealed class CloudShellExtensionRegistry
                 $"The resource type '{duplicateResourceType.Key}' is contributed by multiple extensions: {owners}.");
         }
 
+    }
+
+    private static void ValidateNavigationItems(
+        IReadOnlyList<CloudShellExtensionRegistration> activeExtensions)
+    {
+        var knownViewIds = activeExtensions
+            .SelectMany(extension => extension.Views.Select(view => view.Id)
+                .Concat(extension.CustomViews.Select(view => view.Id)))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unknownTarget = activeExtensions
+            .SelectMany(extension => extension.NavigationItems.Select(item => new { extension.Id, Item = item }))
+            .FirstOrDefault(item =>
+                !string.IsNullOrWhiteSpace(item.Item.Target.ViewId) &&
+                !knownViewIds.Contains(item.Item.Target.ViewId));
+
+        if (unknownTarget is not null)
+        {
+            throw new InvalidOperationException(
+                $"The navigation item '{unknownTarget.Item.Id}' targets unknown view '{unknownTarget.Item.Target.ViewId}'.");
+        }
+
+        var duplicateNavigationItem = activeExtensions
+            .SelectMany(extension => extension.NavigationItems.Select(item => new { extension.Id, Item = item }))
+            .GroupBy(item => item.Item.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new
+            {
+                Id = group.Key,
+                Items = group.ToArray(),
+                Replacements = group.Where(item => item.Item.ReplacesExisting).ToArray()
+            })
+            .FirstOrDefault(group =>
+                group.Replacements.Length > 1 ||
+                (group.Items.Length > 1 && group.Replacements.Length == 0) ||
+                (group.Items.Length == 1 && group.Replacements.Length == 1));
+
+        if (duplicateNavigationItem is null)
+        {
+            return;
+        }
+
+        var owners = string.Join(", ", duplicateNavigationItem.Items.Select(item => item.Id));
+        if (duplicateNavigationItem.Replacements.Length > 1)
+        {
+            throw new InvalidOperationException(
+                $"The navigation item '{duplicateNavigationItem.Id}' is replaced by multiple extensions: {owners}.");
+        }
+
+        if (duplicateNavigationItem.Replacements.Length == 1 &&
+            duplicateNavigationItem.Items.Length == 1)
+        {
+            throw new InvalidOperationException(
+                $"The navigation item '{duplicateNavigationItem.Id}' cannot be replaced because no active extension contributes it.");
+        }
+
+        throw new InvalidOperationException(
+            $"The navigation item '{duplicateNavigationItem.Id}' is contributed by multiple extensions: {owners}.");
     }
 
     private static CloudShellExtensionStatus GetBaseStatus(

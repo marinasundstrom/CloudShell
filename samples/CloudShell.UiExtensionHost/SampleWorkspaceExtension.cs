@@ -16,11 +16,8 @@ public sealed class SampleWorkspaceExtension : ICloudShellExtension
     public void Configure(ICloudShellExtensionBuilder builder)
     {
         builder
-            .AddView<SampleWorkspace>(
-                "Sample workspace",
-                "/sample-workspace",
-                "sparkle",
-                5)
-            .UseStartRoute("/sample-workspace");
+            .RegisterView<SampleWorkspace>()
+            .AddNavigationItem<SampleWorkspace>("Sample workspace", "sparkle", 5)
+            .UseStartView<SampleWorkspace>();
     }
 }

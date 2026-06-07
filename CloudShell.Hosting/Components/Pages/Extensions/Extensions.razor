@@ -46,13 +46,13 @@
                         }
                     </div>
                     @if (status.IsActive &&
-                        (extension.Views.Any(view => view.ShowInNavigation) ||
+                        (extension.NavigationItems.Any(item => item.ShowInNavigation) ||
                         extension.CustomViews.Any(view => view.ShowInNavigation)))
                     {
                         <div class="extension-views">
-                            @foreach (var view in extension.Views.Where(view => view.ShowInNavigation))
+                            @foreach (var item in extension.NavigationItems.Where(item => item.ShowInNavigation))
                             {
-                                <a href="@view.Route">@L[view.Title]</a>
+                                <a href="@item.Href">@L[item.Text]</a>
                             }
                             @foreach (var view in extension.CustomViews.Where(view => view.ShowInNavigation))
                             {

@@ -2,6 +2,8 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Shell;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.Abstractions.Tests;
@@ -23,6 +25,7 @@ public sealed class ExtensionRegistrationTests
 
         Assert.Equal("sample.provider", extension.Id);
         Assert.Equal("1.2.3", extension.Version);
+        Assert.Equal(typeof(SamplePage).FullName, view.Id);
         Assert.Equal("/sample", view.Route);
     }
 
@@ -137,6 +140,101 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void AddNavigationItem_RecordsComponentBackedNavigationItem()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<NavigationItemExtension>();
+
+        var registry = GetRegistry(services);
+        var item = Assert.Single(Assert.Single(registry.Extensions).NavigationItems);
+
+        Assert.Equal("sample.nav", item.Id);
+        Assert.Equal("/sample-overview", item.Href);
+        Assert.Equal(typeof(SampleOverviewPage).FullName, item.Target.ViewId);
+        Assert.False(item.ReplacesExisting);
+    }
+
+    [Fact]
+    public void AddNavigationItem_RecordsHrefTargetWithoutViewRegistration()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<HrefNavigationItemExtension>();
+
+        var registry = GetRegistry(services);
+        var extension = Assert.Single(registry.Extensions);
+        var item = Assert.Single(extension.NavigationItems);
+
+        Assert.Empty(extension.Views);
+        Assert.Equal("sample.docs", item.Id);
+        Assert.Equal("https://example.com/docs", item.Href);
+        Assert.Equal("https://example.com/docs", item.Target.Href);
+    }
+
+    [Fact]
+    public void Validate_AllowsExplicitNavigationItemReplacement()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<NavigationItemExtension>()
+            .AddExtension<ReplacementNavigationItemExtension>();
+
+        GetRegistry(services).Validate();
+    }
+
+    [Fact]
+    public void Validate_RejectsDuplicateNavigationItemIdsWithoutReplacement()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<NavigationItemExtension>()
+            .AddExtension<DuplicateNavigationItemExtension>();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => GetRegistry(services).Validate());
+
+        Assert.Contains("sample.nav", exception.Message);
+    }
+
+    [Fact]
+    public void Validate_RejectsNavigationItemReplacementWithoutTarget()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<ReplacementNavigationItemExtension>();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => GetRegistry(services).Validate());
+
+        Assert.Contains("cannot be replaced", exception.Message);
+    }
+
+    [Fact]
+    public void Validate_RejectsMultipleNavigationItemReplacements()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<NavigationItemExtension>()
+            .AddExtension<ReplacementNavigationItemExtension>()
+            .AddExtension<SecondReplacementNavigationItemExtension>();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => GetRegistry(services).Validate());
+
+        Assert.Contains("replaced by multiple extensions", exception.Message);
+    }
+
+    [Fact]
     public void Validate_RejectsDuplicateRoutes()
     {
         var services = new ServiceCollection();
@@ -149,6 +247,21 @@ public sealed class ExtensionRegistrationTests
         var exception = Assert.Throws<InvalidOperationException>(() => GetRegistry(services).Validate());
 
         Assert.Contains("/sample", exception.Message);
+    }
+
+    [Fact]
+    public void Validate_RejectsDuplicateViewIds()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<ExplicitViewIdExtension>()
+            .AddExtension<DuplicateExplicitViewIdExtension>();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => GetRegistry(services).Validate());
+
+        Assert.Contains("sample.view", exception.Message);
     }
 
     [Fact]
@@ -328,8 +441,9 @@ public sealed class ExtensionRegistrationTests
         public void Configure(ICloudShellExtensionBuilder builder)
         {
             builder
-                .AddView<SamplePage>("Sample", "sample", "sample", 10)
-                .UseStartRoute("/sample")
+                .RegisterView<SamplePage>()
+                .AddNavigationItem<SamplePage>("Sample", "sample", 10)
+                .UseStartView<SamplePage>()
                 .AddResourceProvider<SampleResourceProvider>();
         }
     }
@@ -346,7 +460,148 @@ public sealed class ExtensionRegistrationTests
 
         public void Configure(ICloudShellExtensionBuilder builder)
         {
-            builder.AddView<DuplicatePage>("Duplicate", "/sample", "sample", 20);
+            builder.RegisterView<DuplicatePage>();
+        }
+    }
+
+    private sealed class NavigationItemExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.navigation",
+            "Sample navigation",
+            "Contributes a component-backed navigation item.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .RegisterView<SampleOverviewPage>()
+                .AddNavigationItem<SampleOverviewPage>(
+                "sample.nav",
+                "Sample nav",
+                "sample",
+                10);
+        }
+    }
+
+    private sealed class DuplicateNavigationItemExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.navigation.duplicate",
+            "Duplicate navigation",
+            "Contributes a duplicate navigation item.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .RegisterView<SampleUpdatePage>()
+                .AddNavigationItem<SampleUpdatePage>(
+                "sample.nav",
+                "Duplicate nav",
+                "sample",
+                20);
+        }
+    }
+
+    private sealed class HrefNavigationItemExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.href-navigation",
+            "Href navigation",
+            "Contributes an href navigation item.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder.AddNavigationItem(
+                "sample.docs",
+                "Docs",
+                NavItemTarget.ForHref("https://example.com/docs"),
+                "document",
+                10);
+        }
+    }
+
+    private sealed class ExplicitViewIdExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.explicit-view",
+            "Explicit view",
+            "Contributes an explicit view id.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder.RegisterView<SampleOverviewPage>("sample.view");
+        }
+    }
+
+    private sealed class DuplicateExplicitViewIdExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.explicit-view-duplicate",
+            "Duplicate explicit view",
+            "Contributes a duplicate explicit view id.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder.RegisterView<SampleUpdatePage>("sample.view");
+        }
+    }
+
+    private sealed class ReplacementNavigationItemExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.navigation.replacement",
+            "Replacement navigation",
+            "Replaces a navigation item.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .RegisterView<SampleUpdatePage>()
+                .ReplaceNavigationItem<SampleUpdatePage>(
+                "sample.nav",
+                "Replacement nav",
+                "sample",
+                10);
+        }
+    }
+
+    private sealed class SecondReplacementNavigationItemExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.navigation.second-replacement",
+            "Second replacement navigation",
+            "Also replaces a navigation item.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .RegisterView<SamplePage>()
+                .ReplaceNavigationItem<SamplePage>(
+                "sample.nav",
+                "Second replacement nav",
+                "sample",
+                15);
         }
     }
 
@@ -561,13 +816,17 @@ public sealed class ExtensionRegistrationTests
             Task.FromResult<IReadOnlyList<LogEntry>>([]);
     }
 
+    [Route("/sample")]
     private sealed class SamplePage;
 
+    [Route("/sample")]
     private sealed class DuplicatePage;
 
     private sealed class SampleRegistrationPage;
 
+    [Route("/sample-update")]
     private sealed class SampleUpdatePage;
 
+    [Route("/sample-overview")]
     private sealed class SampleOverviewPage;
 }

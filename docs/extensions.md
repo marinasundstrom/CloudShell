@@ -30,12 +30,18 @@ public sealed class AcmeExtension : ICloudShellExtension
                 description: "Register an Acme cluster as a CloudShell resource.",
                 icon: "server",
                 order: 50)
-            .AddView<Pages.AcmeDashboard>(
-                title: "Acme",
-                route: "/acme",
-                icon: "server",
-                order: 50,
-                showInNavigation: false)
+            .RegisterView<Pages.AcmeDashboard>()
+            .RegisterView<Pages.AcmeOverview>()
+            .AddNavigationItem<Pages.AcmeOverview>(
+                text: "Acme Overview",
+                icon: "grid",
+                order: 51)
+            .AddNavigationItem(
+                id: "acme.docs",
+                text: "Acme Docs",
+                target: NavItemTarget.ForHref("https://docs.example.com/acme"),
+                icon: "document",
+                order: 52)
             .AddCustomView(
                 id: "acme.workspace",
                 title: "Acme Workspace",
@@ -53,7 +59,7 @@ public sealed class AcmeExtension : ICloudShellExtension
                 id: "settings",
                 title: "Settings",
                 order: 20)
-            .UseStartRoute("/acme/workspace")
+            .UseStartView<Pages.AcmeOverview>()
             .AddScoped<IAcmeClient, AcmeClient>();
     }
 }
@@ -106,16 +112,54 @@ Core persistence provider stores it in the `ExtensionActivations` table.
 
 ## Views
 
-Views are ordinary routable Blazor components in the extension assembly. `AddView<TComponent>` records the component assembly so the host can include it in both Blazor routing and server endpoint mapping.
+Views are ordinary routable Blazor components in the extension assembly. `RegisterView<TComponent>()` records the component by type, discovers the route declared by the component's `@page` directive, and records the component assembly so the host can include it in both Blazor routing and server endpoint mapping. Use `RegisterView<TComponent>("stable.id")` only when a string ID is part of a public integration contract.
 
-An extension can contribute multiple views. Set `showInNavigation` to `false` for detail or workflow routes that should not appear in the sidebar.
+Registering a view does not add it to the sidebar. Use view registration for pages that need to be addressable by ID, for hidden detail/workflow pages, and for pages that should be targets for navigation items or start routing.
 
 CloudShell supports two implementation styles for views:
 
-- `AddView<TComponent>` contributes a standalone routable component.
+- `RegisterView<TComponent>` contributes a standalone routable component by ID.
 - `AddCustomView` contributes a shell-hosted view with the standard CloudShell layout and extension-owned menu item components.
 
 Both styles are first-class shell views in the product UI. The `CustomView` name is an API-level distinction for adding composed views through the shell host.
+
+## Navigation items
+
+Use `AddNavigationItem` to add a sidebar item. Every item has an explicit target:
+`AddNavigationItem<TView>` points to a registered view by type, while
+`NavItemTarget.ForHref("/internal/path")` or `NavItemTarget.ForHref("https://...")`
+points directly to an internal or external href without requiring view
+registration. `NavItemTarget.ForView("view.id")` remains available for the rare
+case where a view was registered with an explicit string ID.
+
+```csharp
+builder
+    .RegisterView<Pages.AcmeOverview>()
+    .AddNavigationItem<Pages.AcmeOverview>(
+        text: "Acme Overview",
+        icon: "grid",
+        order: 20)
+    .AddNavigationItem(
+        id: "acme.docs",
+        text: "Acme Docs",
+        target: NavItemTarget.ForHref("https://docs.example.com/acme"),
+        icon: "document",
+        order: 25);
+```
+
+The built-in Overview navigation item uses the reserved ID `overview`. An
+extension can replace that sidebar item with `ReplaceNavigationItem`. The
+replacement target may be a registered view or a direct href.
+
+```csharp
+builder
+    .RegisterView<Pages.AcmeOverview>()
+    .ReplaceNavigationItem<Pages.AcmeOverview>(
+        id: "overview",
+        text: "Acme Overview",
+        icon: "grid",
+        order: 0);
+```
 
 ## Shell-hosted views
 
@@ -166,10 +210,12 @@ builder
 
 ## Start page
 
-CloudShell does not require Resource Manager to own the landing experience. An extension set can choose its own start page with `UseStartRoute`. The configured route must be contributed by an installed extension through `AddView`, `AddCustomView`, or `AddNavigation`.
+CloudShell does not require Resource Manager to own the landing experience. An extension set can choose its own start page with `UseStartView` or `UseStartRoute`. Prefer `UseStartView` when the start page is a registered view; it keeps startup configuration stable if the component route changes.
 
 ```csharp
-builder.UseStartRoute("/acme/workspace");
+builder
+    .RegisterView<Pages.AcmeOverview>()
+    .UseStartView<Pages.AcmeOverview>();
 ```
 
 Only one installed extension can configure the start route. This keeps customization explicit and prevents competing extensions from silently changing the root experience.

@@ -17,10 +17,11 @@ public sealed class ResourceManagerExtension : ICloudShellExtension
     public void Configure(ICloudShellExtensionBuilder builder)
     {
         builder
-            .AddView<Resources>("Resources", "/resources", "server", 10)
-            .AddView<AddResource>("Add resource", "/resources/add", "plus", 11, showInNavigation: false)
-            .AddView<CreateResourceGroup>("Create resource group", "/resources/groups/new", "folder", 12, showInNavigation: false)
-            .AddView<ResourceTemplates>("Resource templates", "/resources/templates", "document", 13, showInNavigation: false)
+            .RegisterView<Resources>()
+            .AddNavigationItem<Resources>("Resources", "server", 10)
+            .RegisterView<AddResource>()
+            .RegisterView<CreateResourceGroup>()
+            .RegisterView<ResourceTemplates>()
             .AddResourceProvider<CloudShellResourceProvider>()
             .AddResourceProvider<ManagedResourceProvider>();
     }

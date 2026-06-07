@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Shell;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.Abstractions.Extensions;
@@ -8,17 +9,43 @@ public interface ICloudShellExtensionBuilder
 {
     IServiceCollection Services { get; }
 
-    ICloudShellExtensionBuilder AddView<TComponent>(
-        string title,
-        string route,
+    ICloudShellExtensionBuilder RegisterView<TComponent>();
+
+    ICloudShellExtensionBuilder RegisterView<TComponent>(
+        string id);
+
+    ICloudShellExtensionBuilder AddNavigationItem<TView>(
+        string text,
         string icon,
         int order,
-        string group = "Workspace",
-        bool showInNavigation = true);
+        string group = "Workspace");
 
-    ICloudShellExtensionBuilder AddNavigation(
+    ICloudShellExtensionBuilder AddNavigationItem<TView>(
+        string id,
         string text,
-        string href,
+        string icon,
+        int order,
+        string group = "Workspace");
+
+    ICloudShellExtensionBuilder AddNavigationItem(
+        string id,
+        string text,
+        NavItemTarget target,
+        string icon,
+        int order,
+        string group = "Workspace");
+
+    ICloudShellExtensionBuilder ReplaceNavigationItem<TView>(
+        string id,
+        string text,
+        string icon,
+        int order,
+        string group = "Workspace");
+
+    ICloudShellExtensionBuilder ReplaceNavigationItem(
+        string id,
+        string text,
+        NavItemTarget target,
         string icon,
         int order,
         string group = "Workspace");
@@ -41,6 +68,10 @@ public interface ICloudShellExtensionBuilder
         string? description = null);
 
     ICloudShellExtensionBuilder UseStartRoute(string route);
+
+    ICloudShellExtensionBuilder UseStartView(string viewId);
+
+    ICloudShellExtensionBuilder UseStartView<TView>();
 
     ICloudShellExtensionBuilder AddResourceProvider<TProvider>()
         where TProvider : class, IResourceProvider;

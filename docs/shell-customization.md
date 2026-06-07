@@ -16,11 +16,17 @@ CloudShell's core value proposition is a configurable cloud-portal shell. The sh
 
 The current implementation supports programmatic customization:
 
-- `AddView<TComponent>` for extension-owned routable pages.
-- `AddNavigation` for navigation links.
+- `RegisterView<TComponent>()` for extension-owned routable pages keyed by component type.
+- `AddNavigationItem` for navigation menu items with explicit view or href targets.
+- `ReplaceNavigationItem` for replacing a named navigation item.
 - `AddCustomView` for shell-hosted views that use CloudShell's common layout.
 - `AddCustomViewMenuItem<TComponent>` for menu items inside shell-hosted views.
-- `UseStartRoute` for selecting the shell start experience.
+- `UseStartView` and `UseStartRoute` for selecting the shell start experience.
+
+The built-in Overview item has the special navigation ID `overview`. A
+replacement changes the sidebar contribution and points to either a registered
+view or a direct href. Registered views still own routing through their
+component's `@page` directive.
 
 The `AddCustomView` API name describes the implementation path: the extension is
 adding a composed view hosted by the shell instead of a standalone `@page`
@@ -31,19 +37,11 @@ An extension can add a small shell-hosted view to demonstrate this pattern:
 
 ```csharp
 builder
-    .AddCustomView(
-        id: "sample.workspace",
-        title: "Sample workspace",
-        route: "/sample-workspace",
+    .RegisterView<SampleWorkspaceOverview>()
+    .AddNavigationItem<SampleWorkspaceOverview>(
+        text: "Sample workspace",
         icon: "pulse",
-        order: 10,
-        description: "A simple shell view contributed through the CloudShell extension model.")
-    .AddCustomViewMenuItem<SampleWorkspaceOverview>(
-        viewId: "sample.workspace",
-        id: "overview",
-        title: "Overview",
-        order: 10,
-        description: "Show the sample workspace overview.");
+        order: 10);
 ```
 
 CloudShell does not currently support per-user customization. Start-route and view/menu contributions are global for the installed extension set.

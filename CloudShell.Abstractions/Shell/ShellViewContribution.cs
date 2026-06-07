@@ -1,10 +1,6 @@
 namespace CloudShell.Abstractions.Shell;
 
 public sealed record ShellViewContribution(
-    string Title,
+    string Id,
     string Route,
-    Type ComponentType,
-    string Icon,
-    int Order,
-    string Group = "Workspace",
-    bool ShowInNavigation = true);
+    Type ComponentType);

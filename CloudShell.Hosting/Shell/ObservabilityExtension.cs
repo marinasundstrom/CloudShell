@@ -15,10 +15,8 @@ public sealed class ObservabilityExtension : ICloudShellExtension
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
-        builder.AddView<Components.Pages.Logs.Logs>(
-            "Logs",
-            "/logs",
-            "document",
-            20);
+        builder
+            .RegisterView<Components.Pages.Logs.Logs>()
+            .AddNavigationItem<Components.Pages.Logs.Logs>("Logs", "document", 20);
     }
 }

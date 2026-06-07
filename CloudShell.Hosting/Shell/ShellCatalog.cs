@@ -23,21 +23,33 @@ public sealed class ShellCatalog(
         .OrderBy(status => status.Extension.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    public IReadOnlyList<NavItemContribution> NavigationItems => Extensions
-        .SelectMany(extension => extension.NavigationItems.Concat(extension.Views
-            .Where(view => view.ShowInNavigation)
-            .Select(view => new NavItemContribution(view.Title, view.Route, view.Icon, view.Order, view.Group)))
-            .Concat(extension.CustomViews
-                .Where(view => view.ShowInNavigation)
-                .Select(view => new NavItemContribution(view.Title, view.Route, view.Icon, view.Order, view.Group))))
-        .OrderBy(item => item.Order)
-        .ThenBy(item => item.Text, StringComparer.OrdinalIgnoreCase)
-        .ToArray();
+    public IReadOnlyList<NavItemContribution> NavigationItems
+    {
+        get
+        {
+            var replacementNavigationItemIds = GetReplacementNavigationItemIds();
+
+            return Extensions
+                .SelectMany(extension => GetEffectiveNavigationItems(extension, replacementNavigationItemIds)
+                    .Concat(extension.CustomViews
+                        .Where(view => view.ShowInNavigation)
+                        .Select(view => new NavItemContribution(
+                            CreateGeneratedNavigationId(view.Route),
+                            view.Title,
+                            view.Route,
+                            NavItemTarget.ForHref(view.Route),
+                            view.Icon,
+                            view.Order,
+                            view.Group))))
+                .OrderBy(item => item.Order)
+                .ThenBy(item => item.Text, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+    }
 
     public IReadOnlyList<ShellViewContribution> Views => Extensions
         .SelectMany(extension => extension.Views)
-        .OrderBy(view => view.Order)
-        .ThenBy(view => view.Title, StringComparer.OrdinalIgnoreCase)
+        .OrderBy(view => view.Id, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
     public IReadOnlyList<CustomShellViewContribution> CustomViews => Extensions
@@ -73,4 +85,28 @@ public sealed class ShellCatalog(
                     .SelectMany(view => view.ViewMenuItems)
                     .Select(menuItem => menuItem.ComponentType)))
             .Any(type => type == componentType);
+
+    public string? GetViewRoute(string viewId) =>
+        Extensions
+            .SelectMany(extension => extension.Views.Select(view => new { view.Id, view.Route })
+                .Concat(extension.CustomViews.Select(view => new { view.Id, view.Route })))
+            .FirstOrDefault(view => string.Equals(view.Id, viewId, StringComparison.OrdinalIgnoreCase))
+            ?.Route;
+
+    private IReadOnlySet<string> GetReplacementNavigationItemIds() =>
+        Extensions
+            .SelectMany(extension => extension.NavigationItems)
+            .Where(item => item.ReplacesExisting)
+            .Select(item => item.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static IEnumerable<NavItemContribution> GetEffectiveNavigationItems(
+        CloudShellExtensionRegistration extension,
+        IReadOnlySet<string> replacementNavigationItemIds) =>
+        extension.NavigationItems
+            .Where(item => item.ShowInNavigation)
+            .Where(item => item.ReplacesExisting || !replacementNavigationItemIds.Contains(item.Id));
+
+    private static string CreateGeneratedNavigationId(string route) =>
+        $"route:{route}";
 }
