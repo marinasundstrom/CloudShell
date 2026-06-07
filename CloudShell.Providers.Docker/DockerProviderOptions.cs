@@ -8,6 +8,10 @@ public sealed class DockerProviderOptions
 
     public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromSeconds(10);
 
+    internal IList<DeclaredDockerResource> DeclaredDockerResources { get; } = [];
+
+    internal IList<DeclaredDockerContainerResource> DeclaredContainers { get; } = [];
+
     internal Uri ResolveEndpoint()
     {
         if (Endpoint is not null)
@@ -44,4 +48,22 @@ public sealed class DockerProviderOptions
 
         return new Uri($"unix://{socketPath ?? "/var/run/docker.sock"}");
     }
+}
+
+internal sealed class DeclaredDockerResource(DockerResourceDefinition definition)
+{
+    public DockerResourceDefinition Definition { get; set; } = definition;
+
+    public bool Persist { get; set; }
+
+    public bool OverwritePersistedState { get; set; }
+}
+
+internal sealed class DeclaredDockerContainerResource(DockerContainerResourceDefinition definition)
+{
+    public DockerContainerResourceDefinition Definition { get; set; } = definition;
+
+    public bool Persist { get; set; }
+
+    public bool OverwritePersistedState { get; set; }
 }

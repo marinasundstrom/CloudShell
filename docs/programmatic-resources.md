@@ -34,6 +34,7 @@ types. Built-in methods include:
 - `AddConfigurationStore(...)` from `CloudShell.Providers.Configuration`.
 - `AddExecutable(...)` and `AddExecutableApplication(...)` from
   `CloudShell.Providers.Applications`.
+- `AddDocker(...)` from `CloudShell.Providers.Docker`.
 
 ## Aspire-Like Application Workflow
 
@@ -57,6 +58,10 @@ var configuration = resources.AddConfigurationStore(
     "Example Configuration");
 
 var database = resources.Declare("managed", "postgres-main");
+var redis = resources
+    .AddDocker()
+    .AddContainer("redis", "redis", "7.2")
+    .DependsOn(database);
 
 resources
     .AddExecutableApplication(
@@ -66,9 +71,21 @@ resources
         arguments: "run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile",
         endpoint: "http://localhost:5127")
     .WithReference(configuration)
+    .WithReference(redis)
     .WaitFor(database)
     .WithServiceDiscovery();
 ```
+
+`AddDocker()` declares the local Docker Engine resource. Containers are declared
+from that Docker resource with `AddContainer(name, image, tag)`, following the
+Aspire-style logical name shape. CloudShell derives the stable resource ID as
+`docker:container:<name>` and declares the container as a sub-resource of
+`docker:engine`. Use `DependsOn(...)` to add startup or topology dependencies
+without changing the container's parent relationship to the local Docker Engine.
+When you need a custom resource ID or display name, use
+`AddDocker().AddDockerContainer(id, name, image)`. To model more than one
+Docker parent, use `AddDocker(id, name)` and add containers from the returned
+Docker resource builder.
 
 When the application starts, CloudShell maps referenced resource endpoints into
 the .NET configuration shape used for service discovery, which provides a level

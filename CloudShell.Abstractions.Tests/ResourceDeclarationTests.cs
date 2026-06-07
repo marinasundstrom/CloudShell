@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
+using CloudShell.Providers.Docker;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.Abstractions.Tests;
@@ -135,5 +136,126 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(["postgres-main"], declaration.DependsOn);
         Assert.Equal(["configuration:settings"], application.References);
         Assert.True(application.UseServiceDiscovery);
+    }
+
+    [Fact]
+    public void TypedDockerContainerBuilder_DeclaresEngineAndContainer()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var postgres = resources.Declare("managed", "postgres-main");
+
+                resources
+                    .AddDocker()
+                    .AddContainer("redis", "redis", "7.2")
+                    .DependsOn(postgres)
+                    .WithResourceGroup("group-1");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declarations = store.GetDeclarations();
+        var engine = Assert.Single(declarations, declaration =>
+            declaration.ResourceId == DockerContainerResourceProvider.EngineResourceId);
+        var container = Assert.Single(declarations, declaration =>
+            declaration.ResourceId == "docker:container:redis");
+        var options = serviceProvider.GetRequiredService<DockerProviderOptions>();
+        var declaredContainers = options
+            .GetType()
+            .GetProperty("DeclaredContainers", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredContainer = Assert.Single(declaredContainers!.Cast<object>());
+        var definition = Assert.IsType<DockerContainerResourceDefinition>(
+            declaredContainer
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredContainer));
+
+        Assert.Equal("docker", engine.ProviderId);
+        Assert.Empty(engine.DependsOn);
+        Assert.Equal("docker", container.ProviderId);
+        Assert.Equal("group-1", container.ResourceGroupId);
+        Assert.Equal(
+            [DockerContainerResourceProvider.EngineResourceId, "postgres-main"],
+            container.DependsOn);
+        Assert.Equal("redis", definition.Name);
+        Assert.Equal("redis:7.2", definition.Image);
+        Assert.Equal(DockerContainerResourceProvider.EngineResourceId, definition.DockerResourceId);
+        Assert.Equal(container.DependsOn, definition.DependsOn);
+    }
+
+    [Fact]
+    public void TypedDockerBuilder_ParentsContainersUnderSpecificDockerResource()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddDocker("docker:dev", "Development Docker")
+                    .AddContainer("redis-dev", "redis", "7.2");
+
+                resources
+                    .AddDocker("docker:test", "Test Docker")
+                    .AddContainer("redis-test", "redis", "7.2");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declarations = store.GetDeclarations();
+        var devDocker = Assert.Single(declarations, declaration =>
+            declaration.ResourceId == "docker:dev");
+        var testDocker = Assert.Single(declarations, declaration =>
+            declaration.ResourceId == "docker:test");
+        var devContainer = Assert.Single(declarations, declaration =>
+            declaration.ResourceId == "docker:container:redis-dev");
+        var testContainer = Assert.Single(declarations, declaration =>
+            declaration.ResourceId == "docker:container:redis-test");
+        using var provider = new DockerContainerResourceProvider(
+            serviceProvider.GetRequiredService<DockerProviderOptions>());
+        var resources = provider.GetResources();
+        var devContainerResource = Assert.Single(resources, resource =>
+            resource.Id == "docker:container:redis-dev");
+        var testContainerResource = Assert.Single(resources, resource =>
+            resource.Id == "docker:container:redis-test");
+
+        Assert.Equal("docker", devDocker.ProviderId);
+        Assert.Equal("docker", testDocker.ProviderId);
+        Assert.Equal(["docker:dev"], devContainer.DependsOn);
+        Assert.Equal(["docker:test"], testContainer.DependsOn);
+        Assert.Equal("docker:dev", devContainerResource.ParentResourceId);
+        Assert.Equal("docker:test", testContainerResource.ParentResourceId);
+    }
+
+    [Fact]
+    public void TypedDockerContainerBuilder_NormalizesExplicitContainerId()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddDockerContainer("rabbitmq", "RabbitMQ", "rabbitmq:4")
+                    .DependsOn("configuration:settings")
+                    .DependsOn(DockerContainerResourceProvider.EngineResourceId);
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var container = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "docker:container:rabbitmq");
+
+        Assert.Equal(
+            [DockerContainerResourceProvider.EngineResourceId, "configuration:settings"],
+            container.DependsOn);
     }
 }
