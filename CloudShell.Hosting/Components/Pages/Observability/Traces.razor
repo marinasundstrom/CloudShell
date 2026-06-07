@@ -1,0 +1,173 @@
+@page "/observability/traces"
+@inject IResourceManagerStore ResourceManager
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
+
+<PageTitle>@L["Traces"]</PageTitle>
+
+@{
+    var resources = GetTraceResources();
+    var selected = GetSelectedResource(resources);
+}
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">@L["Observability"]</span>
+        <h1>@L["Traces"]</h1>
+        <p>@L["Inspect resources that are configured to export distributed traces."]</p>
+    </div>
+    <div class="heading-actions">
+        <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllResources">
+            @L["All trace resources"]
+        </FluentButton>
+    </div>
+</section>
+
+<section class="logs-workspace">
+    <aside class="log-source-list">
+        <div class="scope-heading">
+            <h2>@L["Trace sources"]</h2>
+            <span>@L["{0} resources", resources.Count]</span>
+        </div>
+
+        @foreach (var resource in resources)
+        {
+            <button class="log-source-item @(selected?.Id == resource.Id ? "active" : null)"
+                    @onclick="() => SelectResource(resource)">
+                <span>
+                    <strong>@resource.Name</strong>
+                    <small>@resource.Kind</small>
+                </span>
+                <em>@GetStateLabel(resource.State)</em>
+            </button>
+        }
+
+        @if (resources.Count == 0)
+        {
+            <div class="empty-state compact">
+                <strong>@L["No trace sources"]</strong>
+                <span>@L["No visible resources currently declare trace support."]</span>
+            </div>
+        }
+    </aside>
+
+    <div class="log-viewer panel">
+        @if (selected is null)
+        {
+            <div class="empty-state">
+                <strong>@L["No resource selected"]</strong>
+                <span>@L["Select a trace-capable resource to inspect its telemetry configuration."]</span>
+            </div>
+        }
+        else
+        {
+            var observability = selected.EffectiveObservability;
+
+            <div class="panel-header log-viewer-header">
+                <div>
+                    <h2>@selected.Name</h2>
+                    <p>@selected.Kind / @selected.Provider / @GetStateLabel(selected.State)</p>
+                </div>
+                <div class="log-viewer-actions">
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  OnClick="() => OpenResource(selected)">
+                        @L["Open resource"]
+                    </FluentButton>
+                </div>
+            </div>
+
+            <dl class="detail-list">
+                <dt>@L["Resource ID"]</dt>
+                <dd>@selected.Id</dd>
+                <dt>@L["Service name"]</dt>
+                <dd>@(observability.ServiceName ?? NormalizeServiceName(selected.Name, selected.Id))</dd>
+                <dt>@L["OTLP endpoint"]</dt>
+                <dd>@(observability.OtlpEndpoint ?? L["Provider/default environment"].Value)</dd>
+                <dt>@L["Protocol"]</dt>
+                <dd>@(observability.OtlpProtocol ?? L["grpc or http/protobuf"].Value)</dd>
+                <dt>@L["Primary endpoint"]</dt>
+                <dd>@selected.PrimaryEndpoint</dd>
+                <dt>@L["Resource attributes"]</dt>
+                <dd>@GetResourceAttributes(selected, observability)</dd>
+            </dl>
+
+            <div class="empty-state compact">
+                <strong>@L["Trace ingestion is not connected"]</strong>
+                <span>@L["CloudShell can configure resources for OTLP export. A trace store/reader still needs to be connected before spans can be listed here."]</span>
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ResourceId { get; set; }
+
+    private IReadOnlyList<CloudResource> GetTraceResources() =>
+        ResourceManager.GetResources()
+            .Where(resource => resource.EffectiveObservability.Traces)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private CloudResource? GetSelectedResource(IReadOnlyList<CloudResource> resources)
+    {
+        if (!string.IsNullOrWhiteSpace(ResourceId))
+        {
+            var requested = resources.FirstOrDefault(resource =>
+                string.Equals(resource.Id, ResourceId, StringComparison.OrdinalIgnoreCase));
+            if (requested is not null)
+            {
+                return requested;
+            }
+        }
+
+        return resources.FirstOrDefault();
+    }
+
+    private void SelectResource(CloudResource resource) =>
+        Navigation.NavigateTo(
+            Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                "/observability/traces",
+                "resourceId",
+                resource.Id));
+
+    private void ShowAllResources() => Navigation.NavigateTo("/observability/traces");
+
+    private void OpenResource(CloudResource resource) =>
+        Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");
+
+    private static string GetStateLabel(ResourceState state) =>
+        state.ToString();
+
+    private static string NormalizeServiceName(string name, string resourceId)
+    {
+        var candidate = string.IsNullOrWhiteSpace(name) ? resourceId : name;
+        var normalized = string.Join(
+                "-",
+                candidate.Trim().ToLowerInvariant().Split(
+                    [' ', '.', '_', ':', '/', '\\'],
+                    StringSplitOptions.RemoveEmptyEntries))
+            .Trim('-');
+
+        return string.IsNullOrWhiteSpace(normalized) ? resourceId : normalized;
+    }
+
+    private static string GetResourceAttributes(
+        CloudResource resource,
+        ResourceObservability observability)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["service.instance.id"] = resource.Id,
+            ["cloudshell.resource.id"] = resource.Id,
+            ["cloudshell.resource.type"] = resource.EffectiveTypeId
+        };
+
+        foreach (var attribute in observability.Attributes)
+        {
+            attributes[attribute.Key] = attribute.Value;
+        }
+
+        return string.Join(", ", attributes.Select(attribute => $"{attribute.Key}={attribute.Value}"));
+    }
+}
