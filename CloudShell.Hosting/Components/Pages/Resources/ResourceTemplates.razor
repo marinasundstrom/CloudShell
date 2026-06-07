@@ -48,12 +48,15 @@
         </div>
 
         <label for="export-group">@L["Resource group"]</label>
-        <select id="export-group" @bind="SelectedGroupId">
+        <FluentSelect TOption="string"
+                      Id="export-group"
+                      @bind-Value="SelectedGroupId"
+                      Appearance="Appearance.Outline">
             @foreach (var group in groups)
             {
-                <option value="@group.Id">@group.Name</option>
+                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         @if (selectedGroup is not null)
         {
@@ -74,10 +77,11 @@
         @if (!string.IsNullOrWhiteSpace(ExportJson))
         {
             <label for="export-json">@L["Template JSON"]</label>
-            <textarea id="export-json"
-                      class="template-json"
-                      readonly
-                      rows="24">@ExportJson</textarea>
+            <FluentTextArea Id="export-json"
+                            Class="template-json"
+                            ReadOnly="true"
+                            Rows="24"
+                            Value="@ExportJson" />
         }
     </div>
 
@@ -90,11 +94,11 @@
         </div>
 
         <label for="import-json">@L["Template JSON"]</label>
-        <textarea id="import-json"
-                  class="template-json"
-                  rows="24"
-                  placeholder="@L["Paste a resource group template JSON document"]"
-                  @bind="ImportJson"></textarea>
+        <FluentTextArea Id="import-json"
+                        Class="template-json"
+                        Rows="24"
+                        Placeholder="@L["Paste a resource group template JSON document"]"
+                        @bind-Value="ImportJson" />
 
         <div class="form-actions">
             <FluentButton Appearance="Appearance.Neutral" OnClick="ClearImport">

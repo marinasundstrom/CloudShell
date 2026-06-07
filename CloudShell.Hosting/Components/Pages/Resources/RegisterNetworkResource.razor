@@ -16,23 +16,26 @@
 
     <div class="form-panel">
         <label for="network-name">Name</label>
-        <input id="network-name" @bind="Name" />
+        <FluentTextField Id="network-name" @bind-Value="Name" />
 
         <label for="network-resource-id">Resource ID</label>
-        <input id="network-resource-id" @bind="ResourceId" placeholder="network:app" />
+        <FluentTextField Id="network-resource-id" @bind-Value="ResourceId" Placeholder="network:app" />
 
         <FluentCheckbox @bind-Value="IsDefault">
             Default network
         </FluentCheckbox>
 
         <label for="network-group">Resource group</label>
-        <select id="network-group" @bind="SelectedGroupId">
-            <option value="">Default group</option>
+        <FluentSelect TOption="string"
+                      Id="network-group"
+                      @bind-Value="SelectedGroupId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default group</FluentOption>
             @foreach (var group in ResourceGroups.GetResourceGroups())
             {
-                <option value="@group.Id">@group.Name</option>
+                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         @if (ErrorMessage is not null)
         {

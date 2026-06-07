@@ -15,19 +15,22 @@ else
     <div class="type-registration">
         <div class="form-panel">
             <label for="configuration-update-name">Name</label>
-            <input id="configuration-update-name" @bind="Name" />
+            <FluentTextField Id="configuration-update-name" @bind-Value="Name" />
 
             <label for="configuration-update-endpoint">Endpoint</label>
-            <input id="configuration-update-endpoint" @bind="Endpoint" />
+            <FluentTextField Id="configuration-update-endpoint" @bind-Value="Endpoint" />
 
             <label for="configuration-update-group">Resource group</label>
-            <select id="configuration-update-group" @bind="SelectedGroupId">
-                <option value="">Default group</option>
+            <FluentSelect TOption="string"
+                          Id="configuration-update-group"
+                          @bind-Value="SelectedGroupId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Default group</FluentOption>
                 @foreach (var group in ResourceGroups.GetResourceGroups())
                 {
-                    <option value="@group.Id">@group.Name</option>
+                    <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
                 }
-            </select>
+            </FluentSelect>
 
             <div class="environment-editor">
                 <div class="environment-header">
@@ -40,8 +43,8 @@ else
                 @foreach (var entry in Entries)
                 {
                     <div class="environment-row configuration-entry-row">
-                        <input aria-label="Configuration entry name" @bind="entry.Name" />
-                        <input aria-label="Configuration entry value" @bind="entry.Value" />
+                        <FluentTextField AriaLabel="Configuration entry name" @bind-Value="entry.Name" />
+                        <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" />
                         <FluentCheckbox @bind-Value="entry.IsSecret">
                             Secret
                         </FluentCheckbox>

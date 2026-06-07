@@ -791,12 +791,8 @@ h3 {
     gap: .5rem;
 }
 
-.registration-options select {
-    min-height: 2.2rem;
-    padding: .35rem .5rem;
-    border: 1px solid var(--cloudshell-input-stroke);
-    border-radius: 4px;
-    background: var(--cloudshell-input);
+.registration-options fluent-select {
+    width: 100%;
 }
 
 .registration-options p {
@@ -855,21 +851,22 @@ h3 {
     gap: .8rem;
 }
 
-.type-registration select {
+.type-registration fluent-select {
     max-width: 22rem;
-    min-height: 2.2rem;
-    padding: .35rem .5rem;
-    border: 1px solid var(--cloudshell-input-stroke);
-    border-radius: 4px;
-    background: var(--cloudshell-input);
+    width: 100%;
 }
 
-.type-registration input {
-    min-height: 2.2rem;
-    padding: .35rem .5rem;
-    border: 1px solid var(--cloudshell-input-stroke);
-    border-radius: 4px;
-    background: var(--cloudshell-input);
+.type-registration fluent-text-field,
+.type-registration fluent-number-field,
+.type-registration fluent-text-area {
+    width: 100%;
+}
+
+.type-registration fluent-text-field::part(control),
+.type-registration fluent-number-field::part(control),
+.type-registration fluent-text-area::part(control),
+.type-registration fluent-select::part(control) {
+    width: 100%;
 }
 
 .provider-summary.compact {
@@ -983,12 +980,9 @@ h3 {
     font-weight: 650;
 }
 
-.template-panel select {
-    min-height: 2.2rem;
-    padding: .35rem .5rem;
-    border: 1px solid var(--cloudshell-input-stroke);
-    border-radius: 4px;
-    background: var(--cloudshell-input);
+.template-panel fluent-select,
+.template-panel fluent-text-area {
+    width: 100%;
 }
 
 .template-summary {
@@ -1008,12 +1002,10 @@ h3 {
 
 .template-json {
     width: 100%;
+}
+
+.template-json::part(control) {
     min-height: 26rem;
-    padding: .65rem;
-    border: 1px solid var(--cloudshell-input-stroke);
-    border-radius: 4px;
-    background: var(--cloudshell-input);
-    color: var(--cloudshell-text);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: .82rem;
     line-height: 1.45;
@@ -1707,20 +1699,12 @@ h3 {
     gap: 12px;
 }
 
-.account-panel form > input {
+.account-panel form > fluent-text-field {
     width: 100%;
-    min-height: 34px;
-    padding: 6px 10px;
-    border: 1px solid var(--cloudshell-input-stroke);
-    border-radius: 2px;
-    background: var(--cloudshell-input);
-    color: var(--cloudshell-text);
-    font: inherit;
 }
 
-.account-panel form > input:focus {
-    border-color: var(--cloudshell-accent);
-    outline: 1px solid var(--cloudshell-accent);
+.account-panel form > fluent-text-field::part(control) {
+    width: 100%;
 }
 
 .account-panel form > small {

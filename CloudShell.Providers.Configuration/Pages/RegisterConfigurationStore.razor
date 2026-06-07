@@ -17,22 +17,25 @@
 
     <div class="form-panel">
         <label for="configuration-store-name">Name</label>
-        <input id="configuration-store-name" @bind="Name" />
+        <FluentTextField Id="configuration-store-name" @bind-Value="Name" />
 
         <label for="configuration-store-resource-id">Resource ID</label>
-        <input id="configuration-store-resource-id" @bind="ResourceId" placeholder="configuration:local" />
+        <FluentTextField Id="configuration-store-resource-id" @bind-Value="ResourceId" Placeholder="configuration:local" />
 
         <label for="configuration-store-endpoint">Endpoint</label>
-        <input id="configuration-store-endpoint" @bind="Endpoint" placeholder="Generated from the resource ID" />
+        <FluentTextField Id="configuration-store-endpoint" @bind-Value="Endpoint" Placeholder="Generated from the resource ID" />
 
         <label for="configuration-store-group">Resource group</label>
-        <select id="configuration-store-group" @bind="SelectedGroupId">
-            <option value="">Default group</option>
+        <FluentSelect TOption="string"
+                      Id="configuration-store-group"
+                      @bind-Value="SelectedGroupId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default group</FluentOption>
             @foreach (var group in ResourceGroups.GetResourceGroups())
             {
-                <option value="@group.Id">@group.Name</option>
+                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         <div class="environment-editor">
             <div class="environment-header">
@@ -45,8 +48,8 @@
             @foreach (var entry in Entries)
             {
                 <div class="environment-row configuration-entry-row">
-                    <input aria-label="Configuration entry name" @bind="entry.Name" />
-                    <input aria-label="Configuration entry value" @bind="entry.Value" />
+                    <FluentTextField AriaLabel="Configuration entry name" @bind-Value="entry.Name" />
+                    <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" />
                     <FluentCheckbox @bind-Value="entry.IsSecret">
                         Secret
                     </FluentCheckbox>

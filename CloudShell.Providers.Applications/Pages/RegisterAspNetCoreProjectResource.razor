@@ -17,24 +17,27 @@
 
     <div class="form-panel">
         <label for="web-application-name">Name</label>
-        <input id="web-application-name" @bind="Name" />
+        <FluentTextField Id="web-application-name" @bind-Value="Name" />
 
         <label for="web-application-resource-id">Resource ID</label>
-        <input id="web-application-resource-id" @bind="ResourceId" placeholder="application:example-web-api" />
+        <FluentTextField Id="web-application-resource-id" @bind-Value="ResourceId" Placeholder="application:example-web-api" />
 
         <label for="web-application-project">Project path</label>
-        <input id="web-application-project" @bind="ProjectPath" placeholder="samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj" />
+        <FluentTextField Id="web-application-project" @bind-Value="ProjectPath" Placeholder="samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj" />
 
         <label for="web-application-endpoint">Endpoint</label>
-        <input id="web-application-endpoint" @bind="Endpoint" placeholder="auto assigned, or http://localhost:5127" />
+        <FluentTextField Id="web-application-endpoint" @bind-Value="Endpoint" Placeholder="auto assigned, or http://localhost:5127" />
 
         <label for="web-application-lifetime">Lifetime</label>
-        <select id="web-application-lifetime" @bind="SelectedLifetime">
+        <FluentSelect TOption="string"
+                      Id="web-application-lifetime"
+                      @bind-Value="SelectedLifetime"
+                      Appearance="Appearance.Outline">
             @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
             {
-                <option value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</option>
+                <FluentOption TOption="string" Value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         <FluentCheckbox @bind-Value="UseHotReload">
             Use hot reload
@@ -45,13 +48,16 @@
         </FluentCheckbox>
 
         <label for="web-application-group">Resource group</label>
-        <select id="web-application-group" @bind="SelectedGroupId">
-            <option value="">Default group</option>
+        <FluentSelect TOption="string"
+                      Id="web-application-group"
+                      @bind-Value="SelectedGroupId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default group</FluentOption>
             @foreach (var group in ResourceGroups.GetResourceGroups())
             {
-                <option value="@group.Id">@group.Name</option>
+                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         <div class="environment-editor">
             <div class="environment-header">
@@ -82,8 +88,8 @@
             @foreach (var variable in EnvironmentVariables)
             {
                 <div class="environment-row">
-                    <input aria-label="Environment variable name" @bind="variable.Name" />
-                    <input aria-label="Environment variable value" @bind="variable.Value" />
+                    <FluentTextField AriaLabel="Environment variable name" @bind-Value="variable.Name" />
+                    <FluentTextField AriaLabel="Environment variable value" @bind-Value="variable.Value" />
                     <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
                         Remove
                     </FluentButton>

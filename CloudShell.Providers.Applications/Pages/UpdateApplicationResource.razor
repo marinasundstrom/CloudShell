@@ -15,52 +15,58 @@ else
     <div class="type-registration">
         <div class="form-panel">
             <label for="application-update-name">Name</label>
-            <input id="application-update-name" @bind="Name" />
+            <FluentTextField Id="application-update-name" @bind-Value="Name" />
 
             <label for="application-update-executable">Executable path</label>
-            <input id="application-update-executable" @bind="ExecutablePath" />
+            <FluentTextField Id="application-update-executable" @bind-Value="ExecutablePath" />
 
             <label for="application-update-arguments">Arguments</label>
-            <input id="application-update-arguments" @bind="Arguments" />
+            <FluentTextField Id="application-update-arguments" @bind-Value="Arguments" />
 
             <label for="application-update-working-directory">Working directory</label>
-            <input id="application-update-working-directory" @bind="WorkingDirectory" />
+            <FluentTextField Id="application-update-working-directory" @bind-Value="WorkingDirectory" />
 
             <label for="application-update-endpoint">Endpoint</label>
-            <input id="application-update-endpoint" @bind="Endpoint" />
+            <FluentTextField Id="application-update-endpoint" @bind-Value="Endpoint" />
 
             <label for="application-update-lifetime">Lifetime</label>
-            <select id="application-update-lifetime" @bind="SelectedLifetime">
+            <FluentSelect TOption="string"
+                          Id="application-update-lifetime"
+                          @bind-Value="SelectedLifetime"
+                          Appearance="Appearance.Outline">
                 @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
                 {
-                    <option value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</option>
+                    <FluentOption TOption="string" Value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</FluentOption>
                 }
-            </select>
+            </FluentSelect>
 
             <FluentCheckbox @bind-Value="UseServiceDiscovery">
                 Enable service discovery for references
             </FluentCheckbox>
 
             <label for="application-update-container-image">Container image</label>
-            <input id="application-update-container-image" @bind="ContainerImage" placeholder="example/api:dev" />
+            <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
 
             <label for="application-update-build-context">Docker build context</label>
-            <input id="application-update-build-context" @bind="ContainerBuildContext" placeholder="." />
+            <FluentTextField Id="application-update-build-context" @bind-Value="ContainerBuildContext" Placeholder="." />
 
             <label for="application-update-dockerfile">Dockerfile</label>
-            <input id="application-update-dockerfile" @bind="ContainerDockerfile" placeholder="Dockerfile" />
+            <FluentTextField Id="application-update-dockerfile" @bind-Value="ContainerDockerfile" Placeholder="Dockerfile" />
 
             <label for="application-update-replicas">Replicas</label>
-            <input id="application-update-replicas" type="number" min="1" @bind="Replicas" />
+            <FluentNumberField TValue="int" Id="application-update-replicas" Min="1" @bind-Value="Replicas" />
 
             <label for="application-update-group">Resource group</label>
-            <select id="application-update-group" @bind="SelectedGroupId">
-                <option value="">Default group</option>
+            <FluentSelect TOption="string"
+                          Id="application-update-group"
+                          @bind-Value="SelectedGroupId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Default group</FluentOption>
                 @foreach (var group in ResourceGroups.GetResourceGroups())
                 {
-                    <option value="@group.Id">@group.Name</option>
+                    <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
                 }
-            </select>
+            </FluentSelect>
 
             <div class="environment-editor">
                 <div class="environment-header">
@@ -87,8 +93,8 @@ else
                 @foreach (var variable in EnvironmentVariables)
                 {
                     <div class="environment-row">
-                        <input aria-label="Environment variable name" @bind="variable.Name" />
-                        <input aria-label="Environment variable value" @bind="variable.Value" />
+                        <FluentTextField AriaLabel="Environment variable name" @bind-Value="variable.Name" />
+                        <FluentTextField AriaLabel="Environment variable value" @bind-Value="variable.Value" />
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
                             Remove
                         </FluentButton>

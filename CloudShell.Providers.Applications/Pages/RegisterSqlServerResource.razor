@@ -28,37 +28,43 @@
         }
 
         <label for="sql-name">Name</label>
-        <input id="sql-name" @bind="Name" />
+        <FluentTextField Id="sql-name" @bind-Value="Name" />
 
         <label for="sql-resource-id">Resource ID</label>
-        <input id="sql-resource-id" @bind="ResourceId" placeholder="application:sql-server" />
+        <FluentTextField Id="sql-resource-id" @bind-Value="ResourceId" Placeholder="application:sql-server" />
 
         <label for="sql-image">Image</label>
-        <input id="sql-image" @bind="Image" />
+        <FluentTextField Id="sql-image" @bind-Value="Image" />
 
         <label for="sql-password">SA password</label>
-        <input id="sql-password" type="password" @bind="Password" />
+        <FluentTextField Id="sql-password" TextFieldType="TextFieldType.Password" @bind-Value="Password" />
 
         <label for="sql-engine">Container engine</label>
-        <select id="sql-engine" @bind="SelectedEngineId">
-            <option value="">Default engine</option>
+        <FluentSelect TOption="string"
+                      Id="sql-engine"
+                      @bind-Value="SelectedEngineId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default engine</FluentOption>
             @foreach (var engine in GetContainerEngines())
             {
-                <option value="@engine.Id">@GetEngineLabel(engine)</option>
+                <FluentOption TOption="string" Value="@engine.Id">@GetEngineLabel(engine)</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         <label for="sql-local-port">Local port</label>
-        <input id="sql-local-port" type="number" min="1" @bind="LocalPort" />
+        <FluentNumberField TValue="int?" Id="sql-local-port" Min="1" @bind-Value="LocalPort" />
 
         <label for="sql-group">Resource group</label>
-        <select id="sql-group" @bind="SelectedGroupId">
-            <option value="">Default group</option>
+        <FluentSelect TOption="string"
+                      Id="sql-group"
+                      @bind-Value="SelectedGroupId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default group</FluentOption>
             @foreach (var group in ResourceGroups.GetResourceGroups())
             {
-                <option value="@group.Id">@group.Name</option>
+                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         @if (ErrorMessage is not null)
         {

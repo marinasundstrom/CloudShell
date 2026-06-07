@@ -28,12 +28,15 @@
     <aside class="panel registration-options">
         <h2>@L["Resource type"]</h2>
         <label for="resource-type">@L["Type"]</label>
-        <select id="resource-type" @bind="SelectedTypeId">
+        <FluentSelect TOption="string"
+                      Id="resource-type"
+                      @bind-Value="SelectedTypeId"
+                      Appearance="Appearance.Outline">
             @foreach (var type in resourceTypes)
             {
-                <option value="@type.Id">@type.DisplayName</option>
+                <FluentOption TOption="string" Value="@type.Id">@type.DisplayName</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         @if (selectedType is not null)
         {

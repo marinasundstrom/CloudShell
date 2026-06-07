@@ -25,13 +25,16 @@
     </div>
 
     <label for="docker-group">Resource group</label>
-    <select id="docker-group" @bind="SelectedGroupId">
-        <option value="">Default group</option>
+    <FluentSelect TOption="string"
+                  Id="docker-group"
+                  @bind-Value="SelectedGroupId"
+                  Appearance="Appearance.Outline">
+        <FluentOption TOption="string" Value="">Default group</FluentOption>
         @foreach (var group in groups)
         {
-            <option value="@group.Id">@group.Name</option>
+            <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
         }
-    </select>
+    </FluentSelect>
 
     <div class="candidate-row single">
         <span class="resource-kind-icon">D</span>

@@ -38,9 +38,9 @@ else
         @if (Accounts.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase))
         {
             <label for="login-user">@L["Email"]</label>
-            <InputText id="login-user"
-                       @bind-Value="Input!.UserName"
-                       autocomplete="email" />
+            <FluentTextField Id="login-user"
+                             @bind-Value="Input!.UserName"
+                             AutoComplete="email" />
         }
 
         <label for="login-credential">
@@ -48,10 +48,10 @@ else
                 ? L["Dashboard secret"]
                 : L["Password"])
         </label>
-        <InputText id="login-credential"
-                   type="password"
-                   @bind-Value="Input!.Credential"
-                   autocomplete="current-password" />
+        <FluentTextField Id="login-credential"
+                         TextFieldType="TextFieldType.Password"
+                         @bind-Value="Input!.Credential"
+                         AutoComplete="current-password" />
 
         <ValidationSummary />
 

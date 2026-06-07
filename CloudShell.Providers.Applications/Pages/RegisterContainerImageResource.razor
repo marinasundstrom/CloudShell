@@ -28,30 +28,36 @@
         }
 
         <label for="container-name">Name</label>
-        <input id="container-name" @bind="Name" />
+        <FluentTextField Id="container-name" @bind-Value="Name" />
 
         <label for="container-resource-id">Resource ID</label>
-        <input id="container-resource-id" @bind="ResourceId" placeholder="application:redis" />
+        <FluentTextField Id="container-resource-id" @bind-Value="ResourceId" Placeholder="application:redis" />
 
         <label for="container-image">Image</label>
-        <input id="container-image" @bind="Image" placeholder="redis:7.2" />
+        <FluentTextField Id="container-image" @bind-Value="Image" Placeholder="redis:7.2" />
 
         <label for="container-engine">Container engine</label>
-        <select id="container-engine" @bind="SelectedEngineId">
-            <option value="">Default engine</option>
+        <FluentSelect TOption="string"
+                      Id="container-engine"
+                      @bind-Value="SelectedEngineId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default engine</FluentOption>
             @foreach (var engine in GetContainerEngines())
             {
-                <option value="@engine.Id">@GetEngineLabel(engine)</option>
+                <FluentOption TOption="string" Value="@engine.Id">@GetEngineLabel(engine)</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         <label for="container-lifetime">Lifetime</label>
-        <select id="container-lifetime" @bind="SelectedLifetime">
+        <FluentSelect TOption="string"
+                      Id="container-lifetime"
+                      @bind-Value="SelectedLifetime"
+                      Appearance="Appearance.Outline">
             @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
             {
-                <option value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</option>
+                <FluentOption TOption="string" Value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         <FluentCheckbox @bind-Value="ExposeEndpoint">
             Expose local endpoint
@@ -60,29 +66,35 @@
         @if (ExposeEndpoint)
         {
             <label for="container-port-name">Endpoint name</label>
-            <input id="container-port-name" @bind="PortName" />
+            <FluentTextField Id="container-port-name" @bind-Value="PortName" />
 
             <label for="container-target-port">Container port</label>
-            <input id="container-target-port" type="number" min="1" @bind="TargetPort" />
+            <FluentNumberField TValue="int" Id="container-target-port" Min="1" @bind-Value="TargetPort" />
 
             <label for="container-local-port">Local port</label>
-            <input id="container-local-port" type="number" min="1" @bind="LocalPort" />
+            <FluentNumberField TValue="int?" Id="container-local-port" Min="1" @bind-Value="LocalPort" />
 
             <label for="container-protocol">Protocol</label>
-            <select id="container-protocol" @bind="Protocol">
-                <option value="tcp">TCP</option>
-                <option value="udp">UDP</option>
-            </select>
+            <FluentSelect TOption="string"
+                          Id="container-protocol"
+                          @bind-Value="Protocol"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="tcp">TCP</FluentOption>
+                <FluentOption TOption="string" Value="udp">UDP</FluentOption>
+            </FluentSelect>
         }
 
         <label for="container-group">Resource group</label>
-        <select id="container-group" @bind="SelectedGroupId">
-            <option value="">Default group</option>
+        <FluentSelect TOption="string"
+                      Id="container-group"
+                      @bind-Value="SelectedGroupId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default group</FluentOption>
             @foreach (var group in ResourceGroups.GetResourceGroups())
             {
-                <option value="@group.Id">@group.Name</option>
+                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         <div class="environment-editor">
             <div class="environment-header">
@@ -113,8 +125,8 @@
             @foreach (var variable in EnvironmentVariables)
             {
                 <div class="environment-row">
-                    <input aria-label="Environment variable name" @bind="variable.Name" />
-                    <input aria-label="Environment variable value" @bind="variable.Value" />
+                    <FluentTextField AriaLabel="Environment variable name" @bind-Value="variable.Name" />
+                    <FluentTextField AriaLabel="Environment variable value" @bind-Value="variable.Value" />
                     <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
                         Remove
                     </FluentButton>

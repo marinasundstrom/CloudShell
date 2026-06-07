@@ -17,19 +17,22 @@
 
     <div class="form-panel">
         <label for="service-name">Name</label>
-        <input id="service-name" @bind="Name" />
+        <FluentTextField Id="service-name" @bind-Value="Name" />
 
         <label for="service-resource-id">Resource ID</label>
-        <input id="service-resource-id" @bind="ResourceId" placeholder="service:api" />
+        <FluentTextField Id="service-resource-id" @bind-Value="ResourceId" Placeholder="service:api" />
 
         <label for="service-group">Resource group</label>
-        <select id="service-group" @bind="SelectedGroupId">
-            <option value="">Default group</option>
+        <FluentSelect TOption="string"
+                      Id="service-group"
+                      @bind-Value="SelectedGroupId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default group</FluentOption>
             @foreach (var group in ResourceGroups.GetResourceGroups())
             {
-                <option value="@group.Id">@group.Name</option>
+                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         <div class="environment-editor">
             <div class="environment-header">
@@ -60,29 +63,35 @@
         </div>
 
         <label for="service-port-name">Port name</label>
-        <input id="service-port-name" @bind="PortName" />
+        <FluentTextField Id="service-port-name" @bind-Value="PortName" />
 
         <label for="service-target-port">Target port</label>
-        <input id="service-target-port" type="number" min="1" @bind="TargetPort" />
+        <FluentNumberField TValue="int" Id="service-target-port" Min="1" @bind-Value="TargetPort" />
 
         <label for="service-port">Exposed port</label>
-        <input id="service-port" type="number" min="1" @bind="Port" />
+        <FluentNumberField TValue="int?" Id="service-port" Min="1" @bind-Value="Port" />
 
         <label for="service-protocol">Protocol</label>
-        <select id="service-protocol" @bind="Protocol">
-            <option value="tcp">TCP</option>
-            <option value="udp">UDP</option>
-            <option value="http">HTTP</option>
-            <option value="https">HTTPS</option>
-        </select>
+        <FluentSelect TOption="string"
+                      Id="service-protocol"
+                      @bind-Value="Protocol"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="tcp">TCP</FluentOption>
+            <FluentOption TOption="string" Value="udp">UDP</FluentOption>
+            <FluentOption TOption="string" Value="http">HTTP</FluentOption>
+            <FluentOption TOption="string" Value="https">HTTPS</FluentOption>
+        </FluentSelect>
 
         <label for="service-exposure">Exposure</label>
-        <select id="service-exposure" @bind="SelectedExposure">
+        <FluentSelect TOption="string"
+                      Id="service-exposure"
+                      @bind-Value="SelectedExposure"
+                      Appearance="Appearance.Outline">
             @foreach (var exposure in Enum.GetValues<ResourceExposureScope>())
             {
-                <option value="@exposure.ToString()">@exposure</option>
+                <FluentOption TOption="string" Value="@exposure.ToString()">@exposure</FluentOption>
             }
-        </select>
+        </FluentSelect>
 
         @if (ErrorMessage is not null)
         {

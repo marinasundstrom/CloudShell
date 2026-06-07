@@ -68,30 +68,36 @@
             }
 
             <label for="orchestrator-id">@L["Orchestrator"]</label>
-            <select id="orchestrator-id" @bind="SelectedOrchestratorId">
+            <FluentSelect TOption="string"
+                          Id="orchestrator-id"
+                          @bind-Value="SelectedOrchestratorId"
+                          Appearance="Appearance.Outline">
                 @foreach (var orchestrator in GetOrchestrators())
                 {
-                    <option value="@orchestrator.Id">@orchestrator.DisplayName (@orchestrator.Id)</option>
+                    <FluentOption TOption="string" Value="@orchestrator.Id">@orchestrator.DisplayName (@orchestrator.Id)</FluentOption>
                 }
-            </select>
+            </FluentSelect>
 
             <label for="container-engine-id">@L["Preferred container engine"]</label>
-            <select id="container-engine-id" @bind="SelectedContainerEngineId">
-                <option value="">@L["Host environment"]</option>
+            <FluentSelect TOption="string"
+                          Id="container-engine-id"
+                          @bind-Value="SelectedContainerEngineId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">@L["Host environment"]</FluentOption>
                 @foreach (var engine in ContainerEngines)
                 {
-                    <option value="@engine.Id">@engine.DisplayName</option>
+                    <FluentOption TOption="string" Value="@engine.Id">@engine.DisplayName</FluentOption>
                 }
-            </select>
+            </FluentSelect>
 
             <label for="health-check-interval-seconds">@L["Health check interval"]</label>
-            <input id="health-check-interval-seconds"
-                   type="number"
-                   min="@ResourceOrchestratorSelectionStore.MinimumHealthCheckIntervalSeconds"
-                   max="@ResourceOrchestratorSelectionStore.MaximumHealthCheckIntervalSeconds"
-                   step="1"
-                   disabled="@IsHealthCheckIntervalConfigured"
-                   @bind="SelectedHealthCheckIntervalSeconds" />
+            <FluentNumberField TValue="int"
+                               Id="health-check-interval-seconds"
+                               Min="@ResourceOrchestratorSelectionStore.MinimumHealthCheckIntervalSeconds.ToString()"
+                               Max="@ResourceOrchestratorSelectionStore.MaximumHealthCheckIntervalSeconds.ToString()"
+                               Step="1"
+                               Disabled="@IsHealthCheckIntervalConfigured"
+                               @bind-Value="SelectedHealthCheckIntervalSeconds" />
             <small>
                 @if (IsHealthCheckIntervalConfigured)
                 {

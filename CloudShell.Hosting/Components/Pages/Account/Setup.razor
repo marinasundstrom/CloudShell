@@ -32,22 +32,22 @@ else
         <DataAnnotationsValidator />
 
         <label for="setup-email">@L["Email"]</label>
-        <InputText id="setup-email"
-                   @bind-Value="Input!.Email"
-                   autocomplete="email" />
+        <FluentTextField Id="setup-email"
+                         @bind-Value="Input!.Email"
+                         AutoComplete="email" />
 
         <label for="setup-password">@L["Password"]</label>
-        <InputText id="setup-password"
-                   type="password"
-                   @bind-Value="Input!.Password"
-                   autocomplete="new-password" />
+        <FluentTextField Id="setup-password"
+                         TextFieldType="TextFieldType.Password"
+                         @bind-Value="Input!.Password"
+                         AutoComplete="new-password" />
         <small>@L["Use at least 12 characters with upper and lowercase letters, a number, and a symbol."]</small>
 
         <label for="setup-confirm">@L["Confirm password"]</label>
-        <InputText id="setup-confirm"
-                   type="password"
-                   @bind-Value="Input!.ConfirmPassword"
-                   autocomplete="new-password" />
+        <FluentTextField Id="setup-confirm"
+                         TextFieldType="TextFieldType.Password"
+                         @bind-Value="Input!.ConfirmPassword"
+                         AutoComplete="new-password" />
 
         <ValidationSummary />
 
