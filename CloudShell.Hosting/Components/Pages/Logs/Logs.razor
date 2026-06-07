@@ -217,8 +217,10 @@
             return;
         }
 
-        ShouldScrollToLatest = false;
-        await ScrollLogToLatestAsync();
+        if (await ScrollLogToLatestAsync())
+        {
+            ShouldScrollToLatest = false;
+        }
     }
 
     private IReadOnlyList<LogDescriptor> GetVisibleLogs() =>
@@ -359,6 +361,7 @@
         StreamingCancellation = cancellation;
         StreamingLogId = log.Id;
         IsStreaming = true;
+        ShouldScrollToLatest = true;
         StreamingTask = StreamEntriesAsync(log, cancellation);
     }
 
@@ -462,15 +465,16 @@
         }
     }
 
-    private async Task ScrollLogToLatestAsync()
+    private async Task<bool> ScrollLogToLatestAsync()
     {
         try
         {
             var module = await GetLogModuleAsync();
-            await module.InvokeVoidAsync("scrollToLatest", LogEntryList);
+            return await module.InvokeAsync<bool>("scrollToLatest", LogEntryList);
         }
         catch (JSException)
         {
+            return false;
         }
     }
 
