@@ -2,114 +2,138 @@
 @rendermode InteractiveServer
 @inject ShellCatalog ShellCatalog
 @inject ICloudShellExtensionActivationStore ActivationStore
+@inject ICloudShellAuthorizationService Authorization
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Extensions"]</PageTitle>
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Platform"]</span>
-        <h1>@L["Extensions"]</h1>
-        <p>@L["Extensions registered through the service container. Host configuration or this UI can activate their contributions."]</p>
-    </div>
-    <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral">@L["Reload"]</FluentButton>
-    </div>
-</section>
-
-<section class="dashboard-grid">
-    <article class="panel panel-wide">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Shell extensions"]</h2>
-                <p>@L["{0} supported extensions", ShellCatalog.SupportedExtensions.Count]</p>
-            </div>
+@if (!CanReadShell)
+{
+    <section class="empty-state">
+        <strong>@L["Access denied"]</strong>
+        <span>@L["Your identity does not have permission to view shell configuration."]</span>
+    </section>
+}
+else
+{
+    <section class="page-heading compact">
+        <div>
+            <span class="eyebrow">@L["Platform"]</span>
+            <h1>@L["Extensions"]</h1>
+            <p>@L["Extensions registered through the service container. Host configuration or this UI can activate their contributions."]</p>
         </div>
+        <div class="heading-actions">
+            <FluentButton Appearance="Appearance.Neutral">@L["Reload"]</FluentButton>
+        </div>
+    </section>
 
-        <div class="extension-grid">
-            @foreach (var status in ShellCatalog.ExtensionStatuses)
-            {
-                var extension = status.Extension;
-                <div class="extension-card">
-                    <div>
-                        <strong>@extension.DisplayName</strong>
-                        <span>@extension.Id · v@(extension.Version)</span>
-                    </div>
-                    <p>@extension.Description</p>
-                    <div class="tag-row">
-                        <span>@GetStatusText(status)</span>
-                    </div>
-                    <div class="tag-row">
-                        @foreach (var capability in extension.Provides)
-                        {
-                            <span>@capability</span>
-                        }
-                    </div>
-                    @if (status.IsActive &&
-                        (extension.NavigationItems.Any(item => item.ShowInNavigation) ||
-                        extension.CustomViews.Any(view => view.ShowInNavigation)))
-                    {
-                        <div class="extension-views">
-                            @foreach (var item in extension.NavigationItems.Where(item => item.ShowInNavigation))
+    <section class="dashboard-grid">
+        <article class="panel panel-wide">
+            <div class="panel-header">
+                <div>
+                    <h2>@L["Shell extensions"]</h2>
+                    <p>@L["{0} supported extensions", ShellCatalog.SupportedExtensions.Count]</p>
+                </div>
+            </div>
+
+            <div class="extension-grid">
+                @foreach (var status in ShellCatalog.ExtensionStatuses)
+                {
+                    var extension = status.Extension;
+                    <div class="extension-card">
+                        <div>
+                            <strong>@extension.DisplayName</strong>
+                            <span>@extension.Id · v@(extension.Version)</span>
+                        </div>
+                        <p>@extension.Description</p>
+                        <div class="tag-row">
+                            <span>@GetStatusText(status)</span>
+                        </div>
+                        <div class="tag-row">
+                            @foreach (var capability in extension.Provides)
                             {
-                                <a href="@item.Href">@L[item.Text]</a>
-                            }
-                            @foreach (var view in extension.CustomViews.Where(view => view.ShowInNavigation))
-                            {
-                                <a href="@view.Route">@L[view.Title]</a>
+                                <span>@capability</span>
                             }
                         </div>
-                    }
-                    <div class="heading-actions">
-                        @if (status.IsUserManaged)
+                        @if (status.IsActive &&
+                            (extension.NavigationItems.Any(item => item.ShowInNavigation) ||
+                            extension.CustomViews.Any(view => view.ShowInNavigation)))
                         {
-                            <FluentButton Appearance="@(status.IsActive ? Appearance.Neutral : Appearance.Accent)"
-                                          OnClick="() => ToggleExtensionAsync(status)">
-                                @(status.IsActive ? L["Disable"] : L["Enable"])
-                            </FluentButton>
+                            <div class="extension-views">
+                                @foreach (var item in extension.NavigationItems.Where(item => item.ShowInNavigation))
+                                {
+                                    <a href="@item.Href">@L[item.Text]</a>
+                                }
+                                @foreach (var view in extension.CustomViews.Where(view => view.ShowInNavigation))
+                                {
+                                    <a href="@view.Route">@L[view.Title]</a>
+                                }
+                            </div>
                         }
-                        else
-                        {
-                            <FluentButton Appearance="Appearance.Neutral" Disabled="true">
-                                @L["Managed by host"]
-                            </FluentButton>
-                        }
+                        <div class="heading-actions">
+                            @if (status.IsUserManaged && CanConfigureShell)
+                            {
+                                <FluentButton Appearance="@(status.IsActive ? Appearance.Neutral : Appearance.Accent)"
+                                              OnClick="() => ToggleExtensionAsync(status)">
+                                    @(status.IsActive ? L["Disable"] : L["Enable"])
+                                </FluentButton>
+                            }
+                            else if (status.IsUserManaged)
+                            {
+                                <FluentButton Appearance="Appearance.Neutral" Disabled="true">
+                                    @L["Read only"]
+                                </FluentButton>
+                            }
+                            else
+                            {
+                                <FluentButton Appearance="Appearance.Neutral" Disabled="true">
+                                    @L["Managed by host"]
+                                </FluentButton>
+                            }
+                        </div>
                     </div>
-                </div>
-            }
-        </div>
-    </article>
-
-    <article class="panel">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Resource types"]</h2>
-                <p>@L["{0} available", ShellCatalog.ResourceTypes.Count]</p>
+                }
             </div>
-        </div>
+        </article>
 
-        <div class="provider-list">
-            @foreach (var resourceType in ShellCatalog.ResourceTypes)
-            {
-                <div class="provider-row">
-                    <div>
-                        <strong>@resourceType.DisplayName</strong>
-                        <span>@resourceType.Id</span>
-                    </div>
-                    <div>
-                        <strong>@resourceType.Icon</strong>
-                        <span>@L["type"]</span>
-                    </div>
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>@L["Resource types"]</h2>
+                    <p>@L["{0} available", ShellCatalog.ResourceTypes.Count]</p>
                 </div>
-            }
-        </div>
-    </article>
-</section>
+            </div>
+
+            <div class="provider-list">
+                @foreach (var resourceType in ShellCatalog.ResourceTypes)
+                {
+                    <div class="provider-row">
+                        <div>
+                            <strong>@resourceType.DisplayName</strong>
+                            <span>@resourceType.Id</span>
+                        </div>
+                        <div>
+                            <strong>@resourceType.Icon</strong>
+                            <span>@L["type"]</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </article>
+    </section>
+}
 
 @code {
+    private bool CanReadShell =>
+        Authorization.HasPermission(CloudShellPermissions.Shell.Read) || CanConfigureShell;
+
+    private bool CanConfigureShell =>
+        Authorization.HasPermission(CloudShellPermissions.Shell.Configure);
+
     private async Task ToggleExtensionAsync(CloudShellExtensionStatus status)
     {
-        if (!status.IsUserManaged)
+        if (!status.IsUserManaged || !CanConfigureShell)
         {
             return;
         }
@@ -118,7 +142,19 @@
             ? CloudShellExtensionActivationState.Disabled
             : CloudShellExtensionActivationState.Enabled;
 
-        await ActivationStore.SetActivationStateAsync(status.Extension.Id, state);
+        await ActivationStore.SetActivationStateAsync(
+            status.Extension.Id,
+            state,
+            await GetUpdatedByAsync());
+    }
+
+    private async Task<string?> GetUpdatedByAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authenticationState.User;
+
+        return user.Identity?.Name ??
+            user.Claims.FirstOrDefault(claim => claim.Type.EndsWith("/name", StringComparison.OrdinalIgnoreCase))?.Value;
     }
 
     private string GetStatusText(CloudShellExtensionStatus status) =>

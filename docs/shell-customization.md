@@ -23,6 +23,8 @@ The current implementation supports programmatic customization:
 - `AddCustomViewMenuItem<TComponent>` for menu items inside shell-hosted views.
 - `UseStartView` and `UseStartRoute` for selecting the shell start experience.
 - `ICloudShellNavigator` for optional strongly typed or view ID-based navigation.
+- User-managed extension activation through the Extensions UI, guarded by
+  `shell.configure`.
 
 The built-in Overview item has the special navigation ID `overview`. A
 replacement changes the sidebar contribution and points to either a registered
@@ -61,7 +63,6 @@ CloudShell does not currently support per-user customization. Start-route and vi
 ## Future considerations
 
 - Store configurable shell layout state, such as enabled areas, navigation ordering, and selected start route.
-- Add authorization checks around editing shell configuration.
 - Decide which customization settings are global, role-scoped, tenant-scoped, or user-scoped.
 - Consider a widget system for overview/dashboard pages once the shell-hosted view model is stable.
 - Provide an admin UI for enabling/disabling extension-contributed views and choosing the start experience.

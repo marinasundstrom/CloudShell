@@ -82,12 +82,33 @@ public sealed class AuthorizationTests
     }
 
     [Fact]
+    public void DefaultRoles_OnlyAdministratorCanConfigureShell()
+    {
+        var administrator = CreateAuthorization(
+            new CloudShellAuthenticationOptions(),
+            new Claim(ClaimTypes.Role, "CloudShell.Administrator"));
+        var contributor = CreateAuthorization(
+            new CloudShellAuthenticationOptions(),
+            new Claim(ClaimTypes.Role, "CloudShell.Contributor"));
+        var reader = CreateAuthorization(
+            new CloudShellAuthenticationOptions(),
+            new Claim(ClaimTypes.Role, "CloudShell.Reader"));
+
+        Assert.True(administrator.HasPermission(CloudShellPermissions.Shell.Configure));
+        Assert.True(contributor.HasPermission(CloudShellPermissions.Shell.Read));
+        Assert.True(reader.HasPermission(CloudShellPermissions.Shell.Read));
+        Assert.False(contributor.HasPermission(CloudShellPermissions.Shell.Configure));
+        Assert.False(reader.HasPermission(CloudShellPermissions.Shell.Configure));
+    }
+
+    [Fact]
     public void DisabledAuthentication_AllowsAccess()
     {
         var authorization = CreateAuthorization(
             new CloudShellAuthenticationOptions { Enabled = false },
             authenticated: false);
 
+        Assert.True(authorization.HasPermission(CloudShellPermissions.Shell.Configure));
         Assert.True(authorization.HasPermission(CloudShellPermissions.Resources.Manage));
         Assert.True(authorization.CanAccessResourceGroup(
             "any-group",

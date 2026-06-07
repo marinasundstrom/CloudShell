@@ -100,11 +100,13 @@ provider-specific package.
 Roles map to permissions through configuration. The default roles are:
 
 - `CloudShell.Administrator`: all permissions and all scopes.
-- `CloudShell.Contributor`: read, create, and manage permissions.
-- `CloudShell.Reader`: read permissions.
+- `CloudShell.Contributor`: shell read plus resource read, create, and manage permissions.
+- `CloudShell.Reader`: shell and resource read permissions.
 
 Available permissions are:
 
+- `shell.read`
+- `shell.configure`
 - `resource-groups.read`
 - `resource-groups.create`
 - `resource-groups.manage`
@@ -143,6 +145,11 @@ Access requires both an operation permission and a matching scope. A direct
 resource claim can grant access to one resource without granting access to its
 entire group. Creating resource groups requires wildcard resource-group scope
 because the new group ID doesn't exist before creation.
+
+Shell configuration permissions are global. `shell.read` allows a user to view
+shell configuration surfaces such as the extension catalog. `shell.configure`
+allows a user to change global shell composition, including enabling or
+disabling user-managed extensions.
 
 Resources inherit access from their registered root resource or resource group.
 Unauthorized registrations are filtered before Resource Manager builds the

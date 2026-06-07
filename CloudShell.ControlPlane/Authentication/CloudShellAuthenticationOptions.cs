@@ -35,6 +35,7 @@ public sealed class CloudShellAuthenticationOptions
             ["CloudShell.Administrator"] = [CloudShellPermissions.All],
             ["CloudShell.Contributor"] =
             [
+                CloudShellPermissions.Shell.Read,
                 CloudShellPermissions.ResourceGroups.Read,
                 CloudShellPermissions.ResourceGroups.Create,
                 CloudShellPermissions.ResourceGroups.Manage,
@@ -44,6 +45,7 @@ public sealed class CloudShellAuthenticationOptions
             ],
             ["CloudShell.Reader"] =
             [
+                CloudShellPermissions.Shell.Read,
                 CloudShellPermissions.ResourceGroups.Read,
                 CloudShellPermissions.Resources.Read
             ]

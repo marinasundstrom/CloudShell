@@ -4,6 +4,12 @@ public static class CloudShellPermissions
 {
     public const string All = "*";
 
+    public static class Shell
+    {
+        public const string Read = "shell.read";
+        public const string Configure = "shell.configure";
+    }
+
     public static class ResourceGroups
     {
         public const string Read = "resource-groups.read";
