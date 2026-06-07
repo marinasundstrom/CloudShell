@@ -89,6 +89,72 @@ public static class ApplicationProviderServiceCollectionExtensions
         return new ExecutableApplicationResourceBuilder(resource, declared);
     }
 
+    public static IExecutableApplicationResourceBuilder AddAspNetCoreProjectFromName(
+        this ICloudShellResourceDeclarationBuilder builder,
+        string name,
+        string projectPath,
+        string? endpoint = null,
+        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
+        ApplicationLifetime lifetime = ApplicationLifetime.Detached,
+        bool hotReload = true,
+        bool useServiceDiscovery = false) =>
+        builder.AddAspNetCoreProject(
+            CreateApplicationResourceId(name),
+            name,
+            projectPath,
+            endpoint,
+            environmentVariables,
+            lifetime,
+            hotReload,
+            useServiceDiscovery);
+
+    public static IExecutableApplicationResourceBuilder AddAspNetCoreProject(
+        this ICloudShellResourceDeclarationBuilder builder,
+        string id,
+        string name,
+        string projectPath,
+        string? endpoint = null,
+        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
+        ApplicationLifetime lifetime = ApplicationLifetime.Detached,
+        bool hotReload = true,
+        bool useServiceDiscovery = false)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
+
+        var definition = new ApplicationResourceDefinition(
+            id,
+            name,
+            executablePath: "dotnet",
+            arguments: BuildDotNetAspNetCoreProjectArguments(projectPath, hotReload),
+            endpoint: endpoint,
+            environmentVariables: CreateAspNetCoreProjectEnvironmentVariables(endpoint, environmentVariables),
+            lifetime: lifetime,
+            useServiceDiscovery: useServiceDiscovery,
+            resourceType: ApplicationResourceTypes.AspNetCoreProject);
+        var declared = new DeclaredApplicationResource(definition);
+
+        builder.Services
+            .GetOrAddApplicationProviderOptions()
+            .DeclaredApplications
+            .Add(declared);
+
+        var resource = builder.Declare(
+            "applications",
+            id,
+            onChanged: declaration =>
+            {
+                declared.Definition = declared.Definition with
+                {
+                    DependsOn = declaration.DependsOn
+                };
+                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
+                declared.OverwritePersistedState = declaration.OverwritePersistedState;
+            });
+
+        return new ExecutableApplicationResourceBuilder(resource, declared);
+    }
+
     public static IContainerResourceBuilder AddContainer(
         this ICloudShellResourceDeclarationBuilder builder,
         string name,
@@ -131,7 +197,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             useServiceDiscovery: useServiceDiscovery,
             containerImage: image,
             replicas: Math.Max(1, replicas),
-            endpointPorts: CreateEndpointPorts(endpoints));
+            endpointPorts: CreateEndpointPorts(endpoints),
+            resourceType: ApplicationResourceTypes.ContainerImage);
         var declared = new DeclaredApplicationResource(definition);
 
         builder.Services
@@ -168,6 +235,41 @@ public static class ApplicationProviderServiceCollectionExtensions
         return string.IsNullOrWhiteSpace(slug)
             ? $"application:{Guid.NewGuid():N}"
             : $"application:{slug}";
+    }
+
+    private static IReadOnlyList<EnvironmentVariableAssignment> CreateAspNetCoreProjectEnvironmentVariables(
+        string? endpoint,
+        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables)
+    {
+        var variables = new List<EnvironmentVariableAssignment>();
+        if (!string.IsNullOrWhiteSpace(endpoint))
+        {
+            variables.Add(new EnvironmentVariableAssignment("ASPNETCORE_URLS", endpoint.Trim()));
+        }
+
+        if (environmentVariables is not null)
+        {
+            variables.AddRange(environmentVariables);
+        }
+
+        return variables;
+    }
+
+    private static string BuildDotNetAspNetCoreProjectArguments(string projectPath, bool hotReload) =>
+        hotReload
+            ? $"watch --project {QuoteCommandArgument(projectPath)} run --no-launch-profile"
+            : $"run --project {QuoteCommandArgument(projectPath)} --no-launch-profile";
+
+    private static string QuoteCommandArgument(string argument)
+    {
+        if (argument.Length == 0)
+        {
+            return "\"\"";
+        }
+
+        return argument.Any(char.IsWhiteSpace)
+            ? $"\"{argument.Replace("\\", "\\\\").Replace("\"", "\\\"")}\""
+            : argument;
     }
 
     private static IReadOnlyList<ServicePort> CreateEndpointPorts(
@@ -294,7 +396,28 @@ internal sealed class ExecutableApplicationResourceBuilder(
 
     public IExecutableApplicationResourceBuilder WithEndpoint(string? endpoint)
     {
-        declared.Definition = declared.Definition with { Endpoint = endpoint };
+        var environmentVariables = declared.Definition.EnvironmentVariables;
+        if (string.Equals(
+                declared.Definition.ResourceType,
+                ApplicationResourceTypes.AspNetCoreProject,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            environmentVariables = environmentVariables
+                .Where(variable => !string.Equals(
+                    variable.Name,
+                    "ASPNETCORE_URLS",
+                    StringComparison.OrdinalIgnoreCase))
+                .Concat(string.IsNullOrWhiteSpace(endpoint)
+                    ? []
+                    : [new EnvironmentVariableAssignment("ASPNETCORE_URLS", endpoint.Trim())])
+                .ToArray();
+        }
+
+        declared.Definition = declared.Definition with
+        {
+            Endpoint = endpoint,
+            EnvironmentVariables = environmentVariables
+        };
         return this;
     }
 

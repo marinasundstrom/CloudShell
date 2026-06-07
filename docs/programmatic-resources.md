@@ -31,7 +31,8 @@ types. Built-in methods include:
 
 - `AddNetwork(...)` and `AddService(...)` from the core Resource Manager.
 - `AddConfigurationStore(...)` from `CloudShell.Providers.Configuration`.
-- `AddExecutable(...)` and `AddExecutableApplication(...)` from
+- `AddExecutable(...)`, `AddExecutableApplication(...)`,
+  `AddAspNetCoreProject(...)`, and `AddAspNetCoreProjectFromName(...)` from
   `CloudShell.Providers.Applications`.
 - `AddContainer(...)` from `CloudShell.Providers.Applications`.
 - `AddDocker(...)` from `CloudShell.Providers.Docker` when Docker should be an
@@ -58,13 +59,13 @@ relationships:
 - String IDs remain available as a lower-level escape hatch, but typed builders
   should be preferred when both resources are declared in the same callback.
 
-Executable applications have one additional Aspire-compatible concept:
-endpoint references. `WithReference(resource)` records that the application wants
-endpoint/configuration values for another resource. It does not, by itself,
-enable service discovery variables. `WithServiceDiscovery()` is the opt-in that
-maps referenced resource endpoints into the .NET configuration shape. This keeps
-CloudShell open to other service discovery mechanisms, such as a dedicated
-service discovery service running in a container.
+Executable applications and ASP.NET Core projects have one additional
+Aspire-compatible concept: endpoint references. `WithReference(resource)` records that the
+application wants endpoint/configuration values for another resource. It does
+not, by itself, enable service discovery variables. `WithServiceDiscovery()` is
+the opt-in that maps referenced resource endpoints into the .NET configuration
+shape. This keeps CloudShell open to other service discovery mechanisms, such as
+a dedicated service discovery service running in a container.
 
 Executable applications also keep `WaitFor(resource)` as an Aspire-compatible
 alias for dependency ordering. Prefer `DependsOn(resource)` when describing the
@@ -121,11 +122,10 @@ var redis = resources
     .DependsOn(database);
 
 resources
-    .AddExecutableApplication(
+    .AddAspNetCoreProject(
         "application:example-web-api",
         "Example Web API",
-        executablePath: "dotnet",
-        arguments: "run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile",
+        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
         endpoint: "http://localhost:5127")
     .WithContainerImage("example-web-api:dev")
     .WithReference(configuration)
@@ -146,6 +146,16 @@ resources
         protocol: "http",
         exposure: ResourceExposureScope.Public);
 ```
+
+ASP.NET Core project declarations run with hot reload by default:
+
+```bash
+dotnet watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj run --no-launch-profile
+```
+
+Set `hotReload: false` when you want a plain `dotnet run` process. The endpoint
+argument is also mapped to `ASPNETCORE_URLS`, so the app binds to the Resource
+Manager endpoint without relying on launch profiles.
 
 `AddDocker()` declares the default local Docker Engine resource. Containers are
 declared from that Docker resource with `AddContainer(name, image, tag)`,

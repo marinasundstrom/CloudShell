@@ -279,6 +279,90 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedAspNetCoreProjectBuilder_UsesDotNetWatchByDefault()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var settings = resources.AddConfigurationStore(
+                    "configuration:settings",
+                    "Settings");
+
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "API",
+                        "src/API/API.csproj",
+                        endpoint: "http://localhost:5127")
+                    .WithReference(settings)
+                    .WithServiceDiscovery();
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(
+            store.GetDeclarations(),
+            declaration => declaration.ResourceId == "application:api");
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.Empty(declaration.DependsOn);
+        Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, application.ResourceType);
+        Assert.Equal("dotnet", application.ExecutablePath);
+        Assert.Equal("watch --project src/API/API.csproj run --no-launch-profile", application.Arguments);
+        Assert.Equal("http://localhost:5127", application.Endpoint);
+        Assert.Contains(
+            application.EnvironmentVariables,
+            variable => variable.Name == "ASPNETCORE_URLS" && variable.Value == "http://localhost:5127");
+        Assert.Equal(["configuration:settings"], application.References);
+        Assert.True(application.UseServiceDiscovery);
+    }
+
+    [Fact]
+    public void TypedAspNetCoreProjectBuilder_CanDisableHotReload()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources.AddAspNetCoreProject(
+                    "application:api",
+                    "API",
+                    "src/API/API.csproj",
+                    hotReload: false);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.Equal("run --project src/API/API.csproj --no-launch-profile", application.Arguments);
+    }
+
+    [Fact]
     public async Task TypedDockerContainerBuilder_DeclaresEngineAndContainer()
     {
         var services = new ServiceCollection();
@@ -585,6 +669,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("applications", declaration.ProviderId);
         Assert.Null(declaration.ParentResourceId);
         Assert.Empty(declaration.DependsOn);
+        Assert.Equal(ApplicationResourceTypes.ContainerImage, resource.EffectiveTypeId);
         Assert.Equal(ApplicationLifetime.Detached, provider.GetApplication("application:sql")?.Lifetime);
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal("example/sql-server:dev", workload?.Image);

@@ -193,7 +193,8 @@
             useServiceDiscovery: references.Length > 0,
             containerImage: Image.Trim(),
             containerEngineId: NormalizeNullable(SelectedEngineId),
-            endpointPorts: BuildEndpointPorts());
+            endpointPorts: BuildEndpointPorts(),
+            resourceType: ApplicationResourceTypes.ContainerImage);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");

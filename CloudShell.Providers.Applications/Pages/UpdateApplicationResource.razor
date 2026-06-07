@@ -197,7 +197,7 @@ else
             Arguments,
             WorkingDirectory,
             Endpoint,
-            BuildEnvironmentVariables(),
+            BuildEnvironmentVariables(Application.ResourceType, Endpoint),
             ParseLifetime(),
             BuildDependencies(),
             ReferenceIds,
@@ -206,7 +206,8 @@ else
             NormalizeNullable(ContainerBuildContext),
             NormalizeNullable(ContainerDockerfile),
             null,
-            Math.Max(1, Replicas));
+            Math.Max(1, Replicas),
+            resourceType: Application.ResourceType);
 
         await ApplicationProvider.UpdateApplicationAsync(
             definition,
@@ -217,11 +218,26 @@ else
         return ResourceProcedureResult.Completed("Application configuration updated.");
     }
 
-    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
-        EnvironmentVariables
+    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables(
+        string resourceType,
+        string? endpoint)
+    {
+        var variables = EnvironmentVariables
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
             .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
             .ToArray();
+        if (!string.Equals(resourceType, ApplicationResourceTypes.AspNetCoreProject, StringComparison.OrdinalIgnoreCase))
+        {
+            return variables;
+        }
+
+        return variables
+            .Where(variable => !string.Equals(variable.Name, "ASPNETCORE_URLS", StringComparison.OrdinalIgnoreCase))
+            .Concat(string.IsNullOrWhiteSpace(endpoint)
+                ? []
+                : [new EnvironmentVariableAssignment("ASPNETCORE_URLS", endpoint.Trim())])
+            .ToArray();
+    }
 
     private IReadOnlyList<string> BuildDependencies() =>
         SelectedDependencyIds

@@ -1,14 +1,43 @@
 # Executable Applications
 
-CloudShell includes an executable application provider for local development
-machines. It lets you register a command that runs on the CloudShell host as an
-`application.executable` resource, configure arguments, working directory,
-endpoint, environment variables, and process lifetime, then start, stop,
-restart, and inspect it from Resource Manager.
+CloudShell includes an application provider for local development machines. It
+lets you register commands that run on the CloudShell host as
+`application.executable` resources, and ASP.NET Core project references as
+`application.aspnet-core-project` resources. Both configure endpoint, environment
+variables, process lifetime, and references, then can be started, stopped,
+restarted, and inspected from Resource Manager.
 
-Executable application resources are primarily intended for local development:
+Application resources are primarily intended for local development: ASP.NET Core
 APIs, frontend dev servers, emulators, workers, and similar host-local tools.
 They are not a deployment abstraction for remote infrastructure.
+
+## ASP.NET Core Apps
+
+Use the ASP.NET Core project resource type for local .NET web projects.
+Programmatic declarations use `AddAspNetCoreProject(...)` when specifying a
+resource ID, or `AddAspNetCoreProjectFromName(...)` when CloudShell should
+derive the resource ID from the name:
+
+```csharp
+resources
+    .AddAspNetCoreProject(
+        "application:example-web-api",
+        "Example Web API",
+        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
+        endpoint: "http://localhost:5127")
+    .WithReference(configuration)
+    .WithServiceDiscovery();
+```
+
+By default, CloudShell starts ASP.NET Core project resources with hot reload:
+
+```bash
+dotnet watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj run --no-launch-profile
+```
+
+Pass `hotReload: false` to use plain `dotnet run --no-launch-profile` instead.
+When an endpoint is configured, CloudShell also sets `ASPNETCORE_URLS` so the
+process listens on the same URL that Resource Manager displays.
 
 ## Lifetime
 
@@ -46,8 +75,9 @@ ignored by git because this is local machine state.
 ## Resource Templates
 
 The application provider supports resource templates for
-`application.executable` resources. Export writes a provider-owned configuration
-payload with:
+`application.executable`, `application.aspnet-core-project`,
+`application.container-image`, and `application.sql-server` resources. Export writes a provider-owned
+configuration payload with:
 
 - executable path
 - arguments

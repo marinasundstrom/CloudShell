@@ -129,7 +129,8 @@
             endpointPorts:
             [
                 new ServicePort("tds", 1433, LocalPort, "tcp", ResourceExposureScope.Local)
-            ]);
+            ],
+            resourceType: ApplicationResourceTypes.SqlServer);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");

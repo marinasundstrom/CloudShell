@@ -152,7 +152,7 @@ public sealed partial class ApplicationResourceProvider(
         ResourceAction action,
         CancellationToken cancellationToken = default)
     {
-        if (!string.Equals(context.Resource.EffectiveTypeId, "application.executable", StringComparison.OrdinalIgnoreCase))
+        if (!ApplicationResourceTypes.IsApplication(context.Resource.EffectiveTypeId))
         {
             throw new InvalidOperationException(
                 $"The application provider cannot execute action '{action.Id}' on resource '{context.Resource.Id}'.");
@@ -201,7 +201,7 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     public bool CanExport(CloudResource resource) =>
-        string.Equals(resource.EffectiveTypeId, "application.executable", StringComparison.OrdinalIgnoreCase) &&
+        ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
 
     public Task<ResourceTemplateDefinition> ExportAsync(
@@ -231,7 +231,7 @@ public sealed partial class ApplicationResourceProvider(
         return Task.FromResult(new ResourceTemplateDefinition(
             application.Name,
             Id,
-            "application.executable",
+            application.ResourceType,
             resource.DependsOn,
             "1.0",
             JsonSerializer.SerializeToElement(configuration, TemplateSerializerOptions),
@@ -240,7 +240,7 @@ public sealed partial class ApplicationResourceProvider(
 
     public bool CanImport(ResourceTemplateDefinition template) =>
         string.Equals(template.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(template.ResourceType, "application.executable", StringComparison.OrdinalIgnoreCase) &&
+        ApplicationResourceTypes.IsApplication(template.ResourceType) &&
         string.Equals(template.ProviderConfigurationVersion, "1.0", StringComparison.OrdinalIgnoreCase);
 
     public async Task<ResourceTemplateImportResult> ImportAsync(
@@ -277,7 +277,8 @@ public sealed partial class ApplicationResourceProvider(
             configuration.ContainerDockerfile,
             configuration.ContainerEngineId,
             configuration.Replicas,
-            configuration.EndpointPorts);
+            configuration.EndpointPorts,
+            template.ResourceType);
 
         await SetupApplicationAsync(
             definition,
@@ -328,7 +329,7 @@ public sealed partial class ApplicationResourceProvider(
             : localProcesses.IsRunning(CreateLocalProcessDefinition(application)));
 
     public bool CanDescribe(CloudResource resource) =>
-        string.Equals(resource.EffectiveTypeId, "application.executable", StringComparison.OrdinalIgnoreCase) &&
+        ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
@@ -806,7 +807,7 @@ public sealed partial class ApplicationResourceProvider(
         return new CloudResource(
             application.Id,
             application.Name,
-            IsContainerBacked(application) ? "Container application" : "Executable application",
+            GetResourceKind(application),
             DisplayName,
             "local",
             state,
@@ -816,9 +817,18 @@ public sealed partial class ApplicationResourceProvider(
                 : Path.GetFileName(application.ExecutablePath),
             DateTimeOffset.UtcNow,
             application.DependsOn,
-            TypeId: "application.executable",
+            TypeId: application.ResourceType,
             Actions: CreateActions(state));
     }
+
+    private static string GetResourceKind(ApplicationResourceDefinition application) =>
+        application.ResourceType switch
+        {
+            ApplicationResourceTypes.AspNetCoreProject => "ASP.NET Core project",
+            ApplicationResourceTypes.ContainerImage => "Container image",
+            ApplicationResourceTypes.SqlServer => "SQL Server",
+            _ => IsContainerBacked(application) ? "Container application" : "Executable application"
+        };
 
     private ResourceState GetState(string applicationId)
     {
@@ -1067,6 +1077,7 @@ public sealed partial class ApplicationResourceProvider(
             ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
             ContainerEngineId = NormalizeNullable(definition.ContainerEngineId),
             Replicas = Math.Max(1, definition.Replicas),
+            ResourceType = NormalizeResourceType(definition.ResourceType),
             DependsOn = NormalizeDependencies(definition.DependsOn, id),
             References = NormalizeReferences(definition.References, id),
             EndpointPorts = NormalizeEndpointPorts(definition.EndpointPorts),
@@ -1325,6 +1336,11 @@ public sealed partial class ApplicationResourceProvider(
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
         !string.IsNullOrWhiteSpace(application.ContainerImage) ||
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
+
+    private static string NormalizeResourceType(string? resourceType) =>
+        ApplicationResourceTypes.IsApplication(resourceType)
+            ? resourceType!.Trim()
+            : ApplicationResourceTypes.ExecutableApplication;
 
     private static ResourceLifetime ToResourceLifetime(ApplicationLifetime lifetime) =>
         lifetime switch

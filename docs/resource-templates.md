@@ -22,13 +22,13 @@ A resource group template uses a common envelope:
     {
       "name": "Example Web API",
       "providerId": "applications",
-      "resourceType": "application.executable",
+      "resourceType": "application.aspnet-core-project",
       "dependsOn": [],
       "providerConfigurationVersion": "1.0",
       "resourceId": "application:example-web-api",
       "configuration": {
         "executablePath": "dotnet",
-        "arguments": "run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile",
+        "arguments": "watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj run --no-launch-profile",
         "workingDirectory": null,
         "endpoint": "http://localhost:5127",
         "environmentVariables": [],
@@ -43,6 +43,10 @@ A resource group template uses a common envelope:
 
 The `configuration` object is provider-owned JSON. CloudShell carries it in the
 template document, but does not interpret the provider-specific fields.
+
+The application provider preserves specific application-backed resource types,
+including `application.executable`, `application.aspnet-core-project`,
+`application.container-image`, and `application.sql-server`.
 
 `name` is the friendly display name. `resourceId` is the stable resource
 identifier used by registrations, links, logs, configuration endpoints, and

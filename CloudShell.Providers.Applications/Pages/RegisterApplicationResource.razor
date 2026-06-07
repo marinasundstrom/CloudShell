@@ -254,7 +254,8 @@
             NormalizeNullable(ContainerBuildContext),
             NormalizeNullable(ContainerDockerfile),
             null,
-            Math.Max(1, Replicas));
+            Math.Max(1, Replicas),
+            resourceType: ApplicationResourceTypes.ExecutableApplication);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");

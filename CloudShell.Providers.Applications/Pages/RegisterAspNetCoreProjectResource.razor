@@ -1,0 +1,250 @@
+@inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+@inject NavigationManager Navigation
+
+<div class="type-registration">
+    <div class="provider-summary compact">
+        <div class="provider-status">
+            <span class="state-dot state-running"></span>
+            <div>
+                <strong>ASP.NET Core project</strong>
+                <span>Register an ASP.NET Core project and launch it with dotnet run or dotnet watch.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-panel">
+        <label for="web-application-name">Name</label>
+        <input id="web-application-name" @bind="Name" />
+
+        <label for="web-application-resource-id">Resource ID</label>
+        <input id="web-application-resource-id" @bind="ResourceId" placeholder="application:example-web-api" />
+
+        <label for="web-application-project">Project path</label>
+        <input id="web-application-project" @bind="ProjectPath" placeholder="samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj" />
+
+        <label for="web-application-endpoint">Endpoint</label>
+        <input id="web-application-endpoint" @bind="Endpoint" placeholder="http://localhost:5127" />
+
+        <label for="web-application-lifetime">Lifetime</label>
+        <select id="web-application-lifetime" @bind="SelectedLifetime">
+            @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
+            {
+                <option value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</option>
+            }
+        </select>
+
+        <FluentCheckbox @bind-Value="UseHotReload">
+            Use hot reload
+        </FluentCheckbox>
+
+        <FluentCheckbox @bind-Value="UseServiceDiscovery">
+            Enable service discovery for references
+        </FluentCheckbox>
+
+        <label for="web-application-group">Resource group</label>
+        <select id="web-application-group" @bind="SelectedGroupId">
+            <option value="">Default group</option>
+            @foreach (var group in ResourceGroups.GetResourceGroups())
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>References</strong>
+            </div>
+
+            @foreach (var resource in GetReferenceCandidates())
+            {
+                <FluentCheckbox Value="@SelectedReferenceIds.Contains(resource.Id)"
+                                ValueChanged="selected => ToggleReference(resource.Id, selected)">
+                    @resource.Name
+                </FluentCheckbox>
+            }
+        </div>
+
+        <FluentCheckbox @bind-Value="WaitForReferences">
+            Start referenced resources first
+        </FluentCheckbox>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Environment variables</strong>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
+                    Add variable
+                </FluentButton>
+            </div>
+
+            @foreach (var variable in EnvironmentVariables)
+            {
+                <div class="environment-row">
+                    <input aria-label="Environment variable name" @bind="variable.Name" />
+                    <input aria-label="Environment variable value" @bind="variable.Value" />
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
+                        Remove
+                    </FluentButton>
+                </div>
+            }
+        </div>
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string ResourceId { get; set; } = string.Empty;
+    private string Name { get; set; } = string.Empty;
+    private string ProjectPath { get; set; } = string.Empty;
+    private string? Endpoint { get; set; }
+    private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
+    private bool UseHotReload { get; set; } = true;
+    private bool UseServiceDiscovery { get; set; } = true;
+    private bool WaitForReferences { get; set; } = true;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; }
+    private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
+    private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(ProjectPath))
+        {
+            ErrorMessage = "Name and project path are required.";
+            return;
+        }
+
+        var normalizedResourceId = ResourceId.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedResourceId) &&
+            IsResourceIdInUse(normalizedResourceId))
+        {
+            ErrorMessage = $"Resource ID '{normalizedResourceId}' is already in use.";
+            return;
+        }
+
+        var references = SelectedReferenceIds.ToArray();
+        var definition = new ApplicationResourceDefinition(
+            normalizedResourceId,
+            Name,
+            executablePath: "dotnet",
+            arguments: BuildArguments(),
+            endpoint: NormalizeNullable(Endpoint),
+            environmentVariables: BuildEnvironmentVariables(),
+            lifetime: ParseLifetime(),
+            dependsOn: WaitForReferences ? references : [],
+            references: references,
+            useServiceDiscovery: UseServiceDiscovery && references.Length > 0,
+            resourceType: ApplicationResourceTypes.AspNetCoreProject);
+
+        await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
+        Navigation.NavigateTo("/resources");
+    }
+
+    private string BuildArguments() =>
+        UseHotReload
+            ? $"watch --project {QuoteCommandArgument(ProjectPath.Trim())} run --no-launch-profile"
+            : $"run --project {QuoteCommandArgument(ProjectPath.Trim())} --no-launch-profile";
+
+    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables()
+    {
+        var variables = new List<EnvironmentVariableAssignment>();
+        if (!string.IsNullOrWhiteSpace(Endpoint))
+        {
+            variables.Add(new EnvironmentVariableAssignment("ASPNETCORE_URLS", Endpoint.Trim()));
+        }
+
+        variables.AddRange(EnvironmentVariables
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty)));
+        return variables;
+    }
+
+    private IReadOnlyList<CloudResource> GetReferenceCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => !string.Equals(resource.Id, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
+            .Where(IsInSelectedGroup)
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, "cloudshell.network", StringComparison.OrdinalIgnoreCase))
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, "cloudshell.service", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private bool IsInSelectedGroup(CloudResource resource)
+    {
+        var group = ResourceManager.GetGroupForResource(resource.Id);
+        return string.IsNullOrWhiteSpace(SelectedGroupId)
+            ? group is null
+            : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string? GetCurrentResourceId() =>
+        string.IsNullOrWhiteSpace(ResourceId) ? null : ResourceId.Trim();
+
+    private bool IsResourceIdInUse(string resourceId) =>
+        ResourceManager.GetAvailableResources().Any(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) ||
+        Registrations.GetRegistration(resourceId) is not null ||
+        ApplicationProvider.GetApplication(resourceId) is not null;
+
+    private void ToggleReference(string resourceId, bool selected)
+    {
+        if (selected)
+        {
+            SelectedReferenceIds.Add(resourceId);
+        }
+        else
+        {
+            SelectedReferenceIds.Remove(resourceId);
+        }
+    }
+
+    private void AddEnvironmentVariable() => EnvironmentVariables.Add(new());
+
+    private void RemoveEnvironmentVariable(EnvironmentVariableInput variable)
+    {
+        EnvironmentVariables.Remove(variable);
+        if (EnvironmentVariables.Count == 0)
+        {
+            EnvironmentVariables.Add(new());
+        }
+    }
+
+    private ApplicationLifetime ParseLifetime() =>
+        Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)
+            ? lifetime
+            : ApplicationLifetime.Detached;
+
+    private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
+        lifetime switch
+        {
+            ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
+            _ => "Detached"
+        };
+
+    private static string QuoteCommandArgument(string argument) =>
+        argument.Any(char.IsWhiteSpace)
+            ? $"\"{argument.Replace("\\", "\\\\").Replace("\"", "\\\"")}\""
+            : argument;
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
+    {
+        public string? Name { get; set; } = name;
+
+        public string? Value { get; set; } = value;
+    }
+}
