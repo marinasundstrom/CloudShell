@@ -1,7 +1,9 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
+using CloudShell.Host.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
@@ -18,6 +20,7 @@ var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootP
 
 var cloudShell = builder
     .AddCloudShell()
+    .AddExtension<DevelopmentShellExtension>()
     .AddConfigurationProvider(options =>
     {
         options.DefinitionsPath = configurationStoreDefinitionsPath;
