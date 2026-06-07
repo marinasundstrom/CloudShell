@@ -304,15 +304,35 @@ public sealed partial class DockerContainerResourceProvider :
     }
 
     public bool CanDescribe(CloudResource resource) =>
-        string.Equals(resource.EffectiveTypeId, "docker.container", StringComparison.OrdinalIgnoreCase) &&
-        _options.DeclaredContainers.Any(container =>
-            string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase));
+        string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase) ||
+        (string.Equals(resource.EffectiveTypeId, "docker.container", StringComparison.OrdinalIgnoreCase) &&
+            _options.DeclaredContainers.Any(container =>
+                string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase)));
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
         CloudResource resource,
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default)
     {
+        if (string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase))
+        {
+            var engine = new ContainerEngineResourceDefinition(
+                resource.Id,
+                resource.Name,
+                ContainerEngineKind.Docker,
+                Endpoint.ToString(),
+                IsDefault: string.Equals(resource.Id, EngineResourceId, StringComparison.OrdinalIgnoreCase));
+
+            return Task.FromResult(new ResourceOrchestrationDescriptor(
+                resource.Id,
+                ContainerEngineResourceTypes.ContainerEngine,
+                resource.DependsOn,
+                [],
+                resource.Endpoints,
+                "1.0",
+                JsonSerializer.SerializeToElement(engine, DescriptorSerializerOptions)));
+        }
+
         var definition = _options.DeclaredContainers.FirstOrDefault(container =>
                 string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase))
             ?.Definition

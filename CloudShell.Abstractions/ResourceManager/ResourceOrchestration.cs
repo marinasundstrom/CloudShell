@@ -7,7 +7,8 @@ public sealed record ResourceOrchestrationContext(
     ResourceRegistration? Registration,
     ResourceGroup? ResourceGroup,
     IResourceManagerStore ResourceManager,
-    IResourceRegistrationStore Registrations);
+    IResourceRegistrationStore Registrations,
+    string? PreferredContainerEngineId = null);
 
 public sealed record ResourceOrchestrationDescriptor(
     string ResourceId,

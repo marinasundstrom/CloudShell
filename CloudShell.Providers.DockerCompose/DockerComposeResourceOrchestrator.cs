@@ -8,9 +8,12 @@ namespace CloudShell.Providers.DockerCompose;
 
 public sealed partial class DockerComposeResourceOrchestrator(
     DockerComposeOrchestratorOptions options,
-    IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders) : IResourceOrchestrator
+    IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders,
+    IEnumerable<IContainerEngineProvider> containerEngineProviders) : IResourceOrchestrator
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    private readonly IReadOnlyList<IContainerEngineProvider> containerEngineProviders =
+        containerEngineProviders.ToArray();
 
     public string Id => "docker-compose";
 
@@ -47,7 +50,7 @@ public sealed partial class DockerComposeResourceOrchestrator(
 
         var result = await RunDockerAsync(
             arguments,
-            ResolveDockerHost(context),
+            await ResolveDockerHostAsync(context, cancellationToken),
             cancellationToken);
 
         return ResourceProcedureResult.Completed(
@@ -179,16 +182,26 @@ public sealed partial class DockerComposeResourceOrchestrator(
             ? options.GeneratedComposeFilePath
             : Path.GetFullPath(options.GeneratedComposeFilePath, ResolveWorkingDirectory());
 
-    private string? ResolveDockerHost(ResourceOrchestrationContext context)
+    private async Task<string?> ResolveDockerHostAsync(
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(options.ContainerEngineResourceId))
+        var selectedEngineId = FirstNonEmpty(
+            options.ContainerEngineId,
+            context.PreferredContainerEngineId);
+        if (!string.IsNullOrWhiteSpace(selectedEngineId))
         {
-            return null;
+            return GetContainerEngines()
+                .FirstOrDefault(engine => string.Equals(engine.Id, selectedEngineId, StringComparison.OrdinalIgnoreCase))
+                ?.Endpoint;
         }
 
-        var dockerHost = context.ResourceManager.GetResource(options.ContainerEngineResourceId);
-        return dockerHost?.Endpoints.FirstOrDefault(endpoint =>
-            !string.IsNullOrWhiteSpace(endpoint.Address))?.Address;
+        await Task.CompletedTask;
+        return GetContainerEngines()
+            .OrderByDescending(engine => engine.IsDefault)
+            .ThenBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(engine => engine.Endpoint)
+            .FirstOrDefault(endpoint => !string.IsNullOrWhiteSpace(endpoint));
     }
 
     private async Task EnsureGeneratedComposeFileAsync(
@@ -273,6 +286,26 @@ public sealed partial class DockerComposeResourceOrchestrator(
 
     private bool CanDescribe(CloudResource resource) =>
         descriptorProviders.Any(provider => provider.CanDescribe(resource));
+
+    private async Task<ResourceOrchestrationDescriptor?> TryDescribeAsync(
+        CloudResource resource,
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
+    {
+        var provider = descriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
+        if (provider is null)
+        {
+            return null;
+        }
+
+        return await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(
+                context.Registrations.GetRegistration(resource.Id),
+                context.ResourceManager.GetGroupForResource(resource.Id),
+                context.ResourceManager),
+            cancellationToken);
+    }
 
     private static ResourceWorkloadConfiguration? TryReadWorkload(
         ResourceOrchestrationDescriptor descriptor)
@@ -496,6 +529,17 @@ public sealed partial class DockerComposeResourceOrchestrator(
 
     private static string QuoteYaml(string value) =>
         JsonSerializer.Serialize(value);
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+
+    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngines() =>
+        containerEngineProviders
+            .Select(provider => provider.GetContainerEngine())
+            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
+            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
 
     [GeneratedRegex("[^a-z0-9_.-]+")]
     private static partial Regex ComposeServiceNamePattern();

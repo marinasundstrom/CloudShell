@@ -619,12 +619,14 @@ public sealed partial class ApplicationResourceProvider(
         return new CloudResource(
             application.Id,
             application.Name,
-            "Executable application",
+            IsContainerBacked(application) ? "Container application" : "Executable application",
             DisplayName,
             "local",
             state,
             CreateEndpoints(application),
-            Path.GetFileName(application.ExecutablePath),
+            IsContainerBacked(application)
+                ? FirstNonEmpty(application.ContainerImage, application.ContainerBuildContext) ?? "container"
+                : Path.GetFileName(application.ExecutablePath),
             DateTimeOffset.UtcNow,
             application.DependsOn,
             TypeId: "application.executable",
@@ -649,6 +651,11 @@ public sealed partial class ApplicationResourceProvider(
     {
         if (string.IsNullOrWhiteSpace(application.Endpoint))
         {
+            if (IsContainerBacked(application))
+            {
+                return [];
+            }
+
             return [new("process", $"process://{application.Id}", "process", false)];
         }
 
@@ -905,6 +912,13 @@ public sealed partial class ApplicationResourceProvider(
             Replicas: Math.Max(1, application.Replicas),
             EnvironmentVariables: application.EnvironmentVariables);
     }
+
+    private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
+        !string.IsNullOrWhiteSpace(application.ContainerImage) ||
+        !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     private static string CreateId(string name)
     {

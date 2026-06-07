@@ -120,7 +120,8 @@ public sealed class ResourceOrchestrationService(
             registration,
             resourceManager.GetGroupForResource(resource.Id),
             resourceManager,
-            registrations);
+            registrations,
+            selectionStore.Get().PreferredContainerEngineId);
     }
 
     private IResourceOrchestrator SelectActionOrchestrator(

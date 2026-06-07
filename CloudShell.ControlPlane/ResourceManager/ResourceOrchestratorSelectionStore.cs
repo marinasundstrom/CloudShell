@@ -30,13 +30,18 @@ public sealed class ResourceOrchestratorSelectionStore
         }
     }
 
-    public void Select(string orchestratorId)
+    public void Select(
+        string orchestratorId,
+        string? preferredContainerEngineId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orchestratorId);
 
         lock (_gate)
         {
-            _selection = new ResourceOrchestratorSelection(orchestratorId.Trim(), DateTimeOffset.UtcNow);
+            _selection = new ResourceOrchestratorSelection(
+                orchestratorId.Trim(),
+                NormalizeOptional(preferredContainerEngineId),
+                DateTimeOffset.UtcNow);
             Persist();
         }
     }
@@ -58,11 +63,18 @@ public sealed class ResourceOrchestratorSelectionStore
         Directory.CreateDirectory(Path.GetDirectoryName(_settingsPath)!);
         File.WriteAllText(_settingsPath, JsonSerializer.Serialize(_selection, SerializerOptions));
     }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
 public sealed record ResourceOrchestratorSelection(
     string OrchestratorId,
+    string? PreferredContainerEngineId,
     DateTimeOffset UpdatedAt)
 {
-    public static ResourceOrchestratorSelection Default { get; } = new("default", DateTimeOffset.MinValue);
+    public static ResourceOrchestratorSelection Default { get; } = new(
+        "default",
+        null,
+        DateTimeOffset.MinValue);
 }

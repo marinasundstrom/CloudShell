@@ -1,12 +1,30 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Providers.DockerCompose;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CloudShell.Providers.Docker;
 
 public static class DockerProviderServiceCollectionExtensions
 {
+    public static ICloudShellBuilder UseDocker(
+        this ICloudShellBuilder builder,
+        Action<DockerProviderOptions>? configure = null)
+    {
+        UseDockerCore(builder, configure);
+        return builder;
+    }
+
+    public static IControlPlaneBuilder UseDocker(
+        this IControlPlaneBuilder builder,
+        Action<DockerProviderOptions>? configure = null)
+    {
+        UseDockerCore(builder, configure);
+        return builder;
+    }
+
     public static ICloudShellBuilder AddDockerProvider(
         this ICloudShellBuilder builder,
         Action<DockerProviderOptions>? configure = null,
@@ -29,8 +47,21 @@ public static class DockerProviderServiceCollectionExtensions
         ICloudShellBuilder builder,
         Action<DockerProviderOptions>? configure)
     {
+        UseDockerCore(builder, configure);
+    }
+
+    private static void UseDockerCore(
+        ICloudShellBuilder builder,
+        Action<DockerProviderOptions>? configure)
+    {
         var options = builder.Services.GetOrAddDockerProviderOptions();
         configure?.Invoke(options);
+        builder.Services.TryAddSingleton<DockerComposeOrchestratorOptions>();
+        builder.Services.TryAddSingleton<DockerComposeResourceOrchestrator>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceOrchestrator, DockerComposeResourceOrchestrator>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IContainerEngineProvider, DockerContainerEngineProvider>());
     }
 
     public static IDockerResourceBuilder AddDocker(
@@ -70,16 +101,6 @@ public static class DockerProviderServiceCollectionExtensions
 
         return builder.Declare("docker", DockerContainerResourceProvider.EngineResourceId);
     }
-
-    public static IDockerContainerResourceBuilder AddContainer(
-        this ICloudShellResourceDeclarationBuilder builder,
-        string name,
-        string image,
-        string? tag = null) =>
-        builder.AddDockerContainer(
-            name,
-            name,
-            CreateImageReference(image, tag));
 
     public static IDockerContainerResourceBuilder AddDockerContainer(
         this ICloudShellResourceDeclarationBuilder builder,

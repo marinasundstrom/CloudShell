@@ -6,6 +6,9 @@ using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+using System.Text.Json;
 
 namespace CloudShell.Abstractions.Tests;
 
@@ -349,6 +352,50 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task DockerProvider_DescribesEngineAsGenericContainerEngine()
+    {
+        using var provider = new DockerContainerResourceProvider(new DockerProviderOptions());
+        var engine = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == DockerContainerResourceProvider.EngineResourceId);
+
+        Assert.True(provider.CanDescribe(engine));
+
+        var descriptor = await provider.DescribeAsync(
+            engine,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var definition = descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Equal(ContainerEngineResourceTypes.ContainerEngine, descriptor.ResourceType);
+        Assert.NotNull(definition);
+        Assert.Equal(ContainerEngineKind.Docker, definition.Kind);
+        Assert.True(definition.IsDefault);
+        Assert.Equal(provider.Endpoint.ToString(), definition.Endpoint);
+    }
+
+    [Fact]
+    public void UseDocker_RegistersImplicitContainerEngineWithoutResourceDeclaration()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .UseDocker();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider
+            .GetRequiredService<ResourceDeclarationStore>()
+            .GetDeclarations();
+        var engine = Assert.Single(serviceProvider.GetServices<IContainerEngineProvider>())
+            .GetContainerEngine();
+
+        Assert.Empty(declarations);
+        Assert.Equal("docker", engine.Id);
+        Assert.Equal(ContainerEngineKind.Docker, engine.Kind);
+        Assert.True(engine.IsDefault);
+    }
+
+    [Fact]
     public void TypedDockerContainerBuilder_NormalizesExplicitContainerId()
     {
         var services = new ServiceCollection();
@@ -457,6 +504,46 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(2, application.Replicas);
     }
 
+    [Fact]
+    public async Task ContainerApplicationBuilder_DeclaresTopLevelContainerWorkload()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer(
+                        "sql",
+                        "mcr.microsoft.com/mssql/server:2022-latest",
+                        replicas: 1)
+                    .WithImage("example/sql-server:dev");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "application:sql");
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:sql");
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Equal("applications", declaration.ProviderId);
+        Assert.Null(declaration.ParentResourceId);
+        Assert.Empty(declaration.DependsOn);
+        Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
+        Assert.Equal("example/sql-server:dev", workload?.Image);
+    }
+
     private sealed class ParentMetadataExtension : ICloudShellExtension
     {
         public CloudShellExtensionManifest Manifest => new(
@@ -561,5 +648,16 @@ public sealed class ResourceDeclarationTests
             string description,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "CloudShell.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 }

@@ -22,3 +22,39 @@ public sealed record ResourceWorkloadConfiguration(
     public IReadOnlyList<EnvironmentVariableAssignment> WorkloadEnvironmentVariables =>
         EnvironmentVariables ?? [];
 }
+
+public interface IContainerResourceBuilder : ICloudShellResourceBuilder
+{
+    IContainerResourceBuilder WithImage(string image);
+
+    IContainerResourceBuilder WithEnvironment(
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
+
+    IContainerResourceBuilder WithEnvironment(
+        string name,
+        string value);
+
+    IContainerResourceBuilder WithReplicas(int replicas);
+
+    new IContainerResourceBuilder DependsOn(string resourceId);
+
+    new IContainerResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+
+    new IContainerResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IContainerResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+
+    new IContainerResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IContainerResourceBuilder WithParent(string? parentResourceId);
+
+    new IContainerResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+
+    new IContainerResourceBuilder WithReference(string resourceId);
+
+    new IContainerResourceBuilder WithReference(ICloudShellResourceBuilder resource);
+
+    new IContainerResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+
+    new IContainerResourceBuilder Persist(bool overwrite = false);
+}

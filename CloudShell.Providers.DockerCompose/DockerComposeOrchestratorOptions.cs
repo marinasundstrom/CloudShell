@@ -10,12 +10,18 @@ public sealed class DockerComposeOrchestratorOptions
 
     public string? WorkingDirectory { get; set; }
 
-    public string? ContainerEngineResourceId { get; set; }
+    public string? ContainerEngineId { get; set; }
+
+    public string? ContainerEngineResourceId
+    {
+        get => ContainerEngineId;
+        set => ContainerEngineId = value;
+    }
 
     public string? DockerHostResourceId
     {
-        get => ContainerEngineResourceId;
-        set => ContainerEngineResourceId = value;
+        get => ContainerEngineId;
+        set => ContainerEngineId = value;
     }
 
     public TimeSpan CommandTimeout { get; set; } = TimeSpan.FromSeconds(60);

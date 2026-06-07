@@ -84,6 +84,85 @@ public static class ApplicationProviderServiceCollectionExtensions
         return new ExecutableApplicationResourceBuilder(resource, declared);
     }
 
+    public static IContainerResourceBuilder AddContainer(
+        this ICloudShellResourceDeclarationBuilder builder,
+        string name,
+        string image,
+        IReadOnlyList<ResourceEndpoint>? endpoints = null,
+        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
+        bool useServiceDiscovery = false,
+        int replicas = 1) =>
+        builder.AddContainerApplication(
+            CreateApplicationResourceId(name),
+            name,
+            image,
+            endpoints,
+            environmentVariables,
+            useServiceDiscovery,
+            replicas);
+
+    public static IContainerResourceBuilder AddContainerApplication(
+        this ICloudShellResourceDeclarationBuilder builder,
+        string id,
+        string name,
+        string image,
+        IReadOnlyList<ResourceEndpoint>? endpoints = null,
+        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
+        bool useServiceDiscovery = false,
+        int replicas = 1)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(image);
+
+        var endpoint = endpoints?.FirstOrDefault(endpoint =>
+            !string.IsNullOrWhiteSpace(endpoint.Address))?.Address;
+        var definition = new ApplicationResourceDefinition(
+            id,
+            name,
+            executablePath: string.Empty,
+            endpoint: endpoint,
+            environmentVariables: environmentVariables,
+            useServiceDiscovery: useServiceDiscovery,
+            containerImage: image,
+            replicas: Math.Max(1, replicas));
+        var declared = new DeclaredApplicationResource(definition);
+
+        builder.Services
+            .GetOrAddApplicationProviderOptions()
+            .DeclaredApplications
+            .Add(declared);
+
+        var resource = builder.Declare(
+            "applications",
+            id,
+            onChanged: declaration =>
+            {
+                declared.Definition = declared.Definition with
+                {
+                    DependsOn = declaration.DependsOn
+                };
+                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
+                declared.OverwritePersistedState = declaration.OverwritePersistedState;
+            });
+
+        return new ExecutableApplicationResourceBuilder(resource, declared);
+    }
+
+    private static string CreateApplicationResourceId(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var slug = string.Join(
+                "-",
+                name.Trim().ToLowerInvariant().Split(
+                    [' ', '.', '_', ':', '/', '\\'],
+                    StringSplitOptions.RemoveEmptyEntries))
+            .Trim('-');
+        return string.IsNullOrWhiteSpace(slug)
+            ? $"application:{Guid.NewGuid():N}"
+            : $"application:{slug}";
+    }
+
     private static ApplicationProviderOptions GetOrAddApplicationProviderOptions(
         this IServiceCollection services)
     {
@@ -159,7 +238,9 @@ public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuil
 
 internal sealed class ExecutableApplicationResourceBuilder(
     ICloudShellResourceBuilder inner,
-    DeclaredApplicationResource declared) : IExecutableApplicationResourceBuilder
+    DeclaredApplicationResource declared) :
+    IExecutableApplicationResourceBuilder,
+    IContainerResourceBuilder
 {
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
 
@@ -231,6 +312,13 @@ internal sealed class ExecutableApplicationResourceBuilder(
             ContainerBuildContext = null,
             ContainerDockerfile = null
         };
+        return this;
+    }
+
+    public IContainerResourceBuilder WithImage(string image)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(image);
+        WithContainerImage(image);
         return this;
     }
 
@@ -409,4 +497,91 @@ internal sealed class ExecutableApplicationResourceBuilder(
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.Persist(bool overwrite) =>
         Persist(overwrite);
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithEnvironment(
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
+    {
+        WithEnvironment(environmentVariables);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithEnvironment(
+        string name,
+        string value)
+    {
+        WithEnvironment(name, value);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithReplicas(int replicas)
+    {
+        WithReplicas(replicas);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithResourceGroup(string? resourceGroupId)
+    {
+        WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithParent(string? parentResourceId)
+    {
+        WithParent(parentResourceId);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithParent(ICloudShellResourceBuilder resource)
+    {
+        WithParent(resource);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.DependsOn(string resourceId)
+    {
+        DependsOn(resourceId);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.DependsOn(ICloudShellResourceBuilder resource)
+    {
+        DependsOn(resource);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.DependsOn(IEnumerable<string> resourceIds)
+    {
+        DependsOn(resourceIds);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.DependsOn(IEnumerable<ICloudShellResourceBuilder> resources)
+    {
+        DependsOn(resources);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithReference(string resourceId)
+    {
+        AddReference(resourceId);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithReference(ICloudShellResourceBuilder resource)
+    {
+        WithReference(resource);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithReferences(IEnumerable<string> resourceIds)
+    {
+        AddReferences(resourceIds);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.Persist(bool overwrite)
+    {
+        Persist(overwrite);
+        return this;
+    }
 }
