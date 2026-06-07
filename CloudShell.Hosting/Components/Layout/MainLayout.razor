@@ -1,6 +1,4 @@
 ﻿@inherits LayoutComponentBase
-@inject ShellCatalog ShellCatalog
-@inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
 
 <div class="shell">
@@ -11,14 +9,7 @@
                 <div class="brand-name">CloudShell</div>
                 <div class="brand-subtitle">@L["Platform control plane"]</div>
             </div>
-            <button type="button"
-                    class="nav-toggle"
-                    title="@L["Toggle navigation"]"
-                    aria-label="@L["Toggle navigation"]"
-                    aria-expanded="true"
-                    data-nav-toggle>
-                <span class="nav-toggle-icon" aria-hidden="true"></span>
-            </button>
+            <NavToggle />
         </div>
 
         <NavMenu />
@@ -37,13 +28,6 @@
             </div>
             <div class="command-surface">
                 <LanguageSelector />
-                <FluentButton Appearance="Appearance.Neutral">@L["Refresh"]</FluentButton>
-                @if (Authorization.HasPermission(CloudShellPermissions.Resources.Create))
-                {
-                    <FluentButton Appearance="Appearance.Accent" Href="/resources/add">
-                        @L["New resource"]
-                    </FluentButton>
-                }
                 <AuthorizeView>
                     <Authorized Context="authentication">
                         <span class="signed-in-user">

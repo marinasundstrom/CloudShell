@@ -1,0 +1,41 @@
+@rendermode InteractiveServer
+@inject IJSRuntime JSRuntime
+@inject IStringLocalizer<SharedResource> L
+
+<button type="button"
+        class="nav-toggle"
+        title="@L["Toggle navigation"]"
+        aria-label="@L["Toggle navigation"]"
+        aria-expanded="@AriaExpanded"
+        @onclick="ToggleNavigation">
+    <span class="nav-toggle-icon" aria-hidden="true"></span>
+</button>
+
+@code {
+    private const string NavCollapsedStorageKey = "cloudshell.navCollapsed";
+    private bool IsNavCollapsed { get; set; }
+
+    private string AriaExpanded => IsNavCollapsed ? "false" : "true";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var storedValue = await JSRuntime.InvokeAsync<string?>(
+            "cloudShellNav.readCollapsed",
+            NavCollapsedStorageKey);
+
+        IsNavCollapsed = string.Equals(storedValue, "true", StringComparison.OrdinalIgnoreCase);
+        await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", IsNavCollapsed, NavCollapsedStorageKey);
+        StateHasChanged();
+    }
+
+    private async Task ToggleNavigation()
+    {
+        IsNavCollapsed = !IsNavCollapsed;
+        await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", IsNavCollapsed, NavCollapsedStorageKey);
+    }
+}
