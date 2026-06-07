@@ -1,0 +1,56 @@
+.nav-toggle {
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    margin-left: auto;
+    flex: 0 0 2rem;
+    border: 1px solid #d6d6d6;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #424242;
+    cursor: pointer;
+}
+
+.nav-toggle:hover {
+    background: #f5f5f5;
+}
+
+.nav-toggle.collapsed {
+    margin-left: 0;
+}
+
+@media (max-width: 900px) {
+    .nav-toggle.collapsed {
+        margin-left: auto;
+    }
+}
+
+.nav-toggle-icon,
+.nav-toggle-icon::before,
+.nav-toggle-icon::after {
+    width: .9rem;
+    height: 2px;
+    display: block;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.nav-toggle-icon {
+    position: relative;
+}
+
+.nav-toggle-icon::before,
+.nav-toggle-icon::after {
+    position: absolute;
+    left: 0;
+    content: "";
+}
+
+.nav-toggle-icon::before {
+    top: -.32rem;
+}
+
+.nav-toggle-icon::after {
+    top: .32rem;
+}

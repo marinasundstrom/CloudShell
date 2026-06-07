@@ -54,53 +54,6 @@
     min-width: 0;
 }
 
-.nav-toggle {
-    width: 2rem;
-    height: 2rem;
-    display: grid;
-    place-items: center;
-    margin-left: auto;
-    flex: 0 0 2rem;
-    border: 1px solid #d6d6d6;
-    border-radius: 4px;
-    background: #ffffff;
-    color: #424242;
-    cursor: pointer;
-}
-
-.nav-toggle:hover {
-    background: #f5f5f5;
-}
-
-.nav-toggle-icon,
-.nav-toggle-icon::before,
-.nav-toggle-icon::after {
-    width: .9rem;
-    height: 2px;
-    display: block;
-    border-radius: 999px;
-    background: currentColor;
-}
-
-.nav-toggle-icon {
-    position: relative;
-}
-
-.nav-toggle-icon::before,
-.nav-toggle-icon::after {
-    position: absolute;
-    left: 0;
-    content: "";
-}
-
-.nav-toggle-icon::before {
-    top: -.32rem;
-}
-
-.nav-toggle-icon::after {
-    top: .32rem;
-}
-
 .shell.nav-collapsed .brand,
 :root.nav-collapsed .shell .brand {
     justify-content: center;
@@ -127,11 +80,6 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
-}
-
-.shell.nav-collapsed .nav-toggle,
-:root.nav-collapsed .shell .nav-toggle {
-    margin-left: 0;
 }
 
 .shell.nav-collapsed ::deep .nav-link,
@@ -230,16 +178,17 @@
         height: auto;
     }
 
+    .shell.nav-collapsed .brand,
+    :root.nav-collapsed .shell .brand {
+        justify-content: flex-start;
+        padding: 1rem;
+        gap: .7rem;
+    }
+
     .shell.nav-collapsed .brand-text,
     .shell.nav-collapsed .brand-mark,
-    .shell.nav-collapsed .sidebar-footer-text,
-    .shell.nav-collapsed ::deep .nav-group-title,
-    .shell.nav-collapsed ::deep .nav-link span:not(.nav-icon),
     :root.nav-collapsed .shell .brand-text,
-    :root.nav-collapsed .shell .brand-mark,
-    :root.nav-collapsed .shell .sidebar-footer-text,
-    :root.nav-collapsed .shell ::deep .nav-group-title,
-    :root.nav-collapsed .shell ::deep .nav-link span:not(.nav-icon) {
+    :root.nav-collapsed .shell .brand-mark {
         position: static;
         width: auto;
         height: auto;
@@ -251,10 +200,11 @@
         border: 0;
     }
 
-    .shell.nav-collapsed ::deep .nav-link,
-    :root.nav-collapsed .shell ::deep .nav-link {
-        justify-content: flex-start;
-        padding-inline: .55rem;
+    .shell.nav-collapsed ::deep .nav-shell,
+    :root.nav-collapsed .shell ::deep .nav-shell,
+    .shell.nav-collapsed .sidebar-footer,
+    :root.nav-collapsed .shell .sidebar-footer {
+        display: none;
     }
 
     .shell-topbar {

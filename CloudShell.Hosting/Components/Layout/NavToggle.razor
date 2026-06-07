@@ -3,7 +3,7 @@
 @inject IStringLocalizer<SharedResource> L
 
 <button type="button"
-        class="nav-toggle"
+        class="nav-toggle @CollapsedClass"
         title="@L["Toggle navigation"]"
         aria-label="@L["Toggle navigation"]"
         aria-expanded="@AriaExpanded"
@@ -16,6 +16,7 @@
     private bool IsNavCollapsed { get; set; }
 
     private string AriaExpanded => IsNavCollapsed ? "false" : "true";
+    private string? CollapsedClass => IsNavCollapsed ? "collapsed" : null;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
