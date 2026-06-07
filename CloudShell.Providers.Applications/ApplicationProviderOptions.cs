@@ -12,6 +12,14 @@ public sealed class ApplicationProviderOptions
 
     public int AutoLocalPortEnd { get; set; } = 29999;
 
+    public bool EnableObservabilityByDefault { get; set; } = true;
+
+    public string? OtlpEndpoint { get; set; }
+
+    public string? OtlpProtocol { get; set; }
+
+    public string? OtlpHeaders { get; set; }
+
     public IList<ApplicationResourceDefinition> InitialApplications { get; } = [];
 
     internal IList<DeclaredApplicationResource> DeclaredApplications { get; } = [];

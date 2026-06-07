@@ -439,6 +439,64 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_AddsObservabilityMetadataAndOtelEnvironment()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+                options.OtlpEndpoint = "http://localhost:4317";
+            })
+            .Resources(resources =>
+            {
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "API",
+                        "src/API/API.csproj")
+                    .WithOtlpExporter(headers: "x-otlp-api-key=test-key");
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var resource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "application:api");
+            var descriptor = await provider.DescribeAsync(
+                resource,
+                new ResourceOrchestrationDescriptorContext(null, null, null!));
+            var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            var environment = workload?.WorkloadEnvironmentVariables
+                .ToDictionary(variable => variable.Name, variable => variable.Value);
+
+            Assert.True(resource.EffectiveObservability.Logs);
+            Assert.True(resource.EffectiveObservability.Traces);
+            Assert.True(resource.EffectiveObservability.Metrics);
+            Assert.Equal("http://localhost:4317", environment?["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+            Assert.Equal("grpc", environment?["OTEL_EXPORTER_OTLP_PROTOCOL"]);
+            Assert.Equal("x-otlp-api-key=test-key", environment?["OTEL_EXPORTER_OTLP_HEADERS"]);
+            Assert.Equal("api", environment?["OTEL_SERVICE_NAME"]);
+            Assert.Contains("cloudshell.resource.id=application:api", environment?["OTEL_RESOURCE_ATTRIBUTES"]);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void TypedAspNetCoreProjectBuilder_CanDeclareNamedEndpoints()
     {
         var services = new ServiceCollection();

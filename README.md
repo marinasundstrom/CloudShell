@@ -16,6 +16,7 @@ This repository is an early shell prototype. It currently includes:
 - Resource group templates for provider-owned import/export of grouped resources.
 - Configuration service resources for sharing settings and secrets between dependent resources.
 - A Logs section where providers and extensions can expose resource or artifact logs.
+- Aspire-compatible resource observability metadata and OTLP environment injection for local executable, ASP.NET Core project, and container resources.
 - Resource type registration, where extensions provide the UI used to add resources.
 - EF Core persistence for explicitly registered root resources and resource groups.
 - Configurable ASP.NET Core Identity, dashboard-secret, OIDC, or external-scheme authentication.

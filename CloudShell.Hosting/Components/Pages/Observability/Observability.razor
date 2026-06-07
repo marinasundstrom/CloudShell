@@ -32,15 +32,15 @@
         <div class="signal-grid">
             <div>
                 <span>@L["Logs"]</span>
-                <strong>@resources.Count(resource => resource.State != ResourceState.Stopped)</strong>
+                <strong>@resources.Count(resource => resource.EffectiveObservability.Logs)</strong>
             </div>
             <div>
                 <span>@L["Traces"]</span>
-                <strong>@resources.Count(resource => resource.Kind.Contains("Service", StringComparison.OrdinalIgnoreCase) || resource.Kind.Contains("App", StringComparison.OrdinalIgnoreCase))</strong>
+                <strong>@resources.Count(resource => resource.EffectiveObservability.Traces)</strong>
             </div>
             <div>
                 <span>@L["Metrics"]</span>
-                <strong>@resources.Count</strong>
+                <strong>@resources.Count(resource => resource.EffectiveObservability.Metrics)</strong>
             </div>
         </div>
     </article>

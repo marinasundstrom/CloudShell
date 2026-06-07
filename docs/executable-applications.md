@@ -122,6 +122,63 @@ Control-plane-scoped applications keep stdout and stderr redirected through the
 provider process while CloudShell is running, and provider lifecycle entries are
 also written to the per-resource log file.
 
+## Observability
+
+Application resources have Aspire-compatible observability metadata. By default,
+executable, ASP.NET Core project, and container image resources declare support
+for logs, traces, and metrics. When the resource starts, CloudShell adds
+OpenTelemetry environment variables before user-configured environment variables
+are applied, so explicit resource variables can override generated values.
+
+CloudShell emits:
+
+```text
+OTEL_SERVICE_NAME=<normalized-resource-name>
+OTEL_RESOURCE_ATTRIBUTES=service.instance.id=<resource-id>,cloudshell.resource.id=<resource-id>,cloudshell.resource.type=<resource-type>
+OTEL_EXPORTER_OTLP_ENDPOINT=<resolved-endpoint>
+OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+OTEL_EXPORTER_OTLP_HEADERS=<resolved-headers>
+```
+
+`OTEL_EXPORTER_OTLP_ENDPOINT` is resolved in this order:
+
+1. The resource's `WithOtlpExporter(...)` endpoint.
+2. `ApplicationProviderOptions.OtlpEndpoint`.
+3. `ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL`, using `grpc`.
+4. `ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL`, using `http/protobuf`.
+5. An inherited `OTEL_EXPORTER_OTLP_ENDPOINT`.
+
+Use provider options to set a process-wide collector endpoint:
+
+```csharp
+builder
+    .AddCloudShell()
+    .AddApplicationProvider(options =>
+    {
+        options.OtlpEndpoint = "http://localhost:4317";
+        options.OtlpProtocol = "grpc";
+    });
+```
+
+Use fluent resource APIs to configure or disable a specific resource:
+
+```csharp
+resources
+    .AddAspNetCoreProject(
+        "application:example-web-api",
+        "Example Web API",
+        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+    .WithOtlpExporter("http://localhost:4317", protocol: "grpc");
+
+resources
+    .AddContainer("redis", "redis:7.2")
+    .WithObservability(false);
+```
+
+Container-backed application resources include the generated OTEL variables in
+their workload descriptor, so generated Docker Compose files receive the same
+settings as locally started processes.
+
 ## Sample
 
 Add the sample web API through `/resources/add` as an executable application

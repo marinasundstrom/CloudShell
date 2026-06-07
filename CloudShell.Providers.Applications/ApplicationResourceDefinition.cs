@@ -23,7 +23,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         int replicas = 1,
         IReadOnlyList<ServicePort>? endpointPorts = null,
         string? resourceType = null,
-        IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
+        IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
+        ResourceObservability? observability = null)
     {
         Id = id;
         Name = name;
@@ -46,6 +47,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
             ? ApplicationResourceTypes.ExecutableApplication
             : resourceType;
         HealthChecks = healthChecks ?? [];
+        Observability = observability;
     }
 
     public string Id { get; init; }
@@ -85,6 +87,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public string ResourceType { get; init; }
 
     public IReadOnlyList<ResourceHealthCheck> HealthChecks { get; init; }
+
+    public ResourceObservability? Observability { get; init; }
 }
 
 public enum ApplicationLifetime

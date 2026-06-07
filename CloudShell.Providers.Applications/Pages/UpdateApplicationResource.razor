@@ -44,6 +44,10 @@ else
                 Enable service discovery for references
             </FluentCheckbox>
 
+            <FluentCheckbox @bind-Value="EnableObservability">
+                Enable observability
+            </FluentCheckbox>
+
             <label for="application-update-container-image">Container image</label>
             <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
 
@@ -120,6 +124,7 @@ else
     private string? Endpoint { get; set; }
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseServiceDiscovery { get; set; }
+    private bool EnableObservability { get; set; } = true;
     private string? ContainerImage { get; set; }
     private string? ContainerBuildContext { get; set; }
     private string? ContainerDockerfile { get; set; }
@@ -145,6 +150,7 @@ else
             Endpoint = Application.Endpoint;
             SelectedLifetime = Application.Lifetime.ToString();
             UseServiceDiscovery = Application.UseServiceDiscovery;
+            EnableObservability = (Application.Observability ?? ResourceObservability.Default).HasAnySignal;
             ContainerImage = Application.ContainerImage;
             ContainerBuildContext = Application.ContainerBuildContext;
             ContainerDockerfile = Application.ContainerDockerfile;
@@ -215,7 +221,8 @@ else
             Math.Max(1, Replicas),
             BuildEndpointPorts(Application.ResourceType, Endpoint),
             resourceType: Application.ResourceType,
-            healthChecks: Application.HealthChecks);
+            healthChecks: Application.HealthChecks,
+            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
 
         await ApplicationProvider.UpdateApplicationAsync(
             definition,

@@ -54,7 +54,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         ApplicationLifetime lifetime = ApplicationLifetime.Detached,
-        bool useServiceDiscovery = false)
+        bool useServiceDiscovery = false,
+        ResourceObservability? observability = null)
     {
         var definition = new ApplicationResourceDefinition(
             id,
@@ -65,7 +66,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             endpoint,
             environmentVariables,
             lifetime,
-            useServiceDiscovery: useServiceDiscovery);
+            useServiceDiscovery: useServiceDiscovery,
+            observability: observability);
         var declared = new DeclaredApplicationResource(definition);
 
         builder.Services
@@ -97,7 +99,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         ApplicationLifetime lifetime = ApplicationLifetime.Detached,
         bool hotReload = true,
-        bool useServiceDiscovery = false) =>
+        bool useServiceDiscovery = false,
+        ResourceObservability? observability = null) =>
         builder.AddAspNetCoreProject(
             CreateApplicationResourceId(name),
             name,
@@ -106,7 +109,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             environmentVariables,
             lifetime,
             hotReload,
-            useServiceDiscovery);
+            useServiceDiscovery,
+            observability);
 
     public static IExecutableApplicationResourceBuilder AddAspNetCoreProject(
         this ICloudShellResourceDeclarationBuilder builder,
@@ -117,7 +121,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         ApplicationLifetime lifetime = ApplicationLifetime.Detached,
         bool hotReload = true,
-        bool useServiceDiscovery = false)
+        bool useServiceDiscovery = false,
+        ResourceObservability? observability = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
@@ -131,7 +136,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             lifetime: lifetime,
             useServiceDiscovery: useServiceDiscovery,
             endpointPorts: CreateAspNetCoreProjectEndpointPorts(endpoint),
-            resourceType: ApplicationResourceTypes.AspNetCoreProject);
+            resourceType: ApplicationResourceTypes.AspNetCoreProject,
+            observability: observability);
         var declared = new DeclaredApplicationResource(definition);
 
         builder.Services
@@ -162,7 +168,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         IReadOnlyList<ResourceEndpoint>? endpoints = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         bool useServiceDiscovery = false,
-        int replicas = 1) =>
+        int replicas = 1,
+        ResourceObservability? observability = null) =>
         builder.AddContainerApplication(
             CreateApplicationResourceId(name),
             name,
@@ -170,7 +177,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             endpoints,
             environmentVariables,
             useServiceDiscovery,
-            replicas);
+            replicas,
+            observability);
 
     public static IContainerResourceBuilder AddContainerApplication(
         this ICloudShellResourceDeclarationBuilder builder,
@@ -180,7 +188,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         IReadOnlyList<ResourceEndpoint>? endpoints = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         bool useServiceDiscovery = false,
-        int replicas = 1)
+        int replicas = 1,
+        ResourceObservability? observability = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
@@ -198,7 +207,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             containerImage: image,
             replicas: Math.Max(1, replicas),
             endpointPorts: CreateEndpointPorts(endpoints),
-            resourceType: ApplicationResourceTypes.ContainerImage);
+            resourceType: ApplicationResourceTypes.ContainerImage,
+            observability: observability);
         var declared = new DeclaredApplicationResource(definition);
 
         builder.Services
@@ -367,6 +377,13 @@ public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuil
     IExecutableApplicationResourceBuilder WithLifetime(ApplicationLifetime lifetime);
 
     IExecutableApplicationResourceBuilder WithServiceDiscovery(bool enabled = true);
+
+    IExecutableApplicationResourceBuilder WithObservability(bool enabled = true);
+
+    IExecutableApplicationResourceBuilder WithOtlpExporter(
+        string? endpoint = null,
+        string? protocol = null,
+        string? headers = null);
 
     IExecutableApplicationResourceBuilder WithContainerImage(string? image);
 
@@ -541,6 +558,42 @@ internal sealed class ExecutableApplicationResourceBuilder(
         declared.Definition = declared.Definition with
         {
             UseServiceDiscovery = enabled
+        };
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder WithObservability(bool enabled = true)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Observability = enabled
+                ? GetCurrentObservability() with
+                {
+                    Logs = true,
+                    Traces = true,
+                    Metrics = true
+                }
+                : ResourceObservability.None
+        };
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder WithOtlpExporter(
+        string? endpoint = null,
+        string? protocol = null,
+        string? headers = null)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Observability = GetCurrentObservability() with
+            {
+                Logs = true,
+                Traces = true,
+                Metrics = true,
+                OtlpEndpoint = NormalizeNullable(endpoint),
+                OtlpProtocol = NormalizeNullable(protocol),
+                OtlpHeaders = NormalizeNullable(headers)
+            }
         };
         return this;
     }
@@ -843,6 +896,24 @@ internal sealed class ExecutableApplicationResourceBuilder(
         WithReplicas(replicas);
         return this;
     }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithObservability(bool enabled)
+    {
+        WithObservability(enabled);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithOtlpExporter(
+        string? endpoint,
+        string? protocol,
+        string? headers)
+    {
+        WithOtlpExporter(endpoint, protocol, headers);
+        return this;
+    }
+
+    private ResourceObservability GetCurrentObservability() =>
+        declared.Definition.Observability ?? ResourceObservability.Default;
 
     IContainerResourceBuilder IContainerResourceBuilder.WithResourceGroup(string? resourceGroupId)
     {

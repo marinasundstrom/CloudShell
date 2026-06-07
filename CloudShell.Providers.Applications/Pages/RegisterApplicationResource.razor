@@ -62,6 +62,10 @@
             Enable service discovery for references
         </FluentCheckbox>
 
+        <FluentCheckbox @bind-Value="EnableObservability">
+            Enable observability
+        </FluentCheckbox>
+
         <label for="application-container-image">Container image</label>
         <FluentTextField Id="application-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
 
@@ -143,6 +147,7 @@
     private string? Endpoint { get; set; }
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseServiceDiscovery { get; set; }
+    private bool EnableObservability { get; set; } = true;
     private string? ContainerImage { get; set; }
     private string? ContainerBuildContext { get; set; }
     private string? ContainerDockerfile { get; set; }
@@ -166,6 +171,7 @@
             Endpoint = null;
             SelectedLifetime = ApplicationLifetime.Detached.ToString();
             UseServiceDiscovery = false;
+            EnableObservability = true;
             ContainerImage = null;
             ContainerBuildContext = null;
             ContainerDockerfile = null;
@@ -195,6 +201,7 @@
         Endpoint = application.Endpoint;
         SelectedLifetime = application.Lifetime.ToString();
         UseServiceDiscovery = application.UseServiceDiscovery;
+        EnableObservability = (application.Observability ?? ResourceObservability.Default).HasAnySignal;
         ContainerImage = application.ContainerImage;
         ContainerBuildContext = application.ContainerBuildContext;
         ContainerDockerfile = application.ContainerDockerfile;
@@ -264,7 +271,8 @@
             NormalizeNullable(ContainerDockerfile),
             null,
             Math.Max(1, Replicas),
-            resourceType: ApplicationResourceTypes.ExecutableApplication);
+            resourceType: ApplicationResourceTypes.ExecutableApplication,
+            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");

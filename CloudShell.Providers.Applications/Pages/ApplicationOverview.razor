@@ -25,6 +25,8 @@ else
             <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
             <dt>Dependencies</dt>
             <dd>@(EffectiveDependencies.Count == 0 ? "none" : string.Join(", ", EffectiveDependencies))</dd>
+            <dt>Observability</dt>
+            <dd>@GetObservabilityLabel(Application.Observability)</dd>
         </dl>
     </section>
 
@@ -70,6 +72,28 @@ else
             ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
             _ => "Detached"
         };
+
+    private static string GetObservabilityLabel(ResourceObservability? observability)
+    {
+        var effective = observability ?? ResourceObservability.Default;
+        if (!effective.HasAnySignal)
+        {
+            return "disabled";
+        }
+
+        var signals = new[]
+            {
+                effective.Logs ? "logs" : null,
+                effective.Traces ? "traces" : null,
+                effective.Metrics ? "metrics" : null
+            }
+            .Where(signal => signal is not null);
+        var exporter = string.IsNullOrWhiteSpace(effective.OtlpEndpoint)
+            ? "default OTLP endpoint"
+            : effective.OtlpEndpoint;
+
+        return $"{string.Join(", ", signals)} to {exporter}";
+    }
 
     private static RenderFragment EndpointLink(string? address) => builder =>
     {

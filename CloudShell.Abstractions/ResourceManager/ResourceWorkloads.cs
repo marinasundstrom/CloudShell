@@ -26,12 +26,15 @@ public sealed record ResourceWorkloadConfiguration(
     int Replicas = 1,
     IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null,
     IReadOnlyList<ServicePort>? Ports = null,
-    ResourceLifetime Lifetime = ResourceLifetime.ControlPlaneScoped)
+    ResourceLifetime Lifetime = ResourceLifetime.ControlPlaneScoped,
+    ResourceObservability? Observability = null)
 {
     public IReadOnlyList<EnvironmentVariableAssignment> WorkloadEnvironmentVariables =>
         EnvironmentVariables ?? [];
 
     public IReadOnlyList<ServicePort> WorkloadPorts => Ports ?? [];
+
+    public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;
 }
 
 public interface ILifetimeBoundResourceBuilder<out TBuilder> : ICloudShellResourceBuilder
@@ -77,6 +80,13 @@ public interface IContainerResourceBuilder :
         string value);
 
     IContainerResourceBuilder WithReplicas(int replicas);
+
+    IContainerResourceBuilder WithObservability(bool enabled = true);
+
+    IContainerResourceBuilder WithOtlpExporter(
+        string? endpoint = null,
+        string? protocol = null,
+        string? headers = null);
 
     new IContainerResourceBuilder DependsOn(string resourceId);
 

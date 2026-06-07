@@ -221,6 +221,7 @@ public sealed partial class ApplicationResourceProvider(
             application.Lifetime,
             application.References,
             application.UseServiceDiscovery,
+            GetEffectiveObservability(application),
             application.ContainerImage,
             application.ContainerBuildContext,
             application.ContainerDockerfile,
@@ -264,21 +265,22 @@ public sealed partial class ApplicationResourceProvider(
             resourceId,
             template.Name,
             configuration.ExecutablePath,
-            configuration.Arguments,
-            configuration.WorkingDirectory,
-            configuration.Endpoint,
-            configuration.EnvironmentVariables,
-            configuration.Lifetime,
-            context.DependsOn,
-            configuration.References,
-            configuration.UseServiceDiscovery,
-            configuration.ContainerImage,
-            configuration.ContainerBuildContext,
-            configuration.ContainerDockerfile,
-            configuration.ContainerEngineId,
-            configuration.Replicas,
-            configuration.EndpointPorts,
-            template.ResourceType);
+            arguments: configuration.Arguments,
+            workingDirectory: configuration.WorkingDirectory,
+            endpoint: configuration.Endpoint,
+            environmentVariables: configuration.EnvironmentVariables,
+            lifetime: configuration.Lifetime,
+            dependsOn: context.DependsOn,
+            references: configuration.References,
+            useServiceDiscovery: configuration.UseServiceDiscovery,
+            containerImage: configuration.ContainerImage,
+            containerBuildContext: configuration.ContainerBuildContext,
+            containerDockerfile: configuration.ContainerDockerfile,
+            containerEngineId: configuration.ContainerEngineId,
+            replicas: configuration.Replicas,
+            endpointPorts: configuration.EndpointPorts,
+            resourceType: template.ResourceType,
+            observability: configuration.Observability);
 
         await SetupApplicationAsync(
             definition,
@@ -434,6 +436,7 @@ public sealed partial class ApplicationResourceProvider(
             .Concat(definition.UseServiceDiscovery
                 ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, registrations)
                 : [])
+            .Concat(ResolveObservabilityEnvironmentVariables(definition))
             .Concat(ResolveAspNetCoreProjectEnvironmentVariables(definition))
             .Concat(definition.EnvironmentVariables)
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
@@ -504,6 +507,80 @@ public sealed partial class ApplicationResourceProvider(
             .ToArray();
     }
 
+    private IReadOnlyList<EnvironmentVariableAssignment> ResolveObservabilityEnvironmentVariables(
+        ApplicationResourceDefinition definition)
+    {
+        var observability = GetEffectiveObservability(definition);
+        if (!observability.HasAnySignal)
+        {
+            return [];
+        }
+
+        var variables = new List<EnvironmentVariableAssignment>
+        {
+            new("OTEL_SERVICE_NAME", FirstNonEmpty(
+                observability.ServiceName,
+                CreateServiceDiscoveryConfigurationSegment(definition.Name),
+                CreateServiceDiscoveryConfigurationSegment(definition.Id)) ?? definition.Id),
+            new("OTEL_RESOURCE_ATTRIBUTES", CreateOtelResourceAttributes(definition, observability))
+        };
+
+        var endpoint = FirstNonEmpty(
+            observability.OtlpEndpoint,
+            options.OtlpEndpoint,
+            Environment.GetEnvironmentVariable("ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL"));
+        var protocol = FirstNonEmpty(
+            observability.OtlpProtocol,
+            options.OtlpProtocol,
+            endpoint is null
+                ? null
+                : "grpc");
+
+        if (endpoint is null)
+        {
+            endpoint = FirstNonEmpty(
+                Environment.GetEnvironmentVariable("ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL"),
+                Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT"));
+            protocol = FirstNonEmpty(
+                observability.OtlpProtocol,
+                options.OtlpProtocol,
+                Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL"),
+                Environment.GetEnvironmentVariable("ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL") is null
+                    ? null
+                    : "http/protobuf");
+        }
+
+        if (!string.IsNullOrWhiteSpace(endpoint))
+        {
+            variables.Add(new("OTEL_EXPORTER_OTLP_ENDPOINT", endpoint));
+        }
+
+        if (!string.IsNullOrWhiteSpace(protocol))
+        {
+            variables.Add(new("OTEL_EXPORTER_OTLP_PROTOCOL", protocol));
+        }
+
+        var headers = FirstNonEmpty(
+            observability.OtlpHeaders,
+            options.OtlpHeaders,
+            Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS"));
+        if (!string.IsNullOrWhiteSpace(headers))
+        {
+            variables.Add(new("OTEL_EXPORTER_OTLP_HEADERS", headers));
+        }
+
+        return variables;
+    }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> ResolveWorkloadEnvironmentVariables(
+        ApplicationResourceDefinition definition) =>
+        ResolveObservabilityEnvironmentVariables(definition)
+            .Concat(definition.EnvironmentVariables)
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
+
     private async Task StartContainerApplicationAsync(
         ApplicationResourceDefinition definition,
         IReadOnlyList<string> dependsOn,
@@ -567,6 +644,7 @@ public sealed partial class ApplicationResourceProvider(
                      .Concat(definition.UseServiceDiscovery
                          ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, registrations)
                          : [])
+                     .Concat(ResolveObservabilityEnvironmentVariables(definition))
                      .Concat(definition.EnvironmentVariables)
                      .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
                      .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
@@ -844,7 +922,8 @@ public sealed partial class ApplicationResourceProvider(
             application.DependsOn,
             TypeId: application.ResourceType,
             Actions: CreateActions(state),
-            HealthChecks: application.HealthChecks);
+            HealthChecks: application.HealthChecks,
+            Observability: GetEffectiveObservability(application));
     }
 
     private static string GetResourceKind(ApplicationResourceDefinition application) =>
@@ -1109,12 +1188,75 @@ public sealed partial class ApplicationResourceProvider(
             References = NormalizeReferences(definition.References, id),
             EndpointPorts = NormalizeEndpointPorts(definition.EndpointPorts, resourceType, definition.Endpoint),
             HealthChecks = NormalizeHealthChecks(definition.HealthChecks),
+            Observability = NormalizeObservability(definition.Observability),
             EnvironmentVariables = definition.EnvironmentVariables
                 .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
                 .Select(variable => variable with { Name = variable.Name.Trim() })
                 .ToArray()
         };
     }
+
+    private ResourceObservability GetEffectiveObservability(ApplicationResourceDefinition definition) =>
+        definition.Observability ??
+        (options.EnableObservabilityByDefault
+            ? ResourceObservability.Default
+            : ResourceObservability.None);
+
+    private static ResourceObservability? NormalizeObservability(ResourceObservability? observability)
+    {
+        if (observability is null)
+        {
+            return null;
+        }
+
+        var attributes = observability.Attributes
+            .Where(attribute => !string.IsNullOrWhiteSpace(attribute.Key))
+            .ToDictionary(
+                attribute => attribute.Key.Trim(),
+                attribute => attribute.Value,
+                StringComparer.OrdinalIgnoreCase);
+
+        return observability with
+        {
+            OtlpEndpoint = NormalizeNullable(observability.OtlpEndpoint),
+            OtlpProtocol = NormalizeNullable(observability.OtlpProtocol),
+            OtlpHeaders = NormalizeNullable(observability.OtlpHeaders),
+            ServiceName = NormalizeNullable(observability.ServiceName),
+            ResourceAttributes = attributes.Count == 0 ? null : attributes
+        };
+    }
+
+    private static string CreateOtelResourceAttributes(
+        ApplicationResourceDefinition definition,
+        ResourceObservability observability)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["service.instance.id"] = definition.Id,
+            ["cloudshell.resource.id"] = definition.Id,
+            ["cloudshell.resource.type"] = definition.ResourceType
+        };
+
+        foreach (var attribute in observability.Attributes)
+        {
+            if (!string.IsNullOrWhiteSpace(attribute.Key))
+            {
+                attributes[attribute.Key.Trim()] = attribute.Value;
+            }
+        }
+
+        return string.Join(
+            ',',
+            attributes
+                .Where(attribute => !string.IsNullOrWhiteSpace(attribute.Key))
+                .Select(attribute => $"{attribute.Key}={EscapeOtelAttributeValue(attribute.Value)}"));
+    }
+
+    private static string EscapeOtelAttributeValue(string? value) =>
+        (value ?? string.Empty)
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace(",", "\\,", StringComparison.Ordinal)
+            .Replace("=", "\\=", StringComparison.Ordinal);
 
     private static LocalProcessDefinition CreateLocalProcessDefinition(
         ApplicationResourceDefinition definition,
@@ -1134,7 +1276,7 @@ public sealed partial class ApplicationResourceProvider(
             _ => LocalProcessLifetime.Detached
         };
 
-    private static ResourceWorkloadConfiguration CreateWorkloadConfiguration(
+    private ResourceWorkloadConfiguration CreateWorkloadConfiguration(
         ApplicationResourceDefinition application)
     {
         if (!string.IsNullOrWhiteSpace(application.ContainerImage))
@@ -1145,9 +1287,10 @@ public sealed partial class ApplicationResourceProvider(
                 Image: application.ContainerImage,
                 ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
-                EnvironmentVariables: application.EnvironmentVariables,
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
                 Ports: application.EndpointPorts,
-                Lifetime: ToResourceLifetime(application.Lifetime));
+                Lifetime: ToResourceLifetime(application.Lifetime),
+                Observability: GetEffectiveObservability(application));
         }
 
         if (!string.IsNullOrWhiteSpace(application.ContainerBuildContext))
@@ -1159,9 +1302,10 @@ public sealed partial class ApplicationResourceProvider(
                 Dockerfile: application.ContainerDockerfile,
                 ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
-                EnvironmentVariables: application.EnvironmentVariables,
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
                 Ports: application.EndpointPorts,
-                Lifetime: ToResourceLifetime(application.Lifetime));
+                Lifetime: ToResourceLifetime(application.Lifetime),
+                Observability: GetEffectiveObservability(application));
         }
 
         return new ResourceWorkloadConfiguration(
@@ -1171,8 +1315,9 @@ public sealed partial class ApplicationResourceProvider(
             Arguments: application.Arguments,
             WorkingDirectory: application.WorkingDirectory,
             Replicas: Math.Max(1, application.Replicas),
-            EnvironmentVariables: application.EnvironmentVariables,
-            Lifetime: ToResourceLifetime(application.Lifetime));
+            EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
+            Lifetime: ToResourceLifetime(application.Lifetime),
+            Observability: GetEffectiveObservability(application));
     }
 
     private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
@@ -1550,6 +1695,7 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationLifetime Lifetime,
         IReadOnlyList<string>? References = null,
         bool UseServiceDiscovery = false,
+        ResourceObservability? Observability = null,
         string? ContainerImage = null,
         string? ContainerBuildContext = null,
         string? ContainerDockerfile = null,

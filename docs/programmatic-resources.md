@@ -73,6 +73,26 @@ Executable applications also keep `WaitFor(resource)` as an Aspire-compatible
 alias for dependency ordering. Prefer `DependsOn(resource)` when describing the
 CloudShell resource graph.
 
+Application resources also expose basic Aspire-compatible observability. When
+enabled, CloudShell marks the resource as log-, trace-, and metric-capable and
+injects standard `OTEL_*` variables when the resource starts. Generated
+observability variables are applied before explicit resource environment
+variables, so `WithEnvironment("OTEL_EXPORTER_OTLP_ENDPOINT", "...")` can
+override provider defaults for a single resource.
+
+```csharp
+resources
+    .AddAspNetCoreProject(
+        "application:api",
+        "API",
+        "src/API/API.csproj")
+    .WithOtlpExporter("http://localhost:4317");
+
+resources
+    .AddContainer("worker", "example/worker:dev")
+    .WithObservability(false);
+```
+
 Applications can depend on any declared resource builder, including sub-resources
 such as containers returned from `resources.AddDocker().AddContainer(...)`.
 

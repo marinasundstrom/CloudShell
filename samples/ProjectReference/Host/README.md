@@ -15,6 +15,24 @@ The frontend resource uses:
 .DependsOn(api)
 ```
 
+Both resources also enable OTLP export explicitly:
+
+```csharp
+.WithOtlpExporter(otlpEndpoint, otlpProtocol)
+```
+
+The host reads that endpoint from `Observability:OtlpEndpoint` and
+`Observability:OtlpProtocol` in `appsettings.json`. The sample default is:
+
+```text
+http://localhost:4317
+```
+
+Run an OpenTelemetry collector, Aspire Dashboard, or another OTLP receiver on
+that endpoint before starting the resources if you want traces and metrics to
+be collected. CloudShell still writes stdout and stderr to the resource Logs
+view independently of OTLP export.
+
 Both projects reference `CloudShell.ProjectReference.ServiceDefaults`, similar
 to an Aspire ServiceDefaults project. It registers common health endpoints,
 HTTP client defaults, `Microsoft.Extensions.ServiceDiscovery`, and a

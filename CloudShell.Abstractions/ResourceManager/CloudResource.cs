@@ -15,7 +15,8 @@ public sealed record CloudResource(
     string? ParentResourceId = null,
     string? TypeId = null,
     IReadOnlyList<ResourceAction>? Actions = null,
-    IReadOnlyList<ResourceHealthCheck>? HealthChecks = null)
+    IReadOnlyList<ResourceHealthCheck>? HealthChecks = null,
+    ResourceObservability? Observability = null)
 {
     public string PrimaryEndpoint => Endpoints.FirstOrDefault()?.Address ?? "none";
 
@@ -24,6 +25,8 @@ public sealed record CloudResource(
     public IReadOnlyList<ResourceAction> ResourceActions => Actions ?? [];
 
     public IReadOnlyList<ResourceHealthCheck> ResourceHealthChecks => HealthChecks ?? [];
+
+    public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;
 }
 
 public enum ResourceState

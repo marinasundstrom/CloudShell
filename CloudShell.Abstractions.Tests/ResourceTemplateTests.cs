@@ -49,7 +49,12 @@ public sealed class ResourceTemplateTests
                 [new("ASPNETCORE_URLS", "http://localhost:5127")],
                 dependsOn: ["postgres-main"],
                 references: ["postgres-main"],
-                useServiceDiscovery: true),
+                useServiceDiscovery: true,
+                observability: new ResourceObservability(
+                    Logs: true,
+                    Traces: true,
+                    Metrics: false,
+                    OtlpEndpoint: "http://localhost:4317")),
             fixture.Group.Id,
             fixture.Registrations);
 
@@ -72,6 +77,11 @@ public sealed class ResourceTemplateTests
                 .Select(item => item.GetString()!)
                 .ToArray());
         Assert.True(template.Configuration.GetProperty("useServiceDiscovery").GetBoolean());
+        var observability = template.Configuration.GetProperty("observability");
+        Assert.True(observability.GetProperty("logs").GetBoolean());
+        Assert.True(observability.GetProperty("traces").GetBoolean());
+        Assert.False(observability.GetProperty("metrics").GetBoolean());
+        Assert.Equal("http://localhost:4317", observability.GetProperty("otlpEndpoint").GetString());
     }
 
     [Fact]
@@ -129,7 +139,12 @@ public sealed class ResourceTemplateTests
                 environmentVariables = Array.Empty<EnvironmentVariableAssignment>(),
                 lifetime = ApplicationLifetime.Detached,
                 references = new[] { "postgres-main" },
-                useServiceDiscovery = true
+                useServiceDiscovery = true,
+                observability = new ResourceObservability(
+                    Logs: true,
+                    Traces: false,
+                    Metrics: true,
+                    ServiceName: "imported-api")
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
         var template = new ResourceGroupTemplate(
@@ -156,6 +171,11 @@ public sealed class ResourceTemplateTests
         var application = fixture.Provider.GetApplication(imported.ResourceId)!;
         Assert.Equal(["postgres-main"], application.References);
         Assert.True(application.UseServiceDiscovery);
+        Assert.NotNull(application.Observability);
+        Assert.True(application.Observability.Logs);
+        Assert.False(application.Observability.Traces);
+        Assert.True(application.Observability.Metrics);
+        Assert.Equal("imported-api", application.Observability.ServiceName);
     }
 
     private sealed class TemplateFixture : IDisposable

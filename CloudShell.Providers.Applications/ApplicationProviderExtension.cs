@@ -17,7 +17,8 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             "resource-type.application.aspnet-core-project",
             "resource-type.application.container-image",
             "resource-type.application.sql-server",
-            "resource-trait.environment-variables"
+            "resource-trait.environment-variables",
+            "resource-trait.observability"
         ],
         ["resource-manager.resources"]);
 

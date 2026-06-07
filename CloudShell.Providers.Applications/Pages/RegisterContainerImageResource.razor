@@ -114,6 +114,10 @@
             Start referenced resources first
         </FluentCheckbox>
 
+        <FluentCheckbox @bind-Value="EnableObservability">
+            Enable observability
+        </FluentCheckbox>
+
         <div class="environment-editor">
             <div class="environment-header">
                 <strong>Environment variables</strong>
@@ -160,6 +164,7 @@
     private string Protocol { get; set; } = "tcp";
     private string SelectedGroupId { get; set; } = string.Empty;
     private bool WaitForReferences { get; set; } = true;
+    private bool EnableObservability { get; set; } = true;
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -206,7 +211,8 @@
             containerImage: Image.Trim(),
             containerEngineId: NormalizeNullable(SelectedEngineId),
             endpointPorts: BuildEndpointPorts(),
-            resourceType: ApplicationResourceTypes.ContainerImage);
+            resourceType: ApplicationResourceTypes.ContainerImage,
+            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");

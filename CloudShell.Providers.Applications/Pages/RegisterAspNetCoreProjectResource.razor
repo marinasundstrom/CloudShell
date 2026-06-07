@@ -47,6 +47,10 @@
             Enable service discovery for references
         </FluentCheckbox>
 
+        <FluentCheckbox @bind-Value="EnableObservability">
+            Enable observability
+        </FluentCheckbox>
+
         <label for="web-application-group">Resource group</label>
         <FluentSelect TOption="string"
                       Id="web-application-group"
@@ -121,6 +125,7 @@
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseHotReload { get; set; } = true;
     private bool UseServiceDiscovery { get; set; } = true;
+    private bool EnableObservability { get; set; } = true;
     private bool WaitForReferences { get; set; } = true;
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
@@ -157,7 +162,8 @@
             useServiceDiscovery: UseServiceDiscovery && references.Length > 0,
             endpointPorts: BuildEndpointPorts(),
             resourceType: ApplicationResourceTypes.AspNetCoreProject,
-            healthChecks: ProbeContext?.GetSelectedHealthChecks());
+            healthChecks: ProbeContext?.GetSelectedHealthChecks(),
+            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");

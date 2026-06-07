@@ -6,9 +6,16 @@ using CloudShell.Providers.Applications;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"];
+var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];
+
 var cloudShell = builder
     .AddCloudShell()
-    .AddApplicationProvider();
+    .AddApplicationProvider(options =>
+    {
+        options.OtlpEndpoint = otlpEndpoint;
+        options.OtlpProtocol = otlpProtocol;
+    });
 
 cloudShell.Resources(resources =>
 {
@@ -17,7 +24,8 @@ cloudShell.Resources(resources =>
         "Project Reference API",
         "../Api/CloudShell.ProjectReferenceApi.csproj")
         .WithHttpHealthCheck("/health")
-        .WithHttpProbe(ResourceProbeType.Liveness, "/alive");
+        .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
+        .WithOtlpExporter(otlpEndpoint, otlpProtocol);
 
     resources
         .AddAspNetCoreProject(
@@ -27,6 +35,7 @@ cloudShell.Resources(resources =>
             endpoint: "http://localhost:5218")
         .WithHttpHealthCheck("/healthz")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
+        .WithOtlpExporter(otlpEndpoint, otlpProtocol)
         .WithReference(api)
         .DependsOn(api);
 });
