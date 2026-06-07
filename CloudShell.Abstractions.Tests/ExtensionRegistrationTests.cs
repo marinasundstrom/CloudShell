@@ -34,6 +34,12 @@ public sealed class ExtensionRegistrationTests
     {
         Assert.Equal(typeof(SamplePage).FullName, ShellViewKeys.For<SamplePage>());
         Assert.Equal(typeof(SamplePage).FullName, ShellViewKeys.For(typeof(SamplePage)));
+        Assert.Equal(
+            $"sample.provider.{typeof(SamplePage).FullName}",
+            ShellViewKeys.For<SamplePage>("sample.provider"));
+        Assert.Equal(
+            "sample.provider.workspace",
+            ShellViewKeys.For("sample.provider", "workspace"));
     }
 
     [Fact]

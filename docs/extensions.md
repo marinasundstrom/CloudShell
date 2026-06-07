@@ -112,7 +112,7 @@ Core persistence provider stores it in the `ExtensionActivations` table.
 
 ## Views
 
-Views are ordinary routable Blazor components in the extension assembly. `RegisterView<TComponent>()` records the component by type, discovers the route declared by the component's `@page` directive, and records the component assembly so the host can include it in both Blazor routing and server endpoint mapping. Use `RegisterView<TComponent>("stable.id")` only when a string ID is part of a public integration contract.
+Views are ordinary routable Blazor components in the extension assembly. `RegisterView<TComponent>()` records the component by type, discovers the route declared by the component's `@page` directive, and records the component assembly so the host can include it in both Blazor routing and server endpoint mapping. Use `RegisterView<TComponent>("stable.id")` when a string ID is part of a public integration contract or when you want an extension-namespaced key.
 
 Registering a view does not add it to the sidebar. Use view registration for pages that need to be addressable by ID, for hidden detail/workflow pages, and for pages that should be targets for navigation items or start routing.
 
@@ -226,6 +226,16 @@ publish the same default key that `RegisterView<TComponent>()` uses:
 public static class AcmeViews
 {
     public static readonly string Cluster = ShellViewKeys.For<Pages.AcmeCluster>();
+}
+```
+
+If the key should be scoped to the extension rather than only to the component
+type, use the namespace-scoped overload:
+
+```csharp
+public static class AcmeViews
+{
+    public static readonly string Cluster = ShellViewKeys.For<Pages.AcmeCluster>("acme.infrastructure");
 }
 ```
 

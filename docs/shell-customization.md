@@ -37,8 +37,8 @@ external or non-registered paths.
 Extensions should expose stable view-key constants when other extensions need
 to navigate without referencing the UI component assembly. Callers that already
 reference the UI assembly should prefer component-type navigation. Use
-`ShellViewKeys.For<TComponent>()` when a published key should match the default
-component-derived view key.
+`ShellViewKeys.For<TComponent>(extensionId)` when a published key should be
+explicitly scoped to an extension namespace.
 
 The `AddCustomView` API name describes the implementation path: the extension is
 adding a composed view hosted by the shell instead of a standalone `@page`
