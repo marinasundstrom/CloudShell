@@ -53,10 +53,9 @@
             }
         </select>
 
-        <label>
-            <input type="checkbox" @bind="ExposeEndpoint" />
+        <FluentCheckbox @bind-Value="ExposeEndpoint">
             Expose local endpoint
-        </label>
+        </FluentCheckbox>
 
         @if (ExposeEndpoint)
         {
@@ -92,19 +91,16 @@
 
             @foreach (var resource in GetReferenceCandidates())
             {
-                <label>
-                    <input type="checkbox"
-                           checked="@SelectedReferenceIds.Contains(resource.Id)"
-                           @onchange="args => ToggleReference(resource.Id, args)" />
+                <FluentCheckbox Value="@SelectedReferenceIds.Contains(resource.Id)"
+                                ValueChanged="selected => ToggleReference(resource.Id, selected)">
                     @resource.Name
-                </label>
+                </FluentCheckbox>
             }
         </div>
 
-        <label>
-            <input type="checkbox" @bind="WaitForReferences" />
+        <FluentCheckbox @bind-Value="WaitForReferences">
             Start referenced resources first
-        </label>
+        </FluentCheckbox>
 
         <div class="environment-editor">
             <div class="environment-header">
@@ -347,9 +343,8 @@
         }
     }
 
-    private void ToggleReference(string resourceId, ChangeEventArgs args)
+    private void ToggleReference(string resourceId, bool selected)
     {
-        var selected = args.Value is bool boolValue && boolValue;
         if (selected)
         {
             SelectedReferenceIds.Add(resourceId);

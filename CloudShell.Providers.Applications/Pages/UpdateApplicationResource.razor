@@ -37,10 +37,9 @@ else
                 }
             </select>
 
-            <label>
-                <input type="checkbox" @bind="UseServiceDiscovery" />
+            <FluentCheckbox @bind-Value="UseServiceDiscovery">
                 Enable service discovery for references
-            </label>
+            </FluentCheckbox>
 
             <label for="application-update-container-image">Container image</label>
             <input id="application-update-container-image" @bind="ContainerImage" placeholder="example/api:dev" />
@@ -70,12 +69,10 @@ else
 
                 @foreach (var resource in GetDependencyCandidates())
                 {
-                    <label>
-                        <input type="checkbox"
-                               checked="@SelectedDependencyIds.Contains(resource.Id)"
-                               @onchange="args => ToggleDependency(resource.Id, args)" />
+                    <FluentCheckbox Value="@SelectedDependencyIds.Contains(resource.Id)"
+                                    ValueChanged="selected => ToggleDependency(resource.Id, selected)">
                         @resource.Name
-                    </label>
+                    </FluentCheckbox>
                 }
             </div>
 
@@ -241,9 +238,9 @@ else
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private void ToggleDependency(string resourceId, ChangeEventArgs args)
+    private void ToggleDependency(string resourceId, bool selected)
     {
-        if (args.Value is true)
+        if (selected)
         {
             SelectedDependencyIds.Add(resourceId);
         }

@@ -42,10 +42,9 @@ else
                     <div class="environment-row configuration-entry-row">
                         <input aria-label="Configuration entry name" @bind="entry.Name" />
                         <input aria-label="Configuration entry value" @bind="entry.Value" />
-                        <label class="inline-checkbox">
-                            <input type="checkbox" @bind="entry.IsSecret" />
+                        <FluentCheckbox @bind-Value="entry.IsSecret">
                             Secret
-                        </label>
+                        </FluentCheckbox>
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEntry(entry)">
                             Remove
                         </FluentButton>

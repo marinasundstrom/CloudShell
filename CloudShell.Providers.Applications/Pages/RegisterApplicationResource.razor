@@ -51,10 +51,9 @@
             }
         </select>
 
-        <label>
-            <input type="checkbox" @bind="UseServiceDiscovery" />
+        <FluentCheckbox @bind-Value="UseServiceDiscovery">
             Enable service discovery for references
-        </label>
+        </FluentCheckbox>
 
         <label for="application-container-image">Container image</label>
         <input id="application-container-image" @bind="ContainerImage" placeholder="example/api:dev" />
@@ -84,12 +83,10 @@
 
             @foreach (var resource in GetDependencyCandidates())
             {
-                <label>
-                    <input type="checkbox"
-                           checked="@SelectedDependencyIds.Contains(resource.Id)"
-                           @onchange="args => ToggleDependency(resource.Id, args)" />
+                <FluentCheckbox Value="@SelectedDependencyIds.Contains(resource.Id)"
+                                ValueChanged="selected => ToggleDependency(resource.Id, selected)">
                     @resource.Name
-                </label>
+                </FluentCheckbox>
             }
         </div>
 
@@ -311,9 +308,9 @@
             : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
     }
 
-    private void ToggleDependency(string resourceId, ChangeEventArgs args)
+    private void ToggleDependency(string resourceId, bool selected)
     {
-        if (args.Value is true)
+        if (selected)
         {
             SelectedDependencyIds.Add(resourceId);
         }

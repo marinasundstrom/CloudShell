@@ -38,12 +38,10 @@
 
             @foreach (var resource in GetTargetCandidates())
             {
-                <label>
-                    <input type="checkbox"
-                           checked="@SelectedTargetIds.Contains(resource.Id)"
-                           @onchange="args => Toggle(SelectedTargetIds, resource.Id, args)" />
+                <FluentCheckbox Value="@SelectedTargetIds.Contains(resource.Id)"
+                                ValueChanged="selected => Toggle(SelectedTargetIds, resource.Id, selected)">
                     @resource.Name
-                </label>
+                </FluentCheckbox>
             }
         </div>
 
@@ -54,12 +52,10 @@
 
             @foreach (var network in GetNetworkCandidates())
             {
-                <label>
-                    <input type="checkbox"
-                           checked="@SelectedNetworkIds.Contains(network.Id)"
-                           @onchange="args => Toggle(SelectedNetworkIds, network.Id, args)" />
+                <FluentCheckbox Value="@SelectedNetworkIds.Contains(network.Id)"
+                                ValueChanged="selected => Toggle(SelectedNetworkIds, network.Id, selected)">
                     @network.Name
-                </label>
+                </FluentCheckbox>
             }
         </div>
 
@@ -137,9 +133,8 @@
             : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void Toggle(HashSet<string> values, string value, ChangeEventArgs args)
+    private static void Toggle(HashSet<string> values, string value, bool selected)
     {
-        var selected = args.Value is bool boolValue && boolValue;
         if (selected)
         {
             values.Add(value);

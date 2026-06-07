@@ -21,10 +21,9 @@
         <label for="network-resource-id">Resource ID</label>
         <input id="network-resource-id" @bind="ResourceId" placeholder="network:app" />
 
-        <label>
-            <input type="checkbox" @bind="IsDefault" />
+        <FluentCheckbox @bind-Value="IsDefault">
             Default network
-        </label>
+        </FluentCheckbox>
 
         <label for="network-group">Resource group</label>
         <select id="network-group" @bind="SelectedGroupId">

@@ -82,19 +82,17 @@
                     <p>@selected.Name / @selected.Provider / @selected.SourceKind</p>
                 </div>
                 <div class="log-viewer-actions">
-                    <label class="log-wrap-toggle">
-                        <input type="checkbox" @bind="WrapLogMessages" />
-                        <span>@L["Wrap"]</span>
-                    </label>
+                    <FluentCheckbox Class="log-wrap-toggle" @bind-Value="WrapLogMessages">
+                        @L["Wrap"]
+                    </FluentCheckbox>
                     @if (selected.SupportsStreaming)
                     {
-                        <label class="log-stream-toggle">
-                            <input type="checkbox"
-                                   checked="@IsSelectedLogStreaming(selected)"
-                                   disabled="@IsLoading"
-                                   @onchange="args => SetStreamingEnabled(selected, args)" />
-                            <span>@(IsSelectedLogStreaming(selected) ? L["Streaming"] : L["Stream"])</span>
-                        </label>
+                        <FluentCheckbox Class="log-stream-toggle"
+                                        Value="@IsSelectedLogStreaming(selected)"
+                                        ValueChanged="enabled => SetStreamingEnabled(selected, enabled)"
+                                        Disabled="@IsLoading">
+                            @(IsSelectedLogStreaming(selected) ? L["Streaming"] : L["Stream"])
+                        </FluentCheckbox>
                     }
                 </div>
             </div>
@@ -325,9 +323,9 @@
         }
     }
 
-    private async Task SetStreamingEnabled(LogDescriptor log, ChangeEventArgs args)
+    private async Task SetStreamingEnabled(LogDescriptor log, bool enabled)
     {
-        if (IsChecked(args))
+        if (enabled)
         {
             DisabledStreamingLogIds.Remove(log.Id);
             await StartStreamingAsync(log);
@@ -512,12 +510,6 @@
 
         return LogModule;
     }
-
-    private static bool IsChecked(ChangeEventArgs args) =>
-        args.Value is bool value
-            ? value
-            : string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase) ||
-              string.Equals(args.Value?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
 
     private static (DateTimeOffset Timestamp, string Message, string? Level, string? Source) GetEntryKey(LogEntry entry) =>
         (entry.Timestamp, entry.Message, entry.Level, entry.Source);
