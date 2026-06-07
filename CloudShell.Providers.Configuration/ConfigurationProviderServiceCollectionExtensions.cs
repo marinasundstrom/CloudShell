@@ -50,14 +50,9 @@ public static class ConfigurationProviderServiceCollectionExtensions
 
         options.DeclaredStores.Add(declared);
 
-        var serviceResource = builder.Declare(
-            "applications",
-            ConfigurationResourceProvider.CreateServiceResourceId(id, options.ServiceResourceIdPrefix));
-
         var resource = builder.Declare(
             "configuration",
             id,
-            dependsOn: [serviceResource.ResourceId],
             onChanged: declaration =>
             {
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;

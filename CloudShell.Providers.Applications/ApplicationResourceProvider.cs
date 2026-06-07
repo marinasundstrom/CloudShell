@@ -26,6 +26,7 @@ public sealed partial class ApplicationResourceProvider(
     IDisposable
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
+    public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
 
     private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
         new(StringComparer.OrdinalIgnoreCase);
@@ -36,6 +37,7 @@ public sealed partial class ApplicationResourceProvider(
 
     public IReadOnlyList<CloudResource> GetResources() => store
         .GetApplications()
+        .Where(application => !IsHidden(application))
         .Select(CreateResource)
         .ToArray();
 
@@ -1369,6 +1371,12 @@ public sealed partial class ApplicationResourceProvider(
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
         !string.IsNullOrWhiteSpace(application.ContainerImage) ||
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
+
+    private static bool IsHidden(ApplicationResourceDefinition application) =>
+        application.EnvironmentVariables.Any(variable =>
+            string.Equals(variable.Name, HiddenResourceEnvironmentVariable, StringComparison.OrdinalIgnoreCase) &&
+            bool.TryParse(variable.Value, out var hidden) &&
+            hidden);
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();

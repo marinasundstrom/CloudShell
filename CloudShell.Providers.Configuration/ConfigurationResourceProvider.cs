@@ -19,6 +19,7 @@ public sealed partial class ConfigurationResourceProvider :
     private readonly ConfigurationStore store;
     private readonly ConfigurationProviderOptions options;
     private readonly IHostEnvironment environment;
+    private readonly IServiceProvider serviceProvider;
     private readonly ApplicationResourceStore? _applications;
 
     public ConfigurationResourceProvider(
@@ -30,6 +31,7 @@ public sealed partial class ConfigurationResourceProvider :
         this.store = store;
         this.options = options;
         this.environment = environment;
+        this.serviceProvider = serviceProvider;
         _applications = serviceProvider.GetService<ApplicationResourceStore>();
 
         foreach (var configurationStore in store.GetStores())
@@ -62,7 +64,7 @@ public sealed partial class ConfigurationResourceProvider :
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
 
-    public Task ApplyDeclarationAsync(
+    public async Task ApplyDeclarationAsync(
         ResourceDeclaration declaration,
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default)
@@ -76,10 +78,22 @@ public sealed partial class ConfigurationResourceProvider :
             (registrations.GetRegistration(declaration.ResourceId) is not null ||
              store.GetStore(declaration.ResourceId) is not null))
         {
-            return Task.CompletedTask;
+            await RemoveServiceRegistrationAsync(
+                declaration.ResourceId,
+                registrations,
+                cancellationToken);
+            if (registrations.GetRegistration(declaration.ResourceId) is not null)
+            {
+                await registrations.SetDependenciesAsync(
+                    declaration.ResourceId,
+                    [],
+                    cancellationToken);
+            }
+
+            return;
         }
 
-        return SetupStoreAsync(
+        await SetupStoreAsync(
             declaredStore.Definition,
             declaration.ResourceGroupId,
             registrations,
@@ -99,18 +113,13 @@ public sealed partial class ConfigurationResourceProvider :
         normalized = EnsureServiceEndpoint(normalized);
         store.Save(normalized);
         EnsureServiceApplication(normalized, persist: true);
-
-        await registrations.RegisterAsync(
-            "applications",
-            GetServiceResourceId(normalized.Id),
-            NormalizeGroupId(resourceGroupId),
-            cancellationToken: cancellationToken);
+        await RemoveServiceRegistrationAsync(normalized.Id, registrations, cancellationToken);
 
         await registrations.RegisterAsync(
             Id,
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
-            GetServiceDependencies(normalized.Id),
+            [],
             cancellationToken: cancellationToken);
     }
 
@@ -128,36 +137,77 @@ public sealed partial class ConfigurationResourceProvider :
 
         store.Save(normalized);
         EnsureServiceApplication(normalized, persist: true);
-        if (registrations.GetRegistration(GetServiceResourceId(normalized.Id)) is null)
-        {
-            await registrations.RegisterAsync(
-                "applications",
-                GetServiceResourceId(normalized.Id),
-                NormalizeGroupId(resourceGroupId),
-                cancellationToken: cancellationToken);
-        }
-        else
-        {
-            await registrations.AssignToGroupAsync(
-                GetServiceResourceId(normalized.Id),
-                NormalizeGroupId(resourceGroupId),
-                cancellationToken: cancellationToken);
-        }
+        await RemoveServiceRegistrationAsync(normalized.Id, registrations, cancellationToken);
 
         await registrations.AssignToGroupAsync(
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
-            GetServiceDependencies(normalized.Id),
+            [],
             cancellationToken: cancellationToken);
+    }
+
+    public async Task<ResourceProcedureResult> ExecuteActionAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        var configurationStore = store.GetStore(context.Resource.Id)
+            ?? throw new InvalidOperationException($"Configuration service '{context.Resource.Id}' is not configured.");
+        EnsureServiceApplication(configurationStore, persist: true);
+
+        var applicationProvider = serviceProvider.GetService<ApplicationResourceProvider>()
+            ?? throw new InvalidOperationException("The application provider is required to run configuration service instances.");
+        var serviceResourceId = GetServiceResourceId(configurationStore.Id);
+        var serviceApplication = applicationProvider.GetApplication(serviceResourceId)
+            ?? throw new InvalidOperationException($"Configuration service host '{serviceResourceId}' is not configured.");
+        var serviceResource = new CloudResource(
+            serviceApplication.Id,
+            serviceApplication.Name,
+            "Executable application",
+            "Applications",
+            "local",
+            applicationProvider.IsRunning(serviceApplication.Id) ? ResourceState.Running : ResourceState.Stopped,
+            string.IsNullOrWhiteSpace(serviceApplication.Endpoint)
+                ? []
+                : [new ResourceEndpoint("application", serviceApplication.Endpoint, "http", true)],
+            serviceApplication.ExecutablePath,
+            DateTimeOffset.UtcNow,
+            serviceApplication.DependsOn,
+            TypeId: "application.executable");
+        await applicationProvider.ExecuteActionAsync(
+            new ResourceProcedureContext(
+                serviceResource,
+                null,
+                context.ResourceGroupId,
+                context.Registrations,
+                context.ResourceManager,
+                context.PreferredContainerEngineId),
+            action,
+            cancellationToken);
+
+        return ResourceProcedureResult.Completed(CreateActionMessage(action, context.Resource.Name));
     }
 
     public async Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
+        if (store.GetStore(context.Resource.Id) is not null)
+        {
+            var stopAction = context.Resource.ResourceActions.FirstOrDefault(action =>
+                action.Kind == ResourceActionKind.Stop);
+            if (stopAction is not null)
+            {
+                await ExecuteActionAsync(context, stopAction, cancellationToken);
+            }
+        }
+
         store.Remove(context.Resource.Id);
         _applications?.Remove(GetServiceResourceId(context.Resource.Id));
-        await context.Registrations.RemoveAsync(GetServiceResourceId(context.Resource.Id), cancellationToken);
+        await RemoveServiceRegistrationAsync(
+            context.Resource.Id,
+            context.Registrations,
+            cancellationToken);
         await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
         return ResourceProcedureResult.Completed("Configuration service removed.");
     }
@@ -276,15 +326,46 @@ public sealed partial class ConfigurationResourceProvider :
             "Configuration service",
             DisplayName,
             "local",
-            ResourceState.Running,
+            GetState(configurationStore),
             [new ResourceEndpoint("entries", GetEntriesEndpoint(configurationStore.Id), "http", false)],
             $"{configurationStore.Entries.Count} entries",
             DateTimeOffset.UtcNow,
-            GetServiceDependencies(configurationStore.Id),
-            TypeId: "configuration.store");
+            [],
+            TypeId: "configuration.store",
+            Actions: CreateActions(configurationStore));
 
-    private IReadOnlyList<string> GetServiceDependencies(string resourceId) =>
-        _applications is null ? [] : [GetServiceResourceId(resourceId)];
+    private ResourceState GetState(ConfigurationStoreDefinition configurationStore)
+    {
+        var applicationProvider = serviceProvider.GetService<ApplicationResourceProvider>();
+        return applicationProvider is not null &&
+            applicationProvider.IsRunning(GetServiceResourceId(configurationStore.Id))
+                ? ResourceState.Running
+                : ResourceState.Stopped;
+    }
+
+    private IReadOnlyList<ResourceAction> CreateActions(ConfigurationStoreDefinition configurationStore) =>
+        GetState(configurationStore) == ResourceState.Running
+            ? [ResourceAction.Stop, ResourceAction.Restart]
+            : [ResourceAction.Run];
+
+    private static string CreateActionMessage(ResourceAction action, string resourceName) =>
+        action.Kind switch
+        {
+            ResourceActionKind.Run => $"Started {resourceName}.",
+            ResourceActionKind.Stop => $"Stopped {resourceName}.",
+            ResourceActionKind.Restart => $"Restarted {resourceName}.",
+            _ => $"{action.DisplayName} requested for {resourceName}."
+        };
+
+    private async Task RemoveServiceRegistrationAsync(
+        string resourceId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken)
+    {
+        await registrations.RemoveAsync(
+            GetServiceResourceId(resourceId),
+            cancellationToken);
+    }
 
     private void EnsureServiceApplication(ConfigurationStoreDefinition definition, bool persist)
     {
@@ -304,7 +385,8 @@ public sealed partial class ConfigurationResourceProvider :
             [
                 new("ASPNETCORE_ENVIRONMENT", environment.EnvironmentName),
                 new("CloudShell__ConfigurationService__DefinitionsPath", ResolveDefinitionsPath()),
-                new("CloudShell__ConfigurationService__ResourceId", definition.Id)
+                new("CloudShell__ConfigurationService__ResourceId", definition.Id),
+                new(ApplicationResourceProvider.HiddenResourceEnvironmentVariable, bool.TrueString)
             ],
             ApplicationLifetime.Detached),
             persist);

@@ -162,18 +162,12 @@ public sealed class ResourceDeclarationTests
         var store = services
             .BuildServiceProvider()
             .GetRequiredService<ResourceDeclarationStore>();
-        var declarations = store.GetDeclarations();
-        var service = Assert.Single(declarations, declaration =>
-            declaration.ProviderId == "applications");
-        var declaration = Assert.Single(declarations, declaration =>
-            declaration.ProviderId == "configuration");
+        var declaration = Assert.Single(store.GetDeclarations());
 
-        Assert.Equal("application:configuration-service-configuration-example", service.ResourceId);
-        Assert.Equal(ResourceDeclarationPersistence.Transient, service.Persistence);
         Assert.Equal("configuration", declaration.ProviderId);
         Assert.Equal("configuration:example", declaration.ResourceId);
         Assert.Equal("group-1", declaration.ResourceGroupId);
-        Assert.Equal([service.ResourceId], declaration.DependsOn);
+        Assert.Empty(declaration.DependsOn);
         Assert.Equal(ResourceDeclarationPersistence.Persisted, declaration.Persistence);
     }
 
