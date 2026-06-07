@@ -68,6 +68,75 @@ interfaces such as `IResourceManagerStore`, `IResourceRegistrationStore`,
 interfaces for the service process; `IControlPlane` is the shell and
 integration boundary.
 
+## Authentication
+
+Implemented today, the Control Plane API uses the configured ASP.NET Core
+authentication pipeline and CloudShell authorization checks. It is protected
+whenever CloudShell authentication is enabled. Disable that boundary only for
+isolated local development by setting `Authentication:Enabled` to `false`; in
+that mode, the Control Plane API is intentionally unauthenticated and
+authorization allows all operations.
+
+The Control Plane API should use the same authorization decisions regardless of
+whether it is called in-process or over HTTP. The transport is the part that
+changes:
+
+- Combined hosts use the current ASP.NET Core authenticated user directly.
+- Split hosts call the API over HTTP with authentication material for the
+  Control Plane protected API resource, supplied by the remote adapter's
+  configured Control Plane credential.
+
+The provider-neutral credential model for split-hosting calls is directional.
+The current remote adapter is configured with the Control Plane base URL; it
+does not yet expose the credential abstraction described below.
+
+For OAuth-based deployments, remote adapters should request a token for the
+Control Plane API resource and required scope, then attach it to each request:
+
+```http
+Authorization: Bearer <control-plane-access-token>
+```
+
+The Control Plane service validates the credential, builds the
+`ClaimsPrincipal`, and then applies the CloudShell permission and resource-scope
+checks described in [Authentication and authorization](authentication-and-authorization.md).
+For OAuth, validation includes the issuer and the Control Plane API
+audience/resource.
+
+In browser-based split deployments, prefer a server-side UI/BFF boundary. The
+browser authenticates to the UI host with its normal cookie, and the UI host
+configures a Control Plane credential for the remote `IControlPlane` adapter.
+This keeps Control Plane credentials out of browser storage unless the
+deployment explicitly chooses a public-client flow.
+
+Model this after Azure SDK credentials: callers configure a credential object,
+the client requests authentication material for the Control Plane protected API
+resource, and the HTTP pipeline attaches the required headers or metadata.
+Application and extension code should not pass raw tokens, API keys, or
+provider-specific credentials through `IControlPlane` method calls.
+
+In Azure-style OAuth configuration, each separately hosted service is an API
+resource. The Control Plane API should have its own resource identifier, such
+as `api://cloudshell-control-plane`, with delegated scopes or app-only
+permissions defined on that resource. Other authentication providers can expose
+the Control Plane as a service identity, gateway route, mTLS identity, signed
+request target, or another protected API abstraction.
+
+This does not mean every CloudShell inventory resource is automatically an
+independently protected API resource. Register separate provider-specific
+authentication metadata only for hosted services that accept direct protected
+calls. Resources accessed only through the Control Plane use the Control Plane
+authentication boundary and CloudShell's resource authorization checks.
+
+For direct calls to a resource service API, the resource service is the policy
+enforcement point. A service running in its own process or container must
+validate the credential itself, even when CloudShell registered the resource,
+started the container, or provided endpoint and credential metadata.
+
+The protected resource metadata described here is also directional. Today,
+CloudShell protects the Control Plane API boundary and leaves direct service API
+protection to the service implementation.
+
 ## OpenAPI Client Generation
 
 Use generated C# clients inside remote `IControlPlane`

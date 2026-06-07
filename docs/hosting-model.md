@@ -89,6 +89,11 @@ In this mode, the UI consumes the same `IControlPlane` abstraction as a split
 host, but the registered implementation is in-process and backed by Control
 Plane services.
 
+Authentication is shared inside the ASP.NET Core process. The shell and Control
+Plane use the same configured authentication scheme, cookie/session state, and
+`ClaimsPrincipal`, so no OAuth token forwarding is required between the shell
+and Control Plane services.
+
 The default host models each configuration service instance as an individual
 `configuration.store` resource. The configuration provider owns the local
 runtime process and exposes resource logs directly, while still keeping store
@@ -144,6 +149,7 @@ The UI host owns:
 - An `IControlPlane` implementation backed by the remote Control
   Plane API.
 - Authentication challenge UX when required by the deployment.
+- A Control Plane credential used by the remote adapter.
 
 ```csharp
 builder.Services.AddRemoteControlPlane(options =>
@@ -170,6 +176,67 @@ controlPlane.Resources(resources =>
 The UI host should not declare resources. It should discover resources through
 `IControlPlane` so one shared Control Plane remains the authority for
 checked-in configuration, persisted state, provider actions, and authorization.
+
+### Split-hosting authentication
+
+Implemented today, split hosting configures the UI host with a remote Control
+Plane base URL and registers the remote `IControlPlane` adapter. Authentication
+can still be configured through the existing ASP.NET Core authentication modes,
+and the Control Plane API is protected when authentication is enabled.
+
+The direction is that split-hosting authentication remains primarily a
+configuration concern:
+
+- Configure the UI host for user sign-in with the shared OIDC authority.
+- Configure the UI host with a Control Plane credential that can authenticate
+  to the Control Plane protected API resource on behalf of the signed-in user.
+- Configure the remote `IControlPlane` adapter to use that credential and attach
+  the required authentication metadata to HTTP calls.
+- Configure the Control Plane host to validate credentials from the same
+  authority or trusted authentication abstraction.
+
+For OAuth-based deployments, the remote call should carry the token in the
+standard authorization header:
+
+```text
+Authorization: Bearer <control-plane-access-token>
+```
+
+For server-rendered Blazor or a BFF-style UI host, the browser keeps only the
+UI host's session cookie. The UI server's configured Control Plane credential
+acquires the authentication material and the remote adapter forwards it to the
+Control Plane. Browser JavaScript should only hold provider credentials when
+the deployment intentionally uses a public client architecture.
+
+The credential abstraction should be similar to Azure SDK credentials: the host
+configures a credential, the remote adapter requests authentication material
+for the target protected API resource, and transport code attaches the
+resulting headers or other metadata. Shell views and extensions continue to call
+`IControlPlane` without knowing how the deployment authenticated.
+
+For Azure-style OAuth providers, model each separately hosted CloudShell
+service as its own API resource. The Control Plane might use an identifier such
+as `api://cloudshell-control-plane`; delegated scopes and app-only permissions
+are defined on that resource, and the Control Plane validates that incoming
+tokens were issued for it. Other providers can use equivalent service
+identities, API keys, certificates, signed requests, or mesh identities.
+
+Apply that model only to resources that expose an independently protected API.
+Many CloudShell resources are managed through the Control Plane and do not need
+their own provider-specific authentication registration. When a resource
+provider does expose a protected runtime API, its setup needs both CloudShell
+resource registration and protected API authentication metadata so clients can
+authenticate to that runtime API.
+
+The runtime service still owns enforcement. If the protected API is implemented
+by a process or container started by CloudShell, that process or container must
+validate credentials on its own HTTP endpoints. CloudShell can pass endpoint,
+credential, and dependency metadata to the service, but it is not an automatic
+reverse proxy or policy enforcement point for every resource API.
+
+The credential abstraction and protected API metadata described here are
+directional. The current remote adapter does not yet expose a provider-neutral
+credential API.
 
 ## Persistence
 

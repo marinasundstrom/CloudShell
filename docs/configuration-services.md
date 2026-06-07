@@ -136,6 +136,23 @@ and is anonymous at the ASP.NET authentication layer because it uses the resourc
 token as its own authentication boundary. Missing tokens return `401`; invalid
 tokens and missing services return `404`.
 
+The configuration service runtime enforces this token check itself. If a
+configuration service resource is implemented later as a containerized service,
+the containerized runtime must keep enforcing the configured authentication
+contract on its own API endpoints.
+
+Implemented today, configuration service APIs use this generated resource-token
+model.
+
+Directionally, this resource-token model is separate from provider-specific
+protected API registration. A configuration service does not need
+identity-provider API resource registration while its runtime API is protected
+only by the generated configuration token. If a future configuration provider
+supports OAuth, mTLS, API keys, signed requests, or another shared
+authentication abstraction for its runtime APIs, each protected configuration
+service instance or shared configuration service endpoint must expose the
+authentication metadata clients need to authenticate to that API.
+
 ## Microsoft Configuration API
 
 Applications can consume CloudShell configuration through the reusable
