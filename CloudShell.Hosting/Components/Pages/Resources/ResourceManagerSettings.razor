@@ -1,7 +1,11 @@
 @page "/resources/settings"
+@using System.Text.Json
 @rendermode InteractiveServer
 @inject IEnumerable<IResourceOrchestrator> Orchestrators
 @inject IEnumerable<IContainerEngineProvider> ContainerEngineProviders
+@inject IEnumerable<IResourceOrchestrationDescriptorProvider> DescriptorProviders
+@inject IResourceManagerStore ResourceManager
+@inject IResourceRegistrationStore Registrations
 @inject ResourceOrchestratorSelectionStore SelectionStore
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
@@ -41,6 +45,19 @@
         </div>
 
         <div class="form-panel">
+            <div class="procedure-message">
+                <strong>@L["CloudShell modes"]</strong>
+                <span>@L["Local dev mode uses the default orchestrator for Aspire-like local resources and resource-owned endpoints. On-premise mode selects an orchestrator such as Docker Compose to own lifecycle, networking, and exposure. Container engine registration is independent from orchestrator selection."]</span>
+            </div>
+
+            @foreach (var warning in ConfigurationWarnings)
+            {
+                <div class="procedure-confirmation">
+                    <strong>@L["Configuration warning"]</strong>
+                    <span>@warning</span>
+                </div>
+            }
+
             <label for="orchestrator-id">@L["Orchestrator"]</label>
             <select id="orchestrator-id" @bind="SelectedOrchestratorId">
                 @foreach (var orchestrator in GetOrchestrators())
@@ -91,6 +108,7 @@
     private string SelectedOrchestratorId { get; set; } = "default";
     private string? SelectedContainerEngineId { get; set; }
     private IReadOnlyList<ContainerEngineOption> ContainerEngines { get; set; } = [];
+    private IReadOnlyList<string> ConfigurationWarnings { get; set; } = [];
     private bool PendingChange { get; set; }
 
     private bool CanApply =>
@@ -115,6 +133,7 @@
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerEngineId = selection.PreferredContainerEngineId;
         ContainerEngines = GetContainerEngines();
+        ConfigurationWarnings = GetConfigurationWarnings();
     }
 
     private IReadOnlyList<IResourceOrchestrator> GetOrchestrators() =>
@@ -142,6 +161,7 @@
         var selection = SelectionStore.Get();
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerEngineId = selection.PreferredContainerEngineId;
+        ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
     }
 
@@ -150,6 +170,7 @@
         SelectionStore.Select(
             SelectedOrchestratorId,
             SelectedContainerEngineId);
+        ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
     }
 
@@ -168,6 +189,129 @@
                     : engine.Name))
             .OrderBy(engine => engine.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private IReadOnlyList<string> GetConfigurationWarnings()
+    {
+        var warnings = new List<string>();
+        var engines = GetContainerEngineDefinitions();
+        var selectedEngineId = NormalizeOptional(SelectedContainerEngineId);
+        var hasDefaultEngine = engines.Any(engine => engine.IsDefault);
+
+        if (!string.IsNullOrWhiteSpace(selectedEngineId) &&
+            !engines.Any(engine => string.Equals(engine.Id, selectedEngineId, StringComparison.OrdinalIgnoreCase)))
+        {
+            warnings.Add(L["Preferred container engine '{0}' is not registered.", selectedEngineId]);
+        }
+
+        foreach (var resource in ResourceManager.GetResources())
+        {
+            var workload = TryReadWorkload(resource);
+            if (workload?.Kind is not (ResourceWorkloadKind.ContainerImage or ResourceWorkloadKind.ContainerBuild))
+            {
+                continue;
+            }
+
+            var engineId = NormalizeOptional(workload.ContainerEngineId) ?? selectedEngineId;
+            if (!string.IsNullOrWhiteSpace(engineId))
+            {
+                if (!engines.Any(engine => string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    warnings.Add(L["Container resource '{0}' references container engine '{1}', but that engine is not registered.", resource.Name, engineId]);
+                }
+
+                continue;
+            }
+
+            if (!hasDefaultEngine)
+            {
+                warnings.Add(L["Container resource '{0}' does not specify a container engine and no default container engine is registered.", resource.Name]);
+            }
+        }
+
+        return warnings
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngineDefinitions()
+    {
+        var configuredEngines = ContainerEngineProviders
+            .Select(provider => provider.GetContainerEngine())
+            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
+            .ToArray();
+        var resourceEngines = ResourceManager
+            .GetResources()
+            .Select(TryReadContainerEngine)
+            .Where(engine => engine is not null)
+            .Select(engine => engine!)
+            .ToArray();
+
+        return configuredEngines
+            .Concat(resourceEngines)
+            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
+    }
+
+    private ResourceWorkloadConfiguration? TryReadWorkload(CloudResource resource)
+    {
+        var provider = DescriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
+        if (provider is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var descriptor = provider.DescribeAsync(
+                    resource,
+                    new ResourceOrchestrationDescriptorContext(
+                        Registrations.GetRegistration(resource.Id),
+                        ResourceManager.GetGroupForResource(resource.Id),
+                        ResourceManager))
+                .GetAwaiter()
+                .GetResult();
+            var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            return workload;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private ContainerEngineResourceDefinition? TryReadContainerEngine(CloudResource resource)
+    {
+        var provider = DescriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
+        if (provider is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var descriptor = provider.DescribeAsync(
+                    resource,
+                    new ResourceOrchestrationDescriptorContext(
+                        Registrations.GetRegistration(resource.Id),
+                        ResourceManager.GetGroupForResource(resource.Id),
+                        ResourceManager))
+                .GetAwaiter()
+                .GetResult();
+            if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

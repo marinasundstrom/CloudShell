@@ -186,22 +186,25 @@ public sealed partial class DockerComposeResourceOrchestrator(
         ResourceOrchestrationContext context,
         CancellationToken cancellationToken)
     {
+        var workload = await ResolveExecutionWorkloadAsync(context, cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"Docker Compose could not resolve a container workload for resource '{context.Resource.Name}'.");
         var selectedEngineId = FirstNonEmpty(
+            workload.ContainerEngineId,
             options.ContainerEngineId,
             context.PreferredContainerEngineId);
         if (!string.IsNullOrWhiteSpace(selectedEngineId))
         {
-            return GetContainerEngines()
-                .FirstOrDefault(engine => string.Equals(engine.Id, selectedEngineId, StringComparison.OrdinalIgnoreCase))
-                ?.Endpoint;
+            var selected = await ResolveContainerEngineAsync(selectedEngineId, context, cancellationToken)
+                ?? throw new InvalidOperationException(
+                    $"Container engine '{selectedEngineId}' is not registered.");
+            return selected.Endpoint;
         }
 
-        await Task.CompletedTask;
-        return GetContainerEngines()
-            .OrderByDescending(engine => engine.IsDefault)
-            .ThenBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(engine => engine.Endpoint)
-            .FirstOrDefault(endpoint => !string.IsNullOrWhiteSpace(endpoint));
+        var defaultEngine = await ResolveDefaultContainerEngineAsync(context, cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"Resource '{context.Resource.Name}' is container-backed but no default container engine is registered. Use UseDocker(), UseContainerEngine(...), or set WithContainerEngine(...).");
+        return defaultEngine.Endpoint;
     }
 
     private async Task EnsureGeneratedComposeFileAsync(
@@ -307,6 +310,88 @@ public sealed partial class DockerComposeResourceOrchestrator(
             cancellationToken);
     }
 
+    private async Task<ResourceWorkloadConfiguration?> ResolveExecutionWorkloadAsync(
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = await TryDescribeAsync(context.Resource, context, cancellationToken);
+        if (descriptor is not null)
+        {
+            var workload = TryReadWorkload(descriptor);
+            if (workload is not null)
+            {
+                return workload;
+            }
+
+            var service = TryReadService(descriptor);
+            var target = service?.Targets.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(target?.ResourceId))
+            {
+                var targetResource = context.ResourceManager.GetResource(target.ResourceId);
+                if (targetResource is not null)
+                {
+                    var targetDescriptor = await TryDescribeAsync(targetResource, context, cancellationToken);
+                    return targetDescriptor is null ? null : TryReadWorkload(targetDescriptor);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
+        string engineId,
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
+    {
+        var engine = GetContainerEngines()
+            .FirstOrDefault(engine => string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase));
+        if (engine is not null)
+        {
+            return engine;
+        }
+
+        var resource = context.ResourceManager.GetResource(engineId);
+        if (resource is null)
+        {
+            return null;
+        }
+
+        var descriptor = await TryDescribeAsync(resource, context, cancellationToken);
+        return descriptor is null ? null : TryReadContainerEngine(descriptor);
+    }
+
+    private async Task<ContainerEngineResourceDefinition?> ResolveDefaultContainerEngineAsync(
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
+    {
+        var engine = GetContainerEngines()
+            .Where(engine => engine.IsDefault)
+            .OrderBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (engine is not null)
+        {
+            return engine;
+        }
+
+        foreach (var resource in context.ResourceManager.GetResources())
+        {
+            var descriptor = await TryDescribeAsync(resource, context, cancellationToken);
+            if (descriptor is null)
+            {
+                continue;
+            }
+
+            engine = TryReadContainerEngine(descriptor);
+            if (engine?.IsDefault == true)
+            {
+                return engine;
+            }
+        }
+
+        return null;
+    }
+
     private static ResourceWorkloadConfiguration? TryReadWorkload(
         ResourceOrchestrationDescriptor descriptor)
     {
@@ -350,6 +435,24 @@ public sealed partial class DockerComposeResourceOrchestrator(
         try
         {
             return descriptor.Configuration.Deserialize<NetworkResourceDefinition>(SerializerOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static ContainerEngineResourceDefinition? TryReadContainerEngine(
+        ResourceOrchestrationDescriptor descriptor)
+    {
+        if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        try
+        {
+            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(SerializerOptions);
         }
         catch (JsonException)
         {
@@ -415,6 +518,11 @@ public sealed partial class DockerComposeResourceOrchestrator(
                 .ToArray();
             var ports = serviceDefinitionsForWorkload
                 .SelectMany(service => service.Ports)
+                .Concat(workload.WorkloadPorts)
+                .GroupBy(
+                    port => $"{port.Name}:{port.TargetPort}:{port.Port?.ToString() ?? string.Empty}:{port.Protocol}",
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.Last())
                 .ToArray();
             if (ports.Length > 0)
             {

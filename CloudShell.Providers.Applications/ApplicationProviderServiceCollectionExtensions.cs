@@ -122,9 +122,11 @@ public static class ApplicationProviderServiceCollectionExtensions
             executablePath: string.Empty,
             endpoint: endpoint,
             environmentVariables: environmentVariables,
+            lifetime: ApplicationLifetime.ControlPlaneScoped,
             useServiceDiscovery: useServiceDiscovery,
             containerImage: image,
-            replicas: Math.Max(1, replicas));
+            replicas: Math.Max(1, replicas),
+            endpointPorts: CreateEndpointPorts(endpoints));
         var declared = new DeclaredApplicationResource(definition);
 
         builder.Services
@@ -161,6 +163,31 @@ public static class ApplicationProviderServiceCollectionExtensions
         return string.IsNullOrWhiteSpace(slug)
             ? $"application:{Guid.NewGuid():N}"
             : $"application:{slug}";
+    }
+
+    private static IReadOnlyList<ServicePort> CreateEndpointPorts(
+        IReadOnlyList<ResourceEndpoint>? endpoints) =>
+        endpoints?
+            .Select(TryCreateEndpointPort)
+            .Where(port => port is not null)
+            .Select(port => port!)
+            .ToArray()
+        ?? [];
+
+    private static ServicePort? TryCreateEndpointPort(ResourceEndpoint endpoint)
+    {
+        if (!Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) ||
+            uri.Port <= 0)
+        {
+            return null;
+        }
+
+        return new ServicePort(
+            string.IsNullOrWhiteSpace(endpoint.Name) ? "default" : endpoint.Name,
+            uri.Port,
+            uri.Port,
+            string.IsNullOrWhiteSpace(endpoint.Protocol) ? uri.Scheme : endpoint.Protocol,
+            endpoint.IsExternal ? ResourceExposureScope.Public : ResourceExposureScope.Local);
     }
 
     private static ApplicationProviderOptions GetOrAddApplicationProviderOptions(
@@ -319,6 +346,39 @@ internal sealed class ExecutableApplicationResourceBuilder(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
         WithContainerImage(image);
+        return this;
+    }
+
+    public IContainerResourceBuilder WithContainerEngine(string containerEngineId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(containerEngineId);
+        declared.Definition = declared.Definition with
+        {
+            ContainerEngineId = containerEngineId
+        };
+        return this;
+    }
+
+    public IContainerResourceBuilder WithContainerEngine(ICloudShellResourceBuilder containerEngine)
+    {
+        ArgumentNullException.ThrowIfNull(containerEngine);
+        return WithContainerEngine(containerEngine.ResourceId);
+    }
+
+    public IContainerResourceBuilder WithEndpoint(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "tcp",
+        ResourceExposureScope exposure = ResourceExposureScope.Local)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        declared.Definition = declared.Definition with
+        {
+            EndpointPorts = declared.Definition.EndpointPorts
+                .Append(new ServicePort(name, targetPort, port, protocol, exposure))
+                .ToArray()
+        };
         return this;
     }
 

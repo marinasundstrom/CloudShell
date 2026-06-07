@@ -1,15 +1,23 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using System.Text.Json;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
 public sealed class ResourceOrchestrationService(
     IEnumerable<IResourceOrchestrator> orchestrators,
+    IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders,
+    IEnumerable<IContainerEngineProvider> containerEngineProviders,
     IResourceManagerStore resourceManager,
     IResourceRegistrationStore registrations,
     ResourceOrchestratorSelectionStore selectionStore)
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
+    private readonly IReadOnlyList<IResourceOrchestrationDescriptorProvider> descriptorProviders =
+        descriptorProviders.ToArray();
+    private readonly IReadOnlyList<IContainerEngineProvider> containerEngineProviders =
+        containerEngineProviders.ToArray();
 
     public async Task<ResourceProcedureResult> DeleteAsync(
         CloudResource resource,
@@ -46,6 +54,7 @@ public sealed class ResourceOrchestrationService(
         CancellationToken cancellationToken)
     {
         var context = CreateContext(resource);
+        await ValidateContainerEngineAsync(context, action, cancellationToken);
         var orchestrator = SelectActionOrchestrator(context, action);
         return await orchestrator.ExecuteActionAsync(context, action, cancellationToken);
     }
@@ -156,6 +165,211 @@ public sealed class ResourceOrchestrationService(
             string.Equals(orchestrator.Id, "default", StringComparison.OrdinalIgnoreCase) &&
             predicate(orchestrator));
     }
+
+    private async Task ValidateContainerEngineAsync(
+        ResourceOrchestrationContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        if (action.Kind is not (ResourceActionKind.Run or ResourceActionKind.Restart))
+        {
+            return;
+        }
+
+        var workload = await ResolveExecutionWorkloadAsync(context, cancellationToken);
+        if (workload?.Kind is not (ResourceWorkloadKind.ContainerImage or ResourceWorkloadKind.ContainerBuild))
+        {
+            return;
+        }
+
+        var selectedEngineId = FirstNonEmpty(
+            workload.ContainerEngineId,
+            context.PreferredContainerEngineId);
+        if (!string.IsNullOrWhiteSpace(selectedEngineId))
+        {
+            if (await ResolveContainerEngineAsync(selectedEngineId, context, cancellationToken) is null)
+            {
+                throw new InvalidOperationException(
+                    $"Container engine '{selectedEngineId}' is not registered.");
+            }
+
+            return;
+        }
+
+        if (await ResolveDefaultContainerEngineAsync(context, cancellationToken) is null)
+        {
+            throw new InvalidOperationException(
+                $"Resource '{context.Resource.Name}' is container-backed but no default container engine is registered. Use UseDocker(), UseContainerEngine(...), or set WithContainerEngine(...).");
+        }
+    }
+
+    private async Task<ResourceWorkloadConfiguration?> ResolveExecutionWorkloadAsync(
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = await TryDescribeAsync(context.Resource, context, cancellationToken);
+        if (descriptor is null)
+        {
+            return null;
+        }
+
+        var workload = TryReadWorkload(descriptor);
+        if (workload is not null)
+        {
+            return workload;
+        }
+
+        var service = TryReadService(descriptor);
+        var target = service?.Targets.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(target?.ResourceId))
+        {
+            return null;
+        }
+
+        var targetResource = context.ResourceManager.GetResource(target.ResourceId);
+        if (targetResource is null)
+        {
+            return null;
+        }
+
+        var targetDescriptor = await TryDescribeAsync(targetResource, context, cancellationToken);
+        return targetDescriptor is null ? null : TryReadWorkload(targetDescriptor);
+    }
+
+    private async Task<ResourceOrchestrationDescriptor?> TryDescribeAsync(
+        CloudResource resource,
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
+    {
+        var provider = descriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
+        if (provider is null)
+        {
+            return null;
+        }
+
+        return await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(
+                registrations.GetRegistration(resource.Id),
+                resourceManager.GetGroupForResource(resource.Id),
+                resourceManager),
+            cancellationToken);
+    }
+
+    private static ResourceWorkloadConfiguration? TryReadWorkload(
+        ResourceOrchestrationDescriptor descriptor)
+    {
+        try
+        {
+            var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(SerializerOptions);
+            return workload?.Kind is ResourceWorkloadKind.ContainerImage or ResourceWorkloadKind.ContainerBuild
+                ? workload
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static ServiceResourceDefinition? TryReadService(ResourceOrchestrationDescriptor descriptor)
+    {
+        if (!descriptor.ResourceType.Equals("cloudshell.service", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        try
+        {
+            return descriptor.Configuration.Deserialize<ServiceResourceDefinition>(SerializerOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
+        string engineId,
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
+    {
+        var engine = GetContainerEngines()
+            .FirstOrDefault(engine => string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase));
+        if (engine is not null)
+        {
+            return engine;
+        }
+
+        var resource = context.ResourceManager.GetResource(engineId);
+        if (resource is null)
+        {
+            return null;
+        }
+
+        var descriptor = await TryDescribeAsync(resource, context, cancellationToken);
+        return descriptor is null ? null : TryReadContainerEngine(descriptor);
+    }
+
+    private async Task<ContainerEngineResourceDefinition?> ResolveDefaultContainerEngineAsync(
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
+    {
+        var engine = GetContainerEngines()
+            .Where(engine => engine.IsDefault)
+            .OrderBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (engine is not null)
+        {
+            return engine;
+        }
+
+        foreach (var resource in context.ResourceManager.GetResources())
+        {
+            var descriptor = await TryDescribeAsync(resource, context, cancellationToken);
+            if (descriptor is null)
+            {
+                continue;
+            }
+
+            engine = TryReadContainerEngine(descriptor);
+            if (engine?.IsDefault == true)
+            {
+                return engine;
+            }
+        }
+
+        return null;
+    }
+
+    private static ContainerEngineResourceDefinition? TryReadContainerEngine(
+        ResourceOrchestrationDescriptor descriptor)
+    {
+        if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        try
+        {
+            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(SerializerOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngines() =>
+        containerEngineProviders
+            .Select(provider => provider.GetContainerEngine())
+            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
+            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private ResourceRegistration? GetRegistrationForResourceOrAncestor(CloudResource resource)
     {

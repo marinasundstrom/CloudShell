@@ -144,7 +144,12 @@ public sealed partial class ApplicationResourceProvider(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
-        await StopApplicationAsync(context.Resource.Id, force: true, cancellationToken);
+        await StopApplicationAsync(
+            context.Resource.Id,
+            force: true,
+            context.ResourceManager,
+            context.PreferredContainerEngineId,
+            cancellationToken);
         store.Remove(context.Resource.Id);
         runtimeStates.Remove(context.Resource.Id);
         await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
@@ -170,18 +175,32 @@ public sealed partial class ApplicationResourceProvider(
                     context.Resource.DependsOn,
                     context.ResourceGroupId,
                     context.Registrations,
+                    context.ResourceManager,
+                    context.PreferredContainerEngineId,
                     cancellationToken);
                 return ResourceProcedureResult.Completed($"Started {context.Resource.Name}.");
             case ResourceActionKind.Stop:
-                await StopApplicationAsync(context.Resource.Id, force: true, cancellationToken);
+                await StopApplicationAsync(
+                    context.Resource.Id,
+                    force: true,
+                    context.ResourceManager,
+                    context.PreferredContainerEngineId,
+                    cancellationToken);
                 return ResourceProcedureResult.Completed($"Stopped {context.Resource.Name}.");
             case ResourceActionKind.Restart:
-                await StopApplicationAsync(context.Resource.Id, force: true, cancellationToken);
+                await StopApplicationAsync(
+                    context.Resource.Id,
+                    force: true,
+                    context.ResourceManager,
+                    context.PreferredContainerEngineId,
+                    cancellationToken);
                 await StartApplicationAsync(
                     context.Resource.Id,
                     context.Resource.DependsOn,
                     context.ResourceGroupId,
                     context.Registrations,
+                    context.ResourceManager,
+                    context.PreferredContainerEngineId,
                     cancellationToken);
                 return ResourceProcedureResult.Completed($"Restarted {context.Resource.Name}.");
             default:
@@ -214,7 +233,9 @@ public sealed partial class ApplicationResourceProvider(
             application.ContainerImage,
             application.ContainerBuildContext,
             application.ContainerDockerfile,
-            application.Replicas);
+            application.ContainerEngineId,
+            application.Replicas,
+            application.EndpointPorts);
 
         return Task.FromResult(new ResourceTemplateDefinition(
             application.Name,
@@ -263,7 +284,9 @@ public sealed partial class ApplicationResourceProvider(
             configuration.ContainerImage,
             configuration.ContainerBuildContext,
             configuration.ContainerDockerfile,
-            configuration.Replicas);
+            configuration.ContainerEngineId,
+            configuration.Replicas,
+            configuration.EndpointPorts);
 
         await SetupApplicationAsync(
             definition,
@@ -367,6 +390,8 @@ public sealed partial class ApplicationResourceProvider(
         IReadOnlyList<string> dependsOn,
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
+        IResourceManagerStore? resourceManager,
+        string? preferredContainerEngineId,
         CancellationToken cancellationToken)
     {
         var definition = store.GetApplication(applicationId)
@@ -374,6 +399,25 @@ public sealed partial class ApplicationResourceProvider(
 
         if (TryGetRunningProcess(definition, out _))
         {
+            return;
+        }
+
+        if (IsContainerBacked(definition))
+        {
+            if (resourceManager is null)
+            {
+                throw new InvalidOperationException(
+                    $"Container resource '{definition.Name}' requires resource manager context to resolve a container engine.");
+            }
+
+            await StartContainerApplicationAsync(
+                definition,
+                dependsOn,
+                resourceGroupId,
+                registrations,
+                resourceManager,
+                preferredContainerEngineId,
+                cancellationToken);
             return;
         }
 
@@ -517,6 +561,122 @@ public sealed partial class ApplicationResourceProvider(
             .ToArray();
     }
 
+    private async Task StartContainerApplicationAsync(
+        ApplicationResourceDefinition definition,
+        IReadOnlyList<string> dependsOn,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        IResourceManagerStore resourceManager,
+        string? preferredContainerEngineId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(definition.ContainerImage))
+        {
+            throw new InvalidOperationException(
+                $"Container resource '{definition.Name}' cannot be started by the default orchestrator because it does not specify a container image.");
+        }
+
+        var engine = await ResolveContainerEngineAsync(
+            definition.ContainerEngineId,
+            preferredContainerEngineId,
+            resourceManager,
+            cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"Resource '{definition.Name}' is container-backed but no default container engine is registered. Use UseDocker(), UseContainerEngine(...), or set WithContainerEngine(...).");
+        var logPath = GetLogPath(definition.Id);
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        var processLog = new ApplicationProcessLog(logPath);
+        await RunContainerEngineCommandAsync(
+            engine,
+            ["rm", "-f", GetContainerName(definition.Id)],
+            processLog,
+            cancellationToken);
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = GetContainerEngineExecutable(engine),
+            WorkingDirectory = Environment.CurrentDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        ConfigureContainerEngineEnvironment(startInfo, engine);
+        startInfo.ArgumentList.Add("run");
+        startInfo.ArgumentList.Add("--name");
+        startInfo.ArgumentList.Add(GetContainerName(definition.Id));
+        startInfo.ArgumentList.Add("--rm");
+
+        foreach (var port in definition.EndpointPorts)
+        {
+            var hostPort = ResolveLocalPort(definition.Id, port);
+            startInfo.ArgumentList.Add("-p");
+            startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeProtocol(port.Protocol)}");
+        }
+
+        foreach (var variable in ResolveDependencyEnvironmentVariables(definition, dependsOn)
+                     .Concat(definition.UseServiceDiscovery
+                         ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, registrations)
+                         : [])
+                     .Concat(definition.EnvironmentVariables)
+                     .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+                     .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
+                     .Select(group => group.Last()))
+        {
+            startInfo.ArgumentList.Add("-e");
+            startInfo.ArgumentList.Add($"{variable.Name}={variable.Value}");
+        }
+
+        startInfo.ArgumentList.Add("-e");
+        startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
+        startInfo.ArgumentList.Add(definition.ContainerImage);
+
+        var process = new Process
+        {
+            StartInfo = startInfo,
+            EnableRaisingEvents = true
+        };
+        process.OutputDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stdout");
+        process.ErrorDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stderr", "Error");
+        process.Exited += (_, _) =>
+        {
+            processLog.Append(
+                $"Container process exited with code {process.ExitCode}.",
+                "process",
+                process.ExitCode == 0 ? "Information" : "Error");
+            runtimeStates.Save(new ApplicationRuntimeState(
+                definition.Id,
+                process.Id,
+                null,
+                DateTimeOffset.UtcNow,
+                process.ExitCode,
+                logPath));
+        };
+
+        cancellationToken.ThrowIfCancellationRequested();
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        var startedAt = TryGetStartTime(process);
+        runtimeStates.Save(new ApplicationRuntimeState(
+            definition.Id,
+            process.Id,
+            startedAt,
+            DateTimeOffset.UtcNow,
+            LogPath: logPath));
+
+        processLog.Append(
+            $"Started container image '{definition.ContainerImage}' as '{GetContainerName(definition.Id)}' using {engine.Name}.",
+            "process",
+            "Information");
+
+        _processes[definition.Id] = new ApplicationProcessState(
+            process,
+            processLog,
+            definition.Lifetime,
+            logPath);
+    }
+
     private static bool IsSameResourceGroup(
         ResourceRegistration? registration,
         string? resourceGroupId) =>
@@ -591,10 +751,32 @@ public sealed partial class ApplicationResourceProvider(
     private async Task StopApplicationAsync(
         string applicationId,
         bool force,
+        IResourceManagerStore? resourceManager,
+        string? preferredContainerEngineId,
         CancellationToken cancellationToken)
     {
         var application = store.GetApplication(applicationId);
         var log = GetProcessLog(applicationId);
+
+        if (application is not null &&
+            IsContainerBacked(application))
+        {
+            if (resourceManager is null)
+            {
+                throw new InvalidOperationException(
+                    $"Container resource '{application.Name}' requires resource manager context to resolve a container engine.");
+            }
+
+            var engine = await ResolveContainerEngineAsync(
+                application.ContainerEngineId,
+                preferredContainerEngineId,
+                resourceManager,
+                cancellationToken);
+            if (engine is not null)
+            {
+                await StopContainerAsync(application, engine, log, cancellationToken);
+            }
+        }
 
         if (!TryGetRunningProcess(application, out var process))
         {
@@ -611,6 +793,74 @@ public sealed partial class ApplicationResourceProvider(
             DateTimeOffset.UtcNow,
             TryGetExitCode(process),
             GetLogPath(applicationId)));
+    }
+
+    private async Task StopContainerAsync(
+        ApplicationResourceDefinition definition,
+        ContainerEngineResourceDefinition engine,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken)
+    {
+        var containerName = GetContainerName(definition.Id);
+        await RunContainerEngineCommandAsync(
+            engine,
+            ["stop", containerName],
+            log,
+            cancellationToken);
+        await RunContainerEngineCommandAsync(
+            engine,
+            ["rm", "-f", containerName],
+            log,
+            cancellationToken);
+    }
+
+    private static async Task RunContainerEngineCommandAsync(
+        ContainerEngineResourceDefinition engine,
+        IReadOnlyList<string> arguments,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = GetContainerEngineExecutable(engine),
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        ConfigureContainerEngineEnvironment(startInfo, engine);
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return;
+            }
+
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            var output = await outputTask;
+            var error = await errorTask;
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                log.Append(output.Trim(), "process", "Information");
+            }
+
+            if (!string.IsNullOrWhiteSpace(error) &&
+                !error.Contains("No such container", StringComparison.OrdinalIgnoreCase))
+            {
+                log.Append(error.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
+            }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            log.Append(exception.Message, "process", "Warning");
+        }
     }
 
     private CloudResource CreateResource(ApplicationResourceDefinition application)
@@ -647,8 +897,19 @@ public sealed partial class ApplicationResourceProvider(
             ? [ResourceAction.Stop, ResourceAction.Restart]
             : [ResourceAction.Run];
 
-    private static IReadOnlyList<ResourceEndpoint> CreateEndpoints(ApplicationResourceDefinition application)
+    private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ApplicationResourceDefinition application)
     {
+        if (application.EndpointPorts.Count > 0)
+        {
+            return application.EndpointPorts
+                .Select(port => new ResourceEndpoint(
+                    port.Name,
+                    $"{NormalizeProtocol(port.Protocol)}://localhost:{ResolveLocalPort(application.Id, port)}",
+                    NormalizeProtocol(port.Protocol),
+                    port.Exposure is ResourceExposureScope.Network or ResourceExposureScope.Public))
+                .ToArray();
+        }
+
         if (string.IsNullOrWhiteSpace(application.Endpoint))
         {
             if (IsContainerBacked(application))
@@ -869,9 +1130,11 @@ public sealed partial class ApplicationResourceProvider(
             ContainerImage = NormalizeNullable(definition.ContainerImage),
             ContainerBuildContext = NormalizeNullable(definition.ContainerBuildContext),
             ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
+            ContainerEngineId = NormalizeNullable(definition.ContainerEngineId),
             Replicas = Math.Max(1, definition.Replicas),
             DependsOn = NormalizeDependencies(definition.DependsOn, id),
             References = NormalizeReferences(definition.References, id),
+            EndpointPorts = NormalizeEndpointPorts(definition.EndpointPorts),
             EnvironmentVariables = definition.EnvironmentVariables
                 .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
                 .Select(variable => variable with { Name = variable.Name.Trim() })
@@ -888,8 +1151,10 @@ public sealed partial class ApplicationResourceProvider(
                 ResourceWorkloadKind.ContainerImage,
                 application.Name,
                 Image: application.ContainerImage,
+                ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
-                EnvironmentVariables: application.EnvironmentVariables);
+                EnvironmentVariables: application.EnvironmentVariables,
+                Ports: application.EndpointPorts);
         }
 
         if (!string.IsNullOrWhiteSpace(application.ContainerBuildContext))
@@ -899,8 +1164,10 @@ public sealed partial class ApplicationResourceProvider(
                 application.Name,
                 BuildContext: application.ContainerBuildContext,
                 Dockerfile: application.ContainerDockerfile,
+                ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
-                EnvironmentVariables: application.EnvironmentVariables);
+                EnvironmentVariables: application.EnvironmentVariables,
+                Ports: application.EndpointPorts);
         }
 
         return new ResourceWorkloadConfiguration(
@@ -913,12 +1180,198 @@ public sealed partial class ApplicationResourceProvider(
             EnvironmentVariables: application.EnvironmentVariables);
     }
 
+    private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
+        string? containerEngineId,
+        string? preferredContainerEngineId,
+        IResourceManagerStore resourceManager,
+        CancellationToken cancellationToken)
+    {
+        var selectedEngineId = FirstNonEmpty(containerEngineId, preferredContainerEngineId);
+        if (!string.IsNullOrWhiteSpace(selectedEngineId))
+        {
+            return await ResolveContainerEngineByIdAsync(selectedEngineId, resourceManager, cancellationToken)
+                ?? throw new InvalidOperationException(
+                    $"Container engine '{selectedEngineId}' is not registered.");
+        }
+
+        return GetContainerEngines()
+            .Where(engine => engine.IsDefault)
+            .OrderBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault()
+            ?? await ResolveDefaultContainerEngineResourceAsync(resourceManager, cancellationToken);
+    }
+
+    private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineByIdAsync(
+        string engineId,
+        IResourceManagerStore resourceManager,
+        CancellationToken cancellationToken)
+    {
+        var engine = GetContainerEngines()
+            .FirstOrDefault(engine => string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase));
+        if (engine is not null)
+        {
+            return engine;
+        }
+
+        var resource = resourceManager.GetResource(engineId);
+        if (resource is null)
+        {
+            return null;
+        }
+
+        var descriptor = await TryDescribeContainerEngineAsync(resource, resourceManager, cancellationToken);
+        return descriptor is null ? null : TryReadContainerEngine(descriptor);
+    }
+
+    private async Task<ContainerEngineResourceDefinition?> ResolveDefaultContainerEngineResourceAsync(
+        IResourceManagerStore resourceManager,
+        CancellationToken cancellationToken)
+    {
+        foreach (var resource in resourceManager.GetResources())
+        {
+            var descriptor = await TryDescribeContainerEngineAsync(resource, resourceManager, cancellationToken);
+            if (descriptor is null)
+            {
+                continue;
+            }
+
+            var engine = TryReadContainerEngine(descriptor);
+            if (engine?.IsDefault == true)
+            {
+                return engine;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<ResourceOrchestrationDescriptor?> TryDescribeContainerEngineAsync(
+        CloudResource resource,
+        IResourceManagerStore resourceManager,
+        CancellationToken cancellationToken)
+    {
+        var provider = serviceProvider
+            .GetServices<IResourceOrchestrationDescriptorProvider>()
+            .Where(provider => !ReferenceEquals(provider, this))
+            .FirstOrDefault(provider => provider.CanDescribe(resource));
+        if (provider is null)
+        {
+            return null;
+        }
+
+        return await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(
+                null,
+                resourceManager.GetGroupForResource(resource.Id),
+                resourceManager),
+            cancellationToken);
+    }
+
+    private static ContainerEngineResourceDefinition? TryReadContainerEngine(
+        ResourceOrchestrationDescriptor descriptor)
+    {
+        if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        try
+        {
+            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(TemplateSerializerOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngines() =>
+        serviceProvider
+            .GetServices<IContainerEngineProvider>()
+            .Select(provider => provider.GetContainerEngine())
+            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
+            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
+
+    private int ResolveLocalPort(string resourceId, ServicePort port)
+    {
+        if (port.Port is not null)
+        {
+            return Math.Max(1, port.Port.Value);
+        }
+
+        var start = Math.Max(1, options.AutoLocalPortStart);
+        var end = Math.Max(start, options.AutoLocalPortEnd);
+        var range = end - start + 1;
+        return start + (int)(StableHash($"{resourceId}:{port.Name}") % (uint)range);
+    }
+
+    private static IReadOnlyList<ServicePort> NormalizeEndpointPorts(
+        IReadOnlyList<ServicePort> ports) =>
+        ports
+            .Where(port => !string.IsNullOrWhiteSpace(port.Name))
+            .Select(port => port with
+            {
+                Name = port.Name.Trim(),
+                Protocol = NormalizeProtocol(port.Protocol),
+                TargetPort = Math.Max(1, port.TargetPort),
+                Port = port.Port is null ? null : Math.Max(1, port.Port.Value)
+            })
+            .DistinctBy(port => port.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static uint StableHash(string value)
+    {
+        const uint offset = 2166136261;
+        const uint prime = 16777619;
+
+        var hash = offset;
+        foreach (var character in value)
+        {
+            hash ^= character;
+            hash *= prime;
+        }
+
+        return hash;
+    }
+
+    private static string GetContainerName(string resourceId) =>
+        "cloudshell-" + SlugPattern()
+            .Replace(resourceId.Trim().ToLowerInvariant(), "-")
+            .Trim('-');
+
+    private static string GetContainerEngineExecutable(ContainerEngineResourceDefinition engine) =>
+        engine.Kind == ContainerEngineKind.Podman ? "podman" : "docker";
+
+    private static void ConfigureContainerEngineEnvironment(
+        ProcessStartInfo startInfo,
+        ContainerEngineResourceDefinition engine)
+    {
+        if (string.IsNullOrWhiteSpace(engine.Endpoint))
+        {
+            return;
+        }
+
+        if (engine.Kind == ContainerEngineKind.Podman)
+        {
+            startInfo.Environment["CONTAINER_HOST"] = engine.Endpoint;
+            return;
+        }
+
+        startInfo.Environment["DOCKER_HOST"] = engine.Endpoint;
+    }
+
+    private static string NormalizeProtocol(string? protocol) =>
+        string.IsNullOrWhiteSpace(protocol) ? "tcp" : protocol.Trim().ToLowerInvariant();
+
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
         !string.IsNullOrWhiteSpace(application.ContainerImage) ||
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
 
     private static string? FirstNonEmpty(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private static string CreateId(string name)
     {
@@ -1043,5 +1496,7 @@ public sealed partial class ApplicationResourceProvider(
         string? ContainerImage = null,
         string? ContainerBuildContext = null,
         string? ContainerDockerfile = null,
-        int Replicas = 1);
+        string? ContainerEngineId = null,
+        int Replicas = 1,
+        IReadOnlyList<ServicePort>? EndpointPorts = null);
 }

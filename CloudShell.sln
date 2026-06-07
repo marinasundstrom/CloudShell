@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.Hosting", "Cloud
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.Providers.DockerCompose", "CloudShell.Providers.DockerCompose\CloudShell.Providers.DockerCompose.csproj", "{C7A1BAB1-6528-43C8-814D-EE310A4C4212}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ContainerHost", "samples\CloudShell.ContainerHost\CloudShell.ContainerHost.csproj", "{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -225,6 +227,18 @@ Global
 		{C7A1BAB1-6528-43C8-814D-EE310A4C4212}.Release|x64.Build.0 = Release|Any CPU
 		{C7A1BAB1-6528-43C8-814D-EE310A4C4212}.Release|x86.ActiveCfg = Release|Any CPU
 		{C7A1BAB1-6528-43C8-814D-EE310A4C4212}.Release|x86.Build.0 = Release|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Debug|x64.Build.0 = Debug|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Debug|x86.Build.0 = Debug|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Release|x64.ActiveCfg = Release|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Release|x64.Build.0 = Release|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Release|x86.ActiveCfg = Release|Any CPU
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -233,5 +247,6 @@ Global
 		{E84B9637-9560-40B8-8EB9-2B53DAA397B4} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{E50217DD-B469-481B-BAE7-84CA676090E4} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{511097AB-3BBB-438F-98F2-F847A0DFB4C0} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{6DA06027-CDAF-4787-9C10-C9E2B78B23C0} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 	EndGlobalSection
 EndGlobal

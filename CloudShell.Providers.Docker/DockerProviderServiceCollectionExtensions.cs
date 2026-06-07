@@ -1,7 +1,6 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
-using CloudShell.Providers.DockerCompose;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -56,10 +55,6 @@ public static class DockerProviderServiceCollectionExtensions
     {
         var options = builder.Services.GetOrAddDockerProviderOptions();
         configure?.Invoke(options);
-        builder.Services.TryAddSingleton<DockerComposeOrchestratorOptions>();
-        builder.Services.TryAddSingleton<DockerComposeResourceOrchestrator>();
-        builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IResourceOrchestrator, DockerComposeResourceOrchestrator>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IContainerEngineProvider, DockerContainerEngineProvider>());
     }

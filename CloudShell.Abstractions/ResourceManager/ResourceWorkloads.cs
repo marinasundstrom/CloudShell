@@ -16,16 +16,31 @@ public sealed record ResourceWorkloadConfiguration(
     string? Image = null,
     string? BuildContext = null,
     string? Dockerfile = null,
+    string? ContainerEngineId = null,
     int Replicas = 1,
-    IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null)
+    IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null,
+    IReadOnlyList<ServicePort>? Ports = null)
 {
     public IReadOnlyList<EnvironmentVariableAssignment> WorkloadEnvironmentVariables =>
         EnvironmentVariables ?? [];
+
+    public IReadOnlyList<ServicePort> WorkloadPorts => Ports ?? [];
 }
 
 public interface IContainerResourceBuilder : ICloudShellResourceBuilder
 {
     IContainerResourceBuilder WithImage(string image);
+
+    IContainerResourceBuilder WithContainerEngine(string containerEngineId);
+
+    IContainerResourceBuilder WithContainerEngine(ICloudShellResourceBuilder containerEngine);
+
+    IContainerResourceBuilder WithEndpoint(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "tcp",
+        ResourceExposureScope exposure = ResourceExposureScope.Local);
 
     IContainerResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);

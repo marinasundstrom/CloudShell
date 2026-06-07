@@ -19,7 +19,9 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? containerImage = null,
         string? containerBuildContext = null,
         string? containerDockerfile = null,
-        int replicas = 1)
+        string? containerEngineId = null,
+        int replicas = 1,
+        IReadOnlyList<ServicePort>? endpointPorts = null)
     {
         Id = id;
         Name = name;
@@ -35,7 +37,9 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ContainerImage = containerImage;
         ContainerBuildContext = containerBuildContext;
         ContainerDockerfile = containerDockerfile;
+        ContainerEngineId = containerEngineId;
         Replicas = replicas;
+        EndpointPorts = endpointPorts ?? [];
     }
 
     public string Id { get; init; }
@@ -66,7 +70,11 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
 
     public string? ContainerDockerfile { get; init; }
 
+    public string? ContainerEngineId { get; init; }
+
     public int Replicas { get; init; }
+
+    public IReadOnlyList<ServicePort> EndpointPorts { get; init; }
 }
 
 public enum ApplicationLifetime

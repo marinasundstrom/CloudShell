@@ -8,6 +8,10 @@ public sealed class ApplicationProviderOptions
 
     public string LogDirectory { get; set; } = "Data/application-logs";
 
+    public int AutoLocalPortStart { get; set; } = 20000;
+
+    public int AutoLocalPortEnd { get; set; } = 29999;
+
     public IList<ApplicationResourceDefinition> InitialApplications { get; } = [];
 
     internal IList<DeclaredApplicationResource> DeclaredApplications { get; } = [];

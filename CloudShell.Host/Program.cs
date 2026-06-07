@@ -7,7 +7,6 @@ using CloudShell.Host.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
-using CloudShell.Providers.DockerCompose;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,8 +28,7 @@ var cloudShell = builder
         options.ServiceWorkingDirectory = repositoryRootPath;
     })
     .AddApplicationProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged)
-    .AddDockerProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged)
-    .AddDockerComposeOrchestrator(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged);
+    .AddDockerProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged);
 
 cloudShell.Resources(resources =>
 {

@@ -521,7 +521,9 @@ public sealed class ResourceDeclarationTests
                         "sql",
                         "mcr.microsoft.com/mssql/server:2022-latest",
                         replicas: 1)
-                    .WithImage("example/sql-server:dev");
+                    .WithImage("example/sql-server:dev")
+                    .WithEndpoint("tds", targetPort: 1433, port: 14333)
+                    .WithContainerEngine("docker:dev");
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -542,6 +544,13 @@ public sealed class ResourceDeclarationTests
         Assert.Empty(declaration.DependsOn);
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal("example/sql-server:dev", workload?.Image);
+        Assert.Equal("docker:dev", workload?.ContainerEngineId);
+        var port = Assert.Single(workload?.WorkloadPorts ?? []);
+        Assert.Equal("tds", port.Name);
+        Assert.Equal(1433, port.TargetPort);
+        Assert.Equal(14333, port.Port);
+        var endpoint = Assert.Single(resource.Endpoints);
+        Assert.Equal("tcp://localhost:14333", endpoint.Address);
     }
 
     private sealed class ParentMetadataExtension : ICloudShellExtension

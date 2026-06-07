@@ -13,7 +13,7 @@ public sealed class DockerComposeOrchestratorExtension : ICloudShellExtension
         "Runs CloudShell resource lifecycle actions through Docker Compose.",
         "0.1.0",
         ["resource-manager.orchestration", "docker-compose"],
-        ["cloudshell.resource-manager"]);
+        ["resource-manager.resources"]);
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {

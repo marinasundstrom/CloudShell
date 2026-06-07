@@ -208,6 +208,7 @@ else
             NormalizeNullable(ContainerImage),
             NormalizeNullable(ContainerBuildContext),
             NormalizeNullable(ContainerDockerfile),
+            null,
             Math.Max(1, Replicas));
 
         await ApplicationProvider.UpdateApplicationAsync(
