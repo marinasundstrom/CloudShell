@@ -163,6 +163,33 @@ dotnet build
 dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore
 ```
 
+## Hosting Samples
+
+The `samples` directory includes focused hosts for the supported registration
+shapes.
+
+Run the UI-only shell sample with a custom UI extension:
+
+```bash
+dotnet run --project samples/CloudShell.UiExtensionHost --urls http://localhost:5101
+```
+
+Open `http://localhost:5101/sample-workspace`.
+
+Run the combined UI and Control Plane sample with a custom resource extension:
+
+```bash
+dotnet run --project samples/CloudShell.ResourceHost --urls http://localhost:5102
+```
+
+Open `http://localhost:5102/resources`, or query the sample resources:
+
+```bash
+curl http://localhost:5102/api/control-plane/v1/resources
+```
+
+Each sample directory has its own README with the scenario and useful routes.
+
 ## Persistence
 
 By default, CloudShell stores platform registrations in SQLite:

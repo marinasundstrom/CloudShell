@@ -8,10 +8,8 @@ instead of relying on every developer or operator to add the same resources by
 hand.
 
 ```csharp
-var controlPlane = builder.Services
-    .AddControlPlane()
-    .AddExtension<CoreShellExtension>()
-    .AddExtension<ResourceManagerExtension>()
+var controlPlane = builder
+    .AddCloudShell()
     .AddConfigurationProvider()
     .AddApplicationProvider()
     .AddDockerProvider();

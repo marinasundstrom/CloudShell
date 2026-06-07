@@ -73,10 +73,8 @@ public static class AcmeCloudShellExtensions
 The host installs the extension through DI:
 
 ```csharp
-builder.Services
+builder
     .AddCloudShell()
-    .AddExtension<CoreShellExtension>()
-    .AddExtension<ResourceManagerExtension>()
     .AddAcme();
 ```
 
@@ -88,10 +86,8 @@ Shared environments can register an extension as supported but leave activation
 to the Extensions UI and the persisted activation store:
 
 ```csharp
-builder.Services
+builder
     .AddCloudShell()
-    .AddExtension<CoreShellExtension>()
-    .AddExtension<ResourceManagerExtension>()
     .AddSupportedExtension<AcmeExtension>();
 ```
 
@@ -99,7 +95,7 @@ Supported extensions are disabled until the UI enables them. Host configuration
 can also force an extension off:
 
 ```csharp
-builder.Services
+builder
     .AddCloudShell()
     .DisableExtension<AcmeExtension>();
 ```
@@ -349,7 +345,7 @@ The Docker endpoint is discovered from:
 5. `/var/run/docker.sock`.
 
 ```csharp
-builder.Services
+builder
     .AddCloudShell()
     .AddDockerProvider(options =>
     {
