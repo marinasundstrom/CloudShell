@@ -98,6 +98,14 @@ public interface IConfigurationStoreResourceBuilder : ICloudShellResourceBuilder
 
     IConfigurationStoreResourceBuilder WithAccessToken(string? accessToken);
 
+    new IConfigurationStoreResourceBuilder DependsOn(string resourceId);
+
+    new IConfigurationStoreResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+
+    new IConfigurationStoreResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IConfigurationStoreResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+
     new IConfigurationStoreResourceBuilder WithResourceGroup(string? resourceGroupId);
 
     new IConfigurationStoreResourceBuilder WithReference(string resourceId);
@@ -149,6 +157,30 @@ internal sealed class ConfigurationStoreResourceBuilder(
         return this;
     }
 
+    public IConfigurationStoreResourceBuilder DependsOn(string resourceId)
+    {
+        inner.DependsOn(resourceId);
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder DependsOn(ICloudShellResourceBuilder resource)
+    {
+        inner.DependsOn(resource);
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    {
+        inner.DependsOn(resourceIds);
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources)
+    {
+        inner.DependsOn(resources);
+        return this;
+    }
+
     public IConfigurationStoreResourceBuilder WithReference(string resourceId)
     {
         inner.WithReference(resourceId);
@@ -175,6 +207,18 @@ internal sealed class ConfigurationStoreResourceBuilder(
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(string resourceId) =>
+        DependsOn(resourceId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(ICloudShellResourceBuilder resource) =>
+        DependsOn(resource);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+        DependsOn(resourceIds);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(IEnumerable<ICloudShellResourceBuilder> resources) =>
+        DependsOn(resources);
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(string resourceId) =>
         WithReference(resourceId);

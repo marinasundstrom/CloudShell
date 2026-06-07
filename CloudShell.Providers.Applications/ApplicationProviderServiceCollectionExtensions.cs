@@ -128,6 +128,14 @@ public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuil
 
     IExecutableApplicationResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources);
 
+    new IExecutableApplicationResourceBuilder DependsOn(string resourceId);
+
+    new IExecutableApplicationResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+
+    new IExecutableApplicationResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IExecutableApplicationResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+
     new IExecutableApplicationResourceBuilder WithResourceGroup(string? resourceGroupId);
 
     new IExecutableApplicationResourceBuilder WithReference(ICloudShellResourceBuilder resource);
@@ -244,14 +252,38 @@ internal sealed class ExecutableApplicationResourceBuilder(
     public IExecutableApplicationResourceBuilder WaitFor(ICloudShellResourceBuilder resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
-        inner.WithReference(resource);
-        return this;
+        return DependsOn(resource);
     }
 
     public IExecutableApplicationResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources)
     {
         ArgumentNullException.ThrowIfNull(resources);
-        inner.WithReferences(resources.Select(resource =>
+        return DependsOn(resources);
+    }
+
+    public IExecutableApplicationResourceBuilder DependsOn(string resourceId)
+    {
+        inner.DependsOn(resourceId);
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder DependsOn(ICloudShellResourceBuilder resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        inner.DependsOn(resource);
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    {
+        inner.DependsOn(resourceIds);
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources)
+    {
+        ArgumentNullException.ThrowIfNull(resources);
+        inner.DependsOn(resources.Select(resource =>
         {
             ArgumentNullException.ThrowIfNull(resource);
             return resource.ResourceId;
@@ -267,6 +299,18 @@ internal sealed class ExecutableApplicationResourceBuilder(
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(string resourceId) =>
+        DependsOn(resourceId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(ICloudShellResourceBuilder resource) =>
+        DependsOn(resource);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+        DependsOn(resourceIds);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(IEnumerable<ICloudShellResourceBuilder> resources) =>
+        DependsOn(resources);
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(string resourceId) =>
         AddReference(resourceId);

@@ -10,7 +10,7 @@ namespace CloudShell.Abstractions.Tests;
 public sealed class ResourceDeclarationTests
 {
     [Fact]
-    public void Resources_DeclaresTransientResourceByDefault()
+    public void Resources_DeclaresTransientResourceWithDependencies()
     {
         var services = new ServiceCollection();
 
@@ -20,7 +20,7 @@ public sealed class ResourceDeclarationTests
             {
                 resources
                     .Declare("configuration", "configuration:example")
-                    .WithReference("application:api");
+                    .DependsOn("application:api");
             });
 
         var store = services
@@ -33,6 +33,31 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(["application:api"], declaration.DependsOn);
         Assert.Equal(ResourceDeclarationPersistence.Transient, declaration.Persistence);
         Assert.False(declaration.OverwritePersistedState);
+    }
+
+    [Fact]
+    public void WithReference_RemainsAliasForGenericDependencies()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var api = resources.Declare("applications", "application:api");
+
+                resources
+                    .Declare("configuration", "configuration:example")
+                    .WithReference(api);
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "configuration:example");
+
+        Assert.Equal(["application:api"], declaration.DependsOn);
     }
 
     [Fact]
@@ -112,7 +137,7 @@ public sealed class ResourceDeclarationTests
                         "API",
                         executablePath: "dotnet")
                     .WithReference(settings)
-                    .WaitFor(postgres)
+                    .DependsOn(postgres)
                     .WithServiceDiscovery();
             });
 

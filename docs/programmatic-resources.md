@@ -62,8 +62,9 @@ maps referenced resource endpoints into the .NET configuration shape. This keeps
 CloudShell open to other service discovery mechanisms, such as a dedicated
 service discovery service running in a container.
 
-`WaitFor(resource)` is the application-specific dependency method. It records a
-startup dependency without automatically passing endpoint configuration.
+Executable applications also keep `WaitFor(resource)` as an Aspire-compatible
+alias for dependency ordering. Prefer `DependsOn(resource)` when describing the
+CloudShell resource graph.
 
 ```csharp
 var configuration = resources.AddConfigurationStore(
@@ -85,7 +86,7 @@ resources
         endpoint: "http://localhost:5127")
     .WithReference(configuration)
     .WithReference(redis)
-    .WaitFor(database)
+    .DependsOn(database)
     .WithServiceDiscovery();
 ```
 

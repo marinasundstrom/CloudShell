@@ -26,6 +26,14 @@ public interface ICloudShellResourceBuilder
 
     ICloudShellResourceBuilder WithResourceGroup(string? resourceGroupId);
 
+    ICloudShellResourceBuilder DependsOn(string resourceId);
+
+    ICloudShellResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+
+    ICloudShellResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    ICloudShellResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+
     ICloudShellResourceBuilder WithReference(string resourceId);
 
     ICloudShellResourceBuilder WithReference(ICloudShellResourceBuilder resource);
@@ -321,7 +329,7 @@ internal sealed class CloudShellResourceBuilder(
         return this;
     }
 
-    public ICloudShellResourceBuilder WithReference(string resourceId)
+    public ICloudShellResourceBuilder DependsOn(string resourceId)
     {
         var declaration = declarations.GetDeclaration(ResourceId)
             ?? throw new InvalidOperationException($"Resource '{ResourceId}' is not declared.");
@@ -331,10 +339,13 @@ internal sealed class CloudShellResourceBuilder(
         return this;
     }
 
-    public ICloudShellResourceBuilder WithReference(ICloudShellResourceBuilder resource) =>
-        WithReference(resource.ResourceId);
+    public ICloudShellResourceBuilder DependsOn(ICloudShellResourceBuilder resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        return DependsOn(resource.ResourceId);
+    }
 
-    public ICloudShellResourceBuilder WithReferences(IEnumerable<string> resourceIds)
+    public ICloudShellResourceBuilder DependsOn(IEnumerable<string> resourceIds)
     {
         var declaration = declarations.GetDeclaration(ResourceId)
             ?? throw new InvalidOperationException($"Resource '{ResourceId}' is not declared.");
@@ -343,6 +354,25 @@ internal sealed class CloudShellResourceBuilder(
             declaration.DependsOn.Concat(resourceIds).ToArray());
         return this;
     }
+
+    public ICloudShellResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources)
+    {
+        ArgumentNullException.ThrowIfNull(resources);
+        return DependsOn(resources.Select(resource =>
+        {
+            ArgumentNullException.ThrowIfNull(resource);
+            return resource.ResourceId;
+        }));
+    }
+
+    public ICloudShellResourceBuilder WithReference(string resourceId) =>
+        DependsOn(resourceId);
+
+    public ICloudShellResourceBuilder WithReference(ICloudShellResourceBuilder resource) =>
+        DependsOn(resource);
+
+    public ICloudShellResourceBuilder WithReferences(IEnumerable<string> resourceIds) =>
+        DependsOn(resourceIds);
 
     public ICloudShellResourceBuilder Persist(bool overwrite = false)
     {

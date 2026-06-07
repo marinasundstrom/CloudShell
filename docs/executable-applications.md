@@ -110,11 +110,12 @@ variables.
 
 Endpoint variables are generated from the application's referenced resources,
 not from its wait dependencies. For declarative application resources,
-`WithReference(...)` records an endpoint reference, while `WaitFor(...)` records
-a startup dependency. The broader resource model uses `DependsOn(...)` as the
-standard dependency relationship; `WaitFor(...)` is the executable application
-builder's lifecycle-oriented dependency API. CloudShell only emits endpoint
-variables when the referenced resource is registered in the same resource group.
+`WithReference(...)` records an endpoint reference, while `DependsOn(...)`
+records a startup dependency. The broader resource model uses `DependsOn(...)`
+as the standard dependency relationship; `WaitFor(...)` remains available on the
+executable application builder as an Aspire-compatible alias. CloudShell only
+emits endpoint variables when the referenced resource is registered in the same
+resource group.
 
 Service discovery is intentionally opt-in. An application can reference or
 depend on resources without receiving generated environment variables, which
