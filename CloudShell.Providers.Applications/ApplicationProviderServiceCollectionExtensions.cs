@@ -127,10 +127,10 @@ public static class ApplicationProviderServiceCollectionExtensions
             name,
             executablePath: "dotnet",
             arguments: BuildDotNetAspNetCoreProjectArguments(projectPath, hotReload),
-            endpoint: endpoint,
-            environmentVariables: CreateAspNetCoreProjectEnvironmentVariables(endpoint, environmentVariables),
+            environmentVariables: environmentVariables,
             lifetime: lifetime,
             useServiceDiscovery: useServiceDiscovery,
+            endpointPorts: CreateAspNetCoreProjectEndpointPorts(endpoint),
             resourceType: ApplicationResourceTypes.AspNetCoreProject);
         var declared = new DeclaredApplicationResource(definition);
 
@@ -237,28 +237,29 @@ public static class ApplicationProviderServiceCollectionExtensions
             : $"application:{slug}";
     }
 
-    private static IReadOnlyList<EnvironmentVariableAssignment> CreateAspNetCoreProjectEnvironmentVariables(
-        string? endpoint,
-        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables)
-    {
-        var variables = new List<EnvironmentVariableAssignment>();
-        if (!string.IsNullOrWhiteSpace(endpoint))
-        {
-            variables.Add(new EnvironmentVariableAssignment("ASPNETCORE_URLS", endpoint.Trim()));
-        }
-
-        if (environmentVariables is not null)
-        {
-            variables.AddRange(environmentVariables);
-        }
-
-        return variables;
-    }
-
     private static string BuildDotNetAspNetCoreProjectArguments(string projectPath, bool hotReload) =>
         hotReload
             ? $"watch --project {QuoteCommandArgument(projectPath)} run --no-launch-profile"
             : $"run --project {QuoteCommandArgument(projectPath)} --no-launch-profile";
+
+    internal static IReadOnlyList<ServicePort> CreateAspNetCoreProjectEndpointPorts(string? endpoint)
+    {
+        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) &&
+            uri.Port > 0)
+        {
+            return
+            [
+                new ServicePort(
+                    string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
+                    uri.Port,
+                    uri.Port,
+                    string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
+                    ResourceExposureScope.Local)
+            ];
+        }
+
+        return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
+    }
 
     private static string QuoteCommandArgument(string argument)
     {
@@ -396,27 +397,22 @@ internal sealed class ExecutableApplicationResourceBuilder(
 
     public IExecutableApplicationResourceBuilder WithEndpoint(string? endpoint)
     {
-        var environmentVariables = declared.Definition.EnvironmentVariables;
         if (string.Equals(
                 declared.Definition.ResourceType,
                 ApplicationResourceTypes.AspNetCoreProject,
                 StringComparison.OrdinalIgnoreCase))
         {
-            environmentVariables = environmentVariables
-                .Where(variable => !string.Equals(
-                    variable.Name,
-                    "ASPNETCORE_URLS",
-                    StringComparison.OrdinalIgnoreCase))
-                .Concat(string.IsNullOrWhiteSpace(endpoint)
-                    ? []
-                    : [new EnvironmentVariableAssignment("ASPNETCORE_URLS", endpoint.Trim())])
-                .ToArray();
+            declared.Definition = declared.Definition with
+            {
+                Endpoint = null,
+                EndpointPorts = ApplicationProviderServiceCollectionExtensions.CreateAspNetCoreProjectEndpointPorts(endpoint)
+            };
+            return this;
         }
 
         declared.Definition = declared.Definition with
         {
-            Endpoint = endpoint,
-            EnvironmentVariables = environmentVariables
+            Endpoint = endpoint
         };
         return this;
     }

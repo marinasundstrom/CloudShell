@@ -434,11 +434,36 @@ public sealed partial class ApplicationResourceProvider(
             .Concat(definition.UseServiceDiscovery
                 ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, registrations)
                 : [])
+            .Concat(ResolveAspNetCoreProjectEnvironmentVariables(definition))
             .Concat(definition.EnvironmentVariables)
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
             .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToArray();
+
+    private IReadOnlyList<EnvironmentVariableAssignment> ResolveAspNetCoreProjectEnvironmentVariables(
+        ApplicationResourceDefinition definition)
+    {
+        if (!string.Equals(
+                definition.ResourceType,
+                ApplicationResourceTypes.AspNetCoreProject,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return [];
+        }
+
+        var urls = CreateEndpoints(definition)
+            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
+            .Where(endpoint => !endpoint.Protocol.Equals("process", StringComparison.OrdinalIgnoreCase))
+            .Where(endpoint => !endpoint.Address.StartsWith("process://", StringComparison.OrdinalIgnoreCase))
+            .Select(endpoint => endpoint.Address)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return urls.Length == 0
+            ? []
+            : [new EnvironmentVariableAssignment("ASPNETCORE_URLS", string.Join(';', urls))];
+    }
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveDependencyEnvironmentVariables(
         ApplicationResourceDefinition definition,
@@ -1061,6 +1086,7 @@ public sealed partial class ApplicationResourceProvider(
         var id = string.IsNullOrWhiteSpace(definition.Id)
             ? CreateId(definition.Name)
             : definition.Id.Trim();
+        var resourceType = NormalizeResourceType(definition.ResourceType);
 
         return definition with
         {
@@ -1077,10 +1103,10 @@ public sealed partial class ApplicationResourceProvider(
             ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
             ContainerEngineId = NormalizeNullable(definition.ContainerEngineId),
             Replicas = Math.Max(1, definition.Replicas),
-            ResourceType = NormalizeResourceType(definition.ResourceType),
+            ResourceType = resourceType,
             DependsOn = NormalizeDependencies(definition.DependsOn, id),
             References = NormalizeReferences(definition.References, id),
-            EndpointPorts = NormalizeEndpointPorts(definition.EndpointPorts),
+            EndpointPorts = NormalizeEndpointPorts(definition.EndpointPorts, resourceType, definition.Endpoint),
             EnvironmentVariables = definition.EnvironmentVariables
                 .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
                 .Select(variable => variable with { Name = variable.Name.Trim() })
@@ -1276,8 +1302,11 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private static IReadOnlyList<ServicePort> NormalizeEndpointPorts(
-        IReadOnlyList<ServicePort> ports) =>
-        ports
+        IReadOnlyList<ServicePort> ports,
+        string resourceType,
+        string? endpoint = null)
+    {
+        var normalized = ports
             .Where(port => !string.IsNullOrWhiteSpace(port.Name))
             .Select(port => port with
             {
@@ -1288,6 +1317,35 @@ public sealed partial class ApplicationResourceProvider(
             })
             .DistinctBy(port => port.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+        return normalized.Length == 0 &&
+            string.Equals(resourceType, ApplicationResourceTypes.AspNetCoreProject, StringComparison.OrdinalIgnoreCase)
+            ? CreateAspNetCoreProjectEndpointPorts(endpoint)
+            : normalized;
+    }
+
+    private static IReadOnlyList<ServicePort> NormalizeEndpointPorts(
+        IReadOnlyList<ServicePort> ports) =>
+        NormalizeEndpointPorts(ports, ApplicationResourceTypes.ExecutableApplication);
+
+    private static IReadOnlyList<ServicePort> CreateAspNetCoreProjectEndpointPorts(string? endpoint)
+    {
+        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) &&
+            uri.Port > 0)
+        {
+            return
+            [
+                new ServicePort(
+                    string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
+                    uri.Port,
+                    uri.Port,
+                    string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
+                    ResourceExposureScope.Local)
+            ];
+        }
+
+        return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
+    }
 
     private static uint StableHash(string value)
     {

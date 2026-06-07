@@ -26,7 +26,7 @@
         <input id="web-application-project" @bind="ProjectPath" placeholder="samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj" />
 
         <label for="web-application-endpoint">Endpoint</label>
-        <input id="web-application-endpoint" @bind="Endpoint" placeholder="http://localhost:5127" />
+        <input id="web-application-endpoint" @bind="Endpoint" placeholder="auto assigned, or http://localhost:5127" />
 
         <label for="web-application-lifetime">Lifetime</label>
         <select id="web-application-lifetime" @bind="SelectedLifetime">
@@ -141,12 +141,12 @@
             Name,
             executablePath: "dotnet",
             arguments: BuildArguments(),
-            endpoint: NormalizeNullable(Endpoint),
             environmentVariables: BuildEnvironmentVariables(),
             lifetime: ParseLifetime(),
             dependsOn: WaitForReferences ? references : [],
             references: references,
             useServiceDiscovery: UseServiceDiscovery && references.Length > 0,
+            endpointPorts: BuildEndpointPorts(),
             resourceType: ApplicationResourceTypes.AspNetCoreProject);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
@@ -158,18 +158,22 @@
             ? $"watch --project {QuoteCommandArgument(ProjectPath.Trim())} run --no-launch-profile"
             : $"run --project {QuoteCommandArgument(ProjectPath.Trim())} --no-launch-profile";
 
-    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables()
+    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
+        EnvironmentVariables
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
+            .ToArray();
+
+    private IReadOnlyList<ServicePort> BuildEndpointPorts()
     {
-        var variables = new List<EnvironmentVariableAssignment>();
-        if (!string.IsNullOrWhiteSpace(Endpoint))
+        if (Uri.TryCreate(Endpoint, UriKind.Absolute, out var uri) &&
+            uri.Port > 0)
         {
-            variables.Add(new EnvironmentVariableAssignment("ASPNETCORE_URLS", Endpoint.Trim()));
+            var protocol = string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme;
+            return [new ServicePort(protocol, uri.Port, uri.Port, protocol, ResourceExposureScope.Local)];
         }
 
-        variables.AddRange(EnvironmentVariables
-            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-            .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty)));
-        return variables;
+        return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
     }
 
     private IReadOnlyList<CloudResource> GetReferenceCandidates() =>
@@ -237,9 +241,6 @@
         argument.Any(char.IsWhiteSpace)
             ? $"\"{argument.Replace("\\", "\\\\").Replace("\"", "\\\"")}\""
             : argument;
-
-    private static string? NormalizeNullable(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
     {

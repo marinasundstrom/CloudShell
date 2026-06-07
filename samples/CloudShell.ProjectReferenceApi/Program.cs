@@ -1,7 +1,12 @@
+using CloudShell.ProjectReference.ServiceDefaults;
+
 var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();
+
 var app = builder.Build();
 
 app.MapGet("/", () => Results.Redirect("/health"));
+app.MapDefaultEndpoints();
 
 app.MapGet("/health", () => Results.Ok(new
 {

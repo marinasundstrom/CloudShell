@@ -30,11 +30,20 @@ A resource group template uses a common envelope:
         "executablePath": "dotnet",
         "arguments": "watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj run --no-launch-profile",
         "workingDirectory": null,
-        "endpoint": "http://localhost:5127",
+        "endpoint": null,
         "environmentVariables": [],
         "lifetime": "Detached",
         "references": [],
-        "useServiceDiscovery": false
+        "useServiceDiscovery": false,
+        "endpointPorts": [
+          {
+            "name": "http",
+            "targetPort": 80,
+            "port": null,
+            "protocol": "http",
+            "exposure": "Local"
+          }
+        ]
       }
     }
   ]

@@ -197,7 +197,7 @@ else
             Arguments,
             WorkingDirectory,
             Endpoint,
-            BuildEnvironmentVariables(Application.ResourceType, Endpoint),
+            BuildEnvironmentVariables(),
             ParseLifetime(),
             BuildDependencies(),
             ReferenceIds,
@@ -207,6 +207,7 @@ else
             NormalizeNullable(ContainerDockerfile),
             null,
             Math.Max(1, Replicas),
+            BuildEndpointPorts(Application.ResourceType, Endpoint),
             resourceType: Application.ResourceType);
 
         await ApplicationProvider.UpdateApplicationAsync(
@@ -218,25 +219,29 @@ else
         return ResourceProcedureResult.Completed("Application configuration updated.");
     }
 
-    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables(
-        string resourceType,
-        string? endpoint)
-    {
-        var variables = EnvironmentVariables
+    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
+        EnvironmentVariables
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
             .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
             .ToArray();
+
+    private static IReadOnlyList<ServicePort> BuildEndpointPorts(
+        string resourceType,
+        string? endpoint)
+    {
         if (!string.Equals(resourceType, ApplicationResourceTypes.AspNetCoreProject, StringComparison.OrdinalIgnoreCase))
         {
-            return variables;
+            return [];
         }
 
-        return variables
-            .Where(variable => !string.Equals(variable.Name, "ASPNETCORE_URLS", StringComparison.OrdinalIgnoreCase))
-            .Concat(string.IsNullOrWhiteSpace(endpoint)
-                ? []
-                : [new EnvironmentVariableAssignment("ASPNETCORE_URLS", endpoint.Trim())])
-            .ToArray();
+        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) &&
+            uri.Port > 0)
+        {
+            var protocol = string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme;
+            return [new ServicePort(protocol, uri.Port, uri.Port, protocol, ResourceExposureScope.Local)];
+        }
+
+        return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
     }
 
     private IReadOnlyList<string> BuildDependencies() =>

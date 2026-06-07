@@ -43,6 +43,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReference
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReferenceFrontend", "samples\CloudShell.ProjectReferenceFrontend\CloudShell.ProjectReferenceFrontend.csproj", "{6588EDA0-2023-46B1-8E01-639E64657FC7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReference.ServiceDefaults", "samples\CloudShell.ProjectReference.ServiceDefaults\CloudShell.ProjectReference.ServiceDefaults.csproj", "{284F3798-6054-4601-BE79-0D09CB648463}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -281,6 +283,18 @@ Global
 		{6588EDA0-2023-46B1-8E01-639E64657FC7}.Release|x64.Build.0 = Release|Any CPU
 		{6588EDA0-2023-46B1-8E01-639E64657FC7}.Release|x86.ActiveCfg = Release|Any CPU
 		{6588EDA0-2023-46B1-8E01-639E64657FC7}.Release|x86.Build.0 = Release|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Debug|x64.Build.0 = Debug|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Debug|x86.Build.0 = Debug|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Release|Any CPU.Build.0 = Release|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Release|x64.ActiveCfg = Release|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Release|x64.Build.0 = Release|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Release|x86.ActiveCfg = Release|Any CPU
+		{284F3798-6054-4601-BE79-0D09CB648463}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -293,5 +307,6 @@ Global
 		{2DBF1BD0-4270-41A5-B93F-02408D6C3C2F} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{3446A9CB-385C-4DF6-B854-1BB0D4BC8C0E} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{6588EDA0-2023-46B1-8E01-639E64657FC7} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{284F3798-6054-4601-BE79-0D09CB648463} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 	EndGlobalSection
 EndGlobal

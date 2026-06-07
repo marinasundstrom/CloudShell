@@ -23,8 +23,7 @@ resources
     .AddAspNetCoreProject(
         "application:example-web-api",
         "Example Web API",
-        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-        endpoint: "http://localhost:5127")
+        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithReference(configuration)
     .WithServiceDiscovery();
 ```
@@ -36,8 +35,11 @@ dotnet watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi
 ```
 
 Pass `hotReload: false` to use plain `dotnet run --no-launch-profile` instead.
-When an endpoint is configured, CloudShell also sets `ASPNETCORE_URLS` so the
-process listens on the same URL that Resource Manager displays.
+ASP.NET Core project resources always get an HTTP endpoint. If the declaration
+omits `endpoint`, CloudShell assigns a stable local port. If the declaration
+sets `endpoint`, that URL fixes the displayed port. In both cases CloudShell
+injects the resolved URL into `ASPNETCORE_URLS` when the process starts, so the
+project listens on the same endpoint that Resource Manager displays.
 
 ## Lifetime
 

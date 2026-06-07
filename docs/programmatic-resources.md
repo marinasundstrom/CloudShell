@@ -125,8 +125,7 @@ resources
     .AddAspNetCoreProject(
         "application:example-web-api",
         "Example Web API",
-        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-        endpoint: "http://localhost:5127")
+        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithContainerImage("example-web-api:dev")
     .WithReference(configuration)
     .WithReference(redis)
@@ -153,9 +152,11 @@ ASP.NET Core project declarations run with hot reload by default:
 dotnet watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj run --no-launch-profile
 ```
 
-Set `hotReload: false` when you want a plain `dotnet run` process. The endpoint
-argument is also mapped to `ASPNETCORE_URLS`, so the app binds to the Resource
-Manager endpoint without relying on launch profiles.
+Set `hotReload: false` when you want a plain `dotnet run` process. ASP.NET Core
+project resources get a stable local HTTP endpoint automatically when `endpoint`
+is omitted. Supplying `endpoint: "http://localhost:5127"` fixes the port instead.
+CloudShell injects the resolved endpoint into `ASPNETCORE_URLS`, so the project
+binds to the Resource Manager endpoint without relying on launch profiles.
 
 `AddDocker()` declares the default local Docker Engine resource. Containers are
 declared from that Docker resource with `AddContainer(name, image, tag)`,

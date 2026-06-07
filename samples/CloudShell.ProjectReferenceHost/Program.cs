@@ -15,8 +15,7 @@ cloudShell.Resources(resources =>
     var api = resources.AddAspNetCoreProject(
         "application:project-reference-api",
         "Project Reference API",
-        "samples/CloudShell.ProjectReferenceApi/CloudShell.ProjectReferenceApi.csproj",
-        endpoint: "http://localhost:5217");
+        "samples/CloudShell.ProjectReferenceApi/CloudShell.ProjectReferenceApi.csproj");
 
     resources
         .AddAspNetCoreProject(

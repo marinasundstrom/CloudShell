@@ -5,7 +5,7 @@ references another project resource.
 
 `CloudShell.ProjectReferenceHost` declares two ASP.NET Core project resources:
 
-- `Project Reference API` on `http://localhost:5217`
+- `Project Reference API` with an auto-assigned HTTP endpoint
 - `Project Reference Frontend` on `http://localhost:5218`
 
 The frontend resource uses:
@@ -16,9 +16,15 @@ The frontend resource uses:
 .WithServiceDiscovery()
 ```
 
-CloudShell starts both projects with `dotnet watch` by default. The frontend
-receives Aspire-compatible service discovery environment variables and resolves
-the API endpoint through normal .NET configuration.
+Both projects reference `CloudShell.ProjectReference.ServiceDefaults`, similar
+to an Aspire ServiceDefaults project. It registers common health endpoints,
+HTTP client defaults, and a `AddResourceHttpClient(...)` helper for resolving
+CloudShell service discovery endpoints.
+
+CloudShell starts both projects with `dotnet watch` by default. The API omits a
+port, so CloudShell assigns a stable local HTTP endpoint. The frontend receives
+that resolved endpoint through Aspire-compatible service discovery environment
+variables and uses a named `HttpClient` registered from the resource reference.
 
 ## Run
 
