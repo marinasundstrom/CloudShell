@@ -161,6 +161,7 @@ Minimal host samples are also available:
 
 - `samples/CloudShell.UiExtensionHost`: hosts only the CloudShell UI and a custom UI extension.
 - `samples/CloudShell.ResourceHost`: hosts CloudShell UI and Control Plane together with a sample resource provider.
+- `samples/CloudShell.ProjectReferenceHost`: declares two ASP.NET Core project resources where one references the other in an Aspire-style dev loop.
 
 ## Test
 
@@ -193,6 +194,17 @@ Open `http://localhost:5102/resources`, or query the sample resources:
 ```bash
 curl http://localhost:5102/api/control-plane/v1/resources
 ```
+
+Run the ASP.NET Core project-reference sample:
+
+```bash
+dotnet run --project samples/CloudShell.ProjectReferenceHost --urls http://localhost:5104
+```
+
+Open `http://localhost:5104/resources`, run `Project Reference API`, then run
+`Project Reference Frontend`. The frontend receives service discovery variables
+from `.WithReference(api).WithServiceDiscovery()` and resolves the API endpoint
+from configuration at `http://localhost:5218/upstream`.
 
 Each sample directory has its own README with the scenario and useful routes.
 
