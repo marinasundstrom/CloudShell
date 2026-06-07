@@ -300,18 +300,13 @@ h3 {
 
 .resource-explorer {
     display: grid;
-    grid-template-columns: 15rem minmax(0, 1fr) minmax(18rem, 22rem);
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 22rem);
     gap: .75rem;
     align-items: start;
 }
 
 .resource-explorer-no-blade {
-    grid-template-columns: 15rem minmax(0, 1fr);
-}
-
-.resource-scopes {
-    display: grid;
-    gap: .3rem;
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .scope-heading {
@@ -321,54 +316,9 @@ h3 {
     padding: .25rem .35rem .55rem;
 }
 
-.scope-heading span,
-.scope-label {
+.scope-heading span {
     color: var(--cloudshell-text-subtle);
     font-size: .75rem;
-}
-
-.scope-label {
-    padding: .8rem .45rem .25rem;
-    font-weight: 650;
-    text-transform: uppercase;
-}
-
-.scope-item {
-    position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: .1rem .5rem;
-    width: 100%;
-    padding: .55rem .65rem;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--cloudshell-text);
-    text-align: left;
-    cursor: pointer;
-}
-
-.scope-item:hover {
-    background: var(--cloudshell-hover);
-}
-
-.scope-item.active {
-    border-color: var(--cloudshell-accent);
-    background: var(--cloudshell-selected);
-    box-shadow: inset 3px 0 0 var(--cloudshell-accent);
-}
-
-.scope-item small {
-    color: var(--cloudshell-text-subtle);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.scope-item strong {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: center;
 }
 
 .resource-list {
@@ -378,9 +328,54 @@ h3 {
 }
 
 .resource-list .inventory-toolbar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: .75rem;
     margin: 0;
     padding: .65rem .75rem;
     border-bottom: 1px solid var(--cloudshell-divider);
+}
+
+.inventory-filters {
+    display: flex;
+    align-items: flex-end;
+    gap: .6rem;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.inventory-filter {
+    display: grid;
+    gap: .2rem;
+    min-width: 9.5rem;
+}
+
+.inventory-filter label {
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+    font-weight: 650;
+}
+
+.inventory-filter.name-filter {
+    min-width: min(100%, 16rem);
+    flex: 1 1 16rem;
+}
+
+.inventory-select {
+    min-width: 10.5rem;
+}
+
+.inventory-select::part(control) {
+    width: 100%;
+}
+
+.toolbar-meta {
+    flex: 0 0 auto;
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+    white-space: nowrap;
 }
 
 .resource-list-header,
@@ -426,6 +421,51 @@ h3 {
 
 .resource-tree-row.selected {
     box-shadow: inset 3px 0 0 var(--cloudshell-accent);
+}
+
+.resource-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    min-width: 0;
+    padding: .55rem .7rem;
+    border-top: 1px solid var(--cloudshell-divider);
+    background: var(--cloudshell-surface-muted);
+    flex-wrap: wrap;
+}
+
+.page-size-filter {
+    min-width: 7rem;
+    display: flex;
+    grid-template-columns: none;
+    align-items: center;
+    gap: .45rem;
+}
+
+.page-size-select {
+    min-width: 4.75rem;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .35rem;
+    flex-wrap: wrap;
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+}
+
+.pagination-controls fluent-button::part(control) {
+    min-width: 2rem;
+    padding-inline: .45rem;
+}
+
+.pagination-range {
+    color: var(--cloudshell-text);
+    font-weight: 650;
+    margin-right: .25rem;
 }
 
 .resource-row-actions,
@@ -1591,15 +1631,6 @@ h3 {
     .resource-shell,
     .resource-explorer {
         grid-template-columns: 1fr;
-    }
-
-    .resource-scopes {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .scope-heading,
-    .scope-label {
-        grid-column: 1 / -1;
     }
 
     .resource-blade {

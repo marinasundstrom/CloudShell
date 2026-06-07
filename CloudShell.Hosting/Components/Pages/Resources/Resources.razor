@@ -17,7 +17,11 @@
 @{
     var allResources = ResourceManager.GetResources();
     var groups = ResourceManager.GetResourceGroups();
+    var resourceTypes = GetResourceTypeOptions(allResources);
+    var resourceGroupFilters = GetResourceGroupFilterOptions(groups);
     var rows = BuildRows(allResources);
+    SetPaginationTotal(rows.Count);
+    var pagedRows = GetPagedRows(rows);
     var selected = SelectedResource;
 }
 
@@ -108,42 +112,45 @@
 }
 
 <section class="resource-explorer @(selected is null ? "resource-explorer-no-blade" : null)">
-    <aside class="resource-scopes">
-        <div class="scope-heading">
-            <h2>@L["Scope"]</h2>
-            <span>@L["{0} resources", allResources.Count]</span>
-        </div>
-
-        <button class="scope-item @(SelectedScope is null ? "active" : null)" @onclick="() => SelectScope(null)">
-            <span>@L["All resources"]</span>
-            <strong>@allResources.Count</strong>
-        </button>
-
-        <div class="scope-label">@L["Resource groups"]</div>
-        @foreach (var group in groups)
-        {
-            var count = allResources.Count(resource => GetGroup(resource)?.Id == group.Id);
-            <button class="scope-item @(SelectedScope == group.Id ? "active" : null)" @onclick="() => SelectScope(group.Id)">
-                <span>@group.Name</span>
-                <small>@group.Description</small>
-                <strong>@count</strong>
-            </button>
-        }
-
-        @{
-            var ungroupedCount = allResources.Count(resource => GetGroup(resource) is null);
-        }
-        <button class="scope-item @(SelectedScope == UngroupedScope ? "active" : null)" @onclick="() => SelectScope(UngroupedScope)">
-            <span>@L["Default group"]</span>
-            <small>@L["Outside a project group"]</small>
-            <strong>@ungroupedCount</strong>
-        </button>
-    </aside>
-
     <div class="resource-list panel">
         <div class="inventory-toolbar">
-            <FluentSearch @bind-Value="Filter" Placeholder="@L["Filter by name or type"]" />
-            <div class="toolbar-meta">@L["{0} shown", rows.Count]</div>
+            <div class="inventory-filters">
+                <div class="inventory-filter name-filter">
+                    <label for="resource-name-filter">@L["Name"]</label>
+                    <FluentSearch Id="resource-name-filter" @bind-Value="NameFilter" Placeholder="@L["Filter by resource name"]" />
+                </div>
+                <div class="inventory-filter">
+                    <label for="resource-type-filter">@L["Type"]</label>
+                    <FluentSelect TOption="ResourceTypeFilterOption"
+                                  Id="resource-type-filter"
+                                  Class="inventory-select"
+                                  Items="@resourceTypes"
+                                  OptionText="@(type => type.DisplayName)"
+                                  OptionValue="@(type => type.Id)"
+                                  SelectedOption="@GetSelectedTypeOption(resourceTypes)"
+                                  SelectedOptionChanged="ChangeTypeFilter"
+                                  Appearance="Appearance.Neutral" />
+                </div>
+                <div class="inventory-filter">
+                    <label for="resource-group-filter">@L["Resource group"]</label>
+                    <FluentSelect TOption="ResourceGroupFilterOption"
+                                  Id="resource-group-filter"
+                                  Class="inventory-select"
+                                  Items="@resourceGroupFilters"
+                                  OptionText="@(group => group.DisplayName)"
+                                  OptionValue="@(group => group.Id)"
+                                  SelectedOption="@GetSelectedResourceGroupOption(resourceGroupFilters)"
+                                  SelectedOptionChanged="ChangeResourceGroupFilter"
+                                  Appearance="Appearance.Neutral" />
+                </div>
+                @if (HasActiveFilters)
+                {
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="ClearFilters">
+                        @L["Clear"]
+                    </FluentButton>
+                }
+            </div>
+            <div class="toolbar-meta">@GetPaginationRangeLabel(rows.Count)</div>
         </div>
 
         <div class="resource-list-header">
@@ -157,7 +164,7 @@
         </div>
 
         <div class="resource-tree" role="treegrid" aria-label="@L["Resources"]">
-            @foreach (var row in rows)
+            @foreach (var row in pagedRows)
             {
                 var resource = row.Resource;
                 var group = GetGroup(resource);
@@ -216,6 +223,52 @@
                 </div>
             }
         </div>
+
+        @if (rows.Count > 0)
+        {
+            <div class="resource-pagination">
+                <div class="inventory-filter page-size-filter">
+                    <label for="resource-page-size">@L["Rows per page"]</label>
+                    <FluentSelect TOption="int"
+                                  Id="resource-page-size"
+                                  Class="page-size-select"
+                                  Items="@PageSizes"
+                                  OptionText="@(size => size.ToString())"
+                                  OptionValue="@(size => size.ToString())"
+                                  SelectedOption="@Pagination.ItemsPerPage"
+                                  SelectedOptionChanged="ChangePageSizeAsync"
+                                  Appearance="Appearance.Neutral" />
+                </div>
+                <div class="pagination-controls">
+                    <span class="pagination-range">@GetPaginationRangeLabel(rows.Count)</span>
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@(Pagination.CurrentPageIndex == 0)"
+                                  Title="@L["First page"]"
+                                  OnClick="GoToFirstPageAsync">
+                        &lt;&lt;
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@(Pagination.CurrentPageIndex == 0)"
+                                  Title="@L["Previous page"]"
+                                  OnClick="GoToPreviousPageAsync">
+                        &lt;
+                    </FluentButton>
+                    <span>@L["Page {0} of {1}", Pagination.CurrentPageIndex + 1, GetLastPageIndex(rows.Count) + 1]</span>
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@(Pagination.CurrentPageIndex >= GetLastPageIndex(rows.Count))"
+                                  Title="@L["Next page"]"
+                                  OnClick="() => GoToNextPageAsync(rows.Count)">
+                        &gt;
+                    </FluentButton>
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@(Pagination.CurrentPageIndex >= GetLastPageIndex(rows.Count))"
+                                  Title="@L["Last page"]"
+                                  OnClick="() => GoToLastPageAsync(rows.Count)">
+                        &gt;&gt;
+                    </FluentButton>
+                </div>
+            </div>
+        }
     </div>
 
     @if (selected is not null)
@@ -389,11 +442,23 @@
 </section>
 
 @code {
+    private const string PageQueryParameter = "page";
+    private const string PageSizeQueryParameter = "pageSize";
+    private const string AllResourceGroupsFilter = "__all";
+    private const string AllResourceTypesFilter = "__all";
     private const string UngroupedScope = "__ungrouped";
+    private static readonly IReadOnlyList<int> PageSizes = [10, 25, 50, 100];
     private readonly HashSet<string> CollapsedResourceIds = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim HealthRefreshLock = new(1, 1);
-    private string? Filter { get; set; }
-    private string? SelectedScope { get; set; }
+    private readonly PaginationState Pagination = new()
+    {
+        ItemsPerPage = 25
+    };
+    private string? nameFilter;
+    private string selectedTypeFilter = AllResourceTypesFilter;
+    private string selectedResourceGroupFilter = AllResourceGroupsFilter;
+    private int lastUrlPageIndex = -1;
+    private int lastUrlPageSize = -1;
     private CloudResource? SelectedResource { get; set; }
     private string? DeleteConfirmationResourceId { get; set; }
     private string? ProcedureMessage { get; set; }
@@ -406,18 +471,75 @@
     private Task? HealthPollingTask { get; set; }
     private bool IsDisposed { get; set; }
 
+    private string? NameFilter
+    {
+        get => nameFilter;
+        set
+        {
+            if (string.Equals(nameFilter, value, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            nameFilter = value;
+            ResetPagination();
+        }
+    }
+
+    private string SelectedTypeFilter
+    {
+        get => selectedTypeFilter;
+        set
+        {
+            if (string.Equals(selectedTypeFilter, value, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            selectedTypeFilter = value;
+            ResetPagination();
+        }
+    }
+
+    private string SelectedResourceGroupFilter
+    {
+        get => selectedResourceGroupFilter;
+        set
+        {
+            if (string.Equals(selectedResourceGroupFilter, value, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            selectedResourceGroupFilter = value;
+            ResetPagination();
+        }
+    }
+
+    private bool HasActiveFilters =>
+        !string.IsNullOrWhiteSpace(NameFilter) ||
+        SelectedTypeFilter != AllResourceTypesFilter ||
+        SelectedResourceGroupFilter != AllResourceGroupsFilter;
+
     protected override Task OnInitializedAsync()
     {
+        ApplyPaginationFromUrl();
+
         HealthPollingCancellation = new CancellationTokenSource();
         HealthPollingTask = PollResourceHealthAsync(HealthPollingCancellation.Token);
 
         return RefreshResourceHealthAsync();
     }
 
+    protected override void OnAfterRender(bool firstRender)
+    {
+        UpdatePaginationUrl();
+    }
+
     private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<CloudResource> allResources)
     {
         var scoped = allResources
-            .Where(IsInSelectedScope)
+            .Where(IsInSelectedResourceGroup)
             .ToArray();
         var scopedIds = scoped.Select(resource => resource.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var childrenByParent = scoped
@@ -426,10 +548,10 @@
             .ToDictionary(group => group.Key, group => group.OrderBy(resource => resource.Name).ToArray(), StringComparer.OrdinalIgnoreCase);
 
         HashSet<string>? visibleIds = null;
-        if (!string.IsNullOrWhiteSpace(Filter))
+        if (HasActiveListFilters())
         {
             visibleIds = scoped
-                .Where(MatchesFilter)
+                .Where(MatchesListFilters)
                 .Select(resource => resource.Id)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -482,29 +604,194 @@
         }
     }
 
-    private bool IsInSelectedScope(CloudResource resource)
+    private bool IsInSelectedResourceGroup(CloudResource resource)
     {
         var group = GetGroup(resource);
-        return SelectedScope switch
+        return SelectedResourceGroupFilter switch
         {
-            null => true,
+            AllResourceGroupsFilter => true,
             UngroupedScope => group is null,
-            _ => group?.Id == SelectedScope
+            _ => string.Equals(group?.Id, SelectedResourceGroupFilter, StringComparison.OrdinalIgnoreCase)
         };
     }
 
-    private bool MatchesFilter(CloudResource resource) =>
-        resource.Name.Contains(Filter!, StringComparison.OrdinalIgnoreCase) ||
-        resource.Kind.Contains(Filter!, StringComparison.OrdinalIgnoreCase) ||
-        resource.EffectiveTypeId.Contains(Filter!, StringComparison.OrdinalIgnoreCase);
+    private bool HasActiveListFilters() =>
+        !string.IsNullOrWhiteSpace(NameFilter) ||
+        SelectedTypeFilter != AllResourceTypesFilter;
+
+    private bool MatchesListFilters(CloudResource resource) =>
+        MatchesNameFilter(resource) &&
+        MatchesTypeFilter(resource);
+
+    private bool MatchesNameFilter(CloudResource resource) =>
+        string.IsNullOrWhiteSpace(NameFilter) ||
+        resource.Name.Contains(NameFilter, StringComparison.OrdinalIgnoreCase);
+
+    private bool MatchesTypeFilter(CloudResource resource) =>
+        SelectedTypeFilter == AllResourceTypesFilter ||
+        string.Equals(resource.EffectiveTypeId, SelectedTypeFilter, StringComparison.OrdinalIgnoreCase);
 
     private ResourceGroup? GetGroup(CloudResource resource) =>
         ResourceManager.GetGroupForResource(resource.Id);
 
-    private void SelectScope(string? scope)
+    private IReadOnlyList<ResourceTypeFilterOption> GetResourceTypeOptions(IReadOnlyList<CloudResource> resources) =>
+    [
+        new ResourceTypeFilterOption(AllResourceTypesFilter, L["All types"].Value),
+        .. resources
+            .GroupBy(resource => resource.EffectiveTypeId, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var resource = group.First();
+                var displayName = string.Equals(resource.Kind, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase)
+                    ? resource.Kind
+                    : $"{resource.Kind} ({resource.EffectiveTypeId})";
+                return new ResourceTypeFilterOption(resource.EffectiveTypeId, displayName);
+            })
+            .OrderBy(type => type.DisplayName, StringComparer.OrdinalIgnoreCase)
+    ];
+
+    private IReadOnlyList<ResourceGroupFilterOption> GetResourceGroupFilterOptions(IReadOnlyList<ResourceGroup> groups) =>
+    [
+        new ResourceGroupFilterOption(AllResourceGroupsFilter, L["All resource groups"].Value),
+        .. groups.Select(group => new ResourceGroupFilterOption(group.Id, group.Name)),
+        new ResourceGroupFilterOption(UngroupedScope, L["Default group"].Value)
+    ];
+
+    private ResourceTypeFilterOption GetSelectedTypeOption(IReadOnlyList<ResourceTypeFilterOption> resourceTypes) =>
+        resourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, SelectedTypeFilter, StringComparison.OrdinalIgnoreCase))
+        ?? resourceTypes[0];
+
+    private ResourceGroupFilterOption GetSelectedResourceGroupOption(IReadOnlyList<ResourceGroupFilterOption> resourceGroups) =>
+        resourceGroups.FirstOrDefault(group =>
+            string.Equals(group.Id, SelectedResourceGroupFilter, StringComparison.OrdinalIgnoreCase))
+        ?? resourceGroups[0];
+
+    private void ChangeTypeFilter(ResourceTypeFilterOption? option)
     {
-        SelectedScope = scope;
+        SelectedTypeFilter = option?.Id ?? AllResourceTypesFilter;
         SelectedResource = null;
+    }
+
+    private void ChangeResourceGroupFilter(ResourceGroupFilterOption? option)
+    {
+        SelectedResourceGroupFilter = option?.Id ?? AllResourceGroupsFilter;
+        SelectedResource = null;
+    }
+
+    private async Task ChangePageSizeAsync(int pageSize)
+    {
+        await Pagination.SetItemsPerPageAsync(PageSizes.Contains(pageSize) ? pageSize : 25);
+        await Pagination.SetCurrentPageIndexAsync(0);
+        SelectedResource = null;
+    }
+
+    private async Task GoToFirstPageAsync() =>
+        await Pagination.SetCurrentPageIndexAsync(0);
+
+    private async Task GoToPreviousPageAsync() =>
+        await Pagination.SetCurrentPageIndexAsync(Math.Max(0, Pagination.CurrentPageIndex - 1));
+
+    private async Task GoToNextPageAsync(int totalCount) =>
+        await Pagination.SetCurrentPageIndexAsync(Math.Min(GetLastPageIndex(totalCount), Pagination.CurrentPageIndex + 1));
+
+    private async Task GoToLastPageAsync(int totalCount) =>
+        await Pagination.SetCurrentPageIndexAsync(GetLastPageIndex(totalCount));
+
+    private void ClearFilters()
+    {
+        NameFilter = null;
+        SelectedTypeFilter = AllResourceTypesFilter;
+        SelectedResourceGroupFilter = AllResourceGroupsFilter;
+        SelectedResource = null;
+        ResetPagination();
+    }
+
+    private void ResetPagination() =>
+        _ = Pagination.SetCurrentPageIndexAsync(0);
+
+    private void ApplyPaginationFromUrl()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        var pageSize = TryReadPositiveInt(query, PageSizeQueryParameter) ?? Pagination.ItemsPerPage;
+        var page = TryReadPositiveInt(query, PageQueryParameter) ?? 1;
+
+        if (!PageSizes.Contains(pageSize))
+        {
+            pageSize = PageSizes.Contains(Pagination.ItemsPerPage) ? Pagination.ItemsPerPage : 25;
+        }
+
+        _ = Pagination.SetItemsPerPageAsync(pageSize);
+        _ = Pagination.SetCurrentPageIndexAsync(page - 1);
+        lastUrlPageIndex = page - 1;
+        lastUrlPageSize = pageSize;
+    }
+
+    private static int? TryReadPositiveInt(
+        IDictionary<string, Microsoft.Extensions.Primitives.StringValues> query,
+        string key)
+    {
+        if (!query.TryGetValue(key, out var values) ||
+            values.Count == 0 ||
+            !int.TryParse(values[0], out var value) ||
+            value < 1)
+        {
+            return null;
+        }
+
+        return value;
+    }
+
+    private void SetPaginationTotal(int totalCount)
+    {
+        _ = Pagination.SetTotalItemCountAsync(totalCount);
+        var lastPageIndex = GetLastPageIndex(totalCount);
+        if (Pagination.CurrentPageIndex > lastPageIndex)
+        {
+            _ = Pagination.SetCurrentPageIndexAsync(lastPageIndex);
+        }
+    }
+
+    private IReadOnlyList<ResourceRow> GetPagedRows(IReadOnlyList<ResourceRow> rows) =>
+        rows
+            .Skip(Pagination.CurrentPageIndex * Pagination.ItemsPerPage)
+            .Take(Pagination.ItemsPerPage)
+            .ToArray();
+
+    private int GetLastPageIndex(int totalCount) =>
+        Math.Max(0, (int)Math.Ceiling(totalCount / (double)Pagination.ItemsPerPage) - 1);
+
+    private string GetPaginationRangeLabel(int totalCount)
+    {
+        if (totalCount == 0)
+        {
+            return L["0 shown"].Value;
+        }
+
+        var first = Pagination.CurrentPageIndex * Pagination.ItemsPerPage + 1;
+        var last = Math.Min(totalCount, first + Pagination.ItemsPerPage - 1);
+        return L["{0}-{1} of {2} shown", first, last, totalCount].Value;
+    }
+
+    private void UpdatePaginationUrl()
+    {
+        if (lastUrlPageIndex == Pagination.CurrentPageIndex &&
+            lastUrlPageSize == Pagination.ItemsPerPage)
+        {
+            return;
+        }
+
+        lastUrlPageIndex = Pagination.CurrentPageIndex;
+        lastUrlPageSize = Pagination.ItemsPerPage;
+        var target = Navigation.GetUriWithQueryParameters(
+            new Dictionary<string, object?>
+            {
+                [PageQueryParameter] = Pagination.CurrentPageIndex + 1,
+                [PageSizeQueryParameter] = Pagination.ItemsPerPage
+            });
+
+        Navigation.NavigateTo(target, replace: true);
     }
 
     private void ToggleResource(string resourceId)
@@ -1176,6 +1463,10 @@
     };
 
     private sealed record ResourceRow(CloudResource Resource, int Depth, int ChildCount);
+
+    private sealed record ResourceTypeFilterOption(string Id, string DisplayName);
+
+    private sealed record ResourceGroupFilterOption(string Id, string DisplayName);
 
     private sealed record PendingResourceAction(
         CloudResource Resource,
