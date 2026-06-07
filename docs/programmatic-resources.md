@@ -51,6 +51,9 @@ relationships:
 - Provider builders can expose parent-child APIs such as
   `resources.AddDocker().AddContainer(...)` when a resource is owned by another
   resource.
+- `WithParent(resource)` records ownership or containment. Parent-child
+  relationships affect how resources are grouped in Resource Manager; they are
+  separate from dependency relationships.
 - String IDs remain available as a lower-level escape hatch, but typed builders
   should be preferred when both resources are declared in the same callback.
 
@@ -65,6 +68,9 @@ service discovery service running in a container.
 Executable applications also keep `WaitFor(resource)` as an Aspire-compatible
 alias for dependency ordering. Prefer `DependsOn(resource)` when describing the
 CloudShell resource graph.
+
+Applications can depend on any declared resource builder, including sub-resources
+such as containers returned from `resources.AddDocker().AddContainer(...)`.
 
 ```csharp
 var configuration = resources.AddConfigurationStore(
@@ -86,7 +92,7 @@ resources
         endpoint: "http://localhost:5127")
     .WithReference(configuration)
     .WithReference(redis)
-    .DependsOn(database)
+    .DependsOn(redis)
     .WithServiceDiscovery();
 ```
 

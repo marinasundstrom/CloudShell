@@ -1,5 +1,7 @@
+using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
@@ -59,6 +61,61 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal(["application:api"], declaration.DependsOn);
     }
+
+    [Fact]
+    public void WithParent_RecordsDeclarationParent()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var parent = resources.Declare("docker", "docker:dev");
+
+                resources
+                    .Declare("docker", "docker:container:redis")
+                    .WithParent(parent);
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "docker:container:redis");
+
+        Assert.Equal("docker:dev", declaration.ParentResourceId);
+        Assert.Empty(declaration.DependsOn);
+    }
+
+    [Fact]
+    public void ResourceManagerStore_AppliesDeclarationParentMetadata()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddControlPlane()
+            .AddExtension<ParentMetadataExtension>()
+            .Resources(resources =>
+            {
+                var parent = resources.Declare("parent-metadata", "sample:parent");
+
+                resources
+                    .Declare("parent-metadata", "sample:child")
+                    .WithParent(parent);
+            });
+        services.AddSingleton<IResourceGroupStore, EmptyResourceGroupStore>();
+        services.AddSingleton<IResourceRegistrationStore, DeclarationRegistrationStore>();
+        services.AddScoped<IResourceManagerStore, ResourceManagerStore>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var resources = serviceProvider
+            .GetRequiredService<IResourceManagerStore>()
+            .GetResources();
+        var child = Assert.Single(resources, resource => resource.Id == "sample:child");
+
+        Assert.Equal("sample:parent", child.ParentResourceId);
+    }
+
 
     [Fact]
     public void Persist_CanRequestOverwrite()
@@ -164,6 +221,36 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedExecutableBuilder_CanDependOnContainerResource()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var redis = resources
+                    .AddDocker()
+                    .AddContainer("redis", "redis", "7.2");
+
+                resources
+                    .AddExecutableApplication(
+                        "application:web",
+                        "Web",
+                        executablePath: "dotnet")
+                    .DependsOn(redis);
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "application:web");
+
+        Assert.Equal(["docker:container:redis"], declaration.DependsOn);
+    }
+
+    [Fact]
     public void TypedDockerContainerBuilder_DeclaresEngineAndContainer()
     {
         var services = new ServiceCollection();
@@ -203,6 +290,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("docker", engine.ProviderId);
         Assert.Empty(engine.DependsOn);
         Assert.Equal("docker", container.ProviderId);
+        Assert.Equal(DockerContainerResourceProvider.EngineResourceId, container.ParentResourceId);
         Assert.Equal("group-1", container.ResourceGroupId);
         Assert.Equal(
             [DockerContainerResourceProvider.EngineResourceId, "postgres-main"],
@@ -252,6 +340,8 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal("docker", devDocker.ProviderId);
         Assert.Equal("docker", testDocker.ProviderId);
+        Assert.Equal("docker:dev", devContainer.ParentResourceId);
+        Assert.Equal("docker:test", testContainer.ParentResourceId);
         Assert.Equal(["docker:dev"], devContainer.DependsOn);
         Assert.Equal(["docker:test"], testContainer.DependsOn);
         Assert.Equal("docker:dev", devContainerResource.ParentResourceId);
@@ -282,5 +372,111 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             [DockerContainerResourceProvider.EngineResourceId, "configuration:settings"],
             container.DependsOn);
+    }
+
+    private sealed class ParentMetadataExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.parent-metadata",
+            "Parent Metadata",
+            "Adds resources for parent metadata tests.",
+            "0.1.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder.AddResourceProvider<ParentMetadataProvider>();
+        }
+    }
+
+    private sealed class ParentMetadataProvider : IResourceProvider
+    {
+        public string Id => "parent-metadata";
+
+        public string DisplayName => "Parent Metadata";
+
+        public IReadOnlyList<CloudResource> GetResources() =>
+        [
+            new(
+                "sample:parent",
+                "Parent",
+                "Sample Parent",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                []),
+            new(
+                "sample:child",
+                "Child",
+                "Sample Child",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [])
+        ];
+    }
+
+    private sealed class DeclarationRegistrationStore(
+        ResourceDeclarationStore declarations) : IResourceRegistrationStore
+    {
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() =>
+            declarations.GetDeclarations()
+                .Select(declaration => new ResourceRegistration(
+                    declaration.ResourceId,
+                    declaration.ProviderId,
+                    declaration.ResourceGroupId,
+                    declaration.DeclaredAt,
+                    declaration.DependsOn))
+                .ToArray();
+
+        public ResourceRegistration? GetRegistration(string resourceId) =>
+            GetRegistrations().FirstOrDefault(registration =>
+                string.Equals(registration.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
+
+        public Task RegisterAsync(
+            string providerId,
+            string resourceId,
+            string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task RemoveAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task AssignToGroupAsync(
+            string resourceId,
+            string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class EmptyResourceGroupStore : IResourceGroupStore
+    {
+        public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
+
+        public ResourceGroup? GetGroupForResource(string resourceId) => null;
+
+        public Task<ResourceGroup> CreateAsync(
+            string name,
+            string description,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

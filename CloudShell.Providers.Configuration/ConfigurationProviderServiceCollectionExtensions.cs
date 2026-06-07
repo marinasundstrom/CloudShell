@@ -108,6 +108,10 @@ public interface IConfigurationStoreResourceBuilder : ICloudShellResourceBuilder
 
     new IConfigurationStoreResourceBuilder WithResourceGroup(string? resourceGroupId);
 
+    new IConfigurationStoreResourceBuilder WithParent(string? parentResourceId);
+
+    new IConfigurationStoreResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+
     new IConfigurationStoreResourceBuilder WithReference(string resourceId);
 
     new IConfigurationStoreResourceBuilder WithReference(ICloudShellResourceBuilder resource);
@@ -154,6 +158,18 @@ internal sealed class ConfigurationStoreResourceBuilder(
     public IConfigurationStoreResourceBuilder WithResourceGroup(string? resourceGroupId)
     {
         inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public IConfigurationStoreResourceBuilder WithParent(ICloudShellResourceBuilder resource)
+    {
+        inner.WithParent(resource);
         return this;
     }
 
@@ -207,6 +223,12 @@ internal sealed class ConfigurationStoreResourceBuilder(
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(ICloudShellResourceBuilder resource) =>
+        WithParent(resource);
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(string resourceId) =>
         DependsOn(resourceId);

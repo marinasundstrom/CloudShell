@@ -12,6 +12,7 @@ public enum ResourceDeclarationPersistence
 public sealed record ResourceDeclaration(
     string ProviderId,
     string ResourceId,
+    string? ParentResourceId,
     string? ResourceGroupId,
     DateTimeOffset DeclaredAt,
     IReadOnlyList<string> DependsOn,
@@ -25,6 +26,10 @@ public interface ICloudShellResourceBuilder
     string ResourceId { get; }
 
     ICloudShellResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    ICloudShellResourceBuilder WithParent(string? parentResourceId);
+
+    ICloudShellResourceBuilder WithParent(ICloudShellResourceBuilder resource);
 
     ICloudShellResourceBuilder DependsOn(string resourceId);
 
@@ -52,6 +57,7 @@ public interface ICloudShellResourceDeclarationBuilder
     ICloudShellResourceBuilder Declare(
         string providerId,
         string resourceId,
+        string? parentResourceId = null,
         string? resourceGroupId = null,
         IReadOnlyList<string>? dependsOn = null,
         ResourceDeclarationPersistence persistence = ResourceDeclarationPersistence.Transient,
@@ -133,6 +139,7 @@ internal sealed class ResourceGraphBuilder(
     public ICloudShellResourceBuilder Declare(
         string providerId,
         string resourceId,
+        string? parentResourceId = null,
         string? resourceGroupId = null,
         IReadOnlyList<string>? dependsOn = null,
         ResourceDeclarationPersistence persistence = ResourceDeclarationPersistence.Transient,
@@ -142,6 +149,7 @@ internal sealed class ResourceGraphBuilder(
             CloudShellBuilder,
             providerId,
             resourceId,
+            parentResourceId,
             resourceGroupId,
             dependsOn,
             persistence,
@@ -161,6 +169,7 @@ public sealed class ResourceDeclarationStore
         ICloudShellBuilder builder,
         string providerId,
         string resourceId,
+        string? parentResourceId = null,
         string? resourceGroupId = null,
         IReadOnlyList<string>? dependsOn = null,
         ResourceDeclarationPersistence persistence = ResourceDeclarationPersistence.Transient,
@@ -177,6 +186,7 @@ public sealed class ResourceDeclarationStore
             var normalized = Normalize(
                 providerId,
                 resourceId,
+                parentResourceId,
                 resourceGroupId,
                 dependsOn ?? [],
                 persistence,
@@ -238,6 +248,14 @@ public sealed class ResourceDeclarationStore
         });
     }
 
+    public void AssignParent(string resourceId, string? parentResourceId)
+    {
+        Update(resourceId, declaration => declaration with
+        {
+            ParentResourceId = NormalizeResourceId(parentResourceId)
+        });
+    }
+
     public void SetDependencies(string resourceId, IReadOnlyList<string> dependsOn)
     {
         Update(resourceId, declaration => declaration with
@@ -290,6 +308,7 @@ public sealed class ResourceDeclarationStore
     private static ResourceDeclaration Normalize(
         string providerId,
         string resourceId,
+        string? parentResourceId,
         string? resourceGroupId,
         IReadOnlyList<string> dependsOn,
         ResourceDeclarationPersistence persistence,
@@ -297,6 +316,7 @@ public sealed class ResourceDeclarationStore
         new(
             providerId.Trim(),
             resourceId.Trim(),
+            NormalizeResourceId(parentResourceId),
             NormalizeGroupId(resourceGroupId),
             DateTimeOffset.UtcNow,
             NormalizeDependencies(dependsOn),
@@ -305,6 +325,9 @@ public sealed class ResourceDeclarationStore
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId.Trim();
+
+    private static string? NormalizeResourceId(string? resourceId) =>
+        string.IsNullOrWhiteSpace(resourceId) ? null : resourceId.Trim();
 
     private static IReadOnlyList<string> NormalizeDependencies(IReadOnlyList<string> dependsOn) =>
         dependsOn
@@ -327,6 +350,18 @@ internal sealed class CloudShellResourceBuilder(
     {
         declarations.AssignToGroup(ResourceId, resourceGroupId);
         return this;
+    }
+
+    public ICloudShellResourceBuilder WithParent(string? parentResourceId)
+    {
+        declarations.AssignParent(ResourceId, parentResourceId);
+        return this;
+    }
+
+    public ICloudShellResourceBuilder WithParent(ICloudShellResourceBuilder resource)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        return WithParent(resource.ResourceId);
     }
 
     public ICloudShellResourceBuilder DependsOn(string resourceId)

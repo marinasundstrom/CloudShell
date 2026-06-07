@@ -336,6 +336,10 @@ allows more than one Docker parent to be modeled. Containers created from a
 Docker builder are parented to that specific Docker resource, while
 `DependsOn(...)` records normal resource graph dependencies.
 
+Parent-child resource relationships are distinct from dependency relationships:
+the parent controls containment in Resource Manager, while `DependsOn(...)`
+records topology or ordering between any two resources.
+
 The Docker endpoint is discovered from:
 
 1. An endpoint configured through `AddDockerProvider`.

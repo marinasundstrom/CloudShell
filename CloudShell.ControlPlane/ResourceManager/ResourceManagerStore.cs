@@ -7,6 +7,7 @@ public sealed class ResourceManagerStore(
     IEnumerable<IResourceProvider> providers,
     IResourceGroupStore resourceGroups,
     IResourceRegistrationStore registrations,
+    ResourceDeclarationStore declarations,
     CloudShellExtensionRegistry extensionRegistry,
     ICloudShellExtensionActivationStore activationStore) : IResourceManagerStore
 {
@@ -29,11 +30,17 @@ public sealed class ResourceManagerStore(
             .ToDictionary(
                 registration => registration.ResourceId,
                 StringComparer.OrdinalIgnoreCase);
+        var declarationsById = declarations.GetDeclarations()
+            .ToDictionary(
+                declaration => declaration.ResourceId,
+                StringComparer.OrdinalIgnoreCase);
         var registeredIds = registrationsById.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return available
             .Where(resource => IsRegisteredOrDescendant(resource, available, registeredIds))
-            .Select(resource => ApplyRegistrationMetadata(resource, registrationsById))
+            .Select(resource => ApplyDeclarationMetadata(
+                ApplyRegistrationMetadata(resource, registrationsById),
+                declarationsById))
             .ToArray();
     }
 
@@ -158,6 +165,22 @@ public sealed class ResourceManagerStore(
                 .Where(dependency => !string.Equals(dependency, resource.Id, StringComparison.OrdinalIgnoreCase))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray()
+        };
+    }
+
+    private static CloudResource ApplyDeclarationMetadata(
+        CloudResource resource,
+        IReadOnlyDictionary<string, ResourceDeclaration> declarationsById)
+    {
+        if (!declarationsById.TryGetValue(resource.Id, out var declaration) ||
+            string.IsNullOrWhiteSpace(declaration.ParentResourceId))
+        {
+            return resource;
+        }
+
+        return resource with
+        {
+            ParentResourceId = declaration.ParentResourceId
         };
     }
 

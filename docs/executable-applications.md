@@ -117,6 +117,9 @@ executable application builder as an Aspire-compatible alias. CloudShell only
 emits endpoint variables when the referenced resource is registered in the same
 resource group.
 
+An executable application can depend on any resource builder returned from the
+declarative graph, including provider sub-resources such as Docker containers.
+
 Service discovery is intentionally opt-in. An application can reference or
 depend on resources without receiving generated environment variables, which
 leaves room for other discovery mechanisms such as a service discovery service

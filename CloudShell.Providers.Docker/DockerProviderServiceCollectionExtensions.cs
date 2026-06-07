@@ -128,6 +128,7 @@ public static class DockerProviderServiceCollectionExtensions
         var resource = builder.Declare(
             "docker",
             definition.Id,
+            parentResourceId: definition.DockerResourceId,
             dependsOn: definition.DependsOn,
             onChanged: declaration =>
             {
@@ -194,6 +195,10 @@ public interface IDockerResourceBuilder : ICloudShellResourceBuilder
 
     new IDockerResourceBuilder WithResourceGroup(string? resourceGroupId);
 
+    new IDockerResourceBuilder WithParent(string? parentResourceId);
+
+    new IDockerResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+
     new IDockerResourceBuilder WithReference(string resourceId);
 
     new IDockerResourceBuilder WithReference(ICloudShellResourceBuilder resource);
@@ -241,6 +246,18 @@ internal sealed class DockerResourceBuilder(
     public IDockerResourceBuilder WithResourceGroup(string? resourceGroupId)
     {
         inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public IDockerResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public IDockerResourceBuilder WithParent(ICloudShellResourceBuilder resource)
+    {
+        inner.WithParent(resource);
         return this;
     }
 
@@ -295,6 +312,12 @@ internal sealed class DockerResourceBuilder(
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);
 
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(ICloudShellResourceBuilder resource) =>
+        WithParent(resource);
+
     ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(string resourceId) =>
         DependsOn(resourceId);
 
@@ -337,6 +360,10 @@ public interface IDockerContainerResourceBuilder : ICloudShellResourceBuilder
     new IDockerContainerResourceBuilder DependsOn(IEnumerable<string> resourceIds);
 
     new IDockerContainerResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IDockerContainerResourceBuilder WithParent(string? parentResourceId);
+
+    new IDockerContainerResourceBuilder WithParent(ICloudShellResourceBuilder resource);
 
     new IDockerContainerResourceBuilder WithReference(string resourceId);
 
@@ -414,6 +441,18 @@ internal sealed class DockerContainerResourceBuilder(
         return this;
     }
 
+    public IDockerContainerResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public IDockerContainerResourceBuilder WithParent(ICloudShellResourceBuilder resource)
+    {
+        inner.WithParent(resource);
+        return this;
+    }
+
     public IDockerContainerResourceBuilder WithReference(string resourceId)
     {
         inner.WithReference(resourceId);
@@ -440,6 +479,12 @@ internal sealed class DockerContainerResourceBuilder(
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(ICloudShellResourceBuilder resource) =>
+        WithParent(resource);
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(string resourceId) =>
         DependsOn(resourceId);

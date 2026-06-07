@@ -138,6 +138,10 @@ public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuil
 
     new IExecutableApplicationResourceBuilder WithResourceGroup(string? resourceGroupId);
 
+    new IExecutableApplicationResourceBuilder WithParent(string? parentResourceId);
+
+    new IExecutableApplicationResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+
     new IExecutableApplicationResourceBuilder WithReference(ICloudShellResourceBuilder resource);
 
     IExecutableApplicationResourceBuilder WithReferences(IEnumerable<ICloudShellResourceBuilder> resources);
@@ -214,6 +218,18 @@ internal sealed class ExecutableApplicationResourceBuilder(
     public IExecutableApplicationResourceBuilder WithResourceGroup(string? resourceGroupId)
     {
         inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder WithParent(ICloudShellResourceBuilder resource)
+    {
+        inner.WithParent(resource);
         return this;
     }
 
@@ -299,6 +315,12 @@ internal sealed class ExecutableApplicationResourceBuilder(
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(ICloudShellResourceBuilder resource) =>
+        WithParent(resource);
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(string resourceId) =>
         DependsOn(resourceId);
