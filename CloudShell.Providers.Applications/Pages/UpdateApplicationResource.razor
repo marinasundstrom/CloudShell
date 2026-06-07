@@ -48,17 +48,20 @@ else
                 Enable observability
             </FluentCheckbox>
 
-            <label for="application-update-container-image">Container image</label>
-            <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
+            @if (CanConfigureContainerWorkloadSettings)
+            {
+                <label for="application-update-container-image">Container image</label>
+                <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
 
-            <label for="application-update-build-context">Docker build context</label>
-            <FluentTextField Id="application-update-build-context" @bind-Value="ContainerBuildContext" Placeholder="." />
+                <label for="application-update-build-context">Docker build context</label>
+                <FluentTextField Id="application-update-build-context" @bind-Value="ContainerBuildContext" Placeholder="." />
 
-            <label for="application-update-dockerfile">Dockerfile</label>
-            <FluentTextField Id="application-update-dockerfile" @bind-Value="ContainerDockerfile" Placeholder="Dockerfile" />
+                <label for="application-update-dockerfile">Dockerfile</label>
+                <FluentTextField Id="application-update-dockerfile" @bind-Value="ContainerDockerfile" Placeholder="Dockerfile" />
 
-            <label for="application-update-replicas">Replicas</label>
-            <FluentNumberField TValue="int" Id="application-update-replicas" Min="1" @bind-Value="Replicas" />
+                <label for="application-update-replicas">Replicas</label>
+                <FluentNumberField TValue="int" Id="application-update-replicas" Min="1" @bind-Value="Replicas" />
+            }
 
             <label for="application-update-group">Resource group</label>
             <FluentSelect TOption="string"
@@ -135,6 +138,10 @@ else
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<string> ReferenceIds { get; set; } = [];
 
+    private bool CanConfigureContainerWorkloadSettings =>
+        Application is not null &&
+        !string.Equals(Application.ResourceType, ApplicationResourceTypes.AspNetCoreProject, StringComparison.OrdinalIgnoreCase);
+
     protected override void OnParametersSet()
     {
         Application = string.IsNullOrWhiteSpace(ResourceId)
@@ -202,6 +209,7 @@ else
             return ResourceProcedureResult.Completed("Application resource is unavailable.");
         }
 
+        var canConfigureContainerWorkloadSettings = CanConfigureContainerWorkloadSettings;
         var definition = new ApplicationResourceDefinition(
             Application.Id,
             Name,
@@ -214,11 +222,11 @@ else
             BuildDependencies(),
             ReferenceIds,
             UseServiceDiscovery,
-            NormalizeNullable(ContainerImage),
-            NormalizeNullable(ContainerBuildContext),
-            NormalizeNullable(ContainerDockerfile),
+            canConfigureContainerWorkloadSettings ? NormalizeNullable(ContainerImage) : null,
+            canConfigureContainerWorkloadSettings ? NormalizeNullable(ContainerBuildContext) : null,
+            canConfigureContainerWorkloadSettings ? NormalizeNullable(ContainerDockerfile) : null,
             null,
-            Math.Max(1, Replicas),
+            canConfigureContainerWorkloadSettings ? Math.Max(1, Replicas) : 1,
             BuildEndpointPorts(Application.ResourceType, Endpoint),
             resourceType: Application.ResourceType,
             healthChecks: Application.HealthChecks,
