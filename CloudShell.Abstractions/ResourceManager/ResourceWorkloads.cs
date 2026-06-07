@@ -7,6 +7,12 @@ public enum ResourceWorkloadKind
     ContainerBuild
 }
 
+public enum ResourceLifetime
+{
+    Detached,
+    ControlPlaneScoped
+}
+
 public sealed record ResourceWorkloadConfiguration(
     ResourceWorkloadKind Kind,
     string Name,
@@ -19,7 +25,8 @@ public sealed record ResourceWorkloadConfiguration(
     string? ContainerEngineId = null,
     int Replicas = 1,
     IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null,
-    IReadOnlyList<ServicePort>? Ports = null)
+    IReadOnlyList<ServicePort>? Ports = null,
+    ResourceLifetime Lifetime = ResourceLifetime.ControlPlaneScoped)
 {
     public IReadOnlyList<EnvironmentVariableAssignment> WorkloadEnvironmentVariables =>
         EnvironmentVariables ?? [];
@@ -27,7 +34,14 @@ public sealed record ResourceWorkloadConfiguration(
     public IReadOnlyList<ServicePort> WorkloadPorts => Ports ?? [];
 }
 
-public interface IContainerResourceBuilder : ICloudShellResourceBuilder
+public interface ILifetimeBoundResourceBuilder<out TBuilder> : ICloudShellResourceBuilder
+    where TBuilder : ICloudShellResourceBuilder
+{
+    TBuilder WithLifetime(ResourceLifetime lifetime);
+}
+
+public interface IContainerResourceBuilder :
+    ILifetimeBoundResourceBuilder<IContainerResourceBuilder>
 {
     IContainerResourceBuilder WithImage(string image);
 

@@ -404,6 +404,15 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    public IContainerResourceBuilder WithLifetime(ResourceLifetime lifetime)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Lifetime = ToApplicationLifetime(lifetime)
+        };
+        return this;
+    }
+
     public IExecutableApplicationResourceBuilder WithResourceGroup(string? resourceGroupId)
     {
         inner.WithResourceGroup(resourceGroupId);
@@ -644,4 +653,11 @@ internal sealed class ExecutableApplicationResourceBuilder(
         Persist(overwrite);
         return this;
     }
+
+    private static ApplicationLifetime ToApplicationLifetime(ResourceLifetime lifetime) =>
+        lifetime switch
+        {
+            ResourceLifetime.ControlPlaneScoped => ApplicationLifetime.ControlPlaneScoped,
+            _ => ApplicationLifetime.Detached
+        };
 }

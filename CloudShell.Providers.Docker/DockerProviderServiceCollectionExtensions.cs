@@ -359,7 +359,8 @@ internal sealed class DockerResourceBuilder(
         Persist(overwrite);
 }
 
-public interface IDockerContainerResourceBuilder : ICloudShellResourceBuilder
+public interface IDockerContainerResourceBuilder :
+    ILifetimeBoundResourceBuilder<IDockerContainerResourceBuilder>
 {
     IDockerContainerResourceBuilder WithImage(string image);
 
@@ -401,6 +402,12 @@ internal sealed class DockerContainerResourceBuilder(
     public IDockerContainerResourceBuilder WithImage(string image)
     {
         declared.Definition = declared.Definition with { Image = image };
+        return this;
+    }
+
+    public IDockerContainerResourceBuilder WithLifetime(ResourceLifetime lifetime)
+    {
+        declared.Definition = declared.Definition with { Lifetime = lifetime };
         return this;
     }
 

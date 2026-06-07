@@ -10,7 +10,8 @@ public sealed record DockerContainerResourceDefinition
         string image,
         string dockerResourceId,
         IReadOnlyList<ResourceEndpoint>? endpoints = null,
-        IReadOnlyList<string>? dependsOn = null)
+        IReadOnlyList<string>? dependsOn = null,
+        ResourceLifetime lifetime = ResourceLifetime.ControlPlaneScoped)
     {
         Id = DockerContainerResourceProvider.CreateContainerResourceId(id);
         Name = name;
@@ -18,6 +19,7 @@ public sealed record DockerContainerResourceDefinition
         DockerResourceId = DockerContainerResourceProvider.CreateDockerResourceId(dockerResourceId);
         Endpoints = endpoints ?? [];
         DependsOn = dependsOn ?? [];
+        Lifetime = lifetime;
     }
 
     public string Id { get; init; }
@@ -31,4 +33,6 @@ public sealed record DockerContainerResourceDefinition
     public IReadOnlyList<ResourceEndpoint> Endpoints { get; init; }
 
     public IReadOnlyList<string> DependsOn { get; init; }
+
+    public ResourceLifetime Lifetime { get; init; }
 }

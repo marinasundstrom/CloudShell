@@ -342,7 +342,8 @@ public sealed partial class DockerContainerResourceProvider :
             ResourceWorkloadKind.ContainerImage,
             definition.Name,
             Image: definition.Image,
-            Replicas: 1);
+            Replicas: 1,
+            Lifetime: definition.Lifetime);
 
         return Task.FromResult(new ResourceOrchestrationDescriptor(
             resource.Id,

@@ -248,7 +248,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public void TypedDockerContainerBuilder_DeclaresEngineAndContainer()
+    public async Task TypedDockerContainerBuilder_DeclaresEngineAndContainer()
     {
         var services = new ServiceCollection();
 
@@ -258,11 +258,14 @@ public sealed class ResourceDeclarationTests
             {
                 var postgres = resources.Declare("managed", "postgres-main");
 
-                resources
+                var container = resources
                     .AddDocker()
                     .AddContainer("redis", "redis", "7.2")
+                    .WithLifetime(ResourceLifetime.Detached)
                     .DependsOn(postgres)
                     .WithResourceGroup("group-1");
+
+                Assert.IsAssignableFrom<ILifetimeBoundResourceBuilder<IDockerContainerResourceBuilder>>(container);
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -296,6 +299,18 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("redis:7.2", definition.Image);
         Assert.Equal(DockerContainerResourceProvider.EngineResourceId, definition.DockerResourceId);
         Assert.Equal(container.DependsOn, definition.DependsOn);
+        Assert.Equal(ResourceLifetime.Detached, definition.Lifetime);
+
+        using var provider = new DockerContainerResourceProvider(options);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "docker:container:redis");
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
     }
 
     [Fact]
@@ -510,14 +525,17 @@ public sealed class ResourceDeclarationTests
             .AddExtension<ApplicationProviderExtension>()
             .Resources(resources =>
             {
-                resources
+                var container = resources
                     .AddContainer(
                         "sql",
                         "mcr.microsoft.com/mssql/server:2022-latest",
                         replicas: 1)
                     .WithImage("example/sql-server:dev")
                     .WithEndpoint("tds", targetPort: 1433, port: 14333)
-                    .WithContainerEngine("docker:dev");
+                    .WithContainerEngine("docker:dev")
+                    .WithLifetime(ResourceLifetime.Detached);
+
+                Assert.IsAssignableFrom<ILifetimeBoundResourceBuilder<IContainerResourceBuilder>>(container);
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -536,9 +554,11 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("applications", declaration.ProviderId);
         Assert.Null(declaration.ParentResourceId);
         Assert.Empty(declaration.DependsOn);
+        Assert.Equal(ApplicationLifetime.Detached, provider.GetApplication("application:sql")?.Lifetime);
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal("example/sql-server:dev", workload?.Image);
         Assert.Equal("docker:dev", workload?.ContainerEngineId);
+        Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
         var port = Assert.Single(workload?.WorkloadPorts ?? []);
         Assert.Equal("tds", port.Name);
         Assert.Equal(1433, port.TargetPort);

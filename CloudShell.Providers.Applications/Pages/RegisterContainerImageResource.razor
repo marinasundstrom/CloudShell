@@ -45,6 +45,14 @@
             }
         </select>
 
+        <label for="container-lifetime">Lifetime</label>
+        <select id="container-lifetime" @bind="SelectedLifetime">
+            @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
+            {
+                <option value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</option>
+            }
+        </select>
+
         <label>
             <input type="checkbox" @bind="ExposeEndpoint" />
             Expose local endpoint
@@ -136,6 +144,7 @@
     private string Name { get; set; } = string.Empty;
     private string Image { get; set; } = string.Empty;
     private string SelectedEngineId { get; set; } = string.Empty;
+    private string SelectedLifetime { get; set; } = ApplicationLifetime.ControlPlaneScoped.ToString();
     private bool ExposeEndpoint { get; set; }
     private string PortName { get; set; } = "tcp";
     private int TargetPort { get; set; } = 80;
@@ -182,7 +191,7 @@
             Name,
             executablePath: string.Empty,
             environmentVariables: BuildEnvironmentVariables(),
-            lifetime: ApplicationLifetime.ControlPlaneScoped,
+            lifetime: ParseLifetime(),
             dependsOn: WaitForReferences ? references : [],
             references: references,
             useServiceDiscovery: references.Length > 0,
@@ -311,6 +320,18 @@
 
     private static string GetEngineLabel(ContainerEngineResourceDefinition engine) =>
         engine.IsDefault ? $"{engine.Name} (default)" : engine.Name;
+
+    private ApplicationLifetime ParseLifetime() =>
+        Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)
+            ? lifetime
+            : ApplicationLifetime.ControlPlaneScoped;
+
+    private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
+        lifetime switch
+        {
+            ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
+            _ => "Detached"
+        };
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

@@ -588,11 +588,15 @@ public sealed partial class ApplicationResourceProvider(
         var logPath = GetLogPath(definition.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
         var processLog = new ApplicationProcessLog(logPath);
-        await RunContainerEngineCommandAsync(
-            engine,
-            ["rm", "-f", GetContainerName(definition.Id)],
-            processLog,
-            cancellationToken);
+        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+        {
+            await RunContainerEngineCommandAsync(
+                engine,
+                ["rm", "-f", GetContainerName(definition.Id)],
+                processLog,
+                cancellationToken);
+        }
+
         var startInfo = new ProcessStartInfo
         {
             FileName = GetContainerEngineExecutable(engine),
@@ -606,7 +610,10 @@ public sealed partial class ApplicationResourceProvider(
         startInfo.ArgumentList.Add("run");
         startInfo.ArgumentList.Add("--name");
         startInfo.ArgumentList.Add(GetContainerName(definition.Id));
-        startInfo.ArgumentList.Add("--rm");
+        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+        {
+            startInfo.ArgumentList.Add("--rm");
+        }
 
         foreach (var port in definition.EndpointPorts)
         {
@@ -668,7 +675,7 @@ public sealed partial class ApplicationResourceProvider(
             LogPath: logPath));
 
         processLog.Append(
-            $"Started container image '{definition.ContainerImage}' as '{GetContainerName(definition.Id)}' using {engine.Name}.",
+            $"Started container image '{definition.ContainerImage}' as '{GetContainerName(definition.Id)}' using {engine.Name} with {definition.Lifetime} lifetime.",
             "process",
             "Information");
 
@@ -809,11 +816,14 @@ public sealed partial class ApplicationResourceProvider(
             ["stop", containerName],
             log,
             cancellationToken);
-        await RunContainerEngineCommandAsync(
-            engine,
-            ["rm", "-f", containerName],
-            log,
-            cancellationToken);
+        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+        {
+            await RunContainerEngineCommandAsync(
+                engine,
+                ["rm", "-f", containerName],
+                log,
+                cancellationToken);
+        }
     }
 
     private static async Task RunContainerEngineCommandAsync(
@@ -1156,7 +1166,8 @@ public sealed partial class ApplicationResourceProvider(
                 ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
                 EnvironmentVariables: application.EnvironmentVariables,
-                Ports: application.EndpointPorts);
+                Ports: application.EndpointPorts,
+                Lifetime: ToResourceLifetime(application.Lifetime));
         }
 
         if (!string.IsNullOrWhiteSpace(application.ContainerBuildContext))
@@ -1169,7 +1180,8 @@ public sealed partial class ApplicationResourceProvider(
                 ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
                 EnvironmentVariables: application.EnvironmentVariables,
-                Ports: application.EndpointPorts);
+                Ports: application.EndpointPorts,
+                Lifetime: ToResourceLifetime(application.Lifetime));
         }
 
         return new ResourceWorkloadConfiguration(
@@ -1179,7 +1191,8 @@ public sealed partial class ApplicationResourceProvider(
             Arguments: application.Arguments,
             WorkingDirectory: application.WorkingDirectory,
             Replicas: Math.Max(1, application.Replicas),
-            EnvironmentVariables: application.EnvironmentVariables);
+            EnvironmentVariables: application.EnvironmentVariables,
+            Lifetime: ToResourceLifetime(application.Lifetime));
     }
 
     private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
@@ -1371,6 +1384,13 @@ public sealed partial class ApplicationResourceProvider(
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
         !string.IsNullOrWhiteSpace(application.ContainerImage) ||
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
+
+    private static ResourceLifetime ToResourceLifetime(ApplicationLifetime lifetime) =>
+        lifetime switch
+        {
+            ApplicationLifetime.ControlPlaneScoped => ResourceLifetime.ControlPlaneScoped,
+            _ => ResourceLifetime.Detached
+        };
 
     private static bool IsHidden(ApplicationResourceDefinition application) =>
         application.EnvironmentVariables.Any(variable =>
