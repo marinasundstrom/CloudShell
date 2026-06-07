@@ -29,6 +29,8 @@ public sealed class CloudShellAuthenticationOptions
 
     public OpenIdConnectProviderOptions OpenIdConnect { get; set; } = new();
 
+    public BuiltInAuthorityOptions BuiltInAuthority { get; set; } = new();
+
     public Dictionary<string, string[]> RolePermissions { get; set; } =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -56,6 +58,37 @@ public sealed class CloudShellAuthenticationOptions
         {
             ["CloudShell.Administrator"] = [CloudShellPermissions.All]
         };
+}
+
+public sealed class BuiltInAuthorityOptions
+{
+    public bool Enabled { get; set; }
+
+    public string Issuer { get; set; } = "http://localhost";
+
+    public string Audience { get; set; } = "cloudshell-control-plane";
+
+    public int AccessTokenMinutes { get; set; } = 60;
+
+    public string? SigningKeyPem { get; set; }
+
+    public Dictionary<string, BuiltInAuthorityClientOptions> Clients { get; set; } =
+        new(StringComparer.Ordinal);
+}
+
+public sealed class BuiltInAuthorityClientOptions
+{
+    public string? Secret { get; set; }
+
+    public string[] Scopes { get; set; } = ["ControlPlane.Access"];
+
+    public string[] Roles { get; set; } = [];
+
+    public string[] Permissions { get; set; } = [];
+
+    public string[] ResourceGroups { get; set; } = [];
+
+    public string[] Resources { get; set; } = [];
 }
 
 public sealed class OpenIdConnectProviderOptions

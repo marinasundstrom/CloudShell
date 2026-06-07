@@ -20,12 +20,14 @@ Implemented today:
   access.
 - Control Plane API protection when `Authentication:Enabled` is `true`.
 - A remote `IControlPlane` adapter configured with a Control Plane base URL.
+- An opt-in built-in Control Plane token authority for split-hosting service
+  credentials.
+- Remote Control Plane credentials for no-auth, static bearer tokens, and
+  client-credentials tokens.
 - Configuration service runtime APIs protected by generated resource tokens.
 
 Direction:
 
-- A provider-neutral Control Plane credential abstraction for split-hosting
-  calls.
 - Protected API resource metadata for services that expose their own direct
   APIs.
 - Optional provider-specific provisioning against systems such as Microsoft
@@ -173,7 +175,7 @@ direct claims, resource-group scopes, and resource scopes should be issued by
 or mapped from the shared authority, then evaluated by CloudShell in the
 Control Plane.
 
-## Control Plane credentials direction
+## Control Plane credentials
 
 The remote Control Plane client should model authentication with a credential
 abstraction rather than taking raw tokens, API keys, or provider-specific
@@ -220,9 +222,52 @@ resource-level `.default` scope. Other providers can map the same abstraction
 to their own audience, scope, API key, signed request, or service identity
 model.
 
-This section describes the intended split-hosting credential model. The current
-remote Control Plane adapter is configured with a base URL and does not yet
-include this credential abstraction.
+The built-in remote adapter supports no credentials, static bearer tokens, and
+client-credentials tokens issued by the Control Plane token authority. Delegated
+current-user credentials are still directional.
+
+Enable the built-in token authority on the Control Plane host:
+
+```json
+{
+  "Authentication": {
+    "BuiltInAuthority": {
+      "Enabled": true,
+      "Issuer": "https://control-plane.example.com",
+      "Audience": "cloudshell-control-plane",
+      "Clients": {
+        "cloudshell-ui": {
+          "Secret": "replace-with-secret",
+          "Scopes": [ "ControlPlane.Access" ],
+          "Roles": [ "CloudShell.Administrator" ]
+        }
+      }
+    }
+  }
+}
+```
+
+Configure the split UI host to request client-credentials tokens:
+
+```json
+{
+  "CloudShell": {
+    "ControlPlane": {
+      "BaseAddress": "https://control-plane.example.com",
+      "Credential": {
+        "Mode": "ClientCredentials",
+        "ClientId": "cloudshell-ui",
+        "ClientSecret": "replace-with-secret",
+        "Scopes": [ "ControlPlane.Access" ]
+      }
+    }
+  }
+}
+```
+
+If `SigningKeyPem` is not configured, the built-in authority generates an
+ephemeral RSA signing key at startup. Configure a persistent signing key for
+shared or long-running hosts.
 
 ## Protected API resources direction
 

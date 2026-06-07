@@ -49,11 +49,34 @@ public static class ControlPlaneClientServiceCollectionExtensions
         IServiceCollection services,
         Action<IServiceProvider, HttpClient> configureClient)
     {
+        services.AddHttpClient("CloudShell.ControlPlane.Auth");
+        services.AddTransient<ControlPlaneAuthenticationHandler>();
+        services.AddTransient<ControlPlaneCredential>(serviceProvider =>
+        {
+            var options = serviceProvider
+                .GetRequiredService<IOptions<RemoteControlPlaneOptions>>()
+                .Value;
+            return options.Credential.Mode.ToUpperInvariant() switch
+            {
+                "NONE" => new EmptyControlPlaneCredential(),
+                "STATICBEARER" => new StaticBearerControlPlaneCredential(
+                    options.Credential.BearerToken ??
+                    throw new InvalidOperationException(
+                        $"{RemoteControlPlaneOptions.SectionName}:Credential:BearerToken must be configured.")),
+                "CLIENTCREDENTIALS" => new ClientCredentialsControlPlaneCredential(
+                    serviceProvider.GetRequiredService<IHttpClientFactory>(),
+                    serviceProvider.GetRequiredService<IOptions<RemoteControlPlaneOptions>>()),
+                _ => throw new InvalidOperationException(
+                    $"Unsupported Control Plane credential mode '{options.Credential.Mode}'.")
+            };
+        });
+
         services
             .AddHttpClient<IControlPlane, RemoteControlPlane>((serviceProvider, client) =>
             {
                 configureClient(serviceProvider, client);
-            });
+            })
+            .AddHttpMessageHandler<ControlPlaneAuthenticationHandler>();
 
         services.AddScoped<IResourceManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());

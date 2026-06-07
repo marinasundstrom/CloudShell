@@ -180,9 +180,12 @@ checked-in configuration, persisted state, provider actions, and authorization.
 ### Split-hosting authentication
 
 Implemented today, split hosting configures the UI host with a remote Control
-Plane base URL and registers the remote `IControlPlane` adapter. Authentication
-can still be configured through the existing ASP.NET Core authentication modes,
-and the Control Plane API is protected when authentication is enabled.
+Plane base URL and registers the remote `IControlPlane` adapter. The adapter
+can run without credentials, use a static bearer token, or acquire a
+client-credentials token from the built-in Control Plane token authority.
+Authentication can still be configured through the existing ASP.NET Core
+authentication modes, and the Control Plane API is protected when
+authentication is enabled.
 
 The direction is that split-hosting authentication remains primarily a
 configuration concern:
@@ -234,9 +237,8 @@ validate credentials on its own HTTP endpoints. CloudShell can pass endpoint,
 credential, and dependency metadata to the service, but it is not an automatic
 reverse proxy or policy enforcement point for every resource API.
 
-The credential abstraction and protected API metadata described here are
-directional. The current remote adapter does not yet expose a provider-neutral
-credential API.
+Protected API metadata for resource-owned runtime APIs is directional. The
+current remote adapter credential support covers Control Plane calls only.
 
 ## Persistence
 

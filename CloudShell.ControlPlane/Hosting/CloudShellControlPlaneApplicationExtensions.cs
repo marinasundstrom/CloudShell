@@ -40,6 +40,7 @@ public static class CloudShellControlPlaneApplicationExtensions
         extensionRegistry.Validate(app.Services.GetRequiredService<ICloudShellExtensionActivationStore>());
 
         app.UseAuthentication();
+        app.UseCloudShellBuiltInBearerAuthentication();
         app.UseAuthorization();
 
         return app;
@@ -51,6 +52,7 @@ public static class CloudShellControlPlaneApplicationExtensions
         ArgumentNullException.ThrowIfNull(endpoints);
 
         endpoints.MapCloudShellControlPlaneOpenApi();
+        endpoints.MapCloudShellBuiltInAuthority();
         endpoints.MapCloudShellControlPlaneApi();
         endpoints.MapCloudShellControlPlaneAuthentication();
 

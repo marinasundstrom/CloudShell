@@ -31,6 +31,10 @@ public static class CloudShellAuthenticationServiceCollectionExtensions
         services.AddScoped<IAccountService>(
             serviceProvider => serviceProvider.GetRequiredService<CloudShellAccountService>());
         services.AddCascadingAuthenticationState();
+        if (options.Enabled && options.BuiltInAuthority.Enabled)
+        {
+            services.AddSingleton<BuiltInAuthorityTokenService>();
+        }
 
         if (!options.Enabled)
         {

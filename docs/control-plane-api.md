@@ -86,9 +86,9 @@ changes:
   Control Plane protected API resource, supplied by the remote adapter's
   configured Control Plane credential.
 
-The provider-neutral credential model for split-hosting calls is directional.
-The current remote adapter is configured with the Control Plane base URL; it
-does not yet expose the credential abstraction described below.
+The remote adapter supports a provider-neutral credential abstraction for
+Control Plane calls. Built-in modes cover no credentials, static bearer tokens,
+and client-credentials tokens issued by the Control Plane token authority.
 
 For OAuth-based deployments, remote adapters should request a token for the
 Control Plane API resource and required scope, then attach it to each request:

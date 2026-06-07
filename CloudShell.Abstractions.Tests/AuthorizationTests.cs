@@ -9,6 +9,68 @@ namespace CloudShell.Abstractions.Tests;
 public sealed class AuthorizationTests
 {
     [Fact]
+    public void BuiltInAuthorityToken_RoundTripsClaims()
+    {
+        using var tokens = new BuiltInAuthorityTokenService(Options.Create(
+            new CloudShellAuthenticationOptions
+            {
+                BuiltInAuthority =
+                {
+                    Enabled = true,
+                    Issuer = "https://cloudshell.test",
+                    Audience = "cloudshell-control-plane"
+                }
+            }));
+
+        var token = tokens.IssueToken(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "user-1"),
+                new Claim(ClaimTypes.Name, "Ada"),
+                new Claim(ClaimTypes.Role, "CloudShell.Reader"),
+                new Claim(
+                    CloudShellAuthenticationOptions.ResourceGroupClaimType,
+                    "group-a")
+            ],
+            "cloudshell-control-plane",
+            ["ControlPlane.Access"]);
+
+        var principal = tokens.ValidateToken(token.AccessToken);
+
+        Assert.NotNull(principal);
+        Assert.Equal("Ada", principal.FindFirst(ClaimTypes.Name)?.Value);
+        Assert.Contains(
+            principal.Claims,
+            claim => claim.Type == ClaimTypes.Role && claim.Value == "CloudShell.Reader");
+        Assert.Contains(
+            principal.Claims,
+            claim => claim.Type == CloudShellAuthenticationOptions.ResourceGroupClaimType &&
+                claim.Value == "group-a");
+    }
+
+    [Fact]
+    public void BuiltInAuthorityToken_RejectsTamperedToken()
+    {
+        using var tokens = new BuiltInAuthorityTokenService(Options.Create(
+            new CloudShellAuthenticationOptions
+            {
+                BuiltInAuthority =
+                {
+                    Enabled = true,
+                    Issuer = "https://cloudshell.test",
+                    Audience = "cloudshell-control-plane"
+                }
+            }));
+        var token = tokens.IssueToken(
+            [new Claim(ClaimTypes.NameIdentifier, "user-1")],
+            "cloudshell-control-plane",
+            ["ControlPlane.Access"]);
+        var tampered = token.AccessToken[..^1] +
+            (token.AccessToken[^1] == 'a' ? 'b' : 'a');
+
+        Assert.Null(tokens.ValidateToken(tampered));
+    }
+
+    [Fact]
     public void RoleGrant_RequiresBothPermissionAndResourceGroupScope()
     {
         var options = new CloudShellAuthenticationOptions
