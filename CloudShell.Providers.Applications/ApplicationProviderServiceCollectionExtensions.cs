@@ -344,6 +344,19 @@ public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuil
         int targetPort = 443,
         string name = "https");
 
+    IExecutableApplicationResourceBuilder WithHttpHealthCheck(
+        string path,
+        string? endpointName = null,
+        string name = "health",
+        TimeSpan? timeout = null);
+
+    IExecutableApplicationResourceBuilder WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null);
+
     IExecutableApplicationResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
 
@@ -464,6 +477,35 @@ internal sealed class ExecutableApplicationResourceBuilder(
         int targetPort = 443,
         string name = "https") =>
         WithEndpointPort(name, targetPort, port, "https");
+
+    public IExecutableApplicationResourceBuilder WithHttpHealthCheck(
+        string path,
+        string? endpointName = null,
+        string name = "health",
+        TimeSpan? timeout = null) =>
+        WithHttpProbe(ResourceProbeType.Health, path, endpointName, name, timeout);
+
+    public IExecutableApplicationResourceBuilder WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        declared.Definition = declared.Definition with
+        {
+            HealthChecks = declared.Definition.HealthChecks
+                .Append(new ResourceHealthCheck(
+                    path,
+                    type,
+                    NormalizeNullable(endpointName),
+                    NormalizeNullable(name) ?? type.ToString().ToLowerInvariant(),
+                    timeout))
+                .ToArray()
+        };
+        return this;
+    }
 
     public IExecutableApplicationResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
@@ -754,6 +796,9 @@ internal sealed class ExecutableApplicationResourceBuilder(
             ApplicationResourceTypes.AspNetCoreProject,
             StringComparison.OrdinalIgnoreCase);
 
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     ICloudShellResourceBuilder ICloudShellResourceBuilder.Persist(bool overwrite) =>
         Persist(overwrite);
 
@@ -769,6 +814,27 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string value)
     {
         WithEnvironment(name, value);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithHttpHealthCheck(
+        string path,
+        string? endpointName,
+        string name,
+        TimeSpan? timeout)
+    {
+        WithHttpHealthCheck(path, endpointName, name, timeout);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName,
+        string? name,
+        TimeSpan? timeout)
+    {
+        WithHttpProbe(type, path, endpointName, name, timeout);
         return this;
     }
 

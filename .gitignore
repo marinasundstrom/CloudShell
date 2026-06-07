@@ -8,3 +8,4 @@ obj/
 CloudShell.Host/Data/
 samples/CloudShell.UiExtensionHost/Data/
 samples/CloudShell.ResourceHost/Data/
+samples/ProjectReference/Host/Data/

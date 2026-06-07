@@ -368,6 +368,19 @@ public interface IDockerContainerResourceBuilder :
 
     IDockerContainerResourceBuilder WithEndpoint(ResourceEndpoint endpoint);
 
+    IDockerContainerResourceBuilder WithHttpHealthCheck(
+        string path,
+        string? endpointName = null,
+        string name = "health",
+        TimeSpan? timeout = null);
+
+    IDockerContainerResourceBuilder WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null);
+
     new IDockerContainerResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
 
     new IDockerContainerResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
@@ -423,6 +436,35 @@ internal sealed class DockerContainerResourceBuilder(
         {
             Endpoints = declared.Definition.Endpoints
                 .Append(endpoint)
+                .ToArray()
+        };
+        return this;
+    }
+
+    public IDockerContainerResourceBuilder WithHttpHealthCheck(
+        string path,
+        string? endpointName = null,
+        string name = "health",
+        TimeSpan? timeout = null) =>
+        WithHttpProbe(ResourceProbeType.Health, path, endpointName, name, timeout);
+
+    public IDockerContainerResourceBuilder WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        declared.Definition = declared.Definition with
+        {
+            HealthChecks = declared.Definition.HealthChecks
+                .Append(new ResourceHealthCheck(
+                    path,
+                    type,
+                    NormalizeNullable(endpointName),
+                    NormalizeNullable(name) ?? type.ToString().ToLowerInvariant(),
+                    timeout))
                 .ToArray()
         };
         return this;
@@ -499,6 +541,9 @@ internal sealed class DockerContainerResourceBuilder(
         inner.Persist(overwrite);
         return this;
     }
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);

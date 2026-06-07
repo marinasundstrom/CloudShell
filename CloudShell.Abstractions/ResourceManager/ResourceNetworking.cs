@@ -18,7 +18,11 @@ public sealed record ServiceResourceDefinition(
     string Name,
     IReadOnlyList<ServiceTarget> Targets,
     IReadOnlyList<ServicePort> Ports,
-    IReadOnlyList<string> NetworkIds);
+    IReadOnlyList<string> NetworkIds,
+    IReadOnlyList<ResourceHealthCheck>? HealthChecks = null)
+{
+    public IReadOnlyList<ResourceHealthCheck> ResourceHealthChecks => HealthChecks ?? [];
+}
 
 public sealed record ServiceTarget(
     string ResourceId,

@@ -11,7 +11,8 @@ public sealed record DockerContainerResourceDefinition
         string dockerResourceId,
         IReadOnlyList<ResourceEndpoint>? endpoints = null,
         IReadOnlyList<string>? dependsOn = null,
-        ResourceLifetime lifetime = ResourceLifetime.ControlPlaneScoped)
+        ResourceLifetime lifetime = ResourceLifetime.ControlPlaneScoped,
+        IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
     {
         Id = DockerContainerResourceProvider.CreateContainerResourceId(id);
         Name = name;
@@ -20,6 +21,7 @@ public sealed record DockerContainerResourceDefinition
         Endpoints = endpoints ?? [];
         DependsOn = dependsOn ?? [];
         Lifetime = lifetime;
+        HealthChecks = healthChecks ?? [];
     }
 
     public string Id { get; init; }
@@ -35,4 +37,6 @@ public sealed record DockerContainerResourceDefinition
     public IReadOnlyList<string> DependsOn { get; init; }
 
     public ResourceLifetime Lifetime { get; init; }
+
+    public IReadOnlyList<ResourceHealthCheck> HealthChecks { get; init; }
 }

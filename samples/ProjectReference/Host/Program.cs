@@ -15,14 +15,18 @@ cloudShell.Resources(resources =>
     var api = resources.AddAspNetCoreProject(
         "application:project-reference-api",
         "Project Reference API",
-        "samples/CloudShell.ProjectReferenceApi/CloudShell.ProjectReferenceApi.csproj");
+        "../Api/CloudShell.ProjectReferenceApi.csproj")
+        .WithHttpHealthCheck("/health")
+        .WithHttpProbe(ResourceProbeType.Liveness, "/alive");
 
     resources
         .AddAspNetCoreProject(
             "application:project-reference-frontend",
             "Project Reference Frontend",
-            "samples/CloudShell.ProjectReferenceFrontend/CloudShell.ProjectReferenceFrontend.csproj",
+            "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
             endpoint: "http://localhost:5218")
+        .WithHttpHealthCheck("/healthz")
+        .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithReference(api)
         .DependsOn(api);
 });

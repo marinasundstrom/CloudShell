@@ -226,9 +226,22 @@ public sealed class PlatformResourceStore
                 .Where(networkId => !string.IsNullOrWhiteSpace(networkId))
                 .Select(networkId => networkId.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray()
+                .ToArray(),
+            HealthChecks = NormalizeHealthChecks(definition.ResourceHealthChecks)
         };
     }
+
+    private static IReadOnlyList<ResourceHealthCheck> NormalizeHealthChecks(
+        IReadOnlyList<ResourceHealthCheck> healthChecks) =>
+        healthChecks
+            .Where(check => !string.IsNullOrWhiteSpace(check.Path))
+            .Select(check => check with
+            {
+                Path = check.Path.Trim(),
+                EndpointName = string.IsNullOrWhiteSpace(check.EndpointName) ? null : check.EndpointName.Trim(),
+                Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
+            })
+            .ToArray();
 
     private static string NormalizeId(
         string id,

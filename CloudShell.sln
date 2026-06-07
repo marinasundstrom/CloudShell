@@ -37,13 +37,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.Providers.Docker
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ContainerHost", "samples\CloudShell.ContainerHost\CloudShell.ContainerHost.csproj", "{6DA06027-CDAF-4787-9C10-C9E2B78B23C0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReferenceHost", "samples\CloudShell.ProjectReferenceHost\CloudShell.ProjectReferenceHost.csproj", "{2DBF1BD0-4270-41A5-B93F-02408D6C3C2F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReferenceHost", "samples\ProjectReference\Host\CloudShell.ProjectReferenceHost.csproj", "{2DBF1BD0-4270-41A5-B93F-02408D6C3C2F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReferenceApi", "samples\CloudShell.ProjectReferenceApi\CloudShell.ProjectReferenceApi.csproj", "{3446A9CB-385C-4DF6-B854-1BB0D4BC8C0E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReferenceApi", "samples\ProjectReference\Api\CloudShell.ProjectReferenceApi.csproj", "{3446A9CB-385C-4DF6-B854-1BB0D4BC8C0E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReferenceFrontend", "samples\CloudShell.ProjectReferenceFrontend\CloudShell.ProjectReferenceFrontend.csproj", "{6588EDA0-2023-46B1-8E01-639E64657FC7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReferenceFrontend", "samples\ProjectReference\Frontend\CloudShell.ProjectReferenceFrontend.csproj", "{6588EDA0-2023-46B1-8E01-639E64657FC7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReference.ServiceDefaults", "samples\CloudShell.ProjectReference.ServiceDefaults\CloudShell.ProjectReference.ServiceDefaults.csproj", "{284F3798-6054-4601-BE79-0D09CB648463}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ProjectReference.ServiceDefaults", "samples\ProjectReference\ServiceDefaults\CloudShell.ProjectReference.ServiceDefaults.csproj", "{284F3798-6054-4601-BE79-0D09CB648463}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

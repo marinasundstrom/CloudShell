@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <ProjectReference Include="..\..\CloudShell.Configuration\CloudShell.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\CloudShell.Configuration\CloudShell.Configuration.csproj" />
   </ItemGroup>
 
 </Project>

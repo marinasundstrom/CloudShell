@@ -133,6 +133,19 @@ public interface IServiceResourceBuilder : ICloudShellResourceBuilder
         int? port = null,
         string protocol = "tcp");
 
+    IServiceResourceBuilder WithHttpHealthCheck(
+        string path,
+        string? endpointName = null,
+        string name = "health",
+        TimeSpan? timeout = null);
+
+    IServiceResourceBuilder WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null);
+
     IServiceResourceBuilder WithNetwork(INetworkResourceBuilder network);
 
     IServiceResourceBuilder WithNetwork(string networkId);
@@ -335,6 +348,35 @@ internal sealed class ServiceResourceBuilder(
         string protocol = "tcp") =>
         WithPort(name, targetPort, port, protocol, ResourceExposureScope.Public);
 
+    public IServiceResourceBuilder WithHttpHealthCheck(
+        string path,
+        string? endpointName = null,
+        string name = "health",
+        TimeSpan? timeout = null) =>
+        WithHttpProbe(ResourceProbeType.Health, path, endpointName, name, timeout);
+
+    public IServiceResourceBuilder WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        declared.Definition = declared.Definition with
+        {
+            HealthChecks = declared.Definition.ResourceHealthChecks
+                .Append(new ResourceHealthCheck(
+                    path,
+                    type,
+                    NormalizeNullable(endpointName),
+                    NormalizeNullable(name) ?? type.ToString().ToLowerInvariant(),
+                    timeout))
+                .ToArray()
+        };
+        return this;
+    }
+
     public IServiceResourceBuilder WithNetwork(INetworkResourceBuilder network)
     {
         ArgumentNullException.ThrowIfNull(network);
@@ -352,6 +394,9 @@ internal sealed class ServiceResourceBuilder(
         inner.DependsOn(networkId);
         return this;
     }
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     public IServiceResourceBuilder WithResourceGroup(string? resourceGroupId)
     {

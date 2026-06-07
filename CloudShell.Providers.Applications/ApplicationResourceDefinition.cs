@@ -22,7 +22,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? containerEngineId = null,
         int replicas = 1,
         IReadOnlyList<ServicePort>? endpointPorts = null,
-        string? resourceType = null)
+        string? resourceType = null,
+        IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
     {
         Id = id;
         Name = name;
@@ -44,6 +45,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ResourceType = string.IsNullOrWhiteSpace(resourceType)
             ? ApplicationResourceTypes.ExecutableApplication
             : resourceType;
+        HealthChecks = healthChecks ?? [];
     }
 
     public string Id { get; init; }
@@ -81,6 +83,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public IReadOnlyList<ServicePort> EndpointPorts { get; init; }
 
     public string ResourceType { get; init; }
+
+    public IReadOnlyList<ResourceHealthCheck> HealthChecks { get; init; }
 }
 
 public enum ApplicationLifetime

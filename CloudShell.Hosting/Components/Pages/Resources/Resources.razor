@@ -5,6 +5,7 @@
 @inject ILogStore LogStore
 @inject ShellCatalog ShellCatalog
 @inject ResourceOrchestrationService Orchestration
+@inject ResourceHealthCheckService HealthChecks
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
@@ -25,7 +26,9 @@
         <p>@L["Explore registered resources, project groups, endpoints, dependencies, and nested sub-resources."]</p>
     </div>
     <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral">@L["Refresh"]</FluentButton>
+        <FluentButton Appearance="Appearance.Neutral" OnClick="RefreshResourcesAsync">
+            @(IsCheckingHealth ? L["Checking..."] : L["Refresh"])
+        </FluentButton>
         <FluentButton Appearance="Appearance.Neutral" OnClick="OpenTemplates">
             @L["Templates"]
         </FluentButton>
@@ -146,6 +149,7 @@
             <span>@L["Type"]</span>
             <span>@L["Group"]</span>
             <span>@L["State"]</span>
+            <span>@L["Health"]</span>
             <span>@L["Endpoint"]</span>
             <span>@L["Actions"]</span>
         </div>
@@ -194,6 +198,7 @@
                     <span>@resource.Kind</span>
                     <span>@(group?.Name ?? L["Default group"])</span>
                     <span><span class="state-pill @GetStateClass(resource.State)">@resource.State</span></span>
+                    <span>@HealthIndicator(resource)</span>
                     <span class="endpoint">@resource.PrimaryEndpoint</span>
                     <span class="resource-row-actions" @onclick:stopPropagation="true">
                         @ResourceActionControls(resource)
@@ -245,6 +250,19 @@
                 <strong>@selected.State</strong>
                 <span>@L["Updated {0}", selected.LastUpdated.ToLocalTime().ToString("HH:mm:ss")]</span>
             </div>
+
+            @if (selected.ResourceHealthChecks.Count > 0)
+            {
+                var health = GetHealthSummary(selected);
+                <div class="blade-status health-status">
+                    <span class="state-dot @GetHealthClass(health?.Status)"></span>
+                    <strong>@GetHealthLabel(health)</strong>
+                    @if (health is not null)
+                    {
+                        <span>@L["Checked {0}", health.CheckedAt.ToLocalTime().ToString("HH:mm:ss")]</span>
+                    }
+                </div>
+            }
 
             @if (selected.DetailRoute is not null)
             {
@@ -388,6 +406,11 @@
     private string? ProcedureMessage { get; set; }
     private string? ExecutingActionKey { get; set; }
     private PendingResourceAction? PendingAction { get; set; }
+    private bool IsCheckingHealth { get; set; }
+    private IReadOnlyDictionary<string, ResourceHealthSummary> HealthResults { get; set; } =
+        new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
+
+    protected override Task OnInitializedAsync() => RefreshResourceHealthAsync();
 
     private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<CloudResource> allResources)
     {
@@ -507,6 +530,21 @@
     private void OpenTemplates() => Navigation.NavigateTo("/resources/templates");
 
     private void OpenSettings() => Navigation.NavigateTo("/resources/settings");
+
+    private async Task RefreshResourcesAsync() => await RefreshResourceHealthAsync();
+
+    private async Task RefreshResourceHealthAsync()
+    {
+        IsCheckingHealth = true;
+        try
+        {
+            HealthResults = await HealthChecks.CheckAsync(ResourceManager.GetResources());
+        }
+        finally
+        {
+            IsCheckingHealth = false;
+        }
+    }
 
     private void UpdateResource(CloudResource resource) =>
         Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");
@@ -740,6 +778,51 @@
 
     private bool IsExecutingAction(CloudResource resource, ResourceAction action) =>
         string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
+
+    private ResourceHealthSummary? GetHealthSummary(CloudResource resource) =>
+        HealthResults.GetValueOrDefault(resource.Id);
+
+    private RenderFragment HealthIndicator(CloudResource resource) => builder =>
+    {
+        if (resource.ResourceHealthChecks.Count == 0)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "muted");
+            builder.AddContent(2, L["n/a"]);
+            builder.CloseElement();
+            return;
+        }
+
+        var health = GetHealthSummary(resource);
+        builder.OpenElement(3, "span");
+        builder.AddAttribute(4, "class", $"health-pill {GetHealthClass(health?.Status)}");
+        builder.AddContent(5, GetHealthLabel(health));
+        builder.CloseElement();
+    };
+
+    private string GetHealthLabel(ResourceHealthSummary? health)
+    {
+        if (health is null)
+        {
+            return IsCheckingHealth ? L["Checking"].Value : L["Not checked"].Value;
+        }
+
+        return health.Status switch
+        {
+            ResourceHealthStatus.Healthy => L["Healthy"].Value,
+            ResourceHealthStatus.Unhealthy => L["Unhealthy"].Value,
+            _ => L["Unknown"].Value
+        };
+    }
+
+    private static string GetHealthClass(ResourceHealthStatus? status) =>
+        status switch
+        {
+            ResourceHealthStatus.Healthy => "health-healthy",
+            ResourceHealthStatus.Unhealthy => "health-unhealthy",
+            ResourceHealthStatus.Unknown => "health-unknown",
+            _ => "health-pending"
+        };
 
     private IResourceProcedureProvider? GetProcedureProvider(CloudResource resource)
     {

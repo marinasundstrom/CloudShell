@@ -751,7 +751,8 @@ public sealed partial class DockerContainerResourceProvider :
             NormalizeDependencies(definition.DockerResourceId, definition.DependsOn),
             ParentResourceId: definition.DockerResourceId,
             TypeId: "docker.container",
-            Actions: container is null ? [] : CreateContainerActions(container.State));
+            Actions: container is null ? [] : CreateContainerActions(container.State),
+            HealthChecks: definition.HealthChecks);
     }
 
     public static string CreateDockerResourceId(string id)

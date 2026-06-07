@@ -388,6 +388,53 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedAspNetCoreProjectBuilder_CanDeclareHealthChecks()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "API",
+                        "src/API/API.csproj")
+                    .WithHttpHealthCheck("/health")
+                    .WithHttpProbe(ResourceProbeType.Liveness, "/alive");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.Collection(
+            application.HealthChecks,
+            check =>
+            {
+                Assert.Equal("/health", check.Path);
+                Assert.Equal(ResourceProbeType.Health, check.Type);
+                Assert.Equal("health", check.Name);
+            },
+            check =>
+            {
+                Assert.Equal("/alive", check.Path);
+                Assert.Equal(ResourceProbeType.Liveness, check.Type);
+                Assert.Equal("liveness", check.Name);
+            });
+    }
+
+    [Fact]
     public void TypedAspNetCoreProjectBuilder_AssignsEndpointPortWhenOmitted()
     {
         var services = new ServiceCollection();

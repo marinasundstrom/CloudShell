@@ -178,7 +178,8 @@ public sealed class PlatformResourceProvider(
             definition.Ports.Count == 0 ? "host local" : $"host local {definition.Ports.Count} port(s)",
             DateTimeOffset.UtcNow,
             CreateServiceDependencies(definition),
-            TypeId: ServiceResourceType);
+            TypeId: ServiceResourceType,
+            HealthChecks: definition.ResourceHealthChecks);
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ServiceResourceDefinition definition) =>
         definition.Ports
@@ -261,7 +262,8 @@ public sealed class PlatformResourceProvider(
                 .Where(networkId => !string.IsNullOrWhiteSpace(networkId))
                 .Select(networkId => networkId.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray()
+                .ToArray(),
+            HealthChecks = NormalizeHealthChecks(definition.ResourceHealthChecks)
         };
 
     private static string NormalizeResourceId(
@@ -288,4 +290,16 @@ public sealed class PlatformResourceProvider(
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId.Trim();
+
+    private static IReadOnlyList<ResourceHealthCheck> NormalizeHealthChecks(
+        IReadOnlyList<ResourceHealthCheck> healthChecks) =>
+        healthChecks
+            .Where(check => !string.IsNullOrWhiteSpace(check.Path))
+            .Select(check => check with
+            {
+                Path = check.Path.Trim(),
+                EndpointName = string.IsNullOrWhiteSpace(check.EndpointName) ? null : check.EndpointName.Trim(),
+                Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
+            })
+            .ToArray();
 }

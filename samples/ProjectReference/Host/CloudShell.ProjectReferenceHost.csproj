@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\CloudShell.Configuration\CloudShell.Configuration.csproj" />
-    <ProjectReference Include="..\CloudShell.ProjectReference.ServiceDefaults\CloudShell.ProjectReference.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\CloudShell.Hosting\CloudShell.Hosting.csproj" />
+    <ProjectReference Include="..\..\..\CloudShell.Providers.Applications\CloudShell.Providers.Applications.csproj" />
   </ItemGroup>
 
 </Project>

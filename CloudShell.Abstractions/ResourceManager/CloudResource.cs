@@ -14,13 +14,16 @@ public sealed record CloudResource(
     string? DetailRoute = null,
     string? ParentResourceId = null,
     string? TypeId = null,
-    IReadOnlyList<ResourceAction>? Actions = null)
+    IReadOnlyList<ResourceAction>? Actions = null,
+    IReadOnlyList<ResourceHealthCheck>? HealthChecks = null)
 {
     public string PrimaryEndpoint => Endpoints.FirstOrDefault()?.Address ?? "none";
 
     public string EffectiveTypeId => TypeId ?? Kind;
 
     public IReadOnlyList<ResourceAction> ResourceActions => Actions ?? [];
+
+    public IReadOnlyList<ResourceHealthCheck> ResourceHealthChecks => HealthChecks ?? [];
 }
 
 public enum ResourceState

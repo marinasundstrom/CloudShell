@@ -221,10 +221,35 @@ h3 {
     background: #8b5cf6;
 }
 
+.health-healthy {
+    background: #16a34a;
+}
+
+.health-unhealthy {
+    background: #dc2626;
+}
+
+.health-unknown,
+.health-pending {
+    background: #64748b;
+}
+
 .state-pill {
     display: inline-flex;
     align-items: center;
     min-width: 4.6rem;
+    justify-content: center;
+    border-radius: 999px;
+    padding: .18rem .45rem;
+    color: white;
+    font-size: .76rem;
+    font-weight: 650;
+}
+
+.health-pill {
+    display: inline-flex;
+    align-items: center;
+    min-width: 5.2rem;
     justify-content: center;
     border-radius: 999px;
     padding: .18rem .45rem;
@@ -332,6 +357,7 @@ h3 {
         minmax(8rem, .85fr)
         minmax(8rem, .9fr)
         5.5rem
+        5.8rem
         minmax(12rem, 1fr)
         minmax(10rem, .85fr);
     align-items: center;
@@ -598,6 +624,10 @@ h3 {
 
 .blade-status strong {
     color: #242424;
+}
+
+.health-status {
+    margin-top: -.7rem;
 }
 
 .blade-actions {
@@ -1559,7 +1589,7 @@ h3 {
 
     .resource-list-header,
     .resource-tree-row {
-        min-width: 62rem;
+        min-width: 68rem;
     }
 }
 /* Authentication */

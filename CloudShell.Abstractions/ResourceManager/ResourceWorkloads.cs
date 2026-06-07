@@ -56,6 +56,19 @@ public interface IContainerResourceBuilder :
         string protocol = "tcp",
         ResourceExposureScope exposure = ResourceExposureScope.Local);
 
+    IContainerResourceBuilder WithHttpHealthCheck(
+        string path,
+        string? endpointName = null,
+        string name = "health",
+        TimeSpan? timeout = null);
+
+    IContainerResourceBuilder WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null);
+
     IContainerResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
 

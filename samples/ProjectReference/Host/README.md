@@ -35,7 +35,7 @@ time.
 From the repository root:
 
 ```bash
-dotnet run --project samples/CloudShell.ProjectReferenceHost --urls http://localhost:5104
+dotnet run --project samples/ProjectReference/Host --urls http://localhost:5104
 ```
 
 Open:
@@ -53,5 +53,5 @@ http://localhost:5218/upstream
 
 The response includes the resolved API endpoint and the API health payload.
 
-Runtime state is stored under `samples/CloudShell.ProjectReferenceHost/Data/`
+Runtime state is stored under `samples/ProjectReference/Host/Data/`
 and is ignored by git.

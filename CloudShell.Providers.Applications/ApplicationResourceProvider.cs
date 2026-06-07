@@ -843,7 +843,8 @@ public sealed partial class ApplicationResourceProvider(
             DateTimeOffset.UtcNow,
             application.DependsOn,
             TypeId: application.ResourceType,
-            Actions: CreateActions(state));
+            Actions: CreateActions(state),
+            HealthChecks: application.HealthChecks);
     }
 
     private static string GetResourceKind(ApplicationResourceDefinition application) =>
@@ -1107,6 +1108,7 @@ public sealed partial class ApplicationResourceProvider(
             DependsOn = NormalizeDependencies(definition.DependsOn, id),
             References = NormalizeReferences(definition.References, id),
             EndpointPorts = NormalizeEndpointPorts(definition.EndpointPorts, resourceType, definition.Endpoint),
+            HealthChecks = NormalizeHealthChecks(definition.HealthChecks),
             EnvironmentVariables = definition.EnvironmentVariables
                 .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
                 .Select(variable => variable with { Name = variable.Name.Trim() })
@@ -1406,6 +1408,18 @@ public sealed partial class ApplicationResourceProvider(
             ApplicationLifetime.ControlPlaneScoped => ResourceLifetime.ControlPlaneScoped,
             _ => ResourceLifetime.Detached
         };
+
+    private static IReadOnlyList<ResourceHealthCheck> NormalizeHealthChecks(
+        IReadOnlyList<ResourceHealthCheck> healthChecks) =>
+        healthChecks
+            .Where(check => !string.IsNullOrWhiteSpace(check.Path))
+            .Select(check => check with
+            {
+                Path = check.Path.Trim(),
+                EndpointName = string.IsNullOrWhiteSpace(check.EndpointName) ? null : check.EndpointName.Trim(),
+                Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
+            })
+            .ToArray();
 
     private static bool IsHidden(ApplicationResourceDefinition application) =>
         application.EnvironmentVariables.Any(variable =>
