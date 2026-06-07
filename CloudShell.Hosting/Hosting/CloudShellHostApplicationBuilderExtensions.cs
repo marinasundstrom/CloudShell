@@ -60,6 +60,8 @@ public static class CloudShellHostApplicationBuilderExtensions
 
         builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
         builder.Services.AddFluentUIComponents();
+        builder.Services.Configure<CloudShellDisplayOptions>(
+            builder.Configuration.GetSection(CloudShellDisplayOptions.SectionName));
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
 

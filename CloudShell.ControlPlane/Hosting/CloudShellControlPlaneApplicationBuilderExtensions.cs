@@ -25,6 +25,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddHttpClient();
         builder.Logging.AddFilter("Microsoft.EntityFrameworkCore.Database.Command", LogLevel.Warning);
         builder.Services.AddCloudShellControlPlaneOpenApi();
+        builder.Services.Configure<ResourceManagerOptions>(
+            builder.Configuration.GetSection(ResourceManagerOptions.SectionName));
 
         ConfigurePersistence(builder);
         builder.Services.AddCloudShellAuthentication(builder.Configuration);

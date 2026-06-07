@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@inject Microsoft.Extensions.Options.IOptionsMonitor<CloudShellDisplayOptions> DisplayOptions
+@inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject IStringLocalizer<SharedResource> L
 
 <div class="shell">
@@ -6,7 +8,7 @@
         <div class="brand">
             <div class="brand-mark">CS</div>
             <div class="brand-text">
-                <div class="brand-name">CloudShell</div>
+                <div class="brand-name">@GetApplicationName()</div>
                 <div class="brand-subtitle">@L["Platform control plane"]</div>
             </div>
             <NavToggle />
@@ -24,7 +26,7 @@
         <header class="shell-topbar">
             <div class="environment-picker">
                 <span class="eyebrow">@L["Environment"]</span>
-                <strong>@L["Development"]</strong>
+                <strong>@GetEnvironmentName()</strong>
             </div>
             <div class="command-surface">
                 <LanguageSelector />
@@ -56,3 +58,15 @@
     <a href="." class="reload">@L["Reload"]</a>
     <span class="dismiss">x</span>
 </div>
+
+@code {
+    private string GetApplicationName() =>
+        string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.ApplicationName)
+            ? "CloudShell"
+            : DisplayOptions.CurrentValue.ApplicationName.Trim();
+
+    private string GetEnvironmentName() =>
+        string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.EnvironmentName)
+            ? HostEnvironment.EnvironmentName
+            : DisplayOptions.CurrentValue.EnvironmentName.Trim();
+}

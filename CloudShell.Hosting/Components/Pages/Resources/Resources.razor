@@ -1,11 +1,13 @@
 @page "/resources"
 @rendermode InteractiveServer
+@implements IAsyncDisposable
 @inject IResourceManagerStore ResourceManager
 @inject IResourceRegistrationStore Registrations
 @inject ILogStore LogStore
 @inject ShellCatalog ShellCatalog
 @inject ResourceOrchestrationService Orchestration
 @inject ResourceHealthCheckService HealthChecks
+@inject ResourceOrchestratorSelectionStore SelectionStore
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
@@ -389,6 +391,7 @@
 @code {
     private const string UngroupedScope = "__ungrouped";
     private readonly HashSet<string> CollapsedResourceIds = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SemaphoreSlim HealthRefreshLock = new(1, 1);
     private string? Filter { get; set; }
     private string? SelectedScope { get; set; }
     private CloudResource? SelectedResource { get; set; }
@@ -399,8 +402,17 @@
     private bool IsCheckingHealth { get; set; }
     private IReadOnlyDictionary<string, ResourceHealthSummary> HealthResults { get; set; } =
         new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
+    private CancellationTokenSource? HealthPollingCancellation { get; set; }
+    private Task? HealthPollingTask { get; set; }
+    private bool IsDisposed { get; set; }
 
-    protected override Task OnInitializedAsync() => RefreshResourceHealthAsync();
+    protected override Task OnInitializedAsync()
+    {
+        HealthPollingCancellation = new CancellationTokenSource();
+        HealthPollingTask = PollResourceHealthAsync(HealthPollingCancellation.Token);
+
+        return RefreshResourceHealthAsync();
+    }
 
     private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<CloudResource> allResources)
     {
@@ -523,17 +535,89 @@
 
     private async Task RefreshResourcesAsync() => await RefreshResourceHealthAsync();
 
-    private async Task RefreshResourceHealthAsync()
+    private async Task RefreshResourceHealthAsync(CancellationToken cancellationToken = default)
     {
-        IsCheckingHealth = true;
+        if (IsDisposed ||
+            !await HealthRefreshLock.WaitAsync(0, cancellationToken))
+        {
+            return;
+        }
+
         try
         {
-            HealthResults = await HealthChecks.CheckAsync(ResourceManager.GetResources());
+            await InvokeAsync(() =>
+            {
+                IsCheckingHealth = true;
+                StateHasChanged();
+            });
+
+            var resources = ResourceManager.GetResources();
+            var healthResults = await HealthChecks.CheckAsync(resources, cancellationToken);
+
+            await InvokeAsync(() =>
+            {
+                HealthResults = healthResults;
+                StateHasChanged();
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
         finally
         {
-            IsCheckingHealth = false;
+            if (!IsDisposed)
+            {
+                await InvokeAsync(() =>
+                {
+                    IsCheckingHealth = false;
+                    StateHasChanged();
+                });
+            }
+
+            HealthRefreshLock.Release();
         }
+    }
+
+    private async Task PollResourceHealthAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(GetHealthCheckInterval(), cancellationToken);
+                await RefreshResourceHealthAsync(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private TimeSpan GetHealthCheckInterval() =>
+        TimeSpan.FromSeconds(SelectionStore.GetHealthCheckIntervalSettings().Seconds);
+
+    public async ValueTask DisposeAsync()
+    {
+        IsDisposed = true;
+
+        if (HealthPollingCancellation is not null)
+        {
+            await HealthPollingCancellation.CancelAsync();
+        }
+
+        if (HealthPollingTask is not null)
+        {
+            try
+            {
+                await HealthPollingTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        HealthPollingCancellation?.Dispose();
+        HealthRefreshLock.Dispose();
     }
 
     private void UpdateResource(CloudResource resource) =>

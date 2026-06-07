@@ -34,6 +34,15 @@
                 <p>@L["Active orchestrator"]</p>
             </div>
         </div>
+        <div class="selected-type-card">
+            <span class="resource-kind-icon">H</span>
+            <div>
+                <strong>@L["{0}s", GetEffectiveHealthCheckInterval().Seconds]</strong>
+                <p>@(GetEffectiveHealthCheckInterval().IsConfigured
+                    ? L["Health interval from appsettings"]
+                    : L["Health interval from settings"])</p>
+            </div>
+        </div>
     </aside>
 
     <div class="panel registration-host">
@@ -75,17 +84,36 @@
                 }
             </select>
 
+            <label for="health-check-interval-seconds">@L["Health check interval"]</label>
+            <input id="health-check-interval-seconds"
+                   type="number"
+                   min="@ResourceOrchestratorSelectionStore.MinimumHealthCheckIntervalSeconds"
+                   max="@ResourceOrchestratorSelectionStore.MaximumHealthCheckIntervalSeconds"
+                   step="1"
+                   disabled="@IsHealthCheckIntervalConfigured"
+                   @bind="SelectedHealthCheckIntervalSeconds" />
+            <small>
+                @if (IsHealthCheckIntervalConfigured)
+                {
+                    @L["appsettings ResourceManager:HealthCheckIntervalSeconds is overriding this setting."]
+                }
+                else
+                {
+                    @L["CloudShell probes supported resources on this interval while the Resources page is open."]
+                }
+            </small>
+
             @if (PendingChange)
             {
                 <div class="procedure-confirmation">
-                    <strong>@L["Change orchestrator?"]</strong>
-                    <span>@L["Existing resources are not migrated automatically. The new orchestrator will be used for future lifecycle actions when it can handle the selected resource; otherwise CloudShell falls back to the default orchestrator."]</span>
+                    <strong>@L["Apply resource settings?"]</strong>
+                    <span>@L["Existing resources are not migrated automatically when the orchestrator changes. The new settings apply to future lifecycle actions and health checks."]</span>
                     <div class="form-actions">
                         <FluentButton Appearance="Appearance.Neutral" OnClick="CancelChange">
                             @L["Cancel"]
                         </FluentButton>
                         <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmChange">
-                            @L["Change orchestrator"]
+                            @L["Apply settings"]
                         </FluentButton>
                     </div>
                 </div>
@@ -107,9 +135,14 @@
 @code {
     private string SelectedOrchestratorId { get; set; } = "default";
     private string? SelectedContainerEngineId { get; set; }
+    private int SelectedHealthCheckIntervalSeconds { get; set; } =
+        ResourceOrchestratorSelectionStore.DefaultHealthCheckIntervalSeconds;
     private IReadOnlyList<ContainerEngineOption> ContainerEngines { get; set; } = [];
     private IReadOnlyList<string> ConfigurationWarnings { get; set; } = [];
     private bool PendingChange { get; set; }
+
+    private bool IsHealthCheckIntervalConfigured =>
+        SelectionStore.GetHealthCheckIntervalSettings().IsConfigured;
 
     private bool CanApply =>
         !string.Equals(
@@ -119,7 +152,10 @@
         !string.Equals(
             NormalizeOptional(SelectedContainerEngineId),
             SelectionStore.Get().PreferredContainerEngineId,
-            StringComparison.OrdinalIgnoreCase);
+            StringComparison.OrdinalIgnoreCase) ||
+        (!IsHealthCheckIntervalConfigured &&
+            ResourceOrchestratorSelectionStore.NormalizeHealthCheckInterval(SelectedHealthCheckIntervalSeconds) !=
+            SelectionStore.Get().HealthCheckIntervalSeconds);
 
     protected override void OnInitialized()
     {
@@ -132,6 +168,7 @@
         var selection = SelectionStore.Get();
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerEngineId = selection.PreferredContainerEngineId;
+        SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
         ContainerEngines = GetContainerEngines();
         ConfigurationWarnings = GetConfigurationWarnings();
     }
@@ -161,6 +198,7 @@
         var selection = SelectionStore.Get();
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerEngineId = selection.PreferredContainerEngineId;
+        SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
     }
@@ -169,12 +207,17 @@
     {
         SelectionStore.Select(
             SelectedOrchestratorId,
-            SelectedContainerEngineId);
+            SelectedContainerEngineId,
+            SelectedHealthCheckIntervalSeconds);
+        SelectedHealthCheckIntervalSeconds = SelectionStore.Get().HealthCheckIntervalSeconds;
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
     }
 
     private void Cancel() => Navigation.NavigateTo("/resources");
+
+    private ResourceHealthCheckIntervalSettings GetEffectiveHealthCheckInterval() =>
+        SelectionStore.GetHealthCheckIntervalSettings();
 
     private IReadOnlyList<ContainerEngineOption> GetContainerEngines() =>
         ContainerEngineProviders
