@@ -6,7 +6,7 @@ namespace CloudShell.Abstractions.Tests;
 public sealed class CloudShellConfigurationTests
 {
     [Fact]
-    public void GetResourceEndpoint_ReturnsNamedEndpointUri()
+    public void GetResourceUri_ReturnsNamedEndpointUri()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -16,7 +16,7 @@ public sealed class CloudShellConfigurationTests
             })
             .Build();
 
-        var endpoint = configuration.GetResourceEndpoint("example-api", "https");
+        var endpoint = configuration.GetResourceUri("example-api", "https");
 
         Assert.NotNull(endpoint);
         Assert.Equal("https", endpoint.Scheme);
@@ -25,7 +25,7 @@ public sealed class CloudShellConfigurationTests
     }
 
     [Fact]
-    public void GetResourceEndpoint_ReturnsNullWhenEndpointIsMissing()
+    public void GetResourceUri_ReturnsNullWhenEndpointIsMissing()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -34,7 +34,7 @@ public sealed class CloudShellConfigurationTests
             })
             .Build();
 
-        var endpoint = configuration.GetResourceEndpoint("redis-cache", "http");
+        var endpoint = configuration.GetResourceUri("redis-cache", "http");
 
         Assert.Null(endpoint);
     }

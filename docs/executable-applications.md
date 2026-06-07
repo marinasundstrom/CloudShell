@@ -163,7 +163,7 @@ running in a container.
 Applications can read the generated URLs directly through `IConfiguration`:
 
 ```csharp
-client.BaseAddress = builder.Configuration.GetResourceEndpoint("example-api", "http");
+client.BaseAddress = builder.Configuration.GetResourceUri("example-api", "http");
 ```
 
 After adding the resource through `/resources/add`, use the Run action to start

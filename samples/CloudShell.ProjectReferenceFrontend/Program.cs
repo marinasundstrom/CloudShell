@@ -17,7 +17,7 @@ app.MapGet("/upstream", async (
     IHttpClientFactory httpClientFactory,
     CancellationToken cancellationToken) =>
 {
-    var endpoint = configuration.GetRequiredResourceEndpoint("project-reference-api", "http");
+    var endpoint = configuration.GetRequiredResourceUri("project-reference-api", "http");
     var client = httpClientFactory.CreateClient("project-reference-api");
     var message = await client.GetFromJsonAsync<ApiMessage>(
         "/message",

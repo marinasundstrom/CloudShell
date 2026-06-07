@@ -4,7 +4,7 @@ namespace CloudShell.Configuration;
 
 public static class CloudShellServiceDiscoveryConfigurationExtensions
 {
-    public static Uri? GetResourceEndpoint(
+    public static Uri? GetResourceUri(
         this IConfiguration configuration,
         string resourceId,
         string endpointName)

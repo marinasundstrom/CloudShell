@@ -36,14 +36,14 @@ public static class Extensions
         services.AddHttpClient(name, (serviceProvider, client) =>
         {
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-            client.BaseAddress = configuration.GetRequiredResourceEndpoint(resourceName, endpointName);
+            client.BaseAddress = configuration.GetRequiredResourceUri(resourceName, endpointName);
         });
 
-    public static Uri GetRequiredResourceEndpoint(
+    public static Uri GetRequiredResourceUri(
         this IConfiguration configuration,
         string resourceName,
         string endpointName) =>
-        configuration.GetResourceEndpoint(resourceName, endpointName)
+        configuration.GetResourceUri(resourceName, endpointName)
         ?? throw new InvalidOperationException(
             $"Resource endpoint 'services:{resourceName}:{endpointName}' was not found in configuration.");
 }
