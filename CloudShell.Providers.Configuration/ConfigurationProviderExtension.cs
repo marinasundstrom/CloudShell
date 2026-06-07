@@ -32,7 +32,14 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                 "Configuration service",
                 "Create a local configuration service for settings and secrets that dependent resources can consume.",
                 "key",
-                15)
+                15,
+                probeOptions: new ResourceTypeProbeOptions(
+                    [
+                        new ResourceHealthCheck(
+                            "/healthz",
+                            EndpointName: "entries",
+                            Name: "health")
+                    ]))
             .AddResourceTab<Pages.ConfigurationStoreOverview>(
                 "configuration.store",
                 "overview",

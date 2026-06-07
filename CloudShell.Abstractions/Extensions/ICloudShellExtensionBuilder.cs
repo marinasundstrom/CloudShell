@@ -84,14 +84,16 @@ public interface ICloudShellExtensionBuilder
         string displayName,
         string description,
         string icon,
-        int order);
+        int order,
+        ResourceTypeProbeOptions? probeOptions = null);
 
     ICloudShellExtensionBuilder AddResourceType<TRegistrationComponent, TUpdateComponent>(
         string id,
         string displayName,
         string description,
         string icon,
-        int order);
+        int order,
+        ResourceTypeProbeOptions? probeOptions = null);
 
     ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,

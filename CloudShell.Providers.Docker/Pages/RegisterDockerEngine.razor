@@ -49,11 +49,17 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ResourceRegistrationProbeContext? ProbeContext { get; set; }
+
     private string SelectedGroupId { get; set; } = string.Empty;
 
     private async Task Register()
     {
-        await DockerProvider.SetupEngineAsync(SelectedGroupId, Registrations);
+        await DockerProvider.SetupEngineAsync(
+            SelectedGroupId,
+            Registrations,
+            ProbeContext?.GetSelectedHealthChecks());
         Navigation.NavigateTo("/resources");
     }
 

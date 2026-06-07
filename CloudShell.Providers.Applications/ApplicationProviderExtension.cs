@@ -43,7 +43,19 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "ASP.NET Core project",
                 "Register an ASP.NET Core project and run it through dotnet run with endpoints, references, and service discovery.",
                 "web",
-                21)
+                21,
+                probeOptions: new ResourceTypeProbeOptions(
+                    [
+                        new ResourceHealthCheck(
+                            "/healthz",
+                            EndpointName: "http",
+                            Name: "health"),
+                        new ResourceHealthCheck(
+                            "/alive",
+                            ResourceProbeType.Liveness,
+                            "http",
+                            "liveness")
+                    ]))
             .AddResourceType<Pages.RegisterContainerImageResource>(
                 ApplicationResourceTypes.ContainerImage,
                 "Container image",

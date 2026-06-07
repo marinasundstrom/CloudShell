@@ -208,7 +208,8 @@ else
             null,
             Math.Max(1, Replicas),
             BuildEndpointPorts(Application.ResourceType, Endpoint),
-            resourceType: Application.ResourceType);
+            resourceType: Application.ResourceType,
+            healthChecks: Application.HealthChecks);
 
         await ApplicationProvider.UpdateApplicationAsync(
             definition,

@@ -225,7 +225,8 @@ internal sealed class CloudShellExtensionBuilder(
         string displayName,
         string description,
         string icon,
-        int order)
+        int order,
+        ResourceTypeProbeOptions? probeOptions = null)
     {
         AddResourceType(
             id,
@@ -234,7 +235,8 @@ internal sealed class CloudShellExtensionBuilder(
             icon,
             order,
             typeof(TRegistrationComponent),
-            null);
+            null,
+            probeOptions);
 
         return this;
     }
@@ -244,7 +246,8 @@ internal sealed class CloudShellExtensionBuilder(
         string displayName,
         string description,
         string icon,
-        int order)
+        int order,
+        ResourceTypeProbeOptions? probeOptions = null)
     {
         AddResourceType(
             id,
@@ -253,7 +256,8 @@ internal sealed class CloudShellExtensionBuilder(
             icon,
             order,
             typeof(TRegistrationComponent),
-            typeof(TUpdateComponent));
+            typeof(TUpdateComponent),
+            probeOptions);
 
         return this;
     }
@@ -300,7 +304,8 @@ internal sealed class CloudShellExtensionBuilder(
         string icon,
         int order,
         Type registrationComponentType,
-        Type? updateComponentType)
+        Type? updateComponentType,
+        ResourceTypeProbeOptions? probeOptions)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
@@ -312,7 +317,8 @@ internal sealed class CloudShellExtensionBuilder(
             icon,
             order,
             registrationComponentType,
-            updateComponentType));
+            updateComponentType,
+            ProbeOptions: probeOptions));
     }
 
     private void AddNavigationItem(

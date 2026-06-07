@@ -59,19 +59,34 @@
         }
         else
         {
+            var probeContext = GetProbeContext(selectedType);
             <div class="panel-header">
                 <div>
                     <h2>@selectedType.DisplayName</h2>
                     <p>@selectedType.Description</p>
                 </div>
             </div>
-            <DynamicComponent Type="selectedType.RegistrationComponentType" />
+            @if (selectedType.ResourceProbeOptions.SupportsHealthChecks)
+            {
+                <div class="form-panel">
+                    <FluentCheckbox @bind-Value="probeContext.EnableHealthChecks">
+                        @L["Enable resource health checks"]
+                    </FluentCheckbox>
+                </div>
+            }
+            <CascadingValue Value="probeContext">
+                <CascadingValue Value="selectedType">
+                    <DynamicComponent Type="selectedType.RegistrationComponentType" />
+                </CascadingValue>
+            </CascadingValue>
         }
     </div>
 </section>
 
 @code {
     private string? SelectedTypeId { get; set; }
+    private Dictionary<string, ResourceRegistrationProbeContext> ProbeContexts { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
 
     protected override void OnInitialized()
     {
@@ -85,6 +100,17 @@
     }
 
     private void Cancel() => Navigation.NavigateTo("/resources");
+
+    private ResourceRegistrationProbeContext GetProbeContext(ResourceTypeContribution type)
+    {
+        if (!ProbeContexts.TryGetValue(type.Id, out var context))
+        {
+            context = new ResourceRegistrationProbeContext(type);
+            ProbeContexts[type.Id] = context;
+        }
+
+        return context;
+    }
 
     private static string GetTypeGlyph(ResourceTypeContribution type) =>
         type.Icon switch

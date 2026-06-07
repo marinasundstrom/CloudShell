@@ -163,9 +163,10 @@ public sealed partial class DockerContainerResourceProvider :
     public async Task SetupEngineAsync(
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
+        IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
         CancellationToken cancellationToken = default)
     {
-        var engine = GetEngineResource();
+        var engine = GetEngineResource(healthChecks);
 
         await registrations.RegisterAsync(
             Id,
@@ -386,10 +387,16 @@ public sealed partial class DockerContainerResourceProvider :
         }
     }
 
-    private CloudResource GetEngineResource() =>
-        GetResources().FirstOrDefault(resource =>
+    private CloudResource GetEngineResource(IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
+    {
+        var resource = GetResources().FirstOrDefault(resource =>
             string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase))
-        ?? throw new InvalidOperationException("The Docker Engine resource is not available.");
+            ?? throw new InvalidOperationException("The Docker Engine resource is not available.");
+
+        return healthChecks is null
+            ? resource
+            : resource with { HealthChecks = healthChecks };
+    }
 
     private async Task QueryDockerAsync(CancellationToken cancellationToken)
     {
@@ -491,7 +498,8 @@ public sealed partial class DockerContainerResourceProvider :
             lastUpdated,
             [],
             "/resources/docker-engine",
-            TypeId: "docker.engine");
+            TypeId: "docker.engine",
+            HealthChecks: definition.HealthChecks);
 
     private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(CloudResource resource) =>
         resource.EffectiveTypeId switch

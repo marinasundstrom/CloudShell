@@ -353,7 +353,8 @@ public sealed partial class ConfigurationResourceProvider :
             DateTimeOffset.UtcNow,
             [],
             TypeId: "configuration.store",
-            Actions: CreateActions(configurationStore));
+            Actions: CreateActions(configurationStore),
+            HealthChecks: configurationStore.HealthChecks);
 
     private ResourceState GetState(ConfigurationStoreDefinition configurationStore)
     {
@@ -517,6 +518,7 @@ public sealed partial class ConfigurationResourceProvider :
             Endpoint = string.IsNullOrWhiteSpace(definition.Endpoint)
                 ? null
                 : definition.Endpoint.TrimEnd('/'),
+            HealthChecks = NormalizeHealthChecks(definition.HealthChecks),
             Entries = definition.Entries
                 .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
                 .Select(entry => entry with
@@ -533,6 +535,18 @@ public sealed partial class ConfigurationResourceProvider :
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId;
+
+    private static IReadOnlyList<ResourceHealthCheck> NormalizeHealthChecks(
+        IReadOnlyList<ResourceHealthCheck> healthChecks) =>
+        healthChecks
+            .Where(check => !string.IsNullOrWhiteSpace(check.Path))
+            .Select(check => check with
+            {
+                Path = check.Path.Trim(),
+                EndpointName = string.IsNullOrWhiteSpace(check.EndpointName) ? null : check.EndpointName.Trim(),
+                Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
+            })
+            .ToArray();
 
     public bool IsAuthorized(string resourceId, string? token)
     {

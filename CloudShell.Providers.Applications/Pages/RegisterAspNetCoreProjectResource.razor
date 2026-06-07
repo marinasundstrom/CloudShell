@@ -105,6 +105,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ResourceRegistrationProbeContext? ProbeContext { get; set; }
+
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string ProjectPath { get; set; } = string.Empty;
@@ -147,7 +150,8 @@
             references: references,
             useServiceDiscovery: UseServiceDiscovery && references.Length > 0,
             endpointPorts: BuildEndpointPorts(),
-            resourceType: ApplicationResourceTypes.AspNetCoreProject);
+            resourceType: ApplicationResourceTypes.AspNetCoreProject,
+            healthChecks: ProbeContext?.GetSelectedHealthChecks());
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");

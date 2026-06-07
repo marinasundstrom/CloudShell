@@ -326,6 +326,40 @@ The registration component is rendered inside the common Add Resource page after
 
 Resource providers are not shown as a product concept in the UI. They are implementation services that resource types use to map external systems into CloudShell resources.
 
+Resource types can also provide default health checks through `ResourceTypeProbeOptions`. This gives the Add Resource UI the same health-check enablement path available to programmatic declarations such as `WithHttpHealthCheck(...)`, while keeping enablement on the resource instance explicit.
+
+```csharp
+builder.AddResourceType<Pages.RegisterAcmeService>(
+    "acme.service",
+    "Acme service",
+    "Register an Acme service endpoint.",
+    "server",
+    20,
+    probeOptions: new ResourceTypeProbeOptions(
+    [
+        new ResourceHealthCheck(
+            "/healthz",
+            EndpointName: "http",
+            Name: "health")
+    ]));
+```
+
+When a selected resource type has default health checks, the common Add Resource page shows an "Enable resource health checks" checkbox. The checkbox only controls the resource being created. If it is cleared, no health checks are written to that resource even though the type supports them.
+
+Registration components can consume the selected instance settings through the cascading `ResourceRegistrationProbeContext` and copy them into their provider-specific definition:
+
+```csharp
+[CascadingParameter]
+public ResourceRegistrationProbeContext? ProbeContext { get; set; }
+
+var definition = new AcmeServiceDefinition(
+    id,
+    name,
+    healthChecks: ProbeContext?.GetSelectedHealthChecks());
+```
+
+Default checks are expectations, not proof that every resource instance implements the endpoint. ASP.NET Core projects are a good example: a type may provide `/healthz` or `/alive` defaults, but the app must map those endpoints. If it does not, the Resources UI will correctly show an unhealthy or unknown result unless the user disables the checks for that resource.
+
 ## Internal resource providers
 
 Implement `IResourceProvider` to contribute discovered resource data:

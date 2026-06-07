@@ -71,6 +71,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public ResourceRegistrationProbeContext? ProbeContext { get; set; }
+
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string? Endpoint { get; set; }
@@ -110,7 +113,8 @@
             normalizedResourceId,
             Name,
             BuildEntries(),
-            endpoint: Endpoint);
+            endpoint: Endpoint,
+            healthChecks: ProbeContext?.GetSelectedHealthChecks());
 
         await ConfigurationProvider.SetupStoreAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");
