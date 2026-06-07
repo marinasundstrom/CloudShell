@@ -80,6 +80,34 @@ builder.Services
     .AddAcme();
 ```
 
+`AddExtension<T>()` registers the extension as supported and enabled by host
+configuration. Use this for programmatic development environments where the
+host code defines the active environment.
+
+Shared environments can register an extension as supported but leave activation
+to the Extensions UI and the persisted activation store:
+
+```csharp
+builder.Services
+    .AddCloudShell()
+    .AddExtension<CoreShellExtension>()
+    .AddExtension<ResourceManagerExtension>()
+    .AddSupportedExtension<AcmeExtension>();
+```
+
+Supported extensions are disabled until the UI enables them. Host configuration
+can also force an extension off:
+
+```csharp
+builder.Services
+    .AddCloudShell()
+    .DisableExtension<AcmeExtension>();
+```
+
+Host-enabled and host-disabled extensions cannot be changed from the UI. UI
+activation state is persisted by `ICloudShellExtensionActivationStore`; the EF
+Core persistence provider stores it in the `ExtensionActivations` table.
+
 ## Views
 
 Views are ordinary routable Blazor components in the extension assembly. `AddView<TComponent>` records the component assembly so the host can include it in both Blazor routing and server endpoint mapping.

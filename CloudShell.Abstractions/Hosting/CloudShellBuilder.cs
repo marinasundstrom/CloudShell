@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CloudShell.Abstractions.Hosting;
 
@@ -37,6 +38,8 @@ public static class CloudShellBuilderExtensions
             services.AddSingleton(new ResourceDeclarationStore());
         }
 
+        services.TryAddSingleton<ICloudShellExtensionActivationStore, InMemoryCloudShellExtensionActivationStore>();
+
         return new ControlPlaneBuilder(services, registry);
     }
 
@@ -45,17 +48,33 @@ public static class CloudShellBuilderExtensions
 
     public static ICloudShellBuilder AddExtension<TExtension>(this ICloudShellBuilder builder)
         where TExtension : class, ICloudShellExtension, new() =>
-        builder.AddExtension(new TExtension());
+        builder.AddExtension(new TExtension(), CloudShellExtensionActivationPolicy.Enabled);
 
     public static IControlPlaneBuilder AddExtension<TExtension>(this IControlPlaneBuilder builder)
         where TExtension : class, ICloudShellExtension, new() =>
-        builder.AddExtension(new TExtension());
+        builder.AddExtension(new TExtension(), CloudShellExtensionActivationPolicy.Enabled);
+
+    public static ICloudShellBuilder AddSupportedExtension<TExtension>(this ICloudShellBuilder builder)
+        where TExtension : class, ICloudShellExtension, new() =>
+        builder.AddExtension(new TExtension(), CloudShellExtensionActivationPolicy.UserManaged);
+
+    public static IControlPlaneBuilder AddSupportedExtension<TExtension>(this IControlPlaneBuilder builder)
+        where TExtension : class, ICloudShellExtension, new() =>
+        builder.AddExtension(new TExtension(), CloudShellExtensionActivationPolicy.UserManaged);
+
+    public static ICloudShellBuilder DisableExtension<TExtension>(this ICloudShellBuilder builder)
+        where TExtension : class, ICloudShellExtension, new() =>
+        builder.AddExtension(new TExtension(), CloudShellExtensionActivationPolicy.Disabled);
+
+    public static IControlPlaneBuilder DisableExtension<TExtension>(this IControlPlaneBuilder builder)
+        where TExtension : class, ICloudShellExtension, new() =>
+        builder.AddExtension(new TExtension(), CloudShellExtensionActivationPolicy.Disabled);
 
     public static ICloudShellBuilder AddExtension(
         this ICloudShellBuilder builder,
         ICloudShellExtension extension)
     {
-        AddExtensionCore(builder, extension);
+        AddExtensionCore(builder, extension, CloudShellExtensionActivationPolicy.Enabled);
         return builder;
     }
 
@@ -63,13 +82,32 @@ public static class CloudShellBuilderExtensions
         this IControlPlaneBuilder builder,
         ICloudShellExtension extension)
     {
-        AddExtensionCore(builder, extension);
+        AddExtensionCore(builder, extension, CloudShellExtensionActivationPolicy.Enabled);
+        return builder;
+    }
+
+    public static ICloudShellBuilder AddExtension(
+        this ICloudShellBuilder builder,
+        ICloudShellExtension extension,
+        CloudShellExtensionActivationPolicy activationPolicy)
+    {
+        AddExtensionCore(builder, extension, activationPolicy);
+        return builder;
+    }
+
+    public static IControlPlaneBuilder AddExtension(
+        this IControlPlaneBuilder builder,
+        ICloudShellExtension extension,
+        CloudShellExtensionActivationPolicy activationPolicy)
+    {
+        AddExtensionCore(builder, extension, activationPolicy);
         return builder;
     }
 
     private static void AddExtensionCore(
         ICloudShellBuilder builder,
-        ICloudShellExtension extension)
+        ICloudShellExtension extension,
+        CloudShellExtensionActivationPolicy activationPolicy)
     {
         ArgumentNullException.ThrowIfNull(extension);
 
@@ -78,7 +116,10 @@ public static class CloudShellBuilderExtensions
             throw new InvalidOperationException("Extensions must be registered on the Control Plane builder returned by AddCloudShellControlPlane().");
         }
 
-        var extensionBuilder = new CloudShellExtensionBuilder(builder.Services, extension.Manifest);
+        var extensionBuilder = new CloudShellExtensionBuilder(
+            builder.Services,
+            extension.Manifest,
+            activationPolicy);
         extension.Configure(extensionBuilder);
 
         controlPlaneBuilder.ExtensionRegistry.Add(extensionBuilder.Build());

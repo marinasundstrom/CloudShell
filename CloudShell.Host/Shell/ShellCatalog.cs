@@ -5,10 +5,22 @@ using CloudShell.Abstractions.Shell;
 
 namespace CloudShell.Host.Shell;
 
-public sealed class ShellCatalog(CloudShellExtensionRegistry extensionRegistry)
+public sealed class ShellCatalog(
+    CloudShellExtensionRegistry extensionRegistry,
+    ICloudShellExtensionActivationStore activationStore)
 {
-    public IReadOnlyList<CloudShellExtensionRegistration> Extensions { get; } = extensionRegistry.Extensions
+    public IReadOnlyList<CloudShellExtensionRegistration> Extensions => extensionRegistry
+        .GetActiveExtensions(activationStore)
         .OrderBy(extension => extension.DisplayName, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+    public IReadOnlyList<CloudShellExtensionRegistration> SupportedExtensions => extensionRegistry.Extensions
+        .OrderBy(extension => extension.DisplayName, StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+    public IReadOnlyList<CloudShellExtensionStatus> ExtensionStatuses => extensionRegistry
+        .GetStatuses(activationStore)
+        .OrderBy(status => status.Extension.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
     public IReadOnlyList<NavItemContribution> NavigationItems => Extensions
@@ -40,15 +52,25 @@ public sealed class ShellCatalog(CloudShellExtensionRegistry extensionRegistry)
         .ThenBy(type => type.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    public IReadOnlyList<Assembly> ViewAssemblies => Views
-        .Select(view => view.ComponentType.Assembly)
-        .Concat(CustomViews
-            .SelectMany(view => view.ViewMenuItems)
-            .Select(menuItem => menuItem.ComponentType.Assembly))
+    public IReadOnlyList<Assembly> ViewAssemblies => SupportedExtensions
+        .SelectMany(extension => extension.Views
+            .Select(view => view.ComponentType.Assembly)
+            .Concat(extension.CustomViews
+                .SelectMany(view => view.ViewMenuItems)
+                .Select(menuItem => menuItem.ComponentType.Assembly))
+            .Concat(extension.ResourceTypes.Select(type => type.RegistrationComponentType.Assembly)))
         .Distinct()
         .ToArray();
 
     public string? StartRoute => Extensions
         .Select(extension => extension.StartRoute)
         .FirstOrDefault(route => !string.IsNullOrWhiteSpace(route));
+
+    public bool IsActiveRouteComponent(Type componentType) =>
+        Extensions
+            .SelectMany(extension => extension.Views.Select(view => view.ComponentType)
+                .Concat(extension.CustomViews
+                    .SelectMany(view => view.ViewMenuItems)
+                    .Select(menuItem => menuItem.ComponentType)))
+            .Any(type => type == componentType);
 }

@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,18 +9,20 @@ public static class ConfigurationProviderServiceCollectionExtensions
 {
     public static ICloudShellBuilder AddConfigurationProvider(
         this ICloudShellBuilder builder,
-        Action<ConfigurationProviderOptions>? configure = null)
+        Action<ConfigurationProviderOptions>? configure = null,
+        CloudShellExtensionActivationPolicy activationPolicy = CloudShellExtensionActivationPolicy.Enabled)
     {
         AddConfigurationProviderCore(builder, configure);
-        return builder.AddExtension<ConfigurationProviderExtension>();
+        return builder.AddExtension(new ConfigurationProviderExtension(), activationPolicy);
     }
 
     public static IControlPlaneBuilder AddConfigurationProvider(
         this IControlPlaneBuilder builder,
-        Action<ConfigurationProviderOptions>? configure = null)
+        Action<ConfigurationProviderOptions>? configure = null,
+        CloudShellExtensionActivationPolicy activationPolicy = CloudShellExtensionActivationPolicy.Enabled)
     {
         AddConfigurationProviderCore(builder, configure);
-        return builder.AddExtension<ConfigurationProviderExtension>();
+        return builder.AddExtension(new ConfigurationProviderExtension(), activationPolicy);
     }
 
     private static void AddConfigurationProviderCore(

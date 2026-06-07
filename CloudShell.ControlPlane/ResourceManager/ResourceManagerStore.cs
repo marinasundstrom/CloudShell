@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager;
@@ -5,9 +6,14 @@ namespace CloudShell.ControlPlane.ResourceManager;
 public sealed class ResourceManagerStore(
     IEnumerable<IResourceProvider> providers,
     IResourceGroupStore resourceGroups,
-    IResourceRegistrationStore registrations) : IResourceManagerStore
+    IResourceRegistrationStore registrations,
+    CloudShellExtensionRegistry extensionRegistry,
+    ICloudShellExtensionActivationStore activationStore) : IResourceManagerStore
 {
-    public IReadOnlyList<IResourceProvider> Providers { get; } = providers
+    private readonly IReadOnlyList<IResourceProvider> providers = providers.ToArray();
+
+    public IReadOnlyList<IResourceProvider> Providers => providers
+        .Where(IsProviderActive)
         .OrderBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
@@ -153,5 +159,16 @@ public sealed class ResourceManagerStore(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray()
         };
+    }
+
+    private bool IsProviderActive(IResourceProvider provider)
+    {
+        var activeProviderTypes = extensionRegistry
+            .GetActiveExtensions(activationStore)
+            .SelectMany(extension => extension.ResourceProviderTypes)
+            .ToHashSet();
+
+        var providerType = provider.GetType();
+        return activeProviderTypes.Any(type => type.IsAssignableFrom(providerType));
     }
 }

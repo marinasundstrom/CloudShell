@@ -7,12 +7,15 @@ namespace CloudShell.Abstractions.Extensions;
 
 internal sealed class CloudShellExtensionBuilder(
     IServiceCollection services,
-    CloudShellExtensionManifest manifest) : ICloudShellExtensionBuilder
+    CloudShellExtensionManifest manifest,
+    CloudShellExtensionActivationPolicy activationPolicy) : ICloudShellExtensionBuilder
 {
     private readonly List<NavItemContribution> _navigationItems = [];
     private readonly List<ShellViewContribution> _views = [];
     private readonly List<CustomShellViewContribution> _customViews = [];
     private readonly List<ResourceTypeContribution> _resourceTypes = [];
+    private readonly List<Type> _resourceProviderTypes = [];
+    private readonly List<Type> _logProviderTypes = [];
     private string? _startRoute;
 
     public IServiceCollection Services { get; } = services;
@@ -125,6 +128,7 @@ internal sealed class CloudShellExtensionBuilder(
     public ICloudShellExtensionBuilder AddResourceProvider<TProvider>()
         where TProvider : class, IResourceProvider
     {
+        _resourceProviderTypes.Add(typeof(TProvider));
         Services.AddSingleton<TProvider>();
         Services.AddSingleton<IResourceProvider>(
             serviceProvider => serviceProvider.GetRequiredService<TProvider>());
@@ -134,6 +138,7 @@ internal sealed class CloudShellExtensionBuilder(
     public ICloudShellExtensionBuilder AddLogProvider<TProvider>()
         where TProvider : class, ILogProvider
     {
+        _logProviderTypes.Add(typeof(TProvider));
         Services.AddSingleton<TProvider>();
         Services.AddSingleton<ILogProvider>(
             serviceProvider => serviceProvider.GetRequiredService<TProvider>());
@@ -283,9 +288,12 @@ internal sealed class CloudShellExtensionBuilder(
     public CloudShellExtensionRegistration Build() =>
         new(
             manifest,
+            activationPolicy,
             _navigationItems.ToArray(),
             _views.ToArray(),
             _resourceTypes.ToArray(),
+            _resourceProviderTypes.ToArray(),
+            _logProviderTypes.ToArray(),
             _customViews.ToArray(),
             _startRoute);
 

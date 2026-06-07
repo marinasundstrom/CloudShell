@@ -9,6 +9,8 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
 
     internal DbSet<ResourceRegistrationEntity> ResourceRegistrations => Set<ResourceRegistrationEntity>();
 
+    internal DbSet<ExtensionActivationEntity> ExtensionActivations => Set<ExtensionActivationEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ResourceGroupEntity>(entity =>
@@ -33,6 +35,17 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
                 .OnDelete(DeleteBehavior.SetNull);
 
             entity.Property(registration => registration.RegisteredAt)
+                .HasConversion(new DateTimeOffsetToBinaryConverter());
+        });
+
+        modelBuilder.Entity<ExtensionActivationEntity>(entity =>
+        {
+            entity.ToTable("ExtensionActivations");
+            entity.HasKey(activation => activation.ExtensionId);
+            entity.Property(activation => activation.ExtensionId).HasMaxLength(200);
+            entity.Property(activation => activation.State).HasMaxLength(50).IsRequired();
+            entity.Property(activation => activation.UpdatedBy).HasMaxLength(200);
+            entity.Property(activation => activation.UpdatedAt)
                 .HasConversion(new DateTimeOffsetToBinaryConverter());
         });
     }

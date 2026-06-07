@@ -2,7 +2,20 @@
 
 <Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="ShellCatalog.ViewAssemblies" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        @if (routeData.PageType.Assembly == typeof(Program).Assembly ||
+            ShellCatalog.IsActiveRouteComponent(routeData.PageType))
+        {
+            <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+            <FocusOnNavigate RouteData="routeData" Selector="h1" />
+        }
+        else
+        {
+            <LayoutView Layout="typeof(Layout.MainLayout)">
+                <div class="empty-state">
+                    <strong>Extension disabled</strong>
+                    <span>The extension that owns this page is not active.</span>
+                </div>
+            </LayoutView>
+        }
     </Found>
 </Router>

@@ -18,6 +18,61 @@ public sealed class CloudShellExtensionRegistry
         .Distinct()
         .ToArray();
 
+    public IReadOnlyList<CloudShellExtensionRegistration> GetActiveExtensions(
+        ICloudShellExtensionActivationStore activationStore) =>
+        GetStatuses(activationStore)
+            .Where(status => status.IsActive)
+            .Select(status => status.Extension)
+            .ToArray();
+
+    public IReadOnlyList<CloudShellExtensionStatus> GetStatuses(
+        ICloudShellExtensionActivationStore activationStore)
+    {
+        var activationStates = activationStore.GetActivationStates();
+        var statuses = _extensions.ToDictionary(
+            extension => extension.Id,
+            extension => GetBaseStatus(extension, activationStates),
+            StringComparer.OrdinalIgnoreCase);
+
+        while (true)
+        {
+            var activeExtensions = statuses
+                .Where(status => status.Value.IsActive)
+                .Select(status => status.Value.Extension)
+                .ToArray();
+            var providedCapabilities = activeExtensions
+                .SelectMany(extension => extension.Provides)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var blockedExtensions = activeExtensions
+                .Select(extension => new
+                {
+                    Extension = extension,
+                    MissingCapabilities = extension.Consumes
+                        .Where(capability => !providedCapabilities.Contains(capability))
+                        .ToArray()
+                })
+                .Where(item => item.MissingCapabilities.Length > 0)
+                .ToArray();
+
+            if (blockedExtensions.Length == 0)
+            {
+                break;
+            }
+
+            foreach (var blockedExtension in blockedExtensions)
+            {
+                statuses[blockedExtension.Extension.Id] = new CloudShellExtensionStatus(
+                    blockedExtension.Extension,
+                    CloudShellExtensionStatusKind.Blocked,
+                    $"Missing capabilities: {string.Join(", ", blockedExtension.MissingCapabilities)}");
+            }
+        }
+
+        return _extensions
+            .Select(extension => statuses[extension.Id])
+            .ToArray();
+    }
+
     internal void Add(CloudShellExtensionRegistration extension)
     {
         ValidateManifest(extension.Manifest);
@@ -30,9 +85,31 @@ public sealed class CloudShellExtensionRegistry
         _extensions.Add(extension);
     }
 
-    public void Validate()
+    public void Validate() =>
+        Validate(new InMemoryCloudShellExtensionActivationStore());
+
+    public void Validate(ICloudShellExtensionActivationStore activationStore)
     {
-        var duplicateRoute = _extensions
+        var statuses = GetStatuses(activationStore);
+        var blockedExtensions = statuses
+            .Where(status => status.Kind == CloudShellExtensionStatusKind.Blocked)
+            .ToArray();
+
+        if (blockedExtensions.Length > 0)
+        {
+            var requirements = string.Join(
+                ", ",
+                blockedExtensions.Select(status => $"{status.Extension.Id} {status.Reason}"));
+
+            throw new InvalidOperationException($"CloudShell extension dependencies are not satisfied: {requirements}.");
+        }
+
+        var activeExtensions = statuses
+            .Where(status => status.IsActive)
+            .Select(status => status.Extension)
+            .ToArray();
+
+        var duplicateRoute = activeExtensions
             .SelectMany(extension => extension.Views
                 .Select(view => new { extension.Id, view.Route })
                 .Concat(extension.CustomViews.Select(view => new { extension.Id, view.Route })))
@@ -46,7 +123,7 @@ public sealed class CloudShellExtensionRegistry
                 $"The route '{duplicateRoute.Key}' is contributed by multiple extensions: {owners}.");
         }
 
-        var startRouteOwners = _extensions
+        var startRouteOwners = activeExtensions
             .Where(extension => !string.IsNullOrWhiteSpace(extension.StartRoute))
             .ToArray();
 
@@ -60,7 +137,7 @@ public sealed class CloudShellExtensionRegistry
         if (startRouteOwners.Length == 1)
         {
             var startRoute = startRouteOwners[0].StartRoute!;
-            var knownRoutes = _extensions
+            var knownRoutes = activeExtensions
                 .SelectMany(extension => extension.Views.Select(view => view.Route)
                     .Concat(extension.CustomViews.Select(view => view.Route))
                     .Concat(extension.NavigationItems.Select(item => item.Href)))
@@ -73,7 +150,7 @@ public sealed class CloudShellExtensionRegistry
             }
         }
 
-        var duplicateCustomView = _extensions
+        var duplicateCustomView = activeExtensions
             .SelectMany(extension => extension.CustomViews.Select(view => new { extension.Id, View = view }))
             .GroupBy(item => item.View.Id, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault(group => group.Count() > 1);
@@ -85,7 +162,7 @@ public sealed class CloudShellExtensionRegistry
                 $"The shell-hosted view '{duplicateCustomView.Key}' is contributed by multiple extensions: {owners}.");
         }
 
-        var duplicateCustomViewMenuItem = _extensions
+        var duplicateCustomViewMenuItem = activeExtensions
             .SelectMany(extension => extension.CustomViews
                 .SelectMany(view => view.ViewMenuItems.Select(menuItem => new { extension.Id, View = view, MenuItem = menuItem })))
             .GroupBy(item => $"{item.View.Id}/{item.MenuItem.Id}", StringComparer.OrdinalIgnoreCase)
@@ -98,7 +175,7 @@ public sealed class CloudShellExtensionRegistry
                 $"The shell-hosted view menu item '{duplicateCustomViewMenuItem.Key}' is contributed by multiple extensions: {owners}.");
         }
 
-        var duplicateResourceType = _extensions
+        var duplicateResourceType = activeExtensions
             .SelectMany(extension => extension.ResourceTypes.Select(type => new { extension.Id, ResourceType = type }))
             .GroupBy(item => item.ResourceType.Id, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault(group => group.Count() > 1);
@@ -110,23 +187,37 @@ public sealed class CloudShellExtensionRegistry
                 $"The resource type '{duplicateResourceType.Key}' is contributed by multiple extensions: {owners}.");
         }
 
-        var providedCapabilities = _extensions
-            .SelectMany(extension => extension.Provides)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
 
-        var missingCapabilities = _extensions
-            .SelectMany(extension => extension.Consumes.Select(capability => new { extension.Id, Capability = capability }))
-            .Where(requirement => !providedCapabilities.Contains(requirement.Capability))
-            .ToArray();
-
-        if (missingCapabilities.Length > 0)
+    private static CloudShellExtensionStatus GetBaseStatus(
+        CloudShellExtensionRegistration extension,
+        IReadOnlyDictionary<string, CloudShellExtensionActivationState> activationStates)
+    {
+        if (extension.ActivationPolicy == CloudShellExtensionActivationPolicy.Enabled)
         {
-            var requirements = string.Join(
-                ", ",
-                missingCapabilities.Select(requirement => $"{requirement.Id} requires {requirement.Capability}"));
-
-            throw new InvalidOperationException($"CloudShell extension dependencies are not satisfied: {requirements}.");
+            return new CloudShellExtensionStatus(
+                extension,
+                CloudShellExtensionStatusKind.EnabledByHost,
+                "Enabled by host configuration.");
         }
+
+        if (extension.ActivationPolicy == CloudShellExtensionActivationPolicy.Disabled)
+        {
+            return new CloudShellExtensionStatus(
+                extension,
+                CloudShellExtensionStatusKind.DisabledByHost,
+                "Disabled by host configuration.");
+        }
+
+        var activationState = activationStates.GetValueOrDefault(
+            extension.Id,
+            CloudShellExtensionActivationState.Disabled);
+
+        return new CloudShellExtensionStatus(
+            extension,
+            activationState == CloudShellExtensionActivationState.Enabled
+                ? CloudShellExtensionStatusKind.Enabled
+                : CloudShellExtensionStatusKind.Disabled);
     }
 
     private static void ValidateManifest(CloudShellExtensionManifest manifest)

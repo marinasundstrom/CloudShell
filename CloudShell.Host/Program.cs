@@ -75,8 +75,8 @@ var controlPlane = builder.Services
         options.ServiceProjectPath = configurationServiceProjectPath;
         options.ServiceWorkingDirectory = repositoryRootPath;
     })
-    .AddApplicationProvider()
-    .AddDockerProvider();
+    .AddApplicationProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged)
+    .AddDockerProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged);
 
 controlPlane.Resources(resources =>
 {
@@ -111,7 +111,7 @@ if (usesLocalIdentity)
 }
 
 var extensionRegistry = app.Services.GetRequiredService<CloudShellExtensionRegistry>();
-extensionRegistry.Validate();
+extensionRegistry.Validate(app.Services.GetRequiredService<ICloudShellExtensionActivationStore>());
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

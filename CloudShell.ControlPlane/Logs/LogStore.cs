@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 
@@ -5,9 +6,14 @@ namespace CloudShell.ControlPlane.Logs;
 
 public sealed class LogStore(
     IEnumerable<ILogProvider> providers,
-    IResourceManagerStore resourceManager) : ILogStore
+    IResourceManagerStore resourceManager,
+    CloudShellExtensionRegistry extensionRegistry,
+    ICloudShellExtensionActivationStore activationStore) : ILogStore
 {
-    public IReadOnlyList<ILogProvider> Providers { get; } = providers
+    private readonly IReadOnlyList<ILogProvider> providers = providers.ToArray();
+
+    public IReadOnlyList<ILogProvider> Providers => providers
+        .Where(IsProviderActive)
         .OrderBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
@@ -76,5 +82,16 @@ public sealed class LogStore(
 
             yield break;
         }
+    }
+
+    private bool IsProviderActive(ILogProvider provider)
+    {
+        var activeProviderTypes = extensionRegistry
+            .GetActiveExtensions(activationStore)
+            .SelectMany(extension => extension.LogProviderTypes)
+            .ToHashSet();
+
+        var providerType = provider.GetType();
+        return activeProviderTypes.Any(type => type.IsAssignableFrom(providerType));
     }
 }

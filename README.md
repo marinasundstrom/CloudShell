@@ -224,6 +224,10 @@ Docker also contributes logs. The Docker Engine resource exposes provider diagno
 ## Extension Model
 
 Extensions are trusted, in-process .NET extensions registered through DI.
+The service container defines the supported extension catalog; activation is
+resolved from host policy and persisted UI state. `AddExtension<T>()` enables an
+extension by host configuration, while `AddSupportedExtension<T>()` makes it
+available for activation through the Extensions UI.
 
 An extension can contribute:
 
@@ -237,9 +241,9 @@ An extension can contribute:
 CloudShell validates extension registrations at startup:
 
 - Extension IDs must be unique.
-- View routes must be unique.
-- Consumed capabilities must be provided by an installed extension.
-- Resource type IDs must be unique.
+- Active view routes must be unique.
+- Consumed capabilities must be provided by an active extension.
+- Active resource type IDs must be unique.
 
 See [docs/extensions.md](docs/extensions.md) for the extension-authoring model.
 

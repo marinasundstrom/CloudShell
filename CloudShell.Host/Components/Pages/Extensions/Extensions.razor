@@ -1,5 +1,7 @@
 @page "/extensions"
+@rendermode InteractiveServer
 @inject ShellCatalog ShellCatalog
+@inject ICloudShellExtensionActivationStore ActivationStore
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Extensions"]</PageTitle>
@@ -8,11 +10,10 @@
     <div>
         <span class="eyebrow">@L["Platform"]</span>
         <h1>@L["Extensions"]</h1>
-        <p>@L["Shell extensions registered through the service container. Extensions can add views, services, and resource types."]</p>
+        <p>@L["Extensions registered through the service container. Host configuration or this UI can activate their contributions."]</p>
     </div>
     <div class="heading-actions">
         <FluentButton Appearance="Appearance.Neutral">@L["Reload"]</FluentButton>
-        <FluentButton Appearance="Appearance.Accent">@L["Install"]</FluentButton>
     </div>
 </section>
 
@@ -21,13 +22,14 @@
         <div class="panel-header">
             <div>
                 <h2>@L["Shell extensions"]</h2>
-                <p>@L["{0} registered extensions", ShellCatalog.Extensions.Count]</p>
+                <p>@L["{0} supported extensions", ShellCatalog.SupportedExtensions.Count]</p>
             </div>
         </div>
 
         <div class="extension-grid">
-            @foreach (var extension in ShellCatalog.Extensions)
+            @foreach (var status in ShellCatalog.ExtensionStatuses)
             {
+                var extension = status.Extension;
                 <div class="extension-card">
                     <div>
                         <strong>@extension.DisplayName</strong>
@@ -35,13 +37,17 @@
                     </div>
                     <p>@extension.Description</p>
                     <div class="tag-row">
+                        <span>@GetStatusText(status)</span>
+                    </div>
+                    <div class="tag-row">
                         @foreach (var capability in extension.Provides)
                         {
                             <span>@capability</span>
                         }
                     </div>
-                    @if (extension.Views.Any(view => view.ShowInNavigation) ||
-                        extension.CustomViews.Any(view => view.ShowInNavigation))
+                    @if (status.IsActive &&
+                        (extension.Views.Any(view => view.ShowInNavigation) ||
+                        extension.CustomViews.Any(view => view.ShowInNavigation)))
                     {
                         <div class="extension-views">
                             @foreach (var view in extension.Views.Where(view => view.ShowInNavigation))
@@ -54,6 +60,21 @@
                             }
                         </div>
                     }
+                    <div class="heading-actions">
+                        @if (status.IsUserManaged)
+                        {
+                            <FluentButton Appearance="@(status.IsActive ? Appearance.Neutral : Appearance.Accent)"
+                                          OnClick="() => ToggleExtensionAsync(status)">
+                                @(status.IsActive ? L["Disable"] : L["Enable"])
+                            </FluentButton>
+                        }
+                        else
+                        {
+                            <FluentButton Appearance="Appearance.Neutral" Disabled="true">
+                                @L["Managed by host"]
+                            </FluentButton>
+                        }
+                    </div>
                 </div>
             }
         </div>
@@ -84,3 +105,30 @@
         </div>
     </article>
 </section>
+
+@code {
+    private async Task ToggleExtensionAsync(CloudShellExtensionStatus status)
+    {
+        if (!status.IsUserManaged)
+        {
+            return;
+        }
+
+        var state = status.IsActive
+            ? CloudShellExtensionActivationState.Disabled
+            : CloudShellExtensionActivationState.Enabled;
+
+        await ActivationStore.SetActivationStateAsync(status.Extension.Id, state);
+    }
+
+    private string GetStatusText(CloudShellExtensionStatus status) =>
+        status.Kind switch
+        {
+            CloudShellExtensionStatusKind.Enabled => L["Enabled"],
+            CloudShellExtensionStatusKind.Disabled => L["Disabled"],
+            CloudShellExtensionStatusKind.EnabledByHost => L["Enabled by host configuration"],
+            CloudShellExtensionStatusKind.DisabledByHost => L["Disabled by host configuration"],
+            CloudShellExtensionStatusKind.Blocked => L[status.Reason ?? "Blocked"],
+            _ => status.Kind.ToString()
+        };
+}

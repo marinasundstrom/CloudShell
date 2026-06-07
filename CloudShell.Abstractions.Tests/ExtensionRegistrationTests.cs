@@ -210,6 +210,95 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void GetStatuses_DoesNotUseCapabilitiesFromBlockedExtensions()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<TransitiveDependencyExtension>()
+            .AddExtension<DownstreamDependencyExtension>();
+
+        var statuses = GetRegistry(services)
+            .GetStatuses(new InMemoryCloudShellExtensionActivationStore());
+
+        Assert.All(statuses, status =>
+            Assert.Equal(CloudShellExtensionStatusKind.Blocked, status.Kind));
+    }
+
+    [Fact]
+    public void GetActiveExtensions_ExcludesUserManagedExtensionsWithoutStoredState()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddSupportedExtension<ProviderExtension>();
+
+        var registry = GetRegistry(services);
+        var activationStore = new InMemoryCloudShellExtensionActivationStore();
+        var status = Assert.Single(registry.GetStatuses(activationStore));
+
+        Assert.Empty(registry.GetActiveExtensions(activationStore));
+        Assert.Equal(CloudShellExtensionStatusKind.Disabled, status.Kind);
+    }
+
+    [Fact]
+    public async Task GetActiveExtensions_ExcludesUserDisabledExtensions()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddSupportedExtension<ProviderExtension>();
+        var activationStore = new InMemoryCloudShellExtensionActivationStore();
+        await activationStore.SetActivationStateAsync(
+            "sample.provider",
+            CloudShellExtensionActivationState.Disabled);
+
+        var registry = GetRegistry(services);
+
+        Assert.Empty(registry.GetActiveExtensions(activationStore));
+    }
+
+    [Fact]
+    public async Task GetActiveExtensions_HostDisabledOverridesUserEnabledState()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .DisableExtension<ProviderExtension>();
+        var activationStore = new InMemoryCloudShellExtensionActivationStore();
+        await activationStore.SetActivationStateAsync(
+            "sample.provider",
+            CloudShellExtensionActivationState.Enabled);
+
+        var registry = GetRegistry(services);
+        var status = Assert.Single(registry.GetStatuses(activationStore));
+
+        Assert.Empty(registry.GetActiveExtensions(activationStore));
+        Assert.Equal(CloudShellExtensionStatusKind.DisabledByHost, status.Kind);
+    }
+
+    [Fact]
+    public async Task Validate_IgnoresContributionsFromDisabledExtensions()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<ProviderExtension>()
+            .AddSupportedExtension<DuplicateRouteExtension>();
+        var activationStore = new InMemoryCloudShellExtensionActivationStore();
+        await activationStore.SetActivationStateAsync(
+            "sample.duplicate-route",
+            CloudShellExtensionActivationState.Disabled);
+
+        GetRegistry(services).Validate(activationStore);
+    }
+
+    [Fact]
     public void AddExtension_RejectsDuplicateExtensionIds()
     {
         var services = new ServiceCollection();
@@ -270,6 +359,36 @@ public sealed class ExtensionRegistrationTests
             "1.0.0",
             [],
             ["sample.missing"]);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+        }
+    }
+
+    private sealed class TransitiveDependencyExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.transitive",
+            "Sample transitive",
+            "Requires a missing capability and provides another capability.",
+            "1.0.0",
+            ["sample.transitive"],
+            ["sample.missing"]);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+        }
+    }
+
+    private sealed class DownstreamDependencyExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.downstream",
+            "Sample downstream",
+            "Requires a capability from a blocked extension.",
+            "1.0.0",
+            [],
+            ["sample.transitive"]);
 
         public void Configure(ICloudShellExtensionBuilder builder)
         {
