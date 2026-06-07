@@ -1,0 +1,350 @@
+@using System.Text.Json
+@inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+@inject IEnumerable<IContainerEngineProvider> ContainerEngineProviders
+@inject IEnumerable<IResourceOrchestrationDescriptorProvider> DescriptorProviders
+@inject NavigationManager Navigation
+
+<div class="type-registration">
+    <div class="provider-summary compact">
+        <div class="provider-status">
+            <span class="state-dot state-running"></span>
+            <div>
+                <strong>Container image</strong>
+                <span>Register a top-level local container resource with optional endpoints and service discovery references.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-panel">
+        @if (!HasImplicitContainerEngine())
+        {
+            <div class="procedure-confirmation">
+                <strong>No default container engine</strong>
+                <span>Select a container engine for this resource or register a default engine with UseDocker() or UseContainerEngine(...).</span>
+            </div>
+        }
+
+        <label for="container-name">Name</label>
+        <input id="container-name" @bind="Name" />
+
+        <label for="container-resource-id">Resource ID</label>
+        <input id="container-resource-id" @bind="ResourceId" placeholder="application:redis" />
+
+        <label for="container-image">Image</label>
+        <input id="container-image" @bind="Image" placeholder="redis:7.2" />
+
+        <label for="container-engine">Container engine</label>
+        <select id="container-engine" @bind="SelectedEngineId">
+            <option value="">Default engine</option>
+            @foreach (var engine in GetContainerEngines())
+            {
+                <option value="@engine.Id">@GetEngineLabel(engine)</option>
+            }
+        </select>
+
+        <label>
+            <input type="checkbox" @bind="ExposeEndpoint" />
+            Expose local endpoint
+        </label>
+
+        @if (ExposeEndpoint)
+        {
+            <label for="container-port-name">Endpoint name</label>
+            <input id="container-port-name" @bind="PortName" />
+
+            <label for="container-target-port">Container port</label>
+            <input id="container-target-port" type="number" min="1" @bind="TargetPort" />
+
+            <label for="container-local-port">Local port</label>
+            <input id="container-local-port" type="number" min="1" @bind="LocalPort" />
+
+            <label for="container-protocol">Protocol</label>
+            <select id="container-protocol" @bind="Protocol">
+                <option value="tcp">TCP</option>
+                <option value="udp">UDP</option>
+            </select>
+        }
+
+        <label for="container-group">Resource group</label>
+        <select id="container-group" @bind="SelectedGroupId">
+            <option value="">Default group</option>
+            @foreach (var group in ResourceGroups.GetResourceGroups())
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>References</strong>
+            </div>
+
+            @foreach (var resource in GetReferenceCandidates())
+            {
+                <label>
+                    <input type="checkbox"
+                           checked="@SelectedReferenceIds.Contains(resource.Id)"
+                           @onchange="args => ToggleReference(resource.Id, args)" />
+                    @resource.Name
+                </label>
+            }
+        </div>
+
+        <label>
+            <input type="checkbox" @bind="WaitForReferences" />
+            Start referenced resources first
+        </label>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Environment variables</strong>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
+                    Add variable
+                </FluentButton>
+            </div>
+
+            @foreach (var variable in EnvironmentVariables)
+            {
+                <div class="environment-row">
+                    <input aria-label="Environment variable name" @bind="variable.Name" />
+                    <input aria-label="Environment variable value" @bind="variable.Value" />
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
+                        Remove
+                    </FluentButton>
+                </div>
+            }
+        </div>
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string ResourceId { get; set; } = string.Empty;
+    private string Name { get; set; } = string.Empty;
+    private string Image { get; set; } = string.Empty;
+    private string SelectedEngineId { get; set; } = string.Empty;
+    private bool ExposeEndpoint { get; set; }
+    private string PortName { get; set; } = "tcp";
+    private int TargetPort { get; set; } = 80;
+    private int? LocalPort { get; set; }
+    private string Protocol { get; set; } = "tcp";
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private bool WaitForReferences { get; set; } = true;
+    private string? ErrorMessage { get; set; }
+    private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
+    private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(Image))
+        {
+            ErrorMessage = "Name and image are required.";
+            return;
+        }
+
+        if (!ValidateContainerEngine())
+        {
+            return;
+        }
+
+        if (ExposeEndpoint &&
+            (string.IsNullOrWhiteSpace(PortName) || TargetPort <= 0))
+        {
+            ErrorMessage = "Endpoint name and container port are required.";
+            return;
+        }
+
+        var normalizedResourceId = ResourceId.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedResourceId) &&
+            IsResourceIdInUse(normalizedResourceId))
+        {
+            ErrorMessage = $"Resource ID '{normalizedResourceId}' is already in use.";
+            return;
+        }
+
+        var references = SelectedReferenceIds.ToArray();
+        var definition = new ApplicationResourceDefinition(
+            normalizedResourceId,
+            Name,
+            executablePath: string.Empty,
+            environmentVariables: BuildEnvironmentVariables(),
+            lifetime: ApplicationLifetime.ControlPlaneScoped,
+            dependsOn: WaitForReferences ? references : [],
+            references: references,
+            useServiceDiscovery: references.Length > 0,
+            containerImage: Image.Trim(),
+            containerEngineId: NormalizeNullable(SelectedEngineId),
+            endpointPorts: BuildEndpointPorts());
+
+        await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
+        Navigation.NavigateTo("/resources");
+    }
+
+    private bool ValidateContainerEngine()
+    {
+        var engines = GetContainerEngines();
+        if (!string.IsNullOrWhiteSpace(SelectedEngineId))
+        {
+            if (engines.Any(engine => string.Equals(engine.Id, SelectedEngineId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            ErrorMessage = $"Container engine '{SelectedEngineId}' is not registered.";
+            return false;
+        }
+
+        if (engines.Any(engine => engine.IsDefault))
+        {
+            return true;
+        }
+
+        ErrorMessage = "A default container engine is required unless this resource selects an explicit engine.";
+        return false;
+    }
+
+    private IReadOnlyList<ServicePort> BuildEndpointPorts() =>
+        ExposeEndpoint
+            ? [new ServicePort(PortName, TargetPort, LocalPort, Protocol, ResourceExposureScope.Local)]
+            : [];
+
+    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
+        EnvironmentVariables
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
+            .ToArray();
+
+    private IReadOnlyList<CloudResource> GetReferenceCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => !string.Equals(resource.Id, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
+            .Where(IsInSelectedGroup)
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, "cloudshell.network", StringComparison.OrdinalIgnoreCase))
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, "cloudshell.service", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private bool IsInSelectedGroup(CloudResource resource)
+    {
+        var group = ResourceManager.GetGroupForResource(resource.Id);
+        return string.IsNullOrWhiteSpace(SelectedGroupId)
+            ? group is null
+            : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string? GetCurrentResourceId() =>
+        string.IsNullOrWhiteSpace(ResourceId) ? null : ResourceId.Trim();
+
+    private bool IsResourceIdInUse(string resourceId) =>
+        ResourceManager.GetAvailableResources().Any(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) ||
+        Registrations.GetRegistration(resourceId) is not null ||
+        ApplicationProvider.GetApplication(resourceId) is not null;
+
+    private bool HasImplicitContainerEngine() =>
+        GetContainerEngines().Any(engine => engine.IsDefault);
+
+    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngines()
+    {
+        var configuredEngines = ContainerEngineProviders
+            .Select(provider => provider.GetContainerEngine())
+            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id));
+        var resourceEngines = ResourceManager
+            .GetResources()
+            .Select(TryReadContainerEngine)
+            .Where(engine => engine is not null)
+            .Select(engine => engine!);
+
+        return configuredEngines
+            .Concat(resourceEngines)
+            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .OrderByDescending(engine => engine.IsDefault)
+            .ThenBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private ContainerEngineResourceDefinition? TryReadContainerEngine(CloudResource resource)
+    {
+        var provider = DescriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
+        if (provider is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var descriptor = provider.DescribeAsync(
+                    resource,
+                    new ResourceOrchestrationDescriptorContext(
+                        Registrations.GetRegistration(resource.Id),
+                        ResourceManager.GetGroupForResource(resource.Id),
+                        ResourceManager))
+                .GetAwaiter()
+                .GetResult();
+            if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string GetEngineLabel(ContainerEngineResourceDefinition engine) =>
+        engine.IsDefault ? $"{engine.Name} (default)" : engine.Name;
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private void AddEnvironmentVariable() => EnvironmentVariables.Add(new());
+
+    private void RemoveEnvironmentVariable(EnvironmentVariableInput variable)
+    {
+        EnvironmentVariables.Remove(variable);
+        if (EnvironmentVariables.Count == 0)
+        {
+            EnvironmentVariables.Add(new());
+        }
+    }
+
+    private void ToggleReference(string resourceId, ChangeEventArgs args)
+    {
+        var selected = args.Value is bool boolValue && boolValue;
+        if (selected)
+        {
+            SelectedReferenceIds.Add(resourceId);
+        }
+        else
+        {
+            SelectedReferenceIds.Remove(resourceId);
+        }
+    }
+
+    private sealed class EnvironmentVariableInput(
+        string? name = null,
+        string? value = null)
+    {
+        public string? Name { get; set; } = name;
+
+        public string? Value { get; set; } = value;
+    }
+}

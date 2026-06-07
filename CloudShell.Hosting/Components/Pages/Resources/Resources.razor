@@ -4,6 +4,7 @@
 @inject IResourceRegistrationStore Registrations
 @inject ILogStore LogStore
 @inject ShellCatalog ShellCatalog
+@inject ResourceOrchestrationService Orchestration
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IStringLocalizer<SharedResource> L
@@ -536,25 +537,17 @@
 
     private async Task DeleteResource(CloudResource resource)
     {
-        var registration = Registrations.GetRegistration(resource.Id);
-        var provider = registration is null
-            ? null
-            : ResourceManager.Providers.FirstOrDefault(item =>
-                string.Equals(item.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase));
-
-        if (provider is not IResourceProcedureProvider procedureProvider)
+        try
         {
-            ProcedureMessage = L["This provider does not support deleting the selected resource."].Value;
-            return;
+            var result = await Orchestration.DeleteAsync(resource);
+            ProcedureMessage = result.Message;
+            DeleteConfirmationResourceId = null;
+            SelectedResource = null;
         }
-
-        var group = GetGroup(resource);
-        var result = await procedureProvider.DeleteAsync(
-            new ResourceProcedureContext(resource, registration, group?.Id, Registrations));
-
-        ProcedureMessage = result.Message;
-        DeleteConfirmationResourceId = null;
-        SelectedResource = null;
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
     }
 
     private async Task RequestResourceAction(CloudResource resource, ResourceAction action)
@@ -648,31 +641,15 @@
         ResourceAction action,
         bool startDependencies)
     {
-        var provider = GetProcedureProvider(resource);
-        if (provider is null)
-        {
-            ProcedureMessage = L["This provider does not support actions for the selected resource."].Value;
-            return;
-        }
-
         ExecutingActionKey = GetActionKey(resource, action);
         ProcedureMessage = null;
         try
         {
-            if (startDependencies && ShouldStartDependencies(action))
-            {
-                await StartDependenciesAsync(
-                    resource,
-                    new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-                    new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-            }
-
-            var registration = GetRegistrationForResourceOrAncestor(resource);
-            var group = GetGroup(resource);
-            var result = await provider.ExecuteActionAsync(
-                new ResourceProcedureContext(resource, registration, group?.Id, Registrations),
-                action);
-
+            var result = await Orchestration.ExecuteActionAsync(
+                resource,
+                action,
+                startDependencies,
+                Authorization);
             ProcedureMessage = result.Message;
         }
         catch (Exception exception)
@@ -683,65 +660,6 @@
         {
             ExecutingActionKey = null;
         }
-    }
-
-    private async Task StartDependenciesAsync(
-        CloudResource resource,
-        HashSet<string> visiting,
-        HashSet<string> completed)
-    {
-        if (!visiting.Add(resource.Id))
-        {
-            throw new InvalidOperationException(
-                L["Resource dependency cycle detected at '{0}'.", resource.Id].Value);
-        }
-
-        foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            if (completed.Contains(dependencyId))
-            {
-                continue;
-            }
-
-            var dependency = ResourceManager.GetResource(dependencyId)
-                ?? throw new InvalidOperationException(
-                    L["Dependency resource '{0}' could not be found.", dependencyId].Value);
-
-            await StartDependenciesAsync(dependency, visiting, completed);
-
-            if (dependency.State == ResourceState.Running)
-            {
-                completed.Add(dependency.Id);
-                continue;
-            }
-
-            var runAction = dependency.ResourceActions.FirstOrDefault(action =>
-                action.Kind == ResourceActionKind.Run);
-            if (runAction is null)
-            {
-                throw new InvalidOperationException(
-                    L["Dependency resource '{0}' is not running and does not expose a Run action.", dependency.Name].Value);
-            }
-
-            var dependencyProvider = GetProcedureProvider(dependency)
-                ?? throw new InvalidOperationException(
-                    L["Dependency resource '{0}' does not support actions.", dependency.Name].Value);
-            if (!CanManage(dependency))
-            {
-                throw new UnauthorizedAccessException(
-                    L["You do not have permission to start dependency resource '{0}'.", dependency.Name].Value);
-            }
-
-            var registration = GetRegistrationForResourceOrAncestor(dependency);
-            var group = GetGroup(dependency);
-            await dependencyProvider.ExecuteActionAsync(
-                new ResourceProcedureContext(dependency, registration, group?.Id, Registrations),
-                runAction);
-
-            completed.Add(dependency.Id);
-        }
-
-        visiting.Remove(resource.Id);
     }
 
     private IReadOnlyList<CloudResource> GetStoppedDependencies(CloudResource resource)

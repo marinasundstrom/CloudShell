@@ -1,0 +1,227 @@
+@using System.Text.Json
+@inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+@inject IEnumerable<IContainerEngineProvider> ContainerEngineProviders
+@inject IEnumerable<IResourceOrchestrationDescriptorProvider> DescriptorProviders
+@inject NavigationManager Navigation
+
+<div class="type-registration">
+    <div class="provider-summary compact">
+        <div class="provider-status">
+            <span class="state-dot state-running"></span>
+            <div>
+                <strong>SQL Server</strong>
+                <span>Register a local SQL Server container with a TDS endpoint for direct access and service discovery.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-panel">
+        @if (!HasImplicitContainerEngine())
+        {
+            <div class="procedure-confirmation">
+                <strong>No default container engine</strong>
+                <span>Select a container engine for this SQL Server resource or register a default engine with UseDocker() or UseContainerEngine(...).</span>
+            </div>
+        }
+
+        <label for="sql-name">Name</label>
+        <input id="sql-name" @bind="Name" />
+
+        <label for="sql-resource-id">Resource ID</label>
+        <input id="sql-resource-id" @bind="ResourceId" placeholder="application:sql-server" />
+
+        <label for="sql-image">Image</label>
+        <input id="sql-image" @bind="Image" />
+
+        <label for="sql-password">SA password</label>
+        <input id="sql-password" type="password" @bind="Password" />
+
+        <label for="sql-engine">Container engine</label>
+        <select id="sql-engine" @bind="SelectedEngineId">
+            <option value="">Default engine</option>
+            @foreach (var engine in GetContainerEngines())
+            {
+                <option value="@engine.Id">@GetEngineLabel(engine)</option>
+            }
+        </select>
+
+        <label for="sql-local-port">Local port</label>
+        <input id="sql-local-port" type="number" min="1" @bind="LocalPort" />
+
+        <label for="sql-group">Resource group</label>
+        <select id="sql-group" @bind="SelectedGroupId">
+            <option value="">Default group</option>
+            @foreach (var group in ResourceGroups.GetResourceGroups())
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private const string DefaultImage = "mcr.microsoft.com/mssql/server:2022-latest";
+    private const string DefaultPassword = "CloudShell-Passw0rd!";
+
+    private string ResourceId { get; set; } = string.Empty;
+    private string Name { get; set; } = "SQL Server";
+    private string Image { get; set; } = DefaultImage;
+    private string Password { get; set; } = DefaultPassword;
+    private string SelectedEngineId { get; set; } = string.Empty;
+    private int? LocalPort { get; set; } = 14333;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; }
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(Image))
+        {
+            ErrorMessage = "Name and image are required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Password))
+        {
+            ErrorMessage = "SA password is required.";
+            return;
+        }
+
+        if (!ValidateContainerEngine())
+        {
+            return;
+        }
+
+        var normalizedResourceId = ResourceId.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedResourceId) &&
+            IsResourceIdInUse(normalizedResourceId))
+        {
+            ErrorMessage = $"Resource ID '{normalizedResourceId}' is already in use.";
+            return;
+        }
+
+        var definition = new ApplicationResourceDefinition(
+            normalizedResourceId,
+            Name,
+            executablePath: string.Empty,
+            environmentVariables:
+            [
+                new EnvironmentVariableAssignment("ACCEPT_EULA", "Y"),
+                new EnvironmentVariableAssignment("MSSQL_SA_PASSWORD", Password)
+            ],
+            lifetime: ApplicationLifetime.ControlPlaneScoped,
+            containerImage: Image.Trim(),
+            containerEngineId: NormalizeNullable(SelectedEngineId),
+            endpointPorts:
+            [
+                new ServicePort("tds", 1433, LocalPort, "tcp", ResourceExposureScope.Local)
+            ]);
+
+        await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
+        Navigation.NavigateTo("/resources");
+    }
+
+    private bool ValidateContainerEngine()
+    {
+        var engines = GetContainerEngines();
+        if (!string.IsNullOrWhiteSpace(SelectedEngineId))
+        {
+            if (engines.Any(engine => string.Equals(engine.Id, SelectedEngineId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            ErrorMessage = $"Container engine '{SelectedEngineId}' is not registered.";
+            return false;
+        }
+
+        if (engines.Any(engine => engine.IsDefault))
+        {
+            return true;
+        }
+
+        ErrorMessage = "A default container engine is required unless this resource selects an explicit engine.";
+        return false;
+    }
+
+    private bool IsResourceIdInUse(string resourceId) =>
+        ResourceManager.GetAvailableResources().Any(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) ||
+        Registrations.GetRegistration(resourceId) is not null ||
+        ApplicationProvider.GetApplication(resourceId) is not null;
+
+    private bool HasImplicitContainerEngine() =>
+        GetContainerEngines().Any(engine => engine.IsDefault);
+
+    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngines()
+    {
+        var configuredEngines = ContainerEngineProviders
+            .Select(provider => provider.GetContainerEngine())
+            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id));
+        var resourceEngines = ResourceManager
+            .GetResources()
+            .Select(TryReadContainerEngine)
+            .Where(engine => engine is not null)
+            .Select(engine => engine!);
+
+        return configuredEngines
+            .Concat(resourceEngines)
+            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .OrderByDescending(engine => engine.IsDefault)
+            .ThenBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private ContainerEngineResourceDefinition? TryReadContainerEngine(CloudResource resource)
+    {
+        var provider = DescriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
+        if (provider is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var descriptor = provider.DescribeAsync(
+                    resource,
+                    new ResourceOrchestrationDescriptorContext(
+                        Registrations.GetRegistration(resource.Id),
+                        ResourceManager.GetGroupForResource(resource.Id),
+                        ResourceManager))
+                .GetAwaiter()
+                .GetResult();
+            if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string GetEngineLabel(ContainerEngineResourceDefinition engine) =>
+        engine.IsDefault ? $"{engine.Name} (default)" : engine.Name;
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
