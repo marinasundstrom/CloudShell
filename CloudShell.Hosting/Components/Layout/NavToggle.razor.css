@@ -5,15 +5,15 @@
     place-items: center;
     margin-left: auto;
     flex: 0 0 2rem;
-    border: 1px solid #d6d6d6;
+    border: 1px solid var(--cloudshell-stroke);
     border-radius: 4px;
-    background: #ffffff;
-    color: #424242;
+    background: var(--cloudshell-surface);
+    color: var(--cloudshell-text);
     cursor: pointer;
 }
 
 .nav-toggle:hover {
-    background: #f5f5f5;
+    background: var(--cloudshell-hover);
 }
 
 .nav-toggle.collapsed {

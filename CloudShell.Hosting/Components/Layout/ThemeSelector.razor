@@ -1,0 +1,45 @@
+@rendermode InteractiveServer
+@inject IStringLocalizer<SharedResource> L
+
+<FluentDesignTheme @bind-Mode="Mode" StorageName="@StorageName" />
+
+<div class="theme-selector">
+    <span class="theme-icon" aria-hidden="true">
+        <FluentIcon Icon="@(Icons.Regular.Size20.DarkTheme)" Color="Color.Neutral" />
+    </span>
+    <FluentSelect TOption="DesignThemeModes"
+                  Class="theme-select"
+                  Items="@ThemeModes"
+                  OptionText="GetThemeDisplayName"
+                  OptionValue="@(mode => mode.ToString())"
+                  SelectedOption="@Mode"
+                  SelectedOptionChanged="ChangeMode"
+                  AriaLabel="@L["Theme"]"
+                  Appearance="Appearance.Neutral" />
+</div>
+
+@code {
+    private const string StorageName = "cloudshell.theme";
+
+    private static readonly IReadOnlyList<DesignThemeModes> ThemeModes =
+    [
+        DesignThemeModes.System,
+        DesignThemeModes.Light,
+        DesignThemeModes.Dark
+    ];
+
+    private DesignThemeModes Mode { get; set; } = DesignThemeModes.System;
+
+    private string GetThemeDisplayName(DesignThemeModes mode) =>
+        mode switch
+        {
+            DesignThemeModes.Light => L["Light"],
+            DesignThemeModes.Dark => L["Dark"],
+            _ => L["System"]
+        };
+
+    private void ChangeMode(DesignThemeModes mode)
+    {
+        Mode = mode;
+    }
+}
