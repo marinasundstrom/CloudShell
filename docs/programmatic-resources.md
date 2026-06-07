@@ -60,12 +60,14 @@ relationships:
   should be preferred when both resources are declared in the same callback.
 
 Executable applications and ASP.NET Core projects have one additional
-Aspire-compatible concept: endpoint references. `WithReference(resource)` records that the
-application wants endpoint/configuration values for another resource. It does
-not, by itself, enable service discovery variables. `WithServiceDiscovery()` is
-the opt-in that maps referenced resource endpoints into the .NET configuration
-shape. This keeps CloudShell open to other service discovery mechanisms, such as
-a dedicated service discovery service running in a container.
+Aspire-compatible concept: endpoint references. `WithReference(resource)`
+records that the application wants endpoint/configuration values for another
+resource. For ASP.NET Core project resources, `WithReference(...)` also enables
+service discovery configuration for the referenced resource. For generic
+executable applications, `WithServiceDiscovery()` remains the explicit opt-in
+that maps referenced resource endpoints into the .NET configuration shape. This
+keeps CloudShell open to other service discovery mechanisms, such as a dedicated
+service discovery service running in a container.
 
 Executable applications also keep `WaitFor(resource)` as an Aspire-compatible
 alias for dependency ordering. Prefer `DependsOn(resource)` when describing the
@@ -129,8 +131,7 @@ resources
     .WithContainerImage("example-web-api:dev")
     .WithReference(configuration)
     .WithReference(redis)
-    .DependsOn(redis)
-    .WithServiceDiscovery();
+    .DependsOn(redis);
 
 var appNetwork = resources.AddNetwork("network:app", "App Network");
 
@@ -157,6 +158,9 @@ project resources get a stable local HTTP endpoint automatically when `endpoint`
 is omitted. Supplying `endpoint: "http://localhost:5127"` fixes the port instead.
 CloudShell injects the resolved endpoint into `ASPNETCORE_URLS`, so the project
 binds to the Resource Manager endpoint without relying on launch profiles.
+Use `WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`, or
+`WithEndpointPort(...)` to declare fixed or named endpoints. Named endpoints
+match the Aspire URI shape `https+http://_endpointName.serviceName`.
 
 `AddDocker()` declares the default local Docker Engine resource. Containers are
 declared from that Docker resource with `AddContainer(name, image, tag)`,

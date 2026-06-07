@@ -204,7 +204,7 @@ dotnet run --project samples/CloudShell.ProjectReferenceHost --urls http://local
 Open `http://localhost:5104/resources`, run `Project Reference API`, then run
 `Project Reference Frontend`. The API port is assigned by CloudShell because the
 project declaration omits an endpoint. The frontend receives service discovery
-variables from `.WithReference(api).WithServiceDiscovery()` and resolves the API
+variables from `.WithReference(api)` and resolves the API
 endpoint through the sample ServiceDefaults project using an Aspire-style
 `https+http://project-reference-api` HttpClient URI at `http://localhost:5218/upstream`.
 

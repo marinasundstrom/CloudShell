@@ -24,8 +24,7 @@ resources
         "application:example-web-api",
         "Example Web API",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
-    .WithReference(configuration)
-    .WithServiceDiscovery();
+    .WithReference(configuration);
 ```
 
 By default, CloudShell starts ASP.NET Core project resources with hot reload:
@@ -40,6 +39,24 @@ omits `endpoint`, CloudShell assigns a stable local port. If the declaration
 sets `endpoint`, that URL fixes the displayed port. In both cases CloudShell
 injects the resolved URL into `ASPNETCORE_URLS` when the process starts, so the
 project listens on the same endpoint that Resource Manager displays.
+
+Use endpoint builder methods to model additional or named endpoints:
+
+```csharp
+resources
+    .AddAspNetCoreProject(
+        "application:example-web-api",
+        "Example Web API",
+        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+    .WithHttpEndpoint(port: 5127)
+    .WithEndpointPort("dashboard", targetPort: 18888, port: 18888, protocol: "http");
+```
+
+ASP.NET Core project references follow the Aspire model: `WithReference(...)`
+adds service discovery configuration for the referenced resource. A client can
+use logical URIs such as `https+http://example-web-api` or
+`https+http://_dashboard.example-web-api` when service discovery is enabled in
+the consuming app.
 
 ## Lifetime
 
@@ -128,11 +145,12 @@ to load settings during startup. If the configuration service is unavailable,
 the provider records unavailable status and the app continues running. The
 `/configuration` endpoint reports the provider status and currently loaded keys.
 
-Applications can also opt in to Aspire-compatible service discovery for
-referenced resources. `WithReference(...)` records that an application wants
+Executable applications can also opt in to Aspire-compatible service discovery
+for referenced resources. `WithReference(...)` records that an application wants
 endpoint/configuration values for another resource; `WithServiceDiscovery()` is
 the separate opt-in that maps those referenced resource endpoints into
-environment variables using the .NET configuration shape:
+environment variables using the .NET configuration shape. ASP.NET Core project
+resources enable that mapping automatically when `WithReference(...)` is used:
 
 ```text
 services__<resource-name>__<endpoint-name-or-scheme>__0=<endpoint-address>

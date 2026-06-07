@@ -24,8 +24,7 @@ cloudShell.Resources(resources =>
             "samples/CloudShell.ProjectReferenceFrontend/CloudShell.ProjectReferenceFrontend.csproj",
             endpoint: "http://localhost:5218")
         .WithReference(api)
-        .DependsOn(api)
-        .WithServiceDiscovery();
+        .DependsOn(api);
 });
 
 var app = builder.Build();

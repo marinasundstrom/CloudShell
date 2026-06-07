@@ -297,8 +297,7 @@ public sealed class ResourceDeclarationTests
                         "API",
                         "src/API/API.csproj",
                         endpoint: "http://localhost:5127")
-                    .WithReference(settings)
-                    .WithServiceDiscovery();
+                    .WithReference(settings);
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -333,6 +332,59 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("http", port.Protocol);
         Assert.Equal(["configuration:settings"], application.References);
         Assert.True(application.UseServiceDiscovery);
+    }
+
+    [Fact]
+    public void TypedAspNetCoreProjectBuilder_CanDeclareNamedEndpoints()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "API",
+                        "src/API/API.csproj")
+                    .WithHttpEndpoint(port: 5127)
+                    .WithEndpointPort(
+                        "dashboard",
+                        targetPort: 18888,
+                        port: 18888,
+                        protocol: "http");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.Collection(
+            application.EndpointPorts.OrderBy(port => port.Name, StringComparer.OrdinalIgnoreCase),
+            port =>
+            {
+                Assert.Equal("dashboard", port.Name);
+                Assert.Equal(18888, port.TargetPort);
+                Assert.Equal(18888, port.Port);
+                Assert.Equal("http", port.Protocol);
+            },
+            port =>
+            {
+                Assert.Equal("http", port.Name);
+                Assert.Equal(80, port.TargetPort);
+                Assert.Equal(5127, port.Port);
+                Assert.Equal("http", port.Protocol);
+            });
     }
 
     [Fact]

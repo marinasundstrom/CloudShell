@@ -610,7 +610,10 @@ internal sealed class ExecutableApplicationResourceBuilder(
         {
             References = declared.Definition.References
                 .Append(resource.ResourceId)
-                .ToArray()
+                .ToArray(),
+            UseServiceDiscovery = ShouldEnableServiceDiscoveryOnReference()
+                ? true
+                : declared.Definition.UseServiceDiscovery
         };
         return this;
     }
@@ -630,7 +633,10 @@ internal sealed class ExecutableApplicationResourceBuilder(
         {
             References = declared.Definition.References
                 .Concat(resourceIds)
-                .ToArray()
+                .ToArray(),
+            UseServiceDiscovery = ShouldEnableServiceDiscoveryOnReference()
+                ? true
+                : declared.Definition.UseServiceDiscovery
         };
         return this;
     }
@@ -719,7 +725,10 @@ internal sealed class ExecutableApplicationResourceBuilder(
         {
             References = declared.Definition.References
                 .Append(resourceId)
-                .ToArray()
+                .ToArray(),
+            UseServiceDiscovery = ShouldEnableServiceDiscoveryOnReference()
+                ? true
+                : declared.Definition.UseServiceDiscovery
         };
         return this;
     }
@@ -731,10 +740,19 @@ internal sealed class ExecutableApplicationResourceBuilder(
         {
             References = declared.Definition.References
                 .Concat(resourceIds)
-                .ToArray()
+                .ToArray(),
+            UseServiceDiscovery = ShouldEnableServiceDiscoveryOnReference()
+                ? true
+                : declared.Definition.UseServiceDiscovery
         };
         return this;
     }
+
+    private bool ShouldEnableServiceDiscoveryOnReference() =>
+        string.Equals(
+            declared.Definition.ResourceType,
+            ApplicationResourceTypes.AspNetCoreProject,
+            StringComparison.OrdinalIgnoreCase);
 
     ICloudShellResourceBuilder ICloudShellResourceBuilder.Persist(bool overwrite) =>
         Persist(overwrite);

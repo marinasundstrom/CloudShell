@@ -13,14 +13,15 @@ The frontend resource uses:
 ```csharp
 .WithReference(api)
 .DependsOn(api)
-.WithServiceDiscovery()
 ```
 
 Both projects reference `CloudShell.ProjectReference.ServiceDefaults`, similar
 to an Aspire ServiceDefaults project. It registers common health endpoints,
 HTTP client defaults, `Microsoft.Extensions.ServiceDiscovery`, and a
 `AddResourceHttpClient(...)` helper that uses Aspire-style logical URIs such as
-`https+http://project-reference-api`.
+`https+http://project-reference-api`. For ASP.NET Core project resources,
+`WithReference(...)` enables the referenced project's service discovery
+configuration automatically.
 
 CloudShell starts both projects with `dotnet watch` by default. The API omits a
 port, so CloudShell assigns a stable local HTTP endpoint. The frontend receives
