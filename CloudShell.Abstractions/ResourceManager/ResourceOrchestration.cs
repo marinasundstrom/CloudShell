@@ -1,0 +1,56 @@
+using System.Text.Json;
+
+namespace CloudShell.Abstractions.ResourceManager;
+
+public sealed record ResourceOrchestrationContext(
+    CloudResource Resource,
+    ResourceRegistration? Registration,
+    ResourceGroup? ResourceGroup,
+    IResourceManagerStore ResourceManager,
+    IResourceRegistrationStore Registrations);
+
+public sealed record ResourceOrchestrationDescriptor(
+    string ResourceId,
+    string ResourceType,
+    IReadOnlyList<string> DependsOn,
+    IReadOnlyList<string> Networks,
+    IReadOnlyList<ResourceEndpoint> Endpoints,
+    string ProviderConfigurationVersion,
+    JsonElement Configuration);
+
+public sealed record ResourceOrchestrationDescriptorContext(
+    ResourceRegistration? Registration,
+    ResourceGroup? ResourceGroup,
+    IResourceManagerStore ResourceManager);
+
+public interface IResourceOrchestrator
+{
+    string Id { get; }
+
+    string DisplayName { get; }
+
+    bool CanExecute(
+        ResourceOrchestrationContext context,
+        ResourceAction action);
+
+    Task<ResourceProcedureResult> ExecuteActionAsync(
+        ResourceOrchestrationContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default);
+
+    bool CanDelete(ResourceOrchestrationContext context);
+
+    Task<ResourceProcedureResult> DeleteAsync(
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IResourceOrchestrationDescriptorProvider
+{
+    bool CanDescribe(CloudResource resource);
+
+    Task<ResourceOrchestrationDescriptor> DescribeAsync(
+        CloudResource resource,
+        ResourceOrchestrationDescriptorContext context,
+        CancellationToken cancellationToken = default);
+}

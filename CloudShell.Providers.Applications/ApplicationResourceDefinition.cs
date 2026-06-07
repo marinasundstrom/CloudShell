@@ -15,7 +15,11 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ApplicationLifetime lifetime = ApplicationLifetime.Detached,
         IReadOnlyList<string>? dependsOn = null,
         IReadOnlyList<string>? references = null,
-        bool useServiceDiscovery = false)
+        bool useServiceDiscovery = false,
+        string? containerImage = null,
+        string? containerBuildContext = null,
+        string? containerDockerfile = null,
+        int replicas = 1)
     {
         Id = id;
         Name = name;
@@ -28,6 +32,10 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         DependsOn = dependsOn ?? [];
         References = references ?? [];
         UseServiceDiscovery = useServiceDiscovery;
+        ContainerImage = containerImage;
+        ContainerBuildContext = containerBuildContext;
+        ContainerDockerfile = containerDockerfile;
+        Replicas = replicas;
     }
 
     public string Id { get; init; }
@@ -51,6 +59,14 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public IReadOnlyList<string> References { get; init; }
 
     public bool UseServiceDiscovery { get; init; }
+
+    public string? ContainerImage { get; init; }
+
+    public string? ContainerBuildContext { get; init; }
+
+    public string? ContainerDockerfile { get; init; }
+
+    public int Replicas { get; init; }
 }
 
 public enum ApplicationLifetime

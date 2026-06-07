@@ -22,6 +22,7 @@ public sealed partial class ApplicationResourceProvider(
     IResourceProcedureProvider,
     IResourceTemplateProvider,
     IProgrammaticResourceDeclarationProvider,
+    IResourceOrchestrationDescriptorProvider,
     IDisposable
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
@@ -209,7 +210,11 @@ public sealed partial class ApplicationResourceProvider(
             application.EnvironmentVariables,
             application.Lifetime,
             application.References,
-            application.UseServiceDiscovery);
+            application.UseServiceDiscovery,
+            application.ContainerImage,
+            application.ContainerBuildContext,
+            application.ContainerDockerfile,
+            application.Replicas);
 
         return Task.FromResult(new ResourceTemplateDefinition(
             application.Name,
@@ -254,7 +259,11 @@ public sealed partial class ApplicationResourceProvider(
             configuration.Lifetime,
             context.DependsOn,
             configuration.References,
-            configuration.UseServiceDiscovery);
+            configuration.UseServiceDiscovery,
+            configuration.ContainerImage,
+            configuration.ContainerBuildContext,
+            configuration.ContainerDockerfile,
+            configuration.Replicas);
 
         await SetupApplicationAsync(
             definition,
@@ -302,6 +311,29 @@ public sealed partial class ApplicationResourceProvider(
         TryGetRunningProcess(
             store.GetApplication(applicationId),
             out _);
+
+    public bool CanDescribe(CloudResource resource) =>
+        string.Equals(resource.EffectiveTypeId, "application.executable", StringComparison.OrdinalIgnoreCase) &&
+        store.GetApplication(resource.Id) is not null;
+
+    public Task<ResourceOrchestrationDescriptor> DescribeAsync(
+        CloudResource resource,
+        ResourceOrchestrationDescriptorContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var application = store.GetApplication(resource.Id)
+            ?? throw new InvalidOperationException($"Application resource '{resource.Id}' is not configured.");
+
+        var workload = CreateWorkloadConfiguration(application);
+        return Task.FromResult(new ResourceOrchestrationDescriptor(
+            resource.Id,
+            resource.EffectiveTypeId,
+            resource.DependsOn,
+            [],
+            resource.Endpoints,
+            "1.0",
+            JsonSerializer.SerializeToElement(workload, TemplateSerializerOptions)));
+    }
 
     public void Dispose()
     {
@@ -827,6 +859,10 @@ public sealed partial class ApplicationResourceProvider(
             Endpoint = NormalizeNullable(definition.Endpoint),
             Lifetime = definition.Lifetime,
             UseServiceDiscovery = definition.UseServiceDiscovery,
+            ContainerImage = NormalizeNullable(definition.ContainerImage),
+            ContainerBuildContext = NormalizeNullable(definition.ContainerBuildContext),
+            ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
+            Replicas = Math.Max(1, definition.Replicas),
             DependsOn = NormalizeDependencies(definition.DependsOn, id),
             References = NormalizeReferences(definition.References, id),
             EnvironmentVariables = definition.EnvironmentVariables
@@ -834,6 +870,40 @@ public sealed partial class ApplicationResourceProvider(
                 .Select(variable => variable with { Name = variable.Name.Trim() })
                 .ToArray()
         };
+    }
+
+    private static ResourceWorkloadConfiguration CreateWorkloadConfiguration(
+        ApplicationResourceDefinition application)
+    {
+        if (!string.IsNullOrWhiteSpace(application.ContainerImage))
+        {
+            return new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                application.Name,
+                Image: application.ContainerImage,
+                Replicas: Math.Max(1, application.Replicas),
+                EnvironmentVariables: application.EnvironmentVariables);
+        }
+
+        if (!string.IsNullOrWhiteSpace(application.ContainerBuildContext))
+        {
+            return new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerBuild,
+                application.Name,
+                BuildContext: application.ContainerBuildContext,
+                Dockerfile: application.ContainerDockerfile,
+                Replicas: Math.Max(1, application.Replicas),
+                EnvironmentVariables: application.EnvironmentVariables);
+        }
+
+        return new ResourceWorkloadConfiguration(
+            ResourceWorkloadKind.LocalExecutable,
+            application.Name,
+            ExecutablePath: application.ExecutablePath,
+            Arguments: application.Arguments,
+            WorkingDirectory: application.WorkingDirectory,
+            Replicas: Math.Max(1, application.Replicas),
+            EnvironmentVariables: application.EnvironmentVariables);
     }
 
     private static string CreateId(string name)
@@ -955,5 +1025,9 @@ public sealed partial class ApplicationResourceProvider(
         IReadOnlyList<EnvironmentVariableAssignment> EnvironmentVariables,
         ApplicationLifetime Lifetime,
         IReadOnlyList<string>? References = null,
-        bool UseServiceDiscovery = false);
+        bool UseServiceDiscovery = false,
+        string? ContainerImage = null,
+        string? ContainerBuildContext = null,
+        string? ContainerDockerfile = null,
+        int Replicas = 1);
 }

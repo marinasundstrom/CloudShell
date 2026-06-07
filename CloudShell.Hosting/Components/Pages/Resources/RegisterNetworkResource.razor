@@ -1,0 +1,74 @@
+@inject PlatformResourceProvider PlatformProvider
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+@inject NavigationManager Navigation
+
+<div class="type-registration">
+    <div class="provider-summary compact">
+        <div class="provider-status">
+            <span class="state-dot state-running"></span>
+            <div>
+                <strong>Logical networks</strong>
+                <span>Create an orchestration network boundary that Compose or another orchestrator can map to its own networking model.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-panel">
+        <label for="network-name">Name</label>
+        <input id="network-name" @bind="Name" />
+
+        <label for="network-resource-id">Resource ID</label>
+        <input id="network-resource-id" @bind="ResourceId" placeholder="network:app" />
+
+        <label>
+            <input type="checkbox" @bind="IsDefault" />
+            Default network
+        </label>
+
+        <label for="network-group">Resource group</label>
+        <select id="network-group" @bind="SelectedGroupId">
+            <option value="">Default group</option>
+            @foreach (var group in ResourceGroups.GetResourceGroups())
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string ResourceId { get; set; } = string.Empty;
+    private string Name { get; set; } = string.Empty;
+    private bool IsDefault { get; set; }
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; }
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ErrorMessage = "Name is required.";
+            return;
+        }
+
+        await PlatformProvider.SetupNetworkAsync(
+            new NetworkResourceDefinition(ResourceId, Name, IsDefault),
+            SelectedGroupId,
+            Registrations);
+
+        Navigation.NavigateTo("/resources");
+    }
+}

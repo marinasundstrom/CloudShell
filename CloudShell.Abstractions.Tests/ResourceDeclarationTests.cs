@@ -374,6 +374,89 @@ public sealed class ResourceDeclarationTests
             container.DependsOn);
     }
 
+    [Fact]
+    public void PlatformResources_DeclareNetworkAndServiceWithExposure()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var network = resources.AddNetwork("network:app", "App Network");
+                var api = resources.Declare("applications", "application:api");
+
+                resources
+                    .AddService("service:api", "API")
+                    .Targets(api)
+                    .WithNetwork(network)
+                    .WithPort(
+                        "http",
+                        targetPort: 8080,
+                        port: 5080,
+                        protocol: "http",
+                        exposure: ResourceExposureScope.Public);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var service = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "service:api");
+
+        Assert.Equal(PlatformResourceProvider.ProviderId, service.ProviderId);
+        Assert.Equal(["application:api", "network:app"], service.DependsOn);
+
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var serviceDefinition = Assert.Single(options.DeclaredServices).Definition;
+
+        Assert.Equal("service:api", serviceDefinition.Id);
+        Assert.Equal([new ServiceTarget("application:api")], serviceDefinition.Targets);
+        Assert.Equal(["network:app"], serviceDefinition.NetworkIds);
+
+        var port = Assert.Single(serviceDefinition.Ports);
+        Assert.Equal("http", port.Name);
+        Assert.Equal(8080, port.TargetPort);
+        Assert.Equal(5080, port.Port);
+        Assert.Equal(ResourceExposureScope.Public, port.Exposure);
+    }
+
+    [Fact]
+    public void ExecutableApplicationBuilder_CanAttachContainerImageForOrchestration()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        "API",
+                        executablePath: "dotnet",
+                        arguments: "run")
+                    .WithContainerImage("example/api:dev")
+                    .WithReplicas(2);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.Equal("example/api:dev", application.ContainerImage);
+        Assert.Null(application.ContainerBuildContext);
+        Assert.Equal(2, application.Replicas);
+    }
+
     private sealed class ParentMetadataExtension : ICloudShellExtension
     {
         public CloudShellExtensionManifest Manifest => new(

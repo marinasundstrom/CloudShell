@@ -1,0 +1,192 @@
+@inject PlatformResourceProvider PlatformProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+@inject NavigationManager Navigation
+
+<div class="type-registration">
+    <div class="provider-summary compact">
+        <div class="provider-status">
+            <span class="state-dot state-running"></span>
+            <div>
+                <strong>Services and exposure</strong>
+                <span>Create a stable endpoint over one or more resources, with public exposure opt-in.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-panel">
+        <label for="service-name">Name</label>
+        <input id="service-name" @bind="Name" />
+
+        <label for="service-resource-id">Resource ID</label>
+        <input id="service-resource-id" @bind="ResourceId" placeholder="service:api" />
+
+        <label for="service-group">Resource group</label>
+        <select id="service-group" @bind="SelectedGroupId">
+            <option value="">Default group</option>
+            @foreach (var group in ResourceGroups.GetResourceGroups())
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Targets</strong>
+            </div>
+
+            @foreach (var resource in GetTargetCandidates())
+            {
+                <label>
+                    <input type="checkbox"
+                           checked="@SelectedTargetIds.Contains(resource.Id)"
+                           @onchange="args => Toggle(SelectedTargetIds, resource.Id, args)" />
+                    @resource.Name
+                </label>
+            }
+        </div>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Networks</strong>
+            </div>
+
+            @foreach (var network in GetNetworkCandidates())
+            {
+                <label>
+                    <input type="checkbox"
+                           checked="@SelectedNetworkIds.Contains(network.Id)"
+                           @onchange="args => Toggle(SelectedNetworkIds, network.Id, args)" />
+                    @network.Name
+                </label>
+            }
+        </div>
+
+        <label for="service-port-name">Port name</label>
+        <input id="service-port-name" @bind="PortName" />
+
+        <label for="service-target-port">Target port</label>
+        <input id="service-target-port" type="number" min="1" @bind="TargetPort" />
+
+        <label for="service-port">Exposed port</label>
+        <input id="service-port" type="number" min="1" @bind="Port" />
+
+        <label for="service-protocol">Protocol</label>
+        <select id="service-protocol" @bind="Protocol">
+            <option value="tcp">TCP</option>
+            <option value="udp">UDP</option>
+            <option value="http">HTTP</option>
+            <option value="https">HTTPS</option>
+        </select>
+
+        <label for="service-exposure">Exposure</label>
+        <select id="service-exposure" @bind="SelectedExposure">
+            @foreach (var exposure in Enum.GetValues<ResourceExposureScope>())
+            {
+                <option value="@exposure.ToString()">@exposure</option>
+            }
+        </select>
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string ResourceId { get; set; } = string.Empty;
+    private string Name { get; set; } = string.Empty;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private HashSet<string> SelectedTargetIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string> SelectedNetworkIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private string PortName { get; set; } = "http";
+    private int TargetPort { get; set; } = 80;
+    private int? Port { get; set; }
+    private string Protocol { get; set; } = "tcp";
+    private string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
+    private string? ErrorMessage { get; set; }
+
+    private IReadOnlyList<CloudResource> GetTargetCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, PlatformResourceProvider.ServiceResourceType, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, PlatformResourceProvider.NetworkResourceType, StringComparison.OrdinalIgnoreCase))
+            .Where(IsInSelectedGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<CloudResource> GetNetworkCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => string.Equals(resource.EffectiveTypeId, PlatformResourceProvider.NetworkResourceType, StringComparison.OrdinalIgnoreCase))
+            .Where(IsInSelectedGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private bool IsInSelectedGroup(CloudResource resource)
+    {
+        var group = ResourceManager.GetGroupForResource(resource.Id);
+        return string.IsNullOrWhiteSpace(SelectedGroupId)
+            ? group is null
+            : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void Toggle(HashSet<string> values, string value, ChangeEventArgs args)
+    {
+        var selected = args.Value is bool boolValue && boolValue;
+        if (selected)
+        {
+            values.Add(value);
+        }
+        else
+        {
+            values.Remove(value);
+        }
+    }
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ErrorMessage = "Name is required.";
+            return;
+        }
+
+        if (SelectedTargetIds.Count == 0)
+        {
+            ErrorMessage = "Select at least one target resource.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(PortName) || TargetPort <= 0)
+        {
+            ErrorMessage = "Port name and target port are required.";
+            return;
+        }
+
+        var exposure = Enum.TryParse<ResourceExposureScope>(SelectedExposure, out var parsedExposure)
+            ? parsedExposure
+            : ResourceExposureScope.Network;
+
+        var definition = new ServiceResourceDefinition(
+            ResourceId,
+            Name,
+            SelectedTargetIds.Select(resourceId => new ServiceTarget(resourceId)).ToArray(),
+            [new ServicePort(PortName, TargetPort, Port, Protocol, exposure)],
+            SelectedNetworkIds.ToArray());
+
+        await PlatformProvider.SetupServiceAsync(
+            definition,
+            SelectedGroupId,
+            Registrations);
+
+        Navigation.NavigateTo("/resources");
+    }
+}

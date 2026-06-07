@@ -1,4 +1,6 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CloudShell.Providers.Applications;
@@ -17,6 +19,8 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
     {
         builder.Services.TryAddSingleton<ApplicationResourceStore>();
         builder.Services.TryAddSingleton<ApplicationRuntimeStateStore>();
+        builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
 
         builder
             .AddResourceProvider<ApplicationResourceProvider>()

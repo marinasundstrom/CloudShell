@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -138,7 +139,7 @@ public static class CloudShellControlPlaneApiExtensions
     private static async Task<IResult> DeleteResource(
         string resourceId,
         IResourceManagerStore resourceManager,
-        IResourceRegistrationStore registrations,
+        ResourceOrchestrationService orchestration,
         ICloudShellAuthorizationService authorization,
         CancellationToken cancellationToken)
     {
@@ -157,26 +158,9 @@ public static class CloudShellControlPlaneApiExtensions
             return Results.Forbid();
         }
 
-        var registration = registrations.GetRegistration(resource.Id);
-        var provider = registration is null
-            ? null
-            : resourceManager.Providers.FirstOrDefault(item =>
-                string.Equals(item.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase));
-
-        if (provider is not IResourceProcedureProvider procedureProvider)
-        {
-            return Problem(
-                StatusCodes.Status405MethodNotAllowed,
-                "Unsupported resource procedure",
-                "The selected provider does not support deleting this resource.");
-        }
-
         try
         {
-            var result = await procedureProvider.DeleteAsync(
-                new ResourceProcedureContext(resource, registration, group?.Id, registrations),
-                cancellationToken);
-
+            var result = await orchestration.DeleteAsync(resource, cancellationToken);
             return Results.Ok(new ResourceProcedureResponse(result.Message));
         }
         catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
@@ -191,7 +175,7 @@ public static class CloudShellControlPlaneApiExtensions
         bool startDependencies,
         bool ignoreDependentWarning,
         IResourceManagerStore resourceManager,
-        IResourceRegistrationStore registrations,
+        ResourceOrchestrationService orchestration,
         ICloudShellAuthorizationService authorization,
         CancellationToken cancellationToken)
     {
@@ -217,21 +201,8 @@ public static class CloudShellControlPlaneApiExtensions
             return Results.Forbid();
         }
 
-        var provider = GetProcedureProvider(resourceManager, registrations, resource);
-        if (provider is null)
-        {
-            return Problem(
-                StatusCodes.Status405MethodNotAllowed,
-                "Unsupported resource action",
-                "The selected provider does not support actions for this resource.");
-        }
-
         try
         {
-            var registration = GetRegistrationForResourceOrAncestor(
-                resourceManager,
-                registrations,
-                resource);
             if (!ignoreDependentWarning && ShouldWarnDependents(action))
             {
                 var activeDependents = GetActiveDependents(resource, resourceManager);
@@ -244,21 +215,11 @@ public static class CloudShellControlPlaneApiExtensions
                 }
             }
 
-            if (startDependencies && ShouldStartDependencies(action))
-            {
-                await StartResourceDependenciesAsync(
-                    resource,
-                    resourceManager,
-                    registrations,
-                    authorization,
-                    new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-                    new HashSet<string>(StringComparer.OrdinalIgnoreCase),
-                    cancellationToken);
-            }
-
-            var result = await provider.ExecuteActionAsync(
-                new ResourceProcedureContext(resource, registration, group?.Id, registrations),
+            var result = await orchestration.ExecuteActionAsync(
+                resource,
                 action,
+                startDependencies,
+                authorization,
                 cancellationToken);
 
             return Results.Ok(new ResourceProcedureResponse(result.Message));
@@ -464,90 +425,6 @@ public static class CloudShellControlPlaneApiExtensions
             resourceManager.GetGroupForResource(resource.Id),
             resourceManager.IsRegistered(resource.Id));
 
-    private static async Task StartResourceDependenciesAsync(
-        CloudResource resource,
-        IResourceManagerStore resourceManager,
-        IResourceRegistrationStore registrations,
-        ICloudShellAuthorizationService authorization,
-        HashSet<string> visiting,
-        HashSet<string> completed,
-        CancellationToken cancellationToken)
-    {
-        if (!visiting.Add(resource.Id))
-        {
-            throw new InvalidOperationException(
-                $"Resource dependency cycle detected at '{resource.Id}'.");
-        }
-
-        foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            if (completed.Contains(dependencyId))
-            {
-                continue;
-            }
-
-            var dependency = resourceManager.GetResource(dependencyId)
-                ?? throw new InvalidOperationException(
-                    $"Dependency resource '{dependencyId}' could not be found.");
-
-            await StartResourceDependenciesAsync(
-                dependency,
-                resourceManager,
-                registrations,
-                authorization,
-                visiting,
-                completed,
-                cancellationToken);
-
-            if (dependency.State == ResourceState.Running)
-            {
-                completed.Add(dependency.Id);
-                continue;
-            }
-
-            var runAction = dependency.ResourceActions.FirstOrDefault(action =>
-                action.Kind == ResourceActionKind.Run);
-            if (runAction is null)
-            {
-                throw new InvalidOperationException(
-                    $"Dependency resource '{dependency.Name}' is not running and does not expose a Run action.");
-            }
-
-            var group = resourceManager.GetGroupForResource(dependency.Id);
-            if (!authorization.CanAccessResource(
-                    dependency.Id,
-                    group?.Id,
-                    CloudShellPermissions.Resources.Manage))
-            {
-                throw new UnauthorizedAccessException(
-                    $"The '{CloudShellPermissions.Resources.Manage}' permission is required for dependency resource '{dependency.Id}'.");
-            }
-
-            var provider = GetProcedureProvider(resourceManager, registrations, dependency);
-            if (provider is null)
-            {
-                throw new InvalidOperationException(
-                    $"Dependency resource '{dependency.Name}' does not support actions.");
-            }
-
-            var registration = GetRegistrationForResourceOrAncestor(
-                resourceManager,
-                registrations,
-                dependency);
-            await provider.ExecuteActionAsync(
-                new ResourceProcedureContext(dependency, registration, group?.Id, registrations),
-                runAction,
-                cancellationToken);
-
-            completed.Add(dependency.Id);
-        }
-
-        visiting.Remove(resource.Id);
-    }
-
-    private static bool ShouldStartDependencies(ResourceAction action) =>
-        action.Kind is ResourceActionKind.Run or ResourceActionKind.Restart;
-
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart;
 
@@ -562,60 +439,6 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static bool IsActiveDependencyState(ResourceState state) =>
         state is not ResourceState.Stopped and not ResourceState.Unknown;
-
-    private static IResourceProcedureProvider? GetProcedureProvider(
-        IResourceManagerStore resourceManager,
-        IResourceRegistrationStore registrations,
-        CloudResource resource)
-    {
-        var registration = GetRegistrationForResourceOrAncestor(
-            resourceManager,
-            registrations,
-            resource);
-        if (registration is not null)
-        {
-            return resourceManager.Providers.FirstOrDefault(provider =>
-                string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
-                as IResourceProcedureProvider;
-        }
-
-        return resourceManager.Providers.FirstOrDefault(provider =>
-            string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
-            as IResourceProcedureProvider;
-    }
-
-    private static ResourceRegistration? GetRegistrationForResourceOrAncestor(
-        IResourceManagerStore resourceManager,
-        IResourceRegistrationStore registrations,
-        CloudResource resource)
-    {
-        var current = resource;
-        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        while (visited.Add(current.Id))
-        {
-            var registration = registrations.GetRegistration(current.Id);
-            if (registration is not null)
-            {
-                return registration;
-            }
-
-            if (current.ParentResourceId is null)
-            {
-                return null;
-            }
-
-            var parent = resourceManager.GetResource(current.ParentResourceId);
-            if (parent is null)
-            {
-                return null;
-            }
-
-            current = parent;
-        }
-
-        return null;
-    }
 
     private static IResult ToProblem(Exception exception) =>
         exception is UnauthorizedAccessException

@@ -56,6 +56,18 @@
             Enable service discovery for references
         </label>
 
+        <label for="application-container-image">Container image</label>
+        <input id="application-container-image" @bind="ContainerImage" placeholder="example/api:dev" />
+
+        <label for="application-build-context">Docker build context</label>
+        <input id="application-build-context" @bind="ContainerBuildContext" placeholder="." />
+
+        <label for="application-dockerfile">Dockerfile</label>
+        <input id="application-dockerfile" @bind="ContainerDockerfile" placeholder="Dockerfile" />
+
+        <label for="application-replicas">Replicas</label>
+        <input id="application-replicas" type="number" min="1" @bind="Replicas" />
+
         <label for="application-group">Resource group</label>
         <select id="application-group" @bind="SelectedGroupId">
             <option value="">Default group</option>
@@ -124,6 +136,10 @@
     private string? Endpoint { get; set; }
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseServiceDiscovery { get; set; }
+    private string? ContainerImage { get; set; }
+    private string? ContainerBuildContext { get; set; }
+    private string? ContainerDockerfile { get; set; }
+    private int Replicas { get; set; } = 1;
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
@@ -153,6 +169,10 @@
             Endpoint = null;
             SelectedLifetime = ApplicationLifetime.Detached.ToString();
             UseServiceDiscovery = false;
+            ContainerImage = null;
+            ContainerBuildContext = null;
+            ContainerDockerfile = null;
+            Replicas = 1;
             SelectedDependencyIds.Clear();
             ReferenceIds = [];
             EnvironmentVariables.Clear();
@@ -178,6 +198,10 @@
         Endpoint = application.Endpoint;
         SelectedLifetime = application.Lifetime.ToString();
         UseServiceDiscovery = application.UseServiceDiscovery;
+        ContainerImage = application.ContainerImage;
+        ContainerBuildContext = application.ContainerBuildContext;
+        ContainerDockerfile = application.ContainerDockerfile;
+        Replicas = application.Replicas;
         ReferenceIds = application.References;
         SelectedGroupId = ResourceManager.GetGroupForResource(application.Id)?.Id ?? string.Empty;
         SelectedDependencyIds.Clear();
@@ -237,7 +261,11 @@
             ParseLifetime(),
             BuildDependencies(),
             ReferenceIds,
-            UseServiceDiscovery);
+            UseServiceDiscovery,
+            NormalizeNullable(ContainerImage),
+            NormalizeNullable(ContainerBuildContext),
+            NormalizeNullable(ContainerDockerfile),
+            Math.Max(1, Replicas));
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");
@@ -305,6 +333,9 @@
             ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
             _ => "Detached"
         };
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
     {

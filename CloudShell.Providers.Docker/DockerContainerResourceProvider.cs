@@ -6,6 +6,7 @@ using System.Buffers;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace CloudShell.Providers.Docker;
@@ -15,8 +16,10 @@ public sealed partial class DockerContainerResourceProvider :
     ILogProvider,
     IResourceProcedureProvider,
     IProgrammaticResourceDeclarationProvider,
+    IResourceOrchestrationDescriptorProvider,
     IDisposable
 {
+    private static readonly JsonSerializerOptions DescriptorSerializerOptions = new(JsonSerializerDefaults.Web);
     public const string EngineResourceId = "docker:engine";
     private const string ContainerResourceIdPrefix = "docker:container:";
     private readonly object _gate = new();
@@ -298,6 +301,37 @@ public sealed partial class DockerContainerResourceProvider :
 
         await RefreshAsync(cancellationToken);
         return ResourceProcedureResult.Completed($"{action.DisplayName} requested for {context.Resource.Name}.");
+    }
+
+    public bool CanDescribe(CloudResource resource) =>
+        string.Equals(resource.EffectiveTypeId, "docker.container", StringComparison.OrdinalIgnoreCase) &&
+        _options.DeclaredContainers.Any(container =>
+            string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase));
+
+    public Task<ResourceOrchestrationDescriptor> DescribeAsync(
+        CloudResource resource,
+        ResourceOrchestrationDescriptorContext context,
+        CancellationToken cancellationToken = default)
+    {
+        var definition = _options.DeclaredContainers.FirstOrDefault(container =>
+                string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase))
+            ?.Definition
+            ?? throw new InvalidOperationException($"Docker container resource '{resource.Id}' is not configured.");
+
+        var workload = new ResourceWorkloadConfiguration(
+            ResourceWorkloadKind.ContainerImage,
+            definition.Name,
+            Image: definition.Image,
+            Replicas: 1);
+
+        return Task.FromResult(new ResourceOrchestrationDescriptor(
+            resource.Id,
+            resource.EffectiveTypeId,
+            resource.DependsOn,
+            [],
+            resource.Endpoints,
+            "1.0",
+            JsonSerializer.SerializeToElement(workload, DescriptorSerializerOptions)));
     }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)

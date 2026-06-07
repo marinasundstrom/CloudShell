@@ -28,6 +28,12 @@
         <FluentButton Appearance="Appearance.Neutral" OnClick="OpenTemplates">
             @L["Templates"]
         </FluentButton>
+        @if (Authorization.HasPermission(CloudShellPermissions.Resources.Manage))
+        {
+            <FluentButton Appearance="Appearance.Neutral" OnClick="OpenSettings">
+                @L["Settings"]
+            </FluentButton>
+        }
         @if (Authorization.CanAccessResourceGroup(
             "__new_resource_group",
             CloudShellPermissions.ResourceGroups.Create))
@@ -498,6 +504,8 @@
     private void AddResource() => Navigation.NavigateTo("/resources/add");
 
     private void OpenTemplates() => Navigation.NavigateTo("/resources/templates");
+
+    private void OpenSettings() => Navigation.NavigateTo("/resources/settings");
 
     private void UpdateResource(CloudResource resource) =>
         Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");

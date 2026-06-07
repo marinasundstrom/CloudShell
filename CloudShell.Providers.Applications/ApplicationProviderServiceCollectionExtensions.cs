@@ -124,6 +124,14 @@ public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuil
 
     IExecutableApplicationResourceBuilder WithServiceDiscovery(bool enabled = true);
 
+    IExecutableApplicationResourceBuilder WithContainerImage(string? image);
+
+    IExecutableApplicationResourceBuilder WithDockerBuild(
+        string? buildContext,
+        string? dockerfile = null);
+
+    IExecutableApplicationResourceBuilder WithReplicas(int replicas);
+
     IExecutableApplicationResourceBuilder WaitFor(ICloudShellResourceBuilder resource);
 
     IExecutableApplicationResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources);
@@ -211,6 +219,39 @@ internal sealed class ExecutableApplicationResourceBuilder(
         declared.Definition = declared.Definition with
         {
             UseServiceDiscovery = enabled
+        };
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder WithContainerImage(string? image)
+    {
+        declared.Definition = declared.Definition with
+        {
+            ContainerImage = image,
+            ContainerBuildContext = null,
+            ContainerDockerfile = null
+        };
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder WithDockerBuild(
+        string? buildContext,
+        string? dockerfile = null)
+    {
+        declared.Definition = declared.Definition with
+        {
+            ContainerBuildContext = buildContext,
+            ContainerDockerfile = dockerfile,
+            ContainerImage = null
+        };
+        return this;
+    }
+
+    public IExecutableApplicationResourceBuilder WithReplicas(int replicas)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Replicas = Math.Max(1, replicas)
         };
         return this;
     }

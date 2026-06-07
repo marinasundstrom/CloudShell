@@ -1,0 +1,134 @@
+@page "/resources/settings"
+@rendermode InteractiveServer
+@inject IEnumerable<IResourceOrchestrator> Orchestrators
+@inject ResourceOrchestratorSelectionStore SelectionStore
+@inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
+@inject IStringLocalizer<SharedResource> L
+
+<PageTitle>@L["Resource Manager settings"]</PageTitle>
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">@L["Resource Manager"]</span>
+        <h1>@L["Settings"]</h1>
+        <p>@L["Choose which orchestrator handles lifecycle actions for the resource graph."]</p>
+    </div>
+    <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
+        @L["Close"]
+    </FluentButton>
+</section>
+
+<section class="registration-layout">
+    <aside class="panel registration-options">
+        <h2>@L["Orchestration"]</h2>
+        <div class="selected-type-card">
+            <span class="resource-kind-icon">O</span>
+            <div>
+                <strong>@GetCurrentOrchestratorName()</strong>
+                <p>@L["Active orchestrator"]</p>
+            </div>
+        </div>
+    </aside>
+
+    <div class="panel registration-host">
+        <div class="panel-header">
+            <div>
+                <h2>@L["Resource orchestrator"]</h2>
+                <p>@L["Changing orchestrators can alter how networking, public exposure, and lifecycle commands are applied."]</p>
+            </div>
+        </div>
+
+        <div class="form-panel">
+            <label for="orchestrator-id">@L["Orchestrator"]</label>
+            <select id="orchestrator-id" @bind="SelectedOrchestratorId">
+                @foreach (var orchestrator in GetOrchestrators())
+                {
+                    <option value="@orchestrator.Id">@orchestrator.DisplayName (@orchestrator.Id)</option>
+                }
+            </select>
+
+            @if (PendingChange)
+            {
+                <div class="procedure-confirmation">
+                    <strong>@L["Change orchestrator?"]</strong>
+                    <span>@L["Existing resources are not migrated automatically. The new orchestrator will be used for future lifecycle actions when it can handle the selected resource; otherwise CloudShell falls back to the default orchestrator."]</span>
+                    <div class="form-actions">
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="CancelChange">
+                            @L["Cancel"]
+                        </FluentButton>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="ConfirmChange">
+                            @L["Change orchestrator"]
+                        </FluentButton>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="form-actions">
+                    <FluentButton Appearance="Appearance.Accent"
+                                  Disabled="@(!CanApply)"
+                                  OnClick="RequestChange">
+                        @L["Apply"]
+                    </FluentButton>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private string SelectedOrchestratorId { get; set; } = "default";
+    private bool PendingChange { get; set; }
+
+    private bool CanApply =>
+        !string.Equals(
+            SelectedOrchestratorId,
+            SelectionStore.Get().OrchestratorId,
+            StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        if (!Authorization.HasPermission(CloudShellPermissions.Resources.Manage))
+        {
+            Navigation.NavigateTo("/account/access-denied");
+            return;
+        }
+
+        SelectedOrchestratorId = SelectionStore.Get().OrchestratorId;
+    }
+
+    private IReadOnlyList<IResourceOrchestrator> GetOrchestrators() =>
+        Orchestrators
+            .OrderBy(orchestrator => orchestrator.Id == "default" ? 0 : 1)
+            .ThenBy(orchestrator => orchestrator.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private string GetCurrentOrchestratorName()
+    {
+        var current = SelectionStore.Get().OrchestratorId;
+        return GetOrchestrators().FirstOrDefault(orchestrator =>
+                string.Equals(orchestrator.Id, current, StringComparison.OrdinalIgnoreCase))
+            ?.DisplayName
+            ?? current;
+    }
+
+    private void RequestChange()
+    {
+        PendingChange = true;
+    }
+
+    private void CancelChange()
+    {
+        SelectedOrchestratorId = SelectionStore.Get().OrchestratorId;
+        PendingChange = false;
+    }
+
+    private void ConfirmChange()
+    {
+        SelectionStore.Select(SelectedOrchestratorId);
+        PendingChange = false;
+    }
+
+    private void Cancel() => Navigation.NavigateTo("/resources");
+}

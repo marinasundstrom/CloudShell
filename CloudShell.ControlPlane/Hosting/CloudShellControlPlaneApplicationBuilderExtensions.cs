@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace CloudShell.ControlPlane.Hosting;
@@ -35,6 +36,10 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<IResourceManagerStore, ResourceManagerStore>();
         builder.Services.AddScoped<ILogStore, LogStore>();
         builder.Services.AddScoped<ResourceTemplateService>();
+        builder.Services.AddScoped<ResourceOrchestrationService>();
+        builder.Services.AddSingleton<ResourceOrchestratorSelectionStore>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<IResourceOrchestrator, DefaultResourceOrchestrator>());
 
         return controlPlane;
     }
