@@ -12,7 +12,14 @@ public sealed class ConfigurationProviderOptions
 
     public int ServiceBasePort { get; set; } = 5138;
 
-    public string ServiceResourceIdPrefix { get; set; } = "application:configuration-service";
+    public string ServiceProcessIdPrefix { get; set; } = "configuration-service";
+
+    [Obsolete("Use ServiceProcessIdPrefix instead.")]
+    public string ServiceResourceIdPrefix
+    {
+        get => ServiceProcessIdPrefix;
+        set => ServiceProcessIdPrefix = value;
+    }
 
     public string ServiceExecutablePath { get; set; } = "dotnet";
 

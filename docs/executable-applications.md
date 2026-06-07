@@ -1,9 +1,14 @@
 # Executable Applications
 
-CloudShell includes an executable application provider for local development machines.
-It lets you register any executable command as an `application.executable` resource,
-configure arguments, working directory, endpoint, environment variables, and process
-lifetime, then start, stop, restart, and inspect it from Resource Manager.
+CloudShell includes an executable application provider for local development
+machines. It lets you register a command that runs on the CloudShell host as an
+`application.executable` resource, configure arguments, working directory,
+endpoint, environment variables, and process lifetime, then start, stop,
+restart, and inspect it from Resource Manager.
+
+Executable application resources are primarily intended for local development:
+APIs, frontend dev servers, emulators, workers, and similar host-local tools.
+They are not a deployment abstraction for remote infrastructure.
 
 ## Lifetime
 
@@ -85,12 +90,10 @@ CLOUDSHELL_APPLICATION=Example Web API
 ```
 
 The sample can depend on the programmatically declared `Example Configuration`
-store. That store creates its own executable configuration service application
-resource.
-CloudShell injects service-specific endpoint and token environment variables,
-and the sample uses the reusable `CloudShell.Configuration` provider to load
-settings during startup. If the configuration service is unavailable, the
-provider records unavailable status and the app continues running. The
+store. CloudShell injects service-specific endpoint and token environment
+variables, and the sample uses the reusable `CloudShell.Configuration` provider
+to load settings during startup. If the configuration service is unavailable,
+the provider records unavailable status and the app continues running. The
 `/configuration` endpoint reports the provider status and currently loaded keys.
 
 Applications can also opt in to Aspire-compatible service discovery for

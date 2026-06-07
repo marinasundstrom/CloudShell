@@ -31,6 +31,11 @@ public static class ApplicationProviderServiceCollectionExtensions
     {
         var options = builder.Services.GetOrAddApplicationProviderOptions();
         configure?.Invoke(options);
+        builder.Services.AddLocalProcessRunner(processes =>
+        {
+            processes.RuntimeStatePath = options.RuntimeStatePath;
+            processes.LogDirectory = options.LogDirectory;
+        });
     }
 
     public static IExecutableApplicationResourceBuilder AddExecutable(

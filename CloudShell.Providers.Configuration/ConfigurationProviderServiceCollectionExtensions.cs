@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Providers.Applications;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.Providers.Configuration;
@@ -31,6 +32,7 @@ public static class ConfigurationProviderServiceCollectionExtensions
     {
         var options = builder.Services.GetOrAddConfigurationProviderOptions();
         configure?.Invoke(options);
+        builder.Services.AddLocalProcessRunner();
     }
 
     public static IConfigurationStoreResourceBuilder AddConfigurationStore(

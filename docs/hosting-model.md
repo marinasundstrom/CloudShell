@@ -82,11 +82,10 @@ In this mode, the UI directly consumes the same in-process Control Plane
 services that own resource providers, registrations, groups, logs, templates,
 and resource procedures.
 
-The default host models each configuration service instance as its own
-executable application resource. Configuration stores remain individual
-`configuration.store` resources, and each one depends on its paired application
-resource. The provider remains responsible for store definitions and Resource
-Manager integration.
+The default host models each configuration service instance as an individual
+`configuration.store` resource. The configuration provider owns the local
+runtime process and exposes resource logs directly, while still keeping store
+definitions and Resource Manager integration under the configuration resource.
 
 See `samples/CloudShell.ResourceHost`.
 

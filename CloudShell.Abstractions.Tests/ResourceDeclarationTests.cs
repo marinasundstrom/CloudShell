@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Providers.Applications;
@@ -169,6 +170,36 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("group-1", declaration.ResourceGroupId);
         Assert.Empty(declaration.DependsOn);
         Assert.Equal(ResourceDeclarationPersistence.Persisted, declaration.Persistence);
+    }
+
+    [Fact]
+    public async Task ConfigurationProvider_ExposesStoreLogs()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider(options =>
+            {
+                options.DefinitionsPath = "configuration-stores.json";
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ConfigurationResourceProvider>();
+        serviceProvider.GetRequiredService<ConfigurationStore>().Save(
+            new ConfigurationStoreDefinition(
+                "configuration:example",
+                "Example Configuration"));
+
+        var log = Assert.Single(provider.GetLogs());
+        var entries = await provider.ReadLogAsync(log.Id);
+
+        Assert.Equal("configuration:example", log.ResourceId);
+        Assert.Equal(LogSourceKind.Resource, log.SourceKind);
+        Assert.True(log.SupportsStreaming);
+        Assert.Empty(entries);
     }
 
     [Fact]

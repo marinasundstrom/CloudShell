@@ -2,9 +2,9 @@
 
 CloudShell includes a configuration provider that contributes `configuration.store`
 resources. Each resource is a separate local configuration store with its own
-entries, endpoint, access token, and resource group assignment. Each store also
-creates a separate executable application resource that runs the HTTP API for
-that one store instance.
+entries, endpoint, access token, and resource group assignment. Each store owns
+the runtime process that serves its HTTP API; it does not register that process
+as a separate application resource.
 
 Use separate configuration services when different projects or resource groups
 need different settings or secrets. For example, a frontend/API group can depend
@@ -47,16 +47,16 @@ CloudShell.Host/Data/configuration-stores.json
 The core CloudShell database still stores only platform metadata such as the
 resource registration and group assignment.
 
-## Service Applications
+## Service Runtime
 
-Each configuration store owns a matching executable application resource. For a
-store such as `configuration:example`, the default application resource ID is:
+Each configuration store owns a local service process. For a store such as
+`configuration:example`, the default process ID is:
 
 ```text
-application:configuration-service-configuration-example
+configuration-service-configuration-example
 ```
 
-Each application instance runs:
+The current runtime implementation starts:
 
 ```bash
 dotnet run --project CloudShell.ConfigurationService/CloudShell.ConfigurationService.csproj --no-launch-profile --urls http://localhost:5138
@@ -80,13 +80,23 @@ ServiceHost
 ServiceUrlScheme
 ServiceProjectPath
 ServiceWorkingDirectory
-ServiceResourceIdPrefix
+ServiceProcessIdPrefix
 ```
 
-The generated application receives the provider-owned store file path and its
-own resource ID through `CloudShell:ConfigurationService:DefinitionsPath` and
-`CloudShell:ConfigurationService:ResourceId`. That resource ID filter is what
-keeps each process scoped to one configuration service instance.
+The service process receives the provider-owned store file path and its own
+configuration resource ID through `CloudShell:ConfigurationService:DefinitionsPath`
+and `CloudShell:ConfigurationService:ResourceId`. That resource ID filter is
+what keeps each process scoped to one configuration service instance.
+
+Configuration services expose their own resource log in the Logs view. The log
+uses the same local process runner as executable applications, so stdout,
+stderr, and lifecycle entries are available without modeling the service as an
+`application.executable` resource.
+
+The runtime is intentionally an implementation detail of the configuration
+resource type. Today it is a host-local process for development; a future
+configuration provider can replace that with a container image while keeping the
+resource model and logs attached to the configuration service resource.
 
 ## Application Access
 

@@ -15,7 +15,7 @@ public sealed class ApplicationRuntimeStateStore
     private List<ApplicationRuntimeState> _states;
 
     public ApplicationRuntimeStateStore(
-        ApplicationProviderOptions options,
+        LocalProcessOptions options,
         IHostEnvironment environment)
     {
         _statePath = ResolvePath(options.RuntimeStatePath, environment.ContentRootPath);

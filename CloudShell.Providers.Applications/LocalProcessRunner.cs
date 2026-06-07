@@ -1,0 +1,399 @@
+using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.Hosting;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+
+namespace CloudShell.Providers.Applications;
+
+public sealed partial class LocalProcessRunner(
+    ApplicationRuntimeStateStore runtimeStates,
+    LocalProcessOptions options,
+    IHostEnvironment environment) : IDisposable
+{
+    private readonly ConcurrentDictionary<string, LocalProcessState> _processes =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public bool IsRunning(LocalProcessDefinition? definition) =>
+        TryGetRunningProcess(definition, out _);
+
+    public async Task StartAsync(
+        LocalProcessDefinition definition,
+        CancellationToken cancellationToken = default)
+    {
+        if (TryGetRunningProcess(definition, out _))
+        {
+            return;
+        }
+
+        var logPath = GetLogPath(definition.Id);
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+        var processLog = new ApplicationProcessLog(logPath);
+        var startInfo = definition.Lifetime == LocalProcessLifetime.Detached
+            ? CreateDetachedStartInfo(definition, logPath)
+            : CreateScopedStartInfo(definition);
+
+        foreach (var variable in definition.EnvironmentVariables ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(variable.Name))
+            {
+                continue;
+            }
+
+            startInfo.Environment[variable.Name] = variable.Value;
+        }
+
+        startInfo.Environment["CLOUDSHELL_RESOURCE_ID"] = definition.Id;
+
+        var process = new Process
+        {
+            StartInfo = startInfo,
+            EnableRaisingEvents = true
+        };
+
+        if (definition.Lifetime == LocalProcessLifetime.ControlPlaneScoped)
+        {
+            process.OutputDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stdout");
+            process.ErrorDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stderr", "Error");
+        }
+
+        process.Exited += (_, _) =>
+        {
+            processLog.Append(
+                $"Process exited with code {process.ExitCode}.",
+                "process",
+                process.ExitCode == 0 ? "Information" : "Error");
+            runtimeStates.Save(new ApplicationRuntimeState(
+                definition.Id,
+                process.Id,
+                null,
+                DateTimeOffset.UtcNow,
+                process.ExitCode,
+                logPath));
+        };
+
+        cancellationToken.ThrowIfCancellationRequested();
+        process.Start();
+
+        if (definition.Lifetime == LocalProcessLifetime.ControlPlaneScoped)
+        {
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+        }
+
+        var startedAt = TryGetStartTime(process);
+        runtimeStates.Save(new ApplicationRuntimeState(
+            definition.Id,
+            process.Id,
+            startedAt,
+            DateTimeOffset.UtcNow,
+            LogPath: logPath));
+
+        processLog.Append(
+            $"Started '{definition.ExecutablePath}' with process id {process.Id} using {definition.Lifetime} lifetime.",
+            "process",
+            "Information");
+
+        _processes[definition.Id] = new LocalProcessState(
+            process,
+            processLog,
+            definition.Lifetime,
+            logPath);
+    }
+
+    public async Task StopAsync(
+        LocalProcessDefinition definition,
+        bool force = true,
+        CancellationToken cancellationToken = default)
+    {
+        var log = GetProcessLog(definition.Id);
+        if (!TryGetRunningProcess(definition, out var process))
+        {
+            return;
+        }
+
+        log.Append(force ? "Stopping process." : "Stopping control-plane-scoped process.", "process", "Information");
+        process.Kill(entireProcessTree: true);
+        await process.WaitForExitAsync(cancellationToken);
+        runtimeStates.Save(new ApplicationRuntimeState(
+            definition.Id,
+            process.Id,
+            null,
+            DateTimeOffset.UtcNow,
+            TryGetExitCode(process),
+            GetLogPath(definition.Id)));
+    }
+
+    public void Remove(string processId)
+    {
+        runtimeStates.Remove(processId);
+    }
+
+    public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+        string processId,
+        int maxEntries = 200,
+        DateTimeOffset? before = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<LogEntry>>(
+            GetProcessLog(processId).Read(maxEntries, before));
+    }
+
+    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
+        string processId,
+        int initialEntries = 50,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var log = GetProcessLog(processId);
+        foreach (var entry in log.Read(initialEntries, before: null))
+        {
+            yield return entry;
+        }
+
+        var seenEntries = log.CountEntries();
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+
+            var entries = log.ReadAfter(seenEntries);
+            seenEntries += entries.Count;
+            foreach (var entry in entries)
+            {
+                yield return entry;
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        foreach (var (processId, state) in _processes)
+        {
+            try
+            {
+                if (state.Lifetime == LocalProcessLifetime.ControlPlaneScoped &&
+                    !state.Process.HasExited)
+                {
+                    state.Process.Kill(entireProcessTree: true);
+                    runtimeStates.Save(new ApplicationRuntimeState(
+                        processId,
+                        state.Process.Id,
+                        null,
+                        DateTimeOffset.UtcNow,
+                        TryGetExitCode(state.Process),
+                        state.LogPath));
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+
+            state.Process.Dispose();
+        }
+    }
+
+    private bool TryGetRunningProcess(
+        LocalProcessDefinition? definition,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Process? process)
+    {
+        process = null;
+        if (definition is null)
+        {
+            return false;
+        }
+
+        if (_processes.TryGetValue(definition.Id, out var state))
+        {
+            if (!state.Process.HasExited)
+            {
+                process = state.Process;
+                return true;
+            }
+
+            runtimeStates.Save(new ApplicationRuntimeState(
+                definition.Id,
+                state.Process.Id,
+                null,
+                DateTimeOffset.UtcNow,
+                TryGetExitCode(state.Process),
+                state.LogPath));
+        }
+
+        var runtimeState = runtimeStates.Get(definition.Id);
+        if (runtimeState?.LastKnownProcessId is null ||
+            runtimeState.LastKnownProcessStartedAt is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            var candidate = Process.GetProcessById(runtimeState.LastKnownProcessId.Value);
+            if (candidate.HasExited ||
+                !ProcessStartMatches(candidate, runtimeState.LastKnownProcessStartedAt.Value))
+            {
+                return false;
+            }
+
+            var logPath = runtimeState.LogPath ?? GetLogPath(definition.Id);
+            var log = new ApplicationProcessLog(logPath);
+            candidate.EnableRaisingEvents = true;
+            candidate.Exited += (_, _) =>
+            {
+                log.Append(
+                    $"Process exited with code {TryGetExitCode(candidate)?.ToString() ?? "unknown"}.",
+                    "process",
+                    TryGetExitCode(candidate) == 0 ? "Information" : "Error");
+                runtimeStates.Save(new ApplicationRuntimeState(
+                    definition.Id,
+                    candidate.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    TryGetExitCode(candidate),
+                    logPath));
+            };
+
+            _processes[definition.Id] = new LocalProcessState(
+                candidate,
+                log,
+                definition.Lifetime,
+                logPath);
+            process = candidate;
+            return true;
+        }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private ApplicationProcessLog GetProcessLog(string processId)
+    {
+        if (_processes.TryGetValue(processId, out var state))
+        {
+            return state.Log;
+        }
+
+        return new ApplicationProcessLog(
+            runtimeStates.Get(processId)?.LogPath ?? GetLogPath(processId));
+    }
+
+    private string GetLogPath(string processId)
+    {
+        var logDirectory = Path.IsPathRooted(options.LogDirectory)
+            ? options.LogDirectory
+            : Path.GetFullPath(options.LogDirectory, environment.ContentRootPath);
+        var logFileName = SlugPattern()
+            .Replace(processId.ToLowerInvariant(), "-")
+            .Trim('-');
+
+        return Path.Combine(logDirectory, $"{logFileName}.log");
+    }
+
+    private static ProcessStartInfo CreateScopedStartInfo(LocalProcessDefinition definition) =>
+        new()
+        {
+            FileName = definition.ExecutablePath,
+            Arguments = definition.Arguments ?? string.Empty,
+            WorkingDirectory = ResolveWorkingDirectory(definition),
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+    private static ProcessStartInfo CreateDetachedStartInfo(
+        LocalProcessDefinition definition,
+        string logPath)
+    {
+        var workingDirectory = ResolveWorkingDirectory(definition);
+        var arguments = definition.Arguments ?? string.Empty;
+
+        if (OperatingSystem.IsWindows())
+        {
+            var command = $"\"{EscapeWindowsCommandArgument(definition.ExecutablePath)}\" {arguments} >> \"{EscapeWindowsCommandArgument(logPath)}\" 2>&1";
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe",
+                WorkingDirectory = workingDirectory,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            startInfo.ArgumentList.Add("/d");
+            startInfo.ArgumentList.Add("/s");
+            startInfo.ArgumentList.Add("/c");
+            startInfo.ArgumentList.Add(command);
+            return startInfo;
+        }
+
+        var shellCommand = $"exec {QuoteUnixShellArgument(definition.ExecutablePath)} {arguments} >> {QuoteUnixShellArgument(logPath)} 2>&1";
+        var unixStartInfo = new ProcessStartInfo
+        {
+            FileName = "/bin/sh",
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        unixStartInfo.ArgumentList.Add("-c");
+        unixStartInfo.ArgumentList.Add(shellCommand);
+        return unixStartInfo;
+    }
+
+    private static string ResolveWorkingDirectory(LocalProcessDefinition definition) =>
+        string.IsNullOrWhiteSpace(definition.WorkingDirectory)
+            ? Environment.CurrentDirectory
+            : definition.WorkingDirectory;
+
+    private static bool ProcessStartMatches(
+        Process process,
+        DateTimeOffset expectedStartedAt)
+    {
+        var actualStartedAt = TryGetStartTime(process);
+        if (actualStartedAt is null)
+        {
+            return true;
+        }
+
+        return (actualStartedAt.Value - expectedStartedAt).Duration() <= TimeSpan.FromSeconds(2);
+    }
+
+    private static DateTimeOffset? TryGetStartTime(Process process)
+    {
+        try
+        {
+            return new DateTimeOffset(process.StartTime.ToUniversalTime(), TimeSpan.Zero);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
+    private static int? TryGetExitCode(Process process)
+    {
+        try
+        {
+            return process.HasExited ? process.ExitCode : null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private static string QuoteUnixShellArgument(string value) =>
+        $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
+
+    private static string EscapeWindowsCommandArgument(string value) =>
+        value.Replace("\"", "\\\"", StringComparison.Ordinal);
+
+    [GeneratedRegex("[^a-z0-9]+")]
+    private static partial Regex SlugPattern();
+
+    private sealed record LocalProcessState(
+        Process Process,
+        ApplicationProcessLog Log,
+        LocalProcessLifetime Lifetime,
+        string LogPath);
+}

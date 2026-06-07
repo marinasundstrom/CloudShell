@@ -172,9 +172,22 @@ public sealed class ResourceTemplateTests
             };
             var environment = new TestHostEnvironment(_contentRoot);
             var store = new ApplicationResourceStore(options, environment);
-            var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+            var processOptions = new LocalProcessOptions
+            {
+                RuntimeStatePath = options.RuntimeStatePath,
+                LogDirectory = options.LogDirectory
+            };
+            var runtimeStates = new ApplicationRuntimeStateStore(processOptions, environment);
+            var localProcesses = new LocalProcessRunner(runtimeStates, processOptions, environment);
             var services = new ServiceCollection().BuildServiceProvider();
-            Provider = new ApplicationResourceProvider(store, runtimeStates, options, environment, services, []);
+            Provider = new ApplicationResourceProvider(
+                store,
+                runtimeStates,
+                localProcesses,
+                options,
+                environment,
+                services,
+                []);
             Group = new ResourceGroup("group-1", "Local Development", "Development resources", ["application:example-web-api"]);
             Registrations = new TestRegistrationStore();
             ResourceGroups = new TestResourceGroupStore(Group);

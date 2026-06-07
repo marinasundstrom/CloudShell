@@ -143,15 +143,6 @@
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<string> ReferenceIds { get; set; } = [];
 
-    protected override void OnInitialized()
-    {
-        var firstApplication = ApplicationProvider.GetApplications().FirstOrDefault();
-        if (firstApplication is not null)
-        {
-            LoadApplication(firstApplication);
-        }
-    }
-
     private void SelectTemplate(ChangeEventArgs args)
     {
         var applicationId = args.Value?.ToString();

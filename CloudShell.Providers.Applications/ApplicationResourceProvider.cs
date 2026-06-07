@@ -13,6 +13,7 @@ namespace CloudShell.Providers.Applications;
 public sealed partial class ApplicationResourceProvider(
     ApplicationResourceStore store,
     ApplicationRuntimeStateStore runtimeStates,
+    LocalProcessRunner localProcesses,
     ApplicationProviderOptions options,
     IHostEnvironment environment,
     IServiceProvider serviceProvider,
@@ -66,8 +67,7 @@ public sealed partial class ApplicationResourceProvider(
             return Task.FromResult<IReadOnlyList<LogEntry>>([]);
         }
 
-        var log = GetProcessLog(applicationId);
-        return Task.FromResult(log.Read(maxEntries, before));
+        return localProcesses.ReadLogAsync(applicationId, maxEntries, before, cancellationToken);
     }
 
     public async IAsyncEnumerable<LogEntry> StreamLogAsync(
@@ -81,23 +81,12 @@ public sealed partial class ApplicationResourceProvider(
             yield break;
         }
 
-        var log = GetProcessLog(applicationId);
-        foreach (var entry in log.Read(initialEntries, before: null))
+        await foreach (var entry in localProcesses.StreamLogAsync(
+                           applicationId,
+                           initialEntries,
+                           cancellationToken))
         {
             yield return entry;
-        }
-
-        var seenEntries = log.CountEntries();
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
-
-            var entries = log.ReadAfter(seenEntries);
-            seenEntries += entries.Count;
-            foreach (var entry in entries)
-            {
-                yield return entry;
-            }
         }
     }
 
@@ -333,9 +322,10 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     public bool IsRunning(string applicationId) =>
-        TryGetRunningProcess(
-            store.GetApplication(applicationId),
-            out _);
+        store.GetApplication(applicationId) is { } application &&
+        (IsContainerBacked(application)
+            ? TryGetRunningProcess(application, out _)
+            : localProcesses.IsRunning(CreateLocalProcessDefinition(application)));
 
     public bool CanDescribe(CloudResource resource) =>
         string.Equals(resource.EffectiveTypeId, "application.executable", StringComparison.OrdinalIgnoreCase) &&
@@ -399,13 +389,13 @@ public sealed partial class ApplicationResourceProvider(
         var definition = store.GetApplication(applicationId)
             ?? throw new InvalidOperationException($"Application resource '{applicationId}' is not configured.");
 
-        if (TryGetRunningProcess(definition, out _))
-        {
-            return;
-        }
-
         if (IsContainerBacked(definition))
         {
+            if (TryGetRunningProcess(definition, out _))
+            {
+                return;
+            }
+
             if (resourceManager is null)
             {
                 throw new InvalidOperationException(
@@ -423,106 +413,31 @@ public sealed partial class ApplicationResourceProvider(
             return;
         }
 
-        var logPath = GetLogPath(definition.Id);
-        Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-        var processLog = new ApplicationProcessLog(logPath);
-        var startInfo = definition.Lifetime == ApplicationLifetime.Detached
-            ? CreateDetachedStartInfo(definition, logPath)
-            : CreateScopedStartInfo(definition);
-
-        foreach (var variable in ResolveDependencyEnvironmentVariables(definition, dependsOn))
-        {
-            if (string.IsNullOrWhiteSpace(variable.Name))
-            {
-                continue;
-            }
-
-            startInfo.Environment[variable.Name] = variable.Value;
-        }
-
-        if (definition.UseServiceDiscovery)
-        {
-            foreach (var variable in ResolveServiceDiscoveryEnvironmentVariables(
+        await localProcesses.StartAsync(
+            CreateLocalProcessDefinition(
                 definition,
-                resourceGroupId,
-                registrations))
-            {
-                if (string.IsNullOrWhiteSpace(variable.Name))
-                {
-                    continue;
-                }
-
-                startInfo.Environment[variable.Name] = variable.Value;
-            }
-        }
-
-        foreach (var variable in definition.EnvironmentVariables)
-        {
-            if (string.IsNullOrWhiteSpace(variable.Name))
-            {
-                continue;
-            }
-
-            startInfo.Environment[variable.Name] = variable.Value;
-        }
-        startInfo.Environment["CLOUDSHELL_RESOURCE_ID"] = definition.Id;
-
-        var process = new Process
-        {
-            StartInfo = startInfo,
-            EnableRaisingEvents = true
-        };
-
-        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
-        {
-            process.OutputDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stdout");
-            process.ErrorDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stderr", "Error");
-        }
-
-        process.Exited += (_, _) =>
-        {
-            processLog.Append(
-                $"Process exited with code {process.ExitCode}.",
-                "process",
-                process.ExitCode == 0 ? "Information" : "Error");
-            runtimeStates.Save(new ApplicationRuntimeState(
-                definition.Id,
-                process.Id,
-                null,
-                DateTimeOffset.UtcNow,
-                process.ExitCode,
-                logPath));
-        };
-
-        cancellationToken.ThrowIfCancellationRequested();
-        process.Start();
-
-        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
-        {
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-        }
-
-        var startedAt = TryGetStartTime(process);
-        runtimeStates.Save(new ApplicationRuntimeState(
-            definition.Id,
-            process.Id,
-            startedAt,
-            DateTimeOffset.UtcNow,
-            LogPath: logPath));
-
-        processLog.Append(
-            $"Started '{definition.ExecutablePath}' with process id {process.Id} using {definition.Lifetime} lifetime.",
-            "process",
-            "Information");
-
-        _processes[definition.Id] = new ApplicationProcessState(
-            process,
-            processLog,
-            definition.Lifetime,
-            logPath);
-        await Task.CompletedTask;
+                ResolveLocalProcessEnvironmentVariables(
+                    definition,
+                    dependsOn,
+                    resourceGroupId,
+                    registrations)),
+            cancellationToken);
     }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> ResolveLocalProcessEnvironmentVariables(
+        ApplicationResourceDefinition definition,
+        IReadOnlyList<string> dependsOn,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations) =>
+        ResolveDependencyEnvironmentVariables(definition, dependsOn)
+            .Concat(definition.UseServiceDiscovery
+                ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, registrations)
+                : [])
+            .Concat(definition.EnvironmentVariables)
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveDependencyEnvironmentVariables(
         ApplicationResourceDefinition definition,
@@ -768,6 +683,16 @@ public sealed partial class ApplicationResourceProvider(
         var log = GetProcessLog(applicationId);
 
         if (application is not null &&
+            !IsContainerBacked(application))
+        {
+            await localProcesses.StopAsync(
+                CreateLocalProcessDefinition(application),
+                force,
+                cancellationToken);
+            return;
+        }
+
+        if (application is not null &&
             IsContainerBacked(application))
         {
             if (resourceManager is null)
@@ -897,9 +822,7 @@ public sealed partial class ApplicationResourceProvider(
 
     private ResourceState GetState(string applicationId)
     {
-        return TryGetRunningProcess(
-            store.GetApplication(applicationId),
-            out _)
+        return IsRunning(applicationId)
             ? ResourceState.Running
             : ResourceState.Stopped;
     }
@@ -1153,6 +1076,24 @@ public sealed partial class ApplicationResourceProvider(
                 .ToArray()
         };
     }
+
+    private static LocalProcessDefinition CreateLocalProcessDefinition(
+        ApplicationResourceDefinition definition,
+        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null) =>
+        new(
+            definition.Id,
+            definition.ExecutablePath,
+            definition.Arguments,
+            definition.WorkingDirectory,
+            environmentVariables ?? definition.EnvironmentVariables,
+            ToLocalProcessLifetime(definition.Lifetime));
+
+    private static LocalProcessLifetime ToLocalProcessLifetime(ApplicationLifetime lifetime) =>
+        lifetime switch
+        {
+            ApplicationLifetime.ControlPlaneScoped => LocalProcessLifetime.ControlPlaneScoped,
+            _ => LocalProcessLifetime.Detached
+        };
 
     private static ResourceWorkloadConfiguration CreateWorkloadConfiguration(
         ApplicationResourceDefinition application)

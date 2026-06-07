@@ -22,6 +22,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
 
     public void Configure(ICloudShellExtensionBuilder builder)
     {
+        builder.Services.AddLocalProcessRunner();
         builder.Services.TryAddSingleton<ApplicationResourceStore>();
         builder.Services.TryAddSingleton<ApplicationRuntimeStateStore>();
         builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
