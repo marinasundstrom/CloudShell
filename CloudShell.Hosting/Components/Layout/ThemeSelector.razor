@@ -68,5 +68,13 @@
         JSRuntime.InvokeVoidAsync(
             "cloudShellTheme.setMode",
             StorageName,
-            Mode.ToString().ToLowerInvariant());
+            GetFluentStorageMode());
+
+    private string? GetFluentStorageMode() =>
+        Mode switch
+        {
+            DesignThemeModes.Dark => "dark",
+            DesignThemeModes.Light => "light",
+            _ => null
+        };
 }
