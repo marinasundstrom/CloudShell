@@ -581,16 +581,21 @@ public sealed partial class DockerComposeResourceOrchestrator(
     private static string CreateRegistryImageReference(string? registry, string image)
     {
         var normalizedRegistry = string.IsNullOrWhiteSpace(registry)
-            ? "local"
+            ? ContainerRegistryDefaults.Local
             : registry.Trim();
-        if (string.Equals(normalizedRegistry, "local", StringComparison.OrdinalIgnoreCase) ||
-            image.StartsWith($"{normalizedRegistry}/", StringComparison.OrdinalIgnoreCase))
+        var imageRegistry = GetImageRegistryAddress(normalizedRegistry);
+        if (image.StartsWith($"{imageRegistry}/", StringComparison.OrdinalIgnoreCase))
         {
             return image;
         }
 
-        return $"{normalizedRegistry}/{image}";
+        return $"{imageRegistry}/{image}";
     }
+
+    private static string GetImageRegistryAddress(string registry) =>
+        Uri.TryCreate(registry, UriKind.Absolute, out var uri)
+            ? uri.Authority
+            : registry.Trim().TrimEnd('/');
 
     private async Task<string> ResolveComposeServiceNameAsync(
         ResourceOrchestrationContext context,

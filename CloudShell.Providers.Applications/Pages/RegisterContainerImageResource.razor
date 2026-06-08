@@ -28,7 +28,7 @@
         <FluentTextField Id="container-image" @bind-Value="Image" Placeholder="redis:7.2" />
 
         <label for="container-registry">Registry</label>
-        <FluentTextField Id="container-registry" @bind-Value="Registry" Placeholder="local" />
+        <FluentTextField Id="container-registry" @bind-Value="Registry" Placeholder="http://localhost:5000" />
 
         <label for="container-engine">Container engine</label>
         <FluentSelect TOption="string"
@@ -153,7 +153,7 @@
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string Image { get; set; } = string.Empty;
-    private string Registry { get; set; } = "local";
+    private string Registry { get; set; } = ContainerRegistryDefaults.Local;
     private string SelectedEngineId { get; set; } = string.Empty;
     private string SelectedLifetime { get; set; } = ApplicationLifetime.ControlPlaneScoped.ToString();
     private bool ExposeEndpoint { get; set; }
@@ -358,7 +358,7 @@
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string NormalizeRegistry(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "local" : value.Trim();
+        string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Local : value.Trim();
 
     private void AddEnvironmentVariable() => EnvironmentVariables.Add(new());
 

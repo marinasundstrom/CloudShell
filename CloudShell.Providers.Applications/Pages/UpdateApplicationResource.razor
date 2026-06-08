@@ -79,7 +79,7 @@ else
                 <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
 
                 <label for="application-update-container-registry">Registry</label>
-                <FluentTextField Id="application-update-container-registry" @bind-Value="ContainerRegistry" Placeholder="local" />
+                <FluentTextField Id="application-update-container-registry" @bind-Value="ContainerRegistry" Placeholder="http://localhost:5000" />
             }
 
             @if (CanConfigureContainerBuildSettings)
@@ -166,7 +166,7 @@ else
     private bool UseServiceDiscovery { get; set; }
     private bool EnableObservability { get; set; } = true;
     private string? ContainerImage { get; set; }
-    private string ContainerRegistry { get; set; } = "local";
+    private string ContainerRegistry { get; set; } = ContainerRegistryDefaults.Local;
     private string? ContainerBuildContext { get; set; }
     private string? ContainerDockerfile { get; set; }
     private int Replicas { get; set; } = 1;
@@ -468,7 +468,7 @@ else
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string NormalizeRegistry(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "local" : value.Trim();
+        string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Local : value.Trim();
 
     private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
     {

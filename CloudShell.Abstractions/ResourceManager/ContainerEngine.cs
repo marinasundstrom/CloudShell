@@ -5,6 +5,11 @@ public static class ContainerEngineResourceTypes
     public const string ContainerEngine = "cloudshell.container-engine";
 }
 
+public static class ContainerRegistryDefaults
+{
+    public const string Local = "http://localhost:5000";
+}
+
 public enum ContainerEngineKind
 {
     Docker,
@@ -18,7 +23,7 @@ public sealed record ContainerEngineResourceDefinition(
     ContainerEngineKind Kind,
     string Endpoint,
     bool IsDefault = false,
-    string Registry = "local");
+    string Registry = ContainerRegistryDefaults.Local);
 
 public interface IContainerEngineProvider
 {

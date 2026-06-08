@@ -988,7 +988,7 @@ public sealed class ResourceDeclarationTests
 
                 var container = resources
                     .AddDocker()
-                    .WithRegistry("registry.local:5000")
+                    .WithRegistry("http://registry.local:5000")
                     .AddContainer("redis", "redis", "7.2")
                     .WithLifetime(ResourceLifetime.Detached)
                     .DependsOn(postgres)
@@ -1026,7 +1026,7 @@ public sealed class ResourceDeclarationTests
             container.DependsOn);
         Assert.Equal("redis", definition.Name);
         Assert.Equal("redis:7.2", definition.Image);
-        Assert.Equal("registry.local:5000", definition.Registry);
+        Assert.Equal("http://registry.local:5000", definition.Registry);
         Assert.Equal(DockerContainerResourceProvider.EngineResourceId, definition.DockerResourceId);
         Assert.Equal(container.DependsOn, definition.DependsOn);
         Assert.Equal(ResourceLifetime.Detached, definition.Lifetime);
@@ -1041,8 +1041,8 @@ public sealed class ResourceDeclarationTests
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
         Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
-        Assert.Equal("registry.local:5000", workload?.Registry);
-        Assert.Equal("registry.local:5000", resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+        Assert.Equal("http://registry.local:5000", workload?.Registry);
+        Assert.Equal("http://registry.local:5000", resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
     }
 
     [Fact]
@@ -1112,8 +1112,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ContainerEngineKind.Docker, definition.Kind);
         Assert.True(definition.IsDefault);
         Assert.Equal(provider.Endpoint.ToString(), definition.Endpoint);
-        Assert.Equal("local", definition.Registry);
-        Assert.Equal("local", engine.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+        Assert.Equal(ContainerRegistryDefaults.Local, definition.Registry);
+        Assert.Equal(ContainerRegistryDefaults.Local, engine.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
     }
 
     [Fact]
@@ -1136,7 +1136,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("docker", engine.Id);
         Assert.Equal(ContainerEngineKind.Docker, engine.Kind);
         Assert.True(engine.IsDefault);
-        Assert.Equal("local", engine.Registry);
+        Assert.Equal(ContainerRegistryDefaults.Local, engine.Registry);
     }
 
     [Fact]
@@ -1269,7 +1269,7 @@ public sealed class ResourceDeclarationTests
                         "mcr.microsoft.com/mssql/server:2022-latest",
                         replicas: 1)
                     .WithImage("example/sql-server:dev")
-                    .WithRegistry("registry.example.com")
+                    .WithRegistry("https://registry.example.com")
                     .WithEndpoint("tds", targetPort: 1433, port: 14333)
                     .WithContainerEngine("docker:dev")
                     .WithLifetime(ResourceLifetime.Detached);
@@ -1299,14 +1299,14 @@ public sealed class ResourceDeclarationTests
             ResourceWorkloadKind.ContainerImage.ToString(),
             resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
         Assert.Equal("example/sql-server:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerImage]);
-        Assert.Equal("registry.example.com", resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+        Assert.Equal("https://registry.example.com", resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
         Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerEngineId]);
         Assert.StartsWith("rev-", resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision]);
         Assert.Equal(resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision], resource.Version);
         Assert.Equal(ApplicationLifetime.Detached, provider.GetApplication("application:sql")?.Lifetime);
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal("example/sql-server:dev", workload?.Image);
-        Assert.Equal("registry.example.com", workload?.Registry);
+        Assert.Equal("https://registry.example.com", workload?.Registry);
         Assert.Equal("docker:dev", workload?.ContainerEngineId);
         Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
         var port = Assert.Single(workload?.WorkloadPorts ?? []);

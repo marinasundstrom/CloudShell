@@ -271,7 +271,8 @@ public interface IDockerResourceBuilder : IResourceBuilder
 {
     /// <summary>
     /// Sets the registry used by Docker container resources declared from this
-    /// Docker resource. The default registry is <c>local</c>.
+    /// Docker resource. The default registry is
+    /// <c>http://localhost:5000</c>.
     /// </summary>
     IDockerResourceBuilder WithRegistry(string registry);
 

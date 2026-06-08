@@ -28,7 +28,7 @@
     </FluentSelect>
 
     <label for="docker-registry">Registry</label>
-    <FluentTextField Id="docker-registry" @bind-Value="Registry" Placeholder="local" />
+    <FluentTextField Id="docker-registry" @bind-Value="Registry" Placeholder="http://localhost:5000" />
 
     <div class="candidate-row single">
         <span class="resource-kind-icon">D</span>
@@ -50,7 +50,7 @@
     public ResourceRegistrationProbeContext? ProbeContext { get; set; }
 
     private string SelectedGroupId { get; set; } = string.Empty;
-    private string Registry { get; set; } = "local";
+    private string Registry { get; set; } = ContainerRegistryDefaults.Local;
 
     private async Task Register()
     {
@@ -63,5 +63,5 @@
     }
 
     private static string NormalizeRegistry(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "local" : value.Trim();
+        string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Local : value.Trim();
 }

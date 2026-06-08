@@ -24,7 +24,7 @@ public sealed record ResourceWorkloadConfiguration(
     string? ProjectArguments = null,
     bool? AspNetCoreHotReload = null,
     string? Image = null,
-    string Registry = "local",
+    string Registry = ContainerRegistryDefaults.Local,
     string? BuildContext = null,
     string? Dockerfile = null,
     string? ContainerEngineId = null,
@@ -214,7 +214,8 @@ public interface IProjectResourceBuilder :
 
     /// <summary>
     /// Sets the registry used when this project is materialized as a container
-    /// workload. The default registry is <c>local</c>.
+    /// workload. The default registry is
+    /// <c>http://localhost:5000</c>.
     /// </summary>
     IProjectResourceBuilder WithRegistry(string registry);
 
@@ -232,7 +233,7 @@ public interface IContainerResourceBuilder :
 
     /// <summary>
     /// Sets the registry used for this container app resource. The default
-    /// registry is <c>local</c>.
+    /// registry is <c>http://localhost:5000</c>.
     /// </summary>
     IContainerResourceBuilder WithRegistry(string registry);
 

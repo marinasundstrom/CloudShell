@@ -1931,18 +1931,23 @@ public sealed partial class ApplicationResourceProvider(
         NormalizeContainerRegistry(application.ContainerRegistry);
 
     private static string NormalizeContainerRegistry(string? registry) =>
-        NormalizeNullable(registry) ?? "local";
+        NormalizeNullable(registry) ?? ContainerRegistryDefaults.Local;
 
     private static string CreateRegistryImageReference(string registry, string image)
     {
-        if (string.Equals(registry, "local", StringComparison.OrdinalIgnoreCase) ||
-            image.StartsWith($"{registry}/", StringComparison.OrdinalIgnoreCase))
+        var imageRegistry = GetImageRegistryAddress(registry);
+        if (image.StartsWith($"{imageRegistry}/", StringComparison.OrdinalIgnoreCase))
         {
             return image;
         }
 
-        return $"{registry}/{image}";
+        return $"{imageRegistry}/{image}";
     }
+
+    private static string GetImageRegistryAddress(string registry) =>
+        Uri.TryCreate(registry, UriKind.Absolute, out var uri)
+            ? uri.Authority
+            : registry.Trim().TrimEnd('/');
 
     private static string CreateContainerRevision() =>
         $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];

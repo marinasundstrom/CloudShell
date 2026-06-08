@@ -29,7 +29,7 @@ resources
         "application:api",
         "API",
         "team/api:dev",
-        registry: "registry.example.com")
+        registry: "https://registry.example.com")
     .WithContainerEngine("docker:dev");
 ```
 
@@ -39,7 +39,7 @@ same top-level `application.container-app` resource:
 ```csharp
 resources
     .AddContainer("api", "team/api:dev")
-    .WithRegistry("registry.example.com");
+    .WithRegistry("https://registry.example.com");
 ```
 
 This is intentionally different from `resources.AddDocker().AddContainer(...)`,
@@ -48,9 +48,10 @@ which creates a Docker container sub-resource parented under a Docker resource.
 ## Registry
 
 Container apps can specify a container registry separately from the image name.
-The registry defaults to `local`. A local registry leaves image names unchanged;
-other registry values are combined with the image reference by runtime
-orchestrators when they need a pullable image reference.
+The registry defaults to `http://localhost:5000`. Registry values are stored as
+URI strings. Runtime orchestrators use the URI authority when they need a
+pullable image reference, for example `http://localhost:5000` becomes
+`localhost:5000/team/api:dev`.
 
 The registry is projected as the non-secret `container.registry` resource
 attribute and is included in workload descriptors. Registry credentials are not
@@ -60,7 +61,7 @@ provider-owned configuration.
 The Container app registration and configuration tabs expose the registry next
 to the image setting. Docker Engine registration/configuration exposes a
 registry setting for Docker child-container resources; that setting also
-defaults to `local`.
+defaults to `http://localhost:5000`.
 
 ## Image Deployment Procedure
 

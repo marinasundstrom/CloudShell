@@ -1,8 +1,10 @@
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.Providers.Docker;
 
 public sealed class DockerProviderOptions
 {
-    public const string DefaultRegistry = "local";
+    public const string DefaultRegistry = ContainerRegistryDefaults.Local;
 
     public Uri? Endpoint { get; set; }
 
