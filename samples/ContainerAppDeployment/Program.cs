@@ -39,19 +39,12 @@ cloudShell.Resources(resources =>
         .AddDockerContainer(
             registryResourceId,
             "Local Registry",
-            "registry:2",
-            [
-                new ResourceEndpoint(
-                    "http",
-                    "http://localhost:5000",
-                    "http",
-                    true)
-            ])
-        .WithEndpoint(new ResourceEndpoint(
-            "registry",
-            "http://localhost:5000",
+            "registry:2")
+        .WithEndpoint(ResourceEndpoint.Http(
             "http",
-            true))
+            "localhost",
+            5000,
+            ResourceExposureScope.Public))
         .WithHttpHealthCheck("/v2/", "http")
         .WithAutoStart(false)
         .Persist(overwrite: true);
@@ -61,15 +54,13 @@ cloudShell.Resources(resources =>
             containerAppResourceId,
             "Sample API",
             sampleImage,
-            endpoints:
-            [
-                new ResourceEndpoint(
-                    "http",
-                    "http://localhost:5088",
-                    "http",
-                    true)
-            ],
             registry: registryAddress)
+        .WithEndpoint(
+            "http",
+            targetPort: 80,
+            port: 5088,
+            protocol: "http",
+            exposure: ResourceExposureScope.Public)
         .WithContainerEngine(docker)
         .DependsOn(registry)
         .WithEnvironment("SAMPLE_REGISTRY", registryAddress)

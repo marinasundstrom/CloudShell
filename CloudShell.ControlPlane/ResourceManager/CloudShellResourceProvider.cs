@@ -17,7 +17,10 @@ public sealed class CloudShellResourceProvider : IResourceProvider
             DisplayName,
             "westeurope",
             ResourceState.Running,
-            [new("public", "https://api.cloudshell.local", "https", true), new("internal", "http://api-gateway:8080", "http", false)],
+            [
+                ResourceEndpoint.FromAddress("public", "https://api.cloudshell.local", "https", ResourceExposureScope.Public),
+                ResourceEndpoint.FromAddress("internal", "http://api-gateway:8080", "http", ResourceExposureScope.Private)
+            ],
             "2026.06.5",
             DateTimeOffset.Now.AddMinutes(-2),
             ["identity", "redis-cache"]),
@@ -28,7 +31,10 @@ public sealed class CloudShellResourceProvider : IResourceProvider
             DisplayName,
             "westeurope",
             ResourceState.Running,
-            [new("public", "https://identity.cloudshell.local", "https", true), new("internal", "http://identity:8080", "http", false)],
+            [
+                ResourceEndpoint.FromAddress("public", "https://identity.cloudshell.local", "https", ResourceExposureScope.Public),
+                ResourceEndpoint.FromAddress("internal", "http://identity:8080", "http", ResourceExposureScope.Private)
+            ],
             "2026.06.3",
             DateTimeOffset.Now.AddMinutes(-8),
             ["postgres-main"]),
@@ -39,7 +45,7 @@ public sealed class CloudShellResourceProvider : IResourceProvider
             DisplayName,
             "northeurope",
             ResourceState.Degraded,
-            [new("events", "queue://billing-events", "queue", false)],
+            [ResourceEndpoint.FromAddress("events", "queue://billing-events", "queue", ResourceExposureScope.Private)],
             "2026.06.1",
             DateTimeOffset.Now.AddMinutes(-18),
             ["service-bus", "postgres-main"]),
@@ -50,7 +56,10 @@ public sealed class CloudShellResourceProvider : IResourceProvider
             DisplayName,
             "westeurope",
             ResourceState.Running,
-            [new("otlp-grpc", "http://otel-collector:4317", "grpc", false), new("otlp-http", "http://otel-collector:4318", "http", false)],
+            [
+                ResourceEndpoint.FromAddress("otlp-grpc", "http://otel-collector:4317", "grpc", ResourceExposureScope.Private),
+                ResourceEndpoint.FromAddress("otlp-http", "http://otel-collector:4318", "http", ResourceExposureScope.Private)
+            ],
             "0.103",
             DateTimeOffset.Now.AddMinutes(-4),
             [])

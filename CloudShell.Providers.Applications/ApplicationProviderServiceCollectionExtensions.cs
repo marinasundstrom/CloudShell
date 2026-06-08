@@ -321,7 +321,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             uri.Port,
             uri.Port,
             string.IsNullOrWhiteSpace(endpoint.Protocol) ? uri.Scheme : endpoint.Protocol,
-            endpoint.IsExternal ? ResourceExposureScope.Public : ResourceExposureScope.Local);
+            endpoint.Exposure);
     }
 
     private static ApplicationProviderOptions GetOrAddApplicationProviderOptions(

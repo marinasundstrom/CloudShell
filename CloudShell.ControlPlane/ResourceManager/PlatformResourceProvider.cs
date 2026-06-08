@@ -359,7 +359,7 @@ public sealed class PlatformResourceProvider(
             .ToArray();
 
         return endpoints.Length == 0
-            ? [new ResourceEndpoint("network", $"network://{definition.Id}", "network", false)]
+            ? [ResourceEndpoint.Logical("network", $"network://{definition.Id}", "network")]
             : endpoints;
     }
 
@@ -377,11 +377,11 @@ public sealed class PlatformResourceProvider(
             ? $"{protocol}://{host}"
             : $"{protocol}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}";
 
-        return new ResourceEndpoint(
+        return ResourceEndpoint.FromAddress(
             request.Name,
             address,
             protocol,
-            request.Exposure is ResourceExposureScope.Network or ResourceExposureScope.Public);
+            request.Exposure);
     }
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ServiceResourceDefinition definition) =>
@@ -389,11 +389,11 @@ public sealed class PlatformResourceProvider(
             .Select(port =>
             {
                 var exposedPort = port.Port ?? AssignLocalPort(definition.Id, port.Name);
-                return new ResourceEndpoint(
+                return ResourceEndpoint.FromAddress(
                     port.Name,
                     $"{port.Protocol}://localhost:{exposedPort}",
                     port.Protocol,
-                    true);
+                    port.Exposure);
             })
             .ToArray();
 

@@ -496,7 +496,8 @@ file sealed record ResourceEndpointResponse(
     string Name,
     string Address,
     string Protocol,
-    bool IsExternal);
+    bool IsExternal,
+    ResourceExposureScope? Exposure);
 
 file sealed record ResourceCapabilityResponse(
     string Id,
@@ -625,7 +626,13 @@ file static class RemoteControlPlaneMapper
                 .ToArray());
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
-        new(response.Name, response.Address, response.Protocol, response.IsExternal);
+        new(
+            response.Name,
+            response.Address,
+            response.Protocol,
+            response.Exposure ?? (response.IsExternal
+                ? ResourceExposureScope.Public
+                : ResourceExposureScope.Local));
 
     public static ResourceCapability ToResourceCapability(this ResourceCapabilityResponse response) =>
         new(response.Id, response.Metadata);

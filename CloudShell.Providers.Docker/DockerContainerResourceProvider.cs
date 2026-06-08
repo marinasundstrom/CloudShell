@@ -558,7 +558,7 @@ public sealed partial class DockerContainerResourceProvider :
             DisplayName,
             "local",
             state,
-            [new ResourceEndpoint("engine", Endpoint.ToString(), Endpoint.Scheme, false)],
+            [ResourceEndpoint.FromAddress("engine", Endpoint.ToString(), Endpoint.Scheme, ResourceExposureScope.Private)],
             version,
             lastUpdated,
             [],
@@ -816,7 +816,7 @@ public sealed partial class DockerContainerResourceProvider :
             ? CreateEndpoints(lookupName, container.Ports)
             : definition.Endpoints.Count > 0
                 ? definition.Endpoints
-                : [new ResourceEndpoint("container", $"container://{lookupName}", "container", false)];
+                : [ResourceEndpoint.Logical("container", $"container://{lookupName}", "container")];
 
         return new Resource(
             definition.Id,
@@ -967,7 +967,7 @@ public sealed partial class DockerContainerResourceProvider :
     {
         if (ports is null || ports.Count == 0)
         {
-            return [new("container", $"container://{containerName}", "container", false)];
+            return [ResourceEndpoint.Logical("container", $"container://{containerName}", "container")];
         }
 
         return ports
@@ -979,11 +979,11 @@ public sealed partial class DockerContainerResourceProvider :
                     ? $"{protocol}://{NormalizeHost(port.IP)}:{port.PublicPort}"
                     : $"{protocol}://{containerName}:{port.PrivatePort}";
 
-                return new ResourceEndpoint(
+                return ResourceEndpoint.FromAddress(
                     $"port-{index + 1}",
                     address,
                     protocol,
-                    isExternal);
+                    isExternal ? ResourceExposureScope.Public : ResourceExposureScope.Private);
             })
             .ToArray();
     }

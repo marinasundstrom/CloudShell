@@ -32,7 +32,8 @@ public sealed record ResourceEndpointResponse(
     string Name,
     string Address,
     string Protocol,
-    bool IsExternal);
+    bool IsExternal,
+    ResourceExposureScope Exposure);
 
 public sealed record ResourceCapabilityResponse(
     string Id,
@@ -166,7 +167,7 @@ internal static class CloudShellControlPlaneDtoMapper
             CreateResourceActionDictionary(resource));
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
-        new(endpoint.Name, endpoint.Address, endpoint.Protocol, endpoint.IsExternal);
+        new(endpoint.Name, endpoint.Address, endpoint.Protocol, endpoint.IsExternal, endpoint.Exposure);
 
     public static ResourceCapabilityResponse ToResponse(this ResourceCapability capability) =>
         new(capability.Id, capability.Metadata);

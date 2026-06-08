@@ -359,7 +359,7 @@ public sealed partial class ConfigurationResourceProvider :
             DisplayName,
             "local",
             GetState(configurationStore),
-            [new ResourceEndpoint("entries", GetEntriesEndpoint(configurationStore.Id), "http", false)],
+            [ResourceEndpoint.FromAddress("entries", GetEntriesEndpoint(configurationStore.Id), "http")],
             $"{configurationStore.Entries.Count} entries",
             DateTimeOffset.UtcNow,
             [],

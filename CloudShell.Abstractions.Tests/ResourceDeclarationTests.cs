@@ -1715,7 +1715,7 @@ public sealed class ResourceDeclarationTests
             "Test",
             "local",
             ResourceState.Running,
-            [new ResourceEndpoint(endpointName, address, "http", true)],
+            [ResourceEndpoint.FromAddress(endpointName, address, "http", ResourceExposureScope.Public)],
             "1.0",
             DateTimeOffset.UtcNow,
             [],

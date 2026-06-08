@@ -87,6 +87,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal("Contract Service", service.Name);
         Assert.Equal(["network:contract"], service.DependsOn);
         Assert.Equal("http://localhost:5080", service.PrimaryEndpoint);
+        Assert.Equal(ResourceExposureScope.Local, Assert.Single(service.Endpoints).Exposure);
         Assert.Equal(ResourceClass.Service, service.ResourceClass);
         Assert.Equal("1", service.ResourceAttributes[ResourceAttributeNames.ServiceTargetCount]);
         Assert.Equal("1", service.ResourceAttributes[ResourceAttributeNames.ServicePortCount]);
@@ -627,7 +628,7 @@ public sealed class RemoteControlPlaneContractTests
                 DisplayName,
                 "local",
                 ResourceState.Running,
-                [new ResourceEndpoint("http", "http://localhost:8080", "http", true)],
+                [ResourceEndpoint.Http("http", "localhost", 8080, ResourceExposureScope.Public)],
                 "1.0",
                 DateTimeOffset.UtcNow,
                 [],

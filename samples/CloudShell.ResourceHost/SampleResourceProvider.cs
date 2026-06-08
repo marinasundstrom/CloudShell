@@ -99,7 +99,7 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
             DisplayName,
             "local",
             state,
-            [new("default", endpoint, endpoint.Split(':', 2)[0], true)],
+            [ResourceEndpoint.FromAddress("default", endpoint, endpoint.Split(':', 2)[0], ResourceExposureScope.Public)],
             "0.1.0",
             DateTimeOffset.UtcNow,
             dependsOn ?? [],

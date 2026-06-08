@@ -45,7 +45,7 @@
                         <div class="generated-endpoint-main">
                             <strong>@endpoint.Name</strong>
                             @EndpointLink(endpoint.Address)
-                            <small>@endpoint.Protocol @(endpoint.IsExternal ? L["external"] : L["internal"])</small>
+                            <small>@endpoint.Protocol @endpoint.Exposure</small>
                         </div>
                         <div class="generated-row-actions">
                             <FluentButton Appearance="Appearance.Neutral"

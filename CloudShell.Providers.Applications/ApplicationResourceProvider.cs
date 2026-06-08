@@ -1171,11 +1171,11 @@ public sealed partial class ApplicationResourceProvider(
         if (application.EndpointPorts.Count > 0)
         {
             return application.EndpointPorts
-                .Select(port => new ResourceEndpoint(
+                .Select(port => ResourceEndpoint.FromAddress(
                     port.Name,
                     $"{NormalizeProtocol(port.Protocol)}://localhost:{ResolveLocalPort(application.Id, port)}",
                     NormalizeProtocol(port.Protocol),
-                    port.Exposure is ResourceExposureScope.Network or ResourceExposureScope.Public))
+                    port.Exposure))
                 .ToArray();
         }
 
@@ -1186,7 +1186,7 @@ public sealed partial class ApplicationResourceProvider(
                 return [];
             }
 
-            return [new("process", $"process://{application.Id}", "process", false)];
+            return [ResourceEndpoint.Logical("process", $"process://{application.Id}", "process")];
         }
 
         var endpoint = application.Endpoint;
@@ -1194,7 +1194,7 @@ public sealed partial class ApplicationResourceProvider(
             ? uri.Scheme
             : "tcp";
 
-        return [new("application", endpoint, protocol, true)];
+        return [ResourceEndpoint.FromAddress("application", endpoint, protocol, ResourceExposureScope.Public)];
     }
 
     private static ProcessStartInfo CreateScopedStartInfo(ApplicationResourceDefinition definition)
