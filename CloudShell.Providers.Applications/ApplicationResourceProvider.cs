@@ -247,18 +247,20 @@ public sealed partial class ApplicationResourceProvider(
         }
 
         var wasRunning = IsRunning(application.Id);
+        var nextRevision = CreateContainerRevision();
         var updated = NormalizeDefinition(application with
         {
             ContainerImage = normalizedImage,
             ContainerBuildContext = null,
-            ContainerDockerfile = null
+            ContainerDockerfile = null,
+            ContainerRevision = nextRevision
         });
         store.Save(updated);
 
         resourceEvents?.Append(new ResourceEvent(
             application.Id,
             "containerApp.imageChanged",
-            $"Changed container image from '{application.ContainerImage ?? "none"}' to '{normalizedImage}'.",
+            $"Changed container image from '{application.ContainerImage ?? "none"}' to '{normalizedImage}' and created revision '{updated.ContainerRevision}'.",
             DateTimeOffset.UtcNow,
             triggeredBy));
 
@@ -281,7 +283,7 @@ public sealed partial class ApplicationResourceProvider(
             resourceEvents?.Append(new ResourceEvent(
                 application.Id,
                 "containerApp.restarted",
-                "Restarted container app after image update.",
+                $"Restarted container app on revision '{updated.ContainerRevision}' after image update.",
                 DateTimeOffset.UtcNow,
                 triggeredBy));
 
@@ -1028,8 +1030,10 @@ public sealed partial class ApplicationResourceProvider(
             "local",
             state,
             CreateEndpoints(application),
-            IsContainerBacked(application)
-                ? FirstNonEmpty(application.ContainerImage, application.ContainerBuildContext) ?? "container"
+            ApplicationResourceTypes.IsContainerApp(application.ResourceType)
+                ? GetEffectiveContainerRevision(application)
+                : IsContainerBacked(application)
+                    ? FirstNonEmpty(application.ContainerImage, application.ContainerBuildContext) ?? "container"
                 : IsAspNetCoreProject(application)
                     ? FirstNonEmpty(Path.GetFileName(application.ProjectPath), "project") ?? "project"
                 : Path.GetFileName(application.ExecutablePath),
@@ -1066,6 +1070,7 @@ public sealed partial class ApplicationResourceProvider(
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerBuildContext, application.ContainerBuildContext);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerDockerfile, application.ContainerDockerfile);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerEngineId, application.ContainerEngineId);
+            AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerRevision, GetEffectiveContainerRevision(application));
         }
         else
         {
@@ -1390,6 +1395,8 @@ public sealed partial class ApplicationResourceProvider(
             ContainerBuildContext = NormalizeNullable(definition.ContainerBuildContext),
             ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
             ContainerEngineId = NormalizeNullable(definition.ContainerEngineId),
+            ContainerRevision = NormalizeNullable(definition.ContainerRevision) ??
+                (IsContainerBacked(definition) ? CreateContainerRevision() : null),
             Replicas = Math.Max(1, definition.Replicas),
             ResourceType = resourceType,
             ProjectPath = isAspNetCoreProject
@@ -1905,6 +1912,12 @@ public sealed partial class ApplicationResourceProvider(
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
         !string.IsNullOrWhiteSpace(application.ContainerImage) ||
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
+
+    private static string GetEffectiveContainerRevision(ApplicationResourceDefinition application) =>
+        NormalizeNullable(application.ContainerRevision) ?? "unrevisioned";
+
+    private static string CreateContainerRevision() =>
+        $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
 
     private static string NormalizeResourceType(string? resourceType) =>
         ApplicationResourceTypes.IsApplication(resourceType)

@@ -213,7 +213,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             replicas: Math.Max(1, replicas),
             endpointPorts: CreateEndpointPorts(endpoints),
             resourceType: ApplicationResourceTypes.ContainerApp,
-            observability: observability);
+            observability: observability,
+            containerRevision: CreateContainerRevision());
         var declared = new DeclaredApplicationResource(definition);
 
         builder.Services
@@ -251,6 +252,9 @@ public static class ApplicationProviderServiceCollectionExtensions
             ? $"application:{Guid.NewGuid():N}"
             : $"application:{slug}";
     }
+
+    private static string CreateContainerRevision() =>
+        $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
 
     internal static IReadOnlyList<ServicePort> CreateAspNetCoreProjectEndpointPorts(string? endpoint)
     {

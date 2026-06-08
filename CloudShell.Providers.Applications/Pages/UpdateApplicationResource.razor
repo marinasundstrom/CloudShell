@@ -311,7 +311,8 @@ else
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
             projectPath: CanConfigureProjectSettings ? ProjectPath : Application.ProjectPath,
             projectArguments: CanConfigureProjectSettings ? ApplicationArguments : Application.ProjectArguments,
-            aspNetCoreHotReload: CanConfigureProjectSettings ? UseHotReload : Application.AspNetCoreHotReload);
+            aspNetCoreHotReload: CanConfigureProjectSettings ? UseHotReload : Application.AspNetCoreHotReload,
+            containerRevision: Application.ContainerRevision);
 
         var restartRequired =
             ApplicationProvider.IsRunning(Application.Id) &&

@@ -74,6 +74,11 @@ often as children under a host/engine resource. Those runtime container
 resources are useful for inspection and low-level operations, but they are not
 the stable deployment target for app image updates.
 
+Container app deployments create app-owned revisions. The current revision is
+projected on the container app resource and changes when the deployable image
+is updated. Runtime container instances/replicas are implementations of a
+revision; they are not themselves the revision identity.
+
 `Attributes` are not a second provider configuration schema. They are projected
 facts useful for inspection, filtering, diagnostics, and orchestration hints,
 such as container image, workload kind, endpoint count, service port count, or

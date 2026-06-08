@@ -66,6 +66,9 @@ The MVP should prove:
   performed on resources, including who or what triggered the operation.
   Resource-type logs remain available for operational detail such as container
   console output.
+- Container app image deployments create and project a new app-owned revision;
+  runtime container instances/replicas implement a revision but do not define
+  the stable revision identity.
 
 ## Completed recently
 

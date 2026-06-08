@@ -323,10 +323,14 @@ public sealed class InProcessControlPlane(
             command.TriggeredBy,
             cancellationToken);
 
+        var updatedResource = resourceManager.GetResource(resource.Id);
+        var revision = updatedResource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision);
         resourceEvents?.Append(new ResourceEvent(
             resource.Id,
             "image.update",
-            $"Updated image to '{image}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
+            string.IsNullOrWhiteSpace(revision)
+                ? $"Updated image to '{image}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}."
+                : $"Updated image to '{image}' and created revision '{revision}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
             DateTimeOffset.UtcNow,
             command.TriggeredBy));
 

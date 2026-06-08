@@ -76,6 +76,7 @@ public static class ResourceAttributeNames
     public const string ContainerDockerfile = "container.dockerfile";
     public const string ContainerEngineId = "container.engineId";
     public const string ContainerReplicas = "container.replicas";
+    public const string ContainerRevision = "container.revision";
     public const string EndpointCount = "endpoints.count";
     public const string ConfigurationEntryCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";

@@ -1292,6 +1292,8 @@ public sealed class ResourceDeclarationTests
             resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
         Assert.Equal("example/sql-server:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerImage]);
         Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerEngineId]);
+        Assert.StartsWith("rev-", resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision]);
+        Assert.Equal(resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision], resource.Version);
         Assert.Equal(ApplicationLifetime.Detached, provider.GetApplication("application:sql")?.Lifetime);
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal("example/sql-server:dev", workload?.Image);
@@ -1328,6 +1330,7 @@ public sealed class ResourceDeclarationTests
         var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "application:api");
+        var originalRevision = resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision];
 
         var result = await provider.UpdateImageAsync(
             new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
@@ -1344,6 +1347,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("Container app", resource.Kind);
         Assert.True(log.SupportsStreaming);
         Assert.Equal("example/api:20260608", updated.ContainerImage);
+        Assert.StartsWith("rev-", updated.ContainerRevision);
+        Assert.NotEqual(originalRevision, updated.ContainerRevision);
         Assert.Equal("Updated api to image 'example/api:20260608'.", result.Message);
     }
 

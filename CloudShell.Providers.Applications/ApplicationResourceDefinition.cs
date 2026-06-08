@@ -27,7 +27,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ResourceObservability? observability = null,
         string? projectPath = null,
         string? projectArguments = null,
-        bool aspNetCoreHotReload = true)
+        bool aspNetCoreHotReload = true,
+        string? containerRevision = null)
     {
         Id = id;
         Name = name;
@@ -54,6 +55,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ProjectPath = projectPath;
         ProjectArguments = projectArguments;
         AspNetCoreHotReload = aspNetCoreHotReload;
+        ContainerRevision = containerRevision;
     }
 
     public string Id { get; init; }
@@ -101,6 +103,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public string? ProjectArguments { get; init; }
 
     public bool AspNetCoreHotReload { get; init; }
+
+    public string? ContainerRevision { get; init; }
 }
 
 public enum ApplicationLifetime
