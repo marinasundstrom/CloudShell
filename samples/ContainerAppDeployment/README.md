@@ -8,14 +8,16 @@ The resource graph declares:
 
 - `docker:sample`: the local Docker environment.
 - `docker:container:sample-registry`: a local registry instance at
-  `localhost:5000`.
+  `localhost:5023`.
 - `application:sample-api`: a container app that uses the registry and starts
   from the mock image tag `cloudshell/mock-api:20260608.1`.
+
+> We use port `5023` because standard `5000` is not available on MacOS.
 
 The sample keeps the registry and app stopped by default. That makes the
 revision flow safe to run even when the mock image has not actually been pushed.
 When you do start the resources, Docker expects the referenced image tags to
-exist in `localhost:5000`.
+exist in `localhost:5023`.
 
 Run the sample:
 

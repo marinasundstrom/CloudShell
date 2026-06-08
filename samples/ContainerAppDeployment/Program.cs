@@ -10,7 +10,9 @@ using CloudShell.Providers.Docker;
 
 var builder = WebApplication.CreateBuilder(args);
 
-const string registryAddress = "localhost:5000";
+const string registryHost = "localhost";
+const int registryPort = 5023;
+string registryAddress = $"{registryHost}:{registryPort}";
 const string registryResourceId = "docker:container:sample-registry";
 const string containerAppResourceId = "application:sample-api";
 const string sampleImage = "cloudshell/mock-api:20260608.1";
@@ -43,7 +45,7 @@ cloudShell.Resources(resources =>
         .WithEndpoint(ResourceEndpoint.Http(
             "http",
             "localhost",
-            5000,
+            registryPort,
             ResourceExposureScope.Public))
         .WithHttpHealthCheck("/v2/", "http")
         .WithAutoStart(false)
