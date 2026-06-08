@@ -188,6 +188,9 @@ The MVP should prove:
 - Added endpoint mapping provider selection for network declarations, a
   platform reconcile action that validates source, target, and mapper
   capabilities, and remote Control Plane contract coverage for invoking it.
+- Added a Container App Deployment sample with a local registry resource,
+  stopped mock container app, and `sh` deployment script that simulates a build
+  by posting a new image tag to the Container Apps revision API.
 
 ## Active stabilization areas
 

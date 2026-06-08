@@ -8,5 +8,7 @@ obj/
 CloudShell.Host/Data/
 samples/CloudShell.UiExtensionHost/Data/
 samples/CloudShell.ResourceHost/Data/
+samples/CloudShell.ContainerHost/Data/
+samples/ContainerAppDeployment/Data/
 samples/ProjectReference/Host/Data/
 samples/SplitHosting/ControlPlane/Data/

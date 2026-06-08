@@ -115,6 +115,54 @@ public sealed class SampleSmokeTests
         Assert.True(stoppedResource.GetProperty("resourceActions").TryGetProperty("run", out _));
     }
 
+    [Fact]
+    public async Task ContainerAppDeploymentSample_UpdatesMockImageTagThroughRevisionApi()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
+            await GetFreePortAsync());
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var app = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:sample-api");
+        var registry = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "docker:container:sample-registry");
+
+        Assert.Equal("localhost:5000", app.GetProperty("attributes").GetProperty("container.registry").GetString());
+        Assert.Equal("localhost:5000", registry.GetProperty("attributes").GetProperty("container.registry").GetString());
+
+        var updateJson = await host.SendJsonAsync(
+            HttpMethod.Post,
+            "/api/container-apps/v1/application%3Asample-api/revisions",
+            """
+            {
+              "image": "cloudshell/mock-api:20260608.2",
+              "restartIfRunning": false,
+              "triggeredBy": "sample-smoke-test"
+            }
+            """);
+        using var updateDocument = JsonDocument.Parse(updateJson);
+
+        Assert.Contains(
+            "cloudshell/mock-api:20260608.2",
+            updateDocument.RootElement.GetProperty("message").GetString());
+
+        var updatedJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resources/application%3Asample-api");
+        using var updatedDocument = JsonDocument.Parse(updatedJson);
+        var updatedAttributes = updatedDocument.RootElement.GetProperty("attributes");
+        Assert.Equal(
+            "cloudshell/mock-api:20260608.2",
+            updatedAttributes.GetProperty("container.image").GetString());
+        Assert.NotEqual(
+            "unrevisioned",
+            updatedAttributes.GetProperty("container.revision").GetString());
+    }
+
     private static async Task<int> GetFreePortAsync()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -250,6 +298,31 @@ public sealed class SampleSmokeTests
                 Timeout = TimeSpan.FromSeconds(10)
             };
             using var request = new HttpRequestMessage(method, path);
+            if (!string.IsNullOrWhiteSpace(bearerToken))
+            {
+                request.Headers.Authorization = new("Bearer", bearerToken);
+            }
+
+            using var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        public async Task<string> SendJsonAsync(
+            HttpMethod method,
+            string path,
+            string json,
+            string? bearerToken = null)
+        {
+            using var client = new HttpClient
+            {
+                BaseAddress = BaseAddress,
+                Timeout = TimeSpan.FromSeconds(10)
+            };
+            using var request = new HttpRequestMessage(method, path)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
             if (!string.IsNullOrWhiteSpace(bearerToken))
             {
                 request.Headers.Authorization = new("Bearer", bearerToken);

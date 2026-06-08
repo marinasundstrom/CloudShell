@@ -8,8 +8,6 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
-- Add a build-action sample that pushes a container image to a registry and
-  calls the authenticated Container Apps revision API with the immutable tag.
 - Design container app revision history as commits of container app
   configuration changes, including image, registry, trigger, and runtime
   rollout metadata.
