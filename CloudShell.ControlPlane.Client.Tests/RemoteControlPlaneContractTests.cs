@@ -7,6 +7,7 @@ using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 
@@ -96,6 +97,31 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Contains("removed", result.Message, StringComparison.OrdinalIgnoreCase);
 
         Assert.Null(await controlPlane.GetResourceAsync("network:contract"));
+    }
+
+    [Fact]
+    public async Task ControlPlaneApi_ExposesResourceActionsAsHypermediaAffordances()
+    {
+        await using var app = await CreateAppAsync(includeLifecycleResource: true);
+        var client = app.GetTestClient();
+
+        var response = await client.GetAsync("/api/control-plane/v1/resources");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var resource = document.RootElement
+            .EnumerateArray()
+            .Single(item => item.GetProperty("id").GetString() == ContractLifecycleResourceProvider.ResourceId);
+        var actions = resource.GetProperty("resourceActions");
+        var stop = actions.GetProperty("stop");
+
+        Assert.Equal(JsonValueKind.Object, actions.ValueKind);
+        Assert.Equal("stop", stop.GetProperty("id").GetString());
+        Assert.Equal("Stop", stop.GetProperty("displayName").GetString());
+        Assert.Equal("POST", stop.GetProperty("method").GetString());
+        Assert.Equal(
+            "/api/control-plane/v1/resources/contract%3Alifecycle/actions/stop",
+            stop.GetProperty("href").GetString());
     }
 
     [Fact]
@@ -241,7 +267,8 @@ public sealed class RemoteControlPlaneContractTests
         return new RemoteControlPlane(client);
     }
 
-    private static async Task<WebApplication> CreateAppAsync()
+    private static async Task<WebApplication> CreateAppAsync(
+        bool includeLifecycleResource = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -261,6 +288,11 @@ public sealed class RemoteControlPlaneContractTests
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();
+        if (includeLifecycleResource)
+        {
+            builder.Services.AddSingleton<IResourceProvider, ContractLifecycleResourceProvider>();
+        }
+
         controlPlane.Resources(resources =>
         {
             resources
@@ -272,6 +304,16 @@ public sealed class RemoteControlPlaneContractTests
         await app.UseCloudShellControlPlaneAsync();
         app.MapCloudShellControlPlane();
         await app.StartAsync();
+
+        if (includeLifecycleResource)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var registrations = scope.ServiceProvider.GetRequiredService<IResourceRegistrationStore>();
+            await registrations.RegisterAsync(
+                ContractLifecycleResourceProvider.ProviderId,
+                ContractLifecycleResourceProvider.ResourceId);
+        }
+
         return app;
     }
 
@@ -295,5 +337,36 @@ public sealed class RemoteControlPlaneContractTests
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("Control plane request failed", document.RootElement.GetProperty("title").GetString());
         Assert.Equal(expectedDetail, document.RootElement.GetProperty("detail").GetString());
+    }
+
+    private sealed class ContractLifecycleResourceProvider : IResourceProvider
+    {
+        public const string ProviderId = "contract.lifecycle";
+        public const string ResourceId = "contract:lifecycle";
+
+        public string Id => ProviderId;
+
+        public string DisplayName => "Contract Lifecycle";
+
+        public IReadOnlyList<CloudResource> GetResources() =>
+        [
+            new(
+                ResourceId,
+                "Contract Lifecycle",
+                "Lifecycle",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                TypeId: "contract.lifecycle",
+                Actions:
+                [
+                    ResourceAction.Stop,
+                    ResourceAction.Restart
+                ])
+        ];
     }
 }

@@ -448,7 +448,8 @@ file sealed record ResourceResponse(
     string? ParentResourceId,
     ResourceGroupResponse? ResourceGroup,
     bool IsRegistered,
-    IReadOnlyList<ResourceActionResponse> Actions);
+    IReadOnlyDictionary<string, ResourceActionResponse>? ResourceActions,
+    IReadOnlyList<ResourceActionResponse>? Actions);
 
 file sealed record ResourceEndpointResponse(
     string Name,
@@ -463,7 +464,9 @@ file sealed record ResourceActionResponse(
     string? Description,
     ResourceActionDisplayStyle DisplayStyle,
     ResourceActionIcon Icon,
-    bool RequiresConfirmation);
+    bool RequiresConfirmation,
+    string? Method,
+    string? Href);
 
 file sealed record ResourceGroupResponse(
     string Id,
@@ -508,7 +511,13 @@ file sealed record ResourceOperationCapabilitiesResponse(
     string ResourceId,
     bool CanManage,
     bool CanDelete,
-    IReadOnlySet<string> ExecutableActionIds);
+    IReadOnlySet<string> ExecutableActionIds,
+    IReadOnlyList<ResourceActionCapabilityResponse>? ResourceActionCapabilities);
+
+file sealed record ResourceActionCapabilityResponse(
+    string ActionId,
+    bool CanExecute,
+    string? Reason);
 
 file sealed record ResourceProcedureResponse(
     string Message,
@@ -553,7 +562,9 @@ file static class RemoteControlPlaneMapper
             response.DetailRoute,
             response.ParentResourceId,
             response.TypeId,
-            response.Actions.Select(action => action.ToResourceAction()).ToArray());
+            response.GetResourceActionResponses()
+                .Select(action => action.ToResourceAction())
+                .ToArray());
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
         new(response.Name, response.Address, response.Protocol, response.IsExternal);
@@ -568,6 +579,12 @@ file static class RemoteControlPlaneMapper
                 response.DisplayStyle,
                 response.Icon,
                 response.RequiresConfirmation));
+
+    private static IReadOnlyCollection<ResourceActionResponse> GetResourceActionResponses(
+        this ResourceResponse response) =>
+        response.ResourceActions?.Values.ToArray() ??
+        response.Actions ??
+        [];
 
     public static ResourceGroup ToResourceGroup(this ResourceGroupResponse response) =>
         new(response.Id, response.Name, response.Description, response.ResourceIds);
@@ -586,7 +603,18 @@ file static class RemoteControlPlaneMapper
             response.ResourceId,
             response.CanManage,
             response.CanDelete,
-            response.ExecutableActionIds);
+            response.ExecutableActionIds,
+            response.ResourceActionCapabilities?.Select(capability => capability.ToCapability()).ToArray() ??
+                response.ExecutableActionIds
+                    .Select(actionId => new ResourceActionCapability(actionId, true))
+                    .ToArray());
+
+    public static ResourceActionCapability ToCapability(
+        this ResourceActionCapabilityResponse response) =>
+        new(
+            response.ActionId,
+            response.CanExecute,
+            response.Reason);
 
     public static ResourceProcedureResult ToProcedureResult(this ResourceProcedureResponse response) =>
         new(

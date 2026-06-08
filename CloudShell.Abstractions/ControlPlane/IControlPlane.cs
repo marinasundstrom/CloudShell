@@ -175,7 +175,30 @@ public sealed record ResourceOperationCapabilities(
     string ResourceId,
     bool CanManage,
     bool CanDelete,
-    IReadOnlySet<string> ExecutableActionIds);
+    IReadOnlySet<string> ExecutableActionIds,
+    IReadOnlyList<ResourceActionCapability> ResourceActionCapabilities)
+{
+    public ResourceOperationCapabilities(
+        string resourceId,
+        bool canManage,
+        bool canDelete,
+        IReadOnlySet<string> executableActionIds)
+        : this(
+            resourceId,
+            canManage,
+            canDelete,
+            executableActionIds,
+            executableActionIds
+                .Select(actionId => new ResourceActionCapability(actionId, true))
+                .ToArray())
+    {
+    }
+}
+
+public sealed record ResourceActionCapability(
+    string ActionId,
+    bool CanExecute,
+    string? Reason = null);
 
 public sealed record ReadLogOptions(
     int MaxEntries = 200,

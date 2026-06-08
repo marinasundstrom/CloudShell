@@ -200,6 +200,12 @@ public sealed class InProcessControlPlane(
                 $"The '{CloudShellPermissions.Resources.Manage}' permission is required for resource '{resource.Id}'.");
         }
 
+        var unavailableReason = GetActionUnavailableReason(resource, action);
+        if (unavailableReason is not null)
+        {
+            throw new InvalidOperationException(unavailableReason);
+        }
+
         if (!command.IgnoreDependentWarning && ShouldWarnDependents(action))
         {
             var activeDependents = GetActiveDependents(resource);
@@ -297,18 +303,76 @@ public sealed class InProcessControlPlane(
             group?.Id,
             CloudShellPermissions.Resources.Manage);
         var procedureProvider = GetProcedureProvider(resource);
-        var executableActionIds = canManage && procedureProvider is not null
-            ? resource.ResourceActions
-                .Select(action => action.Id)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var actionCapabilities = resource.ResourceActions
+            .Select(action => CreateActionCapability(resource, action, canManage, procedureProvider is not null))
+            .ToArray();
+        var executableActionIds = actionCapabilities
+            .Where(capability => capability.CanExecute)
+            .Select(capability => capability.ActionId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return new ResourceOperationCapabilities(
             resource.Id,
             canManage,
             canManage && GetRegistrationForResourceOrAncestor(resource) is not null && procedureProvider is not null,
-            executableActionIds);
+            executableActionIds,
+            actionCapabilities);
     }
+
+    private static ResourceActionCapability CreateActionCapability(
+        CloudResource resource,
+        ResourceAction action,
+        bool canManage,
+        bool hasProcedureProvider)
+    {
+        if (!canManage)
+        {
+            return new ResourceActionCapability(
+                action.Id,
+                false,
+                $"The '{CloudShellPermissions.Resources.Manage}' permission is required.");
+        }
+
+        if (!hasProcedureProvider)
+        {
+            return new ResourceActionCapability(
+                action.Id,
+                false,
+                "The resource provider does not support procedures.");
+        }
+
+        var unavailableReason = GetActionUnavailableReason(resource, action);
+        return new ResourceActionCapability(
+            action.Id,
+            unavailableReason is null,
+            unavailableReason);
+    }
+
+    private static string? GetActionUnavailableReason(
+        CloudResource resource,
+        ResourceAction action) =>
+        action.Kind switch
+        {
+            ResourceActionKind.Run when resource.State is not (
+                ResourceState.Stopped or
+                ResourceState.Paused or
+                ResourceState.Unknown) =>
+                $"Resource '{resource.Name}' cannot run while it is {FormatState(resource.State)}.",
+            ResourceActionKind.Stop when resource.State is not (
+                ResourceState.Running or
+                ResourceState.Starting or
+                ResourceState.Paused or
+                ResourceState.Degraded) =>
+                $"Resource '{resource.Name}' cannot stop while it is {FormatState(resource.State)}.",
+            ResourceActionKind.Pause when resource.State is not (ResourceState.Running or ResourceState.Degraded) =>
+                $"Resource '{resource.Name}' cannot pause while it is {FormatState(resource.State)}.",
+            ResourceActionKind.Restart when resource.State is ResourceState.Stopped or ResourceState.Paused or ResourceState.Unknown =>
+                $"Resource '{resource.Name}' cannot restart while it is {FormatState(resource.State)}.",
+            _ => null
+        };
+
+    private static string FormatState(ResourceState state) =>
+        state.ToString().ToLowerInvariant();
 
     private IResourceProcedureProvider? GetProcedureProvider(CloudResource resource)
     {

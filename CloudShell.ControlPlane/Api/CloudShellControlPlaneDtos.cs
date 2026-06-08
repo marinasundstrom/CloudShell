@@ -22,6 +22,7 @@ public sealed record ResourceResponse(
     string? ParentResourceId,
     ResourceGroupResponse? ResourceGroup,
     bool IsRegistered,
+    IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions,
     IReadOnlyList<ResourceActionResponse> Actions);
 
 public sealed record ResourceEndpointResponse(
@@ -37,7 +38,9 @@ public sealed record ResourceActionResponse(
     string? Description,
     ResourceActionDisplayStyle DisplayStyle,
     ResourceActionIcon Icon,
-    bool RequiresConfirmation);
+    bool RequiresConfirmation,
+    string Method,
+    string Href);
 
 public sealed record ResourceGroupResponse(
     string Id,
@@ -82,7 +85,13 @@ public sealed record ResourceOperationCapabilitiesResponse(
     string ResourceId,
     bool CanManage,
     bool CanDelete,
-    IReadOnlySet<string> ExecutableActionIds);
+    IReadOnlySet<string> ExecutableActionIds,
+    IReadOnlyList<ResourceActionCapabilityResponse> ResourceActionCapabilities);
+
+public sealed record ResourceActionCapabilityResponse(
+    string ActionId,
+    bool CanExecute,
+    string? Reason);
 
 public sealed record ResourceProcedureResponse(
     string Message,
@@ -129,12 +138,15 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.ParentResourceId,
             group?.ToResponse(),
             isRegistered,
-            resource.ResourceActions.Select(ToResponse).ToArray());
+            CreateResourceActionDictionary(resource),
+            resource.ResourceActions.Select(action => action.ToResponse(resource.Id)).ToArray());
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
         new(endpoint.Name, endpoint.Address, endpoint.Protocol, endpoint.IsExternal);
 
-    public static ResourceActionResponse ToResponse(this ResourceAction action)
+    public static ResourceActionResponse ToResponse(
+        this ResourceAction action,
+        string resourceId)
     {
         var presentation = action.EffectivePresentation;
         return new(
@@ -144,8 +156,19 @@ internal static class CloudShellControlPlaneDtoMapper
             action.Description,
             presentation.DisplayStyle,
             presentation.Icon,
-            action.RequiresConfirmation);
+            action.RequiresConfirmation,
+            "POST",
+            $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/resources/{Uri.EscapeDataString(resourceId)}/actions/{Uri.EscapeDataString(action.Id)}");
     }
+
+    private static IReadOnlyDictionary<string, ResourceActionResponse> CreateResourceActionDictionary(
+        CloudResource resource) =>
+        resource.ResourceActions
+            .GroupBy(action => action.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Last().ToResponse(resource.Id),
+                StringComparer.OrdinalIgnoreCase);
 
     public static ResourceGroupResponse ToResponse(this ResourceGroup group) =>
         new(group.Id, group.Name, group.Description, group.ResourceIds);
@@ -164,7 +187,15 @@ internal static class CloudShellControlPlaneDtoMapper
             capabilities.ResourceId,
             capabilities.CanManage,
             capabilities.CanDelete,
-            capabilities.ExecutableActionIds);
+            capabilities.ExecutableActionIds,
+            capabilities.ResourceActionCapabilities.Select(ToResponse).ToArray());
+
+    public static ResourceActionCapabilityResponse ToResponse(
+        this ResourceActionCapability capability) =>
+        new(
+            capability.ActionId,
+            capability.CanExecute,
+            capability.Reason);
 
     public static LogResponse ToResponse(this LogDescriptor log) =>
         new(
