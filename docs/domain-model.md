@@ -196,6 +196,18 @@ The projected resource dependency list should be normalized and stable.
 Dependency behavior is owned by the Control Plane, especially when actions need
 to start dependencies or warn about active dependents.
 
+Programmatic declaration startup and dependency startup are separate policies.
+`WithAutoStart(...)` expresses whether a declared resource should start when the
+Control Plane starts. `WithDependencyAutoStart(...)` expresses whether that
+resource may be started automatically when another resource starts with
+dependency startup enabled. Explicit declaration overrides win over provider
+defaults, and provider defaults win over graph-level defaults.
+
+Resources created through the UI are not startup-autostart resources. A create
+flow may offer an explicit "start after create" option, with the initial value
+coming from the provider policy, but the create operation must request that
+behavior explicitly.
+
 ### Resource action
 
 A resource action is a domain operation on a resource.

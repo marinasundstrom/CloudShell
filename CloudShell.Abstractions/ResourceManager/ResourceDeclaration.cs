@@ -19,6 +19,7 @@ public sealed record ResourceDeclaration(
     ResourceDeclarationPersistence Persistence,
     bool OverwritePersistedState = false,
     bool? AutoStartOverride = null,
+    bool? DependencyAutoStartOverride = null,
     ResourceClass? ResourceClassOverride = null,
     IReadOnlyDictionary<string, string>? Attributes = null)
 {
@@ -152,6 +153,38 @@ public static class ResourceDeclarationBuilderExtensions
         return builder;
     }
 
+    public static IResourceDeclarationBuilder WithDependencyAutoStart(
+        this IResourceDeclarationBuilder builder,
+        bool autoStart = true)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.Services).SetDefaultDependencyAutoStart(autoStart);
+        return builder;
+    }
+
+    public static IResourceGraphBuilder WithDependencyAutoStart(
+        this IResourceGraphBuilder builder,
+        bool autoStart = true)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.Services).SetDefaultDependencyAutoStart(autoStart);
+        return builder;
+    }
+
+    public static TBuilder WithDependencyAutoStart<TBuilder>(
+        this TBuilder builder,
+        bool autoStart = true)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .SetDependencyAutoStart(builder.ResourceId, autoStart);
+        return builder;
+    }
+
     public static TBuilder WithResourceClass<TBuilder>(
         this TBuilder builder,
         ResourceClass resourceClass)
@@ -250,6 +283,7 @@ public sealed class ResourceDeclarationStore
     private readonly Dictionary<string, List<Action<ResourceDeclaration>>> _changeHandlers =
         new(StringComparer.OrdinalIgnoreCase);
     private bool _defaultAutoStart = true;
+    private bool _defaultDependencyAutoStart = true;
 
     public bool DefaultAutoStart
     {
@@ -258,6 +292,17 @@ public sealed class ResourceDeclarationStore
             lock (_gate)
             {
                 return _defaultAutoStart;
+            }
+        }
+    }
+
+    public bool DefaultDependencyAutoStart
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _defaultDependencyAutoStart;
             }
         }
     }
@@ -292,6 +337,7 @@ public sealed class ResourceDeclarationStore
                 persistence,
                 overwritePersistedState,
                 existing?.AutoStartOverride,
+                existing?.DependencyAutoStartOverride,
                 resourceClass ?? existing?.ResourceClassOverride,
                 attributes is null
                     ? existing?.ResourceAttributes
@@ -386,11 +432,27 @@ public sealed class ResourceDeclarationStore
         }
     }
 
+    public void SetDefaultDependencyAutoStart(bool autoStart)
+    {
+        lock (_gate)
+        {
+            _defaultDependencyAutoStart = autoStart;
+        }
+    }
+
     public void SetAutoStart(string resourceId, bool autoStart)
     {
         Update(resourceId, declaration => declaration with
         {
             AutoStartOverride = autoStart
+        });
+    }
+
+    public void SetDependencyAutoStart(string resourceId, bool autoStart)
+    {
+        Update(resourceId, declaration => declaration with
+        {
+            DependencyAutoStartOverride = autoStart
         });
     }
 
@@ -437,6 +499,15 @@ public sealed class ResourceDeclarationStore
         }
     }
 
+    public bool ShouldAutoStartAsDependency(string resourceId)
+    {
+        lock (_gate)
+        {
+            return _declarations.GetValueOrDefault(resourceId)?.DependencyAutoStartOverride ??
+                _defaultDependencyAutoStart;
+        }
+    }
+
     private void Update(
         string resourceId,
         Func<ResourceDeclaration, ResourceDeclaration> update)
@@ -478,6 +549,7 @@ public sealed class ResourceDeclarationStore
         ResourceDeclarationPersistence persistence,
         bool overwritePersistedState,
         bool? autoStartOverride = null,
+        bool? dependencyAutoStartOverride = null,
         ResourceClass? resourceClass = null,
         IReadOnlyDictionary<string, string>? attributes = null) =>
         new(
@@ -490,6 +562,7 @@ public sealed class ResourceDeclarationStore
             persistence,
             overwritePersistedState,
             autoStartOverride,
+            dependencyAutoStartOverride,
             resourceClass,
             NormalizeAttributes(attributes));
 

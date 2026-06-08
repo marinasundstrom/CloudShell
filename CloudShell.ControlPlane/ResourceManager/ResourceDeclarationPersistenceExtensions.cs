@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Persistence;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
@@ -28,6 +29,25 @@ public static class ResourceDeclarationPersistenceExtensions
             provider.ApplyDeclarationAsync(declaration, registrations)
                 .GetAwaiter()
                 .GetResult();
+        }
+    }
+
+    public static async Task StartProgrammaticResourceDeclarationsAsync(
+        this IServiceProvider services,
+        CancellationToken cancellationToken = default)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var logger = scope.ServiceProvider
+            .GetRequiredService<ILogger<ResourceDeclarationStartupService>>();
+        var startup = scope.ServiceProvider.GetRequiredService<ResourceDeclarationStartupService>();
+        var result = await startup.StartAutoStartDeclarationsAsync(cancellationToken);
+
+        foreach (var diagnostic in result.Diagnostics)
+        {
+            logger.LogWarning(
+                "Programmatic resource startup failed for {ResourceId}: {Message}",
+                diagnostic.ResourceId,
+                diagnostic.Message);
         }
     }
 }

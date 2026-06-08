@@ -46,6 +46,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddSingleton<ITraceStore, InMemoryTraceStore>();
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
+        builder.Services.AddScoped<ResourceDeclarationStartupService>();
         builder.Services.TryAddSingleton(new PlatformResourceOptions());
         builder.Services.TryAddSingleton<PlatformResourceStore>();
         builder.Services.TryAddEnumerable(

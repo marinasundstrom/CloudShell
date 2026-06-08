@@ -120,6 +120,13 @@ The MVP should prove:
 - Aligned resource template import with the uniform resource validation model:
   invalid template envelopes now return diagnostics without creating resource
   groups or throwing from the domain API.
+- Added first-class dependency auto-start failure details with a stable
+  `dependencyAutoStartFailed` Control Plane error code, dependency path, blocked
+  dependency, and concrete failure reason.
+- Split declaration startup autostart from dependency autostart:
+  programmatic declarations now use startup autostart semantics with provider
+  defaults, while dependency startup uses `WithDependencyAutoStart(...)` and the
+  same provider/default precedence.
 
 ## Active stabilization areas
 
@@ -131,11 +138,13 @@ The MVP should prove:
 
 ## Next priorities
 
-1. Continue tightening internal Resource Manager behavior:
-   - dependency auto-start failure details
+1. Add explicit start-after-create UI support with provider-defined default
+   checkbox state.
 2. Align OpenAPI output with the intended domain projection.
 3. Expand sample tests to cover the hypermedia resource action path.
-4. Document any remaining MVP gaps as concrete tests or issues.
+4. Continue tightening internal Resource Manager behavior as invalid-state gaps
+   are found.
+5. Document any remaining MVP gaps as concrete tests or issues.
 
 ## Verification baseline
 

@@ -41,9 +41,11 @@ public sealed class ResourceOrchestrationService(
         {
             await StartResourceDependenciesAsync(
                 resource,
+                resource,
                 authorization,
                 new HashSet<string>(StringComparer.OrdinalIgnoreCase),
                 new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+                [],
                 cancellationToken);
         }
 
@@ -63,70 +65,179 @@ public sealed class ResourceOrchestrationService(
 
     private async Task StartResourceDependenciesAsync(
         Resource resource,
+        Resource rootResource,
         ICloudShellAuthorizationService authorization,
         HashSet<string> visiting,
         HashSet<string> completed,
+        List<Resource> path,
         CancellationToken cancellationToken)
     {
         if (!visiting.Add(resource.Id))
         {
-            throw new InvalidOperationException(
-                $"Resource dependency cycle detected at '{resource.Id}'.");
+            throw CreateDependencyAutoStartException(
+                rootResource,
+                resource,
+                path.Append(resource),
+                $"dependency cycle detected at '{resource.Id}'");
         }
 
-        foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
+        path.Add(resource);
+        try
         {
-            if (completed.Contains(dependencyId))
+            foreach (var dependencyId in resource.DependsOn.Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                continue;
-            }
+                if (completed.Contains(dependencyId))
+                {
+                    continue;
+                }
 
-            var dependency = resourceManager.GetResource(dependencyId)
-                ?? throw new InvalidOperationException(
-                    $"Dependency resource '{dependencyId}' could not be found.");
+                var dependency = resourceManager.GetResource(dependencyId);
+                if (dependency is null)
+                {
+                    throw CreateDependencyAutoStartException(
+                        rootResource,
+                        dependencyId,
+                        path.Select(FormatResource).Append(dependencyId),
+                        "dependency resource could not be found");
+                }
 
-            if (dependency.State == ResourceState.Running)
-            {
+                if (dependency.State == ResourceState.Running)
+                {
+                    completed.Add(dependency.Id);
+                    continue;
+                }
+
+                var dependencyPath = path.Append(dependency).ToArray();
+                if (!ShouldAutoStartAsDependency(dependency))
+                {
+                    throw CreateDependencyAutoStartException(
+                        rootResource,
+                        dependency,
+                        dependencyPath,
+                        "auto-start is disabled");
+                }
+
+                await StartResourceDependenciesAsync(
+                    dependency,
+                    rootResource,
+                    authorization,
+                    visiting,
+                    completed,
+                    path,
+                    cancellationToken);
+
+                var runAction = dependency.ResourceActions.FirstOrDefault(action =>
+                    action.Kind == ResourceActionKind.Run);
+                if (runAction is null)
+                {
+                    throw CreateDependencyAutoStartException(
+                        rootResource,
+                        dependency,
+                        dependencyPath,
+                        "dependency does not expose a Run action");
+                }
+
+                var group = resourceManager.GetGroupForResource(dependency.Id);
+                if (!authorization.CanAccessResource(
+                        dependency.Id,
+                        group?.Id,
+                        CloudShellPermissions.Resources.Manage))
+                {
+                    throw CreateDependencyAutoStartException(
+                        rootResource,
+                        dependency,
+                        dependencyPath,
+                        $"the '{CloudShellPermissions.Resources.Manage}' permission is required");
+                }
+
+                try
+                {
+                    await ExecuteActionCoreAsync(dependency, runAction, cancellationToken);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    throw CreateDependencyAutoStartException(
+                        rootResource,
+                        dependency,
+                        dependencyPath,
+                        exception.Message,
+                        exception);
+                }
+
                 completed.Add(dependency.Id);
-                continue;
             }
+        }
+        finally
+        {
+            path.RemoveAt(path.Count - 1);
+            visiting.Remove(resource.Id);
+        }
+    }
 
-            if (!declarations.ShouldAutoStart(dependency.Id))
-            {
-                throw new InvalidOperationException(
-                    $"Dependency resource '{dependency.Name}' is not running and has auto-start disabled.");
-            }
+    private static ControlPlaneException CreateDependencyAutoStartException(
+        Resource rootResource,
+        Resource dependency,
+        IEnumerable<Resource> path,
+        string reason,
+        Exception? innerException = null) =>
+        CreateDependencyAutoStartException(
+            rootResource,
+            dependency.Name,
+            path.Select(FormatResource),
+            reason,
+            innerException);
 
-            await StartResourceDependenciesAsync(
-                dependency,
-                authorization,
-                visiting,
-                completed,
-                cancellationToken);
+    private static ControlPlaneException CreateDependencyAutoStartException(
+        Resource rootResource,
+        string dependencyName,
+        IEnumerable<string> path,
+        string reason,
+        Exception? innerException = null)
+    {
+        var normalizedReason = string.IsNullOrWhiteSpace(reason)
+            ? "no failure reason was provided"
+            : reason.Trim().TrimEnd('.');
+        var message =
+            $"Could not auto-start dependency '{dependencyName}' for resource '{rootResource.Name}'. " +
+            $"Dependency path: {string.Join(" -> ", path)}. " +
+            $"Reason: {normalizedReason}.";
+        var error = ControlPlaneError.DependencyAutoStartFailed(message);
+        return innerException is null
+            ? new ControlPlaneException(error)
+            : new ControlPlaneException(error, innerException);
+    }
 
-            var runAction = dependency.ResourceActions.FirstOrDefault(action =>
-                action.Kind == ResourceActionKind.Run);
-            if (runAction is null)
-            {
-                throw new InvalidOperationException(
-                    $"Dependency resource '{dependency.Name}' is not running and does not expose a Run action.");
-            }
+    private static string FormatResource(Resource resource) =>
+        $"{resource.Name} ({resource.Id})";
 
-            var group = resourceManager.GetGroupForResource(dependency.Id);
-            if (!authorization.CanAccessResource(
-                    dependency.Id,
-                    group?.Id,
-                    CloudShellPermissions.Resources.Manage))
-            {
-                throw new UnauthorizedAccessException(
-                    $"The '{CloudShellPermissions.Resources.Manage}' permission is required for dependency resource '{dependency.Id}'.");
-            }
-
-            await ExecuteActionCoreAsync(dependency, runAction, cancellationToken);
-            completed.Add(dependency.Id);
+    private bool ShouldAutoStartAsDependency(Resource resource)
+    {
+        var declaration = declarations.GetDeclaration(resource.Id);
+        if (declaration?.DependencyAutoStartOverride is not null)
+        {
+            return declaration.DependencyAutoStartOverride.Value;
         }
 
-        visiting.Remove(resource.Id);
+        var providerId = declaration?.ProviderId ??
+            registrations.GetRegistration(resource.Id)?.ProviderId;
+        if (!string.IsNullOrWhiteSpace(providerId))
+        {
+            var provider = resourceManager.Providers
+                .OfType<IResourceAutoStartPolicyProvider>()
+                .FirstOrDefault(provider =>
+                    string.Equals(provider.Id, providerId, StringComparison.OrdinalIgnoreCase) &&
+                    declaration is not null &&
+                    provider.CanEvaluateAutoStartPolicy(declaration));
+            var providerDefault = declaration is null
+                ? null
+                : provider?.GetAutoStartPolicy(declaration).StartAsDependency;
+            if (providerDefault is not null)
+            {
+                return providerDefault.Value;
+            }
+        }
+
+        return declarations.DefaultDependencyAutoStart;
     }
 
     private ResourceOrchestrationContext CreateContext(Resource resource)

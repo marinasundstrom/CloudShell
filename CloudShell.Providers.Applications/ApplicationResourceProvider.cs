@@ -25,6 +25,7 @@ public sealed partial class ApplicationResourceProvider(
     IResourceProcedureProvider,
     IResourceTemplateProvider,
     IProgrammaticResourceDeclarationProvider,
+    IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
     IDisposable
 {
@@ -307,6 +308,15 @@ public sealed partial class ApplicationResourceProvider(
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
+
+    public bool CanEvaluateAutoStartPolicy(ResourceDeclaration declaration) =>
+        CanApplyDeclaration(declaration);
+
+    public ResourceAutoStartPolicy GetAutoStartPolicy(ResourceDeclaration declaration) =>
+        new(
+            StartOnControlPlaneStart: true,
+            StartAsDependency: true,
+            StartAfterCreate: false);
 
     public Task ApplyDeclarationAsync(
         ResourceDeclaration declaration,

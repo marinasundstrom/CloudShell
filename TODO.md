@@ -12,6 +12,7 @@ No queued items.
 
 ## Resource Manager Stabilization
 
-- [ ] Add dependency auto-start failure details.
+- [ ] Add explicit start-after-create UI support with provider-defined default
+  checkbox state.
 - [ ] Expand sample tests for hypermedia resource actions.
 - [ ] Keep OpenAPI output aligned with the domain-shaped resource projection.

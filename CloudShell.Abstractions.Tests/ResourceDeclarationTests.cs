@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Authorization;
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
@@ -184,7 +185,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public void WithAutoStart_ConfiguresDefaultAndResourceOverrides()
+    public void WithAutoStart_ConfiguresStartupDefaultAndResourceOverrides()
     {
         var services = new ServiceCollection();
 
@@ -213,6 +214,42 @@ public sealed class ResourceDeclarationTests
         Assert.True(enabled.AutoStartOverride);
         Assert.False(store.ShouldAutoStart("configuration:inherited"));
         Assert.True(store.ShouldAutoStart("configuration:enabled"));
+        Assert.True(store.DefaultDependencyAutoStart);
+        Assert.True(store.ShouldAutoStartAsDependency("configuration:inherited"));
+    }
+
+    [Fact]
+    public void WithDependencyAutoStart_ConfiguresDefaultAndResourceOverrides()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources.WithDependencyAutoStart(false);
+
+                resources.Declare("configuration", "configuration:inherited");
+                resources
+                    .Declare("configuration", "configuration:enabled")
+                    .WithDependencyAutoStart(true);
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var inherited = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "configuration:inherited");
+        var enabled = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "configuration:enabled");
+
+        Assert.False(store.DefaultDependencyAutoStart);
+        Assert.Null(inherited.DependencyAutoStartOverride);
+        Assert.True(enabled.DependencyAutoStartOverride);
+        Assert.False(store.ShouldAutoStartAsDependency("configuration:inherited"));
+        Assert.True(store.ShouldAutoStartAsDependency("configuration:enabled"));
+        Assert.True(store.DefaultAutoStart);
+        Assert.True(store.ShouldAutoStart("configuration:inherited"));
     }
 
     [Fact]
@@ -239,7 +276,85 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public async Task ExecuteAction_DoesNotStartDependencyWhenAutoStartIsDisabled()
+    public void WithDependencyAutoStart_PreservesTypedBuilderFluentChains()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddConfigurationStore("configuration:example", "Example Configuration")
+                    .WithDependencyAutoStart(false)
+                    .WithEntry("SampleMessage", "Hello");
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations());
+
+        Assert.False(declaration.DependencyAutoStartOverride);
+    }
+
+    [Fact]
+    public async Task ExecuteAction_DoesNotStartDependencyWhenDependencyAutoStartIsDisabled()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var dependency = resources
+                    .Declare("auto-start", "dependency")
+                    .WithDependencyAutoStart(false);
+
+                resources
+                    .Declare("auto-start", "target")
+                    .DependsOn(dependency);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var provider = new AutoStartResourceProvider();
+        var registrations = new DeclarationRegistrationStore(declarations);
+        var resourceManager = new TestResourceManagerStore(provider, registrations);
+        var selectionStore = new ResourceOrchestratorSelectionStore(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))),
+            new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            [],
+            resourceManager,
+            registrations,
+            declarations,
+            selectionStore);
+        var target = resourceManager.GetResource("target")!;
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            orchestration.ExecuteActionAsync(
+                target,
+                ResourceAction.Run,
+                startDependencies: true,
+                new AllowAllAuthorizationService()));
+
+        Assert.Equal(ControlPlaneErrorCodes.DependencyAutoStartFailed, exception.Error.Code);
+        Assert.Contains(
+            "Could not auto-start dependency 'Dependency' for resource 'Target'.",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Dependency path: Target (target) -> Dependency (dependency).",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Contains("Reason: auto-start is disabled.", exception.Message, StringComparison.Ordinal);
+        Assert.Empty(provider.ExecutedResources);
+    }
+
+    [Fact]
+    public async Task ExecuteAction_StartsDependencyWhenStartupAutoStartIsDisabled()
     {
         var services = new ServiceCollection();
         services
@@ -273,17 +388,123 @@ public sealed class ResourceDeclarationTests
             selectionStore);
         var target = resourceManager.GetResource("target")!;
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        await orchestration.ExecuteActionAsync(
+            target,
+            ResourceAction.Run,
+            startDependencies: true,
+            new AllowAllAuthorizationService());
+
+        Assert.Equal(["dependency", "target"], provider.ExecutedResources);
+    }
+
+    [Fact]
+    public async Task ExecuteAction_UsesProviderDependencyAutoStartDefault()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var dependency = resources
+                    .Declare("auto-start", "dependency");
+
+                resources
+                    .Declare("auto-start", "target")
+                    .DependsOn(dependency);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var provider = new AutoStartResourceProvider
+        {
+            DefaultDependencyAutoStart = false
+        };
+        var registrations = new DeclarationRegistrationStore(declarations);
+        var resourceManager = new TestResourceManagerStore(provider, registrations);
+        var selectionStore = new ResourceOrchestratorSelectionStore(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))),
+            new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            [],
+            resourceManager,
+            registrations,
+            declarations,
+            selectionStore);
+        var target = resourceManager.GetResource("target")!;
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
             orchestration.ExecuteActionAsync(
                 target,
                 ResourceAction.Run,
                 startDependencies: true,
                 new AllowAllAuthorizationService()));
 
-        Assert.Equal(
-            "Dependency resource 'Dependency' is not running and has auto-start disabled.",
-            exception.Message);
+        Assert.Equal(ControlPlaneErrorCodes.DependencyAutoStartFailed, exception.Error.Code);
+        Assert.Contains("Reason: auto-start is disabled.", exception.Message, StringComparison.Ordinal);
         Assert.Empty(provider.ExecutedResources);
+    }
+
+    [Fact]
+    public async Task ExecuteAction_ReturnsDependencyAutoStartFailureDetailsWhenDependencyRunFails()
+    {
+        var services = new ServiceCollection();
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var dependency = resources
+                    .Declare("auto-start", "dependency");
+
+                resources
+                    .Declare("auto-start", "target")
+                    .DependsOn(dependency);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var provider = new AutoStartResourceProvider
+        {
+            FailedResourceId = "dependency",
+            FailureMessage = "Dependency process failed to bind port 5104."
+        };
+        var registrations = new DeclarationRegistrationStore(declarations);
+        var resourceManager = new TestResourceManagerStore(provider, registrations);
+        var selectionStore = new ResourceOrchestratorSelectionStore(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))),
+            new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
+        var orchestration = new ResourceOrchestrationService(
+            [new DefaultResourceOrchestrator()],
+            [],
+            [],
+            resourceManager,
+            registrations,
+            declarations,
+            selectionStore);
+        var target = resourceManager.GetResource("target")!;
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            orchestration.ExecuteActionAsync(
+                target,
+                ResourceAction.Run,
+                startDependencies: true,
+                new AllowAllAuthorizationService()));
+
+        Assert.Equal(ControlPlaneErrorCodes.DependencyAutoStartFailed, exception.Error.Code);
+        Assert.Contains(
+            "Could not auto-start dependency 'Dependency' for resource 'Target'.",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Dependency path: Target (target) -> Dependency (dependency).",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Reason: Dependency process failed to bind port 5104.",
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Equal(["dependency"], provider.ExecutedResources);
     }
 
     [Fact]
@@ -1179,7 +1400,8 @@ public sealed class ResourceDeclarationTests
 
     private sealed class AutoStartResourceProvider :
         IResourceProvider,
-        IResourceProcedureProvider
+        IResourceProcedureProvider,
+        IResourceAutoStartPolicyProvider
     {
         private readonly Dictionary<string, ResourceState> states = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -1192,6 +1414,23 @@ public sealed class ResourceDeclarationTests
         public string DisplayName => "Auto Start";
 
         public List<string> ExecutedResources { get; } = [];
+
+        public string? FailedResourceId { get; init; }
+
+        public string FailureMessage { get; init; } = "Resource failed to start.";
+
+        public bool DefaultStartOnControlPlaneStart { get; init; } = true;
+
+        public bool DefaultDependencyAutoStart { get; init; } = true;
+
+        public bool CanEvaluateAutoStartPolicy(ResourceDeclaration declaration) =>
+            CanApplyDeclaration(declaration);
+
+        public ResourceAutoStartPolicy GetAutoStartPolicy(ResourceDeclaration declaration) =>
+            new(DefaultStartOnControlPlaneStart, DefaultDependencyAutoStart, StartAfterCreate: false);
+
+        public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
+            string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
 
         public IReadOnlyList<Resource> GetResources() =>
             states
@@ -1220,6 +1459,11 @@ public sealed class ResourceDeclarationTests
             CancellationToken cancellationToken = default)
         {
             ExecutedResources.Add(context.Resource.Id);
+            if (string.Equals(context.Resource.Id, FailedResourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(FailureMessage);
+            }
+
             states[context.Resource.Id] = ResourceState.Running;
             return Task.FromResult(ResourceProcedureResult.Completed("Completed."));
         }

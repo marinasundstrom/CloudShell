@@ -79,6 +79,14 @@ Resource action capabilities are separate from resource actions. Capabilities
 answer whether a resource action is currently executable and why. They combine
 authorization, state, provider support, and other operational constraints.
 
+Keep startup autostart separate from dependency autostart. Programmatic
+declarations default to startup autostart unless the graph, provider, or
+resource override says otherwise. UI-created resources do not autostart by
+default; create flows may add an explicit start-after-create option whose
+initial value comes from provider policy. Dependency startup uses
+`WithDependencyAutoStart(...)` and provider dependency-start defaults, not
+`WithAutoStart(...)`.
+
 UI actions are downstream presentation choices. A UI button or menu item may
 use a resource action and capability, but the UI element is not the domain
 action.

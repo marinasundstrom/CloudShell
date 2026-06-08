@@ -51,6 +51,9 @@ public sealed record ControlPlaneError(
     public static ControlPlaneError DependentResourcesRunning(string message) =>
         new(ControlPlaneErrorCodes.DependentResourcesRunning, message);
 
+    public static ControlPlaneError DependencyAutoStartFailed(string message) =>
+        new(ControlPlaneErrorCodes.DependencyAutoStartFailed, message);
+
     public static ControlPlaneError ResourceGroupNotFound(string resourceGroupId) =>
         new(
             ControlPlaneErrorCodes.ResourceGroupNotFound,
@@ -77,6 +80,7 @@ public static class ControlPlaneErrorCodes
     public const string ResourceGroupNotFound = "resourceGroupNotFound";
     public const string ResourceSelfDependency = "resourceSelfDependency";
     public const string DependentResourcesRunning = "dependentResourcesRunning";
+    public const string DependencyAutoStartFailed = "dependencyAutoStartFailed";
     public const string InsufficientPermission = "insufficientPermission";
     public const string OperationFailed = "operationFailed";
 }

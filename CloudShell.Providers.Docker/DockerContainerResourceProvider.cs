@@ -16,6 +16,7 @@ public sealed partial class DockerContainerResourceProvider :
     ILogProvider,
     IResourceProcedureProvider,
     IProgrammaticResourceDeclarationProvider,
+    IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
     IDisposable
 {
@@ -204,6 +205,15 @@ public sealed partial class DockerContainerResourceProvider :
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
+
+    public bool CanEvaluateAutoStartPolicy(ResourceDeclaration declaration) =>
+        CanApplyDeclaration(declaration);
+
+    public ResourceAutoStartPolicy GetAutoStartPolicy(ResourceDeclaration declaration) =>
+        new(
+            StartOnControlPlaneStart: !string.Equals(declaration.ResourceId, EngineResourceId, StringComparison.OrdinalIgnoreCase),
+            StartAsDependency: true,
+            StartAfterCreate: false);
 
     public Task ApplyDeclarationAsync(
         ResourceDeclaration declaration,

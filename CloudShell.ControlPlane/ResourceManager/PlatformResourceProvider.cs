@@ -11,6 +11,7 @@ public sealed class PlatformResourceProvider(
     IResourceCreationProvider,
     IResourceProcedureProvider,
     IProgrammaticResourceDeclarationProvider,
+    IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
@@ -116,6 +117,15 @@ public sealed class PlatformResourceProvider(
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
+
+    public bool CanEvaluateAutoStartPolicy(ResourceDeclaration declaration) =>
+        CanApplyDeclaration(declaration);
+
+    public ResourceAutoStartPolicy GetAutoStartPolicy(ResourceDeclaration declaration) =>
+        new(
+            StartOnControlPlaneStart: false,
+            StartAsDependency: true,
+            StartAfterCreate: false);
 
     public Task ApplyDeclarationAsync(
         ResourceDeclaration declaration,

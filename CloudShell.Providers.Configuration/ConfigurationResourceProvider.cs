@@ -15,7 +15,8 @@ public sealed partial class ConfigurationResourceProvider :
     IResourceProcedureProvider,
     IResourceTemplateProvider,
     IResourceEnvironmentVariableProvider,
-    IProgrammaticResourceDeclarationProvider
+    IProgrammaticResourceDeclarationProvider,
+    IResourceAutoStartPolicyProvider
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly ConfigurationStore store;
@@ -101,6 +102,15 @@ public sealed partial class ConfigurationResourceProvider :
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
+
+    public bool CanEvaluateAutoStartPolicy(ResourceDeclaration declaration) =>
+        CanApplyDeclaration(declaration);
+
+    public ResourceAutoStartPolicy GetAutoStartPolicy(ResourceDeclaration declaration) =>
+        new(
+            StartOnControlPlaneStart: false,
+            StartAsDependency: true,
+            StartAfterCreate: false);
 
     public async Task ApplyDeclarationAsync(
         ResourceDeclaration declaration,

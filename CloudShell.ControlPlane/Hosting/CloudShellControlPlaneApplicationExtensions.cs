@@ -27,6 +27,7 @@ public static class CloudShellControlPlaneApplicationExtensions
 
         app.Services.InitializeCloudShellDatabase(usesLocalIdentity);
         app.Services.PersistProgrammaticResourceDeclarations();
+        await app.Services.StartProgrammaticResourceDeclarationsAsync();
 
         if (usesLocalIdentity)
         {
