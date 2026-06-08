@@ -117,6 +117,14 @@ public interface INetworkResourceBuilder : IResourceBuilder
         ResourceEndpointReference source,
         ResourceEndpointReference target,
         string? id = null,
+        string? name = null,
+        string? providerResourceId = null);
+
+    INetworkResourceBuilder MapEndpoint(
+        ResourceEndpointReference source,
+        ResourceEndpointReference target,
+        IResourceBuilder provider,
+        string? id = null,
         string? name = null);
 
     new INetworkResourceBuilder DependsOn(string resourceId);
@@ -249,7 +257,8 @@ internal sealed class NetworkResourceBuilder(
         ResourceEndpointReference source,
         ResourceEndpointReference target,
         string? id = null,
-        string? name = null)
+        string? name = null,
+        string? providerResourceId = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
@@ -260,6 +269,9 @@ internal sealed class NetworkResourceBuilder(
         var mappingName = string.IsNullOrWhiteSpace(name)
             ? $"{source.EndpointName} to {target.EndpointName}"
             : name.Trim();
+        var providerId = string.IsNullOrWhiteSpace(providerResourceId)
+            ? ResourceId
+            : providerResourceId.Trim();
         declared.Definition = declared.Definition with
         {
             EndpointMappings = declared.Definition.NetworkEndpointMappings
@@ -270,11 +282,32 @@ internal sealed class NetworkResourceBuilder(
                     source,
                     target,
                     NetworkResourceId: ResourceId,
-                    ProviderResourceId: ResourceId))
+                    ProviderResourceId: providerId))
                 .ToArray()
         };
         inner.DependsOn(target.ResourceId);
+        if (!string.Equals(source.ResourceId, ResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            inner.DependsOn(source.ResourceId);
+        }
+
+        if (!string.Equals(providerId, ResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            inner.DependsOn(providerId);
+        }
+
         return this;
+    }
+
+    public INetworkResourceBuilder MapEndpoint(
+        ResourceEndpointReference source,
+        ResourceEndpointReference target,
+        IResourceBuilder provider,
+        string? id = null,
+        string? name = null)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        return MapEndpoint(source, target, id, name, provider.ResourceId);
     }
 
     private ResourceEndpointReference AddEndpoint(

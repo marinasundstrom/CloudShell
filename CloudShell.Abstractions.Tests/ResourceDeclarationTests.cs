@@ -1223,18 +1223,25 @@ public sealed class ResourceDeclarationTests
                 var network = resources
                     .AddNetwork("network:app", "App Network", isDefault: true);
                 var api = resources.Declare("applications", "application:api");
+                var proxy = resources.Declare("networking", "networking:proxy");
                 var publicEndpoint = network.AddTcpEndpoint("localhost", 4040, "public");
                 var autoEndpoint = network.RequestHttpEndpoint("api");
 
                 network.MapEndpoint(
                     autoEndpoint,
                     new ResourceEndpointReference(api.ResourceId, "http"),
+                    proxy,
                     "mapping:api");
 
                 Assert.Equal(new ResourceEndpointReference("network:app", "public"), publicEndpoint);
             });
 
         using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var networkDeclaration = declarations.GetDeclaration("network:app");
+        Assert.NotNull(networkDeclaration);
+        Assert.Equal(["application:api", "networking:proxy"], networkDeclaration.DependsOn);
+
         var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
         var definition = Assert.Single(options.DeclaredNetworks).Definition;
 
@@ -1261,7 +1268,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(new ResourceEndpointReference("network:app", "api"), mapping.Source);
         Assert.Equal(new ResourceEndpointReference("application:api", "http"), mapping.Target);
         Assert.Equal("network:app", mapping.NetworkResourceId);
-        Assert.Equal("network:app", mapping.ProviderResourceId);
+        Assert.Equal("networking:proxy", mapping.ProviderResourceId);
 
         var platformStore = new PlatformResourceStore(
             options,
@@ -1285,6 +1292,120 @@ public sealed class ResourceDeclarationTests
                 Assert.Equal("public", endpoint.Name);
                 Assert.Equal("tcp://localhost:4040", endpoint.Address);
             });
+    }
+
+    [Fact]
+    public async Task PlatformProvider_ReconcilesEndpointMappingsWithSelectedProvider()
+    {
+        var definition = new NetworkResourceDefinition(
+            "network:app",
+            "App Network",
+            IsDefault: true,
+            Endpoints:
+            [
+                new ResourceEndpointRequest(
+                    "api",
+                    ResourceEndpointProtocol.Http,
+                    Host: "localhost",
+                    Assignment: ResourceEndpointAssignment.Auto)
+            ],
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "mapping:api",
+                    "API",
+                    new ResourceEndpointReference("network:app", "api"),
+                    new ResourceEndpointReference("application:api", "http"),
+                    "network:app",
+                    "networking:proxy")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredNetworks.Add(new DeclaredNetworkResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var network = Assert.Single(provider.GetResources(), resource => resource.Id == "network:app");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                network,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080"),
+                CreateNetworkingProviderResource("networking:proxy")
+            ],
+            [provider]);
+
+        var result = await provider.ExecuteActionAsync(
+            new ResourceProcedureContext(
+                network,
+                new ResourceRegistration(network.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                null,
+                new TestResourceRegistrationStore([]),
+                resourceManager),
+            network.ResourceActions.Single());
+
+        Assert.Equal("Reconciled 1 endpoint mapping(s).", result.Message);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_RejectsEndpointMappingProviderWithoutMapperCapability()
+    {
+        var definition = new NetworkResourceDefinition(
+            "network:app",
+            "App Network",
+            Endpoints:
+            [
+                new ResourceEndpointRequest(
+                    "api",
+                    ResourceEndpointProtocol.Http,
+                    Host: "localhost",
+                    Assignment: ResourceEndpointAssignment.Auto)
+            ],
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "mapping:api",
+                    "API",
+                    new ResourceEndpointReference("network:app", "api"),
+                    new ResourceEndpointReference("application:api", "http"),
+                    "network:app",
+                    "networking:proxy")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredNetworks.Add(new DeclaredNetworkResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var network = Assert.Single(provider.GetResources(), resource => resource.Id == "network:app");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                network,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080"),
+                new Resource(
+                    "networking:proxy",
+                    "Proxy",
+                    "Proxy",
+                    "Test",
+                    "local",
+                    ResourceState.Running,
+                    [],
+                    "1.0",
+                    DateTimeOffset.UtcNow,
+                    [])
+            ],
+            [provider]);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.ExecuteActionAsync(
+                new ResourceProcedureContext(
+                    network,
+                    new ResourceRegistration(network.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                    null,
+                    new TestResourceRegistrationStore([]),
+                    resourceManager),
+                network.ResourceActions.Single()));
+
+        Assert.Contains(ResourceCapabilityIds.NetworkingEndpointMapper, exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1531,6 +1652,70 @@ public sealed class ResourceDeclarationTests
             throw new NotSupportedException();
     }
 
+    private static Resource CreateEndpointResource(string id, string endpointName, string address) =>
+        new(
+            id,
+            id,
+            "Application",
+            "Test",
+            "local",
+            ResourceState.Running,
+            [new ResourceEndpoint(endpointName, address, "http", true)],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            Capabilities: [new(ResourceCapabilityIds.EndpointSource)]);
+
+    private static Resource CreateNetworkingProviderResource(string id) =>
+        new(
+            id,
+            id,
+            "Networking Provider",
+            "Test",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            Capabilities: [new(ResourceCapabilityIds.NetworkingEndpointMapper)]);
+
+    private sealed class TestResourceRegistrationStore(
+        IReadOnlyList<ResourceRegistration> registrations) : IResourceRegistrationStore
+    {
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() => registrations;
+
+        public ResourceRegistration? GetRegistration(string resourceId) =>
+            registrations.FirstOrDefault(registration =>
+                string.Equals(registration.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
+
+        public Task RegisterAsync(
+            string providerId,
+            string resourceId,
+            string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task RemoveAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task AssignToGroupAsync(
+            string resourceId,
+            string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
     private sealed class AutoStartResourceProvider :
         IResourceProvider,
         IResourceProcedureProvider,
@@ -1600,6 +1785,33 @@ public sealed class ResourceDeclarationTests
             states[context.Resource.Id] = ResourceState.Running;
             return Task.FromResult(ResourceProcedureResult.Completed("Completed."));
         }
+    }
+
+    private sealed class StaticResourceManagerStore(
+        IReadOnlyList<Resource> resources,
+        IReadOnlyList<IResourceProvider>? providers = null) : IResourceManagerStore
+    {
+        public IReadOnlyList<IResourceProvider> Providers => providers ?? [];
+
+        public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
+
+        public IReadOnlyList<Resource> GetAvailableResources() => resources;
+
+        public IReadOnlyList<Resource> GetResources() => resources;
+
+        public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
+
+        public ResourceClass? GetResourceTypeClass(string resourceType) => null;
+
+        public Resource? GetResource(string id) =>
+            resources.FirstOrDefault(resource =>
+                string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
+
+        public IReadOnlyList<Resource> GetChildren(string resourceId) => [];
+
+        public ResourceGroup? GetGroupForResource(string resourceId) => null;
+
+        public bool IsRegistered(string resourceId) => GetResource(resourceId) is not null;
     }
 
     private sealed class TestResourceManagerStore(

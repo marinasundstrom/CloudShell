@@ -19,6 +19,12 @@ public sealed class PlatformResourceProvider(
     public const string ProviderId = "cloudshell.platform";
     public const string NetworkResourceType = "cloudshell.network";
     public const string ServiceResourceType = "cloudshell.service";
+    public const string ReconcileEndpointMappingsActionId = "reconcileEndpointMappings";
+
+    private static readonly ResourceAction ReconcileEndpointMappingsAction = new(
+        ReconcileEndpointMappingsActionId,
+        "Reconcile endpoint mappings",
+        Description: "Validate and apply endpoint mappings for the network resource.");
 
     public string Id => ProviderId;
 
@@ -113,6 +119,26 @@ public sealed class PlatformResourceProvider(
         store.Remove(context.Resource.Id);
         await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
         return ResourceProcedureResult.Completed("Platform resource registration removed.");
+    }
+
+    public Task<ResourceProcedureResult> ExecuteActionAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(action.Id, ReconcileEndpointMappingsActionId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new NotSupportedException(
+                $"CloudShell platform resources do not support action '{action.DisplayName}'.");
+        }
+
+        if (!string.Equals(context.Resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Endpoint mappings can only be reconciled for network resources.");
+        }
+
+        return Task.FromResult(ReconcileEndpointMappings(context));
     }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
@@ -224,6 +250,9 @@ public sealed class PlatformResourceProvider(
             DateTimeOffset.UtcNow,
             [],
             TypeId: NetworkResourceType,
+            Actions: definition.NetworkEndpointMappings.Count > 0
+                ? [ReconcileEndpointMappingsAction]
+                : null,
             ResourceClass: ResourceClass.Network,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -236,6 +265,65 @@ public sealed class PlatformResourceProvider(
                 new(ResourceCapabilityIds.NetworkingEndpointProvider),
                 new(ResourceCapabilityIds.NetworkingEndpointMapper)
             ]);
+    }
+
+    private ResourceProcedureResult ReconcileEndpointMappings(ResourceProcedureContext context)
+    {
+        var resourceManager = context.ResourceManager
+            ?? throw new InvalidOperationException("Resource Manager is required to reconcile endpoint mappings.");
+        var network = store.GetNetwork(context.Resource.Id)
+            ?? throw new InvalidOperationException($"Network resource '{context.Resource.Id}' is not configured.");
+        if (network.NetworkEndpointMappings.Count == 0)
+        {
+            return ResourceProcedureResult.Completed("No endpoint mappings to reconcile.");
+        }
+
+        foreach (var mapping in network.NetworkEndpointMappings)
+        {
+            ValidateEndpointReference(resourceManager, mapping.Id, mapping.Source, "source");
+            ValidateEndpointReference(resourceManager, mapping.Id, mapping.Target, "target");
+            ValidateMappingProvider(resourceManager, mapping);
+        }
+
+        return ResourceProcedureResult.Completed(
+            $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s).");
+    }
+
+    private static void ValidateEndpointReference(
+        IResourceManagerStore resourceManager,
+        string mappingId,
+        ResourceEndpointReference endpoint,
+        string role)
+    {
+        var resource = resourceManager.GetResource(endpoint.ResourceId)
+            ?? throw new InvalidOperationException(
+                $"Endpoint mapping '{mappingId}' {role} resource '{endpoint.ResourceId}' could not be found.");
+        if (!resource.Endpoints.Any(candidate =>
+                string.Equals(candidate.Name, endpoint.EndpointName, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                $"Endpoint mapping '{mappingId}' {role} endpoint '{endpoint.EndpointName}' could not be found on resource '{endpoint.ResourceId}'.");
+        }
+    }
+
+    private static void ValidateMappingProvider(
+        IResourceManagerStore resourceManager,
+        ResourceEndpointMappingDefinition mapping)
+    {
+        var providerResourceId = FirstNonEmpty(
+                mapping.ProviderResourceId,
+                mapping.NetworkResourceId,
+                mapping.Source.ResourceId)
+            ?? throw new InvalidOperationException(
+                $"Endpoint mapping '{mapping.Id}' does not specify a provider resource.");
+        var provider = resourceManager.GetResource(providerResourceId)
+            ?? throw new InvalidOperationException(
+                $"Endpoint mapping '{mapping.Id}' provider resource '{providerResourceId}' could not be found.");
+        if (!provider.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper))
+        {
+            throw new InvalidOperationException(
+                $"Endpoint mapping '{mapping.Id}' provider resource '{providerResourceId}' does not advertise '{ResourceCapabilityIds.NetworkingEndpointMapper}'.");
+        }
     }
 
     private Resource CreateServiceResource(ServiceResourceDefinition definition) =>
