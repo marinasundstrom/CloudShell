@@ -63,10 +63,13 @@
         else
         {
             var probeContext = GetProbeContext(selectedType);
-            <div class="panel-header">
-                <div>
-                    <h2>@selectedType.DisplayName</h2>
-                    <p>@selectedType.Description</p>
+            <div class="provider-summary compact">
+                <div class="provider-status">
+                    <span class="state-dot state-running"></span>
+                    <div>
+                        <strong>@selectedType.DisplayName</strong>
+                        <span>@selectedType.Description</span>
+                    </div>
                 </div>
             </div>
             <CascadingValue Value="probeContext">

@@ -8,16 +8,6 @@
 @inject NavigationManager Navigation
 
 <div class="type-registration">
-    <div class="provider-summary compact">
-        <div class="provider-status">
-            <span class="state-dot state-running"></span>
-            <div>
-                <strong>Container image</strong>
-                <span>Register a top-level local container resource with optional endpoints and service discovery references.</span>
-            </div>
-        </div>
-    </div>
-
     <div class="form-panel">
         @if (!HasImplicitContainerEngine())
         {

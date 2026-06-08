@@ -846,6 +846,10 @@ h3 {
     min-height: 18rem;
 }
 
+.registration-host > .provider-summary.compact {
+    margin-bottom: .85rem;
+}
+
 .type-registration {
     display: grid;
     gap: .8rem;
