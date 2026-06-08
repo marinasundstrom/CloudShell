@@ -66,6 +66,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddSingleton<ResourceOrchestratorSelectionStore>();
         builder.Services.AddSingleton<IResourceOrchestrationSettings>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceOrchestratorSelectionStore>());
+        builder.Services.AddScoped<IResourceOrchestrationCatalog, ResourceOrchestrationCatalog>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IResourceOrchestrator, DefaultResourceOrchestrator>());
 

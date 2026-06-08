@@ -57,6 +57,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UI", "UI", "{6C168FF4-8DAB-
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.SplitHosting.UI", "samples\SplitHosting\UI\CloudShell.SplitHosting.UI.csproj", "{BC57901C-B311-477C-B46A-A2A43D4CF8A5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ControlPlane.Client.Tests", "CloudShell.ControlPlane.Client.Tests\CloudShell.ControlPlane.Client.Tests.csproj", "{12A22D2E-92E9-44AE-8357-1A9B5956656A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -343,6 +345,18 @@ Global
 		{BC57901C-B311-477C-B46A-A2A43D4CF8A5}.Release|x64.Build.0 = Release|Any CPU
 		{BC57901C-B311-477C-B46A-A2A43D4CF8A5}.Release|x86.ActiveCfg = Release|Any CPU
 		{BC57901C-B311-477C-B46A-A2A43D4CF8A5}.Release|x86.Build.0 = Release|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Debug|x64.Build.0 = Debug|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Debug|x86.Build.0 = Debug|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Release|x64.ActiveCfg = Release|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Release|x64.Build.0 = Release|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Release|x86.ActiveCfg = Release|Any CPU
+		{12A22D2E-92E9-44AE-8357-1A9B5956656A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

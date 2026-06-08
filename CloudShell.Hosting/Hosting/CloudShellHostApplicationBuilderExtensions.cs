@@ -37,6 +37,7 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.TryAddScoped<ICloudShellAuthorizationService, PermissiveAuthorizationService>();
         builder.Services.TryAddScoped<IAccountService, ExternalAccountService>();
         builder.Services.TryAddSingleton<IResourceOrchestrationSettings, LocalResourceOrchestrationSettings>();
+        builder.Services.TryAddScoped<IResourceOrchestrationCatalog, LocalResourceOrchestrationCatalog>();
 
         var cloudShell = builder.Services
             .AddCloudShell()
