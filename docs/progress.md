@@ -102,6 +102,8 @@ The MVP should prove:
 
 ## Active stabilization areas
 
+- Resource model consistency across type contributions, resource projections,
+  creation requests, declarations, generated details, and provider overrides.
 - Resource Manager state behavior and capability signaling.
 - API contract stability for projected resources, actions, and errors.
 - Sample coverage for combined and split hosting.
@@ -109,11 +111,20 @@ The MVP should prove:
 
 ## Next priorities
 
-1. Continue tightening internal Resource Manager behavior:
+1. Tighten resource type/class consistency:
+   - validate or diagnose mismatches between `ResourceTypeContribution`,
+     creation metadata, declaration metadata, and provider-projected
+     `Resource.ResourceClass`
+   - add tests for built-in providers and generated details behavior
+2. Continue improving generated Resource Manager details:
+   - link dependencies, parents, and child resources
+   - add endpoint copy/open affordances
+   - surface health status, logs, and action capability reasons
+3. Continue tightening internal Resource Manager behavior:
    - dependency auto-start failure details
-2. Align OpenAPI output with the intended domain projection.
-3. Expand sample tests to cover the hypermedia resource action path.
-4. Document any remaining MVP gaps as concrete tests or issues.
+4. Align OpenAPI output with the intended domain projection.
+5. Expand sample tests to cover the hypermedia resource action path.
+6. Document any remaining MVP gaps as concrete tests or issues.
 
 ## Verification baseline
 
