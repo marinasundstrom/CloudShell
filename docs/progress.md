@@ -81,6 +81,8 @@ The MVP should prove:
 - Added uniform resource attributes for class-defining, non-secret provider
   details such as workload kind, image, endpoint count, service port count, and
   configuration entry count.
+- Added `ResourceClass` filtering to resource queries, the Control Plane API,
+  and the remote client.
 
 ## Active stabilization areas
 

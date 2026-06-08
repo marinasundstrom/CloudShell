@@ -126,7 +126,8 @@ public sealed record ResourceQuery(
     string? ResourceGroupId = null,
     string? ParentResourceId = null,
     string? ResourceType = null,
-    bool? IsRegistered = null);
+    bool? IsRegistered = null,
+    ResourceClass? ResourceClass = null);
 
 public sealed record LogQuery(
     string? ResourceId = null,

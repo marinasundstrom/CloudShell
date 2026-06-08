@@ -616,6 +616,11 @@ public sealed class InProcessControlPlane(
                 resourceManager.IsRegistered(resource.Id) == query.IsRegistered);
         }
 
+        if (query.ResourceClass is not null)
+        {
+            filtered = filtered.Where(resource => resource.ResourceClass == query.ResourceClass);
+        }
+
         return filtered.ToArray();
     }
 

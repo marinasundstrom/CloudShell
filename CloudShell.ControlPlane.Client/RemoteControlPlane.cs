@@ -70,7 +70,8 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             ("resourceGroupId", query?.ResourceGroupId),
             ("parentResourceId", query?.ParentResourceId),
             ("resourceType", query?.ResourceType),
-            ("isRegistered", query?.IsRegistered?.ToString())))
+            ("isRegistered", query?.IsRegistered?.ToString()),
+            ("resourceClass", query?.ResourceClass?.ToString())))
         .Select(response => response.ToResource())
         .ToArray();
 

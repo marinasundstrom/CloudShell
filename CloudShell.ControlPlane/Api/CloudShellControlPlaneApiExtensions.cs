@@ -138,11 +138,12 @@ public static class CloudShellControlPlaneApiExtensions
         string? parentResourceId,
         string? resourceType,
         bool? isRegistered,
+        ResourceClass? resourceClass,
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
         var resources = await resourceManager.ListResourcesAsync(
-            new ResourceQuery(resourceGroupId, parentResourceId, resourceType, isRegistered),
+            new ResourceQuery(resourceGroupId, parentResourceId, resourceType, isRegistered, resourceClass),
             cancellationToken);
 
         return Results.Ok(await CreateResourceResponses(resourceManager, resources, cancellationToken));

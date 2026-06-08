@@ -69,8 +69,15 @@ public sealed class RemoteControlPlaneContractTests
                 group.Id));
 
         var services = await controlPlane.ListResourcesAsync(
-            new ResourceQuery(ResourceGroupId: group.Id, ResourceType: PlatformResourceProvider.ServiceResourceType));
+            new ResourceQuery(
+                ResourceGroupId: group.Id,
+                ResourceType: PlatformResourceProvider.ServiceResourceType,
+                ResourceClass: ResourceClass.Service));
         var service = Assert.Single(services);
+
+        var networkResources = await controlPlane.ListResourcesAsync(
+            new ResourceQuery(ResourceClass: ResourceClass.Network));
+        Assert.Single(networkResources);
 
         Assert.Equal("service:contract", service.Id);
         Assert.Equal("Contract Service", service.Name);
@@ -84,6 +91,21 @@ public sealed class RemoteControlPlaneContractTests
         Assert.NotNull(registration);
         Assert.Equal(group.Id, registration.ResourceGroupId);
         Assert.Equal(["network:contract"], registration.DependsOn);
+    }
+
+    [Fact]
+    public async Task ControlPlaneApi_FiltersResourcesByClass()
+    {
+        await using var app = await CreateAppAsync();
+        var client = app.GetTestClient();
+
+        var response = await client.GetAsync("/api/control-plane/v1/resources?resourceClass=Network");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var resource = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal("network:contract", resource.GetProperty("id").GetString());
+        Assert.Equal((int)ResourceClass.Network, resource.GetProperty("resourceClass").GetInt32());
     }
 
     [Fact]

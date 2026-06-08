@@ -67,6 +67,10 @@ such as container image, workload kind, endpoint count, service port count, or
 configuration entry count. Providers must not expose secrets through resource
 attributes.
 
+Consumers can filter resource lists by `ResourceClass` when they need broad
+class-level views, such as all container-backed resources or all logical
+services, without relying on provider-specific `TypeId` values.
+
 As a client API entity, `Resource` should be convenient to inspect without
 becoming an active service object. It may expose domain helpers such as
 case-insensitive resource-action lookup and standard lifecycle action
