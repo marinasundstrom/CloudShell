@@ -166,6 +166,16 @@ public static class ApplicationProviderServiceCollectionExtensions
         return new ExecutableApplicationResourceBuilder(resource, declared);
     }
 
+    /// <summary>
+    /// Declares a container app resource using an Aspire-compatible shorthand
+    /// name.
+    /// </summary>
+    /// <remarks>
+    /// This creates an <c>application.container-app</c> resource. It does not
+    /// create a Docker container sub-resource. Use
+    /// <c>resources.AddDocker().AddContainer(...)</c> when Docker itself should
+    /// be modeled as the parent resource.
+    /// </remarks>
     public static IContainerResourceBuilder AddContainer(
         this IResourceDeclarationBuilder builder,
         string name,
@@ -174,7 +184,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         bool useServiceDiscovery = false,
         int replicas = 1,
-        ResourceObservability? observability = null) =>
+        ResourceObservability? observability = null,
+        string? registry = null) =>
         builder.AddContainerApplication(
             CreateApplicationResourceId(name),
             name,
@@ -183,8 +194,19 @@ public static class ApplicationProviderServiceCollectionExtensions
             environmentVariables,
             useServiceDiscovery,
             replicas,
-            observability);
+            observability,
+            registry);
 
+    /// <summary>
+    /// Declares a standalone container app resource with an explicit resource
+    /// ID.
+    /// </summary>
+    /// <remarks>
+    /// The declared resource is the stable deployment target for image updates
+    /// and revisions. Runtime containers or replicas may be projected by the
+    /// selected container engine provider, but callers should deploy through the
+    /// container app resource.
+    /// </remarks>
     public static IContainerResourceBuilder AddContainerApplication(
         this IResourceDeclarationBuilder builder,
         string id,
@@ -194,7 +216,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         bool useServiceDiscovery = false,
         int replicas = 1,
-        ResourceObservability? observability = null)
+        ResourceObservability? observability = null,
+        string? registry = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
@@ -210,6 +233,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             lifetime: ApplicationLifetime.ControlPlaneScoped,
             useServiceDiscovery: useServiceDiscovery,
             containerImage: image,
+            containerRegistry: registry,
             replicas: Math.Max(1, replicas),
             endpointPorts: CreateEndpointPorts(endpoints),
             resourceType: ApplicationResourceTypes.ContainerApp,
@@ -516,6 +540,16 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return WithContainerImage(image);
     }
 
+    public IProjectResourceBuilder WithRegistry(string registry)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registry);
+        declared.Definition = declared.Definition with
+        {
+            ContainerRegistry = registry.Trim()
+        };
+        return this;
+    }
+
     public IProjectResourceBuilder WithContainerImage(string? image)
     {
         declared.Definition = declared.Definition with
@@ -531,6 +565,12 @@ internal sealed class ExecutableApplicationResourceBuilder(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
         WithContainerImage(image);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithRegistry(string registry)
+    {
+        WithRegistry(registry);
         return this;
     }
 

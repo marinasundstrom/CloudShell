@@ -144,10 +144,16 @@ workload internally. Top-level container applications use the same shape:
 cloudShell.Resources(resources =>
 {
     resources
-        .AddContainer("redis", "redis:7.2")
+        .AddContainerApplication("application:redis", "Redis", "redis:7.2")
+        .WithRegistry("local")
         .WithImage("redis:7.2-alpine");
 });
 ```
+
+`AddContainer(...)` is the Aspire-compatible shorthand for the same top-level
+`application.container-app` resource. It is not the Docker child-container API.
+Use `resources.AddDocker().AddContainer(...)` only when the Docker container
+itself should be modeled as a sub-resource under a Docker resource.
 
 The selected orchestrator and preferred container engine decide whether that
 workload runs through Docker Compose or another runtime. The engine is
@@ -203,11 +209,13 @@ Use `WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`, or
 `WithEndpointPort(...)` to declare fixed or named endpoints. Named endpoints
 match the Aspire URI shape `https+http://_endpointName.serviceName`.
 
-`AddDocker()` declares the default local Docker Engine resource. Containers are
-declared from that Docker resource with `AddContainer(name, image, tag)`,
-following the Aspire-style logical name shape. CloudShell derives the stable
-container resource ID as `docker:container:<name>` and declares the container as
-a sub-resource of the Docker resource that created it.
+`AddDocker()` declares the default local Docker Engine resource. The Docker
+resource can specify a registry with `WithRegistry(...)`; the registry defaults
+to `local` and declared child containers inherit it. Containers are declared
+from that Docker resource with `AddContainer(name, image, tag)`, following the
+Aspire-style logical name shape. CloudShell derives the stable container
+resource ID as `docker:container:<name>` and declares the container as a
+sub-resource of the Docker resource that created it.
 
 Use `DependsOn(...)` to add topology dependencies without changing the
 container's parent relationship to Docker. When you need a custom container
@@ -217,7 +225,9 @@ add containers from the returned Docker resource builder:
 
 ```csharp
 var devDocker = resources.AddDocker("docker:dev", "Development Docker");
-var testDocker = resources.AddDocker("docker:test", "Test Docker");
+var testDocker = resources
+    .AddDocker("docker:test", "Test Docker")
+    .WithRegistry("registry.example.com");
 
 var devRedis = devDocker.AddContainer("redis-dev", "redis", "7.2");
 var testRedis = testDocker.AddContainer("redis-test", "redis", "7.2");

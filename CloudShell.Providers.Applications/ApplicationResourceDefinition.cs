@@ -28,7 +28,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? projectPath = null,
         string? projectArguments = null,
         bool aspNetCoreHotReload = true,
-        string? containerRevision = null)
+        string? containerRevision = null,
+        string? containerRegistry = null)
     {
         Id = id;
         Name = name;
@@ -42,6 +43,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         References = references ?? [];
         UseServiceDiscovery = useServiceDiscovery;
         ContainerImage = containerImage;
+        ContainerRegistry = containerRegistry;
         ContainerBuildContext = containerBuildContext;
         ContainerDockerfile = containerDockerfile;
         ContainerEngineId = containerEngineId;
@@ -81,6 +83,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public bool UseServiceDiscovery { get; init; }
 
     public string? ContainerImage { get; init; }
+
+    public string? ContainerRegistry { get; init; }
 
     public string? ContainerBuildContext { get; init; }
 

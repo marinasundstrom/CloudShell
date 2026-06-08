@@ -477,7 +477,7 @@ public sealed partial class DockerComposeResourceOrchestrator(
 
             if (workload.Kind == ResourceWorkloadKind.ContainerImage)
             {
-                builder.AppendLine($"    image: {QuoteYaml(workload.Image ?? serviceName)}");
+                builder.AppendLine($"    image: {QuoteYaml(CreateRegistryImageReference(workload.Registry, workload.Image ?? serviceName))}");
             }
             else
             {
@@ -576,6 +576,20 @@ public sealed partial class DockerComposeResourceOrchestrator(
         }
 
         return builder.ToString();
+    }
+
+    private static string CreateRegistryImageReference(string? registry, string image)
+    {
+        var normalizedRegistry = string.IsNullOrWhiteSpace(registry)
+            ? "local"
+            : registry.Trim();
+        if (string.Equals(normalizedRegistry, "local", StringComparison.OrdinalIgnoreCase) ||
+            image.StartsWith($"{normalizedRegistry}/", StringComparison.OrdinalIgnoreCase))
+        {
+            return image;
+        }
+
+        return $"{normalizedRegistry}/{image}";
     }
 
     private async Task<string> ResolveComposeServiceNameAsync(

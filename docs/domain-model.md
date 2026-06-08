@@ -93,7 +93,7 @@ structure, lifecycle semantics, validation, or secrecy, it belongs in
 provider-owned configuration or runtime state instead of `Resource.Attributes`.
 
 Attribute names use dotted lower-camel segments such as `workload.kind`,
-`container.image`, and `configuration.entries`. Names in
+`container.image`, `container.registry`, and `configuration.entries`. Names in
 `ResourceAttributeNames` are reserved for CloudShell-defined meanings. Provider
 or extension-specific attributes should use a stable provider or domain prefix,
 for example `acme.cluster` or `postgres.database`. Do not use display labels as

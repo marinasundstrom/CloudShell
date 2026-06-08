@@ -332,7 +332,8 @@ public sealed partial class DockerContainerResourceProvider :
                 resource.Name,
                 ContainerEngineKind.Docker,
                 Endpoint.ToString(),
-                IsDefault: string.Equals(resource.Id, EngineResourceId, StringComparison.OrdinalIgnoreCase));
+                IsDefault: string.Equals(resource.Id, EngineResourceId, StringComparison.OrdinalIgnoreCase),
+                Registry: GetDockerResourceRegistry(resource.Id));
 
             return Task.FromResult(new ResourceOrchestrationDescriptor(
                 resource.Id,
@@ -353,6 +354,7 @@ public sealed partial class DockerContainerResourceProvider :
             ResourceWorkloadKind.ContainerImage,
             definition.Name,
             Image: definition.Image,
+            Registry: NormalizeRegistry(definition.Registry),
             Replicas: 1,
             Lifetime: definition.Lifetime);
 
@@ -482,7 +484,10 @@ public sealed partial class DockerContainerResourceProvider :
     {
         var configured = _options.DeclaredDockerResources
             .Select(docker => docker.Definition)
-            .Prepend(new DockerResourceDefinition(EngineResourceId, "Local Docker Engine"))
+            .Prepend(new DockerResourceDefinition(
+                EngineResourceId,
+                "Local Docker Engine",
+                registry: _options.Registry))
             .DistinctBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -513,7 +518,8 @@ public sealed partial class DockerContainerResourceProvider :
             ResourceClass: ResourceClass.Infrastructure,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                [ResourceAttributeNames.InfrastructureKind] = ContainerEngineKind.Docker.ToString()
+                [ResourceAttributeNames.InfrastructureKind] = ContainerEngineKind.Docker.ToString(),
+                [ResourceAttributeNames.ContainerRegistry] = NormalizeRegistry(definition.Registry)
             });
 
     private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
@@ -737,7 +743,7 @@ public sealed partial class DockerContainerResourceProvider :
             TypeId: "docker.container",
             Actions: CreateContainerActions(container.State),
             ResourceClass: ResourceClass.Container,
-            Attributes: CreateContainerAttributes(container.Image, endpoints.Count));
+            Attributes: CreateContainerAttributes(container.Image, DockerProviderOptions.DefaultRegistry, endpoints.Count));
     }
 
     private IReadOnlyList<Resource> GetDeclaredContainerResources(
@@ -780,19 +786,39 @@ public sealed partial class DockerContainerResourceProvider :
             Actions: container is null ? [] : CreateContainerActions(container.State),
             HealthChecks: definition.HealthChecks,
             ResourceClass: ResourceClass.Container,
-            Attributes: CreateContainerAttributes(container?.Image ?? definition.Image, endpoints.Count));
+            Attributes: CreateContainerAttributes(
+                container?.Image ?? definition.Image,
+                definition.Registry,
+                endpoints.Count));
     }
 
     private static IReadOnlyDictionary<string, string> CreateContainerAttributes(
         string image,
+        string registry,
         int endpointCount) =>
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [ResourceAttributeNames.WorkloadKind] = ResourceWorkloadKind.ContainerImage.ToString(),
             [ResourceAttributeNames.ContainerImage] = image,
+            [ResourceAttributeNames.ContainerRegistry] = NormalizeRegistry(registry),
             [ResourceAttributeNames.ContainerReplicas] = "1",
             [ResourceAttributeNames.EndpointCount] = endpointCount.ToString(CultureInfo.InvariantCulture)
         };
+
+    private string GetDockerResourceRegistry(string dockerResourceId) =>
+        _options.DeclaredDockerResources
+            .Select(resource => resource.Definition)
+            .FirstOrDefault(resource =>
+                string.Equals(resource.Id, dockerResourceId, StringComparison.OrdinalIgnoreCase))
+            ?.Registry
+        ?? (string.Equals(dockerResourceId, EngineResourceId, StringComparison.OrdinalIgnoreCase)
+            ? _options.Registry
+            : DockerProviderOptions.DefaultRegistry);
+
+    private static string NormalizeRegistry(string? registry) =>
+        string.IsNullOrWhiteSpace(registry)
+            ? DockerProviderOptions.DefaultRegistry
+            : registry.Trim();
 
     public static string CreateDockerResourceId(string id)
     {

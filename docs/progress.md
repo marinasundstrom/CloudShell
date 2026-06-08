@@ -73,6 +73,9 @@ The MVP should prove:
   a registry, then call the authenticated Container Apps revision API with that
   tag. The Control Plane authorizes the caller, updates the image, creates the
   revision, and records resource events for traceability.
+- Container app resources and Docker resources can specify a non-secret
+  container registry value, projected as `container.registry`; both default to
+  `local`.
 
 ## Completed recently
 

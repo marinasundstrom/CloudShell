@@ -11,5 +11,11 @@ internal sealed class DockerContainerEngineProvider(
             "Docker",
             ContainerEngineKind.Docker,
             options.ResolveEndpoint().ToString(),
-            IsDefault: true);
+            IsDefault: true,
+            Registry: NormalizeRegistry(options.Registry));
+
+    private static string NormalizeRegistry(string? registry) =>
+        string.IsNullOrWhiteSpace(registry)
+            ? DockerProviderOptions.DefaultRegistry
+            : registry.Trim();
 }

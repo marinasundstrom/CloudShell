@@ -323,6 +323,7 @@ public sealed partial class ApplicationResourceProvider(
             application.UseServiceDiscovery,
             GetEffectiveObservability(application),
             application.ContainerImage,
+            IsContainerBacked(application) ? GetEffectiveContainerRegistry(application) : null,
             application.ContainerBuildContext,
             application.ContainerDockerfile,
             application.ContainerEngineId,
@@ -377,6 +378,7 @@ public sealed partial class ApplicationResourceProvider(
             references: configuration.References,
             useServiceDiscovery: configuration.UseServiceDiscovery,
             containerImage: configuration.ContainerImage,
+            containerRegistry: configuration.ContainerRegistry,
             containerBuildContext: configuration.ContainerBuildContext,
             containerDockerfile: configuration.ContainerDockerfile,
             containerEngineId: configuration.ContainerEngineId,
@@ -771,7 +773,9 @@ public sealed partial class ApplicationResourceProvider(
 
         startInfo.ArgumentList.Add("-e");
         startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
-        startInfo.ArgumentList.Add(definition.ContainerImage);
+        startInfo.ArgumentList.Add(CreateRegistryImageReference(
+            GetEffectiveContainerRegistry(definition),
+            definition.ContainerImage));
 
         var process = new Process
         {
@@ -1067,6 +1071,7 @@ public sealed partial class ApplicationResourceProvider(
             attributes[ResourceAttributeNames.ContainerReplicas] =
                 Math.Max(1, application.Replicas).ToString(CultureInfo.InvariantCulture);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerImage, application.ContainerImage);
+            attributes[ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerBuildContext, application.ContainerBuildContext);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerDockerfile, application.ContainerDockerfile);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerEngineId, application.ContainerEngineId);
@@ -1392,6 +1397,9 @@ public sealed partial class ApplicationResourceProvider(
             Lifetime = definition.Lifetime,
             UseServiceDiscovery = definition.UseServiceDiscovery,
             ContainerImage = NormalizeNullable(definition.ContainerImage),
+            ContainerRegistry = IsContainerBacked(definition)
+                ? NormalizeContainerRegistry(definition.ContainerRegistry)
+                : null,
             ContainerBuildContext = NormalizeNullable(definition.ContainerBuildContext),
             ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
             ContainerEngineId = NormalizeNullable(definition.ContainerEngineId),
@@ -1656,6 +1664,7 @@ public sealed partial class ApplicationResourceProvider(
                 ResourceWorkloadKind.ContainerImage,
                 application.Name,
                 Image: application.ContainerImage,
+                Registry: GetEffectiveContainerRegistry(application),
                 ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
@@ -1671,6 +1680,7 @@ public sealed partial class ApplicationResourceProvider(
                 application.Name,
                 BuildContext: application.ContainerBuildContext,
                 Dockerfile: application.ContainerDockerfile,
+                Registry: GetEffectiveContainerRegistry(application),
                 ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
@@ -1916,6 +1926,23 @@ public sealed partial class ApplicationResourceProvider(
     private static string GetEffectiveContainerRevision(ApplicationResourceDefinition application) =>
         NormalizeNullable(application.ContainerRevision) ?? "unrevisioned";
 
+    private static string GetEffectiveContainerRegistry(ApplicationResourceDefinition application) =>
+        NormalizeContainerRegistry(application.ContainerRegistry);
+
+    private static string NormalizeContainerRegistry(string? registry) =>
+        NormalizeNullable(registry) ?? "local";
+
+    private static string CreateRegistryImageReference(string registry, string image)
+    {
+        if (string.Equals(registry, "local", StringComparison.OrdinalIgnoreCase) ||
+            image.StartsWith($"{registry}/", StringComparison.OrdinalIgnoreCase))
+        {
+            return image;
+        }
+
+        return $"{registry}/{image}";
+    }
+
     private static string CreateContainerRevision() =>
         $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];
 
@@ -2104,6 +2131,7 @@ public sealed partial class ApplicationResourceProvider(
         bool UseServiceDiscovery = false,
         ResourceObservability? Observability = null,
         string? ContainerImage = null,
+        string? ContainerRegistry = null,
         string? ContainerBuildContext = null,
         string? ContainerDockerfile = null,
         string? ContainerEngineId = null,

@@ -24,6 +24,7 @@ public sealed record ResourceWorkloadConfiguration(
     string? ProjectArguments = null,
     bool? AspNetCoreHotReload = null,
     string? Image = null,
+    string Registry = "local",
     string? BuildContext = null,
     string? Dockerfile = null,
     string? ContainerEngineId = null,
@@ -211,6 +212,12 @@ public interface IProjectResourceBuilder :
 
     IProjectResourceBuilder AsContainerImage(string image);
 
+    /// <summary>
+    /// Sets the registry used when this project is materialized as a container
+    /// workload. The default registry is <c>local</c>.
+    /// </summary>
+    IProjectResourceBuilder WithRegistry(string registry);
+
     IProjectResourceBuilder WithContainerBuild(
         string? buildContext,
         string? dockerfile = null);
@@ -222,6 +229,12 @@ public interface IContainerResourceBuilder :
     ILifetimeBoundResourceBuilder<IContainerResourceBuilder>
 {
     IContainerResourceBuilder WithImage(string image);
+
+    /// <summary>
+    /// Sets the registry used for this container app resource. The default
+    /// registry is <c>local</c>.
+    /// </summary>
+    IContainerResourceBuilder WithRegistry(string registry);
 
     IContainerResourceBuilder WithContainerEngine(string containerEngineId);
 

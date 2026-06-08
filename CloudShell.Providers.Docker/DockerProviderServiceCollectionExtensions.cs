@@ -90,10 +90,17 @@ public static class DockerProviderServiceCollectionExtensions
             ServiceDescriptor.Singleton<IContainerEngineProvider, DockerContainerEngineProvider>());
     }
 
+    /// <summary>
+    /// Declares the default local Docker Engine resource.
+    /// </summary>
     public static IDockerResourceBuilder AddDocker(
         this IResourceDeclarationBuilder builder) =>
         builder.AddDocker(DockerContainerResourceProvider.EngineResourceId, "Local Docker Engine");
 
+    /// <summary>
+    /// Declares a Docker Engine resource that can own Docker container
+    /// sub-resources.
+    /// </summary>
     public static IDockerResourceBuilder AddDocker(
         this IResourceDeclarationBuilder builder,
         string id,
@@ -117,9 +124,13 @@ public static class DockerProviderServiceCollectionExtensions
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
 
-        return new DockerResourceBuilder(builder, resource);
+        return new DockerResourceBuilder(builder, resource, declared);
     }
 
+    /// <summary>
+    /// Declares the default Docker Engine resource ID without configuring
+    /// Docker-specific child-resource builder state.
+    /// </summary>
     public static IResourceBuilder AddDockerEngine(
         this IResourceDeclarationBuilder builder)
     {
@@ -128,6 +139,10 @@ public static class DockerProviderServiceCollectionExtensions
         return builder.Declare("docker", DockerContainerResourceProvider.EngineResourceId);
     }
 
+    /// <summary>
+    /// Declares a Docker container sub-resource under the default Docker Engine
+    /// resource.
+    /// </summary>
     public static IDockerContainerResourceBuilder AddDockerContainer(
         this IResourceDeclarationBuilder builder,
         string id,
@@ -160,7 +175,8 @@ public static class DockerProviderServiceCollectionExtensions
             image,
             dockerResourceId,
             endpoints,
-            [dockerResourceId]);
+            [dockerResourceId],
+            registry: builder.Services.GetOrAddDockerProviderOptions().Registry);
         var declared = new DeclaredDockerContainerResource(definition);
         builder.Services
             .GetOrAddDockerProviderOptions()
@@ -253,11 +269,30 @@ public static class DockerProviderServiceCollectionExtensions
 
 public interface IDockerResourceBuilder : IResourceBuilder
 {
+    /// <summary>
+    /// Sets the registry used by Docker container resources declared from this
+    /// Docker resource. The default registry is <c>local</c>.
+    /// </summary>
+    IDockerResourceBuilder WithRegistry(string registry);
+
+    /// <summary>
+    /// Declares a Docker container sub-resource parented under this Docker
+    /// resource.
+    /// </summary>
+    /// <remarks>
+    /// This is different from standalone container app declarations created with
+    /// <c>resources.AddContainer(...)</c> or
+    /// <c>resources.AddContainerApplication(...)</c>.
+    /// </remarks>
     IDockerContainerResourceBuilder AddContainer(
         string name,
         string image,
         string? tag = null);
 
+    /// <summary>
+    /// Declares a Docker container sub-resource with an explicit resource ID and
+    /// display name.
+    /// </summary>
     IDockerContainerResourceBuilder AddDockerContainer(
         string id,
         string name,
@@ -289,7 +324,8 @@ public interface IDockerResourceBuilder : IResourceBuilder
 
 internal sealed class DockerResourceBuilder(
     IResourceDeclarationBuilder declarations,
-    IResourceBuilder inner) : IDockerResourceBuilder
+    IResourceBuilder inner,
+    DeclaredDockerResource declared) : IDockerResourceBuilder
 {
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
 
@@ -306,7 +342,8 @@ internal sealed class DockerResourceBuilder(
             name,
             DockerProviderServiceCollectionExtensions.CreateImageReference(image, tag),
             endpoints: null,
-            declareEngine: false);
+            declareEngine: false)
+            .WithRegistry(declared.Definition.Registry);
 
     public IDockerContainerResourceBuilder AddDockerContainer(
         string id,
@@ -320,7 +357,18 @@ internal sealed class DockerResourceBuilder(
             name,
             image,
             endpoints,
-            declareEngine: false);
+            declareEngine: false)
+            .WithRegistry(declared.Definition.Registry);
+
+    public IDockerResourceBuilder WithRegistry(string registry)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registry);
+        declared.Definition = declared.Definition with
+        {
+            Registry = registry.Trim()
+        };
+        return this;
+    }
 
     public IDockerResourceBuilder WithResourceGroup(string? resourceGroupId)
     {
@@ -427,6 +475,12 @@ public interface IDockerContainerResourceBuilder :
 {
     IDockerContainerResourceBuilder WithImage(string image);
 
+    /// <summary>
+    /// Sets the registry for this Docker container resource. The default
+    /// registry is inherited from the parent Docker resource.
+    /// </summary>
+    IDockerContainerResourceBuilder WithRegistry(string registry);
+
     IDockerContainerResourceBuilder WithEndpoints(IReadOnlyList<ResourceEndpoint> endpoints);
 
     IDockerContainerResourceBuilder WithEndpoint(ResourceEndpoint endpoint);
@@ -478,6 +532,13 @@ internal sealed class DockerContainerResourceBuilder(
     public IDockerContainerResourceBuilder WithImage(string image)
     {
         declared.Definition = declared.Definition with { Image = image };
+        return this;
+    }
+
+    public IDockerContainerResourceBuilder WithRegistry(string registry)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(registry);
+        declared.Definition = declared.Definition with { Registry = registry.Trim() };
         return this;
     }
 

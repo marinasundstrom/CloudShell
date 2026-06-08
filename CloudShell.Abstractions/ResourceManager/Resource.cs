@@ -72,6 +72,7 @@ public static class ResourceAttributeNames
     public const string ProjectArguments = "project.arguments";
     public const string ProjectHotReload = "project.hotReload";
     public const string ContainerImage = "container.image";
+    public const string ContainerRegistry = "container.registry";
     public const string ContainerBuildContext = "container.buildContext";
     public const string ContainerDockerfile = "container.dockerfile";
     public const string ContainerEngineId = "container.engineId";

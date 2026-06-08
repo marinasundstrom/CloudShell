@@ -21,6 +21,42 @@ Docker, or can rely on the configured default container engine. That binding is
 host plumbing. Build systems, shell integrations, and users should not need to
 know which runtime container instance currently backs the app.
 
+Declare a top-level container app with `AddContainerApplication(...)`:
+
+```csharp
+resources
+    .AddContainerApplication(
+        "application:api",
+        "API",
+        "team/api:dev",
+        registry: "registry.example.com")
+    .WithContainerEngine("docker:dev");
+```
+
+`AddContainer(...)` remains available as the Aspire-compatible shorthand for the
+same top-level `application.container-app` resource:
+
+```csharp
+resources
+    .AddContainer("api", "team/api:dev")
+    .WithRegistry("registry.example.com");
+```
+
+This is intentionally different from `resources.AddDocker().AddContainer(...)`,
+which creates a Docker container sub-resource parented under a Docker resource.
+
+## Registry
+
+Container apps can specify a container registry separately from the image name.
+The registry defaults to `local`. A local registry leaves image names unchanged;
+other registry values are combined with the image reference by runtime
+orchestrators when they need a pullable image reference.
+
+The registry is projected as the non-secret `container.registry` resource
+attribute and is included in workload descriptors. Registry credentials are not
+modeled in this attribute; private registry authentication remains
+provider-owned configuration.
+
 ## Image Deployment Procedure
 
 The proposed deployment flow for CloudShell-hosted dev environments is:
@@ -43,7 +79,7 @@ Authorization: Bearer <control-plane-access-token>
 Content-Type: application/json
 
 {
-  "image": "registry.example.com/team/api:20260608.42",
+  "image": "team/api:20260608.42",
   "restartIfRunning": true,
   "triggeredBy": "build:20260608.42"
 }

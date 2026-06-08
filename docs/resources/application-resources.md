@@ -44,7 +44,7 @@ configuration, such as:
 
 - executable path, arguments, and working directory
 - project path, project application arguments, and ASP.NET Core hot reload mode
-- container image, host binding, endpoints, and environment variables
+- container image, registry, host binding, endpoints, and environment variables
 - lifetime and service discovery opt-in where supported
 
 Import creates a new application definition in the provider's configuration

@@ -11,7 +11,8 @@ public static class ContainerEngineServiceCollectionExtensions
         string name,
         ContainerEngineKind kind,
         string endpoint,
-        bool isDefault = false)
+        bool isDefault = false,
+        string registry = "local")
     {
         ArgumentNullException.ThrowIfNull(builder);
         return builder.UseContainerEngine(
@@ -20,7 +21,8 @@ public static class ContainerEngineServiceCollectionExtensions
                 name,
                 kind,
                 endpoint,
-                isDefault));
+                isDefault,
+                registry));
     }
 
     public static IControlPlaneBuilder UseContainerEngine(
@@ -29,9 +31,10 @@ public static class ContainerEngineServiceCollectionExtensions
         string name,
         ContainerEngineKind kind,
         string endpoint,
-        bool isDefault = false)
+        bool isDefault = false,
+        string registry = "local")
     {
-        ((ICloudShellBuilder)builder).UseContainerEngine(id, name, kind, endpoint, isDefault);
+        ((ICloudShellBuilder)builder).UseContainerEngine(id, name, kind, endpoint, isDefault, registry);
         return builder;
     }
 
@@ -60,7 +63,10 @@ public static class ContainerEngineServiceCollectionExtensions
         {
             Id = definition.Id.Trim(),
             Name = definition.Name.Trim(),
-            Endpoint = definition.Endpoint.Trim()
+            Endpoint = definition.Endpoint.Trim(),
+            Registry = string.IsNullOrWhiteSpace(definition.Registry)
+                ? "local"
+                : definition.Registry.Trim()
         };
 
     private sealed class StaticContainerEngineProvider(

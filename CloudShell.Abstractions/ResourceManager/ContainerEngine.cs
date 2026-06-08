@@ -17,7 +17,8 @@ public sealed record ContainerEngineResourceDefinition(
     string Name,
     ContainerEngineKind Kind,
     string Endpoint,
-    bool IsDefault = false);
+    bool IsDefault = false,
+    string Registry = "local");
 
 public interface IContainerEngineProvider
 {
