@@ -176,6 +176,8 @@ The MVP should prove:
   typed endpoint requests, endpoint mapping definitions, and built-in
   `cloudshell.network` builder helpers for manual or auto localhost endpoint
   assignment.
+- Added Resource Manager network registration UI support for manual,
+  auto-assigned, provider-default, and predefined endpoint requests.
 
 ## Active stabilization areas
 

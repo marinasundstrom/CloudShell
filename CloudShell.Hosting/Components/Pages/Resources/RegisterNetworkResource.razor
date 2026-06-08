@@ -14,6 +14,70 @@
             Default network
         </FluentCheckbox>
 
+        <FluentCheckbox @bind-Value="CreateEndpointRequest">
+            Endpoint request
+        </FluentCheckbox>
+
+        @if (CreateEndpointRequest)
+        {
+            <label for="network-endpoint-name">Endpoint name</label>
+            <FluentTextField Id="network-endpoint-name" @bind-Value="EndpointName" />
+
+            <label for="network-endpoint-protocol">Protocol</label>
+            <FluentSelect TOption="string"
+                          Id="network-endpoint-protocol"
+                          @bind-Value="SelectedProtocol"
+                          Appearance="Appearance.Outline">
+                @foreach (var protocol in Enum.GetValues<ResourceEndpointProtocol>())
+                {
+                    <FluentOption TOption="string" Value="@protocol.ToString()">@protocol</FluentOption>
+                }
+            </FluentSelect>
+
+            <label for="network-endpoint-assignment">Assignment</label>
+            <FluentSelect TOption="string"
+                          Id="network-endpoint-assignment"
+                          @bind-Value="SelectedAssignment"
+                          Appearance="Appearance.Outline">
+                @foreach (var assignment in Enum.GetValues<ResourceEndpointAssignment>())
+                {
+                    <FluentOption TOption="string" Value="@assignment.ToString()">@assignment</FluentOption>
+                }
+            </FluentSelect>
+
+            @if (RequiresHost)
+            {
+                <label for="network-endpoint-host">Host</label>
+                <FluentTextField Id="network-endpoint-host" @bind-Value="EndpointHost" />
+
+                <label for="network-endpoint-address">IP address</label>
+                <FluentTextField Id="network-endpoint-address" @bind-Value="EndpointIPAddress" />
+            }
+
+            @if (CanSetPort)
+            {
+                <label for="network-endpoint-port">Port</label>
+                <FluentNumberField TValue="int?" Id="network-endpoint-port" Min="1" @bind-Value="EndpointPort" />
+            }
+
+            @if (IsPredefinedAssignment)
+            {
+                <label for="network-provider-endpoint">Provider endpoint</label>
+                <FluentTextField Id="network-provider-endpoint" @bind-Value="ProviderEndpointId" />
+            }
+
+            <label for="network-endpoint-exposure">Exposure</label>
+            <FluentSelect TOption="string"
+                          Id="network-endpoint-exposure"
+                          @bind-Value="SelectedExposure"
+                          Appearance="Appearance.Outline">
+                @foreach (var exposure in Enum.GetValues<ResourceExposureScope>())
+                {
+                    <FluentOption TOption="string" Value="@exposure.ToString()">@exposure</FluentOption>
+                }
+            </FluentSelect>
+        }
+
         <label for="network-group">Resource group</label>
         <FluentSelect TOption="string"
                       Id="network-group"
@@ -46,9 +110,27 @@
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private bool IsDefault { get; set; }
+    private bool CreateEndpointRequest { get; set; }
+    private string EndpointName { get; set; } = "network";
+    private string EndpointHost { get; set; } = "localhost";
+    private string EndpointIPAddress { get; set; } = string.Empty;
+    private int? EndpointPort { get; set; }
+    private string ProviderEndpointId { get; set; } = string.Empty;
+    private string SelectedProtocol { get; set; } = ResourceEndpointProtocol.Http.ToString();
+    private string SelectedAssignment { get; set; } = ResourceEndpointAssignment.ProviderDefault.ToString();
+    private string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+
+    private bool IsPredefinedAssignment =>
+        GetEndpointAssignment() == ResourceEndpointAssignment.Predefined;
+
+    private bool RequiresHost =>
+        GetEndpointAssignment() is ResourceEndpointAssignment.Manual or ResourceEndpointAssignment.Auto;
+
+    private bool CanSetPort =>
+        GetEndpointAssignment() is ResourceEndpointAssignment.Manual or ResourceEndpointAssignment.Auto;
 
     protected override async Task OnInitializedAsync()
     {
@@ -64,15 +146,82 @@
             return;
         }
 
+        var endpointRequests = BuildEndpointRequests();
+        if (ErrorMessage is not null)
+        {
+            return;
+        }
+
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,
                 NetworkResourceType,
                 ResourceId,
                 Name,
-                JsonSerializer.SerializeToElement(new NetworkResourceDefinition(ResourceId, Name, IsDefault)),
+                JsonSerializer.SerializeToElement(new NetworkResourceDefinition(
+                    ResourceId,
+                    Name,
+                    IsDefault,
+                    endpointRequests)),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 
         Navigation.NavigateTo("/resources");
     }
+
+    private IReadOnlyList<ResourceEndpointRequest> BuildEndpointRequests()
+    {
+        if (!CreateEndpointRequest)
+        {
+            return [];
+        }
+
+        if (string.IsNullOrWhiteSpace(EndpointName))
+        {
+            ErrorMessage = "Endpoint name is required.";
+            return [];
+        }
+
+        var assignment = GetEndpointAssignment();
+        if (assignment == ResourceEndpointAssignment.Manual &&
+            EndpointPort is null)
+        {
+            ErrorMessage = "Manual endpoints require a port.";
+            return [];
+        }
+
+        if (assignment == ResourceEndpointAssignment.Predefined &&
+            string.IsNullOrWhiteSpace(ProviderEndpointId))
+        {
+            ErrorMessage = "Provider endpoint is required.";
+            return [];
+        }
+
+        return
+        [
+            new ResourceEndpointRequest(
+                EndpointName,
+                GetEndpointProtocol(),
+                Host: string.IsNullOrWhiteSpace(EndpointHost) ? null : EndpointHost,
+                Port: EndpointPort,
+                IPAddress: string.IsNullOrWhiteSpace(EndpointIPAddress) ? null : EndpointIPAddress,
+                Exposure: GetExposure(),
+                Assignment: assignment,
+                ProviderEndpointId: string.IsNullOrWhiteSpace(ProviderEndpointId) ? null : ProviderEndpointId)
+        ];
+    }
+
+    private ResourceEndpointProtocol GetEndpointProtocol() =>
+        Enum.TryParse<ResourceEndpointProtocol>(SelectedProtocol, out var protocol)
+            ? protocol
+            : ResourceEndpointProtocol.Http;
+
+    private ResourceEndpointAssignment GetEndpointAssignment() =>
+        Enum.TryParse<ResourceEndpointAssignment>(SelectedAssignment, out var assignment)
+            ? assignment
+            : ResourceEndpointAssignment.ProviderDefault;
+
+    private ResourceExposureScope GetExposure() =>
+        Enum.TryParse<ResourceExposureScope>(SelectedExposure, out var exposure)
+            ? exposure
+            : ResourceExposureScope.Local;
 }

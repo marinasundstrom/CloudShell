@@ -8,9 +8,8 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
-- Add Resource Manager UI support for endpoint assignment modes: manual,
-  auto-assign from the default network, predefined provider endpoints, and
-  provider-default assignment.
+- Extend workload and service registration UI to request endpoint assignment
+  modes from the default network instead of only collecting direct port fields.
 - Design provider selection and reconciliation for endpoint mappings when a
   networking-capable resource such as a gateway, load balancer, DNS publisher,
   or custom controller materializes the mapping.
