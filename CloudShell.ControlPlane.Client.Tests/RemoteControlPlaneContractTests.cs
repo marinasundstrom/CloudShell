@@ -35,6 +35,9 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(PlatformResourceProvider.NetworkResourceType, network.EffectiveTypeId);
         Assert.Equal(ResourceClass.Network, network.ResourceClass);
         Assert.Equal("Default", network.ResourceAttributes[ResourceAttributeNames.NetworkKind]);
+        Assert.True(network.HasCapability(ResourceCapabilityIds.NetworkingProvider));
+        Assert.True(network.HasCapability(ResourceCapabilityIds.NetworkingEndpointProvider));
+        Assert.True(network.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper));
 
         var remoteGroup = Assert.Single(groups);
         Assert.Equal(group.Id, remoteGroup.Id);
@@ -87,6 +90,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ResourceClass.Service, service.ResourceClass);
         Assert.Equal("1", service.ResourceAttributes[ResourceAttributeNames.ServiceTargetCount]);
         Assert.Equal("1", service.ResourceAttributes[ResourceAttributeNames.ServicePortCount]);
+        Assert.True(service.HasCapability(ResourceCapabilityIds.EndpointSource));
 
         var registration = await controlPlane.GetResourceRegistrationAsync(service.Id);
         Assert.NotNull(registration);

@@ -25,6 +25,7 @@ public sealed record ResourceResponse(
     ResourceGroupResponse? ResourceGroup,
     bool IsRegistered,
     IReadOnlyDictionary<string, string> Attributes,
+    IReadOnlyList<ResourceCapabilityResponse> Capabilities,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 public sealed record ResourceEndpointResponse(
@@ -32,6 +33,10 @@ public sealed record ResourceEndpointResponse(
     string Address,
     string Protocol,
     bool IsExternal);
+
+public sealed record ResourceCapabilityResponse(
+    string Id,
+    IReadOnlyDictionary<string, string>? Metadata);
 
 public sealed record ResourceActionResponse(
     string Id,
@@ -157,10 +162,14 @@ internal static class CloudShellControlPlaneDtoMapper
             group?.ToResponse(),
             isRegistered,
             resource.ResourceAttributes,
+            resource.ResourceCapabilities.Select(ToResponse).ToArray(),
             CreateResourceActionDictionary(resource));
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
         new(endpoint.Name, endpoint.Address, endpoint.Protocol, endpoint.IsExternal);
+
+    public static ResourceCapabilityResponse ToResponse(this ResourceCapability capability) =>
+        new(capability.Id, capability.Metadata);
 
     public static ResourceActionResponse ToResponse(
         this ResourceAction action,

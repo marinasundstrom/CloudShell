@@ -192,7 +192,9 @@ public sealed class PlatformResourceStore
         definition with
         {
             Id = NormalizeId(definition.Id, "network", definition.Name),
-            Name = definition.Name.Trim()
+            Name = definition.Name.Trim(),
+            Endpoints = NormalizeEndpointRequests(definition.NetworkEndpoints),
+            EndpointMappings = NormalizeEndpointMappings(definition.NetworkEndpointMappings)
         };
 
     private static ServiceResourceDefinition NormalizeService(ServiceResourceDefinition definition)
@@ -242,6 +244,51 @@ public sealed class PlatformResourceStore
                 Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
             })
             .ToArray();
+
+    private static IReadOnlyList<ResourceEndpointRequest> NormalizeEndpointRequests(
+        IReadOnlyList<ResourceEndpointRequest> endpoints) =>
+        endpoints
+            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Name))
+            .Select(endpoint => endpoint with
+            {
+                Name = endpoint.Name.Trim(),
+                Host = NormalizeNullable(endpoint.Host),
+                IPAddress = NormalizeNullable(endpoint.IPAddress),
+                Port = endpoint.Port is null ? null : Math.Max(1, endpoint.Port.Value),
+                TargetPort = endpoint.TargetPort is null ? null : Math.Max(1, endpoint.TargetPort.Value),
+                NetworkResourceId = NormalizeNullable(endpoint.NetworkResourceId),
+                ProviderEndpointId = NormalizeNullable(endpoint.ProviderEndpointId)
+            })
+            .DistinctBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyList<ResourceEndpointMappingDefinition> NormalizeEndpointMappings(
+        IReadOnlyList<ResourceEndpointMappingDefinition> mappings) =>
+        mappings
+            .Where(mapping =>
+                !string.IsNullOrWhiteSpace(mapping.Id) &&
+                !string.IsNullOrWhiteSpace(mapping.Source.ResourceId) &&
+                !string.IsNullOrWhiteSpace(mapping.Source.EndpointName) &&
+                !string.IsNullOrWhiteSpace(mapping.Target.ResourceId) &&
+                !string.IsNullOrWhiteSpace(mapping.Target.EndpointName))
+            .Select(mapping => mapping with
+            {
+                Id = mapping.Id.Trim(),
+                Name = string.IsNullOrWhiteSpace(mapping.Name) ? mapping.Id.Trim() : mapping.Name.Trim(),
+                Source = new ResourceEndpointReference(
+                    mapping.Source.ResourceId.Trim(),
+                    mapping.Source.EndpointName.Trim()),
+                Target = new ResourceEndpointReference(
+                    mapping.Target.ResourceId.Trim(),
+                    mapping.Target.EndpointName.Trim()),
+                NetworkResourceId = NormalizeNullable(mapping.NetworkResourceId),
+                ProviderResourceId = NormalizeNullable(mapping.ProviderResourceId)
+            })
+            .DistinctBy(mapping => mapping.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string NormalizeId(
         string id,

@@ -89,6 +89,36 @@ public interface INetworkResourceBuilder : IResourceBuilder
 {
     INetworkResourceBuilder AsDefault(bool isDefault = true);
 
+    ResourceEndpointReference AddTcpEndpoint(
+        string host,
+        int? port = null,
+        string name = "tcp",
+        ResourceExposureScope exposure = ResourceExposureScope.Local);
+
+    ResourceEndpointReference AddHttpEndpoint(
+        string host,
+        int? port = null,
+        string name = "http",
+        ResourceExposureScope exposure = ResourceExposureScope.Local);
+
+    ResourceEndpointReference RequestTcpEndpoint(
+        string name,
+        string host = "localhost",
+        int? port = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Local);
+
+    ResourceEndpointReference RequestHttpEndpoint(
+        string name,
+        string host = "localhost",
+        int? port = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Local);
+
+    INetworkResourceBuilder MapEndpoint(
+        ResourceEndpointReference source,
+        ResourceEndpointReference target,
+        string? id = null,
+        string? name = null);
+
     new INetworkResourceBuilder DependsOn(string resourceId);
 
     new INetworkResourceBuilder DependsOn(IResourceBuilder resource);
@@ -185,6 +215,95 @@ internal sealed class NetworkResourceBuilder(
     {
         declared.Definition = declared.Definition with { IsDefault = isDefault };
         return this;
+    }
+
+    public ResourceEndpointReference AddTcpEndpoint(
+        string host,
+        int? port = null,
+        string name = "tcp",
+        ResourceExposureScope exposure = ResourceExposureScope.Local) =>
+        AddEndpoint(name, ResourceEndpointProtocol.Tcp, ResourceEndpointAssignment.Manual, host, port, exposure);
+
+    public ResourceEndpointReference AddHttpEndpoint(
+        string host,
+        int? port = null,
+        string name = "http",
+        ResourceExposureScope exposure = ResourceExposureScope.Local) =>
+        AddEndpoint(name, ResourceEndpointProtocol.Http, ResourceEndpointAssignment.Manual, host, port, exposure);
+
+    public ResourceEndpointReference RequestTcpEndpoint(
+        string name,
+        string host = "localhost",
+        int? port = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Local) =>
+        AddEndpoint(name, ResourceEndpointProtocol.Tcp, ResourceEndpointAssignment.Auto, host, port, exposure);
+
+    public ResourceEndpointReference RequestHttpEndpoint(
+        string name,
+        string host = "localhost",
+        int? port = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Local) =>
+        AddEndpoint(name, ResourceEndpointProtocol.Http, ResourceEndpointAssignment.Auto, host, port, exposure);
+
+    public INetworkResourceBuilder MapEndpoint(
+        ResourceEndpointReference source,
+        ResourceEndpointReference target,
+        string? id = null,
+        string? name = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(target);
+
+        var mappingId = string.IsNullOrWhiteSpace(id)
+            ? $"{ResourceId}:mapping:{source.EndpointName}:{target.ResourceId}:{target.EndpointName}"
+            : id.Trim();
+        var mappingName = string.IsNullOrWhiteSpace(name)
+            ? $"{source.EndpointName} to {target.EndpointName}"
+            : name.Trim();
+        declared.Definition = declared.Definition with
+        {
+            EndpointMappings = declared.Definition.NetworkEndpointMappings
+                .Where(mapping => !string.Equals(mapping.Id, mappingId, StringComparison.OrdinalIgnoreCase))
+                .Append(new ResourceEndpointMappingDefinition(
+                    mappingId,
+                    mappingName,
+                    source,
+                    target,
+                    NetworkResourceId: ResourceId,
+                    ProviderResourceId: ResourceId))
+                .ToArray()
+        };
+        inner.DependsOn(target.ResourceId);
+        return this;
+    }
+
+    private ResourceEndpointReference AddEndpoint(
+        string name,
+        ResourceEndpointProtocol protocol,
+        ResourceEndpointAssignment assignment,
+        string host,
+        int? port,
+        ResourceExposureScope exposure)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(host);
+
+        var normalizedName = name.Trim();
+        declared.Definition = declared.Definition with
+        {
+            Endpoints = declared.Definition.NetworkEndpoints
+                .Where(endpoint => !string.Equals(endpoint.Name, normalizedName, StringComparison.OrdinalIgnoreCase))
+                .Append(new ResourceEndpointRequest(
+                    normalizedName,
+                    protocol,
+                    Host: host.Trim(),
+                    Port: port,
+                    Exposure: exposure,
+                    Assignment: assignment,
+                    NetworkResourceId: ResourceId))
+                .ToArray()
+        };
+        return new ResourceEndpointReference(ResourceId, normalizedName);
     }
 
     public INetworkResourceBuilder WithResourceGroup(string? resourceGroupId)

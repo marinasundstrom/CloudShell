@@ -489,6 +489,7 @@ file sealed record ResourceResponse(
     ResourceGroupResponse? ResourceGroup,
     bool IsRegistered,
     IReadOnlyDictionary<string, string>? Attributes,
+    IReadOnlyList<ResourceCapabilityResponse>? Capabilities,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 file sealed record ResourceEndpointResponse(
@@ -496,6 +497,10 @@ file sealed record ResourceEndpointResponse(
     string Address,
     string Protocol,
     bool IsExternal);
+
+file sealed record ResourceCapabilityResponse(
+    string Id,
+    IReadOnlyDictionary<string, string>? Metadata);
 
 file sealed record ResourceActionResponse(
     string Id,
@@ -614,10 +619,16 @@ file static class RemoteControlPlaneMapper
                 .Select(action => action.ToResourceAction())
                 .ToArray(),
             ResourceClass: response.ResourceClass,
-            Attributes: response.Attributes);
+            Attributes: response.Attributes,
+            Capabilities: response.GetCapabilityResponses()
+                .Select(capability => capability.ToResourceCapability())
+                .ToArray());
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
         new(response.Name, response.Address, response.Protocol, response.IsExternal);
+
+    public static ResourceCapability ToResourceCapability(this ResourceCapabilityResponse response) =>
+        new(response.Id, response.Metadata);
 
     public static ResourceAction ToResourceAction(this ResourceActionResponse response) =>
         new(
@@ -633,6 +644,10 @@ file static class RemoteControlPlaneMapper
     private static IReadOnlyCollection<ResourceActionResponse> GetResourceActionResponses(
         this ResourceResponse response) =>
         response.ResourceActions.Values.ToArray();
+
+    private static IReadOnlyCollection<ResourceCapabilityResponse> GetCapabilityResponses(
+        this ResourceResponse response) =>
+        response.Capabilities?.ToArray() ?? [];
 
     public static ResourceGroup ToResourceGroup(this ResourceGroupResponse response) =>
         new(response.Id, response.Name, response.Description, response.ResourceIds);

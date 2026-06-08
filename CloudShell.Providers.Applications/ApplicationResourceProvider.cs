@@ -1027,6 +1027,7 @@ public sealed partial class ApplicationResourceProvider(
     private Resource CreateResource(ApplicationResourceDefinition application)
     {
         var state = GetState(application.Id);
+        var endpoints = CreateEndpoints(application);
         return new Resource(
             application.Id,
             application.Name,
@@ -1034,7 +1035,7 @@ public sealed partial class ApplicationResourceProvider(
             DisplayName,
             "local",
             state,
-            CreateEndpoints(application),
+            endpoints,
             ApplicationResourceTypes.IsContainerApp(application.ResourceType)
                 ? GetEffectiveContainerRevision(application)
                 : IsContainerBacked(application)
@@ -1049,7 +1050,10 @@ public sealed partial class ApplicationResourceProvider(
             HealthChecks: application.HealthChecks,
             Observability: GetEffectiveObservability(application),
             ResourceClass: GetResourceClass(application),
-            Attributes: CreateAttributes(application));
+            Attributes: CreateAttributes(application),
+            Capabilities: endpoints.Count > 0
+                ? [new(ResourceCapabilityIds.EndpointSource)]
+                : []);
     }
 
     private static IReadOnlyDictionary<string, string> CreateAttributes(ApplicationResourceDefinition application)

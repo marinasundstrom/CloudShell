@@ -126,6 +126,34 @@ CloudShell assigns a stable local port automatically. Orchestrator extensions
 can translate the same declarations to Docker Compose networks and published
 ports, or another runtime-specific model.
 
+Networks can also reserve or request endpoints. Manual endpoint requests carry
+the concrete host/IP address and port. Auto endpoint requests let the network
+resource allocate from its configured policy; the built-in platform network
+uses stable localhost ports from the Control Plane auto-port range. Endpoint
+mappings connect a network-owned endpoint to a target resource endpoint:
+
+```csharp
+var appNetwork = resources
+    .AddNetwork("network:app", "App Network", isDefault: true);
+
+var publicEndpoint = appNetwork.AddTcpEndpoint(
+    "localhost",
+    port: 4040,
+    name: "public");
+
+var autoEndpoint = appNetwork.RequestHttpEndpoint("api");
+
+appNetwork.MapEndpoint(
+    autoEndpoint,
+    new ResourceEndpointReference("application:example-web-api", "http"));
+```
+
+Networking resources advertise capabilities such as
+`networking.endpointProvider` and `networking.endpointMapper`. Authored
+resource types can use the same capability model for richer providers, such as
+a containerized gateway, reverse proxy, load balancer, DNS publisher, or
+network policy controller.
+
 Provider-specific resources should stay logical at the declaration site. For
 example, a future SQL Server provider should be able to expose a top-level
 resource without making the caller choose a Docker host:

@@ -1212,6 +1212,82 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void PlatformResources_DeclareNetworkEndpointRequestsAndMappings()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var network = resources
+                    .AddNetwork("network:app", "App Network", isDefault: true);
+                var api = resources.Declare("applications", "application:api");
+                var publicEndpoint = network.AddTcpEndpoint("localhost", 4040, "public");
+                var autoEndpoint = network.RequestHttpEndpoint("api");
+
+                network.MapEndpoint(
+                    autoEndpoint,
+                    new ResourceEndpointReference(api.ResourceId, "http"),
+                    "mapping:api");
+
+                Assert.Equal(new ResourceEndpointReference("network:app", "public"), publicEndpoint);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var definition = Assert.Single(options.DeclaredNetworks).Definition;
+
+        Assert.Collection(
+            definition.NetworkEndpoints.OrderBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase),
+            endpoint =>
+            {
+                Assert.Equal("api", endpoint.Name);
+                Assert.Equal(ResourceEndpointProtocol.Http, endpoint.Protocol);
+                Assert.Equal(ResourceEndpointAssignment.Auto, endpoint.Assignment);
+                Assert.Equal("localhost", endpoint.Host);
+            },
+            endpoint =>
+            {
+                Assert.Equal("public", endpoint.Name);
+                Assert.Equal(ResourceEndpointProtocol.Tcp, endpoint.Protocol);
+                Assert.Equal(ResourceEndpointAssignment.Manual, endpoint.Assignment);
+                Assert.Equal("localhost", endpoint.Host);
+                Assert.Equal(4040, endpoint.Port);
+            });
+
+        var mapping = Assert.Single(definition.NetworkEndpointMappings);
+        Assert.Equal("mapping:api", mapping.Id);
+        Assert.Equal(new ResourceEndpointReference("network:app", "api"), mapping.Source);
+        Assert.Equal(new ResourceEndpointReference("application:api", "http"), mapping.Target);
+        Assert.Equal("network:app", mapping.NetworkResourceId);
+        Assert.Equal("network:app", mapping.ProviderResourceId);
+
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "network:app");
+
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingProvider));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointProvider));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper));
+        Assert.Collection(
+            resource.Endpoints.OrderBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase),
+            endpoint =>
+            {
+                Assert.Equal("api", endpoint.Name);
+                Assert.StartsWith("http://localhost:", endpoint.Address);
+            },
+            endpoint =>
+            {
+                Assert.Equal("public", endpoint.Name);
+                Assert.Equal("tcp://localhost:4040", endpoint.Address);
+            });
+    }
+
+    [Fact]
     public void ProjectResourceBuilder_CanAttachContainerImageForOrchestration()
     {
         var services = new ServiceCollection();

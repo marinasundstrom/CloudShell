@@ -8,6 +8,12 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
+- Add Resource Manager UI support for endpoint assignment modes: manual,
+  auto-assign from the default network, predefined provider endpoints, and
+  provider-default assignment.
+- Design provider selection and reconciliation for endpoint mappings when a
+  networking-capable resource such as a gateway, load balancer, DNS publisher,
+  or custom controller materializes the mapping.
 - Add a build-action sample that pushes a container image to a registry and
   calls the authenticated Container Apps revision API with the immutable tag.
 - Design container app revision history as commits of container app

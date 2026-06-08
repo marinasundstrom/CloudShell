@@ -53,6 +53,9 @@ Important properties:
 - `DetailRoute`: optional extension-owned UI detail route.
 - `ResourceActions`: resource-domain operations exposed by the provider.
 - `ResourceHealthChecks`: health signals contributed by providers.
+- `ResourceCapabilities`: standardized or provider-owned capabilities the
+  resource can provide to the environment, such as endpoint sources or
+  networking providers.
 
 `Resource` is a uniform projection. It is not subclassed for container apps,
 runtime containers, executables, projects, services, or infrastructure. A
@@ -129,6 +132,15 @@ case-insensitive resource-action lookup and standard lifecycle action
 properties. It should not execute operations itself. Commands still go through
 `IResourceManager`, which can represent either the in-process Control Plane or a
 remote API-backed adapter.
+
+Capabilities describe what role a resource can play; they do not make the
+resource an active service object. A workload that exposes endpoints can
+advertise `endpoint.source`. A managed network, reverse proxy, load balancer,
+or containerized network controller can advertise networking capabilities such
+as `networking.provider`, `networking.endpointProvider`,
+`networking.endpointMapper`, `networking.gateway`,
+`networking.loadBalancer`, or `networking.serviceDiscovery`. The Control Plane
+still mediates operations, authorization, audit, and remote access.
 
 ### Resource type
 
@@ -225,6 +237,30 @@ Resources created through the UI are not startup-autostart resources. Create
 flows use an explicit "start after create" option, with the initial value coming
 from provider policy, and the create operation must request that behavior
 explicitly.
+
+### Endpoint and networking
+
+Endpoints are projected resource facts. They describe reachable addresses that
+exist now, such as HTTP, HTTPS, TCP, UDP, process, container, or logical network
+endpoints.
+
+Endpoint requests are networking intent. They describe what should be assigned
+or reserved, including protocol, host or IP address, port, exposure scope, and
+assignment mode. Manual assignments require the caller to provide the concrete
+address details. Auto or provider-default assignments let a networking provider
+resource choose an address from its configured policy.
+
+Endpoint mappings connect a source endpoint to a target endpoint. A mapping may
+be realized by the same network resource that owns the source endpoint, or by a
+specialized networking provider resource such as a gateway, load balancer,
+service discovery system, or custom controller running as a managed resource.
+
+The built-in `cloudshell.network` resource is a logical network boundary and
+basic endpoint provider. For local development, it can reserve manual
+localhost endpoints or auto-assign stable localhost ports from the configured
+range. Richer network topology, routing, policy, TLS, DNS, and load-balancing
+behavior should be expressed as capabilities on authored resources and
+implemented by provider-owned configuration behind those resources.
 
 ### Resource action
 

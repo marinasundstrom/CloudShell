@@ -78,6 +78,10 @@ The MVP should prove:
   `http://localhost:5000`.
 - Container app and Docker Engine configuration UI exposes registry settings,
   and container app details show the latest projected revision.
+- Networking is modeled through resources and capabilities. Resources can
+  advertise endpoint-source and networking-provider capabilities; network
+  resources can reserve or auto-assign endpoint requests and record endpoint
+  mappings while richer networking behavior remains provider-owned.
 
 ## Completed recently
 
@@ -168,6 +172,10 @@ The MVP should prove:
 - Added a Resource Manager overview deployment affordance for container app
   resources that updates the image through the domain `UpdateResourceImageAsync`
   operation and refreshes the projected image/revision.
+- Added resource capability projection, networking capability identifiers,
+  typed endpoint requests, endpoint mapping definitions, and built-in
+  `cloudshell.network` builder helpers for manual or auto localhost endpoint
+  assignment.
 
 ## Active stabilization areas
 

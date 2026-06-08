@@ -209,15 +209,17 @@ public sealed class PlatformResourceProvider(
             JsonSerializer.SerializeToElement(service, SerializerOptions)));
     }
 
-    private static Resource CreateNetworkResource(NetworkResourceDefinition definition) =>
-        new(
+    private Resource CreateNetworkResource(NetworkResourceDefinition definition)
+    {
+        var endpoints = CreateNetworkEndpoints(definition);
+        return new(
             definition.Id,
             definition.Name,
             "Network",
             "CloudShell",
             "logical",
             ResourceState.Running,
-            [new ResourceEndpoint("network", $"network://{definition.Id}", "network", false)],
+            endpoints,
             definition.IsDefault ? "host default" : "host local",
             DateTimeOffset.UtcNow,
             [],
@@ -226,8 +228,15 @@ public sealed class PlatformResourceProvider(
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 [ResourceAttributeNames.NetworkKind] = definition.IsDefault ? "Default" : "Local",
-                [ResourceAttributeNames.EndpointCount] = "1"
-            });
+                [ResourceAttributeNames.EndpointCount] = endpoints.Count.ToString(CultureInfo.InvariantCulture)
+            },
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.NetworkingProvider),
+                new(ResourceCapabilityIds.NetworkingEndpointProvider),
+                new(ResourceCapabilityIds.NetworkingEndpointMapper)
+            ]);
+    }
 
     private Resource CreateServiceResource(ServiceResourceDefinition definition) =>
         new(
@@ -252,7 +261,40 @@ public sealed class PlatformResourceProvider(
                     definition.Ports.Count.ToString(CultureInfo.InvariantCulture),
                 [ResourceAttributeNames.EndpointCount] =
                     definition.Ports.Count.ToString(CultureInfo.InvariantCulture)
-            });
+            },
+            Capabilities: [new(ResourceCapabilityIds.EndpointSource)]);
+
+    private IReadOnlyList<ResourceEndpoint> CreateNetworkEndpoints(NetworkResourceDefinition definition)
+    {
+        var endpoints = definition.NetworkEndpoints
+            .Select(endpoint => ResolveNetworkEndpoint(definition.Id, endpoint))
+            .ToArray();
+
+        return endpoints.Length == 0
+            ? [new ResourceEndpoint("network", $"network://{definition.Id}", "network", false)]
+            : endpoints;
+    }
+
+    private ResourceEndpoint ResolveNetworkEndpoint(
+        string networkId,
+        ResourceEndpointRequest request)
+    {
+        var protocol = request.ProtocolName;
+        var host = FirstNonEmpty(request.IPAddress, request.Host, "localhost")!;
+        var port = request.Port ??
+            (request.Assignment is ResourceEndpointAssignment.Auto or ResourceEndpointAssignment.ProviderDefault
+                ? AssignLocalPort(networkId, request.Name)
+                : null);
+        var address = port is null
+            ? $"{protocol}://{host}"
+            : $"{protocol}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}";
+
+        return new ResourceEndpoint(
+            request.Name,
+            address,
+            protocol,
+            request.Exposure is ResourceExposureScope.Network or ResourceExposureScope.Public);
+    }
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ServiceResourceDefinition definition) =>
         definition.Ports
@@ -303,7 +345,9 @@ public sealed class PlatformResourceProvider(
         definition with
         {
             Id = NormalizeResourceId(definition.Id, "network", definition.Name),
-            Name = definition.Name.Trim()
+            Name = definition.Name.Trim(),
+            Endpoints = NormalizeEndpointRequests(definition.NetworkEndpoints),
+            EndpointMappings = NormalizeEndpointMappings(definition.NetworkEndpointMappings)
         };
 
     private static ServiceResourceDefinition NormalizeService(ServiceResourceDefinition definition) =>
@@ -338,6 +382,54 @@ public sealed class PlatformResourceProvider(
                 .ToArray(),
             HealthChecks = NormalizeHealthChecks(definition.ResourceHealthChecks)
         };
+
+    private static IReadOnlyList<ResourceEndpointRequest> NormalizeEndpointRequests(
+        IReadOnlyList<ResourceEndpointRequest> endpoints) =>
+        endpoints
+            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Name))
+            .Select(endpoint => endpoint with
+            {
+                Name = endpoint.Name.Trim(),
+                Host = NormalizeNullable(endpoint.Host),
+                IPAddress = NormalizeNullable(endpoint.IPAddress),
+                Port = endpoint.Port is null ? null : Math.Max(1, endpoint.Port.Value),
+                TargetPort = endpoint.TargetPort is null ? null : Math.Max(1, endpoint.TargetPort.Value),
+                NetworkResourceId = NormalizeNullable(endpoint.NetworkResourceId),
+                ProviderEndpointId = NormalizeNullable(endpoint.ProviderEndpointId)
+            })
+            .DistinctBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyList<ResourceEndpointMappingDefinition> NormalizeEndpointMappings(
+        IReadOnlyList<ResourceEndpointMappingDefinition> mappings) =>
+        mappings
+            .Where(mapping =>
+                !string.IsNullOrWhiteSpace(mapping.Id) &&
+                !string.IsNullOrWhiteSpace(mapping.Source.ResourceId) &&
+                !string.IsNullOrWhiteSpace(mapping.Source.EndpointName) &&
+                !string.IsNullOrWhiteSpace(mapping.Target.ResourceId) &&
+                !string.IsNullOrWhiteSpace(mapping.Target.EndpointName))
+            .Select(mapping => mapping with
+            {
+                Id = mapping.Id.Trim(),
+                Name = string.IsNullOrWhiteSpace(mapping.Name) ? mapping.Id.Trim() : mapping.Name.Trim(),
+                Source = new ResourceEndpointReference(
+                    mapping.Source.ResourceId.Trim(),
+                    mapping.Source.EndpointName.Trim()),
+                Target = new ResourceEndpointReference(
+                    mapping.Target.ResourceId.Trim(),
+                    mapping.Target.EndpointName.Trim()),
+                NetworkResourceId = NormalizeNullable(mapping.NetworkResourceId),
+                ProviderResourceId = NormalizeNullable(mapping.ProviderResourceId)
+            })
+            .DistinctBy(mapping => mapping.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private static string NormalizeResourceId(
         string resourceId,
