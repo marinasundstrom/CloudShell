@@ -7,6 +7,8 @@ using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using System.Net;
+using System.Net.Http.Json;
 
 namespace CloudShell.ControlPlane.Client.Tests;
 
@@ -161,6 +163,77 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Empty(imported.Diagnostics);
     }
 
+    [Fact]
+    public async Task ControlPlaneApi_ReturnsProblemForInvalidCreateResourceGroupRequest()
+    {
+        await using var app = await CreateAppAsync();
+        var client = app.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/control-plane/v1/resource-groups",
+            new
+            {
+                name = " ",
+                description = "Invalid group"
+            });
+
+        await AssertProblemAsync(response, "Name is required.");
+    }
+
+    [Fact]
+    public async Task ControlPlaneApi_ReturnsProblemForInvalidCreateResourceRequest()
+    {
+        await using var app = await CreateAppAsync();
+        var client = app.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/control-plane/v1/resources",
+            new
+            {
+                providerId = PlatformResourceProvider.ProviderId,
+                resourceType = PlatformResourceProvider.NetworkResourceType,
+                resourceId = "network:invalid",
+                name = "Invalid Network",
+                configuration = (object?)null
+            });
+
+        await AssertProblemAsync(response, "Configuration is required.");
+    }
+
+    [Fact]
+    public async Task ControlPlaneApi_ReturnsProblemForInvalidCapabilitiesRequest()
+    {
+        await using var app = await CreateAppAsync();
+        var client = app.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/control-plane/v1/resources/capabilities",
+            new
+            {
+                resourceIds = (string[]?)null
+            });
+
+        await AssertProblemAsync(response, "ResourceIds is required.");
+    }
+
+    [Fact]
+    public async Task ControlPlaneApi_ReturnsProblemForInvalidRegistrationDependencies()
+    {
+        await using var app = await CreateAppAsync();
+        var client = app.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/control-plane/v1/registrations",
+            new
+            {
+                providerId = PlatformResourceProvider.ProviderId,
+                resourceId = "network:contract",
+                dependsOn = new[] { " " }
+            });
+
+        await AssertProblemAsync(response, "DependsOn cannot contain empty values.");
+    }
+
     private static RemoteControlPlane CreateClient(WebApplication app)
     {
         var client = app.GetTestClient();
@@ -211,5 +284,16 @@ public sealed class RemoteControlPlaneContractTests
         await resources.AssignResourceGroupAsync(
             new AssignResourceGroupCommand("network:contract", group.Id));
         return group;
+    }
+
+    private static async Task AssertProblemAsync(
+        HttpResponseMessage response,
+        string expectedDetail)
+    {
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Control plane request failed", document.RootElement.GetProperty("title").GetString());
+        Assert.Equal(expectedDetail, document.RootElement.GetProperty("detail").GetString());
     }
 }

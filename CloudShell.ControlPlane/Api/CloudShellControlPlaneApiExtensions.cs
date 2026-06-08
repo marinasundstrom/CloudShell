@@ -195,11 +195,18 @@ public static class CloudShellControlPlaneApiExtensions
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
-        var capabilities = await resourceManager.GetResourceOperationCapabilitiesAsync(
-            request.ResourceIds,
-            cancellationToken);
+        try
+        {
+            var capabilities = await resourceManager.GetResourceOperationCapabilitiesAsync(
+                NormalizeRequiredIds(request.ResourceIds, nameof(request.ResourceIds)),
+                cancellationToken);
 
-        return Results.Ok(capabilities.Values.Select(capability => capability.ToResponse()).ToArray());
+            return Results.Ok(capabilities.Values.Select(capability => capability.ToResponse()).ToArray());
+        }
+        catch (ArgumentException exception)
+        {
+            return ToProblem(exception);
+        }
     }
 
     private static async Task<IResult> CreateResource(
@@ -209,24 +216,27 @@ public static class CloudShellControlPlaneApiExtensions
     {
         try
         {
+            var providerId = RequireValue(request.ProviderId, nameof(request.ProviderId));
+            var resourceType = RequireValue(request.ResourceType, nameof(request.ResourceType));
+            var resourceId = RequireValue(request.ResourceId, nameof(request.ResourceId));
             await resourceManager.CreateResourceAsync(
                 new CreateResourceCommand(
-                    request.ProviderId,
-                    request.ResourceType,
-                    request.ResourceId,
-                    request.Name,
-                    request.Configuration,
-                    request.ResourceGroupId),
+                    providerId,
+                    resourceType,
+                    resourceId,
+                    RequireValue(request.Name, nameof(request.Name)),
+                    RequireConfiguration(request.Configuration),
+                    NormalizeOptional(request.ResourceGroupId)),
                 cancellationToken);
 
-            var resource = await resourceManager.GetResourceAsync(request.ResourceId, cancellationToken);
+            var resource = await resourceManager.GetResourceAsync(resourceId, cancellationToken);
             return resource is null
                 ? Results.NoContent()
                 : Results.Created(
                     $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/resources/{Uri.EscapeDataString(resource.Id)}",
                     await CreateResourceResponse(resourceManager, resource, cancellationToken));
         }
-        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -314,7 +324,9 @@ public static class CloudShellControlPlaneApiExtensions
         try
         {
             var group = await resourceManager.CreateResourceGroupAsync(
-                new CreateResourceGroupCommand(request.Name, request.Description ?? string.Empty),
+                new CreateResourceGroupCommand(
+                    RequireValue(request.Name, nameof(request.Name)),
+                    request.Description?.Trim() ?? string.Empty),
                 cancellationToken);
 
             return Results.Created(
@@ -382,16 +394,17 @@ public static class CloudShellControlPlaneApiExtensions
     {
         try
         {
+            var resourceId = RequireValue(request.ResourceId, nameof(request.ResourceId));
             await resourceManager.RegisterResourceAsync(
                 new RegisterResourceCommand(
-                    request.ProviderId,
-                    request.ResourceId,
-                    request.ResourceGroupId,
-                    request.DependsOn),
+                    RequireValue(request.ProviderId, nameof(request.ProviderId)),
+                    resourceId,
+                    NormalizeOptional(request.ResourceGroupId),
+                    NormalizeOptionalIds(request.DependsOn, nameof(request.DependsOn))),
                 cancellationToken);
 
             var registration = await resourceManager.GetResourceRegistrationAsync(
-                request.ResourceId,
+                resourceId,
                 cancellationToken);
             return registration is null
                 ? Results.NoContent()
@@ -399,7 +412,7 @@ public static class CloudShellControlPlaneApiExtensions
                     $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/registrations/{Uri.EscapeDataString(registration.ResourceId)}",
                     registration.ToResponse());
         }
-        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -430,7 +443,10 @@ public static class CloudShellControlPlaneApiExtensions
         try
         {
             await resourceManager.AssignResourceGroupAsync(
-                new AssignResourceGroupCommand(resourceId, request.ResourceGroupId, request.DependsOn),
+                new AssignResourceGroupCommand(
+                    RequireValue(resourceId, nameof(resourceId)),
+                    NormalizeOptional(request.ResourceGroupId),
+                    NormalizeOptionalIds(request.DependsOn, nameof(request.DependsOn))),
                 cancellationToken);
 
             var registration = await resourceManager.GetResourceRegistrationAsync(resourceId, cancellationToken);
@@ -438,7 +454,7 @@ public static class CloudShellControlPlaneApiExtensions
                 ? Results.NoContent()
                 : Results.Ok(registration.ToResponse());
         }
-        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -453,7 +469,9 @@ public static class CloudShellControlPlaneApiExtensions
         try
         {
             await resourceManager.SetResourceDependenciesAsync(
-                new SetResourceDependenciesCommand(resourceId, request.DependsOn),
+                new SetResourceDependenciesCommand(
+                    RequireValue(resourceId, nameof(resourceId)),
+                    NormalizeRequiredIds(request.DependsOn, nameof(request.DependsOn))),
                 cancellationToken);
 
             var registration = await resourceManager.GetResourceRegistrationAsync(resourceId, cancellationToken);
@@ -461,7 +479,7 @@ public static class CloudShellControlPlaneApiExtensions
                 ? Results.NoContent()
                 : Results.Ok(registration.ToResponse());
         }
-        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -597,6 +615,60 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static bool IsDependentWarning(InvalidOperationException exception) =>
         exception.Message.Contains("depend on this resource", StringComparison.OrdinalIgnoreCase);
+
+    private static string RequireValue(string? value, string name)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException($"{name} is required.");
+        }
+
+        return value.Trim();
+    }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static JsonElement RequireConfiguration(JsonElement configuration)
+    {
+        if (configuration.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            throw new ArgumentException("Configuration is required.");
+        }
+
+        return configuration;
+    }
+
+    private static IReadOnlyList<string> NormalizeRequiredIds(
+        IReadOnlyList<string>? values,
+        string name) =>
+        NormalizeOptionalIds(values, name) ??
+        throw new ArgumentException($"{name} is required.");
+
+    private static IReadOnlyList<string>? NormalizeOptionalIds(
+        IReadOnlyList<string>? values,
+        string name)
+    {
+        if (values is null)
+        {
+            return null;
+        }
+
+        var normalized = new List<string>(values.Count);
+        foreach (var value in values)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new ArgumentException($"{name} cannot contain empty values.");
+            }
+
+            normalized.Add(value.Trim());
+        }
+
+        return normalized
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
 
     private static ResourceProcedureResponse ToResponse(ResourceProcedureResult result) =>
         new(
