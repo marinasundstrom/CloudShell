@@ -35,6 +35,9 @@ The MVP should prove:
   projection, and UI projection.
 - Provider-owned resource configuration stays separate from platform-owned
   registration/group state.
+- CloudShell environment preferences are user-scoped, workload-agnostic, and
+  use one configured storage backend: local UI-host storage or Control
+  Plane-backed storage.
 
 ## Completed recently
 
@@ -61,6 +64,9 @@ The MVP should prove:
   commands.
 - Added client API helpers for canonical resource action IDs, resource action
   lookup, capability lookup, and manager-driven lifecycle action execution.
+- Added a user-scoped CloudShell environment settings provider with selectable
+  local or Control Plane-backed storage and theme/navigation preference
+  integration.
 
 ## Active stabilization areas
 

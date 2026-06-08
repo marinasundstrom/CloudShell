@@ -27,3 +27,9 @@ Plane API.
 
 The configured client secret is for local development only. Use a secret store
 or environment variable for shared hosts.
+
+Shell environment preferences such as theme and collapsed navigation are saved
+through the remote Control Plane settings adapter because the UI sample sets
+`Shell:EnvironmentSettings:Storage` to `ControlPlane`. In this sample, the Control
+Plane stores them in its local `Data/environment-settings.json` file under the identity
+represented by the UI's Control Plane credential.

@@ -3,6 +3,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Shell;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -116,6 +117,18 @@ public static class CloudShellControlPlaneApiExtensions
             .WithName("CloudShellControlPlane_IngestTraceSpans")
             .AllowAnonymous()
             .ExcludeFromDescription();
+
+        api.MapGet("/environment-settings", ListUserSettings)
+            .WithName("CloudShellControlPlane_ListEnvironmentSettings");
+
+        api.MapGet("/environment-settings/{key}", GetUserSetting)
+            .WithName("CloudShellControlPlane_GetEnvironmentSetting");
+
+        api.MapPut("/environment-settings/{key}", SetUserSetting)
+            .WithName("CloudShellControlPlane_SetEnvironmentSetting");
+
+        api.MapDelete("/environment-settings/{key}", RemoveUserSetting)
+            .WithName("CloudShellControlPlane_RemoveEnvironmentSetting");
 
         return api;
     }
@@ -619,6 +632,78 @@ public static class CloudShellControlPlaneApiExtensions
     {
         await traces.IngestTraceSpansAsync(request.Spans, cancellationToken);
         return Results.Accepted();
+    }
+
+    private static async Task<IResult> ListUserSettings(
+        ICloudShellControlPlaneUserSettingsProvider settings,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Results.Ok((await settings.GetSettingsAsync(cancellationToken))
+                .Values
+                .Select(setting => setting.ToResponse())
+                .ToArray());
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> GetUserSetting(
+        string key,
+        ICloudShellControlPlaneUserSettingsProvider settings,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var setting = await settings.GetSettingAsync(key, cancellationToken);
+            return setting is null
+                ? Results.NotFound()
+                : Results.Ok(setting.ToResponse());
+        }
+        catch (Exception exception) when (exception is ArgumentException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> SetUserSetting(
+        string key,
+        SetCloudShellUserSettingRequest request,
+        ICloudShellControlPlaneUserSettingsProvider settings,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await settings.SetSettingAsync(
+                key,
+                request.Value ?? string.Empty,
+                cancellationToken);
+            var setting = await settings.GetSettingAsync(key, cancellationToken);
+            return Results.Ok(setting!.ToResponse());
+        }
+        catch (Exception exception) when (exception is ArgumentException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> RemoveUserSetting(
+        string key,
+        ICloudShellControlPlaneUserSettingsProvider settings,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await settings.RemoveSettingAsync(key, cancellationToken);
+            return Results.NoContent();
+        }
+        catch (Exception exception) when (exception is ArgumentException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
     }
 
     private static async Task<IReadOnlyList<ResourceResponse>> CreateResourceResponses(

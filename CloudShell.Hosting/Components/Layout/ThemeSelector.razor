@@ -1,7 +1,8 @@
 @rendermode InteractiveServer
+@inject ICloudShellUserSettingsProvider Settings
 @inject IStringLocalizer<SharedResource> L
 
-<FluentDesignTheme @bind-Mode="Mode" StorageName="@StorageName" />
+<FluentDesignTheme @bind-Mode="Mode" />
 
 <div class="theme-selector">
     <span class="theme-icon" aria-hidden="true">
@@ -19,8 +20,6 @@
 </div>
 
 @code {
-    private const string StorageName = "cloudshell.theme";
-
     private static readonly IReadOnlyList<DesignThemeModes> ThemeModes =
     [
         DesignThemeModes.System,
@@ -30,6 +29,15 @@
 
     private DesignThemeModes Mode { get; set; } = DesignThemeModes.System;
 
+    protected override async Task OnInitializedAsync()
+    {
+        var setting = await Settings.GetSettingAsync(CloudShellUserSettingKeys.ThemeMode);
+        if (Enum.TryParse<DesignThemeModes>(setting?.Value, ignoreCase: true, out var mode))
+        {
+            Mode = mode;
+        }
+    }
+
     private string GetThemeDisplayName(DesignThemeModes mode) =>
         mode switch
         {
@@ -38,8 +46,9 @@
             _ => L["System"]
         };
 
-    private void ChangeMode(DesignThemeModes mode)
+    private async Task ChangeMode(DesignThemeModes mode)
     {
         Mode = mode;
+        await Settings.SetSettingAsync(CloudShellUserSettingKeys.ThemeMode, mode.ToString());
     }
 }

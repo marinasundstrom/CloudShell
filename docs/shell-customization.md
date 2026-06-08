@@ -25,6 +25,8 @@ The current implementation supports programmatic customization:
 - `ICloudShellNavigator` for optional strongly typed or view ID-based navigation.
 - User-managed extension activation through the Extensions UI, guarded by
   `shell.configure`.
+- User-scoped CloudShell environment preferences through
+  `ICloudShellUserSettingsProvider`.
 
 The built-in Overview item has the special navigation ID `overview`. A
 replacement changes the sidebar contribution and points to either a registered
@@ -60,10 +62,46 @@ builder
 
 CloudShell does not currently support per-user customization. Start-route and view/menu contributions are global for the installed extension set.
 
+CloudShell does support per-user persisted environment preferences that are not
+part of any Control Plane workload or resource domain model. The built-in theme
+selector and collapsed navigation state use `ICloudShellUserSettingsProvider`
+instead of browser local storage. Settings are keyed by the authenticated
+user's stable claim (`NameIdentifier`, `sub`, or name). When authentication is
+not enabled, or a host has no authenticated principal, the provider uses a
+local profile so settings still persist predictably.
+
+The host selects exactly one storage backend with `Shell:EnvironmentSettings:Storage`:
+
+```json
+{
+  "Shell": {
+    "EnvironmentSettings": {
+      "Storage": "Local"
+    }
+  }
+}
+```
+
+Supported values:
+
+- `Local`: store settings in the UI host's `Data/environment-settings.json`.
+- `ControlPlane`: store settings through the Control Plane settings endpoint.
+  This is useful for split or shared environments that want environment
+  preferences to follow the same central service as the shell's remote
+  integration, while still keeping the settings model separate from
+  `IControlPlane` workload operations.
+
+Shell and extension components should depend on
+`ICloudShellUserSettingsProvider` rather than reading browser storage directly.
+The provider intentionally stores only CloudShell environment preferences;
+extension
+contributions such as start routes, view registrations, and navigation ordering
+remain global programmatic configuration today.
+
 ## Future considerations
 
 - Store configurable shell layout state, such as enabled areas, navigation ordering, and selected start route.
-- Decide which customization settings are global, role-scoped, tenant-scoped, or user-scoped.
+- Decide which configurable shell layout settings are global, role-scoped, tenant-scoped, or user-scoped.
 - Consider a widget system for overview/dashboard pages once the shell-hosted view model is stable.
 - Provide an admin UI for enabling/disabling extension-contributed views and choosing the start experience.
 - Keep extension-declared capabilities as the source of truth, even when UI configuration hides or reorders contributed content.

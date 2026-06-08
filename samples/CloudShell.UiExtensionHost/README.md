@@ -31,6 +31,9 @@ http://localhost:5101/sample-workspace
 - `Program.cs` uses `builder.AddCloudShellUi()`.
 - `SampleWorkspaceExtension` contributes a shell navigation item and start
   route.
+- Shell environment preferences are persisted by the UI host's local
+  `ICloudShellUserSettingsProvider` because the default
+  `Shell:EnvironmentSettings:Storage` value is `Local`.
 - `Pages/SampleWorkspace.razor` is a normal routable Razor component
   contributed by the sample extension.
 - The sample uses `app.UseCloudShellUiAsync()` and

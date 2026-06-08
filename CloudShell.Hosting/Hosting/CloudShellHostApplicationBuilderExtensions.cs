@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Authentication;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Shell;
 using CloudShell.Hosting.Authentication;
 using CloudShell.Hosting.Localization;
 using CloudShell.Hosting.ResourceManager;
@@ -38,6 +39,12 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.TryAddScoped<IAccountService, ExternalAccountService>();
         builder.Services.TryAddSingleton<IResourceOrchestrationSettings, LocalResourceOrchestrationSettings>();
         builder.Services.TryAddScoped<IResourceOrchestrationCatalog, LocalResourceOrchestrationCatalog>();
+        builder.Services.Configure<CloudShellUserSettingsOptions>(
+            builder.Configuration.GetSection(CloudShellUserSettingsOptions.SectionName));
+        builder.Services.TryAddScoped<LocalCloudShellUserSettingsProvider>();
+        builder.Services.TryAddScoped<ICloudShellLocalUserSettingsProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<LocalCloudShellUserSettingsProvider>());
+        builder.Services.TryAddScoped<ICloudShellUserSettingsProvider, ConfiguredCloudShellUserSettingsProvider>();
 
         var cloudShell = builder.Services
             .AddCloudShell()

@@ -3,12 +3,14 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Shell;
 using CloudShell.ControlPlane;
 using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Logs;
 using CloudShell.ControlPlane.Observability;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.ControlPlane.Shell;
 using CloudShell.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Data.Sqlite;
@@ -63,6 +65,9 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<ITraceManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<ControlPlaneUserSettingsProvider>();
+        builder.Services.AddScoped<ICloudShellControlPlaneUserSettingsProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ControlPlaneUserSettingsProvider>());
         builder.Services.AddSingleton<ResourceOrchestratorSelectionStore>();
         builder.Services.AddSingleton<IResourceOrchestrationSettings>(
             serviceProvider => serviceProvider.GetRequiredService<ResourceOrchestratorSelectionStore>());

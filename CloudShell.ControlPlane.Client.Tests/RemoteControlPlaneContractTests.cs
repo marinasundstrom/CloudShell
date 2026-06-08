@@ -2,6 +2,7 @@ using System.Text.Json;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Shell;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
@@ -162,6 +163,25 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteSettingsProvider_ManagesEnvironmentSettingsWhenAuthenticationIsDisabled()
+    {
+        await using var app = await CreateAppAsync();
+        var settingsProvider = CreateSettingsClient(app);
+
+        await settingsProvider.SetSettingAsync(CloudShellUserSettingKeys.ThemeMode, "Dark");
+
+        var setting = await settingsProvider.GetSettingAsync(CloudShellUserSettingKeys.ThemeMode);
+        var settings = await settingsProvider.GetSettingsAsync();
+
+        Assert.Equal("Dark", setting?.Value);
+        Assert.Equal("Dark", settings[CloudShellUserSettingKeys.ThemeMode].Value);
+
+        await settingsProvider.RemoveSettingAsync(CloudShellUserSettingKeys.ThemeMode);
+
+        Assert.Null(await settingsProvider.GetSettingAsync(CloudShellUserSettingKeys.ThemeMode));
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_ExportsAndImportsResourceGroupTemplates()
     {
         await using var app = await CreateAppAsync();
@@ -313,6 +333,13 @@ public sealed class RemoteControlPlaneContractTests
         var client = app.GetTestClient();
         client.BaseAddress = new Uri("http://localhost");
         return new RemoteControlPlane(client);
+    }
+
+    private static RemoteCloudShellUserSettingsProvider CreateSettingsClient(WebApplication app)
+    {
+        var client = app.GetTestClient();
+        client.BaseAddress = new Uri("http://localhost");
+        return new RemoteCloudShellUserSettingsProvider(client);
     }
 
     private static async Task<WebApplication> CreateAppAsync(

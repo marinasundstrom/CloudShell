@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Abstractions.Shell;
 using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Api;
@@ -114,6 +115,13 @@ public sealed record LogEntryResponse(
     string? Level,
     string? Source);
 
+public sealed record CloudShellUserSettingResponse(
+    string Key,
+    string Value,
+    DateTimeOffset UpdatedAt);
+
+public sealed record SetCloudShellUserSettingRequest(string Value);
+
 internal static class CloudShellControlPlaneDtoMapper
 {
     public static ResourceResponse ToResponse(
@@ -208,4 +216,7 @@ internal static class CloudShellControlPlaneDtoMapper
 
     public static LogEntryResponse ToResponse(this LogEntry entry) =>
         new(entry.Timestamp, entry.Message, entry.Level, entry.Source);
+
+    public static CloudShellUserSettingResponse ToResponse(this CloudShellUserSetting setting) =>
+        new(setting.Key, setting.Value, setting.UpdatedAt);
 }

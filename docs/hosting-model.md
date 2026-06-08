@@ -42,6 +42,14 @@ In this shape, extension views can contribute routes and navigation through the
 same extension model as a full host. Resource Manager and Control Plane
 endpoints are not registered unless the host adds them separately.
 
+UI-only hosts persist CloudShell environment preferences, such as theme and
+collapsed navigation, independently through the local
+`ICloudShellUserSettingsProvider`. The default `Shell:EnvironmentSettings:Storage`
+value is `Local`, which stores settings in `Data/environment-settings.json` under the UI
+host content root. Settings are scoped to the authenticated user when one is
+available; when authentication is not enabled, the provider uses a local
+profile.
+
 See `samples/CloudShell.UiExtensionHost`.
 
 ## Combined Host
@@ -88,6 +96,12 @@ app.Run();
 In this mode, the UI consumes the same `IControlPlane` abstraction as a split
 host, but the registered implementation is in-process and backed by Control
 Plane services.
+
+Shell environment preferences still go through
+`ICloudShellUserSettingsProvider`. Combined hosts can keep the default local
+storage backend or set `Shell:EnvironmentSettings:Storage` to `ControlPlane` to store
+them through the in-process Control Plane settings endpoint. These settings are
+not part of the Control Plane workload model or `IControlPlane` domain facade.
 
 Authentication is shared inside the ASP.NET Core process. The shell and Control
 Plane use the same configured authentication scheme, cookie/session state, and
@@ -136,6 +150,8 @@ The Control Plane host owns:
 - Resource registrations, groups, and dependencies.
 - Resource procedures and logs.
 - The versioned Control Plane API.
+- User-scoped CloudShell environment settings for UI hosts that select
+  `ControlPlane` settings storage.
 
 ## Split Host
 
@@ -176,6 +192,11 @@ controlPlane.Resources(resources =>
 The UI host should not declare resources. It should discover resources through
 `IControlPlane` so one shared Control Plane remains the authority for
 checked-in configuration, persisted state, provider actions, and authorization.
+The remote settings adapter is separate from `IControlPlane`. Set
+`Shell:EnvironmentSettings:Storage` to `ControlPlane` when the split UI should persist
+CloudShell environment settings with the Control Plane instead of in the UI
+process. When authentication is disabled on the Control Plane, settings fall
+back to the Control Plane's local profile.
 
 ### Split-hosting authentication
 

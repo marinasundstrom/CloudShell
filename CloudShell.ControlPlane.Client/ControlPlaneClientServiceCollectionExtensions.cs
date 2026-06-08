@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -76,6 +77,14 @@ public static class ControlPlaneClientServiceCollectionExtensions
             {
                 configureClient(serviceProvider, client);
             })
+            .AddHttpMessageHandler<ControlPlaneAuthenticationHandler>();
+
+        services
+            .AddHttpClient<ICloudShellControlPlaneUserSettingsProvider, RemoteCloudShellUserSettingsProvider>(
+                (serviceProvider, client) =>
+                {
+                    configureClient(serviceProvider, client);
+                })
             .AddHttpMessageHandler<ControlPlaneAuthenticationHandler>();
 
         services.AddScoped<IResourceManager>(
