@@ -8,10 +8,6 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
-- [ ] Improve generated resource details.
-  - Link dependencies, parents, and child resources.
-  - Add endpoint copy/open affordances.
-  - Surface health status, logs, and action capability reasons.
 - [ ] Define attribute conventions.
   - Stable names, non-secret rule, display behavior, and provider guidance.
   - Decide whether string-only attributes are enough for MVP.

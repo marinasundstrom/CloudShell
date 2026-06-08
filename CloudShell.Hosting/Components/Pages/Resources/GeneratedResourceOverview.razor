@@ -1,4 +1,9 @@
 @using CloudShell.Abstractions.ResourceManager
+@using Microsoft.AspNetCore.WebUtilities
+@inject IResourceManager ResourceManager
+@inject ILogManager LogManager
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -15,6 +20,11 @@
             <dd>@Resource.Provider</dd>
             <dt>@L["Group"]</dt>
             <dd>@(ResourceGroup?.Name ?? L["Default group"])</dd>
+            @if (!string.IsNullOrWhiteSpace(Resource.ParentResourceId))
+            {
+                <dt>@L["Parent"]</dt>
+                <dd>@ResourceLink(Resource.ParentResourceId)</dd>
+            }
             <dt>@L["State"]</dt>
             <dd>@Resource.State</dd>
             <dt>@L["Version"]</dt>
@@ -31,10 +41,28 @@
             <div class="endpoint-list">
                 @foreach (var endpoint in Resource.Endpoints)
                 {
-                    <div>
-                        <strong>@endpoint.Name</strong>
-                        @EndpointLink(endpoint.Address)
-                        <small>@endpoint.Protocol @(endpoint.IsExternal ? L["external"] : L["internal"])</small>
+                    <div class="generated-endpoint">
+                        <div class="generated-endpoint-main">
+                            <strong>@endpoint.Name</strong>
+                            @EndpointLink(endpoint.Address)
+                            <small>@endpoint.Protocol @(endpoint.IsExternal ? L["external"] : L["internal"])</small>
+                        </div>
+                        <div class="generated-row-actions">
+                            <FluentButton Appearance="Appearance.Neutral"
+                                          Title="@L["Copy endpoint"]"
+                                          Disabled="@string.IsNullOrWhiteSpace(endpoint.Address)"
+                                          OnClick="() => CopyEndpoint(endpoint.Address)">
+                                @L["Copy"]
+                            </FluentButton>
+                            @if (IsLinkEndpoint(endpoint.Address))
+                            {
+                                <FluentButton Appearance="Appearance.Neutral"
+                                              Title="@L["Open endpoint"]"
+                                              OnClick="() => OpenEndpoint(endpoint.Address)">
+                                    @L["Open"]
+                                </FluentButton>
+                            }
+                        </div>
                     </div>
                 }
             </div>
@@ -62,7 +90,20 @@
             <div class="dependency-list">
                 @foreach (var dependency in Resource.DependsOn.Order(StringComparer.OrdinalIgnoreCase))
                 {
-                    <span>@dependency</span>
+                    @ResourceLink(dependency)
+                }
+            </div>
+        </section>
+    }
+
+    @if (ChildResources.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Children"]</h3>
+            <div class="dependency-list">
+                @foreach (var child in ChildResources)
+                {
+                    @ResourceLink(child)
                 }
             </div>
         </section>
@@ -78,7 +119,7 @@
                     <div>
                         <strong>@healthCheck.Name</strong>
                         <span>@healthCheck.Path</span>
-                        <small>@(healthCheck.EndpointName ?? L["default endpoint"])</small>
+                        <small>@FormatHealthCheckDetails(healthCheck)</small>
                     </div>
                 }
             </div>
@@ -89,10 +130,39 @@
     {
         <section class="generated-section">
             <h3>@L["Actions"]</h3>
-            <div class="tag-row">
+            <div class="generated-list">
                 @foreach (var action in Resource.ResourceActions.OrderBy(action => action.DisplayName, StringComparer.OrdinalIgnoreCase))
                 {
-                    <span>@action.DisplayName</span>
+                    var capability = Capabilities.GetActionCapability(action.Id);
+                    <div>
+                        <strong>@action.DisplayName</strong>
+                        <span>@(capability?.CanExecute == false ? L["Unavailable"] : L["Available"])</span>
+                        @if (!string.IsNullOrWhiteSpace(capability?.Reason))
+                        {
+                            <small>@capability.Reason</small>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(action.Description))
+                        {
+                            <small>@action.Description</small>
+                        }
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (Logs.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Logs"]</h3>
+            <div class="generated-list">
+                @foreach (var log in Logs)
+                {
+                    <div>
+                        <strong>@log.Name</strong>
+                        <a class="resource-link" href="@BuildLogRoute(log)">@L["Open log"]</a>
+                        <small>@log.SourceKind</small>
+                    </div>
                 }
             </div>
         </section>
@@ -110,6 +180,10 @@
                 <dt>@L["Metrics"]</dt>
                 <dd>@FormatEnabled(Resource.EffectiveObservability.Metrics)</dd>
             </dl>
+            @if (Resource.EffectiveObservability.Traces)
+            {
+                <a class="resource-link" href="@BuildTraceRoute()">@L["Open traces"]</a>
+            }
         </section>
     }
 </div>
@@ -124,6 +198,21 @@
     [Parameter]
     public ResourceTypeContribution? ResourceType { get; set; }
 
+    private IReadOnlyList<Resource> ChildResources { get; set; } = [];
+    private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
+    private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+    private ResourceOperationCapabilities Capabilities { get; set; } =
+        ResourceOperationCapabilities.None(string.Empty);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        ChildResources = await ResourceManager.ListResourceChildrenAsync(Resource.Id);
+        Logs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: Resource.Id));
+        Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
+        RelatedResources = await LoadRelatedResourcesAsync();
+    }
+
     private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
 
     private RenderFragment EndpointLink(string address) => builder =>
@@ -135,7 +224,7 @@
             builder.AddAttribute(1, "class", "endpoint-link");
             builder.AddAttribute(2, "href", address);
             builder.AddAttribute(3, "target", "_blank");
-            builder.AddAttribute(4, "rel", "noreferrer");
+            builder.AddAttribute(4, "rel", "noopener noreferrer");
             builder.AddContent(5, address);
             builder.CloseElement();
             return;
@@ -145,4 +234,110 @@
         builder.AddContent(7, string.IsNullOrWhiteSpace(address) ? L["none"] : address);
         builder.CloseElement();
     };
+
+    private RenderFragment ResourceLink(string resourceId) => builder =>
+    {
+        var resource = FindRelatedResource(resourceId);
+        var label = resource?.Name ?? resourceId;
+        builder.OpenElement(0, "a");
+        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
+        builder.AddContent(3, label);
+        if (resource is not null)
+        {
+            builder.OpenElement(4, "small");
+            builder.AddContent(5, resource.EffectiveTypeId);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+
+    private RenderFragment ResourceLink(Resource resource) => builder =>
+    {
+        builder.OpenElement(0, "a");
+        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(2, "href", BuildResourceRoute(resource.Id));
+        builder.AddContent(3, resource.Name);
+        builder.OpenElement(4, "small");
+        builder.AddContent(5, resource.EffectiveTypeId);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private Resource? FindRelatedResource(string resourceId)
+    {
+        if (string.Equals(Resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return Resource;
+        }
+
+        return RelatedResources.GetValueOrDefault(resourceId);
+    }
+
+    private async Task<IReadOnlyDictionary<string, Resource>> LoadRelatedResourcesAsync()
+    {
+        var ids = Resource.DependsOn
+            .Concat(ChildResources.Select(resource => resource.Id))
+            .Append(Resource.ParentResourceId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var resources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in ids)
+        {
+            var resource = ChildResources.FirstOrDefault(child =>
+                string.Equals(child.Id, id, StringComparison.OrdinalIgnoreCase)) ??
+                await ResourceManager.GetResourceAsync(id);
+            if (resource is not null)
+            {
+                resources[resource.Id] = resource;
+            }
+        }
+
+        return resources;
+    }
+
+    private static string BuildResourceRoute(string resourceId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+
+    private string BuildLogRoute(LogDescriptor log)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["resourceId"] = Resource.Id,
+            ["logId"] = log.Id
+        };
+
+        return QueryHelpers.AddQueryString("/logs", query);
+    }
+
+    private string BuildTraceRoute() =>
+        QueryHelpers.AddQueryString(
+            "/observability/traces",
+            new Dictionary<string, string?> { ["resourceId"] = Resource.Id });
+
+    private static bool IsLinkEndpoint(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private async Task CopyEndpoint(string address)
+    {
+        if (!string.IsNullOrWhiteSpace(address))
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", address);
+        }
+    }
+
+    private void OpenEndpoint(string address) =>
+        Navigation.NavigateTo(address, forceLoad: true);
+
+    private string FormatHealthCheckDetails(ResourceHealthCheck healthCheck)
+    {
+        var endpoint = healthCheck.EndpointName ?? L["default endpoint"].Value;
+        return healthCheck.Timeout is null
+            ? L["{0} on {1}", healthCheck.Type, endpoint].Value
+            : L["{0} on {1}, timeout {2}s", healthCheck.Type, endpoint, healthCheck.Timeout.Value.TotalSeconds].Value;
+    }
 }

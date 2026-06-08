@@ -885,6 +885,39 @@ h3 {
     overflow-wrap: anywhere;
 }
 
+.generated-endpoint {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+.generated-endpoint-main {
+    min-width: 0;
+}
+
+.generated-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    justify-content: flex-end;
+}
+
+.generated-pill-link {
+    display: inline-flex;
+    flex-direction: column;
+    gap: .05rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 999px;
+    padding: .25rem .55rem;
+    background: var(--cloudshell-surface-muted);
+    font-size: .76rem;
+    text-decoration: none;
+}
+
+.generated-pill-link small {
+    color: var(--cloudshell-text-muted);
+    font-size: .68rem;
+}
+
 .type-registration {
     display: grid;
     gap: .8rem;
@@ -1328,7 +1361,7 @@ h3 {
     margin-top: .55rem;
 }
 
-.endpoint-list div {
+.endpoint-list > div {
     display: grid;
     gap: .1rem;
     padding: .55rem;
