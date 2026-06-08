@@ -165,8 +165,10 @@ public sealed partial class DockerContainerResourceProvider :
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
         IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
+        string? registry = null,
         CancellationToken cancellationToken = default)
     {
+        UpdateRegistry(registry);
         var engine = GetEngineResource(healthChecks);
 
         await registrations.RegisterAsync(
@@ -179,14 +181,52 @@ public sealed partial class DockerContainerResourceProvider :
     public async Task UpdateEngineAsync(
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
+        string? registry = null,
         CancellationToken cancellationToken = default)
     {
+        UpdateRegistry(registry);
         var engine = GetEngineResource();
 
         await registrations.AssignToGroupAsync(
             engine.Id,
             NormalizeGroupId(resourceGroupId),
             cancellationToken: cancellationToken);
+    }
+
+    private void UpdateRegistry(string? registry)
+    {
+        if (!string.IsNullOrWhiteSpace(registry))
+        {
+            _options.Registry = NormalizeRegistry(registry);
+            UpdateSnapshotRegistry(_options.Registry);
+        }
+    }
+
+    private void UpdateSnapshotRegistry(string registry)
+    {
+        lock (_gate)
+        {
+            _snapshot = _snapshot with
+            {
+                Resources = _snapshot.Resources
+                    .Select(resource => string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(resource.Id, EngineResourceId, StringComparison.OrdinalIgnoreCase)
+                            ? resource with { Attributes = WithRegistryAttribute(resource.ResourceAttributes, registry) }
+                            : resource)
+                    .ToArray()
+            };
+        }
+    }
+
+    private static IReadOnlyDictionary<string, string> WithRegistryAttribute(
+        IReadOnlyDictionary<string, string> attributes,
+        string registry)
+    {
+        var updated = new Dictionary<string, string>(attributes, StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.ContainerRegistry] = NormalizeRegistry(registry)
+        };
+        return updated;
     }
 
     public async Task<ResourceProcedureResult> DeleteAsync(

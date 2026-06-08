@@ -133,12 +133,13 @@ public sealed partial class ApplicationResourceProvider(
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default)
     {
-        var normalized = NormalizeDefinition(definition);
-        var existing = store.GetApplication(normalized.Id);
+        var existing = store.GetApplication(definition.Id);
         if (existing is null)
         {
-            throw new InvalidOperationException($"Application resource '{normalized.Id}' is not configured.");
+            throw new InvalidOperationException($"Application resource '{definition.Id}' is not configured.");
         }
+
+        var normalized = NormalizeDefinition(definition);
 
         store.Save(normalized);
         await registrations.AssignToGroupAsync(

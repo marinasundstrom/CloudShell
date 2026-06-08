@@ -34,6 +34,9 @@ else
                 <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
             }
         </FluentSelect>
+
+        <label for="docker-update-registry">Registry</label>
+        <FluentTextField Id="docker-update-registry" @bind-Value="Registry" Placeholder="local" />
     </div>
 }
 
@@ -46,6 +49,7 @@ else
 
     private Resource? Resource { get; set; }
     private string SelectedGroupId { get; set; } = string.Empty;
+    private string Registry { get; set; } = "local";
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
 
     protected override void OnParametersSet()
@@ -57,6 +61,7 @@ else
         SelectedGroupId = Resource is null
             ? string.Empty
             : ResourceManager.GetGroupForResource(Resource.Id)?.Id ?? string.Empty;
+        Registry = Resource?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRegistry) ?? "local";
 
         if (Configuration is not null &&
             !ReferenceEquals(Configuration, RegisteredConfiguration))
@@ -68,9 +73,16 @@ else
 
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
-        await DockerProvider.UpdateEngineAsync(SelectedGroupId, Registrations, cancellationToken);
+        await DockerProvider.UpdateEngineAsync(
+            SelectedGroupId,
+            Registrations,
+            NormalizeRegistry(Registry),
+            cancellationToken);
         return ResourceProcedureResult.Completed("Docker Engine configuration updated.");
     }
+
+    private static string NormalizeRegistry(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "local" : value.Trim();
 
     private static RenderFragment EndpointLink(string? address) => builder =>
     {

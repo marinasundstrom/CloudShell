@@ -12,6 +12,13 @@ verification baseline, and broader priorities.
   `UpdateResourceImageAsync` with a selected image/version.
 - Add a build-action sample that pushes a container image to a registry and
   calls the authenticated Container Apps revision API with the immutable tag.
+- Design container app revision history as commits of container app
+  configuration changes, including image, registry, trigger, and runtime
+  rollout metadata.
+- Design container app replicas and scaling before expanding the current
+  numeric field, including whether scaling implies load balancing, routing,
+  service endpoints, observed runtime instances, scaling events, and provider
+  state reporting.
 - Persist resource events and expose event filtering by event type, actor, and
   time range.
 - Define container app runtime instances/replicas separately from the stable

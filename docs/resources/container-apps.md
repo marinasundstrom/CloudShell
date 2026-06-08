@@ -57,6 +57,11 @@ attribute and is included in workload descriptors. Registry credentials are not
 modeled in this attribute; private registry authentication remains
 provider-owned configuration.
 
+The Container app registration and configuration tabs expose the registry next
+to the image setting. Docker Engine registration/configuration exposes a
+registry setting for Docker child-container resources; that setting also
+defaults to `local`.
+
 ## Image Deployment Procedure
 
 The proposed deployment flow for CloudShell-hosted dev environments is:
@@ -97,6 +102,10 @@ resource group.
 The image tag update creates a new app-owned revision. The revision is projected
 on the container app resource through `container.revision`; runtime containers
 or replicas implement that revision but do not define it.
+
+The Resource Manager overview shows the latest projected revision. A richer
+revision history needs a dedicated design because revisions represent commits
+of changes to the container app configuration, not just image tags.
 
 This is intentionally similar to Azure Container Apps at the basic concept
 level: a deployment produces a revision of the app. CloudShell's MVP keeps the

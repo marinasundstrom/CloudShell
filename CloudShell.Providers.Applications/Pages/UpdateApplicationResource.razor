@@ -77,6 +77,9 @@ else
             {
                 <label for="application-update-container-image">Container image</label>
                 <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
+
+                <label for="application-update-container-registry">Registry</label>
+                <FluentTextField Id="application-update-container-registry" @bind-Value="ContainerRegistry" Placeholder="local" />
             }
 
             @if (CanConfigureContainerBuildSettings)
@@ -163,6 +166,7 @@ else
     private bool UseServiceDiscovery { get; set; }
     private bool EnableObservability { get; set; } = true;
     private string? ContainerImage { get; set; }
+    private string ContainerRegistry { get; set; } = "local";
     private string? ContainerBuildContext { get; set; }
     private string? ContainerDockerfile { get; set; }
     private int Replicas { get; set; } = 1;
@@ -233,6 +237,7 @@ else
             UseServiceDiscovery = Application.UseServiceDiscovery;
             EnableObservability = (Application.Observability ?? ResourceObservability.Default).HasAnySignal;
             ContainerImage = Application.ContainerImage;
+            ContainerRegistry = NormalizeRegistry(Application.ContainerRegistry);
             ContainerBuildContext = Application.ContainerBuildContext;
             ContainerDockerfile = Application.ContainerDockerfile;
             Replicas = Application.Replicas;
@@ -312,7 +317,8 @@ else
             projectPath: CanConfigureProjectSettings ? ProjectPath : Application.ProjectPath,
             projectArguments: CanConfigureProjectSettings ? ApplicationArguments : Application.ProjectArguments,
             aspNetCoreHotReload: CanConfigureProjectSettings ? UseHotReload : Application.AspNetCoreHotReload,
-            containerRevision: Application.ContainerRevision);
+            containerRevision: Application.ContainerRevision,
+            containerRegistry: CanConfigureContainerImage ? NormalizeRegistry(ContainerRegistry) : Application.ContainerRegistry);
 
         var restartRequired =
             ApplicationProvider.IsRunning(Application.Id) &&
@@ -346,6 +352,7 @@ else
             existing.Lifetime != updated.Lifetime ||
             existing.UseServiceDiscovery != updated.UseServiceDiscovery ||
             !string.Equals(existing.ContainerImage, updated.ContainerImage, StringComparison.Ordinal) ||
+            !string.Equals(existing.ContainerRegistry, updated.ContainerRegistry, StringComparison.Ordinal) ||
             !string.Equals(existing.ContainerBuildContext, updated.ContainerBuildContext, StringComparison.Ordinal) ||
             !string.Equals(existing.ContainerDockerfile, updated.ContainerDockerfile, StringComparison.Ordinal) ||
             !string.Equals(existing.ContainerEngineId, updated.ContainerEngineId, StringComparison.Ordinal) ||
@@ -459,6 +466,9 @@ else
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string NormalizeRegistry(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "local" : value.Trim();
 
     private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
     {

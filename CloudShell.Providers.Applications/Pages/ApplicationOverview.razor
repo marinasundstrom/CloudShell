@@ -22,6 +22,19 @@ else
                 <dt>Hot reload</dt>
                 <dd>@(Application.AspNetCoreHotReload ? "enabled" : "disabled")</dd>
             }
+            else if (IsContainerBacked(Application))
+            {
+                <dt>Image</dt>
+                <dd>@(Application.ContainerImage ?? "none")</dd>
+                <dt>Registry</dt>
+                <dd>@NormalizeRegistry(Application.ContainerRegistry)</dd>
+                <dt>Revision</dt>
+                <dd>@(Application.ContainerRevision ?? "unrevisioned")</dd>
+                <dt>Container engine</dt>
+                <dd>@(Application.ContainerEngineId ?? "default")</dd>
+                <dt>Replicas</dt>
+                <dd>@Math.Max(1, Application.Replicas)</dd>
+            }
             else
             {
                 <dt>Executable</dt>
@@ -88,6 +101,8 @@ else
     private static string GetConfigurationHeading(ApplicationResourceDefinition application) =>
         IsAspNetCoreProject(application)
             ? "Project"
+            : IsContainerBacked(application)
+                ? "Container"
             : "Command";
 
     private static bool IsAspNetCoreProject(ApplicationResourceDefinition application) =>
@@ -95,6 +110,13 @@ else
             application.ResourceType,
             ApplicationResourceTypes.AspNetCoreProject,
             StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
+        !string.IsNullOrWhiteSpace(application.ContainerImage) ||
+        !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
+
+    private static string NormalizeRegistry(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "local" : value.Trim();
 
     private static string? GetEndpointAddress(ApplicationResourceDefinition application)
     {
