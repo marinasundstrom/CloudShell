@@ -930,7 +930,7 @@ public sealed partial class ApplicationResourceProvider(
         application.ResourceType switch
         {
             ApplicationResourceTypes.AspNetCoreProject => "ASP.NET Core project",
-            ApplicationResourceTypes.ContainerImage => "Container image",
+            ApplicationResourceTypes.ContainerImage => "Container application",
             ApplicationResourceTypes.SqlServer => "SQL Server",
             _ => IsContainerBacked(application) ? "Container application" : "Executable application"
         };
