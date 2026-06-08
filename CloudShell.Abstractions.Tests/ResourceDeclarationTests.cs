@@ -632,6 +632,42 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedAspNetCoreProjectBuilder_UsesStableHttpEndpointNameForHttpsEndpoint()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources.AddAspNetCoreProject(
+                    "application:api",
+                    "API",
+                    "src/API/API.csproj",
+                    endpoint: "https://localhost:5127");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+        var port = Assert.Single(application.EndpointPorts);
+
+        Assert.Equal("http", port.Name);
+        Assert.Equal(5127, port.TargetPort);
+        Assert.Equal(5127, port.Port);
+        Assert.Equal("https", port.Protocol);
+    }
+
+    [Fact]
     public void TypedAspNetCoreProjectBuilder_CanDisableHotReload()
     {
         var services = new ServiceCollection();

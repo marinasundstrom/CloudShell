@@ -351,7 +351,7 @@ else
             uri.Port > 0)
         {
             var protocol = string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme;
-            return [new ServicePort(protocol, uri.Port, uri.Port, protocol, ResourceExposureScope.Local)];
+            return [new ServicePort("http", uri.Port, uri.Port, protocol, ResourceExposureScope.Local)];
         }
 
         return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];

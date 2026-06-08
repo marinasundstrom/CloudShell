@@ -1483,7 +1483,7 @@ public sealed partial class ApplicationResourceProvider(
             return
             [
                 new ServicePort(
-                    string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
+                    "http",
                     uri.Port,
                     uri.Port,
                     string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
