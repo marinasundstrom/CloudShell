@@ -550,6 +550,18 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    public IProjectResourceBuilder WithRegistryCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable)
+    {
+        declared.Definition = declared.Definition with
+        {
+            ContainerRegistryCredentials = ContainerRegistryCredentials.Normalize(
+                new ContainerRegistryCredentials(username, passwordEnvironmentVariable))
+        };
+        return this;
+    }
+
     public IProjectResourceBuilder WithContainerImage(string? image)
     {
         declared.Definition = declared.Definition with
@@ -571,6 +583,14 @@ internal sealed class ExecutableApplicationResourceBuilder(
     IContainerResourceBuilder IContainerResourceBuilder.WithRegistry(string registry)
     {
         WithRegistry(registry);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithRegistryCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable)
+    {
+        WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable);
         return this;
     }
 

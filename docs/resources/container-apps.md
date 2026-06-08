@@ -48,20 +48,24 @@ which creates a Docker container sub-resource parented under a Docker resource.
 ## Registry
 
 Container apps can specify a container registry separately from the image name.
-The registry defaults to `http://localhost:5000`. Registry values are stored as
-URI strings. Runtime orchestrators use the URI authority when they need a
-pullable image reference, for example `http://localhost:5000` becomes
-`localhost:5000/team/api:dev`.
+The registry defaults to Docker Hub (`docker.io`). Custom registries can be
+specified as a host name or URI string. Runtime orchestrators use the URI
+authority when they need a pullable image reference, for example
+`http://localhost:5000` becomes `localhost:5000/team/api:dev`.
 
 The registry is projected as the non-secret `container.registry` resource
-attribute and is included in workload descriptors. Registry credentials are not
-modeled in this attribute; private registry authentication remains
-provider-owned configuration.
+attribute and is included in workload descriptors. Registry credentials are
+provider-owned configuration, not resource attributes. Container app and Docker
+declarations can specify credentials with
+`WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`.
+The provider reads the password from the named environment variable at
+execution time and uses Docker `login --password-stdin` before launching the
+container image.
 
 The Container app registration and configuration tabs expose the registry next
 to the image setting. Docker Engine registration/configuration exposes a
 registry setting for Docker child-container resources; that setting also
-defaults to `http://localhost:5000`.
+defaults to `docker.io`.
 
 ## Resource Manager Deployment
 

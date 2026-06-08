@@ -7,6 +7,10 @@ public static class ContainerEngineResourceTypes
 
 public static class ContainerRegistryDefaults
 {
+    public const string DockerHub = "docker.io";
+
+    public const string Default = DockerHub;
+
     public const string Local = "http://localhost:5000";
 }
 
@@ -23,7 +27,8 @@ public sealed record ContainerEngineResourceDefinition(
     ContainerEngineKind Kind,
     string Endpoint,
     bool IsDefault = false,
-    string Registry = ContainerRegistryDefaults.Local);
+    string Registry = ContainerRegistryDefaults.Default,
+    ContainerRegistryCredentials? RegistryCredentials = null);
 
 public interface IContainerEngineProvider
 {

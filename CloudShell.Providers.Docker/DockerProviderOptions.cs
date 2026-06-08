@@ -4,11 +4,13 @@ namespace CloudShell.Providers.Docker;
 
 public sealed class DockerProviderOptions
 {
-    public const string DefaultRegistry = ContainerRegistryDefaults.Local;
+    public const string DefaultRegistry = ContainerRegistryDefaults.Default;
 
     public Uri? Endpoint { get; set; }
 
     public string Registry { get; set; } = DefaultRegistry;
+
+    public ContainerRegistryCredentials? RegistryCredentials { get; set; }
 
     public TimeSpan RequestTimeout { get; set; } = TimeSpan.FromSeconds(3);
 

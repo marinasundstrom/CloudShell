@@ -53,6 +53,8 @@ public sealed partial class DockerContainerResourceProvider :
 
     public Uri Endpoint { get; }
 
+    public ContainerRegistryCredentials? RegistryCredentials => _options.RegistryCredentials;
+
     public DockerConnectionStatus ConnectionStatus => GetSnapshot().ConnectionStatus;
 
     public IReadOnlyList<Resource> GetResources() => GetSnapshot().Resources;
@@ -166,9 +168,10 @@ public sealed partial class DockerContainerResourceProvider :
         IResourceRegistrationStore registrations,
         IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
         string? registry = null,
+        ContainerRegistryCredentials? registryCredentials = null,
         CancellationToken cancellationToken = default)
     {
-        UpdateRegistry(registry);
+        UpdateRegistry(registry, registryCredentials);
         var engine = GetEngineResource(healthChecks);
 
         await registrations.RegisterAsync(
@@ -182,9 +185,10 @@ public sealed partial class DockerContainerResourceProvider :
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
         string? registry = null,
+        ContainerRegistryCredentials? registryCredentials = null,
         CancellationToken cancellationToken = default)
     {
-        UpdateRegistry(registry);
+        UpdateRegistry(registry, registryCredentials);
         var engine = GetEngineResource();
 
         await registrations.AssignToGroupAsync(
@@ -193,13 +197,17 @@ public sealed partial class DockerContainerResourceProvider :
             cancellationToken: cancellationToken);
     }
 
-    private void UpdateRegistry(string? registry)
+    private void UpdateRegistry(
+        string? registry,
+        ContainerRegistryCredentials? registryCredentials)
     {
         if (!string.IsNullOrWhiteSpace(registry))
         {
             _options.Registry = NormalizeRegistry(registry);
             UpdateSnapshotRegistry(_options.Registry);
         }
+
+        _options.RegistryCredentials = ContainerRegistryCredentials.Normalize(registryCredentials);
     }
 
     private void UpdateSnapshotRegistry(string registry)
@@ -373,7 +381,8 @@ public sealed partial class DockerContainerResourceProvider :
                 ContainerEngineKind.Docker,
                 Endpoint.ToString(),
                 IsDefault: string.Equals(resource.Id, EngineResourceId, StringComparison.OrdinalIgnoreCase),
-                Registry: GetDockerResourceRegistry(resource.Id));
+                Registry: GetDockerResourceRegistry(resource.Id),
+                RegistryCredentials: GetDockerResourceCredentials(resource.Id));
 
             return Task.FromResult(new ResourceOrchestrationDescriptor(
                 resource.Id,
@@ -527,7 +536,8 @@ public sealed partial class DockerContainerResourceProvider :
             .Prepend(new DockerResourceDefinition(
                 EngineResourceId,
                 "Local Docker Engine",
-                registry: _options.Registry))
+                registry: _options.Registry,
+                registryCredentials: _options.RegistryCredentials))
             .DistinctBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -854,6 +864,16 @@ public sealed partial class DockerContainerResourceProvider :
         ?? (string.Equals(dockerResourceId, EngineResourceId, StringComparison.OrdinalIgnoreCase)
             ? _options.Registry
             : DockerProviderOptions.DefaultRegistry);
+
+    private ContainerRegistryCredentials? GetDockerResourceCredentials(string dockerResourceId) =>
+        _options.DeclaredDockerResources
+            .Select(resource => resource.Definition)
+            .FirstOrDefault(resource =>
+                string.Equals(resource.Id, dockerResourceId, StringComparison.OrdinalIgnoreCase))
+            ?.RegistryCredentials
+        ?? (string.Equals(dockerResourceId, EngineResourceId, StringComparison.OrdinalIgnoreCase)
+            ? _options.RegistryCredentials
+            : null);
 
     private static string NormalizeRegistry(string? registry) =>
         string.IsNullOrWhiteSpace(registry)

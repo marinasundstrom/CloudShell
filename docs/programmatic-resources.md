@@ -198,6 +198,7 @@ cloudShell.Resources(resources =>
     resources
         .AddContainerApplication("application:redis", "Redis", "redis:7.2")
         .WithRegistry("http://localhost:5000")
+        .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
         .WithImage("redis:7.2-alpine");
 });
 ```
@@ -263,8 +264,10 @@ match the Aspire URI shape `https+http://_endpointName.serviceName`.
 
 `AddDocker()` declares the default local Docker Engine resource. The Docker
 resource can specify a registry with `WithRegistry(...)`; the registry defaults
-to `http://localhost:5000` and declared child containers inherit it. Containers
-are declared from that Docker resource with `AddContainer(name, image, tag)`, following the
+to Docker Hub (`docker.io`) and declared child containers inherit it. Add
+`WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`
+when the registry requires authentication. Containers are declared from that
+Docker resource with `AddContainer(name, image, tag)`, following the
 Aspire-style logical name shape. CloudShell derives the stable container
 resource ID as `docker:container:<name>` and declares the container as a
 sub-resource of the Docker resource that created it.

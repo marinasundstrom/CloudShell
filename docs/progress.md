@@ -75,7 +75,9 @@ The MVP should prove:
   revision, and records resource events for traceability.
 - Container app resources and Docker resources can specify a non-secret
   container registry value, projected as `container.registry`; both default to
-  `http://localhost:5000`.
+  Docker Hub (`docker.io`). Registry credentials are provider-owned
+  configuration and use a username plus password environment variable
+  reference instead of projecting secrets through resource attributes.
 - Container app and Docker Engine configuration UI exposes registry settings,
   and container app details show the latest projected revision.
 - Networking is modeled through resources and capabilities. Resources can

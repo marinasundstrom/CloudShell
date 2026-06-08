@@ -116,7 +116,7 @@ else
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
 
     private static string NormalizeRegistry(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Local : value.Trim();
+        string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Default : value.Trim();
 
     private static string? GetEndpointAddress(ApplicationResourceDefinition application)
     {

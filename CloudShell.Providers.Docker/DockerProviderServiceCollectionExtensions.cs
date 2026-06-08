@@ -272,9 +272,18 @@ public interface IDockerResourceBuilder : IResourceBuilder
     /// <summary>
     /// Sets the registry used by Docker container resources declared from this
     /// Docker resource. The default registry is
-    /// <c>http://localhost:5000</c>.
+    /// <c>docker.io</c>.
     /// </summary>
     IDockerResourceBuilder WithRegistry(string registry);
+
+    /// <summary>
+    /// Sets the registry credentials inherited by Docker container resources
+    /// declared from this Docker resource. The password is read from the named
+    /// environment variable at execution time.
+    /// </summary>
+    IDockerResourceBuilder WithRegistryCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable);
 
     /// <summary>
     /// Declares a Docker container sub-resource parented under this Docker
@@ -335,8 +344,9 @@ internal sealed class DockerResourceBuilder(
     public IDockerContainerResourceBuilder AddContainer(
         string name,
         string image,
-        string? tag = null) =>
-        DockerProviderServiceCollectionExtensions.AddDockerContainerCore(
+        string? tag = null)
+    {
+        var container = DockerProviderServiceCollectionExtensions.AddDockerContainerCore(
             declarations,
             ResourceId,
             name,
@@ -345,13 +355,16 @@ internal sealed class DockerResourceBuilder(
             endpoints: null,
             declareEngine: false)
             .WithRegistry(declared.Definition.Registry);
+        return InheritRegistryCredentials(container);
+    }
 
     public IDockerContainerResourceBuilder AddDockerContainer(
         string id,
         string name,
         string image,
-        IReadOnlyList<ResourceEndpoint>? endpoints = null) =>
-        DockerProviderServiceCollectionExtensions.AddDockerContainerCore(
+        IReadOnlyList<ResourceEndpoint>? endpoints = null)
+    {
+        var container = DockerProviderServiceCollectionExtensions.AddDockerContainerCore(
             declarations,
             ResourceId,
             id,
@@ -360,6 +373,8 @@ internal sealed class DockerResourceBuilder(
             endpoints,
             declareEngine: false)
             .WithRegistry(declared.Definition.Registry);
+        return InheritRegistryCredentials(container);
+    }
 
     public IDockerResourceBuilder WithRegistry(string registry)
     {
@@ -369,6 +384,31 @@ internal sealed class DockerResourceBuilder(
             Registry = registry.Trim()
         };
         return this;
+    }
+
+    public IDockerResourceBuilder WithRegistryCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable)
+    {
+        declared.Definition = declared.Definition with
+        {
+            RegistryCredentials = ContainerRegistryCredentials.Normalize(
+                new ContainerRegistryCredentials(username, passwordEnvironmentVariable))
+        };
+        return this;
+    }
+
+    private IDockerContainerResourceBuilder InheritRegistryCredentials(IDockerContainerResourceBuilder container)
+    {
+        var credentials = declared.Definition.RegistryCredentials;
+        if (credentials is null)
+        {
+            return container;
+        }
+
+        return container.WithRegistryCredentialsFromEnvironment(
+            credentials.Username,
+            credentials.PasswordEnvironmentVariable);
     }
 
     public IDockerResourceBuilder WithResourceGroup(string? resourceGroupId)
@@ -482,6 +522,14 @@ public interface IDockerContainerResourceBuilder :
     /// </summary>
     IDockerContainerResourceBuilder WithRegistry(string registry);
 
+    /// <summary>
+    /// Sets the registry credentials for this Docker container resource. The
+    /// password is read from the named environment variable at execution time.
+    /// </summary>
+    IDockerContainerResourceBuilder WithRegistryCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable);
+
     IDockerContainerResourceBuilder WithEndpoints(IReadOnlyList<ResourceEndpoint> endpoints);
 
     IDockerContainerResourceBuilder WithEndpoint(ResourceEndpoint endpoint);
@@ -540,6 +588,21 @@ internal sealed class DockerContainerResourceBuilder(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(registry);
         declared.Definition = declared.Definition with { Registry = registry.Trim() };
+        return this;
+    }
+
+    public IDockerContainerResourceBuilder WithRegistryCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable)
+    {
+        return WithRegistryCredentials(
+            ContainerRegistryCredentials.Normalize(
+                new ContainerRegistryCredentials(username, passwordEnvironmentVariable)));
+    }
+
+    private IDockerContainerResourceBuilder WithRegistryCredentials(ContainerRegistryCredentials? credentials)
+    {
+        declared.Definition = declared.Definition with { RegistryCredentials = credentials };
         return this;
     }
 

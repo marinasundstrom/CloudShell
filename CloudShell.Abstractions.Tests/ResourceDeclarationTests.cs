@@ -989,6 +989,7 @@ public sealed class ResourceDeclarationTests
                 var container = resources
                     .AddDocker()
                     .WithRegistry("http://registry.local:5000")
+                    .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
                     .AddContainer("redis", "redis", "7.2")
                     .WithLifetime(ResourceLifetime.Detached)
                     .DependsOn(postgres)
@@ -1027,6 +1028,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("redis", definition.Name);
         Assert.Equal("redis:7.2", definition.Image);
         Assert.Equal("http://registry.local:5000", definition.Registry);
+        Assert.Equal("registry-user", definition.RegistryCredentials?.Username);
+        Assert.Equal("REGISTRY_PASSWORD", definition.RegistryCredentials?.PasswordEnvironmentVariable);
         Assert.Equal(DockerContainerResourceProvider.EngineResourceId, definition.DockerResourceId);
         Assert.Equal(container.DependsOn, definition.DependsOn);
         Assert.Equal(ResourceLifetime.Detached, definition.Lifetime);
@@ -1112,8 +1115,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ContainerEngineKind.Docker, definition.Kind);
         Assert.True(definition.IsDefault);
         Assert.Equal(provider.Endpoint.ToString(), definition.Endpoint);
-        Assert.Equal(ContainerRegistryDefaults.Local, definition.Registry);
-        Assert.Equal(ContainerRegistryDefaults.Local, engine.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+        Assert.Equal(ContainerRegistryDefaults.Default, definition.Registry);
+        Assert.Equal(ContainerRegistryDefaults.Default, engine.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
     }
 
     [Fact]
@@ -1136,7 +1139,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("docker", engine.Id);
         Assert.Equal(ContainerEngineKind.Docker, engine.Kind);
         Assert.True(engine.IsDefault);
-        Assert.Equal(ContainerRegistryDefaults.Local, engine.Registry);
+        Assert.Equal(ContainerRegistryDefaults.Default, engine.Registry);
     }
 
     [Fact]
@@ -1467,6 +1470,7 @@ public sealed class ResourceDeclarationTests
                         replicas: 1)
                     .WithImage("example/sql-server:dev")
                     .WithRegistry("https://registry.example.com")
+                    .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
                     .WithEndpoint("tds", targetPort: 1433, port: 14333)
                     .WithContainerEngine("docker:dev")
                     .WithLifetime(ResourceLifetime.Detached);
@@ -1504,6 +1508,10 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal("example/sql-server:dev", workload?.Image);
         Assert.Equal("https://registry.example.com", workload?.Registry);
+        Assert.Equal("registry-user", provider.GetApplication("application:sql")?.ContainerRegistryCredentials?.Username);
+        Assert.Equal(
+            "REGISTRY_PASSWORD",
+            provider.GetApplication("application:sql")?.ContainerRegistryCredentials?.PasswordEnvironmentVariable);
         Assert.Equal("docker:dev", workload?.ContainerEngineId);
         Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
         var port = Assert.Single(workload?.WorkloadPorts ?? []);
@@ -1512,6 +1520,53 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(14333, port.Port);
         var endpoint = Assert.Single(resource.Endpoints);
         Assert.Equal("tcp://localhost:14333", endpoint.Address);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationBuilder_DefaultsRegistryToDockerHub()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources.AddContainer("redis", "redis:7.2");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:redis");
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Equal(ContainerRegistryDefaults.Default, resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+        Assert.Equal(ContainerRegistryDefaults.Default, workload?.Registry);
+    }
+
+    [Theory]
+    [InlineData(ContainerRegistryDefaults.Default, "redis:7.2", "docker.io/redis:7.2")]
+    [InlineData(ContainerRegistryDefaults.Default, "mcr.microsoft.com/mssql/server:2022-latest", "mcr.microsoft.com/mssql/server:2022-latest")]
+    [InlineData("http://localhost:5000", "team/api:dev", "localhost:5000/team/api:dev")]
+    [InlineData("https://registry.example.com", "registry.example.com/team/api:dev", "registry.example.com/team/api:dev")]
+    public void ContainerApplicationRegistryImageReference_HandlesDockerHubAndCustomRegistries(
+        string registry,
+        string image,
+        string expected)
+    {
+        var method = typeof(ApplicationResourceProvider).GetMethod(
+            "CreateRegistryImageReference",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.NotNull(method);
+        Assert.Equal(expected, method.Invoke(null, [registry, image]));
     }
 
     [Fact]

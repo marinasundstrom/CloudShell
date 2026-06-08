@@ -543,9 +543,11 @@ controlPlane.Resources(resources =>
 `AddDocker()` declares the default local Docker Engine. `AddDocker(id, name)`
 allows more than one Docker parent to be modeled. A Docker resource can specify
 a registry with `WithRegistry(...)`; the registry defaults to
-`http://localhost:5000` and is projected as `container.registry`. Containers
-created from a Docker builder are parented to that specific Docker resource and
-inherit its registry, while
+Docker Hub (`docker.io`) and is projected as `container.registry`. Add
+`WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`
+when the registry requires authentication. Containers created from a Docker
+builder are parented to that specific Docker resource and inherit its registry
+and credential reference, while
 `DependsOn(...)` records normal resource graph dependencies.
 
 Parent-child resource relationships are distinct from dependency relationships:

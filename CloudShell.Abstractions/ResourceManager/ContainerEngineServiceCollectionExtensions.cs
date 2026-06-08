@@ -12,7 +12,7 @@ public static class ContainerEngineServiceCollectionExtensions
         ContainerEngineKind kind,
         string endpoint,
         bool isDefault = false,
-        string registry = ContainerRegistryDefaults.Local)
+        string registry = ContainerRegistryDefaults.Default)
     {
         ArgumentNullException.ThrowIfNull(builder);
         return builder.UseContainerEngine(
@@ -32,7 +32,7 @@ public static class ContainerEngineServiceCollectionExtensions
         ContainerEngineKind kind,
         string endpoint,
         bool isDefault = false,
-        string registry = ContainerRegistryDefaults.Local)
+        string registry = ContainerRegistryDefaults.Default)
     {
         ((ICloudShellBuilder)builder).UseContainerEngine(id, name, kind, endpoint, isDefault, registry);
         return builder;
@@ -65,8 +65,9 @@ public static class ContainerEngineServiceCollectionExtensions
             Name = definition.Name.Trim(),
             Endpoint = definition.Endpoint.Trim(),
             Registry = string.IsNullOrWhiteSpace(definition.Registry)
-                ? ContainerRegistryDefaults.Local
-                : definition.Registry.Trim()
+                ? ContainerRegistryDefaults.Default
+                : definition.Registry.Trim(),
+            RegistryCredentials = ContainerRegistryCredentials.Normalize(definition.RegistryCredentials)
         };
 
     private sealed class StaticContainerEngineProvider(

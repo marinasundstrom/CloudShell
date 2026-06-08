@@ -29,7 +29,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? projectArguments = null,
         bool aspNetCoreHotReload = true,
         string? containerRevision = null,
-        string? containerRegistry = null)
+        string? containerRegistry = null,
+        ContainerRegistryCredentials? containerRegistryCredentials = null)
     {
         Id = id;
         Name = name;
@@ -58,6 +59,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ProjectArguments = projectArguments;
         AspNetCoreHotReload = aspNetCoreHotReload;
         ContainerRevision = containerRevision;
+        ContainerRegistryCredentials = containerRegistryCredentials;
     }
 
     public string Id { get; init; }
@@ -109,6 +111,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public bool AspNetCoreHotReload { get; init; }
 
     public string? ContainerRevision { get; init; }
+
+    public ContainerRegistryCredentials? ContainerRegistryCredentials { get; init; }
 }
 
 public enum ApplicationLifetime

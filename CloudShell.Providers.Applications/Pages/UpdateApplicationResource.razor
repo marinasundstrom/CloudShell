@@ -79,7 +79,13 @@ else
                 <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
 
                 <label for="application-update-container-registry">Registry</label>
-                <FluentTextField Id="application-update-container-registry" @bind-Value="ContainerRegistry" Placeholder="http://localhost:5000" />
+                <FluentTextField Id="application-update-container-registry" @bind-Value="ContainerRegistry" Placeholder="docker.io" />
+
+                <label for="application-update-registry-username">Registry username</label>
+                <FluentTextField Id="application-update-registry-username" @bind-Value="RegistryUsername" />
+
+                <label for="application-update-registry-password-environment-variable">Registry password environment variable</label>
+                <FluentTextField Id="application-update-registry-password-environment-variable" @bind-Value="RegistryPasswordEnvironmentVariable" />
             }
 
             @if (CanConfigureContainerBuildSettings)
@@ -166,7 +172,9 @@ else
     private bool UseServiceDiscovery { get; set; }
     private bool EnableObservability { get; set; } = true;
     private string? ContainerImage { get; set; }
-    private string ContainerRegistry { get; set; } = ContainerRegistryDefaults.Local;
+    private string ContainerRegistry { get; set; } = ContainerRegistryDefaults.Default;
+    private string? RegistryUsername { get; set; }
+    private string? RegistryPasswordEnvironmentVariable { get; set; }
     private string? ContainerBuildContext { get; set; }
     private string? ContainerDockerfile { get; set; }
     private int Replicas { get; set; } = 1;
@@ -238,6 +246,8 @@ else
             EnableObservability = (Application.Observability ?? ResourceObservability.Default).HasAnySignal;
             ContainerImage = Application.ContainerImage;
             ContainerRegistry = NormalizeRegistry(Application.ContainerRegistry);
+            RegistryUsername = Application.ContainerRegistryCredentials?.Username;
+            RegistryPasswordEnvironmentVariable = Application.ContainerRegistryCredentials?.PasswordEnvironmentVariable;
             ContainerBuildContext = Application.ContainerBuildContext;
             ContainerDockerfile = Application.ContainerDockerfile;
             Replicas = Application.Replicas;
@@ -293,6 +303,11 @@ else
             return ResourceProcedureResult.Completed("Project path is required.");
         }
 
+        if (!ValidateRegistryCredentials())
+        {
+            return ResourceProcedureResult.Completed("Registry username and password environment variable are required together.");
+        }
+
         var definition = new ApplicationResourceDefinition(
             Application.Id,
             Name,
@@ -318,7 +333,10 @@ else
             projectArguments: CanConfigureProjectSettings ? ApplicationArguments : Application.ProjectArguments,
             aspNetCoreHotReload: CanConfigureProjectSettings ? UseHotReload : Application.AspNetCoreHotReload,
             containerRevision: Application.ContainerRevision,
-            containerRegistry: CanConfigureContainerImage ? NormalizeRegistry(ContainerRegistry) : Application.ContainerRegistry);
+            containerRegistry: CanConfigureContainerImage ? NormalizeRegistry(ContainerRegistry) : Application.ContainerRegistry,
+            containerRegistryCredentials: CanConfigureContainerImage
+                ? BuildRegistryCredentials()
+                : Application.ContainerRegistryCredentials);
 
         var restartRequired =
             ApplicationProvider.IsRunning(Application.Id) &&
@@ -353,6 +371,7 @@ else
             existing.UseServiceDiscovery != updated.UseServiceDiscovery ||
             !string.Equals(existing.ContainerImage, updated.ContainerImage, StringComparison.Ordinal) ||
             !string.Equals(existing.ContainerRegistry, updated.ContainerRegistry, StringComparison.Ordinal) ||
+            !Equals(existing.ContainerRegistryCredentials, updated.ContainerRegistryCredentials) ||
             !string.Equals(existing.ContainerBuildContext, updated.ContainerBuildContext, StringComparison.Ordinal) ||
             !string.Equals(existing.ContainerDockerfile, updated.ContainerDockerfile, StringComparison.Ordinal) ||
             !string.Equals(existing.ContainerEngineId, updated.ContainerEngineId, StringComparison.Ordinal) ||
@@ -468,7 +487,32 @@ else
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string NormalizeRegistry(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Local : value.Trim();
+        string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Default : value.Trim();
+
+    private bool ValidateRegistryCredentials()
+    {
+        if (!CanConfigureContainerImage)
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(RegistryUsername) &&
+            string.IsNullOrWhiteSpace(RegistryPasswordEnvironmentVariable))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(RegistryUsername) &&
+            !string.IsNullOrWhiteSpace(RegistryPasswordEnvironmentVariable);
+    }
+
+    private ContainerRegistryCredentials? BuildRegistryCredentials() =>
+        string.IsNullOrWhiteSpace(RegistryUsername) ||
+        string.IsNullOrWhiteSpace(RegistryPasswordEnvironmentVariable)
+            ? null
+            : new ContainerRegistryCredentials(
+                RegistryUsername,
+                RegistryPasswordEnvironmentVariable);
 
     private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
     {

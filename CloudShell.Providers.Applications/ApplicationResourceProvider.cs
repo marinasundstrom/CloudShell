@@ -733,6 +733,13 @@ public sealed partial class ApplicationResourceProvider(
                 cancellationToken);
         }
 
+        await LoginToContainerRegistryAsync(
+            engine,
+            GetEffectiveContainerRegistry(definition),
+            definition.ContainerRegistryCredentials,
+            processLog,
+            cancellationToken);
+
         var startInfo = new ProcessStartInfo
         {
             FileName = GetContainerEngineExecutable(engine),
@@ -1405,6 +1412,9 @@ public sealed partial class ApplicationResourceProvider(
             ContainerRegistry = IsContainerBacked(definition)
                 ? NormalizeContainerRegistry(definition.ContainerRegistry)
                 : null,
+            ContainerRegistryCredentials = IsContainerBacked(definition)
+                ? ContainerRegistryCredentials.Normalize(definition.ContainerRegistryCredentials)
+                : null,
             ContainerBuildContext = NormalizeNullable(definition.ContainerBuildContext),
             ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
             ContainerEngineId = NormalizeNullable(definition.ContainerEngineId),
@@ -1935,23 +1945,101 @@ public sealed partial class ApplicationResourceProvider(
         NormalizeContainerRegistry(application.ContainerRegistry);
 
     private static string NormalizeContainerRegistry(string? registry) =>
-        NormalizeNullable(registry) ?? ContainerRegistryDefaults.Local;
+        NormalizeNullable(registry) ?? ContainerRegistryDefaults.Default;
 
     private static string CreateRegistryImageReference(string registry, string image)
     {
         var imageRegistry = GetImageRegistryAddress(registry);
-        if (image.StartsWith($"{imageRegistry}/", StringComparison.OrdinalIgnoreCase))
+        var normalizedImage = image.Trim();
+        if (normalizedImage.StartsWith($"{imageRegistry}/", StringComparison.OrdinalIgnoreCase) ||
+            (IsDockerHubRegistry(imageRegistry) && HasExplicitRegistry(normalizedImage)))
         {
-            return image;
+            return normalizedImage;
         }
 
-        return $"{imageRegistry}/{image}";
+        return $"{imageRegistry}/{normalizedImage}";
     }
 
     private static string GetImageRegistryAddress(string registry) =>
         Uri.TryCreate(registry, UriKind.Absolute, out var uri)
             ? uri.Authority
             : registry.Trim().TrimEnd('/');
+
+    private static bool IsDockerHubRegistry(string registry) =>
+        string.Equals(registry, ContainerRegistryDefaults.DockerHub, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(registry, "index.docker.io", StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasExplicitRegistry(string image)
+    {
+        var slashIndex = image.IndexOf('/');
+        if (slashIndex <= 0)
+        {
+            return false;
+        }
+
+        var firstSegment = image[..slashIndex];
+        return firstSegment.Contains('.', StringComparison.Ordinal) ||
+            firstSegment.Contains(':', StringComparison.Ordinal) ||
+            string.Equals(firstSegment, "localhost", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task LoginToContainerRegistryAsync(
+        ContainerEngineResourceDefinition engine,
+        string registry,
+        ContainerRegistryCredentials? credentials,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken)
+    {
+        credentials = ContainerRegistryCredentials.Normalize(credentials);
+        if (credentials is null)
+        {
+            return;
+        }
+
+        var registryAddress = GetImageRegistryAddress(registry);
+        var password = credentials.ResolvePassword();
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = GetContainerEngineExecutable(engine),
+            UseShellExecute = false,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        ConfigureContainerEngineEnvironment(startInfo, engine);
+        startInfo.ArgumentList.Add("login");
+        startInfo.ArgumentList.Add(registryAddress);
+        startInfo.ArgumentList.Add("--username");
+        startInfo.ArgumentList.Add(credentials.Username);
+        startInfo.ArgumentList.Add("--password-stdin");
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Container registry login could not be started.");
+        await process.StandardInput.WriteLineAsync(password.AsMemory(), cancellationToken);
+        process.StandardInput.Close();
+
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        var output = await outputTask;
+        var error = await errorTask;
+
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            log.Append(output.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
+        }
+
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            log.Append(error.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
+        }
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"Container registry login failed for '{registryAddress}'.");
+        }
+    }
 
     private static string CreateContainerRevision() =>
         $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];

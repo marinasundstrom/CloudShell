@@ -24,7 +24,7 @@ public sealed record ResourceWorkloadConfiguration(
     string? ProjectArguments = null,
     bool? AspNetCoreHotReload = null,
     string? Image = null,
-    string Registry = ContainerRegistryDefaults.Local,
+    string Registry = ContainerRegistryDefaults.Default,
     string? BuildContext = null,
     string? Dockerfile = null,
     string? ContainerEngineId = null,
@@ -215,9 +215,18 @@ public interface IProjectResourceBuilder :
     /// <summary>
     /// Sets the registry used when this project is materialized as a container
     /// workload. The default registry is
-    /// <c>http://localhost:5000</c>.
+    /// <c>docker.io</c>.
     /// </summary>
     IProjectResourceBuilder WithRegistry(string registry);
+
+    /// <summary>
+    /// Sets the registry credentials used when this project is materialized as
+    /// a container workload. The password is read from the named environment
+    /// variable at execution time.
+    /// </summary>
+    IProjectResourceBuilder WithRegistryCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable);
 
     IProjectResourceBuilder WithContainerBuild(
         string? buildContext,
@@ -233,9 +242,17 @@ public interface IContainerResourceBuilder :
 
     /// <summary>
     /// Sets the registry used for this container app resource. The default
-    /// registry is <c>http://localhost:5000</c>.
+    /// registry is <c>docker.io</c>.
     /// </summary>
     IContainerResourceBuilder WithRegistry(string registry);
+
+    /// <summary>
+    /// Sets the registry credentials used for this container app resource. The
+    /// password is read from the named environment variable at execution time.
+    /// </summary>
+    IContainerResourceBuilder WithRegistryCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable);
 
     IContainerResourceBuilder WithContainerEngine(string containerEngineId);
 
