@@ -22,8 +22,7 @@ public sealed record ResourceResponse(
     string? ParentResourceId,
     ResourceGroupResponse? ResourceGroup,
     bool IsRegistered,
-    IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions,
-    IReadOnlyList<ResourceActionResponse> Actions);
+    IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 public sealed record ResourceEndpointResponse(
     string Name,
@@ -138,8 +137,7 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.ParentResourceId,
             group?.ToResponse(),
             isRegistered,
-            CreateResourceActionDictionary(resource),
-            resource.ResourceActions.Select(action => action.ToResponse(resource.Id)).ToArray());
+            CreateResourceActionDictionary(resource));
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
         new(endpoint.Name, endpoint.Address, endpoint.Protocol, endpoint.IsExternal);

@@ -115,6 +115,7 @@ public sealed class RemoteControlPlaneContractTests
         var actions = resource.GetProperty("resourceActions");
         var stop = actions.GetProperty("stop");
 
+        Assert.False(resource.TryGetProperty("actions", out _));
         Assert.Equal(JsonValueKind.Object, actions.ValueKind);
         Assert.Equal("stop", stop.GetProperty("id").GetString());
         Assert.Equal("Stop", stop.GetProperty("displayName").GetString());

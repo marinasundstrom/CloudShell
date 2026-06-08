@@ -448,8 +448,7 @@ file sealed record ResourceResponse(
     string? ParentResourceId,
     ResourceGroupResponse? ResourceGroup,
     bool IsRegistered,
-    IReadOnlyDictionary<string, ResourceActionResponse>? ResourceActions,
-    IReadOnlyList<ResourceActionResponse>? Actions);
+    IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 file sealed record ResourceEndpointResponse(
     string Name,
@@ -582,9 +581,7 @@ file static class RemoteControlPlaneMapper
 
     private static IReadOnlyCollection<ResourceActionResponse> GetResourceActionResponses(
         this ResourceResponse response) =>
-        response.ResourceActions?.Values.ToArray() ??
-        response.Actions ??
-        [];
+        response.ResourceActions.Values.ToArray();
 
     public static ResourceGroup ToResourceGroup(this ResourceGroupResponse response) =>
         new(response.Id, response.Name, response.Description, response.ResourceIds);
