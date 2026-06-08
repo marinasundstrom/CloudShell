@@ -17,48 +17,66 @@ else
             <label for="application-update-name">Name</label>
             <FluentTextField Id="application-update-name" @bind-Value="Name" />
 
-            <label for="application-update-executable">Executable path</label>
-            <FluentTextField Id="application-update-executable" @bind-Value="ExecutablePath" />
+            @if (CanConfigureProcessSettings)
+            {
+                <label for="application-update-executable">Executable path</label>
+                <FluentTextField Id="application-update-executable" @bind-Value="ExecutablePath" />
 
-            <label for="application-update-arguments">Arguments</label>
-            <FluentTextField Id="application-update-arguments" @bind-Value="Arguments" />
+                <label for="application-update-arguments">Arguments</label>
+                <FluentTextField Id="application-update-arguments" @bind-Value="Arguments" />
 
-            <label for="application-update-working-directory">Working directory</label>
-            <FluentTextField Id="application-update-working-directory" @bind-Value="WorkingDirectory" />
+                <label for="application-update-working-directory">Working directory</label>
+                <FluentTextField Id="application-update-working-directory" @bind-Value="WorkingDirectory" />
+            }
 
-            <label for="application-update-endpoint">Endpoint</label>
-            <FluentTextField Id="application-update-endpoint" @bind-Value="Endpoint" />
+            @if (CanConfigureEndpoint)
+            {
+                <label for="application-update-endpoint">Endpoint</label>
+                <FluentTextField Id="application-update-endpoint" @bind-Value="Endpoint" />
+            }
 
-            <label for="application-update-lifetime">Lifetime</label>
-            <FluentSelect TOption="string"
-                          Id="application-update-lifetime"
-                          @bind-Value="SelectedLifetime"
-                          Appearance="Appearance.Outline">
-                @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
-                {
-                    <FluentOption TOption="string" Value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</FluentOption>
-                }
-            </FluentSelect>
+            @if (CanConfigureLifetime)
+            {
+                <label for="application-update-lifetime">Lifetime</label>
+                <FluentSelect TOption="string"
+                              Id="application-update-lifetime"
+                              @bind-Value="SelectedLifetime"
+                              Appearance="Appearance.Outline">
+                    @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
+                    {
+                        <FluentOption TOption="string" Value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</FluentOption>
+                    }
+                </FluentSelect>
+            }
 
-            <FluentCheckbox @bind-Value="UseServiceDiscovery">
-                Enable service discovery for references
-            </FluentCheckbox>
+            @if (CanConfigureServiceDiscovery)
+            {
+                <FluentCheckbox @bind-Value="UseServiceDiscovery">
+                    Enable service discovery for references
+                </FluentCheckbox>
+            }
 
             <FluentCheckbox @bind-Value="EnableObservability">
                 Enable observability
             </FluentCheckbox>
 
-            @if (CanConfigureContainerWorkloadSettings)
+            @if (CanConfigureContainerImage)
             {
                 <label for="application-update-container-image">Container image</label>
                 <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
+            }
 
+            @if (CanConfigureContainerBuildSettings)
+            {
                 <label for="application-update-build-context">Docker build context</label>
                 <FluentTextField Id="application-update-build-context" @bind-Value="ContainerBuildContext" Placeholder="." />
 
                 <label for="application-update-dockerfile">Dockerfile</label>
                 <FluentTextField Id="application-update-dockerfile" @bind-Value="ContainerDockerfile" Placeholder="Dockerfile" />
+            }
 
+            @if (CanConfigureReplicas)
+            {
                 <label for="application-update-replicas">Replicas</label>
                 <FluentNumberField TValue="int" Id="application-update-replicas" Min="1" @bind-Value="Replicas" />
             }
@@ -138,9 +156,42 @@ else
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<string> ReferenceIds { get; set; } = [];
 
-    private bool CanConfigureContainerWorkloadSettings =>
+    private bool IsExecutableApplication =>
+        IsResourceType(ApplicationResourceTypes.ExecutableApplication);
+
+    private bool IsAspNetCoreProject =>
+        IsResourceType(ApplicationResourceTypes.AspNetCoreProject);
+
+    private bool IsContainerImage =>
+        IsResourceType(ApplicationResourceTypes.ContainerImage);
+
+    private bool IsSqlServer =>
+        IsResourceType(ApplicationResourceTypes.SqlServer);
+
+    private bool CanConfigureProcessSettings =>
+        IsExecutableApplication || IsAspNetCoreProject;
+
+    private bool CanConfigureEndpoint =>
+        IsExecutableApplication || IsAspNetCoreProject;
+
+    private bool CanConfigureLifetime =>
+        !IsSqlServer;
+
+    private bool CanConfigureServiceDiscovery =>
+        !IsSqlServer;
+
+    private bool CanConfigureContainerImage =>
+        IsContainerImage || IsSqlServer;
+
+    private bool CanConfigureContainerBuildSettings =>
+        IsContainerImage;
+
+    private bool CanConfigureReplicas =>
+        IsContainerImage;
+
+    private bool IsResourceType(string resourceType) =>
         Application is not null &&
-        !string.Equals(Application.ResourceType, ApplicationResourceTypes.AspNetCoreProject, StringComparison.OrdinalIgnoreCase);
+        string.Equals(Application.ResourceType, resourceType, StringComparison.OrdinalIgnoreCase);
 
     protected override void OnParametersSet()
     {
@@ -209,7 +260,6 @@ else
             return ResourceProcedureResult.Completed("Application resource is unavailable.");
         }
 
-        var canConfigureContainerWorkloadSettings = CanConfigureContainerWorkloadSettings;
         var definition = new ApplicationResourceDefinition(
             Application.Id,
             Name,
@@ -218,16 +268,16 @@ else
             WorkingDirectory,
             Endpoint,
             BuildEnvironmentVariables(),
-            ParseLifetime(),
+            CanConfigureLifetime ? ParseLifetime() : Application.Lifetime,
             BuildDependencies(),
             ReferenceIds,
-            UseServiceDiscovery,
-            canConfigureContainerWorkloadSettings ? NormalizeNullable(ContainerImage) : null,
-            canConfigureContainerWorkloadSettings ? NormalizeNullable(ContainerBuildContext) : null,
-            canConfigureContainerWorkloadSettings ? NormalizeNullable(ContainerDockerfile) : null,
-            null,
-            canConfigureContainerWorkloadSettings ? Math.Max(1, Replicas) : 1,
-            BuildEndpointPorts(Application.ResourceType, Endpoint),
+            CanConfigureServiceDiscovery ? UseServiceDiscovery : Application.UseServiceDiscovery,
+            CanConfigureContainerImage ? NormalizeNullable(ContainerImage) : Application.ContainerImage,
+            CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerBuildContext) : Application.ContainerBuildContext,
+            CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerDockerfile) : Application.ContainerDockerfile,
+            Application.ContainerEngineId,
+            CanConfigureReplicas ? Math.Max(1, Replicas) : Math.Max(1, Application.Replicas),
+            CanConfigureEndpoint ? BuildEndpointPorts(Application.ResourceType, Endpoint) : Application.EndpointPorts,
             resourceType: Application.ResourceType,
             healthChecks: Application.HealthChecks,
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);

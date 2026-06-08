@@ -66,18 +66,6 @@
             Enable observability
         </FluentCheckbox>
 
-        <label for="application-container-image">Container image</label>
-        <FluentTextField Id="application-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
-
-        <label for="application-build-context">Docker build context</label>
-        <FluentTextField Id="application-build-context" @bind-Value="ContainerBuildContext" Placeholder="." />
-
-        <label for="application-dockerfile">Dockerfile</label>
-        <FluentTextField Id="application-dockerfile" @bind-Value="ContainerDockerfile" Placeholder="Dockerfile" />
-
-        <label for="application-replicas">Replicas</label>
-        <FluentNumberField TValue="int" Id="application-replicas" Min="1" @bind-Value="Replicas" />
-
         <label for="application-group">Resource group</label>
         <FluentSelect TOption="string"
                       Id="application-group"
