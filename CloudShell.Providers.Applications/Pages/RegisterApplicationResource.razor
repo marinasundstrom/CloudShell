@@ -35,8 +35,16 @@
         <label for="application-working-directory">Working directory</label>
         <FluentTextField Id="application-working-directory" @bind-Value="WorkingDirectory" />
 
-        <label for="application-endpoint">Endpoint</label>
-        <FluentTextField Id="application-endpoint" @bind-Value="Endpoint" />
+        <EndpointAssignmentEditor AssignmentId="application-endpoint-assignment"
+                                  AssignmentLabel="Endpoint assignment"
+                                  ShowPort="false"
+                                  @bind-Assignment="EndpointAssignment" />
+
+        @if (IsManualEndpointAssignment)
+        {
+            <label for="application-endpoint">Endpoint</label>
+            <FluentTextField Id="application-endpoint" @bind-Value="Endpoint" />
+        }
 
         <label for="application-lifetime">Lifetime</label>
         <FluentSelect TOption="string"
@@ -128,6 +136,8 @@
     private string? Arguments { get; set; }
     private string? WorkingDirectory { get; set; }
     private string? Endpoint { get; set; }
+    private ResourceEndpointAssignment EndpointAssignment { get; set; } =
+        ResourceEndpointAssignment.ProviderDefault;
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseServiceDiscovery { get; set; }
     private bool EnableObservability { get; set; } = true;
@@ -142,6 +152,9 @@
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<string> ReferenceIds { get; set; } = [];
 
+    private bool IsManualEndpointAssignment =>
+        EndpointAssignment == ResourceEndpointAssignment.Manual;
+
     private void SelectTemplate(string? applicationId)
     {
         if (string.IsNullOrWhiteSpace(applicationId))
@@ -153,6 +166,7 @@
             Arguments = null;
             WorkingDirectory = null;
             Endpoint = null;
+            EndpointAssignment = ResourceEndpointAssignment.ProviderDefault;
             SelectedLifetime = ApplicationLifetime.Detached.ToString();
             UseServiceDiscovery = false;
             EnableObservability = true;
@@ -183,6 +197,9 @@
         Arguments = application.Arguments;
         WorkingDirectory = application.WorkingDirectory;
         Endpoint = application.Endpoint;
+        EndpointAssignment = string.IsNullOrWhiteSpace(application.Endpoint)
+            ? ResourceEndpointAssignment.ProviderDefault
+            : ResourceEndpointAssignment.Manual;
         SelectedLifetime = application.Lifetime.ToString();
         UseServiceDiscovery = application.UseServiceDiscovery;
         EnableObservability = (application.Observability ?? ResourceObservability.Default).HasAnySignal;
@@ -238,13 +255,19 @@
             return;
         }
 
+        if (IsManualEndpointAssignment && string.IsNullOrWhiteSpace(Endpoint))
+        {
+            ErrorMessage = "Manual endpoint assignment requires an endpoint.";
+            return;
+        }
+
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
             Name,
             ExecutablePath,
             Arguments,
             WorkingDirectory,
-            Endpoint,
+            IsManualEndpointAssignment ? Endpoint : null,
             BuildEnvironmentVariables(),
             ParseLifetime(),
             BuildDependencies(),

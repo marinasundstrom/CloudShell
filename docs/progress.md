@@ -180,6 +180,9 @@ The MVP should prove:
   auto-assigned, provider-default, and predefined endpoint requests.
 - Added a shared endpoint assignment UI component and reused it across network,
   service, container image, SQL Server, and ASP.NET Core project registration.
+- Reused the shared endpoint assignment UI for executable application
+  registration so the built-in registration flows expose consistent endpoint
+  assignment controls.
 
 ## Active stabilization areas
 
