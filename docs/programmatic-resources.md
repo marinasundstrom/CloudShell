@@ -39,6 +39,13 @@ types. Built-in methods include:
 - `AddDocker(...)` from `CloudShell.Providers.Docker` when Docker should be an
   explicit managed resource.
 
+Common workload builder contracts live in `CloudShell.Abstractions`.
+`IExecutableResourceBuilder`, `IProjectResourceBuilder`, and
+`IContainerResourceBuilder` describe authoring affordances for executable,
+project, and container-backed resources. Provider packages still own the
+extension methods and builder implementations that translate those calls into
+uniform `Resource` projections plus provider-owned configuration.
+
 ## Declarative Resource Graph
 
 Programmatic resources can also be used in an Aspire-like style for local
@@ -244,6 +251,10 @@ if (endpoint is not null)
 The generic `ICloudShellResourceBuilder` still supports string IDs as a lower
 level escape hatch, but typed builders should prefer resource-builder overloads
 for dependencies, endpoint references, and provider-specific relationships.
+When a provider exposes executable, project, or container-backed declarations,
+prefer returning the shared workload builder interfaces from
+`CloudShell.Abstractions` instead of defining provider-local resource subclasses
+or duplicate builder contracts.
 
 The host sample declares only `Example Configuration` programmatically. Other
 resources are expected to be added through the Resource Manager UI unless a host

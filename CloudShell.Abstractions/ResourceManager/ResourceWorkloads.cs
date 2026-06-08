@@ -43,6 +43,100 @@ public interface ILifetimeBoundResourceBuilder<out TBuilder> : ICloudShellResour
     TBuilder WithLifetime(ResourceLifetime lifetime);
 }
 
+public interface IExecutableResourceBuilder :
+    ILifetimeBoundResourceBuilder<IExecutableResourceBuilder>
+{
+    IExecutableResourceBuilder WithCommand(
+        string executablePath,
+        string? arguments = null,
+        string? workingDirectory = null);
+
+    IExecutableResourceBuilder WithEndpoint(string? endpoint);
+
+    IExecutableResourceBuilder WithEndpointPort(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "http",
+        ResourceExposureScope exposure = ResourceExposureScope.Local);
+
+    IExecutableResourceBuilder WithHttpEndpoint(
+        int? port = null,
+        int targetPort = 80,
+        string name = "http");
+
+    IExecutableResourceBuilder WithHttpsEndpoint(
+        int? port = null,
+        int targetPort = 443,
+        string name = "https");
+
+    IExecutableResourceBuilder WithHttpHealthCheck(
+        string path,
+        string? endpointName = null,
+        string name = "health",
+        TimeSpan? timeout = null);
+
+    IExecutableResourceBuilder WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null);
+
+    IExecutableResourceBuilder WithEnvironment(
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
+
+    IExecutableResourceBuilder WithEnvironment(
+        string name,
+        string value);
+
+    new IExecutableResourceBuilder WithLifetime(ResourceLifetime lifetime);
+
+    IExecutableResourceBuilder WithServiceDiscovery(bool enabled = true);
+
+    IExecutableResourceBuilder WithObservability(bool enabled = true);
+
+    IExecutableResourceBuilder WithOtlpExporter(
+        string? endpoint = null,
+        string? protocol = null,
+        string? headers = null);
+
+    IExecutableResourceBuilder WaitFor(ICloudShellResourceBuilder resource);
+
+    IExecutableResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources);
+
+    new IExecutableResourceBuilder DependsOn(string resourceId);
+
+    new IExecutableResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+
+    new IExecutableResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IExecutableResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+
+    new IExecutableResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IExecutableResourceBuilder WithParent(string? parentResourceId);
+
+    new IExecutableResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+
+    new IExecutableResourceBuilder WithReference(ICloudShellResourceBuilder resource);
+
+    IExecutableResourceBuilder WithReferences(IEnumerable<ICloudShellResourceBuilder> resources);
+
+    new IExecutableResourceBuilder Persist(bool overwrite = false);
+}
+
+public interface IProjectResourceBuilder : IExecutableResourceBuilder
+{
+    IProjectResourceBuilder AsContainerImage(string image);
+
+    IProjectResourceBuilder WithContainerBuild(
+        string? buildContext,
+        string? dockerfile = null);
+
+    IProjectResourceBuilder WithReplicas(int replicas);
+}
+
 public interface IContainerResourceBuilder :
     ILifetimeBoundResourceBuilder<IContainerResourceBuilder>
 {

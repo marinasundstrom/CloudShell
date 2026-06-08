@@ -43,6 +43,9 @@ The MVP should prove:
   uniform resources and provider-owned configuration; executable, project, and
   container builders expose different authoring conveniences without becoming
   runtime resource types.
+- Common executable, project, and container workload builder contracts live in
+  `CloudShell.Abstractions`; provider packages own the concrete factory methods
+  and implementations that populate provider-specific configuration.
 - CloudShell environment preferences are user-scoped, workload-agnostic, and
   use one configured storage backend: local UI-host storage or Control
   Plane-backed storage.
@@ -83,6 +86,8 @@ The MVP should prove:
   configuration entry count.
 - Added `ResourceClass` filtering to resource queries, the Control Plane API,
   and the remote client.
+- Moved executable and project workload builder contracts into
+  `CloudShell.Abstractions` alongside the existing container builder contract.
 
 ## Active stabilization areas
 

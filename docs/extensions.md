@@ -326,6 +326,15 @@ The registration component is rendered inside the common Add Resource page after
 
 Resource providers are not shown as a product concept in the UI. They are implementation services that resource types use to map external systems into CloudShell resources.
 
+Programmatic resource factories are extension points too. Provider packages can
+add `ICloudShellResourceCollection` extension methods that return the shared
+workload builder contracts from `CloudShell.Abstractions`, such as
+`IExecutableResourceBuilder`, `IProjectResourceBuilder`, or
+`IContainerResourceBuilder`. The provider owns the implementation and
+provider-specific configuration, but the public builder contract stays aligned
+with CloudShell's uniform `Resource` projection instead of introducing runtime
+resource subclasses.
+
 Resource types can also provide default health checks through `ResourceTypeProbeOptions`. This gives the Add Resource UI the same health-check enablement path available to programmatic declarations such as `WithHttpHealthCheck(...)`, while keeping enablement on the resource instance explicit.
 
 ```csharp

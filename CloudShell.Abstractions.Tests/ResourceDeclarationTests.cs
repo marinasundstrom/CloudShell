@@ -946,6 +946,8 @@ public sealed class ResourceDeclarationTests
                 project
                     .AsContainerImage("example/api:dev")
                     .WithReplicas(2);
+
+                Assert.IsAssignableFrom<ILifetimeBoundResourceBuilder<IExecutableResourceBuilder>>(project);
             });
 
         using var serviceProvider = services.BuildServiceProvider();
