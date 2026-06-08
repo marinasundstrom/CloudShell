@@ -234,6 +234,7 @@ public sealed class RemoteControlPlaneContractTests
                 Description = "Imported through the remote control-plane contract."
             });
 
+        Assert.NotNull(imported.ResourceGroup);
         Assert.Equal("Imported Contract Group", imported.ResourceGroup.Name);
         Assert.Empty(imported.ImportedResources);
         Assert.Empty(imported.Diagnostics);

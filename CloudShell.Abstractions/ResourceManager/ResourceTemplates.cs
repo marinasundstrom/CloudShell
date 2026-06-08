@@ -36,7 +36,7 @@ public sealed record ResourceGroupTemplateExportResult(
     IReadOnlyList<ResourceTemplateDiagnostic> Diagnostics);
 
 public sealed record ResourceGroupTemplateImportResult(
-    ResourceGroup ResourceGroup,
+    ResourceGroup? ResourceGroup,
     IReadOnlyList<ResourceTemplateImportResult> ImportedResources,
     IReadOnlyList<ResourceTemplateDiagnostic> Diagnostics);
 

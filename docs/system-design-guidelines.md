@@ -150,6 +150,8 @@ Provider-owned state:
 
 Templates preserve that split. CloudShell owns the group-level envelope and
 orchestration. Providers own per-resource template schemas and validation.
+Template import should return diagnostics for expected invalid states, including
+invalid group-level envelope data, before creating platform state.
 
 ## Testing expectations
 

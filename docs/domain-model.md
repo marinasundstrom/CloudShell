@@ -286,6 +286,11 @@ In code:
 This preserves the ownership split: CloudShell owns grouping and orchestration;
 providers own their resource configuration schema.
 
+Template import follows the same validation posture as resource creation:
+expected invalid states are represented as diagnostics on the import result.
+Invalid template envelopes, such as unsupported kinds or versions, do not create
+resource groups and do not throw from the domain import API.
+
 ## Projection into the API
 
 The Control Plane API projects the domain for remote clients. It is a

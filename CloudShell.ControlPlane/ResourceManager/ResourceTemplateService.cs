@@ -78,15 +78,22 @@ public sealed class ResourceTemplateService(
         ResourceGroupTemplate template,
         CancellationToken cancellationToken = default)
     {
+        var diagnostics = new List<ResourceTemplateDiagnostic>();
+
         if (!string.Equals(template.Kind, "resourceGroup", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Only resource group templates can be imported.");
+            diagnostics.Add(ResourceTemplateDiagnostic.Error(
+                template.Name,
+                "Only resource group templates can be imported."));
+            return new ResourceGroupTemplateImportResult(null, [], diagnostics);
         }
 
         if (!string.Equals(template.TemplateVersion, "1.0", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException(
-                $"Template version '{template.TemplateVersion}' is not supported.");
+            diagnostics.Add(ResourceTemplateDiagnostic.Error(
+                template.Name,
+                $"Template version '{template.TemplateVersion}' is not supported."));
+            return new ResourceGroupTemplateImportResult(null, [], diagnostics);
         }
 
         var group = await resourceGroups.CreateAsync(
@@ -94,7 +101,6 @@ public sealed class ResourceTemplateService(
             template.Description ?? string.Empty,
             cancellationToken);
 
-        var diagnostics = new List<ResourceTemplateDiagnostic>();
         var importedResources = new List<ResourceTemplateImportResult>();
         var importedResourceIdsByTemplateKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 

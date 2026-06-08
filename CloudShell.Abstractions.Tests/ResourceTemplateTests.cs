@@ -101,6 +101,7 @@ public sealed class ResourceTemplateTests
 
         Assert.Empty(export.Diagnostics);
         Assert.Empty(import.Diagnostics);
+        Assert.NotNull(import.ResourceGroup);
         Assert.Equal("Local Development", import.ResourceGroup.Name);
         Assert.Single(import.ImportedResources);
         Assert.Equal(2, fixture.Provider.GetApplications().Count);
@@ -122,6 +123,36 @@ public sealed class ResourceTemplateTests
         var diagnostic = Assert.Single(import.Diagnostics);
         Assert.Equal("Error", diagnostic.Severity);
         Assert.Contains("Resource id 'application:example-web-api' is already in use.", diagnostic.Message);
+    }
+
+    [Theory]
+    [InlineData("application", "1.0", "Only resource group templates can be imported.")]
+    [InlineData("resourceGroup", "2.0", "Template version '2.0' is not supported.")]
+    public async Task TemplateService_ReturnsDiagnosticsForInvalidTemplateEnvelope(
+        string kind,
+        string templateVersion,
+        string expectedMessage)
+    {
+        using var fixture = new TemplateFixture();
+        var service = fixture.CreateTemplateService();
+        var template = new ResourceGroupTemplate(
+            templateVersion,
+            kind,
+            "Invalid group",
+            null,
+            []);
+
+        var import = await service.ImportGroupAsync(template);
+
+        Assert.Null(import.ResourceGroup);
+        Assert.Empty(import.ImportedResources);
+        var diagnostic = Assert.Single(import.Diagnostics);
+        Assert.Equal("Error", diagnostic.Severity);
+        Assert.Equal("Invalid group", diagnostic.ResourceName);
+        Assert.Equal(expectedMessage, diagnostic.Message);
+        Assert.DoesNotContain(
+            fixture.ResourceGroups.GetResourceGroups(),
+            group => string.Equals(group.Name, "Invalid group", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

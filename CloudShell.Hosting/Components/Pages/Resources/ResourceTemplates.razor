@@ -198,9 +198,15 @@
             var template = JsonSerializer.Deserialize<ResourceGroupTemplate>(ImportJson, SerializerOptions)
                 ?? throw new InvalidOperationException("Template JSON is empty or invalid.");
             var result = await Templates.ImportResourceGroupTemplateAsync(template);
+            Diagnostics.AddRange(result.Diagnostics);
+            if (result.ResourceGroup is null)
+            {
+                StatusMessage = L["Template import failed."].Value;
+                return;
+            }
+
             await LoadGroupsAsync();
             SelectedGroupId = result.ResourceGroup.Id;
-            Diagnostics.AddRange(result.Diagnostics);
             StatusMessage = L[
                 "Imported group {0} with {1} resources.",
                 result.ResourceGroup.Name,

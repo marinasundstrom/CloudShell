@@ -83,6 +83,10 @@ Unsupported resources are skipped and reported as diagnostics. This lets a
 group template preserve every supported resource without requiring all providers
 to implement import/export at the same time.
 
+Template envelope validation is also reported through import diagnostics. An
+unsupported `kind` or `templateVersion` does not create a resource group and
+does not throw from the domain import API.
+
 ## UI
 
 Open `/resources/templates` or use the **Templates** button on `/resources`.
@@ -94,8 +98,9 @@ The page can:
 - Show warnings and errors for unsupported providers, invalid payloads, or
   dependency-order fallbacks.
 
-Import creates a new resource group. Providers create new resource definitions
-using their own storage and registration flow.
+Import creates a new resource group only after the template envelope is valid.
+Providers create new resource definitions using their own storage and
+registration flow.
 
 Resource dependencies are treated as resource communication boundaries by
 default. In the built-in application forms, dependency candidates are limited to

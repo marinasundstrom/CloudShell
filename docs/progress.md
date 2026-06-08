@@ -117,10 +117,13 @@ The MVP should prove:
 - Defined resource attribute conventions: dotted lower-camel names,
   string-only non-secret values for MVP, invariant formatting, generated
   display behavior, and provider-specific prefix guidance.
+- Aligned resource template import with the uniform resource validation model:
+  invalid template envelopes now return diagnostics without creating resource
+  groups or throwing from the domain API.
 
 ## Active stabilization areas
 
-- Resource model consistency across templates and provider overrides.
+- Resource model consistency across provider overrides.
 - Resource Manager state behavior and capability signaling.
 - API contract stability for projected resources, actions, and errors.
 - Sample coverage for combined and split hosting.

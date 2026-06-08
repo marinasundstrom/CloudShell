@@ -8,8 +8,7 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
-- [ ] Align templates/import/export with the uniform `Resource` projection and
-  provider-owned configuration.
+No queued items.
 
 ## Resource Manager Stabilization
 
