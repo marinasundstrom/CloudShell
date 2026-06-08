@@ -381,21 +381,36 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             return;
         }
 
-        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(
-            SerializerOptions,
-            cancellationToken);
-        var message = problem?.Detail ?? problem?.Title;
+        var message = await ReadProblemMessageAsync(response, cancellationToken);
         if (string.IsNullOrWhiteSpace(message))
         {
             message = $"The control plane returned {(int)response.StatusCode} ({response.ReasonPhrase}).";
         }
 
-        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
+        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized ||
+            ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400))
         {
             throw new UnauthorizedAccessException(message);
         }
 
         throw new InvalidOperationException(message);
+    }
+
+    private static async Task<string?> ReadProblemMessageAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(
+                SerializerOptions,
+                cancellationToken);
+            return problem?.Detail ?? problem?.Title;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static string BuildUri(
