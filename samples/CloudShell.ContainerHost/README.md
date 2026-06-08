@@ -1,23 +1,26 @@
 # CloudShell Container Host Sample
 
-This sample shows the local development flow for container-backed resources and the split between container engine registration and orchestration registration.
+This sample shows the minimal local development flow for container-backed
+resources.
 
 ```csharp
 var cloudShell = builder
     .AddCloudShell()
     .AddApplicationProvider()
-    .UseDocker()
-    .AddDockerComposeOrchestrator();
+    .UseLocalDevelopmentDefaults();
 ```
 
-- `UseDocker()` registers Docker as the container engine.
-- `AddDockerComposeOrchestrator()` makes Docker Compose available as an orchestrator.
-- If no orchestrator has been selected in Resource Manager settings, the default orchestrator remains active.
+- `UseLocalDevelopmentDefaults()` registers Docker as the default container
+  engine and selects the built-in default orchestrator when Resource Manager
+  settings have not already been changed.
 
 CloudShell has two usage modes:
 
-- Local dev orchestrator: the default orchestrator runs resources locally. Container resources require a registered default container engine, such as `UseDocker()`, unless a resource calls `WithContainerEngine(...)`.
-- On-premise mode: an orchestrator such as Docker Compose owns lifecycle, networking, and exposure for the resource graph.
+- Local dev orchestrator: the default orchestrator runs resources locally.
+  Container resources use the default Docker engine unless a resource calls
+  `WithContainerEngine(...)`.
+- On-premise mode: an orchestrator such as Docker Compose owns lifecycle,
+  networking, and exposure for the resource graph.
 
 The sample also shows a provider-style binding with a resource-owned local endpoint:
 

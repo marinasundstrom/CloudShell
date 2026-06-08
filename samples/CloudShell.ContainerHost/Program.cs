@@ -1,16 +1,13 @@
-using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ContainerHost;
 using CloudShell.ControlPlane.Hosting;
-using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Docker;
-using CloudShell.Providers.DockerCompose;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,8 +18,7 @@ cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
     .AddApplicationProvider()
-    .UseDocker()
-    .AddDockerComposeOrchestrator(activationPolicy: CloudShellExtensionActivationPolicy.Enabled);
+    .UseLocalDevelopmentDefaults();
 
 cloudShell.Resources(resources =>
 {

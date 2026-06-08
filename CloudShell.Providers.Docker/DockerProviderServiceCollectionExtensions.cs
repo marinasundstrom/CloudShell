@@ -3,11 +3,31 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace CloudShell.Providers.Docker;
 
 public static class DockerProviderServiceCollectionExtensions
 {
+    private const string DefaultOrchestratorId = "default";
+    private const string DockerContainerEngineId = "docker";
+
+    public static ICloudShellBuilder UseLocalDevelopmentDefaults(
+        this ICloudShellBuilder builder,
+        Action<DockerProviderOptions>? configure = null)
+    {
+        UseLocalDevelopmentDefaultsCore(builder, configure);
+        return builder;
+    }
+
+    public static IControlPlaneBuilder UseLocalDevelopmentDefaults(
+        this IControlPlaneBuilder builder,
+        Action<DockerProviderOptions>? configure = null)
+    {
+        UseLocalDevelopmentDefaultsCore(builder, configure);
+        return builder;
+    }
+
     public static ICloudShellBuilder UseDocker(
         this ICloudShellBuilder builder,
         Action<DockerProviderOptions>? configure = null)
@@ -40,6 +60,17 @@ public static class DockerProviderServiceCollectionExtensions
     {
         AddDockerProviderCore(builder, configure);
         return builder.AddExtension(new DockerProviderExtension(), activationPolicy);
+    }
+
+    private static void UseLocalDevelopmentDefaultsCore(
+        ICloudShellBuilder builder,
+        Action<DockerProviderOptions>? configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        UseDockerCore(builder, configure);
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, LocalDevelopmentDefaultsStartupService>());
     }
 
     private static void AddDockerProviderCore(
@@ -185,6 +216,38 @@ public static class DockerProviderServiceCollectionExtensions
         options = new DockerProviderOptions();
         services.AddSingleton(options);
         return options;
+    }
+
+    private sealed class LocalDevelopmentDefaultsStartupService(
+        IServiceProvider serviceProvider) : IHostedService
+    {
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            var orchestrationSettings = serviceProvider.GetService<IResourceOrchestrationSettings>();
+            if (orchestrationSettings is null)
+            {
+                return Task.CompletedTask;
+            }
+
+            var selection = orchestrationSettings.Get();
+            if (HasUserSelection(selection))
+            {
+                return Task.CompletedTask;
+            }
+
+            orchestrationSettings.Select(
+                DefaultOrchestratorId,
+                DockerContainerEngineId,
+                selection.HealthCheckIntervalSeconds);
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        private static bool HasUserSelection(ResourceOrchestratorSelection selection) =>
+            selection.UpdatedAt != DateTimeOffset.MinValue ||
+            !string.Equals(selection.OrchestratorId, DefaultOrchestratorId, StringComparison.OrdinalIgnoreCase) ||
+            !string.IsNullOrWhiteSpace(selection.PreferredContainerEngineId);
     }
 }
 

@@ -74,7 +74,7 @@ cloudShell
     .AddExtension<ObservabilityExtension>()
     .AddConfigurationProvider()
     .AddApplicationProvider()
-    .AddDockerProvider();
+    .UseLocalDevelopmentDefaults();
 
 cloudShell.Resources(resources =>
 {
@@ -112,6 +112,13 @@ The default host models each configuration service instance as an individual
 `configuration.store` resource. The configuration provider owns the local
 runtime process and exposes resource logs directly, while still keeping store
 definitions and Resource Manager integration under the configuration resource.
+
+For container-backed local development, `UseLocalDevelopmentDefaults()`
+registers Docker as the default container engine and keeps lifecycle execution
+on CloudShell's built-in default orchestrator unless the user has already saved
+a different Resource Manager orchestration selection. Use `AddDockerProvider()`
+plus `resources.AddDocker()` only when Docker Engine itself should appear as a
+managed resource with discovered child containers.
 
 See `samples/CloudShell.ResourceHost`.
 
