@@ -4,6 +4,8 @@ CloudShell is an extensible, self-hosted cloud-portal shell for local developmen
 
 The goal is to make it possible to build your own cloud-platform shell: a place where teams can register resources, group them by project, inspect endpoints and state, and let extensions add focused operational tools. Control-plane services are separate versioned services; shell integrations connect the WebUI to those services.
 
+<a href="images/resources.png"><img src="images/resources.png" style="max-height: 300px" /></a>
+
 ## Current Status
 
 This repository is an early shell prototype. It currently includes:
