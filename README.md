@@ -313,6 +313,9 @@ See [docs/extensions.md](docs/extensions.md) for the extension-authoring model.
 
 Deployment configuration:
 
+- [Domain model](docs/domain-model.md)
+- [System design guidelines](docs/system-design-guidelines.md)
+- [Progress and MVP tracker](docs/progress.md)
 - [Control plane API and generated clients](docs/control-plane-api.md)
 - [Authentication and authorization](docs/authentication-and-authorization.md)
 - [Hosting model](docs/hosting-model.md)
