@@ -306,8 +306,8 @@ public static class CloudShellControlPlaneApiExtensions
     private static async Task<IResult> ExecuteResourceAction(
         string resourceId,
         string actionId,
-        bool startDependencies,
-        bool ignoreDependentWarning,
+        bool? startDependencies,
+        bool? ignoreDependentWarning,
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
@@ -340,8 +340,8 @@ public static class CloudShellControlPlaneApiExtensions
                 new ExecuteResourceActionCommand(
                     resourceId,
                     actionId,
-                    startDependencies,
-                    ignoreDependentWarning),
+                    startDependencies.GetValueOrDefault(),
+                    ignoreDependentWarning.GetValueOrDefault()),
                 cancellationToken);
 
             return Results.Ok(ToResponse(result));

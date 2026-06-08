@@ -132,22 +132,25 @@ The MVP should prove:
   default checkbox intent.
 - Aligned OpenAPI output with the domain-shaped resource projection for
   resources, action affordance dictionaries, attributes, and creation options.
+- Expanded the ResourceHost sample to exercise provider-backed resource
+  actions through advertised hypermedia hrefs.
+- Grouped sample projects in the solution by sample scenario so logical
+  solution folders match the physical `samples/` layout.
 
 ## Active stabilization areas
 
 - Resource model consistency across provider overrides.
 - Resource Manager state behavior and capability signaling.
-- API contract stability for projected resources, actions, OpenAPI output, and
-  errors.
+- API contract stability for projected resources, provider-backed actions,
+  OpenAPI output, and errors.
 - Sample coverage for combined and split hosting.
 - OpenAPI/client generation readiness.
 
 ## Next priorities
 
-1. Expand sample tests to cover the hypermedia resource action path.
-2. Continue tightening internal Resource Manager behavior as invalid-state gaps
+1. Continue tightening internal Resource Manager behavior as invalid-state gaps
    are found.
-3. Document any remaining MVP gaps as concrete tests or issues.
+2. Document any remaining MVP gaps as concrete tests or issues.
 
 ## Verification baseline
 

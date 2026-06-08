@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Sample.Tests;
 
@@ -76,6 +77,42 @@ public sealed class SampleSmokeTests
         using var document = JsonDocument.Parse(apiJson);
         var resource = Assert.Single(document.RootElement.EnumerateArray());
         Assert.Equal("network:split-sample", resource.GetProperty("id").GetString());
+    }
+
+    [Fact]
+    public async Task ResourceHostSample_ExecutesResourceActionFromAdvertisedHref()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/CloudShell.ResourceHost/CloudShell.ResourceHost.csproj",
+            await GetFreePortAsync());
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var apiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var document = JsonDocument.Parse(apiJson);
+        var apiResource = document.RootElement.EnumerateArray().Single(resource =>
+            resource.GetProperty("id").GetString() == "sample:api");
+        Assert.Equal((int)ResourceState.Running, apiResource.GetProperty("state").GetInt32());
+
+        var stopAction = apiResource
+            .GetProperty("resourceActions")
+            .GetProperty("stop");
+        Assert.Equal("POST", stopAction.GetProperty("method").GetString());
+        var stopHref = stopAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The stop action did not include an href.");
+
+        var actionJson = await host.SendAsync(HttpMethod.Post, stopHref);
+        using var actionDocument = JsonDocument.Parse(actionJson);
+        Assert.Contains(
+            "Stop completed",
+            actionDocument.RootElement.GetProperty("message").GetString());
+
+        var stoppedJson = await host.GetStringAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString("sample:api")}");
+        using var stoppedDocument = JsonDocument.Parse(stoppedJson);
+        var stoppedResource = stoppedDocument.RootElement;
+        Assert.Equal((int)ResourceState.Stopped, stoppedResource.GetProperty("state").GetInt32());
+        Assert.True(stoppedResource.GetProperty("resourceActions").TryGetProperty("run", out _));
     }
 
     private static async Task<int> GetFreePortAsync()
@@ -192,6 +229,27 @@ public sealed class SampleSmokeTests
                 Timeout = TimeSpan.FromSeconds(10)
             };
             using var request = new HttpRequestMessage(HttpMethod.Get, path);
+            if (!string.IsNullOrWhiteSpace(bearerToken))
+            {
+                request.Headers.Authorization = new("Bearer", bearerToken);
+            }
+
+            using var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        public async Task<string> SendAsync(
+            HttpMethod method,
+            string path,
+            string? bearerToken = null)
+        {
+            using var client = new HttpClient
+            {
+                BaseAddress = BaseAddress,
+                Timeout = TimeSpan.FromSeconds(10)
+            };
+            using var request = new HttpRequestMessage(method, path);
             if (!string.IsNullOrWhiteSpace(bearerToken))
             {
                 request.Headers.Authorization = new("Bearer", bearerToken);

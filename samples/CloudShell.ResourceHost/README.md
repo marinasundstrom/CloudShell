@@ -42,6 +42,8 @@ curl http://localhost:5102/api/control-plane/v1/resources
 - `Pages/RegisterSampleResource.razor` is a normal Razor component used by the
   sample resource type registration flow.
 - `SampleResourceProvider` exposes sample API, database, and worker resources.
+- Sample resources advertise provider-backed lifecycle actions through the
+  `resourceActions` API dictionary.
 - The startup `Resources(...)` block declares `sample:api` and
   `sample:database`, so they are visible immediately in Resource Manager and
   through the Control Plane API.
