@@ -1,6 +1,6 @@
 namespace CloudShell.Abstractions.ResourceManager;
 
-public sealed record CloudResource(
+public sealed record Resource(
     string Id,
     string Name,
     string Kind,
@@ -16,7 +16,8 @@ public sealed record CloudResource(
     string? TypeId = null,
     IReadOnlyList<ResourceAction>? Actions = null,
     IReadOnlyList<ResourceHealthCheck>? HealthChecks = null,
-    ResourceObservability? Observability = null)
+    ResourceObservability? Observability = null,
+    ResourceClass ResourceClass = ResourceClass.Generic)
 {
     public string PrimaryEndpoint => Endpoints.FirstOrDefault()?.Address ?? "none";
 
@@ -41,6 +42,18 @@ public sealed record CloudResource(
     public IReadOnlyList<ResourceHealthCheck> ResourceHealthChecks => HealthChecks ?? [];
 
     public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;
+}
+
+public enum ResourceClass
+{
+    Generic,
+    Executable,
+    Project,
+    Container,
+    Service,
+    Network,
+    Configuration,
+    Infrastructure
 }
 
 public enum ResourceState

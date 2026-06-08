@@ -36,7 +36,7 @@ public sealed partial class ApplicationResourceProvider(
 
     public string DisplayName => "Applications";
 
-    public IReadOnlyList<CloudResource> GetResources() => store
+    public IReadOnlyList<Resource> GetResources() => store
         .GetApplications()
         .Where(application => !IsHidden(application))
         .Select(CreateResource)
@@ -200,12 +200,12 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    public bool CanExport(CloudResource resource) =>
+    public bool CanExport(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
 
     public Task<ResourceTemplateDefinition> ExportAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceTemplateExportContext context,
         CancellationToken cancellationToken = default)
     {
@@ -330,12 +330,12 @@ public sealed partial class ApplicationResourceProvider(
             ? TryGetRunningProcess(application, out _)
             : localProcesses.IsRunning(CreateLocalProcessDefinition(application)));
 
-    public bool CanDescribe(CloudResource resource) =>
+    public bool CanDescribe(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default)
     {
@@ -715,7 +715,7 @@ public sealed partial class ApplicationResourceProvider(
             StringComparison.OrdinalIgnoreCase);
 
     private static IEnumerable<EnvironmentVariableAssignment> CreateServiceDiscoveryEndpointEnvironmentVariables(
-        CloudResource resource)
+        Resource resource)
     {
         var serviceNames = CreateServiceDiscoveryServiceNames(resource).ToArray();
         if (serviceNames.Length == 0)
@@ -744,7 +744,7 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    private static IEnumerable<string> CreateServiceDiscoveryServiceNames(CloudResource resource)
+    private static IEnumerable<string> CreateServiceDiscoveryServiceNames(Resource resource)
     {
         var names = new[]
             {
@@ -904,10 +904,10 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    private CloudResource CreateResource(ApplicationResourceDefinition application)
+    private Resource CreateResource(ApplicationResourceDefinition application)
     {
         var state = GetState(application.Id);
-        return new CloudResource(
+        return new Resource(
             application.Id,
             application.Name,
             GetResourceKind(application),
@@ -923,8 +923,18 @@ public sealed partial class ApplicationResourceProvider(
             TypeId: application.ResourceType,
             Actions: CreateActions(state),
             HealthChecks: application.HealthChecks,
-            Observability: GetEffectiveObservability(application));
+            Observability: GetEffectiveObservability(application),
+            ResourceClass: GetResourceClass(application));
     }
+
+    private static ResourceClass GetResourceClass(ApplicationResourceDefinition application) =>
+        application.ResourceType switch
+        {
+            ApplicationResourceTypes.AspNetCoreProject => ResourceClass.Project,
+            ApplicationResourceTypes.ContainerImage => ResourceClass.Container,
+            ApplicationResourceTypes.SqlServer => ResourceClass.Container,
+            _ => IsContainerBacked(application) ? ResourceClass.Container : ResourceClass.Executable
+        };
 
     private static string GetResourceKind(ApplicationResourceDefinition application) =>
         application.ResourceType switch
@@ -1386,7 +1396,7 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private async Task<ResourceOrchestrationDescriptor?> TryDescribeContainerEngineAsync(
-        CloudResource resource,
+        Resource resource,
         IResourceManagerStore resourceManager,
         CancellationToken cancellationToken)
     {

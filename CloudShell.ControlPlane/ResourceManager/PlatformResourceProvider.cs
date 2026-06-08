@@ -22,7 +22,7 @@ public sealed class PlatformResourceProvider(
 
     public string DisplayName => "CloudShell";
 
-    public IReadOnlyList<CloudResource> GetResources() =>
+    public IReadOnlyList<Resource> GetResources() =>
     [
         .. store.GetNetworks().Select(CreateNetworkResource),
         .. store.GetServices().Select(CreateServiceResource)
@@ -163,12 +163,12 @@ public sealed class PlatformResourceProvider(
             cancellationToken);
     }
 
-    public bool CanDescribe(CloudResource resource) =>
+    public bool CanDescribe(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default)
     {
@@ -198,7 +198,7 @@ public sealed class PlatformResourceProvider(
             JsonSerializer.SerializeToElement(service, SerializerOptions)));
     }
 
-    private static CloudResource CreateNetworkResource(NetworkResourceDefinition definition) =>
+    private static Resource CreateNetworkResource(NetworkResourceDefinition definition) =>
         new(
             definition.Id,
             definition.Name,
@@ -210,9 +210,10 @@ public sealed class PlatformResourceProvider(
             definition.IsDefault ? "host default" : "host local",
             DateTimeOffset.UtcNow,
             [],
-            TypeId: NetworkResourceType);
+            TypeId: NetworkResourceType,
+            ResourceClass: ResourceClass.Network);
 
-    private CloudResource CreateServiceResource(ServiceResourceDefinition definition) =>
+    private Resource CreateServiceResource(ServiceResourceDefinition definition) =>
         new(
             definition.Id,
             definition.Name,
@@ -225,7 +226,8 @@ public sealed class PlatformResourceProvider(
             DateTimeOffset.UtcNow,
             CreateServiceDependencies(definition),
             TypeId: ServiceResourceType,
-            HealthChecks: definition.ResourceHealthChecks);
+            HealthChecks: definition.ResourceHealthChecks,
+            ResourceClass: ResourceClass.Service);
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ServiceResourceDefinition definition) =>
         definition.Ports

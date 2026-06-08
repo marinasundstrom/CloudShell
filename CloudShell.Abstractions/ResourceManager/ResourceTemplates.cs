@@ -54,10 +54,10 @@ public sealed record ResourceTemplateDiagnostic(
 
 public interface IResourceTemplateProvider
 {
-    bool CanExport(CloudResource resource);
+    bool CanExport(Resource resource);
 
     Task<ResourceTemplateDefinition> ExportAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceTemplateExportContext context,
         CancellationToken cancellationToken = default);
 

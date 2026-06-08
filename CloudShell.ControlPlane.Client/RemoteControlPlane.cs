@@ -53,15 +53,15 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             .ToResourceGroup();
     }
 
-    public async Task<IReadOnlyList<CloudResource>> ListAvailableResourcesAsync(
+    public async Task<IReadOnlyList<Resource>> ListAvailableResourcesAsync(
         CancellationToken cancellationToken = default) =>
         (await GetRequiredAsync<IReadOnlyList<ResourceResponse>>(
             "resources/available",
             cancellationToken))
-        .Select(response => response.ToCloudResource())
+        .Select(response => response.ToResource())
         .ToArray();
 
-    public async Task<IReadOnlyList<CloudResource>> ListResourcesAsync(
+    public async Task<IReadOnlyList<Resource>> ListResourcesAsync(
         ResourceQuery? query = null,
         CancellationToken cancellationToken = default) =>
         (await GetRequiredAsync<IReadOnlyList<ResourceResponse>>(
@@ -71,26 +71,26 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             ("parentResourceId", query?.ParentResourceId),
             ("resourceType", query?.ResourceType),
             ("isRegistered", query?.IsRegistered?.ToString())))
-        .Select(response => response.ToCloudResource())
+        .Select(response => response.ToResource())
         .ToArray();
 
-    public async Task<CloudResource?> GetResourceAsync(
+    public async Task<Resource?> GetResourceAsync(
         string resourceId,
         CancellationToken cancellationToken = default)
     {
         var response = await GetOptionalAsync<ResourceResponse>(
             $"resources/{Escape(resourceId)}",
             cancellationToken);
-        return response?.ToCloudResource();
+        return response?.ToResource();
     }
 
-    public async Task<IReadOnlyList<CloudResource>> ListResourceChildrenAsync(
+    public async Task<IReadOnlyList<Resource>> ListResourceChildrenAsync(
         string resourceId,
         CancellationToken cancellationToken = default) =>
         (await GetRequiredAsync<IReadOnlyList<ResourceResponse>>(
             $"resources/{Escape(resourceId)}/children",
             cancellationToken))
-        .Select(response => response.ToCloudResource())
+        .Select(response => response.ToResource())
         .ToArray();
 
     public async Task<IReadOnlyList<ResourceRegistration>> ListResourceRegistrationsAsync(
@@ -447,6 +447,7 @@ file sealed record ResourceResponse(
     string Name,
     string Kind,
     string TypeId,
+    ResourceClass ResourceClass,
     string Provider,
     string Region,
     ResourceState State,
@@ -557,7 +558,7 @@ sealed record ProblemResponse(string? Title, string? Detail, string? Code);
 
 file static class RemoteControlPlaneMapper
 {
-    public static CloudResource ToCloudResource(this ResourceResponse response) =>
+    public static Resource ToResource(this ResourceResponse response) =>
         new(
             response.Id,
             response.Name,
@@ -574,7 +575,8 @@ file static class RemoteControlPlaneMapper
             response.TypeId,
             response.GetResourceActionResponses()
                 .Select(action => action.ToResourceAction())
-                .ToArray());
+                .ToArray(),
+            ResourceClass: response.ResourceClass);
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
         new(response.Name, response.Address, response.Protocol, response.IsExternal);

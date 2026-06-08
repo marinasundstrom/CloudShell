@@ -9,7 +9,8 @@ public sealed record ResourceTypeContribution(
     Type RegistrationComponentType,
     Type? UpdateComponentType = null,
     IReadOnlyList<ResourceTabContribution>? Tabs = null,
-    ResourceTypeProbeOptions? ProbeOptions = null)
+    ResourceTypeProbeOptions? ProbeOptions = null,
+    ResourceClass ResourceClass = ResourceClass.Generic)
 {
     public IReadOnlyList<ResourceTabContribution> ResourceTabs => Tabs ?? [];
 

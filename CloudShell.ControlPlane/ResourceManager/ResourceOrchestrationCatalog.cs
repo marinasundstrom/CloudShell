@@ -50,7 +50,7 @@ public sealed class ResourceOrchestrationCatalog(
     }
 
     private async Task<ResourceOrchestrationDescriptor?> TryDescribeAsync(
-        CloudResource resource,
+        Resource resource,
         CancellationToken cancellationToken)
     {
         var provider = descriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));

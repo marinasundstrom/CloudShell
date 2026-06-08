@@ -341,7 +341,7 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     private static IResourceManager CreateControlPlane(
-        IReadOnlyList<CloudResource> resources,
+        IReadOnlyList<Resource> resources,
         IResourceProvider? provider = null,
         IReadOnlyList<ResourceGroup>? groups = null,
         ICloudShellAuthorizationService? authorization = null)
@@ -377,7 +377,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             authorization ?? new AllowAllAuthorizationService());
     }
 
-    private static CloudResource CreateResource(
+    private static Resource CreateResource(
         string id,
         ResourceState state,
         IReadOnlyList<string>? dependsOn = null) =>
@@ -417,7 +417,7 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public List<string> ExecutedActions { get; } = [];
 
-        public IReadOnlyList<CloudResource> GetResources() => [];
+        public IReadOnlyList<Resource> GetResources() => [];
 
         public Task<ResourceProcedureResult> DeleteAsync(
             ResourceProcedureContext context,
@@ -440,11 +440,11 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public string DisplayName => "Test";
 
-        public IReadOnlyList<CloudResource> GetResources() => [];
+        public IReadOnlyList<Resource> GetResources() => [];
     }
 
     private sealed class TestResourceManagerStore(
-        IReadOnlyList<CloudResource> resources,
+        IReadOnlyList<Resource> resources,
         IReadOnlyList<IResourceProvider> providers,
         IReadOnlyList<ResourceGroup> groups) : IResourceManagerStore
     {
@@ -452,14 +452,14 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public IReadOnlyList<ResourceGroup> GetResourceGroups() => groups;
 
-        public IReadOnlyList<CloudResource> GetAvailableResources() => resources;
+        public IReadOnlyList<Resource> GetAvailableResources() => resources;
 
-        public IReadOnlyList<CloudResource> GetResources() => resources;
+        public IReadOnlyList<Resource> GetResources() => resources;
 
-        public CloudResource? GetResource(string id) =>
+        public Resource? GetResource(string id) =>
             resources.FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
 
-        public IReadOnlyList<CloudResource> GetChildren(string resourceId) =>
+        public IReadOnlyList<Resource> GetChildren(string resourceId) =>
             resources
                 .Where(resource => string.Equals(resource.ParentResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
                 .ToArray();

@@ -8,7 +8,7 @@ public sealed class CloudShellResourceProvider : IResourceProvider
 
     public string DisplayName => "CloudShell";
 
-    public IReadOnlyList<CloudResource> GetResources() =>
+    public IReadOnlyList<Resource> GetResources() =>
     [
         new(
             "api-gateway",

@@ -142,7 +142,7 @@
     private string? RequestedTabId { get; set; }
 
     private ResourceConfigurationContext? ConfigurationContext { get; set; }
-    private CloudResource? Resource { get; set; }
+    private Resource? Resource { get; set; }
     private ResourceGroup? ResourceGroup { get; set; }
     private string? SelectedTabId { get; set; }
     private string? ProcedureMessage { get; set; }
@@ -321,7 +321,7 @@
         }
     }
 
-    private static string GetTypeGlyph(CloudResource resource) =>
+    private static string GetTypeGlyph(Resource resource) =>
         resource.Kind.Contains("Docker", StringComparison.OrdinalIgnoreCase) ? "D" :
         resource.Name[..1].ToUpperInvariant();
 

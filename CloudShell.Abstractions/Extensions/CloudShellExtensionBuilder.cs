@@ -226,7 +226,8 @@ internal sealed class CloudShellExtensionBuilder(
         string description,
         string icon,
         int order,
-        ResourceTypeProbeOptions? probeOptions = null)
+        ResourceTypeProbeOptions? probeOptions = null,
+        ResourceClass resourceClass = ResourceClass.Generic)
     {
         AddResourceType(
             id,
@@ -236,7 +237,8 @@ internal sealed class CloudShellExtensionBuilder(
             order,
             typeof(TRegistrationComponent),
             null,
-            probeOptions);
+            probeOptions,
+            resourceClass);
 
         return this;
     }
@@ -247,7 +249,8 @@ internal sealed class CloudShellExtensionBuilder(
         string description,
         string icon,
         int order,
-        ResourceTypeProbeOptions? probeOptions = null)
+        ResourceTypeProbeOptions? probeOptions = null,
+        ResourceClass resourceClass = ResourceClass.Generic)
     {
         AddResourceType(
             id,
@@ -257,7 +260,8 @@ internal sealed class CloudShellExtensionBuilder(
             order,
             typeof(TRegistrationComponent),
             typeof(TUpdateComponent),
-            probeOptions);
+            probeOptions,
+            resourceClass);
 
         return this;
     }
@@ -305,7 +309,8 @@ internal sealed class CloudShellExtensionBuilder(
         int order,
         Type registrationComponentType,
         Type? updateComponentType,
-        ResourceTypeProbeOptions? probeOptions)
+        ResourceTypeProbeOptions? probeOptions,
+        ResourceClass resourceClass)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
@@ -318,7 +323,8 @@ internal sealed class CloudShellExtensionBuilder(
             order,
             registrationComponentType,
             updateComponentType,
-            ProbeOptions: probeOptions));
+            ProbeOptions: probeOptions,
+            ResourceClass: resourceClass));
     }
 
     private void AddNavigationItem(

@@ -6,5 +6,5 @@ public interface IResourceProvider
 
     string DisplayName { get; }
 
-    IReadOnlyList<CloudResource> GetResources();
+    IReadOnlyList<Resource> GetResources();
 }

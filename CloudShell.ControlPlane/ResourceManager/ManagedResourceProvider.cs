@@ -8,7 +8,7 @@ public sealed class ManagedResourceProvider : IResourceProvider
 
     public string DisplayName => "Managed";
 
-    public IReadOnlyList<CloudResource> GetResources() =>
+    public IReadOnlyList<Resource> GetResources() =>
     [
         new(
             "postgres-main",

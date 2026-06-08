@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Components.Pages.Resources;
 
 namespace CloudShell.Hosting.ResourceManager;
@@ -32,13 +33,15 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "Network",
                 "Create a logical network boundary for orchestrated resources.",
                 "network",
-                5)
+                5,
+                resourceClass: ResourceClass.Network)
             .AddResourceType<RegisterServiceResource>(
                 "cloudshell.service",
                 "Service",
                 "Create a stable internal or public endpoint over one or more resources.",
                 "service",
-                6);
+                6,
+                resourceClass: ResourceClass.Service);
 
         if (includeSettings)
         {

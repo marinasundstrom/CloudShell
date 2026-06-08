@@ -270,15 +270,15 @@ public sealed class ResourceTemplateTests
 
         public IReadOnlyList<ResourceGroup> GetResourceGroups() => resourceGroups.GetResourceGroups();
 
-        public IReadOnlyList<CloudResource> GetAvailableResources() => [];
+        public IReadOnlyList<Resource> GetAvailableResources() => [];
 
-        public IReadOnlyList<CloudResource> GetResources() => provider.GetResources();
+        public IReadOnlyList<Resource> GetResources() => provider.GetResources();
 
-        public CloudResource? GetResource(string resourceId) =>
+        public Resource? GetResource(string resourceId) =>
             GetResources().FirstOrDefault(resource =>
                 string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
 
-        public IReadOnlyList<CloudResource> GetChildren(string resourceId) => [];
+        public IReadOnlyList<Resource> GetChildren(string resourceId) => [];
 
         public ResourceGroup? GetGroupForResource(string resourceId) =>
             resourceGroups.GetGroupForResource(resourceId);

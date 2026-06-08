@@ -11,7 +11,7 @@ public sealed class ResourceHealthCheckService
     };
 
     public async Task<IReadOnlyDictionary<string, ResourceHealthSummary>> CheckAsync(
-        IReadOnlyList<CloudResource> resources,
+        IReadOnlyList<Resource> resources,
         CancellationToken cancellationToken = default)
     {
         var probeable = resources
@@ -30,7 +30,7 @@ public sealed class ResourceHealthCheckService
     }
 
     private async Task<ResourceHealthSummary> CheckResourceAsync(
-        CloudResource resource,
+        Resource resource,
         CancellationToken cancellationToken)
     {
         var checks = new List<ResourceHealthCheckResult>();
@@ -53,7 +53,7 @@ public sealed class ResourceHealthCheckService
     }
 
     private async Task<ResourceHealthCheckResult> CheckEndpointAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceHealthCheck check,
         CancellationToken cancellationToken)
     {
@@ -102,7 +102,7 @@ public sealed class ResourceHealthCheckService
         }
     }
 
-    private static Uri? ResolveCheckUri(CloudResource resource, ResourceHealthCheck check)
+    private static Uri? ResolveCheckUri(Resource resource, ResourceHealthCheck check)
     {
         if (Uri.TryCreate(check.Path, UriKind.Absolute, out var absolute) &&
             IsHttpScheme(absolute.Scheme))
@@ -124,7 +124,7 @@ public sealed class ResourceHealthCheckService
             : null;
     }
 
-    private static ResourceEndpoint? ResolveEndpoint(CloudResource resource, ResourceHealthCheck check)
+    private static ResourceEndpoint? ResolveEndpoint(Resource resource, ResourceHealthCheck check)
     {
         if (!string.IsNullOrWhiteSpace(check.EndpointName))
         {

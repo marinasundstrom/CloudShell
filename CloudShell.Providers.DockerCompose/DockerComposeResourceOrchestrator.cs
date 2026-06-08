@@ -281,17 +281,17 @@ public sealed partial class DockerComposeResourceOrchestrator(
 
     private static bool IsSameGroup(
         ResourceOrchestrationContext context,
-        CloudResource resource)
+        Resource resource)
     {
         var group = context.ResourceManager.GetGroupForResource(resource.Id);
         return string.Equals(group?.Id, context.ResourceGroup?.Id, StringComparison.OrdinalIgnoreCase);
     }
 
-    private bool CanDescribe(CloudResource resource) =>
+    private bool CanDescribe(Resource resource) =>
         descriptorProviders.Any(provider => provider.CanDescribe(resource));
 
     private async Task<ResourceOrchestrationDescriptor?> TryDescribeAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceOrchestrationContext context,
         CancellationToken cancellationToken)
     {
@@ -607,7 +607,7 @@ public sealed partial class DockerComposeResourceOrchestrator(
         return ToComposeServiceName(context.Resource);
     }
 
-    private static string ToComposeServiceName(CloudResource resource)
+    private static string ToComposeServiceName(Resource resource)
     {
         var candidate = resource.Id.Contains(':', StringComparison.Ordinal)
             ? resource.Id[(resource.Id.LastIndexOf(':') + 1)..]

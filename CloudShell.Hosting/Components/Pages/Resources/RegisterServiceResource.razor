@@ -111,7 +111,7 @@
     private string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
-    private IReadOnlyList<CloudResource> Resources { get; set; } = [];
+    private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
 
@@ -133,7 +133,7 @@
         ResourceGroupsByResourceId = groupsByResourceId;
     }
 
-    private IReadOnlyList<CloudResource> GetTargetCandidates() =>
+    private IReadOnlyList<Resource> GetTargetCandidates() =>
         Resources
             .Where(resource => !string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(resource => !string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
@@ -141,14 +141,14 @@
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private IReadOnlyList<CloudResource> GetNetworkCandidates() =>
+    private IReadOnlyList<Resource> GetNetworkCandidates() =>
         Resources
             .Where(resource => string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(IsInSelectedGroup)
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private bool IsInSelectedGroup(CloudResource resource)
+    private bool IsInSelectedGroup(Resource resource)
     {
         var group = ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
         return string.IsNullOrWhiteSpace(SelectedGroupId)

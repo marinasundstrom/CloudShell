@@ -24,18 +24,18 @@ public interface IResourceManager
         CreateResourceGroupCommand command,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<CloudResource>> ListAvailableResourcesAsync(
+    Task<IReadOnlyList<Resource>> ListAvailableResourcesAsync(
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<CloudResource>> ListResourcesAsync(
+    Task<IReadOnlyList<Resource>> ListResourcesAsync(
         ResourceQuery? query = null,
         CancellationToken cancellationToken = default);
 
-    Task<CloudResource?> GetResourceAsync(
+    Task<Resource?> GetResourceAsync(
         string resourceId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<CloudResource>> ListResourceChildrenAsync(
+    Task<IReadOnlyList<Resource>> ListResourceChildrenAsync(
         string resourceId,
         CancellationToken cancellationToken = default);
 

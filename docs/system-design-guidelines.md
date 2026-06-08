@@ -31,7 +31,7 @@ operational data.
 Shell integrations should depend on the cloud-plane client API in
 `CloudShell.Abstractions`: domain managers such as `IResourceManager`,
 `IResourceTemplateManager`, `ILogManager`, and `ITraceManager`, plus projected
-domain entities such as `CloudResource`. In combined hosts these managers map
+domain entities such as `Resource`. In combined hosts these managers map
 to in-process services. In split hosts they map to remote clients. UI and
 extension code should not depend directly on internal Control Plane stores,
 providers, or generated HTTP clients.
@@ -43,15 +43,22 @@ the client-side integration model.
 
 ## Resource model
 
-`CloudResource` is the projected domain artifact. It describes what exists now:
+`Resource` is the projected domain artifact. It describes what exists now:
 identity, type, state, endpoints, dependencies, parentage, details, health, and
 provider-declared resource actions.
+
+Resources are composition-based. Do not introduce container, executable,
+project, service, or infrastructure subclasses for the projected domain entity.
+Use `ResourceClass` for broad classification, `TypeId` for precise
+provider/domain identity, and provider-owned descriptors for execution details.
+The projected shape stays uniform; providers decide how each resource class and
+type behaves.
 
 Resource actions are domain operations on a resource. Standard lifecycle
 actions use `ResourceActionKind.Run`, `Stop`, `Pause`, and `Restart`. Custom
 provider actions use stable IDs. Resource actions are not UI actions.
 Use canonical action IDs from the public abstraction for standard lifecycle
-actions. `CloudResource` may provide lookup helpers for those actions, but it
+actions. `Resource` may provide lookup helpers for those actions, but it
 must remain a projected entity; execution is requested through
 `IResourceManager`. Client API convenience methods should be manager extensions
 that construct domain commands or query capabilities, not active methods on the

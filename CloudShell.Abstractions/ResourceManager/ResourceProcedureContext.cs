@@ -1,7 +1,7 @@
 namespace CloudShell.Abstractions.ResourceManager;
 
 public sealed record ResourceProcedureContext(
-    CloudResource Resource,
+    Resource Resource,
     ResourceRegistration? Registration,
     string? ResourceGroupId,
     IResourceRegistrationStore Registrations,

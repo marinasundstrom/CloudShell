@@ -184,7 +184,7 @@
             .ToArray();
     }
 
-    private ContainerEngineResourceDefinition? TryReadContainerEngine(CloudResource resource)
+    private ContainerEngineResourceDefinition? TryReadContainerEngine(Resource resource)
     {
         var provider = DescriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
         if (provider is null)

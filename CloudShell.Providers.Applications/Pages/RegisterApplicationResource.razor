@@ -268,7 +268,7 @@
             .Where(dependency => !string.Equals(dependency, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-    private IReadOnlyList<CloudResource> GetDependencyCandidates() =>
+    private IReadOnlyList<Resource> GetDependencyCandidates() =>
         ResourceManager.GetResources()
             .Where(resource => !string.Equals(resource.Id, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
             .Where(resource => IsInSelectedGroup(resource.Id))

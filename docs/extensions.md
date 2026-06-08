@@ -374,14 +374,14 @@ Providers are aggregated by Resource Manager. Other extensions consume `IResourc
 
 Resources can set `DetailRoute` to link to an extension-owned view. This supports the familiar cloud-portal pattern where a resource opens its own operational workspace.
 
-Resources can also expose actions through `CloudResource.ResourceActions`. These actions belong to the resource instance, not only to the resource type, so providers can vary commands by state or capability. Use the standard `ResourceActionKind` values for Run, Stop, Pause, and Restart when a command controls lifecycle. Use `ResourceActionKind.Custom` with a stable action ID for provider-specific commands.
+Resources can also expose actions through `Resource.ResourceActions`. These actions belong to the resource instance, not only to the resource type, so providers can vary commands by state or capability. Use the standard `ResourceActionKind` values for Run, Stop, Pause, and Restart when a command controls lifecycle. Use `ResourceActionKind.Custom` with a stable action ID for provider-specific commands.
 
 `ResourceAction` is the command contract. `ResourceActionPresentation` is the UI policy for that command, including whether the action should be shown inline or in overflow, which icon to use, and whether the UI should ask before invoking it. Providers still execute the action normally when `ExecuteActionAsync` is called; confirmation is not part of provider execution.
 
-Providers that support actions implement `IResourceProcedureProvider.ExecuteActionAsync`. The Resource Manager passes the selected `CloudResource` and `ResourceAction` back to the provider, letting the provider execute the command against the underlying system.
+Providers that support actions implement `IResourceProcedureProvider.ExecuteActionAsync`. The Resource Manager passes the selected `Resource` and `ResourceAction` back to the provider, letting the provider execute the command against the underlying system.
 
 ```csharp
-return new CloudResource(
+return new Resource(
     Id: "acme:worker:orders",
     Name: "orders",
     Kind: "Acme Worker",

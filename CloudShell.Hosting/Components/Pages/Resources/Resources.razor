@@ -463,7 +463,7 @@
     private string selectedResourceGroupFilter = AllResourceGroupsFilter;
     private int lastUrlPageIndex = -1;
     private int lastUrlPageSize = -1;
-    private CloudResource? SelectedResource { get; set; }
+    private Resource? SelectedResource { get; set; }
     private string? DeleteConfirmationResourceId { get; set; }
     private string? ProcedureMessage { get; set; }
     private string? ExecutingActionKey { get; set; }
@@ -474,7 +474,7 @@
     private CancellationTokenSource? HealthPollingCancellation { get; set; }
     private Task? HealthPollingTask { get; set; }
     private bool IsDisposed { get; set; }
-    private IReadOnlyList<CloudResource> ResourceInventory { get; set; } = [];
+    private IReadOnlyList<Resource> ResourceInventory { get; set; } = [];
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
@@ -553,7 +553,7 @@
         UpdatePaginationUrl();
     }
 
-    private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<CloudResource> allResources)
+    private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<Resource> allResources)
     {
         var scoped = allResources
             .Where(IsInSelectedResourceGroup)
@@ -596,9 +596,9 @@
     }
 
     private void AddResourceRow(
-        CloudResource resource,
+        Resource resource,
         int depth,
-        IReadOnlyDictionary<string, CloudResource[]> childrenByParent,
+        IReadOnlyDictionary<string, Resource[]> childrenByParent,
         HashSet<string>? visibleIds,
         List<ResourceRow> rows)
     {
@@ -621,7 +621,7 @@
         }
     }
 
-    private bool IsInSelectedResourceGroup(CloudResource resource)
+    private bool IsInSelectedResourceGroup(Resource resource)
     {
         var group = GetGroup(resource);
         return SelectedResourceGroupFilter switch
@@ -636,19 +636,19 @@
         !string.IsNullOrWhiteSpace(NameFilter) ||
         SelectedTypeFilter != AllResourceTypesFilter;
 
-    private bool MatchesListFilters(CloudResource resource) =>
+    private bool MatchesListFilters(Resource resource) =>
         MatchesNameFilter(resource) &&
         MatchesTypeFilter(resource);
 
-    private bool MatchesNameFilter(CloudResource resource) =>
+    private bool MatchesNameFilter(Resource resource) =>
         string.IsNullOrWhiteSpace(NameFilter) ||
         resource.Name.Contains(NameFilter, StringComparison.OrdinalIgnoreCase);
 
-    private bool MatchesTypeFilter(CloudResource resource) =>
+    private bool MatchesTypeFilter(Resource resource) =>
         SelectedTypeFilter == AllResourceTypesFilter ||
         string.Equals(resource.EffectiveTypeId, SelectedTypeFilter, StringComparison.OrdinalIgnoreCase);
 
-    private ResourceGroup? GetGroup(CloudResource resource) =>
+    private ResourceGroup? GetGroup(Resource resource) =>
         ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
 
     private async Task LoadResourceModelAsync()
@@ -685,7 +685,7 @@
         }
     }
 
-    private IReadOnlyList<ResourceTypeFilterOption> GetResourceTypeOptions(IReadOnlyList<CloudResource> resources) =>
+    private IReadOnlyList<ResourceTypeFilterOption> GetResourceTypeOptions(IReadOnlyList<Resource> resources) =>
     [
         new ResourceTypeFilterOption(AllResourceTypesFilter, L["All types"].Value),
         .. resources
@@ -853,9 +853,9 @@
         }
     }
 
-    private void OpenResource(CloudResource resource) => SelectResource(resource);
+    private void OpenResource(Resource resource) => SelectResource(resource);
 
-    private void SelectResource(CloudResource resource) => SelectedResource = resource;
+    private void SelectResource(Resource resource) => SelectedResource = resource;
 
     private void DismissResource()
     {
@@ -968,10 +968,10 @@
         HealthRefreshLock.Dispose();
     }
 
-    private void UpdateResource(CloudResource resource) =>
+    private void UpdateResource(Resource resource) =>
         Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");
 
-    private void OpenLogs(CloudResource resource)
+    private void OpenLogs(Resource resource)
     {
         var logs = GetLogs(resource);
         var query = new Dictionary<string, string?>
@@ -987,10 +987,10 @@
         Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
     }
 
-    private IReadOnlyList<LogDescriptor> GetLogs(CloudResource resource) =>
+    private IReadOnlyList<LogDescriptor> GetLogs(Resource resource) =>
         LogsByResourceId.GetValueOrDefault(resource.Id) ?? [];
 
-    private void PromptDelete(CloudResource resource)
+    private void PromptDelete(Resource resource)
     {
         DeleteConfirmationResourceId = resource.Id;
         ProcedureMessage = null;
@@ -998,7 +998,7 @@
 
     private void CancelDelete() => DeleteConfirmationResourceId = null;
 
-    private async Task DeleteResource(CloudResource resource)
+    private async Task DeleteResource(Resource resource)
     {
         try
         {
@@ -1014,7 +1014,7 @@
         }
     }
 
-    private async Task RequestResourceAction(CloudResource resource, ResourceAction action)
+    private async Task RequestResourceAction(Resource resource, ResourceAction action)
     {
         var stoppedDependencies = ShouldStartDependencies(action)
             ? GetStoppedDependencies(resource)
@@ -1101,7 +1101,7 @@
     private void CancelResourceAction() => PendingAction = null;
 
     private async Task ExecuteResourceAction(
-        CloudResource resource,
+        Resource resource,
         ResourceAction action,
         bool startDependencies)
     {
@@ -1127,9 +1127,9 @@
         }
     }
 
-    private IReadOnlyList<CloudResource> GetStoppedDependencies(CloudResource resource)
+    private IReadOnlyList<Resource> GetStoppedDependencies(Resource resource)
     {
-        var dependencies = new List<CloudResource>();
+        var dependencies = new List<Resource>();
         CollectStoppedDependencies(
             resource,
             dependencies,
@@ -1138,8 +1138,8 @@
     }
 
     private void CollectStoppedDependencies(
-        CloudResource resource,
-        List<CloudResource> dependencies,
+        Resource resource,
+        List<Resource> dependencies,
         HashSet<string> visited)
     {
         if (!visited.Add(resource.Id))
@@ -1165,38 +1165,38 @@
         }
     }
 
-    private IReadOnlyList<CloudResource> GetActiveDependents(CloudResource resource) =>
+    private IReadOnlyList<Resource> GetActiveDependents(Resource resource) =>
         ResourceInventory
             .Where(candidate => candidate.DependsOn.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
             .Where(candidate => IsActiveDependencyState(candidate.State))
             .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private bool CanManage(CloudResource resource) =>
+    private bool CanManage(Resource resource) =>
         GetCapabilities(resource).CanManage;
 
-    private bool HasUpdateProcedure(CloudResource resource) =>
+    private bool HasUpdateProcedure(Resource resource) =>
         ShellCatalog.ResourceTypes.Any(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase) &&
             (type.UpdateComponentType is not null || type.ResourceTabs.Count > 0));
 
-    private bool CanDelete(CloudResource resource) =>
+    private bool CanDelete(Resource resource) =>
         GetCapabilities(resource).CanDelete;
 
-    private bool CanExecuteAction(CloudResource resource, ResourceAction action) =>
+    private bool CanExecuteAction(Resource resource, ResourceAction action) =>
         GetCapabilities(resource).CanExecuteAction(action.Id);
 
-    private ResourceOperationCapabilities GetCapabilities(CloudResource resource) =>
+    private ResourceOperationCapabilities GetCapabilities(Resource resource) =>
         ResourceCapabilities.GetValueOrDefault(resource.Id) ??
         ResourceOperationCapabilities.None(resource.Id);
 
-    private bool IsExecutingAction(CloudResource resource, ResourceAction action) =>
+    private bool IsExecutingAction(Resource resource, ResourceAction action) =>
         string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
 
-    private ResourceHealthSummary? GetHealthSummary(CloudResource resource) =>
+    private ResourceHealthSummary? GetHealthSummary(Resource resource) =>
         HealthResults.GetValueOrDefault(resource.Id);
 
-    private RenderFragment HealthIndicator(CloudResource resource) => builder =>
+    private RenderFragment HealthIndicator(Resource resource) => builder =>
     {
         if (resource.ResourceHealthChecks.Count == 0)
         {
@@ -1238,10 +1238,10 @@
             _ => "health-pending"
         };
 
-    private static string GetActionKey(CloudResource resource, ResourceAction action) =>
+    private static string GetActionKey(Resource resource, ResourceAction action) =>
         $"{resource.Id}:{action.Id}";
 
-    private RenderFragment ResourceActionControls(CloudResource resource) => builder =>
+    private RenderFragment ResourceActionControls(Resource resource) => builder =>
     {
         var logs = GetLogs(resource);
         if (resource.ResourceActions.Count == 0 && logs.Count == 0)
@@ -1384,7 +1384,7 @@
         _ => "action-icon-custom"
     };
 
-    private string GetConfirmationMessage(CloudResource resource, ResourceAction action) =>
+    private string GetConfirmationMessage(Resource resource, ResourceAction action) =>
         action.Description ??
         L["This will run the {0} action for {1}.", action.DisplayName, resource.Name].Value;
 
@@ -1470,17 +1470,17 @@
         _ => "state-unknown"
     };
 
-    private sealed record ResourceRow(CloudResource Resource, int Depth, int ChildCount);
+    private sealed record ResourceRow(Resource Resource, int Depth, int ChildCount);
 
     private sealed record ResourceTypeFilterOption(string Id, string DisplayName);
 
     private sealed record ResourceGroupFilterOption(string Id, string DisplayName);
 
     private sealed record PendingResourceAction(
-        CloudResource Resource,
+        Resource Resource,
         ResourceAction Action,
-        IReadOnlyList<CloudResource> StoppedDependencies,
-        IReadOnlyList<CloudResource> ActiveDependents,
+        IReadOnlyList<Resource> StoppedDependencies,
+        IReadOnlyList<Resource> ActiveDependents,
         bool RequiresDependencyChoice,
         bool RequiresDependentWarning);
 }

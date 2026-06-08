@@ -54,9 +54,9 @@ public sealed partial class DockerContainerResourceProvider :
 
     public DockerConnectionStatus ConnectionStatus => GetSnapshot().ConnectionStatus;
 
-    public IReadOnlyList<CloudResource> GetResources() => GetSnapshot().Resources;
+    public IReadOnlyList<Resource> GetResources() => GetSnapshot().Resources;
 
-    public IReadOnlyList<CloudResource> GetContainers() => GetSnapshot().Resources
+    public IReadOnlyList<Resource> GetContainers() => GetSnapshot().Resources
         .Where(resource => resource.Kind == "Docker Container")
         .ToArray();
 
@@ -304,14 +304,14 @@ public sealed partial class DockerContainerResourceProvider :
         return ResourceProcedureResult.Completed($"{action.DisplayName} requested for {context.Resource.Name}.");
     }
 
-    public bool CanDescribe(CloudResource resource) =>
+    public bool CanDescribe(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase) ||
         (string.Equals(resource.EffectiveTypeId, "docker.container", StringComparison.OrdinalIgnoreCase) &&
             _options.DeclaredContainers.Any(container =>
                 string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase)));
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default)
     {
@@ -387,7 +387,7 @@ public sealed partial class DockerContainerResourceProvider :
         }
     }
 
-    private CloudResource GetEngineResource(IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
+    private Resource GetEngineResource(IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
     {
         var resource = GetResources().FirstOrDefault(resource =>
             string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase))
@@ -465,7 +465,7 @@ public sealed partial class DockerContainerResourceProvider :
         }
     }
 
-    private IReadOnlyList<CloudResource> GetEngineResources(
+    private IReadOnlyList<Resource> GetEngineResources(
         ResourceState state,
         string version,
         DateTimeOffset lastUpdated)
@@ -481,7 +481,7 @@ public sealed partial class DockerContainerResourceProvider :
             .ToArray();
     }
 
-    private CloudResource CreateEngine(
+    private Resource CreateEngine(
         DockerResourceDefinition definition,
         ResourceState state,
         string version,
@@ -499,9 +499,10 @@ public sealed partial class DockerContainerResourceProvider :
             [],
             "/resources/docker-engine",
             TypeId: "docker.engine",
-            HealthChecks: definition.HealthChecks);
+            HealthChecks: definition.HealthChecks,
+            ResourceClass: ResourceClass.Infrastructure);
 
-    private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(CloudResource resource) =>
+    private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
         resource.EffectiveTypeId switch
         {
             "docker.engine" =>
@@ -698,7 +699,7 @@ public sealed partial class DockerContainerResourceProvider :
     [GeneratedRegex(@"\x1B\[[0-?]*[ -/]*[@-~]")]
     private static partial Regex AnsiEscapeSequence();
 
-    private static CloudResource MapContainer(ContainerListResponse container)
+    private static Resource MapContainer(ContainerListResponse container)
     {
         var id = $"{ContainerResourceIdPrefix}{container.ID}";
         var name = container.Names?
@@ -706,7 +707,7 @@ public sealed partial class DockerContainerResourceProvider :
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
             ?? container.ID[..Math.Min(container.ID.Length, 12)];
 
-        return new CloudResource(
+        return new Resource(
             id,
             name,
             "Docker Container",
@@ -719,10 +720,11 @@ public sealed partial class DockerContainerResourceProvider :
             [],
             ParentResourceId: EngineResourceId,
             TypeId: "docker.container",
-            Actions: CreateContainerActions(container.State));
+            Actions: CreateContainerActions(container.State),
+            ResourceClass: ResourceClass.Container);
     }
 
-    private IReadOnlyList<CloudResource> GetDeclaredContainerResources(
+    private IReadOnlyList<Resource> GetDeclaredContainerResources(
         IEnumerable<ContainerListResponse> containers,
         DateTimeOffset lastUpdated) =>
         _options.DeclaredContainers
@@ -732,7 +734,7 @@ public sealed partial class DockerContainerResourceProvider :
                 lastUpdated))
             .ToArray();
 
-    private static CloudResource MapDeclaredContainer(
+    private static Resource MapDeclaredContainer(
         DockerContainerResourceDefinition definition,
         ContainerListResponse? container,
         DateTimeOffset lastUpdated)
@@ -744,7 +746,7 @@ public sealed partial class DockerContainerResourceProvider :
                 ? definition.Endpoints
                 : [new ResourceEndpoint("container", $"container://{lookupName}", "container", false)];
 
-        return new CloudResource(
+        return new Resource(
             definition.Id,
             definition.Name,
             "Docker Container",
@@ -760,7 +762,8 @@ public sealed partial class DockerContainerResourceProvider :
             ParentResourceId: definition.DockerResourceId,
             TypeId: "docker.container",
             Actions: container is null ? [] : CreateContainerActions(container.State),
-            HealthChecks: definition.HealthChecks);
+            HealthChecks: definition.HealthChecks,
+            ResourceClass: ResourceClass.Container);
     }
 
     public static string CreateDockerResourceId(string id)
@@ -886,7 +889,7 @@ public sealed partial class DockerContainerResourceProvider :
             _ => ResourceState.Unknown
         };
 
-    private static string GetContainerId(CloudResource resource)
+    private static string GetContainerId(Resource resource)
     {
         if (!resource.Id.StartsWith(ContainerResourceIdPrefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -917,10 +920,10 @@ public sealed partial class DockerContainerResourceProvider :
     }
 
     private sealed record DockerSnapshot(
-        IReadOnlyList<CloudResource> Resources,
+        IReadOnlyList<Resource> Resources,
         DockerConnectionStatus ConnectionStatus)
     {
-        public static DockerSnapshot Pending(Uri endpoint, IReadOnlyList<CloudResource> resources) =>
+        public static DockerSnapshot Pending(Uri endpoint, IReadOnlyList<Resource> resources) =>
             new(
                 resources,
                 new DockerConnectionStatus(endpoint, false, "Connecting to Docker.", DateTimeOffset.MinValue));

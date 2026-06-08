@@ -113,7 +113,7 @@ public sealed class ResourceManagerClientExtensionsTests
         Assert.Equal([resource.Id], resourceManager.LastCapabilityRequest);
     }
 
-    private static CloudResource CreateResource() =>
+    private static Resource CreateResource() =>
         new(
             "sample:resource",
             "Sample",
@@ -150,24 +150,24 @@ public sealed class ResourceManagerClientExtensionsTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<IReadOnlyList<CloudResource>> ListAvailableResourcesAsync(
+        public Task<IReadOnlyList<Resource>> ListAvailableResourcesAsync(
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<CloudResource>>([]);
+            Task.FromResult<IReadOnlyList<Resource>>([]);
 
-        public Task<IReadOnlyList<CloudResource>> ListResourcesAsync(
+        public Task<IReadOnlyList<Resource>> ListResourcesAsync(
             ResourceQuery? query = null,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<CloudResource>>([]);
+            Task.FromResult<IReadOnlyList<Resource>>([]);
 
-        public Task<CloudResource?> GetResourceAsync(
+        public Task<Resource?> GetResourceAsync(
             string resourceId,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<CloudResource?>(null);
+            Task.FromResult<Resource?>(null);
 
-        public Task<IReadOnlyList<CloudResource>> ListResourceChildrenAsync(
+        public Task<IReadOnlyList<Resource>> ListResourceChildrenAsync(
             string resourceId,
             CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<CloudResource>>([]);
+            Task.FromResult<IReadOnlyList<Resource>>([]);
 
         public Task<IReadOnlyList<ResourceRegistration>> ListResourceRegistrationsAsync(
             CancellationToken cancellationToken = default) =>

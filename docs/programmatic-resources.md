@@ -33,7 +33,8 @@ types. Built-in methods include:
 - `AddConfigurationStore(...)` from `CloudShell.Providers.Configuration`.
 - `AddExecutable(...)`, `AddExecutableApplication(...)`,
   `AddAspNetCoreProject(...)`, and `AddAspNetCoreProjectFromName(...)` from
-  `CloudShell.Providers.Applications`.
+  `CloudShell.Providers.Applications`. Executable builders configure command
+  execution; project builders can also attach container execution metadata.
 - `AddContainer(...)` from `CloudShell.Providers.Applications`.
 - `AddDocker(...)` from `CloudShell.Providers.Docker` when Docker should be an
   explicit managed resource.
@@ -44,6 +45,9 @@ Programmatic resources can also be used in an Aspire-like style for local
 development. In this workflow, resource declarations return builder objects that
 can be passed to executable applications. This keeps resource relationships
 strongly connected in code instead of repeating string IDs at each call site.
+Builders are declaration-time abstractions. They create uniform `Resource`
+projections plus provider-owned configuration; they are not runtime resource
+subclasses.
 
 CloudShell uses the same terminology across providers for resource graph
 relationships:
@@ -148,7 +152,7 @@ resources
         "application:example-web-api",
         "Example Web API",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
-    .WithContainerImage("example-web-api:dev")
+    .AsContainerImage("example-web-api:dev")
     .WithReference(configuration)
     .WithReference(redis)
     .DependsOn(redis);
@@ -303,16 +307,15 @@ container engine and enables Docker Compose orchestration without adding Docker
 to the resource graph. Use `UseContainerEngine(...)` to register another
 Docker-compatible or Podman-compatible engine directly.
 
-When an executable application uses `WithContainerImage(...)` or
-`WithDockerBuild(...)`, or a resource is declared through `AddContainer(...)`,
-it can be materialized into generated Compose YAML. A plain local executable
-without container image or build metadata remains a default-orchestrator
-workload. Container-backed resource builders expose `WithImage(...)` so
-provider-specific resources such as `AddSqlServer(...)` can let callers override
-their default image without exposing Docker in the logical graph. The Resource
-Manager settings can record a preferred container engine, but application and
-service declarations do not need to be tied to a specific engine in the
-user-facing graph.
+When a project uses `AsContainerImage(...)` or `WithContainerBuild(...)`, or a
+resource is declared through `AddContainer(...)`, it can be materialized into
+generated Compose YAML. A plain local executable without container image or
+build metadata remains a default-orchestrator workload. Container-backed
+resource builders expose `WithImage(...)` so provider-specific resources such as
+`AddSqlServer(...)` can let callers override their default image without
+exposing Docker in the logical graph. The Resource Manager settings can record a
+preferred container engine, but application and service declarations do not need
+to be tied to a specific engine in the user-facing graph.
 
 The explicit Docker resource model remains available separately. Use
 `AddDockerProvider()` plus `resources.AddDocker()` when Docker itself should

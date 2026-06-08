@@ -810,7 +810,7 @@ public sealed class ExtensionRegistrationTests
 
         public string DisplayName => "Sample";
 
-        public IReadOnlyList<CloudResource> GetResources() => [];
+        public IReadOnlyList<Resource> GetResources() => [];
     }
 
     private sealed class SampleLogProvider : ILogProvider

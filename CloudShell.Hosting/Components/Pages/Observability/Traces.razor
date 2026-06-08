@@ -135,7 +135,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     public string? ResourceId { get; set; }
 
     private System.Threading.Timer? refreshTimer;
-    private IReadOnlyList<CloudResource> TraceResources { get; set; } = [];
+    private IReadOnlyList<Resource> TraceResources { get; set; } = [];
     private IReadOnlyList<TraceSpan> RecentSpans { get; set; } = [];
 
     protected override void OnInitialized()
@@ -162,7 +162,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         refreshTimer?.Dispose();
     }
 
-    private CloudResource? GetSelectedResource(IReadOnlyList<CloudResource> resources)
+    private Resource? GetSelectedResource(IReadOnlyList<Resource> resources)
     {
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
@@ -189,7 +189,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         await InvokeAsync(StateHasChanged);
     }
 
-    private void SelectResource(CloudResource resource) =>
+    private void SelectResource(Resource resource) =>
         Navigation.NavigateTo(
             Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
                 "/observability/traces",
@@ -198,7 +198,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     private void ShowAllResources() => Navigation.NavigateTo("/observability/traces");
 
-    private void OpenResource(CloudResource resource) =>
+    private void OpenResource(Resource resource) =>
         Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");
 
     private static string GetStateLabel(ResourceState state) =>
@@ -218,7 +218,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     }
 
     private static string GetResourceAttributes(
-        CloudResource resource,
+        Resource resource,
         ResourceObservability observability)
     {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)

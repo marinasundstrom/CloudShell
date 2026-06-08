@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace CloudShell.Abstractions.ResourceManager;
 
 public sealed record ResourceOrchestrationContext(
-    CloudResource Resource,
+    Resource Resource,
     ResourceRegistration? Registration,
     ResourceGroup? ResourceGroup,
     IResourceManagerStore ResourceManager,
@@ -48,10 +48,10 @@ public interface IResourceOrchestrator
 
 public interface IResourceOrchestrationDescriptorProvider
 {
-    bool CanDescribe(CloudResource resource);
+    bool CanDescribe(Resource resource);
 
     Task<ResourceOrchestrationDescriptor> DescribeAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default);
 }

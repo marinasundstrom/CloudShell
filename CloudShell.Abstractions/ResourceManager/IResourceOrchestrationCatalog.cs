@@ -7,7 +7,7 @@ public interface IResourceOrchestrationCatalog
 }
 
 public sealed record ResourceOrchestrationCatalogSnapshot(
-    IReadOnlyList<CloudResource> Resources,
+    IReadOnlyList<Resource> Resources,
     IReadOnlyDictionary<string, ResourceWorkloadConfiguration> Workloads,
     IReadOnlyDictionary<string, ContainerEngineResourceDefinition> ContainerEngines)
 {

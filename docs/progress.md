@@ -35,6 +35,13 @@ The MVP should prove:
   projection, and UI projection.
 - Provider-owned resource configuration stays separate from platform-owned
   registration/group state.
+- Projected resources use one uniform `Resource` shape. Broad behavior is
+  modeled with `ResourceClass`, precise identity with `TypeId`, and runtime
+  behavior through provider-owned descriptors instead of resource subclasses.
+- Programmatic resource builders are declaration-time abstractions that create
+  uniform resources and provider-owned configuration; executable, project, and
+  container builders expose different authoring conveniences without becoming
+  runtime resource types.
 - CloudShell environment preferences are user-scoped, workload-agnostic, and
   use one configured storage backend: local UI-host storage or Control
   Plane-backed storage.
@@ -67,6 +74,9 @@ The MVP should prove:
 - Added a user-scoped CloudShell environment settings provider with selectable
   local or Control Plane-backed storage and theme/navigation preference
   integration.
+- Renamed the projected domain entity from `CloudResource` to `Resource` and
+  added `ResourceClass` projection through in-process resources, the Control
+  Plane API, and the remote client.
 
 ## Active stabilization areas
 

@@ -929,7 +929,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public void ExecutableApplicationBuilder_CanAttachContainerImageForOrchestration()
+    public void ProjectResourceBuilder_CanAttachContainerImageForOrchestration()
     {
         var services = new ServiceCollection();
 
@@ -937,13 +937,14 @@ public sealed class ResourceDeclarationTests
             .AddControlPlane()
             .Resources(resources =>
             {
-                resources
-                    .AddExecutableApplication(
+                IProjectResourceBuilder project = resources
+                    .AddAspNetCoreProject(
                         "application:api",
                         "API",
-                        executablePath: "dotnet",
-                        arguments: "run")
-                    .WithContainerImage("example/api:dev")
+                        "src/API/API.csproj");
+
+                project
+                    .AsContainerImage("example/api:dev")
                     .WithReplicas(2);
             });
 
@@ -1007,6 +1008,7 @@ public sealed class ResourceDeclarationTests
         Assert.Null(declaration.ParentResourceId);
         Assert.Empty(declaration.DependsOn);
         Assert.Equal(ApplicationResourceTypes.ContainerImage, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Container, resource.ResourceClass);
         Assert.Equal(ApplicationLifetime.Detached, provider.GetApplication("application:sql")?.Lifetime);
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal("example/sql-server:dev", workload?.Image);
@@ -1042,7 +1044,7 @@ public sealed class ResourceDeclarationTests
 
         public string DisplayName => "Parent Metadata";
 
-        public IReadOnlyList<CloudResource> GetResources() =>
+        public IReadOnlyList<Resource> GetResources() =>
         [
             new(
                 "sample:parent",
@@ -1129,9 +1131,9 @@ public sealed class ResourceDeclarationTests
 
         public List<string> ExecutedResources { get; } = [];
 
-        public IReadOnlyList<CloudResource> GetResources() =>
+        public IReadOnlyList<Resource> GetResources() =>
             states
-                .Select(item => new CloudResource(
+                .Select(item => new Resource(
                     item.Key,
                     item.Key == "dependency" ? "Dependency" : "Target",
                     "Sample",
@@ -1169,10 +1171,10 @@ public sealed class ResourceDeclarationTests
 
         public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
 
-        public IReadOnlyList<CloudResource> GetAvailableResources() =>
+        public IReadOnlyList<Resource> GetAvailableResources() =>
             provider.GetResources();
 
-        public IReadOnlyList<CloudResource> GetResources() =>
+        public IReadOnlyList<Resource> GetResources() =>
             GetAvailableResources()
                 .Select(resource =>
                 {
@@ -1189,11 +1191,11 @@ public sealed class ResourceDeclarationTests
                 })
                 .ToArray();
 
-        public CloudResource? GetResource(string id) =>
+        public Resource? GetResource(string id) =>
             GetResources().FirstOrDefault(resource =>
                 string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
 
-        public IReadOnlyList<CloudResource> GetChildren(string resourceId) => [];
+        public IReadOnlyList<Resource> GetChildren(string resourceId) => [];
 
         public ResourceGroup? GetGroupForResource(string resourceId) => null;
 

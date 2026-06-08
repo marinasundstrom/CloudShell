@@ -242,7 +242,7 @@
             .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
             .ToArray();
 
-    private IReadOnlyList<CloudResource> GetReferenceCandidates() =>
+    private IReadOnlyList<Resource> GetReferenceCandidates() =>
         ResourceManager.GetResources()
             .Where(resource => !string.Equals(resource.Id, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
             .Where(IsInSelectedGroup)
@@ -251,7 +251,7 @@
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private bool IsInSelectedGroup(CloudResource resource)
+    private bool IsInSelectedGroup(Resource resource)
     {
         var group = ResourceManager.GetGroupForResource(resource.Id);
         return string.IsNullOrWhiteSpace(SelectedGroupId)
@@ -291,7 +291,7 @@
             .ToArray();
     }
 
-    private ContainerEngineResourceDefinition? TryReadContainerEngine(CloudResource resource)
+    private ContainerEngineResourceDefinition? TryReadContainerEngine(Resource resource)
     {
         var provider = DescriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
         if (provider is null)

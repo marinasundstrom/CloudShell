@@ -364,7 +364,7 @@ else
                 !string.Equals(dependency, Application.Id, StringComparison.OrdinalIgnoreCase))
             .ToArray();
 
-    private IReadOnlyList<CloudResource> GetDependencyCandidates() =>
+    private IReadOnlyList<Resource> GetDependencyCandidates() =>
         ResourceManager.GetResources()
             .Where(resource => Application is null ||
                 !string.Equals(resource.Id, Application.Id, StringComparison.OrdinalIgnoreCase))

@@ -70,7 +70,7 @@ Resource providers are internal implementation services. They are not shown as a
 
 Providers map external systems into CloudShell resources. A provider can discover available resources, but root resources only become visible in the shell after the user explicitly adds them. Dynamic children can appear under a registered root resource.
 
-Providers can attach actions directly to each resource. Actions are part of the `CloudResource` API, so the Resource Manager inventory, resource details, and provider-owned overview pages can render the same command set. Standard lifecycle actions use `ResourceActionKind` values for Run, Stop, Pause, and Restart. Providers can also expose custom actions with stable IDs and user-facing labels. `ResourceActionPresentation` controls UI placement, icon, and confirmation prompts separately from provider execution logic.
+Providers can attach actions directly to each resource. Actions are part of the `Resource` API, so the Resource Manager inventory, resource details, and provider-owned overview pages can render the same command set. Standard lifecycle actions use `ResourceActionKind` values for Run, Stop, Pause, and Restart. Providers can also expose custom actions with stable IDs and user-facing labels. `ResourceActionPresentation` controls UI placement, icon, and confirmation prompts separately from provider execution logic.
 
 Providers and extensions can also register log providers. A log provider returns `LogDescriptor` values, reads recent `LogEntry` values for a selected log, and can override `StreamLogAsync` for live tailing. Descriptors can point at a `ResourceId`, an artifact ID, or provider-owned source, and opt in to live streaming through `SupportsStreaming`.
 

@@ -38,14 +38,14 @@ public sealed class InProcessControlPlane(
         CancellationToken cancellationToken = default) =>
         resourceGroups.CreateAsync(command.Name, command.Description, cancellationToken);
 
-    public Task<IReadOnlyList<CloudResource>> ListAvailableResourcesAsync(
+    public Task<IReadOnlyList<Resource>> ListAvailableResourcesAsync(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(resourceManager.GetAvailableResources());
     }
 
-    public Task<IReadOnlyList<CloudResource>> ListResourcesAsync(
+    public Task<IReadOnlyList<Resource>> ListResourcesAsync(
         ResourceQuery? query = null,
         CancellationToken cancellationToken = default)
     {
@@ -53,7 +53,7 @@ public sealed class InProcessControlPlane(
         return Task.FromResult(ApplyQuery(resourceManager.GetResources(), query));
     }
 
-    public Task<CloudResource?> GetResourceAsync(
+    public Task<Resource?> GetResourceAsync(
         string resourceId,
         CancellationToken cancellationToken = default)
     {
@@ -61,7 +61,7 @@ public sealed class InProcessControlPlane(
         return Task.FromResult(resourceManager.GetResource(resourceId));
     }
 
-    public Task<IReadOnlyList<CloudResource>> ListResourceChildrenAsync(
+    public Task<IReadOnlyList<Resource>> ListResourceChildrenAsync(
         string resourceId,
         CancellationToken cancellationToken = default)
     {
@@ -129,7 +129,7 @@ public sealed class InProcessControlPlane(
         var capabilities = resourceIds
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(resourceId => resourceManager.GetResource(resourceId))
-            .OfType<CloudResource>()
+            .OfType<Resource>()
             .Select(CreateCapabilities)
             .ToDictionary(
                 capability => capability.ResourceId,
@@ -333,7 +333,7 @@ public sealed class InProcessControlPlane(
         return Task.CompletedTask;
     }
 
-    private IReadOnlyList<CloudResource> GetActiveDependents(CloudResource resource) =>
+    private IReadOnlyList<Resource> GetActiveDependents(Resource resource) =>
         resourceManager.GetResources()
             .Where(candidate => candidate.State == ResourceState.Running)
             .Where(candidate => candidate.DependsOn.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
@@ -342,7 +342,7 @@ public sealed class InProcessControlPlane(
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart or ResourceActionKind.Pause;
 
-    private ResourceOperationCapabilities CreateCapabilities(CloudResource resource)
+    private ResourceOperationCapabilities CreateCapabilities(Resource resource)
     {
         var group = resourceManager.GetGroupForResource(resource.Id);
         var canManage = authorization.CanAccessResource(
@@ -367,7 +367,7 @@ public sealed class InProcessControlPlane(
     }
 
     private static ResourceActionCapability CreateActionCapability(
-        CloudResource resource,
+        Resource resource,
         ResourceAction action,
         bool canManage,
         bool hasProcedureProvider)
@@ -396,7 +396,7 @@ public sealed class InProcessControlPlane(
     }
 
     private static string? GetActionUnavailableReason(
-        CloudResource resource,
+        Resource resource,
         ResourceAction action) =>
         action.Kind switch
         {
@@ -421,7 +421,7 @@ public sealed class InProcessControlPlane(
     private static string FormatState(ResourceState state) =>
         state.ToString().ToLowerInvariant();
 
-    private IResourceProcedureProvider? GetProcedureProvider(CloudResource resource)
+    private IResourceProcedureProvider? GetProcedureProvider(Resource resource)
     {
         var registration = GetRegistrationForResourceOrAncestor(resource);
         if (registration is not null)
@@ -436,7 +436,7 @@ public sealed class InProcessControlPlane(
             as IResourceProcedureProvider;
     }
 
-    private IResourceProcedureProvider? GetDirectProcedureProvider(CloudResource resource)
+    private IResourceProcedureProvider? GetDirectProcedureProvider(Resource resource)
     {
         var registration = registrations.GetRegistration(resource.Id);
         if (registration is null)
@@ -449,7 +449,7 @@ public sealed class InProcessControlPlane(
             as IResourceProcedureProvider;
     }
 
-    private ResourceRegistration? GetRegistrationForResourceOrAncestor(CloudResource resource)
+    private ResourceRegistration? GetRegistrationForResourceOrAncestor(Resource resource)
     {
         var current = resource;
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -576,8 +576,8 @@ public sealed class InProcessControlPlane(
         return configuration;
     }
 
-    private IReadOnlyList<CloudResource> ApplyQuery(
-        IReadOnlyList<CloudResource> resources,
+    private IReadOnlyList<Resource> ApplyQuery(
+        IReadOnlyList<Resource> resources,
         ResourceQuery? query)
     {
         if (query is null)

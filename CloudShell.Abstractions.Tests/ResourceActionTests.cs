@@ -6,15 +6,16 @@ namespace CloudShell.Abstractions.Tests;
 public sealed class ResourceActionTests
 {
     [Fact]
-    public void CloudResource_ExposesEmptyActionsWhenNoneAreDefined()
+    public void Resource_ExposesEmptyActionsWhenNoneAreDefined()
     {
         var resource = CreateResource();
 
         Assert.Empty(resource.ResourceActions);
+        Assert.Equal(ResourceClass.Generic, resource.ResourceClass);
     }
 
     [Fact]
-    public void CloudResource_ExposesProviderDefinedActions()
+    public void Resource_ExposesProviderDefinedActions()
     {
         var resource = CreateResource([ResourceAction.Run, new ResourceAction("custom", "Custom")]);
 
@@ -29,7 +30,7 @@ public sealed class ResourceActionTests
     }
 
     [Fact]
-    public void CloudResource_ProvidesCaseInsensitiveActionLookup()
+    public void Resource_ProvidesCaseInsensitiveActionLookup()
     {
         var resource = CreateResource([ResourceAction.Stop, new ResourceAction("custom", "Custom")]);
 
@@ -95,7 +96,7 @@ public sealed class ResourceActionTests
         Assert.Equal(ResourceActionIcon.Restart, ResourceAction.Restart.EffectivePresentation.Icon);
     }
 
-    private static CloudResource CreateResource(IReadOnlyList<ResourceAction>? actions = null) =>
+    private static Resource CreateResource(IReadOnlyList<ResourceAction>? actions = null) =>
         new(
             "sample:resource",
             "Sample",

@@ -16,7 +16,7 @@ affordances.
 | Level | Audience | Purpose | Examples |
 | --- | --- | --- | --- |
 | Product concepts | Users and extension authors | Describe what CloudShell manages and shows | resources, resource groups, lifecycle actions, logs |
-| Public domain abstraction | Shell integrations and remote adapters | Cloud-plane client API for the Control Plane domain without caring about transport | `IResourceManager`, `IResourceTemplateManager`, `ILogManager`, `CloudResource` |
+| Public domain abstraction | Shell integrations and remote adapters | Cloud-plane client API for the Control Plane domain without caring about transport | `IResourceManager`, `IResourceTemplateManager`, `ILogManager`, `Resource` |
 | Internal Control Plane services | Control Plane implementation | Coordinate state, providers, persistence, authorization, and procedures | `InProcessControlPlane`, `IResourceManagerStore`, `IResourceRegistrationStore`, `ResourceOrchestrationService` |
 | Provider contracts | Provider and extension packages | Project external systems into CloudShell and execute provider-owned operations | `IResourceProvider`, `IResourceCreationProvider`, `IResourceProcedureProvider`, `IResourceTemplateProvider` |
 | HTTP API projection | Remote Control Plane clients and generated clients | Versioned contract for the same domain entities and relationships | `/api/control-plane/v1/resources`, `ResourceResponse`, `resourceActions` |
@@ -36,12 +36,14 @@ A resource is the central CloudShell artifact. It represents something the
 platform can inspect or operate, such as a Docker Engine, container, executable
 application, configuration service, database, queue, or internal service.
 
-In code, a resource is projected as `CloudResource`.
+In code, a resource is projected as `Resource`.
 
 Important properties:
 
 - `Id`: stable identifier.
 - `TypeId` / `EffectiveTypeId`: stable resource type.
+- `ResourceClass`: broad resource classification such as executable, project,
+  container, service, network, configuration, or infrastructure.
 - `State`: lifecycle or health-oriented state.
 - `Endpoints`: addresses exposed by the resource.
 - `DependsOn`: resource dependencies.
@@ -50,10 +52,14 @@ Important properties:
 - `ResourceActions`: resource-domain operations exposed by the provider.
 - `ResourceHealthChecks`: health signals contributed by providers.
 
-`CloudResource` is a projection. It does not imply CloudShell owns all
-underlying provider configuration or runtime state.
+`Resource` is a uniform projection. It is not subclassed for containers,
+executables, projects, services, or infrastructure. A resource carries common
+attributes such as class, type, endpoints, actions, health checks, and
+observability; providers own the configuration and runtime behavior behind
+those attributes. `Resource` does not imply CloudShell owns all underlying
+provider configuration or runtime state.
 
-As a client API entity, `CloudResource` should be convenient to inspect without
+As a client API entity, `Resource` should be convenient to inspect without
 becoming an active service object. It may expose domain helpers such as
 case-insensitive resource-action lookup and standard lifecycle action
 properties. It should not execute operations itself. Commands still go through
@@ -83,7 +89,7 @@ user can add or configure a resource of that type.
 ### Resource provider
 
 A resource provider is an internal implementation service. It maps an external
-system or provider-owned configuration into `CloudResource` projections.
+system or provider-owned configuration into `Resource` projections.
 
 Providers implement contracts such as:
 
@@ -158,12 +164,12 @@ Resource actions are not UI actions. A UI button or menu item may render a
 resource action, but the UI element is only a presentation of the resource
 operation.
 
-The provider declares the action surface on `CloudResource.ResourceActions`.
+The provider declares the action surface on `Resource.ResourceActions`.
 The Control Plane validates state, authorization, provider support, and other
 constraints before dispatching execution.
 
 The public abstraction defines canonical action IDs for standard lifecycle
-actions. Consumers should use those IDs and `CloudResource` action lookup
+actions. Consumers should use those IDs and `Resource` action lookup
 helpers instead of hard-coding string literals or route templates. The list of
 actions on a resource means "this operation exists for this resource"; it does
 not mean the current caller can execute the operation right now.
@@ -190,14 +196,14 @@ As a client API convenience, `ResourceOperationCapabilities` can expose
 case-insensitive action-capability lookup and standard lifecycle booleans. This
 keeps the consumer workflow explicit:
 
-1. Inspect `CloudResource.ResourceActions` to discover the resource operation.
+1. Inspect `Resource.ResourceActions` to discover the resource operation.
 2. Inspect `ResourceOperationCapabilities` to decide whether it can execute now.
 3. Call `IResourceManager.ExecuteResourceActionAsync` to request execution.
 
 The public abstraction may provide manager extension methods for common
 lifecycle operations, such as run, stop, pause, and restart. These helpers
 should construct domain commands for `IResourceManager`; they should not move
-execution behavior onto `CloudResource`.
+execution behavior onto `Resource`.
 
 Client convenience APIs can also provide singular capability lookup helpers for
 a resource. Those helpers are still manager operations because the Control Plane

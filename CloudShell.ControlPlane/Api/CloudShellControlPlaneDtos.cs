@@ -11,6 +11,7 @@ public sealed record ResourceResponse(
     string Name,
     string Kind,
     string TypeId,
+    ResourceClass ResourceClass,
     string Provider,
     string Region,
     ResourceState State,
@@ -125,7 +126,7 @@ public sealed record SetCloudShellUserSettingRequest(string Value);
 internal static class CloudShellControlPlaneDtoMapper
 {
     public static ResourceResponse ToResponse(
-        this CloudResource resource,
+        this Resource resource,
         ResourceGroup? group,
         bool isRegistered) =>
         new(
@@ -133,6 +134,7 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.Name,
             resource.Kind,
             resource.EffectiveTypeId,
+            resource.ResourceClass,
             resource.Provider,
             resource.Region,
             resource.State,
@@ -168,7 +170,7 @@ internal static class CloudShellControlPlaneDtoMapper
     }
 
     private static IReadOnlyDictionary<string, ResourceActionResponse> CreateResourceActionDictionary(
-        CloudResource resource) =>
+        Resource resource) =>
         resource.ResourceActions
             .GroupBy(action => action.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(

@@ -85,7 +85,8 @@ public interface ICloudShellExtensionBuilder
         string description,
         string icon,
         int order,
-        ResourceTypeProbeOptions? probeOptions = null);
+        ResourceTypeProbeOptions? probeOptions = null,
+        ResourceClass resourceClass = ResourceClass.Generic);
 
     ICloudShellExtensionBuilder AddResourceType<TRegistrationComponent, TUpdateComponent>(
         string id,
@@ -93,7 +94,8 @@ public interface ICloudShellExtensionBuilder
         string description,
         string icon,
         int order,
-        ResourceTypeProbeOptions? probeOptions = null);
+        ResourceTypeProbeOptions? probeOptions = null,
+        ResourceClass resourceClass = ResourceClass.Generic);
 
     ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,

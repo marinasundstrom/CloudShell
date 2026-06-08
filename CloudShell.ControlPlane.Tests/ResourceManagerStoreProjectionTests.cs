@@ -78,7 +78,7 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     private static ResourceManagerStore CreateStore(
-        IReadOnlyList<CloudResource> resources,
+        IReadOnlyList<Resource> resources,
         IReadOnlyList<ResourceGroup>? groups = null,
         IReadOnlyList<ResourceRegistration>? registrations = null,
         ResourceDeclarationStore? declarations = null)
@@ -94,7 +94,7 @@ public sealed class ResourceManagerStoreProjectionTests
             new InMemoryCloudShellExtensionActivationStore());
     }
 
-    private static CloudResource CreateResource(
+    private static Resource CreateResource(
         string id,
         string name,
         string? parentResourceId = null) =>
@@ -122,13 +122,13 @@ public sealed class ResourceManagerStoreProjectionTests
             DateTimeOffset.UtcNow,
             []);
 
-    private sealed class TestResourceProvider(IReadOnlyList<CloudResource> resources) : IResourceProvider
+    private sealed class TestResourceProvider(IReadOnlyList<Resource> resources) : IResourceProvider
     {
         public string Id => "test";
 
         public string DisplayName => "Test";
 
-        public IReadOnlyList<CloudResource> GetResources() => resources;
+        public IReadOnlyList<Resource> GetResources() => resources;
     }
 
     private sealed class TestResourceGroupStore(IReadOnlyList<ResourceGroup> groups) : IResourceGroupStore

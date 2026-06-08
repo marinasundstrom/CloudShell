@@ -38,7 +38,8 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "Executable application",
                 "Register an executable, configure arguments and environment variables, then launch it from CloudShell.",
                 "application",
-                20)
+                20,
+                resourceClass: ResourceClass.Executable)
             .AddResourceType<Pages.RegisterAspNetCoreProjectResource>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 "ASP.NET Core project",
@@ -56,19 +57,22 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                             ResourceProbeType.Liveness,
                             "http",
                             "liveness")
-                    ]))
+                    ]),
+                resourceClass: ResourceClass.Project)
             .AddResourceType<Pages.RegisterContainerImageResource>(
                 ApplicationResourceTypes.ContainerImage,
                 "Container application",
                 "Register a top-level containerized application that runs through the selected or default container engine.",
                 "container",
-                22)
+                22,
+                resourceClass: ResourceClass.Container)
             .AddResourceType<Pages.RegisterSqlServerResource>(
                 ApplicationResourceTypes.SqlServer,
                 "SQL Server",
                 "Register a local SQL Server container with a TDS endpoint for direct access and service discovery.",
                 "database",
-                23)
+                23,
+                resourceClass: ResourceClass.Container)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ExecutableApplication,
                 "overview",

@@ -38,7 +38,7 @@ public sealed partial class ConfigurationResourceProvider :
 
     public string DisplayName => "Configuration";
 
-    public IReadOnlyList<CloudResource> GetResources()
+    public IReadOnlyList<Resource> GetResources()
     {
         return store.GetStores()
             .Select(CreateResource)
@@ -246,12 +246,12 @@ public sealed partial class ConfigurationResourceProvider :
             ]
             : [];
 
-    public bool CanExport(CloudResource resource) =>
+    public bool CanExport(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "configuration.store", StringComparison.OrdinalIgnoreCase) &&
         store.GetStore(resource.Id) is not null;
 
     public Task<ResourceTemplateDefinition> ExportAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceTemplateExportContext context,
         CancellationToken cancellationToken = default)
     {
@@ -340,7 +340,7 @@ public sealed partial class ConfigurationResourceProvider :
             : $"{normalizedPrefix}-{slug}";
     }
 
-    private CloudResource CreateResource(ConfigurationStoreDefinition configurationStore) =>
+    private Resource CreateResource(ConfigurationStoreDefinition configurationStore) =>
         new(
             configurationStore.Id,
             configurationStore.Name,
@@ -354,7 +354,8 @@ public sealed partial class ConfigurationResourceProvider :
             [],
             TypeId: "configuration.store",
             Actions: CreateActions(configurationStore),
-            HealthChecks: configurationStore.HealthChecks);
+            HealthChecks: configurationStore.HealthChecks,
+            ResourceClass: ResourceClass.Configuration);
 
     private ResourceState GetState(ConfigurationStoreDefinition configurationStore)
     {

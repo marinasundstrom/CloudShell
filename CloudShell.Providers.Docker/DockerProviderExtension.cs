@@ -41,7 +41,8 @@ public sealed class DockerProviderExtension : ICloudShellExtension
                             EndpointName: "engine",
                             Name: "engine")
                     ],
-                    EnableHealthChecksByDefault: false))
+                    EnableHealthChecksByDefault: false),
+                resourceClass: ResourceClass.Infrastructure)
             .AddResourceTab<Pages.DockerEngineOverview>(
                 "docker.engine",
                 "overview",

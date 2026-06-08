@@ -18,12 +18,12 @@ public sealed class ResourceManagerStore(
         .OrderBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    public IReadOnlyList<CloudResource> GetAvailableResources() => Providers
+    public IReadOnlyList<Resource> GetAvailableResources() => Providers
         .SelectMany(provider => provider.GetResources())
         .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    public IReadOnlyList<CloudResource> GetResources()
+    public IReadOnlyList<Resource> GetResources()
     {
         var available = GetAvailableResources();
         var declarationsById = declarations.GetDeclarations()
@@ -68,10 +68,10 @@ public sealed class ResourceManagerStore(
             .ToArray();
     }
 
-    public CloudResource? GetResource(string id) =>
+    public Resource? GetResource(string id) =>
         GetResources().FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
 
-    public IReadOnlyList<CloudResource> GetChildren(string resourceId) =>
+    public IReadOnlyList<Resource> GetChildren(string resourceId) =>
         GetResources()
             .Where(resource => string.Equals(resource.ParentResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
@@ -116,8 +116,8 @@ public sealed class ResourceManagerStore(
         registrations.GetRegistration(resourceId) is not null;
 
     private static bool IsRegisteredOrDescendant(
-        CloudResource resource,
-        IReadOnlyList<CloudResource> available,
+        Resource resource,
+        IReadOnlyList<Resource> available,
         HashSet<string> registeredIds)
     {
         var current = resource;
@@ -147,8 +147,8 @@ public sealed class ResourceManagerStore(
         return false;
     }
 
-    private static CloudResource ApplyRegistrationMetadata(
-        CloudResource resource,
+    private static Resource ApplyRegistrationMetadata(
+        Resource resource,
         IReadOnlyDictionary<string, ResourceRegistration> registrationsById)
     {
         if (!registrationsById.TryGetValue(resource.Id, out var registration) ||
@@ -169,8 +169,8 @@ public sealed class ResourceManagerStore(
         };
     }
 
-    private static CloudResource ApplyDeclarationMetadata(
-        CloudResource resource,
+    private static Resource ApplyDeclarationMetadata(
+        Resource resource,
         IReadOnlyDictionary<string, ResourceDeclaration> declarationsById)
     {
         if (!declarationsById.TryGetValue(resource.Id, out var declaration) ||

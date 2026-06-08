@@ -39,7 +39,8 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                             "/healthz",
                             EndpointName: "entries",
                             Name: "health")
-                    ]))
+                    ]),
+                resourceClass: ResourceClass.Configuration)
             .AddResourceTab<Pages.ConfigurationStoreOverview>(
                 "configuration.store",
                 "overview",

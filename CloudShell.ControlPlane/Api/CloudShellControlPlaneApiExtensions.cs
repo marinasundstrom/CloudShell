@@ -708,7 +708,7 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static async Task<IReadOnlyList<ResourceResponse>> CreateResourceResponses(
         IResourceManager resourceManager,
-        IReadOnlyList<CloudResource> resources,
+        IReadOnlyList<Resource> resources,
         CancellationToken cancellationToken)
     {
         var responses = new List<ResourceResponse>(resources.Count);
@@ -722,7 +722,7 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static async Task<ResourceResponse> CreateResourceResponse(
         IResourceManager resourceManager,
-        CloudResource resource,
+        Resource resource,
         CancellationToken cancellationToken)
     {
         var group = await resourceManager.GetResourceGroupForResourceAsync(resource.Id, cancellationToken);

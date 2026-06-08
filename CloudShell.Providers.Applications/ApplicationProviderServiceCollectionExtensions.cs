@@ -38,13 +38,13 @@ public static class ApplicationProviderServiceCollectionExtensions
         });
     }
 
-    public static IExecutableApplicationResourceBuilder AddExecutable(
+    public static IExecutableResourceBuilder AddExecutable(
         this ICloudShellResourceDeclarationBuilder builder,
         string id,
         string name) =>
         builder.AddExecutableApplication(id, name, executablePath: string.Empty);
 
-    public static IExecutableApplicationResourceBuilder AddExecutableApplication(
+    public static IExecutableResourceBuilder AddExecutableApplication(
         this ICloudShellResourceDeclarationBuilder builder,
         string id,
         string name,
@@ -91,7 +91,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         return new ExecutableApplicationResourceBuilder(resource, declared);
     }
 
-    public static IExecutableApplicationResourceBuilder AddAspNetCoreProjectFromName(
+    public static IProjectResourceBuilder AddAspNetCoreProjectFromName(
         this ICloudShellResourceDeclarationBuilder builder,
         string name,
         string projectPath,
@@ -112,7 +112,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             useServiceDiscovery,
             observability);
 
-    public static IExecutableApplicationResourceBuilder AddAspNetCoreProject(
+    public static IProjectResourceBuilder AddAspNetCoreProject(
         this ICloudShellResourceDeclarationBuilder builder,
         string id,
         string name,
@@ -328,107 +328,111 @@ public static class ApplicationProviderServiceCollectionExtensions
     }
 }
 
-public interface IExecutableApplicationResourceBuilder : ICloudShellResourceBuilder
+public interface IExecutableResourceBuilder : ICloudShellResourceBuilder
 {
-    IExecutableApplicationResourceBuilder WithCommand(
+    IExecutableResourceBuilder WithCommand(
         string executablePath,
         string? arguments = null,
         string? workingDirectory = null);
 
-    IExecutableApplicationResourceBuilder WithEndpoint(string? endpoint);
+    IExecutableResourceBuilder WithEndpoint(string? endpoint);
 
-    IExecutableApplicationResourceBuilder WithEndpointPort(
+    IExecutableResourceBuilder WithEndpointPort(
         string name,
         int targetPort,
         int? port = null,
         string protocol = "http",
         ResourceExposureScope exposure = ResourceExposureScope.Local);
 
-    IExecutableApplicationResourceBuilder WithHttpEndpoint(
+    IExecutableResourceBuilder WithHttpEndpoint(
         int? port = null,
         int targetPort = 80,
         string name = "http");
 
-    IExecutableApplicationResourceBuilder WithHttpsEndpoint(
+    IExecutableResourceBuilder WithHttpsEndpoint(
         int? port = null,
         int targetPort = 443,
         string name = "https");
 
-    IExecutableApplicationResourceBuilder WithHttpHealthCheck(
+    IExecutableResourceBuilder WithHttpHealthCheck(
         string path,
         string? endpointName = null,
         string name = "health",
         TimeSpan? timeout = null);
 
-    IExecutableApplicationResourceBuilder WithHttpProbe(
+    IExecutableResourceBuilder WithHttpProbe(
         ResourceProbeType type,
         string path,
         string? endpointName = null,
         string? name = null,
         TimeSpan? timeout = null);
 
-    IExecutableApplicationResourceBuilder WithEnvironment(
+    IExecutableResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
 
-    IExecutableApplicationResourceBuilder WithEnvironment(
+    IExecutableResourceBuilder WithEnvironment(
         string name,
         string value);
 
-    IExecutableApplicationResourceBuilder WithLifetime(ApplicationLifetime lifetime);
+    IExecutableResourceBuilder WithLifetime(ResourceLifetime lifetime);
 
-    IExecutableApplicationResourceBuilder WithServiceDiscovery(bool enabled = true);
+    IExecutableResourceBuilder WithServiceDiscovery(bool enabled = true);
 
-    IExecutableApplicationResourceBuilder WithObservability(bool enabled = true);
+    IExecutableResourceBuilder WithObservability(bool enabled = true);
 
-    IExecutableApplicationResourceBuilder WithOtlpExporter(
+    IExecutableResourceBuilder WithOtlpExporter(
         string? endpoint = null,
         string? protocol = null,
         string? headers = null);
 
-    IExecutableApplicationResourceBuilder WithContainerImage(string? image);
+    IExecutableResourceBuilder WaitFor(ICloudShellResourceBuilder resource);
 
-    IExecutableApplicationResourceBuilder WithDockerBuild(
+    IExecutableResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources);
+
+    new IExecutableResourceBuilder DependsOn(string resourceId);
+
+    new IExecutableResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+
+    new IExecutableResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IExecutableResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+
+    new IExecutableResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IExecutableResourceBuilder WithParent(string? parentResourceId);
+
+    new IExecutableResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+
+    new IExecutableResourceBuilder WithReference(ICloudShellResourceBuilder resource);
+
+    IExecutableResourceBuilder WithReferences(IEnumerable<ICloudShellResourceBuilder> resources);
+
+    new IExecutableResourceBuilder Persist(bool overwrite = false);
+}
+
+public interface IProjectResourceBuilder : IExecutableResourceBuilder
+{
+    IProjectResourceBuilder AsContainerImage(string image);
+
+    IProjectResourceBuilder WithContainerBuild(
         string? buildContext,
         string? dockerfile = null);
 
-    IExecutableApplicationResourceBuilder WithReplicas(int replicas);
-
-    IExecutableApplicationResourceBuilder WaitFor(ICloudShellResourceBuilder resource);
-
-    IExecutableApplicationResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources);
-
-    new IExecutableApplicationResourceBuilder DependsOn(string resourceId);
-
-    new IExecutableApplicationResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
-
-    new IExecutableApplicationResourceBuilder DependsOn(IEnumerable<string> resourceIds);
-
-    new IExecutableApplicationResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
-
-    new IExecutableApplicationResourceBuilder WithResourceGroup(string? resourceGroupId);
-
-    new IExecutableApplicationResourceBuilder WithParent(string? parentResourceId);
-
-    new IExecutableApplicationResourceBuilder WithParent(ICloudShellResourceBuilder resource);
-
-    new IExecutableApplicationResourceBuilder WithReference(ICloudShellResourceBuilder resource);
-
-    IExecutableApplicationResourceBuilder WithReferences(IEnumerable<ICloudShellResourceBuilder> resources);
-
-    new IExecutableApplicationResourceBuilder Persist(bool overwrite = false);
+    IProjectResourceBuilder WithReplicas(int replicas);
 }
 
 internal sealed class ExecutableApplicationResourceBuilder(
     ICloudShellResourceBuilder inner,
     DeclaredApplicationResource declared) :
-    IExecutableApplicationResourceBuilder,
+    IExecutableResourceBuilder,
+    IProjectResourceBuilder,
     IContainerResourceBuilder
 {
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
 
     public string ResourceId => inner.ResourceId;
 
-    public IExecutableApplicationResourceBuilder WithCommand(
+    public IExecutableResourceBuilder WithCommand(
         string executablePath,
         string? arguments = null,
         string? workingDirectory = null)
@@ -442,7 +446,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithEndpoint(string? endpoint)
+    public IExecutableResourceBuilder WithEndpoint(string? endpoint)
     {
         if (string.Equals(
                 declared.Definition.ResourceType,
@@ -464,7 +468,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithEndpointPort(
+    public IExecutableResourceBuilder WithEndpointPort(
         string name,
         int targetPort,
         int? port = null,
@@ -483,26 +487,26 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithHttpEndpoint(
+    public IExecutableResourceBuilder WithHttpEndpoint(
         int? port = null,
         int targetPort = 80,
         string name = "http") =>
         WithEndpointPort(name, targetPort, port, "http");
 
-    public IExecutableApplicationResourceBuilder WithHttpsEndpoint(
+    public IExecutableResourceBuilder WithHttpsEndpoint(
         int? port = null,
         int targetPort = 443,
         string name = "https") =>
         WithEndpointPort(name, targetPort, port, "https");
 
-    public IExecutableApplicationResourceBuilder WithHttpHealthCheck(
+    public IExecutableResourceBuilder WithHttpHealthCheck(
         string path,
         string? endpointName = null,
         string name = "health",
         TimeSpan? timeout = null) =>
         WithHttpProbe(ResourceProbeType.Health, path, endpointName, name, timeout);
 
-    public IExecutableApplicationResourceBuilder WithHttpProbe(
+    public IExecutableResourceBuilder WithHttpProbe(
         ResourceProbeType type,
         string path,
         string? endpointName = null,
@@ -524,7 +528,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithEnvironment(
+    public IExecutableResourceBuilder WithEnvironment(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
     {
         declared.Definition = declared.Definition with
@@ -534,7 +538,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithEnvironment(
+    public IExecutableResourceBuilder WithEnvironment(
         string name,
         string value)
     {
@@ -547,13 +551,13 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithLifetime(ApplicationLifetime lifetime)
+    public IExecutableResourceBuilder WithLifetime(ApplicationLifetime lifetime)
     {
         declared.Definition = declared.Definition with { Lifetime = lifetime };
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithServiceDiscovery(bool enabled = true)
+    public IExecutableResourceBuilder WithServiceDiscovery(bool enabled = true)
     {
         declared.Definition = declared.Definition with
         {
@@ -562,7 +566,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithObservability(bool enabled = true)
+    public IExecutableResourceBuilder WithObservability(bool enabled = true)
     {
         declared.Definition = declared.Definition with
         {
@@ -578,7 +582,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithOtlpExporter(
+    public IExecutableResourceBuilder WithOtlpExporter(
         string? endpoint = null,
         string? protocol = null,
         string? headers = null)
@@ -598,7 +602,13 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithContainerImage(string? image)
+    public IProjectResourceBuilder AsContainerImage(string image)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(image);
+        return WithContainerImage(image);
+    }
+
+    public IProjectResourceBuilder WithContainerImage(string? image)
     {
         declared.Definition = declared.Definition with
         {
@@ -649,7 +659,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithDockerBuild(
+    public IProjectResourceBuilder WithContainerBuild(
         string? buildContext,
         string? dockerfile = null)
     {
@@ -662,7 +672,12 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithReplicas(int replicas)
+    public IProjectResourceBuilder WithDockerBuild(
+        string? buildContext,
+        string? dockerfile = null) =>
+        WithContainerBuild(buildContext, dockerfile);
+
+    public IProjectResourceBuilder WithReplicas(int replicas)
     {
         declared.Definition = declared.Definition with
         {
@@ -680,25 +695,34 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithResourceGroup(string? resourceGroupId)
+    IExecutableResourceBuilder IExecutableResourceBuilder.WithLifetime(ResourceLifetime lifetime)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Lifetime = ToApplicationLifetime(lifetime)
+        };
+        return this;
+    }
+
+    public IExecutableResourceBuilder WithResourceGroup(string? resourceGroupId)
     {
         inner.WithResourceGroup(resourceGroupId);
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithParent(string? parentResourceId)
+    public IExecutableResourceBuilder WithParent(string? parentResourceId)
     {
         inner.WithParent(parentResourceId);
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithParent(ICloudShellResourceBuilder resource)
+    public IExecutableResourceBuilder WithParent(ICloudShellResourceBuilder resource)
     {
         inner.WithParent(resource);
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithReference(ICloudShellResourceBuilder resource)
+    public IExecutableResourceBuilder WithReference(ICloudShellResourceBuilder resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
         declared.Definition = declared.Definition with
@@ -713,7 +737,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WithReferences(IEnumerable<ICloudShellResourceBuilder> resources)
+    public IExecutableResourceBuilder WithReferences(IEnumerable<ICloudShellResourceBuilder> resources)
     {
         ArgumentNullException.ThrowIfNull(resources);
         var resourceIds = resources
@@ -736,38 +760,38 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder WaitFor(ICloudShellResourceBuilder resource)
+    public IExecutableResourceBuilder WaitFor(ICloudShellResourceBuilder resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
         return DependsOn(resource);
     }
 
-    public IExecutableApplicationResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources)
+    public IExecutableResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources)
     {
         ArgumentNullException.ThrowIfNull(resources);
         return DependsOn(resources);
     }
 
-    public IExecutableApplicationResourceBuilder DependsOn(string resourceId)
+    public IExecutableResourceBuilder DependsOn(string resourceId)
     {
         inner.DependsOn(resourceId);
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder DependsOn(ICloudShellResourceBuilder resource)
+    public IExecutableResourceBuilder DependsOn(ICloudShellResourceBuilder resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
         inner.DependsOn(resource);
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    public IExecutableResourceBuilder DependsOn(IEnumerable<string> resourceIds)
     {
         inner.DependsOn(resourceIds);
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources)
+    public IExecutableResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources)
     {
         ArgumentNullException.ThrowIfNull(resources);
         inner.DependsOn(resources.Select(resource =>
@@ -778,7 +802,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IExecutableApplicationResourceBuilder Persist(bool overwrite = false)
+    public IExecutableResourceBuilder Persist(bool overwrite = false)
     {
         inner.Persist(overwrite);
         return this;
@@ -814,7 +838,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
     ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
         AddReferences(resourceIds);
 
-    private IExecutableApplicationResourceBuilder AddReference(string resourceId)
+    private IExecutableResourceBuilder AddReference(string resourceId)
     {
         declared.Definition = declared.Definition with
         {
@@ -828,7 +852,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    private IExecutableApplicationResourceBuilder AddReferences(IEnumerable<string> resourceIds)
+    private IExecutableResourceBuilder AddReferences(IEnumerable<string> resourceIds)
     {
         ArgumentNullException.ThrowIfNull(resourceIds);
         declared.Definition = declared.Definition with

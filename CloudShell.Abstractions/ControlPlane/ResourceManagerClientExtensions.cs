@@ -20,7 +20,7 @@ public static class ResourceManagerClientExtensions
 
     public static Task<ResourceOperationCapabilities> GetResourceOperationCapabilitiesAsync(
         this IResourceManager resourceManager,
-        CloudResource resource,
+        Resource resource,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(resource);
@@ -51,7 +51,7 @@ public static class ResourceManagerClientExtensions
 
     public static Task<ResourceProcedureResult> ExecuteResourceActionAsync(
         this IResourceManager resourceManager,
-        CloudResource resource,
+        Resource resource,
         ResourceAction action,
         bool startDependencies = false,
         bool ignoreDependentWarning = false,
@@ -81,7 +81,7 @@ public static class ResourceManagerClientExtensions
 
     public static Task<ResourceProcedureResult> RunResourceAsync(
         this IResourceManager resourceManager,
-        CloudResource resource,
+        Resource resource,
         bool startDependencies = false,
         CancellationToken cancellationToken = default)
     {
@@ -106,7 +106,7 @@ public static class ResourceManagerClientExtensions
 
     public static Task<ResourceProcedureResult> StopResourceAsync(
         this IResourceManager resourceManager,
-        CloudResource resource,
+        Resource resource,
         bool ignoreDependentWarning = false,
         CancellationToken cancellationToken = default)
     {
@@ -129,7 +129,7 @@ public static class ResourceManagerClientExtensions
 
     public static Task<ResourceProcedureResult> PauseResourceAsync(
         this IResourceManager resourceManager,
-        CloudResource resource,
+        Resource resource,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(resource);
@@ -154,7 +154,7 @@ public static class ResourceManagerClientExtensions
 
     public static Task<ResourceProcedureResult> RestartResourceAsync(
         this IResourceManager resourceManager,
-        CloudResource resource,
+        Resource resource,
         bool startDependencies = false,
         bool ignoreDependentWarning = false,
         CancellationToken cancellationToken = default)

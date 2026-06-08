@@ -32,6 +32,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal("network:contract", network.Id);
         Assert.Equal("Contract Network", network.Name);
         Assert.Equal(PlatformResourceProvider.NetworkResourceType, network.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Network, network.ResourceClass);
 
         var remoteGroup = Assert.Single(groups);
         Assert.Equal(group.Id, remoteGroup.Id);
@@ -74,6 +75,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal("Contract Service", service.Name);
         Assert.Equal(["network:contract"], service.DependsOn);
         Assert.Equal("http://localhost:5080", service.PrimaryEndpoint);
+        Assert.Equal(ResourceClass.Service, service.ResourceClass);
 
         var registration = await controlPlane.GetResourceRegistrationAsync(service.Id);
         Assert.NotNull(registration);
@@ -117,6 +119,7 @@ public sealed class RemoteControlPlaneContractTests
         var stop = actions.GetProperty(ResourceActionIds.Stop);
 
         Assert.False(resource.TryGetProperty("actions", out _));
+        Assert.Equal((int)ResourceClass.Executable, resource.GetProperty("resourceClass").GetInt32());
         Assert.Equal(JsonValueKind.Object, actions.ValueKind);
         Assert.Equal(ResourceActionIds.Stop, stop.GetProperty("id").GetString());
         Assert.Equal("Stop", stop.GetProperty("displayName").GetString());
@@ -427,7 +430,7 @@ public sealed class RemoteControlPlaneContractTests
 
         public string DisplayName => "Contract Lifecycle";
 
-        public IReadOnlyList<CloudResource> GetResources() =>
+        public IReadOnlyList<Resource> GetResources() =>
         [
             new(
                 ResourceId,
@@ -441,6 +444,7 @@ public sealed class RemoteControlPlaneContractTests
                 DateTimeOffset.UtcNow,
                 [],
                 TypeId: "contract.lifecycle",
+                ResourceClass: ResourceClass.Executable,
                 Actions:
                 [
                     ResourceAction.Stop,

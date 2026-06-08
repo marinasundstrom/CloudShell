@@ -10,7 +10,7 @@ public sealed class SampleResourceProvider : IResourceProvider
 
     public string DisplayName => "Sample Resources";
 
-    public IReadOnlyList<CloudResource> GetResources() =>
+    public IReadOnlyList<Resource> GetResources() =>
     [
         Create(
             "sample:api",
@@ -30,7 +30,7 @@ public sealed class SampleResourceProvider : IResourceProvider
             "queue://sample-work")
     ];
 
-    private CloudResource Create(
+    private Resource Create(
         string id,
         string name,
         ResourceState state,

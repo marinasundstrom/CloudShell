@@ -6,13 +6,13 @@ public interface IResourceManagerStore
 
     IReadOnlyList<ResourceGroup> GetResourceGroups();
 
-    IReadOnlyList<CloudResource> GetAvailableResources();
+    IReadOnlyList<Resource> GetAvailableResources();
 
-    IReadOnlyList<CloudResource> GetResources();
+    IReadOnlyList<Resource> GetResources();
 
-    CloudResource? GetResource(string id);
+    Resource? GetResource(string id);
 
-    IReadOnlyList<CloudResource> GetChildren(string resourceId);
+    IReadOnlyList<Resource> GetChildren(string resourceId);
 
     ResourceGroup? GetGroupForResource(string resourceId);
 

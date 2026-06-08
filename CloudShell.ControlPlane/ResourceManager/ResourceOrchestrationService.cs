@@ -22,7 +22,7 @@ public sealed class ResourceOrchestrationService(
         containerEngineProviders.ToArray();
 
     public async Task<ResourceProcedureResult> DeleteAsync(
-        CloudResource resource,
+        Resource resource,
         CancellationToken cancellationToken = default)
     {
         var context = CreateContext(resource);
@@ -31,7 +31,7 @@ public sealed class ResourceOrchestrationService(
     }
 
     public async Task<ResourceProcedureResult> ExecuteActionAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceAction action,
         bool startDependencies,
         ICloudShellAuthorizationService authorization,
@@ -51,7 +51,7 @@ public sealed class ResourceOrchestrationService(
     }
 
     private async Task<ResourceProcedureResult> ExecuteActionCoreAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceAction action,
         CancellationToken cancellationToken)
     {
@@ -62,7 +62,7 @@ public sealed class ResourceOrchestrationService(
     }
 
     private async Task StartResourceDependenciesAsync(
-        CloudResource resource,
+        Resource resource,
         ICloudShellAuthorizationService authorization,
         HashSet<string> visiting,
         HashSet<string> completed,
@@ -129,7 +129,7 @@ public sealed class ResourceOrchestrationService(
         visiting.Remove(resource.Id);
     }
 
-    private ResourceOrchestrationContext CreateContext(CloudResource resource)
+    private ResourceOrchestrationContext CreateContext(Resource resource)
     {
         var registration = GetRegistrationForResourceOrAncestor(resource);
         return new ResourceOrchestrationContext(
@@ -245,7 +245,7 @@ public sealed class ResourceOrchestrationService(
     }
 
     private async Task<ResourceOrchestrationDescriptor?> TryDescribeAsync(
-        CloudResource resource,
+        Resource resource,
         ResourceOrchestrationContext context,
         CancellationToken cancellationToken)
     {
@@ -379,7 +379,7 @@ public sealed class ResourceOrchestrationService(
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
-    private ResourceRegistration? GetRegistrationForResourceOrAncestor(CloudResource resource)
+    private ResourceRegistration? GetRegistrationForResourceOrAncestor(Resource resource)
     {
         var current = resource;
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

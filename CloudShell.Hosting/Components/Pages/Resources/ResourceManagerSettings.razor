@@ -297,7 +297,7 @@
             .ToArray();
     }
 
-    private ResourceWorkloadConfiguration? TryReadWorkload(CloudResource resource) =>
+    private ResourceWorkloadConfiguration? TryReadWorkload(Resource resource) =>
         OrchestrationSnapshot.Workloads.GetValueOrDefault(resource.Id);
 
     private static string? NormalizeOptional(string? value) =>
