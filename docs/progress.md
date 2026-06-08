@@ -46,6 +46,9 @@ The MVP should prove:
 - Common executable, project, and container workload builder contracts live in
   `CloudShell.Abstractions`; provider packages own the concrete factory methods
   and implementations that populate provider-specific configuration.
+- Resource declaration builder APIs use concise resource-oriented names such as
+  `IResourceDeclarationBuilder` and `IResourceBuilder` instead of repeating the
+  CloudShell product prefix.
 - CloudShell environment preferences are user-scoped, workload-agnostic, and
   use one configured storage backend: local UI-host storage or Control
   Plane-backed storage.
@@ -88,6 +91,10 @@ The MVP should prove:
   and the remote client.
 - Moved executable and project workload builder contracts into
   `CloudShell.Abstractions` alongside the existing container builder contract.
+- Added generic declaration metadata for `ResourceClass` and non-secret
+  attributes, and projected that metadata through Resource Manager overlays.
+- Renamed the common programmatic resource builder contracts to
+  `IResourceBuilder` and `IResourceDeclarationBuilder`.
 
 ## Active stabilization areas
 

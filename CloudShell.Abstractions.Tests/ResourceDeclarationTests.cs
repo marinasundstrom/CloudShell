@@ -94,6 +94,44 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ResourceMetadataExtensions_RecordClassAndAttributes()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .Declare(
+                        "metadata",
+                        "sample:resource",
+                        resourceClass: ResourceClass.Executable,
+                        attributes: new Dictionary<string, string>
+                        {
+                            [" executable.path "] = " dotnet "
+                        })
+                    .WithResourceClass(ResourceClass.Project)
+                    .WithResourceAttribute(" project.path ", " src/API/API.csproj ")
+                    .WithResourceAttributes(new Dictionary<string, string>
+                    {
+                        [" project.language "] = " csharp ",
+                        [" project.path "] = " src/Worker/Worker.csproj "
+                    });
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations());
+
+        Assert.Equal(ResourceClass.Project, declaration.ResourceClassOverride);
+        Assert.Equal("dotnet", declaration.ResourceAttributes["executable.path"]);
+        Assert.Equal("src/Worker/Worker.csproj", declaration.ResourceAttributes["project.path"]);
+        Assert.Equal("csharp", declaration.ResourceAttributes["project.language"]);
+    }
+
+    [Fact]
     public void ResourceManagerStore_AppliesDeclarationParentMetadata()
     {
         var services = new ServiceCollection();

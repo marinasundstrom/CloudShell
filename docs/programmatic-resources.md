@@ -40,6 +40,9 @@ types. Built-in methods include:
   explicit managed resource.
 
 Common workload builder contracts live in `CloudShell.Abstractions`.
+`IResourceDeclarationBuilder` is the provider-facing declaration entry point
+for `ConfigureResources(...)` and `AddResources(...)`. `IResourceBuilder` is
+the common graph builder returned by generic declarations.
 `IExecutableResourceBuilder`, `IProjectResourceBuilder`, and
 `IContainerResourceBuilder` describe authoring affordances for executable,
 project, and container-backed resources. Provider packages still own the
@@ -248,9 +251,14 @@ if (endpoint is not null)
 }
 ```
 
-The generic `ICloudShellResourceBuilder` still supports string IDs as a lower
+The generic `IResourceBuilder` still supports string IDs as a lower
 level escape hatch, but typed builders should prefer resource-builder overloads
 for dependencies, endpoint references, and provider-specific relationships.
+Generic builders can also attach broad projection metadata with
+`WithResourceClass(...)`, `WithResourceAttribute(...)`, and
+`WithResourceAttributes(...)`. These are declaration-time hints for stable,
+non-secret class and attribute data; provider-owned configuration and runtime
+state still belong behind provider contracts.
 When a provider exposes executable, project, or container-backed declarations,
 prefer returning the shared workload builder interfaces from
 `CloudShell.Abstractions` instead of defining provider-local resource subclasses

@@ -327,8 +327,9 @@ The registration component is rendered inside the common Add Resource page after
 Resource providers are not shown as a product concept in the UI. They are implementation services that resource types use to map external systems into CloudShell resources.
 
 Programmatic resource factories are extension points too. Provider packages can
-add `ICloudShellResourceCollection` extension methods that return the shared
-workload builder contracts from `CloudShell.Abstractions`, such as
+add `IResourceDeclarationBuilder` extension methods that return the shared
+resource and workload builder contracts from `CloudShell.Abstractions`, such as
+`IResourceBuilder`,
 `IExecutableResourceBuilder`, `IProjectResourceBuilder`, or
 `IContainerResourceBuilder`. The provider owns the implementation and
 provider-specific configuration, but the public builder contract stays aligned

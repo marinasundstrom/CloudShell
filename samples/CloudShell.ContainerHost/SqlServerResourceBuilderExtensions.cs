@@ -9,7 +9,7 @@ public static class SqlServerResourceBuilderExtensions
     private const string DefaultPassword = "CloudShell-Passw0rd!";
 
     public static IContainerResourceBuilder AddSqlServer(
-        this ICloudShellResourceDeclarationBuilder resources,
+        this IResourceDeclarationBuilder resources,
         string name,
         string? password = null)
     {

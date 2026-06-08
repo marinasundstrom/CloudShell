@@ -174,15 +174,39 @@ public sealed class ResourceManagerStore(
         IReadOnlyDictionary<string, ResourceDeclaration> declarationsById)
     {
         if (!declarationsById.TryGetValue(resource.Id, out var declaration) ||
-            string.IsNullOrWhiteSpace(declaration.ParentResourceId))
+            (string.IsNullOrWhiteSpace(declaration.ParentResourceId) &&
+             declaration.ResourceClassOverride is null &&
+             declaration.ResourceAttributes.Count == 0))
         {
             return resource;
         }
 
         return resource with
         {
-            ParentResourceId = declaration.ParentResourceId
+            ParentResourceId = string.IsNullOrWhiteSpace(declaration.ParentResourceId)
+                ? resource.ParentResourceId
+                : declaration.ParentResourceId,
+            ResourceClass = declaration.ResourceClassOverride ?? resource.ResourceClass,
+            Attributes = MergeAttributes(resource.ResourceAttributes, declaration.ResourceAttributes)
         };
+    }
+
+    private static IReadOnlyDictionary<string, string> MergeAttributes(
+        IReadOnlyDictionary<string, string> providerAttributes,
+        IReadOnlyDictionary<string, string> declarationAttributes)
+    {
+        if (declarationAttributes.Count == 0)
+        {
+            return providerAttributes;
+        }
+
+        var merged = new Dictionary<string, string>(providerAttributes, StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, value) in declarationAttributes)
+        {
+            merged[name] = value;
+        }
+
+        return merged;
     }
 
     private bool IsProviderActive(IResourceProvider provider)

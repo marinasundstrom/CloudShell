@@ -37,8 +37,8 @@ public sealed record ResourceWorkloadConfiguration(
     public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;
 }
 
-public interface ILifetimeBoundResourceBuilder<out TBuilder> : ICloudShellResourceBuilder
-    where TBuilder : ICloudShellResourceBuilder
+public interface ILifetimeBoundResourceBuilder<out TBuilder> : IResourceBuilder
+    where TBuilder : IResourceBuilder
 {
     TBuilder WithLifetime(ResourceLifetime lifetime);
 }
@@ -101,27 +101,27 @@ public interface IExecutableResourceBuilder :
         string? protocol = null,
         string? headers = null);
 
-    IExecutableResourceBuilder WaitFor(ICloudShellResourceBuilder resource);
+    IExecutableResourceBuilder WaitFor(IResourceBuilder resource);
 
-    IExecutableResourceBuilder WaitFor(IEnumerable<ICloudShellResourceBuilder> resources);
+    IExecutableResourceBuilder WaitFor(IEnumerable<IResourceBuilder> resources);
 
     new IExecutableResourceBuilder DependsOn(string resourceId);
 
-    new IExecutableResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+    new IExecutableResourceBuilder DependsOn(IResourceBuilder resource);
 
     new IExecutableResourceBuilder DependsOn(IEnumerable<string> resourceIds);
 
-    new IExecutableResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+    new IExecutableResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
 
     new IExecutableResourceBuilder WithResourceGroup(string? resourceGroupId);
 
     new IExecutableResourceBuilder WithParent(string? parentResourceId);
 
-    new IExecutableResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+    new IExecutableResourceBuilder WithParent(IResourceBuilder resource);
 
-    new IExecutableResourceBuilder WithReference(ICloudShellResourceBuilder resource);
+    new IExecutableResourceBuilder WithReference(IResourceBuilder resource);
 
-    IExecutableResourceBuilder WithReferences(IEnumerable<ICloudShellResourceBuilder> resources);
+    IExecutableResourceBuilder WithReferences(IEnumerable<IResourceBuilder> resources);
 
     new IExecutableResourceBuilder Persist(bool overwrite = false);
 }
@@ -144,7 +144,7 @@ public interface IContainerResourceBuilder :
 
     IContainerResourceBuilder WithContainerEngine(string containerEngineId);
 
-    IContainerResourceBuilder WithContainerEngine(ICloudShellResourceBuilder containerEngine);
+    IContainerResourceBuilder WithContainerEngine(IResourceBuilder containerEngine);
 
     IContainerResourceBuilder WithEndpoint(
         string name,
@@ -184,21 +184,21 @@ public interface IContainerResourceBuilder :
 
     new IContainerResourceBuilder DependsOn(string resourceId);
 
-    new IContainerResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+    new IContainerResourceBuilder DependsOn(IResourceBuilder resource);
 
     new IContainerResourceBuilder DependsOn(IEnumerable<string> resourceIds);
 
-    new IContainerResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+    new IContainerResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
 
     new IContainerResourceBuilder WithResourceGroup(string? resourceGroupId);
 
     new IContainerResourceBuilder WithParent(string? parentResourceId);
 
-    new IContainerResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+    new IContainerResourceBuilder WithParent(IResourceBuilder resource);
 
     new IContainerResourceBuilder WithReference(string resourceId);
 
-    new IContainerResourceBuilder WithReference(ICloudShellResourceBuilder resource);
+    new IContainerResourceBuilder WithReference(IResourceBuilder resource);
 
     new IContainerResourceBuilder WithReferences(IEnumerable<string> resourceIds);
 

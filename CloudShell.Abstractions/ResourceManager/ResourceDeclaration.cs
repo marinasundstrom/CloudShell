@@ -18,44 +18,52 @@ public sealed record ResourceDeclaration(
     IReadOnlyList<string> DependsOn,
     ResourceDeclarationPersistence Persistence,
     bool OverwritePersistedState = false,
-    bool? AutoStartOverride = null);
+    bool? AutoStartOverride = null,
+    ResourceClass? ResourceClassOverride = null,
+    IReadOnlyDictionary<string, string>? Attributes = null)
+{
+    private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-public interface ICloudShellResourceBuilder
+    public IReadOnlyDictionary<string, string> ResourceAttributes => Attributes ?? EmptyAttributes;
+}
+
+public interface IResourceBuilder
 {
     ICloudShellBuilder CloudShellBuilder { get; }
 
     string ResourceId { get; }
 
-    ICloudShellResourceBuilder WithResourceGroup(string? resourceGroupId);
+    IResourceBuilder WithResourceGroup(string? resourceGroupId);
 
-    ICloudShellResourceBuilder WithParent(string? parentResourceId);
+    IResourceBuilder WithParent(string? parentResourceId);
 
-    ICloudShellResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+    IResourceBuilder WithParent(IResourceBuilder resource);
 
-    ICloudShellResourceBuilder DependsOn(string resourceId);
+    IResourceBuilder DependsOn(string resourceId);
 
-    ICloudShellResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+    IResourceBuilder DependsOn(IResourceBuilder resource);
 
-    ICloudShellResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+    IResourceBuilder DependsOn(IEnumerable<string> resourceIds);
 
-    ICloudShellResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+    IResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
 
-    ICloudShellResourceBuilder WithReference(string resourceId);
+    IResourceBuilder WithReference(string resourceId);
 
-    ICloudShellResourceBuilder WithReference(ICloudShellResourceBuilder resource);
+    IResourceBuilder WithReference(IResourceBuilder resource);
 
-    ICloudShellResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+    IResourceBuilder WithReferences(IEnumerable<string> resourceIds);
 
-    ICloudShellResourceBuilder Persist(bool overwrite = false);
+    IResourceBuilder Persist(bool overwrite = false);
 }
 
-public interface ICloudShellResourceDeclarationBuilder
+public interface IResourceDeclarationBuilder
 {
     ICloudShellBuilder CloudShellBuilder { get; }
 
     IServiceCollection Services { get; }
 
-    ICloudShellResourceBuilder Declare(
+    IResourceBuilder Declare(
         string providerId,
         string resourceId,
         string? parentResourceId = null,
@@ -63,10 +71,12 @@ public interface ICloudShellResourceDeclarationBuilder
         IReadOnlyList<string>? dependsOn = null,
         ResourceDeclarationPersistence persistence = ResourceDeclarationPersistence.Transient,
         bool overwritePersistedState = false,
+        ResourceClass? resourceClass = null,
+        IReadOnlyDictionary<string, string>? attributes = null,
         Action<ResourceDeclaration>? onChanged = null);
 }
 
-public interface IResourceGraphBuilder : ICloudShellResourceDeclarationBuilder
+public interface IResourceGraphBuilder : IResourceDeclarationBuilder
 {
 }
 
@@ -80,7 +90,7 @@ public interface IProgrammaticResourceDeclarationProvider
         CancellationToken cancellationToken = default);
 }
 
-public static class CloudShellResourceDeclarationBuilderExtensions
+public static class ResourceDeclarationBuilderExtensions
 {
     public static IControlPlaneBuilder Resources(
         this IControlPlaneBuilder builder,
@@ -95,7 +105,7 @@ public static class CloudShellResourceDeclarationBuilderExtensions
 
     public static IControlPlaneBuilder ConfigureResources(
         this IControlPlaneBuilder builder,
-        Action<ICloudShellResourceDeclarationBuilder> configure)
+        Action<IResourceDeclarationBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
 
@@ -107,11 +117,11 @@ public static class CloudShellResourceDeclarationBuilderExtensions
 
     public static IControlPlaneBuilder AddResources(
         this IControlPlaneBuilder builder,
-        Action<ICloudShellResourceDeclarationBuilder> configure) =>
+        Action<IResourceDeclarationBuilder> configure) =>
         builder.ConfigureResources(configure);
 
-    public static ICloudShellResourceDeclarationBuilder WithAutoStart(
-        this ICloudShellResourceDeclarationBuilder builder,
+    public static IResourceDeclarationBuilder WithAutoStart(
+        this IResourceDeclarationBuilder builder,
         bool autoStart = true)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -133,12 +143,50 @@ public static class CloudShellResourceDeclarationBuilderExtensions
     public static TBuilder WithAutoStart<TBuilder>(
         this TBuilder builder,
         bool autoStart = true)
-        where TBuilder : ICloudShellResourceBuilder
+        where TBuilder : IResourceBuilder
     {
         ArgumentNullException.ThrowIfNull(builder);
 
         GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
             .SetAutoStart(builder.ResourceId, autoStart);
+        return builder;
+    }
+
+    public static TBuilder WithResourceClass<TBuilder>(
+        this TBuilder builder,
+        ResourceClass resourceClass)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .SetResourceClass(builder.ResourceId, resourceClass);
+        return builder;
+    }
+
+    public static TBuilder WithResourceAttribute<TBuilder>(
+        this TBuilder builder,
+        string name,
+        string value)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .SetAttribute(builder.ResourceId, name, value);
+        return builder;
+    }
+
+    public static TBuilder WithResourceAttributes<TBuilder>(
+        this TBuilder builder,
+        IReadOnlyDictionary<string, string> attributes)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(attributes);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .SetAttributes(builder.ResourceId, attributes);
         return builder;
     }
 
@@ -169,7 +217,7 @@ internal sealed class ResourceGraphBuilder(
 
     public IServiceCollection Services => CloudShellBuilder.Services;
 
-    public ICloudShellResourceBuilder Declare(
+    public IResourceBuilder Declare(
         string providerId,
         string resourceId,
         string? parentResourceId = null,
@@ -177,6 +225,8 @@ internal sealed class ResourceGraphBuilder(
         IReadOnlyList<string>? dependsOn = null,
         ResourceDeclarationPersistence persistence = ResourceDeclarationPersistence.Transient,
         bool overwritePersistedState = false,
+        ResourceClass? resourceClass = null,
+        IReadOnlyDictionary<string, string>? attributes = null,
         Action<ResourceDeclaration>? onChanged = null) =>
         declarations.Declare(
             CloudShellBuilder,
@@ -187,6 +237,8 @@ internal sealed class ResourceGraphBuilder(
             dependsOn,
             persistence,
             overwritePersistedState,
+            resourceClass,
+            attributes,
             onChanged);
 }
 
@@ -210,7 +262,7 @@ public sealed class ResourceDeclarationStore
         }
     }
 
-    public ICloudShellResourceBuilder Declare(
+    public IResourceBuilder Declare(
         ICloudShellBuilder builder,
         string providerId,
         string resourceId,
@@ -219,6 +271,8 @@ public sealed class ResourceDeclarationStore
         IReadOnlyList<string>? dependsOn = null,
         ResourceDeclarationPersistence persistence = ResourceDeclarationPersistence.Transient,
         bool overwritePersistedState = false,
+        ResourceClass? resourceClass = null,
+        IReadOnlyDictionary<string, string>? attributes = null,
         Action<ResourceDeclaration>? onChanged = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -237,7 +291,11 @@ public sealed class ResourceDeclarationStore
                 dependsOn ?? [],
                 persistence,
                 overwritePersistedState,
-                existing?.AutoStartOverride);
+                existing?.AutoStartOverride,
+                resourceClass ?? existing?.ResourceClassOverride,
+                attributes is null
+                    ? existing?.ResourceAttributes
+                    : MergeAttributes(existing?.ResourceAttributes, attributes));
 
             declaration = existing is not null
                 ? normalized with { DeclaredAt = existing.DeclaredAt }
@@ -258,7 +316,7 @@ public sealed class ResourceDeclarationStore
         }
 
         NotifyChanged(declaration);
-        return new CloudShellResourceBuilder(builder, this, declaration.ResourceId);
+        return new ResourceBuilder(builder, this, declaration.ResourceId);
     }
 
     public IReadOnlyList<ResourceDeclaration> GetDeclarations()
@@ -336,6 +394,40 @@ public sealed class ResourceDeclarationStore
         });
     }
 
+    public void SetResourceClass(string resourceId, ResourceClass? resourceClass)
+    {
+        Update(resourceId, declaration => declaration with
+        {
+            ResourceClassOverride = resourceClass
+        });
+    }
+
+    public void SetAttributes(
+        string resourceId,
+        IReadOnlyDictionary<string, string> attributes)
+    {
+        Update(resourceId, declaration => declaration with
+        {
+            Attributes = MergeAttributes(declaration.ResourceAttributes, attributes)
+        });
+    }
+
+    public void SetAttribute(string resourceId, string name, string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+
+        Update(resourceId, declaration => declaration with
+        {
+            Attributes = MergeAttributes(
+                declaration.ResourceAttributes,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [name] = value
+                })
+        });
+    }
+
     public bool ShouldAutoStart(string resourceId)
     {
         lock (_gate)
@@ -385,7 +477,9 @@ public sealed class ResourceDeclarationStore
         IReadOnlyList<string> dependsOn,
         ResourceDeclarationPersistence persistence,
         bool overwritePersistedState,
-        bool? autoStartOverride = null) =>
+        bool? autoStartOverride = null,
+        ResourceClass? resourceClass = null,
+        IReadOnlyDictionary<string, string>? attributes = null) =>
         new(
             providerId.Trim(),
             resourceId.Trim(),
@@ -395,7 +489,9 @@ public sealed class ResourceDeclarationStore
             NormalizeDependencies(dependsOn),
             persistence,
             overwritePersistedState,
-            autoStartOverride);
+            autoStartOverride,
+            resourceClass,
+            NormalizeAttributes(attributes));
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId.Trim();
@@ -409,36 +505,80 @@ public sealed class ResourceDeclarationStore
             .Select(dependency => dependency.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private static IReadOnlyDictionary<string, string>? NormalizeAttributes(
+        IReadOnlyDictionary<string, string>? attributes)
+    {
+        if (attributes is null || attributes.Count == 0)
+        {
+            return null;
+        }
+
+        var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, value) in attributes)
+        {
+            if (string.IsNullOrWhiteSpace(name) ||
+                string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            normalized[name.Trim()] = value.Trim();
+        }
+
+        return normalized.Count == 0 ? null : normalized;
+    }
+
+    private static IReadOnlyDictionary<string, string>? MergeAttributes(
+        IReadOnlyDictionary<string, string>? existing,
+        IReadOnlyDictionary<string, string> attributes)
+    {
+        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (existing is not null)
+        {
+            foreach (var (name, value) in existing)
+            {
+                merged[name] = value;
+            }
+        }
+
+        foreach (var (name, value) in attributes)
+        {
+            merged[name] = value;
+        }
+
+        return NormalizeAttributes(merged);
+    }
 }
 
-internal sealed class CloudShellResourceBuilder(
+internal sealed class ResourceBuilder(
     ICloudShellBuilder cloudShellBuilder,
     ResourceDeclarationStore declarations,
-    string resourceId) : ICloudShellResourceBuilder
+    string resourceId) : IResourceBuilder
 {
     public ICloudShellBuilder CloudShellBuilder { get; } = cloudShellBuilder;
 
     public string ResourceId { get; } = resourceId;
 
-    public ICloudShellResourceBuilder WithResourceGroup(string? resourceGroupId)
+    public IResourceBuilder WithResourceGroup(string? resourceGroupId)
     {
         declarations.AssignToGroup(ResourceId, resourceGroupId);
         return this;
     }
 
-    public ICloudShellResourceBuilder WithParent(string? parentResourceId)
+    public IResourceBuilder WithParent(string? parentResourceId)
     {
         declarations.AssignParent(ResourceId, parentResourceId);
         return this;
     }
 
-    public ICloudShellResourceBuilder WithParent(ICloudShellResourceBuilder resource)
+    public IResourceBuilder WithParent(IResourceBuilder resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
         return WithParent(resource.ResourceId);
     }
 
-    public ICloudShellResourceBuilder DependsOn(string resourceId)
+    public IResourceBuilder DependsOn(string resourceId)
     {
         var declaration = declarations.GetDeclaration(ResourceId)
             ?? throw new InvalidOperationException($"Resource '{ResourceId}' is not declared.");
@@ -448,13 +588,13 @@ internal sealed class CloudShellResourceBuilder(
         return this;
     }
 
-    public ICloudShellResourceBuilder DependsOn(ICloudShellResourceBuilder resource)
+    public IResourceBuilder DependsOn(IResourceBuilder resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
         return DependsOn(resource.ResourceId);
     }
 
-    public ICloudShellResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    public IResourceBuilder DependsOn(IEnumerable<string> resourceIds)
     {
         var declaration = declarations.GetDeclaration(ResourceId)
             ?? throw new InvalidOperationException($"Resource '{ResourceId}' is not declared.");
@@ -464,7 +604,7 @@ internal sealed class CloudShellResourceBuilder(
         return this;
     }
 
-    public ICloudShellResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources)
+    public IResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources)
     {
         ArgumentNullException.ThrowIfNull(resources);
         return DependsOn(resources.Select(resource =>
@@ -474,16 +614,16 @@ internal sealed class CloudShellResourceBuilder(
         }));
     }
 
-    public ICloudShellResourceBuilder WithReference(string resourceId) =>
+    public IResourceBuilder WithReference(string resourceId) =>
         DependsOn(resourceId);
 
-    public ICloudShellResourceBuilder WithReference(ICloudShellResourceBuilder resource) =>
+    public IResourceBuilder WithReference(IResourceBuilder resource) =>
         DependsOn(resource);
 
-    public ICloudShellResourceBuilder WithReferences(IEnumerable<string> resourceIds) =>
+    public IResourceBuilder WithReferences(IEnumerable<string> resourceIds) =>
         DependsOn(resourceIds);
 
-    public ICloudShellResourceBuilder Persist(bool overwrite = false)
+    public IResourceBuilder Persist(bool overwrite = false)
     {
         declarations.Persist(ResourceId, overwrite);
         return this;

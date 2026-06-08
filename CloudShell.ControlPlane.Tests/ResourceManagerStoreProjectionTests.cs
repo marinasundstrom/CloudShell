@@ -47,6 +47,42 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_AppliesDeclarationClassAndAttributes()
+    {
+        var resource = CreateResource(
+            "declared",
+            "Declared",
+            resourceClass: ResourceClass.Generic,
+            attributes: new Dictionary<string, string>
+            {
+                ["provider.attribute"] = "provider-value",
+                ["shared.attribute"] = "provider-value"
+            });
+        var declarations = new ResourceDeclarationStore();
+        declarations.Declare(
+            new TestCloudShellBuilder(),
+            "test",
+            "declared",
+            resourceClass: ResourceClass.Project,
+            attributes: new Dictionary<string, string>
+            {
+                ["declaration.attribute"] = "declaration-value",
+                ["shared.attribute"] = "declaration-value"
+            });
+        var store = CreateStore(
+            [resource],
+            registrations: [CreateRegistration("declared")],
+            declarations: declarations);
+
+        var projected = Assert.Single(store.GetResources());
+
+        Assert.Equal(ResourceClass.Project, projected.ResourceClass);
+        Assert.Equal("provider-value", projected.ResourceAttributes["provider.attribute"]);
+        Assert.Equal("declaration-value", projected.ResourceAttributes["declaration.attribute"]);
+        Assert.Equal("declaration-value", projected.ResourceAttributes["shared.attribute"]);
+    }
+
+    [Fact]
     public void GetGroupForResource_InheritsGroupFromRegisteredParent()
     {
         var group = new ResourceGroup("group-one", "Group One", "Test group", []);
@@ -97,7 +133,9 @@ public sealed class ResourceManagerStoreProjectionTests
     private static Resource CreateResource(
         string id,
         string name,
-        string? parentResourceId = null) =>
+        string? parentResourceId = null,
+        ResourceClass resourceClass = ResourceClass.Generic,
+        IReadOnlyDictionary<string, string>? attributes = null) =>
         new(
             id,
             name,
@@ -110,7 +148,9 @@ public sealed class ResourceManagerStoreProjectionTests
             DateTimeOffset.UtcNow,
             [],
             ParentResourceId: parentResourceId,
-            TypeId: "test.resource");
+            TypeId: "test.resource",
+            ResourceClass: resourceClass,
+            Attributes: attributes);
 
     private static ResourceRegistration CreateRegistration(
         string resourceId,

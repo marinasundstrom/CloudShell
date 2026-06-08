@@ -7,7 +7,7 @@ namespace CloudShell.ControlPlane.ResourceManager;
 public static class PlatformResourceDeclarationExtensions
 {
     public static INetworkResourceBuilder AddNetwork(
-        this ICloudShellResourceDeclarationBuilder builder,
+        this IResourceDeclarationBuilder builder,
         string id,
         string name,
         bool isDefault = false)
@@ -34,7 +34,7 @@ public static class PlatformResourceDeclarationExtensions
     }
 
     public static IServiceResourceBuilder AddService(
-        this ICloudShellResourceDeclarationBuilder builder,
+        this IResourceDeclarationBuilder builder,
         string id,
         string name)
     {
@@ -85,40 +85,40 @@ public static class PlatformResourceDeclarationExtensions
     }
 }
 
-public interface INetworkResourceBuilder : ICloudShellResourceBuilder
+public interface INetworkResourceBuilder : IResourceBuilder
 {
     INetworkResourceBuilder AsDefault(bool isDefault = true);
 
     new INetworkResourceBuilder DependsOn(string resourceId);
 
-    new INetworkResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+    new INetworkResourceBuilder DependsOn(IResourceBuilder resource);
 
     new INetworkResourceBuilder DependsOn(IEnumerable<string> resourceIds);
 
-    new INetworkResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+    new INetworkResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
 
     new INetworkResourceBuilder WithResourceGroup(string? resourceGroupId);
 
     new INetworkResourceBuilder WithParent(string? parentResourceId);
 
-    new INetworkResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+    new INetworkResourceBuilder WithParent(IResourceBuilder resource);
 
     new INetworkResourceBuilder WithReference(string resourceId);
 
-    new INetworkResourceBuilder WithReference(ICloudShellResourceBuilder resource);
+    new INetworkResourceBuilder WithReference(IResourceBuilder resource);
 
     new INetworkResourceBuilder WithReferences(IEnumerable<string> resourceIds);
 
     new INetworkResourceBuilder Persist(bool overwrite = false);
 }
 
-public interface IServiceResourceBuilder : ICloudShellResourceBuilder
+public interface IServiceResourceBuilder : IResourceBuilder
 {
-    IServiceResourceBuilder Targets(ICloudShellResourceBuilder resource, int weight = 100);
+    IServiceResourceBuilder Targets(IResourceBuilder resource, int weight = 100);
 
     IServiceResourceBuilder Targets(string resourceId, int weight = 100);
 
-    IServiceResourceBuilder Targets(IEnumerable<ICloudShellResourceBuilder> resources);
+    IServiceResourceBuilder Targets(IEnumerable<IResourceBuilder> resources);
 
     IServiceResourceBuilder WithPort(
         string name,
@@ -152,21 +152,21 @@ public interface IServiceResourceBuilder : ICloudShellResourceBuilder
 
     new IServiceResourceBuilder DependsOn(string resourceId);
 
-    new IServiceResourceBuilder DependsOn(ICloudShellResourceBuilder resource);
+    new IServiceResourceBuilder DependsOn(IResourceBuilder resource);
 
     new IServiceResourceBuilder DependsOn(IEnumerable<string> resourceIds);
 
-    new IServiceResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources);
+    new IServiceResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
 
     new IServiceResourceBuilder WithResourceGroup(string? resourceGroupId);
 
     new IServiceResourceBuilder WithParent(string? parentResourceId);
 
-    new IServiceResourceBuilder WithParent(ICloudShellResourceBuilder resource);
+    new IServiceResourceBuilder WithParent(IResourceBuilder resource);
 
     new IServiceResourceBuilder WithReference(string resourceId);
 
-    new IServiceResourceBuilder WithReference(ICloudShellResourceBuilder resource);
+    new IServiceResourceBuilder WithReference(IResourceBuilder resource);
 
     new IServiceResourceBuilder WithReferences(IEnumerable<string> resourceIds);
 
@@ -174,7 +174,7 @@ public interface IServiceResourceBuilder : ICloudShellResourceBuilder
 }
 
 internal sealed class NetworkResourceBuilder(
-    ICloudShellResourceBuilder inner,
+    IResourceBuilder inner,
     DeclaredNetworkResource declared) : INetworkResourceBuilder
 {
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
@@ -199,7 +199,7 @@ internal sealed class NetworkResourceBuilder(
         return this;
     }
 
-    public INetworkResourceBuilder WithParent(ICloudShellResourceBuilder resource)
+    public INetworkResourceBuilder WithParent(IResourceBuilder resource)
     {
         inner.WithParent(resource);
         return this;
@@ -211,7 +211,7 @@ internal sealed class NetworkResourceBuilder(
         return this;
     }
 
-    public INetworkResourceBuilder DependsOn(ICloudShellResourceBuilder resource)
+    public INetworkResourceBuilder DependsOn(IResourceBuilder resource)
     {
         inner.DependsOn(resource);
         return this;
@@ -223,7 +223,7 @@ internal sealed class NetworkResourceBuilder(
         return this;
     }
 
-    public INetworkResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources)
+    public INetworkResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources)
     {
         inner.DependsOn(resources);
         return this;
@@ -235,7 +235,7 @@ internal sealed class NetworkResourceBuilder(
         return this;
     }
 
-    public INetworkResourceBuilder WithReference(ICloudShellResourceBuilder resource)
+    public INetworkResourceBuilder WithReference(IResourceBuilder resource)
     {
         inner.WithReference(resource);
         return this;
@@ -253,49 +253,49 @@ internal sealed class NetworkResourceBuilder(
         return this;
     }
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
+    IResourceBuilder IResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(string? parentResourceId) =>
+    IResourceBuilder IResourceBuilder.WithParent(string? parentResourceId) =>
         WithParent(parentResourceId);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(ICloudShellResourceBuilder resource) =>
+    IResourceBuilder IResourceBuilder.WithParent(IResourceBuilder resource) =>
         WithParent(resource);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(string resourceId) =>
+    IResourceBuilder IResourceBuilder.DependsOn(string resourceId) =>
         DependsOn(resourceId);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(ICloudShellResourceBuilder resource) =>
+    IResourceBuilder IResourceBuilder.DependsOn(IResourceBuilder resource) =>
         DependsOn(resource);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
         DependsOn(resourceIds);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(IEnumerable<ICloudShellResourceBuilder> resources) =>
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<IResourceBuilder> resources) =>
         DependsOn(resources);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(string resourceId) =>
+    IResourceBuilder IResourceBuilder.WithReference(string resourceId) =>
         WithReference(resourceId);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(ICloudShellResourceBuilder resource) =>
+    IResourceBuilder IResourceBuilder.WithReference(IResourceBuilder resource) =>
         WithReference(resource);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
+    IResourceBuilder IResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
         WithReferences(resourceIds);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.Persist(bool overwrite) =>
+    IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
         Persist(overwrite);
 }
 
 internal sealed class ServiceResourceBuilder(
-    ICloudShellResourceBuilder inner,
+    IResourceBuilder inner,
     DeclaredServiceResource declared) : IServiceResourceBuilder
 {
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
 
     public string ResourceId => inner.ResourceId;
 
-    public IServiceResourceBuilder Targets(ICloudShellResourceBuilder resource, int weight = 100)
+    public IServiceResourceBuilder Targets(IResourceBuilder resource, int weight = 100)
     {
         ArgumentNullException.ThrowIfNull(resource);
         return Targets(resource.ResourceId, weight);
@@ -313,7 +313,7 @@ internal sealed class ServiceResourceBuilder(
         return this;
     }
 
-    public IServiceResourceBuilder Targets(IEnumerable<ICloudShellResourceBuilder> resources)
+    public IServiceResourceBuilder Targets(IEnumerable<IResourceBuilder> resources)
     {
         ArgumentNullException.ThrowIfNull(resources);
         foreach (var resource in resources)
@@ -410,7 +410,7 @@ internal sealed class ServiceResourceBuilder(
         return this;
     }
 
-    public IServiceResourceBuilder WithParent(ICloudShellResourceBuilder resource)
+    public IServiceResourceBuilder WithParent(IResourceBuilder resource)
     {
         inner.WithParent(resource);
         return this;
@@ -422,7 +422,7 @@ internal sealed class ServiceResourceBuilder(
         return this;
     }
 
-    public IServiceResourceBuilder DependsOn(ICloudShellResourceBuilder resource)
+    public IServiceResourceBuilder DependsOn(IResourceBuilder resource)
     {
         inner.DependsOn(resource);
         return this;
@@ -434,7 +434,7 @@ internal sealed class ServiceResourceBuilder(
         return this;
     }
 
-    public IServiceResourceBuilder DependsOn(IEnumerable<ICloudShellResourceBuilder> resources)
+    public IServiceResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources)
     {
         inner.DependsOn(resources);
         return this;
@@ -446,7 +446,7 @@ internal sealed class ServiceResourceBuilder(
         return this;
     }
 
-    public IServiceResourceBuilder WithReference(ICloudShellResourceBuilder resource)
+    public IServiceResourceBuilder WithReference(IResourceBuilder resource)
     {
         inner.WithReference(resource);
         return this;
@@ -464,36 +464,36 @@ internal sealed class ServiceResourceBuilder(
         return this;
     }
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
+    IResourceBuilder IResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(string? parentResourceId) =>
+    IResourceBuilder IResourceBuilder.WithParent(string? parentResourceId) =>
         WithParent(parentResourceId);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithParent(ICloudShellResourceBuilder resource) =>
+    IResourceBuilder IResourceBuilder.WithParent(IResourceBuilder resource) =>
         WithParent(resource);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(string resourceId) =>
+    IResourceBuilder IResourceBuilder.DependsOn(string resourceId) =>
         DependsOn(resourceId);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(ICloudShellResourceBuilder resource) =>
+    IResourceBuilder IResourceBuilder.DependsOn(IResourceBuilder resource) =>
         DependsOn(resource);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
         DependsOn(resourceIds);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.DependsOn(IEnumerable<ICloudShellResourceBuilder> resources) =>
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<IResourceBuilder> resources) =>
         DependsOn(resources);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(string resourceId) =>
+    IResourceBuilder IResourceBuilder.WithReference(string resourceId) =>
         WithReference(resourceId);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReference(ICloudShellResourceBuilder resource) =>
+    IResourceBuilder IResourceBuilder.WithReference(IResourceBuilder resource) =>
         WithReference(resource);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
+    IResourceBuilder IResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
         WithReferences(resourceIds);
 
-    ICloudShellResourceBuilder ICloudShellResourceBuilder.Persist(bool overwrite) =>
+    IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
         Persist(overwrite);
 }
