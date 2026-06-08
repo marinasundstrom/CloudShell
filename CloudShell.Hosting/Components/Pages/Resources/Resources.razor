@@ -15,6 +15,7 @@
 @{
     var allResources = ResourceInventory;
     var groups = ResourceGroups;
+    var resourceClasses = GetResourceClassOptions(allResources);
     var resourceTypes = GetResourceTypeOptions(allResources);
     var resourceGroupFilters = GetResourceGroupFilterOptions(groups);
     var rows = BuildRows(allResources);
@@ -116,6 +117,18 @@
                 <div class="inventory-filter name-filter">
                     <label for="resource-name-filter">@L["Name"]</label>
                     <FluentSearch Id="resource-name-filter" @bind-Value="NameFilter" Placeholder="@L["Filter by resource name"]" />
+                </div>
+                <div class="inventory-filter">
+                    <label for="resource-class-filter">@L["Class"]</label>
+                    <FluentSelect TOption="ResourceClassFilterOption"
+                                  Id="resource-class-filter"
+                                  Class="inventory-select"
+                                  Items="@resourceClasses"
+                                  OptionText="@(resourceClass => resourceClass.DisplayName)"
+                                  OptionValue="@(resourceClass => resourceClass.Id)"
+                                  SelectedOption="@GetSelectedClassOption(resourceClasses)"
+                                  SelectedOptionChanged="ChangeClassFilter"
+                                  Appearance="Appearance.Neutral" />
                 </div>
                 <div class="inventory-filter">
                     <label for="resource-type-filter">@L["Type"]</label>
@@ -449,6 +462,7 @@
     private const string PageQueryParameter = "page";
     private const string PageSizeQueryParameter = "pageSize";
     private const string AllResourceGroupsFilter = "__all";
+    private const string AllResourceClassesFilter = "__all";
     private const string AllResourceTypesFilter = "__all";
     private const string UngroupedScope = "__ungrouped";
     private static readonly IReadOnlyList<int> PageSizes = [10, 25, 50, 100];
@@ -459,6 +473,7 @@
         ItemsPerPage = 25
     };
     private string? nameFilter;
+    private string selectedClassFilter = AllResourceClassesFilter;
     private string selectedTypeFilter = AllResourceTypesFilter;
     private string selectedResourceGroupFilter = AllResourceGroupsFilter;
     private int lastUrlPageIndex = -1;
@@ -513,6 +528,21 @@
         }
     }
 
+    private string SelectedClassFilter
+    {
+        get => selectedClassFilter;
+        set
+        {
+            if (string.Equals(selectedClassFilter, value, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            selectedClassFilter = value;
+            ResetPagination();
+        }
+    }
+
     private string SelectedResourceGroupFilter
     {
         get => selectedResourceGroupFilter;
@@ -530,6 +560,7 @@
 
     private bool HasActiveFilters =>
         !string.IsNullOrWhiteSpace(NameFilter) ||
+        SelectedClassFilter != AllResourceClassesFilter ||
         SelectedTypeFilter != AllResourceTypesFilter ||
         SelectedResourceGroupFilter != AllResourceGroupsFilter;
 
@@ -634,15 +665,21 @@
 
     private bool HasActiveListFilters() =>
         !string.IsNullOrWhiteSpace(NameFilter) ||
+        SelectedClassFilter != AllResourceClassesFilter ||
         SelectedTypeFilter != AllResourceTypesFilter;
 
     private bool MatchesListFilters(Resource resource) =>
         MatchesNameFilter(resource) &&
+        MatchesClassFilter(resource) &&
         MatchesTypeFilter(resource);
 
     private bool MatchesNameFilter(Resource resource) =>
         string.IsNullOrWhiteSpace(NameFilter) ||
         resource.Name.Contains(NameFilter, StringComparison.OrdinalIgnoreCase);
+
+    private bool MatchesClassFilter(Resource resource) =>
+        SelectedClassFilter == AllResourceClassesFilter ||
+        string.Equals(resource.ResourceClass.ToString(), SelectedClassFilter, StringComparison.OrdinalIgnoreCase);
 
     private bool MatchesTypeFilter(Resource resource) =>
         SelectedTypeFilter == AllResourceTypesFilter ||
@@ -713,6 +750,23 @@
             string.Equals(type.Id, SelectedTypeFilter, StringComparison.OrdinalIgnoreCase))
         ?? resourceTypes[0];
 
+    private IReadOnlyList<ResourceClassFilterOption> GetResourceClassOptions(IReadOnlyList<Resource> resources) =>
+    [
+        new ResourceClassFilterOption(AllResourceClassesFilter, L["All classes"].Value),
+        .. resources
+            .Select(resource => resource.ResourceClass)
+            .Distinct()
+            .OrderBy(resourceClass => resourceClass.ToString(), StringComparer.OrdinalIgnoreCase)
+            .Select(resourceClass => new ResourceClassFilterOption(
+                resourceClass.ToString(),
+                GetResourceClassDisplayName(resourceClass)))
+    ];
+
+    private ResourceClassFilterOption GetSelectedClassOption(IReadOnlyList<ResourceClassFilterOption> resourceClasses) =>
+        resourceClasses.FirstOrDefault(resourceClass =>
+            string.Equals(resourceClass.Id, SelectedClassFilter, StringComparison.OrdinalIgnoreCase))
+        ?? resourceClasses[0];
+
     private ResourceGroupFilterOption GetSelectedResourceGroupOption(IReadOnlyList<ResourceGroupFilterOption> resourceGroups) =>
         resourceGroups.FirstOrDefault(group =>
             string.Equals(group.Id, SelectedResourceGroupFilter, StringComparison.OrdinalIgnoreCase))
@@ -721,6 +775,12 @@
     private void ChangeTypeFilter(ResourceTypeFilterOption? option)
     {
         SelectedTypeFilter = option?.Id ?? AllResourceTypesFilter;
+        SelectedResource = null;
+    }
+
+    private void ChangeClassFilter(ResourceClassFilterOption? option)
+    {
+        SelectedClassFilter = option?.Id ?? AllResourceClassesFilter;
         SelectedResource = null;
     }
 
@@ -752,6 +812,7 @@
     private void ClearFilters()
     {
         NameFilter = null;
+        SelectedClassFilter = AllResourceClassesFilter;
         SelectedTypeFilter = AllResourceTypesFilter;
         SelectedResourceGroupFilter = AllResourceGroupsFilter;
         SelectedResource = null;
@@ -1470,7 +1531,21 @@
         _ => "state-unknown"
     };
 
+    private string GetResourceClassDisplayName(ResourceClass resourceClass) => resourceClass switch
+    {
+        ResourceClass.Executable => L["Executable"].Value,
+        ResourceClass.Project => L["Project"].Value,
+        ResourceClass.Container => L["Container"].Value,
+        ResourceClass.Service => L["Service"].Value,
+        ResourceClass.Network => L["Network"].Value,
+        ResourceClass.Configuration => L["Configuration"].Value,
+        ResourceClass.Infrastructure => L["Infrastructure"].Value,
+        _ => L["Generic"].Value
+    };
+
     private sealed record ResourceRow(Resource Resource, int Depth, int ChildCount);
+
+    private sealed record ResourceClassFilterOption(string Id, string DisplayName);
 
     private sealed record ResourceTypeFilterOption(string Id, string DisplayName);
 
