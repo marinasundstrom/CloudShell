@@ -242,6 +242,40 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ThrowsContractErrorForMissingResourceAction()
+    {
+        await using var app = await CreateAppAsync(includeLifecycleResource: true);
+        var controlPlane = CreateClient(app);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    ContractLifecycleResourceProvider.ResourceId,
+                    "missing")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceActionNotFound, exception.Error.Code);
+        Assert.Equal(
+            "Resource 'contract:lifecycle' does not expose action 'missing'.",
+            exception.Message);
+    }
+
+    [Fact]
+    public async Task ControlPlaneApi_ReturnsProblemForMissingDeleteResource()
+    {
+        await using var app = await CreateAppAsync();
+        var client = app.GetTestClient();
+
+        var response = await client.DeleteAsync("/api/control-plane/v1/resources/missing");
+
+        await AssertProblemAsync(
+            response,
+            "Resource 'missing' is not registered.",
+            ControlPlaneErrorCodes.ResourceNotRegistered,
+            HttpStatusCode.NotFound,
+            "Resource not found");
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_ReturnsProblemForInvalidCapabilitiesRequest()
     {
         await using var app = await CreateAppAsync();
@@ -346,12 +380,14 @@ public sealed class RemoteControlPlaneContractTests
     private static async Task AssertProblemAsync(
         HttpResponseMessage response,
         string expectedDetail,
-        string expectedCode = ControlPlaneErrorCodes.InvalidRequest)
+        string expectedCode = ControlPlaneErrorCodes.InvalidRequest,
+        HttpStatusCode expectedStatusCode = HttpStatusCode.BadRequest,
+        string expectedTitle = "Control plane request failed")
     {
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(expectedStatusCode, response.StatusCode);
 
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal("Control plane request failed", document.RootElement.GetProperty("title").GetString());
+        Assert.Equal(expectedTitle, document.RootElement.GetProperty("title").GetString());
         Assert.Equal(expectedDetail, document.RootElement.GetProperty("detail").GetString());
         Assert.Equal(expectedCode, document.RootElement.GetProperty("code").GetString());
     }

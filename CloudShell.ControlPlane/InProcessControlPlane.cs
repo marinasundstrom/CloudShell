@@ -196,8 +196,9 @@ public sealed class InProcessControlPlane(
         string resourceId,
         CancellationToken cancellationToken = default)
     {
+        resourceId = RequireValue(resourceId, nameof(resourceId));
         var resource = resourceManager.GetResource(resourceId)
-            ?? throw new InvalidOperationException($"Resource '{resourceId}' could not be found.");
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(resourceId));
 
         var group = resourceManager.GetGroupForResource(resource.Id);
         if (!authorization.CanAccessResource(
@@ -205,8 +206,14 @@ public sealed class InProcessControlPlane(
                 group?.Id,
                 CloudShellPermissions.Resources.Manage))
         {
-            throw new UnauthorizedAccessException(
-                $"The '{CloudShellPermissions.Resources.Manage}' permission is required for resource '{resource.Id}'.");
+            throw ControlPlaneAccessDeniedException.ForResource(
+                resource.Id,
+                CloudShellPermissions.Resources.Manage);
+        }
+
+        if (GetDirectProcedureProvider(resource) is null)
+        {
+            throw new ControlPlaneException(ControlPlaneError.ResourceDeleteUnsupported(resource.Name));
         }
 
         return await orchestration.DeleteAsync(resource, cancellationToken);
@@ -216,12 +223,13 @@ public sealed class InProcessControlPlane(
         ExecuteResourceActionCommand command,
         CancellationToken cancellationToken = default)
     {
-        var resource = resourceManager.GetResource(command.ResourceId)
-            ?? throw new InvalidOperationException($"Resource '{command.ResourceId}' could not be found.");
+        var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
+        var actionId = RequireValue(command.ActionId, nameof(command.ActionId));
+        var resource = resourceManager.GetResource(resourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(resourceId));
         var action = resource.ResourceActions.FirstOrDefault(item =>
-            string.Equals(item.Id, command.ActionId, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException(
-                $"Resource '{resource.Name}' does not expose action '{command.ActionId}'.");
+            string.Equals(item.Id, actionId, StringComparison.OrdinalIgnoreCase))
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceActionNotFound(resource.Id, actionId));
 
         var group = resourceManager.GetGroupForResource(resource.Id);
         if (!authorization.CanAccessResource(
@@ -229,14 +237,20 @@ public sealed class InProcessControlPlane(
                 group?.Id,
                 CloudShellPermissions.Resources.Manage))
         {
-            throw new UnauthorizedAccessException(
-                $"The '{CloudShellPermissions.Resources.Manage}' permission is required for resource '{resource.Id}'.");
+            throw ControlPlaneAccessDeniedException.ForResource(
+                resource.Id,
+                CloudShellPermissions.Resources.Manage);
+        }
+
+        if (GetProcedureProvider(resource) is null)
+        {
+            throw new ControlPlaneException(ControlPlaneError.ResourceActionUnsupported(resource.Name));
         }
 
         var unavailableReason = GetActionUnavailableReason(resource, action);
         if (unavailableReason is not null)
         {
-            throw new InvalidOperationException(unavailableReason);
+            throw new ControlPlaneException(ControlPlaneError.ResourceActionUnavailable(unavailableReason));
         }
 
         if (!command.IgnoreDependentWarning && ShouldWarnDependents(action))
@@ -244,8 +258,8 @@ public sealed class InProcessControlPlane(
             var activeDependents = GetActiveDependents(resource);
             if (activeDependents.Count > 0)
             {
-                throw new InvalidOperationException(
-                    $"The following running resources depend on this resource: {string.Join(", ", activeDependents.Select(dependent => dependent.Name))}. Stopping it may disrupt them.");
+                throw new ControlPlaneException(ControlPlaneError.DependentResourcesRunning(
+                    $"The following running resources depend on this resource: {string.Join(", ", activeDependents.Select(dependent => dependent.Name))}. Stopping it may disrupt them."));
             }
         }
 
@@ -347,7 +361,7 @@ public sealed class InProcessControlPlane(
         return new ResourceOperationCapabilities(
             resource.Id,
             canManage,
-            canManage && GetRegistrationForResourceOrAncestor(resource) is not null && procedureProvider is not null,
+            canManage && GetDirectProcedureProvider(resource) is not null,
             executableActionIds,
             actionCapabilities);
     }
@@ -419,6 +433,19 @@ public sealed class InProcessControlPlane(
 
         return resourceManager.Providers.FirstOrDefault(provider =>
             string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
+            as IResourceProcedureProvider;
+    }
+
+    private IResourceProcedureProvider? GetDirectProcedureProvider(CloudResource resource)
+    {
+        var registration = registrations.GetRegistration(resource.Id);
+        if (registration is null)
+        {
+            return null;
+        }
+
+        return resourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
             as IResourceProcedureProvider;
     }
 

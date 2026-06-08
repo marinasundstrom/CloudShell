@@ -167,7 +167,12 @@ public static class CloudShellControlPlaneApiExtensions
     {
         if (await resourceManager.GetResourceAsync(resourceId, cancellationToken) is null)
         {
-            return Results.NotFound();
+            var error = ControlPlaneError.ResourceNotRegistered(resourceId);
+            return Problem(
+                StatusCodes.Status404NotFound,
+                "Resource not found",
+                error.Message,
+                error.Code);
         }
 
         var resources = await resourceManager.ListResourceChildrenAsync(resourceId, cancellationToken);
@@ -181,7 +186,12 @@ public static class CloudShellControlPlaneApiExtensions
     {
         if (await resourceManager.GetResourceAsync(resourceId, cancellationToken) is null)
         {
-            return Results.NotFound();
+            var error = ControlPlaneError.ResourceNotRegistered(resourceId);
+            return Problem(
+                StatusCodes.Status404NotFound,
+                "Resource not found",
+                error.Message,
+                error.Code);
         }
 
         var group = await resourceManager.GetResourceGroupForResourceAsync(resourceId, cancellationToken);
@@ -247,17 +257,21 @@ public static class CloudShellControlPlaneApiExtensions
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
-        if (await resourceManager.GetResourceAsync(resourceId, cancellationToken) is null)
-        {
-            return Results.NotFound();
-        }
-
         try
         {
             var result = await resourceManager.DeleteResourceAsync(resourceId, cancellationToken);
             return Results.Ok(ToResponse(result));
         }
-        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        catch (ControlPlaneException exception)
+            when (exception.Error.Code == ControlPlaneErrorCodes.ResourceNotRegistered)
+        {
+            return Problem(
+                StatusCodes.Status404NotFound,
+                "Resource not found",
+                exception.Error.Message,
+                exception.Error.Code);
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -274,14 +288,24 @@ public static class CloudShellControlPlaneApiExtensions
         var resource = await resourceManager.GetResourceAsync(resourceId, cancellationToken);
         if (resource is null)
         {
-            return Results.NotFound();
+            var error = ControlPlaneError.ResourceNotRegistered(resourceId);
+            return Problem(
+                StatusCodes.Status404NotFound,
+                "Resource not found",
+                error.Message,
+                error.Code);
         }
 
         var action = resource.ResourceActions.FirstOrDefault(item =>
             string.Equals(item.Id, actionId, StringComparison.OrdinalIgnoreCase));
         if (action is null)
         {
-            return Results.NotFound();
+            var error = ControlPlaneError.ResourceActionNotFound(resourceId, actionId);
+            return Problem(
+                StatusCodes.Status404NotFound,
+                "Resource action not found",
+                error.Message,
+                error.Code);
         }
 
         try
@@ -295,6 +319,16 @@ public static class CloudShellControlPlaneApiExtensions
                 cancellationToken);
 
             return Results.Ok(ToResponse(result));
+        }
+        catch (ControlPlaneException exception)
+            when (ShouldWarnDependents(action) &&
+                exception.Error.Code == ControlPlaneErrorCodes.DependentResourcesRunning)
+        {
+            return Problem(
+                StatusCodes.Status409Conflict,
+                "Dependent resources are running",
+                $"{exception.Message} Do you want to stop the resource?",
+                exception.Error.Code);
         }
         catch (InvalidOperationException exception) when (ShouldWarnDependents(action) && IsDependentWarning(exception))
         {
@@ -680,6 +714,15 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static IResult ToProblem(Exception exception)
     {
+        if (exception is ControlPlaneAccessDeniedException accessDeniedException)
+        {
+            return Problem(
+                StatusCodes.Status403Forbidden,
+                "Control plane request forbidden",
+                accessDeniedException.Error.Message,
+                accessDeniedException.Error.Code);
+        }
+
         if (exception is UnauthorizedAccessException)
         {
             return Results.Forbid();
@@ -720,7 +763,10 @@ public static class CloudShellControlPlaneApiExtensions
             problem.Extensions["code"] = code;
         }
 
-        return Results.Problem(problem);
+        return Results.Json(
+            problem,
+            statusCode: statusCode,
+            contentType: "application/problem+json");
     }
 
     private sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);

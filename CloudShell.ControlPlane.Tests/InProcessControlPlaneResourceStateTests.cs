@@ -61,10 +61,67 @@ public sealed class InProcessControlPlaneResourceStateTests
         var provider = new TestResourceProvider();
         var controlPlane = CreateControlPlane([CreateResource("target", state)], provider);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
             controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", actionId)));
 
+        Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnavailable, exception.Error.Code);
         Assert.Contains("cannot", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_RejectsUnknownResource()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("missing", "stop")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceNotRegistered, exception.Error.Code);
+        Assert.Equal("Resource 'missing' is not registered.", exception.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_RejectsUnknownAction()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", "missing")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceActionNotFound, exception.Error.Code);
+        Assert.Equal("Resource 'target' does not expose action 'missing'.", exception.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_RejectsUnsupportedProviderActions()
+    {
+        var provider = new TestReadOnlyResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", "stop")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnsupported, exception.Error.Code);
+        Assert.Equal("Resource 'target' does not support actions.", exception.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_RejectsDeniedManagePermission()
+    {
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            authorization: new DenyAuthorizationService());
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", "stop")));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Equal("The 'resources.manage' permission is required for resource 'target'.", exception.Message);
         Assert.Empty(provider.ExecutedActions);
     }
 
@@ -95,9 +152,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             ],
             provider);
 
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
             controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", "stop")));
 
+        Assert.Equal(ControlPlaneErrorCodes.DependentResourcesRunning, exception.Error.Code);
         Assert.Contains("depend on this resource", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(provider.ExecutedActions);
     }
@@ -116,6 +174,58 @@ public sealed class InProcessControlPlaneResourceStateTests
         await controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", "stop"));
 
         Assert.Equal(["target:stop"], provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task DeleteResourceAsync_RejectsUnknownResource()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.DeleteResourceAsync("missing"));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceNotRegistered, exception.Error.Code);
+        Assert.Equal("Resource 'missing' is not registered.", exception.Message);
+    }
+
+    [Fact]
+    public async Task DeleteResourceAsync_RejectsDeniedManagePermission()
+    {
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            authorization: new DenyAuthorizationService());
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.DeleteResourceAsync("target"));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Equal("The 'resources.manage' permission is required for resource 'target'.", exception.Message);
+    }
+
+    [Fact]
+    public async Task DeleteResourceAsync_RejectsUnsupportedProviderDelete()
+    {
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            new TestReadOnlyResourceProvider());
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.DeleteResourceAsync("target"));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceDeleteUnsupported, exception.Error.Code);
+        Assert.Equal("Resource 'target' does not support delete.", exception.Message);
+    }
+
+    [Fact]
+    public async Task DeleteResourceAsync_ReturnsProviderResult()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var result = await controlPlane.DeleteResourceAsync("target");
+
+        Assert.Equal("Deleted target.", result.Message);
     }
 
     [Fact]
@@ -232,8 +342,9 @@ public sealed class InProcessControlPlaneResourceStateTests
 
     private static IResourceManager CreateControlPlane(
         IReadOnlyList<CloudResource> resources,
-        TestResourceProvider? provider = null,
-        IReadOnlyList<ResourceGroup>? groups = null)
+        IResourceProvider? provider = null,
+        IReadOnlyList<ResourceGroup>? groups = null,
+        ICloudShellAuthorizationService? authorization = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
@@ -263,7 +374,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             templates,
             new EmptyLogStore(),
             new EmptyTraceStore(),
-            new AllowAllAuthorizationService());
+            authorization ?? new AllowAllAuthorizationService());
     }
 
     private static CloudResource CreateResource(
@@ -321,6 +432,15 @@ public sealed class InProcessControlPlaneResourceStateTests
             ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
         }
+    }
+
+    private sealed class TestReadOnlyResourceProvider : IResourceProvider
+    {
+        public string Id => "test";
+
+        public string DisplayName => "Test";
+
+        public IReadOnlyList<CloudResource> GetResources() => [];
     }
 
     private sealed class TestResourceManagerStore(
@@ -480,6 +600,17 @@ public sealed class InProcessControlPlaneResourceStateTests
         public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => true;
 
         public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) => true;
+    }
+
+    private sealed class DenyAuthorizationService : ICloudShellAuthorizationService
+    {
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => false;
+
+        public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => false;
+
+        public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) => false;
     }
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment

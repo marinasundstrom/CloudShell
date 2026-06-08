@@ -53,6 +53,9 @@ The MVP should prove:
   cycle safety.
 - Added contract-level Control Plane errors with API `ProblemDetails` code
   projection and remote client mapping.
+- Added delete/action contract-error coverage for missing resources, missing
+  actions, unsupported providers, permission denial, dependent warnings, and
+  delete capability alignment.
 
 ## Active stabilization areas
 
@@ -64,7 +67,7 @@ The MVP should prove:
 ## Next priorities
 
 1. Continue tightening internal Resource Manager behavior:
-   - delete/action authorization edge cases
+   - dependency auto-start failure details
 2. Align OpenAPI output with the intended domain projection.
 3. Expand sample tests to cover the hypermedia resource action path.
 4. Document any remaining MVP gaps as concrete tests or issues.

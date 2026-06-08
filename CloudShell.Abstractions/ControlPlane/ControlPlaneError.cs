@@ -27,6 +27,27 @@ public sealed record ControlPlaneError(
             ControlPlaneErrorCodes.ResourceNotRegistered,
             $"Resource '{resourceId}' is not registered.");
 
+    public static ControlPlaneError ResourceActionNotFound(string resourceId, string actionId) =>
+        new(
+            ControlPlaneErrorCodes.ResourceActionNotFound,
+            $"Resource '{resourceId}' does not expose action '{actionId}'.");
+
+    public static ControlPlaneError ResourceActionUnavailable(string message) =>
+        new(ControlPlaneErrorCodes.ResourceActionUnavailable, message);
+
+    public static ControlPlaneError ResourceActionUnsupported(string resourceName) =>
+        new(
+            ControlPlaneErrorCodes.ResourceActionUnsupported,
+            $"Resource '{resourceName}' does not support actions.");
+
+    public static ControlPlaneError ResourceDeleteUnsupported(string resourceName) =>
+        new(
+            ControlPlaneErrorCodes.ResourceDeleteUnsupported,
+            $"Resource '{resourceName}' does not support delete.");
+
+    public static ControlPlaneError DependentResourcesRunning(string message) =>
+        new(ControlPlaneErrorCodes.DependentResourcesRunning, message);
+
     public static ControlPlaneError ResourceGroupNotFound(string resourceGroupId) =>
         new(
             ControlPlaneErrorCodes.ResourceGroupNotFound,
@@ -45,9 +66,14 @@ public static class ControlPlaneErrorCodes
     public const string ResourceProviderCannotCreate = "resourceProviderCannotCreate";
     public const string ResourceNotAvailable = "resourceNotAvailable";
     public const string ResourceNotRegistered = "resourceNotRegistered";
+    public const string ResourceActionNotFound = "resourceActionNotFound";
+    public const string ResourceActionUnavailable = "resourceActionUnavailable";
+    public const string ResourceActionUnsupported = "resourceActionUnsupported";
+    public const string ResourceDeleteUnsupported = "resourceDeleteUnsupported";
     public const string ResourceGroupNotFound = "resourceGroupNotFound";
     public const string ResourceSelfDependency = "resourceSelfDependency";
     public const string DependentResourcesRunning = "dependentResourcesRunning";
+    public const string InsufficientPermission = "insufficientPermission";
     public const string OperationFailed = "operationFailed";
 }
 
@@ -66,4 +92,22 @@ public sealed class ControlPlaneException : InvalidOperationException
     }
 
     public ControlPlaneError Error { get; }
+}
+
+public sealed class ControlPlaneAccessDeniedException : UnauthorizedAccessException
+{
+    public ControlPlaneAccessDeniedException(ControlPlaneError error)
+        : base(error.Message)
+    {
+        Error = error;
+    }
+
+    public ControlPlaneError Error { get; }
+
+    public static ControlPlaneAccessDeniedException ForResource(
+        string resourceId,
+        string permission) =>
+        new(new ControlPlaneError(
+            ControlPlaneErrorCodes.InsufficientPermission,
+            $"The '{permission}' permission is required for resource '{resourceId}'."));
 }

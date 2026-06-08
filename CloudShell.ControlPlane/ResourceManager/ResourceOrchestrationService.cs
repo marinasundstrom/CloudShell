@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using System.Text.Json;
@@ -144,14 +145,14 @@ public sealed class ResourceOrchestrationService(
         ResourceOrchestrationContext context,
         ResourceAction action) =>
         SelectPreferredOrchestrator(orchestrator => orchestrator.CanExecute(context, action))
-        ?? throw new InvalidOperationException(
-            $"Resource '{context.Resource.Name}' does not support action '{action.DisplayName}'.");
+        ?? throw new ControlPlaneException(
+            ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
 
     private IResourceOrchestrator SelectDeleteOrchestrator(
         ResourceOrchestrationContext context) =>
         SelectPreferredOrchestrator(orchestrator => orchestrator.CanDelete(context))
-        ?? throw new InvalidOperationException(
-            $"Resource '{context.Resource.Name}' does not support delete.");
+        ?? throw new ControlPlaneException(
+            ControlPlaneError.ResourceDeleteUnsupported(context.Resource.Name));
 
     private IResourceOrchestrator? SelectPreferredOrchestrator(
         Func<IResourceOrchestrator, bool> predicate)

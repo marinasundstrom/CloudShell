@@ -388,15 +388,21 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             message = $"The control plane returned {(int)response.StatusCode} ({response.ReasonPhrase}).";
         }
 
+        if (!string.IsNullOrWhiteSpace(problem?.Code))
+        {
+            var error = new ControlPlaneError(problem.Code, message);
+            if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized)
+            {
+                throw new ControlPlaneAccessDeniedException(error);
+            }
+
+            throw new ControlPlaneException(error);
+        }
+
         if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Unauthorized ||
             ((int)response.StatusCode >= 300 && (int)response.StatusCode < 400))
         {
             throw new UnauthorizedAccessException(message);
-        }
-
-        if (!string.IsNullOrWhiteSpace(problem?.Code))
-        {
-            throw new ControlPlaneException(new ControlPlaneError(problem.Code, message));
         }
 
         throw new ControlPlaneException(new ControlPlaneError(ControlPlaneErrorCodes.OperationFailed, message));

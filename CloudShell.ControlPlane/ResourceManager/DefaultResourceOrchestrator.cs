@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager;
@@ -19,8 +20,8 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
         CancellationToken cancellationToken = default)
     {
         var provider = GetProcedureProvider(context)
-            ?? throw new InvalidOperationException(
-                $"Resource '{context.Resource.Name}' does not support actions.");
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
 
         return provider.ExecuteActionAsync(
             new ResourceProcedureContext(
@@ -42,8 +43,8 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
         CancellationToken cancellationToken = default)
     {
         var provider = GetDirectProcedureProvider(context)
-            ?? throw new InvalidOperationException(
-                $"Resource '{context.Resource.Name}' does not support delete.");
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.ResourceDeleteUnsupported(context.Resource.Name));
 
         return provider.DeleteAsync(
             new ResourceProcedureContext(
