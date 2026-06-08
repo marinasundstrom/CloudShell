@@ -178,8 +178,9 @@ else
     private bool IsAspNetCoreProject =>
         IsResourceType(ApplicationResourceTypes.AspNetCoreProject);
 
-    private bool IsContainerImage =>
-        IsResourceType(ApplicationResourceTypes.ContainerImage);
+    private bool IsContainerApp =>
+        Application is not null &&
+        ApplicationResourceTypes.IsContainerApp(Application.ResourceType);
 
     private bool IsSqlServer =>
         IsResourceType(ApplicationResourceTypes.SqlServer);
@@ -200,13 +201,13 @@ else
         !IsSqlServer;
 
     private bool CanConfigureContainerImage =>
-        IsContainerImage || IsSqlServer;
+        IsContainerApp || IsSqlServer;
 
     private bool CanConfigureContainerBuildSettings =>
-        IsContainerImage;
+        IsContainerApp;
 
     private bool CanConfigureReplicas =>
-        IsContainerImage;
+        IsContainerApp;
 
     private bool IsResourceType(string resourceType) =>
         Application is not null &&

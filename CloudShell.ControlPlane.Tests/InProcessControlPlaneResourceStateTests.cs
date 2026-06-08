@@ -229,6 +229,64 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task UpdateResourceImageAsync_RejectsUnknownResource()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.UpdateResourceImageAsync(new UpdateResourceImageCommand("missing", "example/api:1")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceNotRegistered, exception.Error.Code);
+    }
+
+    [Fact]
+    public async Task UpdateResourceImageAsync_RejectsUnsupportedProvider()
+    {
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            new TestReadOnlyResourceProvider());
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.UpdateResourceImageAsync(new UpdateResourceImageCommand("target", "example/api:1")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceImageUpdateUnsupported, exception.Error.Code);
+        Assert.Equal("Resource 'target' does not support image updates.", exception.Message);
+    }
+
+    [Fact]
+    public async Task UpdateResourceImageAsync_RejectsDeniedManagePermission()
+    {
+        var provider = new TestImageUpdateResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            authorization: new DenyAuthorizationService());
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.UpdateResourceImageAsync(new UpdateResourceImageCommand("target", "example/api:1")));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Empty(provider.UpdatedImages);
+    }
+
+    [Fact]
+    public async Task UpdateResourceImageAsync_DispatchesToImageUpdateProvider()
+    {
+        var provider = new TestImageUpdateResourceProvider();
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)], provider);
+
+        var result = await controlPlane.UpdateResourceImageAsync(
+            new UpdateResourceImageCommand(
+                "target",
+                "example/api:20260608",
+                RestartIfRunning: false,
+                TriggeredBy: "build-server"));
+
+        Assert.Equal("Updated target.", result.Message);
+        Assert.Equal(["target:example/api:20260608:False:build-server"], provider.UpdatedImages);
+    }
+
+    [Fact]
     public async Task RegisterResourceAsync_RejectsUnknownProvider()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
@@ -548,6 +606,30 @@ public sealed class InProcessControlPlaneResourceStateTests
         public string DisplayName => "Test";
 
         public IReadOnlyList<Resource> GetResources() => [];
+    }
+
+    private sealed class TestImageUpdateResourceProvider : IResourceProvider, IResourceImageUpdateProvider
+    {
+        public string Id => "test";
+
+        public string DisplayName => "Test";
+
+        public List<string> UpdatedImages { get; } = [];
+
+        public IReadOnlyList<Resource> GetResources() => [];
+
+        public bool CanUpdateImage(Resource resource) => true;
+
+        public Task<ResourceProcedureResult> UpdateImageAsync(
+            ResourceProcedureContext context,
+            string image,
+            bool restartIfRunning,
+            string? triggeredBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            UpdatedImages.Add($"{context.Resource.Id}:{image}:{restartIfRunning}:{triggeredBy}");
+            return Task.FromResult(ResourceProcedureResult.Completed($"Updated {context.Resource.Id}."));
+        }
     }
 
     private sealed class TestResourceCreationProvider : IResourceCreationProvider, IResourceProcedureProvider

@@ -212,7 +212,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             containerImage: image,
             replicas: Math.Max(1, replicas),
             endpointPorts: CreateEndpointPorts(endpoints),
-            resourceType: ApplicationResourceTypes.ContainerImage,
+            resourceType: ApplicationResourceTypes.ContainerApp,
             observability: observability);
         var declared = new DeclaredApplicationResource(definition);
 

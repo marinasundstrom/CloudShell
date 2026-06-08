@@ -54,12 +54,25 @@ Important properties:
 - `ResourceActions`: resource-domain operations exposed by the provider.
 - `ResourceHealthChecks`: health signals contributed by providers.
 
-`Resource` is a uniform projection. It is not subclassed for containers,
-executables, projects, services, or infrastructure. A resource carries common
+`Resource` is a uniform projection. It is not subclassed for container apps,
+runtime containers, executables, projects, services, or infrastructure. A
+resource carries common
 attributes such as class, type, endpoints, actions, health checks,
 observability, and structural metadata; providers own the configuration and
 runtime behavior behind those attributes. `Resource` does not imply CloudShell
 owns all underlying provider configuration or runtime state.
+
+A container app resource is the top-level deployable workload. It may be bound
+to a specific container host resource, such as Local Docker, or it may omit that
+binding and let CloudShell resolve the configured default container engine. That
+host selection is deployment plumbing; consumers should not need to know which
+engine or runtime container is used to deploy the app. A container app is more
+than a single container: it may be backed by one or more runtime container
+instances/replicas, and those runtime instances may change across deployments.
+Docker and other engine providers may also project runtime container resources,
+often as children under a host/engine resource. Those runtime container
+resources are useful for inspection and low-level operations, but they are not
+the stable deployment target for app image updates.
 
 `Attributes` are not a second provider configuration schema. They are projected
 facts useful for inspection, filtering, diagnostics, and orchestration hints,
@@ -278,6 +291,17 @@ extension.
 Logs are not embedded fields on a resource. A log descriptor can point at a
 resource ID, artifact ID, or provider-owned source.
 
+Container app providers should surface console logs from the underlying
+containers or local processes. Console logs represent stdout/stderr emitted by
+the workload and are resource-type-specific operational detail.
+
+Every visible resource should also expose a platform-owned `Resource events`
+stream. Resource events are actor-attributed audit-style records for operations
+performed on a resource, such as executing an action, changing configuration, or
+updating a deployable image. Provider or resource-type-specific logs can add
+more detail, such as container console output or container-app-specific restart
+events, but generic resource events are the consistent per-resource history.
+
 In code:
 
 - `ILogManager` is the public domain abstraction.
@@ -382,10 +406,15 @@ Commands in the public domain abstraction are intent-shaped:
 - `AssignResourceGroupCommand`
 - `SetResourceDependenciesCommand`
 - `ExecuteResourceActionCommand`
+- `UpdateResourceImageCommand`
 
 The HTTP API maps these commands to routes and request DTOs. Consumers should
 prefer the manager abstraction unless they are implementing or generating an
 HTTP adapter.
+
+`UpdateResourceImageCommand` targets the top-level resource that owns the
+deployable image, such as a container app. It should not require consumers to
+target provider-specific runtime children such as Docker containers.
 
 `CreateResourceCommand` may carry `ResourceClass` and stable, non-secret
 attributes from the selected resource type or caller context. Creation providers

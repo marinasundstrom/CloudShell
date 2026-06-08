@@ -19,10 +19,12 @@ public sealed partial class ApplicationResourceProvider(
     ApplicationProviderOptions options,
     IHostEnvironment environment,
     IServiceProvider serviceProvider,
-    IEnumerable<IResourceEnvironmentVariableProvider> environmentVariableProviders) :
+    IEnumerable<IResourceEnvironmentVariableProvider> environmentVariableProviders,
+    IResourceEventSink? resourceEvents = null) :
     IResourceProvider,
     ILogProvider,
     IResourceProcedureProvider,
+    IResourceImageUpdateProvider,
     IResourceTemplateProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
@@ -47,30 +49,24 @@ public sealed partial class ApplicationResourceProvider(
 
     public IReadOnlyList<LogDescriptor> GetLogs() => store
         .GetApplications()
-        .Select(application => new LogDescriptor(
-            GetLogId(application.Id),
-            "Application logs",
-            DisplayName,
-            application.Name,
-            LogSourceKind.Resource,
-            ResourceId: application.Id,
-            SupportsStreaming: true,
-            Description: "Application stdout, stderr, and lifecycle events."))
+        .SelectMany(CreateLogDescriptors)
         .ToArray();
 
-    public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+    public async Task<IReadOnlyList<LogEntry>> ReadLogAsync(
         string logId,
         int maxEntries = 200,
         DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
     {
-        var applicationId = GetApplicationIdFromLogId(logId);
-        if (applicationId is null)
+        if (TryGetApplicationLogId(logId, out var applicationId))
         {
-            return Task.FromResult<IReadOnlyList<LogEntry>>([]);
+            var entries = await localProcesses.ReadLogAsync(applicationId, maxEntries, before, cancellationToken);
+            return entries
+                .Where(IsConsoleLogEntry)
+                .ToArray();
         }
 
-        return localProcesses.ReadLogAsync(applicationId, maxEntries, before, cancellationToken);
+        return [];
     }
 
     public async IAsyncEnumerable<LogEntry> StreamLogAsync(
@@ -78,8 +74,7 @@ public sealed partial class ApplicationResourceProvider(
         int initialEntries = 50,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var applicationId = GetApplicationIdFromLogId(logId);
-        if (applicationId is null)
+        if (!TryGetApplicationLogId(logId, out var applicationId))
         {
             yield break;
         }
@@ -89,8 +84,27 @@ public sealed partial class ApplicationResourceProvider(
                            initialEntries,
                            cancellationToken))
         {
-            yield return entry;
+            if (IsConsoleLogEntry(entry))
+            {
+                yield return entry;
+            }
         }
+    }
+
+    private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(ApplicationResourceDefinition application)
+    {
+        return
+        [
+            new LogDescriptor(
+                GetLogId(application.Id),
+                "Console logs",
+                "Applications",
+                application.Name,
+                LogSourceKind.Resource,
+                ResourceId: application.Id,
+                SupportsStreaming: true,
+                Description: "Container app or process stdout and stderr.")
+        ];
     }
 
     public async Task SetupApplicationAsync(
@@ -201,6 +215,87 @@ public sealed partial class ApplicationResourceProvider(
                 throw new NotSupportedException(
                     $"Applications do not support action '{action.DisplayName}'.");
         }
+    }
+
+    public bool CanUpdateImage(Resource resource) =>
+        ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
+        store.GetApplication(resource.Id) is not null;
+
+    public async Task<ResourceProcedureResult> UpdateImageAsync(
+        ResourceProcedureContext context,
+        string image,
+        bool restartIfRunning,
+        string? triggeredBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(image);
+
+        var application = store.GetApplication(context.Resource.Id)
+            ?? throw new InvalidOperationException(
+                $"Container app resource '{context.Resource.Id}' is not configured.");
+        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
+        {
+            throw new InvalidOperationException(
+                $"Resource '{context.Resource.Id}' is not a container app.");
+        }
+
+        var normalizedImage = image.Trim();
+        if (string.Equals(application.ContainerImage, normalizedImage, StringComparison.Ordinal))
+        {
+            return ResourceProcedureResult.Completed(
+                $"Container app '{application.Name}' already uses image '{normalizedImage}'.");
+        }
+
+        var wasRunning = IsRunning(application.Id);
+        var updated = NormalizeDefinition(application with
+        {
+            ContainerImage = normalizedImage,
+            ContainerBuildContext = null,
+            ContainerDockerfile = null
+        });
+        store.Save(updated);
+
+        resourceEvents?.Append(new ResourceEvent(
+            application.Id,
+            "containerApp.imageChanged",
+            $"Changed container image from '{application.ContainerImage ?? "none"}' to '{normalizedImage}'.",
+            DateTimeOffset.UtcNow,
+            triggeredBy));
+
+        if (restartIfRunning && wasRunning)
+        {
+            await StopApplicationAsync(
+                application.Id,
+                force: true,
+                context.ResourceManager,
+                context.PreferredContainerEngineId,
+                cancellationToken);
+            await StartApplicationAsync(
+                application.Id,
+                context.Resource.DependsOn,
+                context.ResourceGroupId,
+                context.Registrations,
+                context.ResourceManager,
+                context.PreferredContainerEngineId,
+                cancellationToken);
+            resourceEvents?.Append(new ResourceEvent(
+                application.Id,
+                "containerApp.restarted",
+                "Restarted container app after image update.",
+                DateTimeOffset.UtcNow,
+                triggeredBy));
+
+            return ResourceProcedureResult.Completed(
+                $"Updated {application.Name} to image '{normalizedImage}' and restarted it.");
+        }
+
+        return wasRunning
+            ? ResourceProcedureResult.CompletedWithRestartRequired(
+                $"Updated {application.Name} to image '{normalizedImage}'.",
+                application.Id,
+                "The container app is running. Restart it to use the new image.")
+            : ResourceProcedureResult.Completed(
+                $"Updated {application.Name} to image '{normalizedImage}'.");
     }
 
     public bool CanExport(Resource resource) =>
@@ -1017,7 +1112,7 @@ public sealed partial class ApplicationResourceProvider(
         application.ResourceType switch
         {
             ApplicationResourceTypes.AspNetCoreProject => ResourceClass.Project,
-            ApplicationResourceTypes.ContainerImage => ResourceClass.Container,
+            var type when ApplicationResourceTypes.IsContainerApp(type) => ResourceClass.Container,
             ApplicationResourceTypes.SqlServer => ResourceClass.Container,
             _ => IsContainerBacked(application) ? ResourceClass.Container : ResourceClass.Executable
         };
@@ -1032,9 +1127,9 @@ public sealed partial class ApplicationResourceProvider(
         application.ResourceType switch
         {
             ApplicationResourceTypes.AspNetCoreProject => "ASP.NET Core project",
-            ApplicationResourceTypes.ContainerImage => "Container application",
+            var type when ApplicationResourceTypes.IsContainerApp(type) => "Container app",
             ApplicationResourceTypes.SqlServer => "SQL Server",
-            _ => IsContainerBacked(application) ? "Container application" : "Executable application"
+            _ => IsContainerBacked(application) ? "Container app" : "Executable application"
         };
 
     private ResourceState GetState(string applicationId)
@@ -1945,10 +2040,29 @@ public sealed partial class ApplicationResourceProvider(
 
     private static string GetLogId(string applicationId) => $"{applicationId}:logs";
 
-    private static string? GetApplicationIdFromLogId(string logId) =>
-        logId.EndsWith(":logs", StringComparison.OrdinalIgnoreCase)
-            ? logId[..^":logs".Length]
-            : null;
+    private static bool TryGetApplicationLogId(
+        string logId,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? applicationId) =>
+        TryGetApplicationIdFromLogId(logId, ":logs", out applicationId);
+
+    private static bool TryGetApplicationIdFromLogId(
+        string logId,
+        string suffix,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? applicationId)
+    {
+        if (logId.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        {
+            applicationId = logId[..^suffix.Length];
+            return true;
+        }
+
+        applicationId = null;
+        return false;
+    }
+
+    private static bool IsConsoleLogEntry(LogEntry entry) =>
+        string.Equals(entry.Source, "stdout", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(entry.Source, "stderr", StringComparison.OrdinalIgnoreCase);
 
     [GeneratedRegex("[^a-z0-9]+")]
     private static partial Regex SlugPattern();

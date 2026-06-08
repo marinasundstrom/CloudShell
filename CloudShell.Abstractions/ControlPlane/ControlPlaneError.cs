@@ -48,6 +48,11 @@ public sealed record ControlPlaneError(
             ControlPlaneErrorCodes.ResourceDeleteUnsupported,
             $"Resource '{resourceName}' does not support delete.");
 
+    public static ControlPlaneError ResourceImageUpdateUnsupported(string resourceName) =>
+        new(
+            ControlPlaneErrorCodes.ResourceImageUpdateUnsupported,
+            $"Resource '{resourceName}' does not support image updates.");
+
     public static ControlPlaneError DependentResourcesRunning(string message) =>
         new(ControlPlaneErrorCodes.DependentResourcesRunning, message);
 
@@ -77,6 +82,7 @@ public static class ControlPlaneErrorCodes
     public const string ResourceActionUnavailable = "resourceActionUnavailable";
     public const string ResourceActionUnsupported = "resourceActionUnsupported";
     public const string ResourceDeleteUnsupported = "resourceDeleteUnsupported";
+    public const string ResourceImageUpdateUnsupported = "resourceImageUpdateUnsupported";
     public const string ResourceGroupNotFound = "resourceGroupNotFound";
     public const string ResourceSelfDependency = "resourceSelfDependency";
     public const string DependentResourcesRunning = "dependentResourcesRunning";

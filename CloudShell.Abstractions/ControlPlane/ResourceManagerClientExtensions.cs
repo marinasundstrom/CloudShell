@@ -36,6 +36,7 @@ public static class ResourceManagerClientExtensions
         string actionId,
         bool startDependencies = false,
         bool ignoreDependentWarning = false,
+        string? triggeredBy = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(resourceManager);
@@ -45,7 +46,8 @@ public static class ResourceManagerClientExtensions
                 resourceId,
                 actionId,
                 startDependencies,
-                ignoreDependentWarning),
+                ignoreDependentWarning,
+                triggeredBy),
             cancellationToken);
     }
 
@@ -55,6 +57,7 @@ public static class ResourceManagerClientExtensions
         ResourceAction action,
         bool startDependencies = false,
         bool ignoreDependentWarning = false,
+        string? triggeredBy = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(resource);
@@ -65,6 +68,40 @@ public static class ResourceManagerClientExtensions
             action.Id,
             startDependencies,
             ignoreDependentWarning,
+            triggeredBy,
+            cancellationToken);
+    }
+
+    public static Task<ResourceProcedureResult> UpdateResourceImageAsync(
+        this IResourceManager resourceManager,
+        string resourceId,
+        string image,
+        bool restartIfRunning = true,
+        string? triggeredBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resourceManager);
+
+        return resourceManager.UpdateResourceImageAsync(
+            new UpdateResourceImageCommand(resourceId, image, restartIfRunning, triggeredBy),
+            cancellationToken);
+    }
+
+    public static Task<ResourceProcedureResult> UpdateResourceImageAsync(
+        this IResourceManager resourceManager,
+        Resource resource,
+        string image,
+        bool restartIfRunning = true,
+        string? triggeredBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return resourceManager.UpdateResourceImageAsync(
+            resource.Id,
+            image,
+            restartIfRunning,
+            triggeredBy,
             cancellationToken);
     }
 
@@ -150,7 +187,7 @@ public static class ResourceManagerClientExtensions
             ResourceActionIds.Restart,
             startDependencies,
             ignoreDependentWarning,
-            cancellationToken);
+            cancellationToken: cancellationToken);
 
     public static Task<ResourceProcedureResult> RestartResourceAsync(
         this IResourceManager resourceManager,

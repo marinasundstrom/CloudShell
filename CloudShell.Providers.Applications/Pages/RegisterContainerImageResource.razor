@@ -207,7 +207,7 @@
             containerImage: Image.Trim(),
             containerEngineId: NormalizeNullable(SelectedEngineId),
             endpointPorts: BuildEndpointPorts(),
-            resourceType: ApplicationResourceTypes.ContainerImage,
+            resourceType: ApplicationResourceTypes.ContainerApp,
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);

@@ -15,7 +15,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         [
             "resource-type.application.executable",
             "resource-type.application.aspnet-core-project",
-            "resource-type.application.container-image",
+            "resource-type.application.container-app",
             "resource-type.application.sql-server",
             "resource-trait.environment-variables",
             "resource-trait.observability"
@@ -60,8 +60,8 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                     ]),
                 resourceClass: ResourceClass.Project)
             .AddResourceType<Pages.RegisterContainerImageResource>(
-                ApplicationResourceTypes.ContainerImage,
-                "Container application",
+                ApplicationResourceTypes.ContainerApp,
+                "Container app",
                 "Register a top-level containerized application that runs through the selected or default container engine.",
                 "container",
                 22,
@@ -96,12 +96,12 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 20,
                 showsApplyButton: true)
             .AddResourceTab<Pages.ApplicationOverview>(
-                ApplicationResourceTypes.ContainerImage,
+                ApplicationResourceTypes.ContainerApp,
                 "overview",
                 "Overview",
                 10)
             .AddResourceTab<Pages.UpdateApplicationResource>(
-                ApplicationResourceTypes.ContainerImage,
+                ApplicationResourceTypes.ContainerApp,
                 "configuration",
                 "Configuration",
                 20,

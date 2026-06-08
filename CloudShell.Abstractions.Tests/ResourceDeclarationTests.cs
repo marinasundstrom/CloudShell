@@ -1285,7 +1285,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("applications", declaration.ProviderId);
         Assert.Null(declaration.ParentResourceId);
         Assert.Empty(declaration.DependsOn);
-        Assert.Equal(ApplicationResourceTypes.ContainerImage, resource.EffectiveTypeId);
+        Assert.Equal(ApplicationResourceTypes.ContainerApp, resource.EffectiveTypeId);
         Assert.Equal(ResourceClass.Container, resource.ResourceClass);
         Assert.Equal(
             ResourceWorkloadKind.ContainerImage.ToString(),
@@ -1303,6 +1303,48 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(14333, port.Port);
         var endpoint = Assert.Single(resource.Endpoints);
         Assert.Equal("tcp://localhost:14333", endpoint.Address);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationProvider_UpdatesTopLevelContainerAppImage()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer("api", "example/api:latest")
+                    .WithContainerEngine("docker");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var registrations = new DeclarationRegistrationStore(declarationStore);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+
+        var result = await provider.UpdateImageAsync(
+            new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
+            "example/api:20260608",
+            restartIfRunning: false);
+
+        var updated = provider.GetApplication("application:api");
+        Assert.NotNull(updated);
+        var log = Assert.Single(provider.GetLogs(), log =>
+            log.ResourceId == "application:api" &&
+            log.Name == "Console logs");
+
+        Assert.Equal(ApplicationResourceTypes.ContainerApp, resource.EffectiveTypeId);
+        Assert.Equal("Container app", resource.Kind);
+        Assert.True(log.SupportsStreaming);
+        Assert.Equal("example/api:20260608", updated.ContainerImage);
+        Assert.Equal("Updated api to image 'example/api:20260608'.", result.Message);
     }
 
     private sealed class ParentMetadataExtension : ICloudShellExtension

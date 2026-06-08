@@ -84,6 +84,11 @@ public sealed record AssignResourceGroupRequest(
 
 public sealed record SetResourceDependenciesRequest(IReadOnlyList<string> DependsOn);
 
+public sealed record UpdateResourceImageRequest(
+    string Image,
+    bool RestartIfRunning = true,
+    string? TriggeredBy = null);
+
 public sealed record ResourceOperationCapabilitiesRequest(IReadOnlyList<string> ResourceIds);
 
 public sealed record ResourceOperationCapabilitiesResponse(

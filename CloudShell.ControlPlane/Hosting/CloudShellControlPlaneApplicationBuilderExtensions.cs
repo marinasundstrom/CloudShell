@@ -43,6 +43,11 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<IResourceRegistrationStore, AuthorizedResourceRegistrationStore>();
         builder.Services.AddScoped<IResourceManagerStore, ResourceManagerStore>();
         builder.Services.AddScoped<ILogStore, LogStore>();
+        builder.Services.AddSingleton<InMemoryResourceEventStore>();
+        builder.Services.AddSingleton<IResourceEventSink>(
+            serviceProvider => serviceProvider.GetRequiredService<InMemoryResourceEventStore>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<ILogProvider, ResourceEventLogProvider>());
         builder.Services.AddSingleton<ITraceStore, InMemoryTraceStore>();
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<ResourceOrchestrationService>();

@@ -77,6 +77,10 @@ public interface IResourceManager
     Task<ResourceProcedureResult> ExecuteResourceActionAsync(
         ExecuteResourceActionCommand command,
         CancellationToken cancellationToken = default);
+
+    Task<ResourceProcedureResult> UpdateResourceImageAsync(
+        UpdateResourceImageCommand command,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IResourceTemplateManager
@@ -179,7 +183,14 @@ public sealed record ExecuteResourceActionCommand(
     string ResourceId,
     string ActionId,
     bool StartDependencies = false,
-    bool IgnoreDependentWarning = false);
+    bool IgnoreDependentWarning = false,
+    string? TriggeredBy = null);
+
+public sealed record UpdateResourceImageCommand(
+    string ResourceId,
+    string Image,
+    bool RestartIfRunning = true,
+    string? TriggeredBy = null);
 
 public sealed record ResourceOperationCapabilities(
     string ResourceId,

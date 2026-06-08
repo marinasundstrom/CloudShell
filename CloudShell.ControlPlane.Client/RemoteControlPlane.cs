@@ -223,8 +223,23 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             BuildUri(
                 $"resources/{Escape(command.ResourceId)}/actions/{Escape(command.ActionId)}",
                 ("startDependencies", command.StartDependencies.ToString()),
-                ("ignoreDependentWarning", command.IgnoreDependentWarning.ToString())),
+                ("ignoreDependentWarning", command.IgnoreDependentWarning.ToString()),
+                ("triggeredBy", command.TriggeredBy)),
             null,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await ReadRequiredAsync<ResourceProcedureResponse>(response, cancellationToken))
+            .ToProcedureResult();
+    }
+
+    public async Task<ResourceProcedureResult> UpdateResourceImageAsync(
+        UpdateResourceImageCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri($"resources/{Escape(command.ResourceId)}/image"),
+            new UpdateResourceImageRequest(command.Image, command.RestartIfRunning, command.TriggeredBy),
+            SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await ReadRequiredAsync<ResourceProcedureResponse>(response, cancellationToken))
@@ -523,6 +538,11 @@ file sealed record AssignResourceGroupRequest(
     IReadOnlyList<string>? DependsOn = null);
 
 file sealed record SetResourceDependenciesRequest(IReadOnlyList<string> DependsOn);
+
+file sealed record UpdateResourceImageRequest(
+    string Image,
+    bool RestartIfRunning = true,
+    string? TriggeredBy = null);
 
 file sealed record ResourceOperationCapabilitiesRequest(IReadOnlyList<string> ResourceIds);
 

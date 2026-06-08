@@ -77,6 +77,13 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resources/{resourceId}/actions/{actionId}", ExecuteResourceAction)
             .WithName("CloudShellControlPlane_ExecuteResourceAction");
 
+        api.MapPost("/resources/{resourceId}/image", UpdateResourceImage)
+            .WithName("CloudShellControlPlane_UpdateResourceImage")
+            .Accepts<UpdateResourceImageRequest>("application/json")
+            .Produces<ResourceProcedureResponse>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
+
         api.MapGet("/resource-groups", ListResourceGroups)
             .WithName("CloudShellControlPlane_ListResourceGroups");
 
@@ -308,6 +315,7 @@ public static class CloudShellControlPlaneApiExtensions
         string actionId,
         bool? startDependencies,
         bool? ignoreDependentWarning,
+        string? triggeredBy,
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
@@ -341,7 +349,8 @@ public static class CloudShellControlPlaneApiExtensions
                     resourceId,
                     actionId,
                     startDependencies.GetValueOrDefault(),
-                    ignoreDependentWarning.GetValueOrDefault()),
+                    ignoreDependentWarning.GetValueOrDefault(),
+                    NormalizeOptional(triggeredBy)),
                 cancellationToken);
 
             return Results.Ok(ToResponse(result));
@@ -365,6 +374,40 @@ public static class CloudShellControlPlaneApiExtensions
                 ControlPlaneErrorCodes.DependentResourcesRunning);
         }
         catch (Exception exception) when (exception is ControlPlaneException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> UpdateResourceImage(
+        string resourceId,
+        UpdateResourceImageRequest request,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        if (await resourceManager.GetResourceAsync(resourceId, cancellationToken) is null)
+        {
+            var error = ControlPlaneError.ResourceNotRegistered(resourceId);
+            return Problem(
+                StatusCodes.Status404NotFound,
+                "Resource not found",
+                error.Message,
+                error.Code);
+        }
+
+        try
+        {
+            var result = await resourceManager.UpdateResourceImageAsync(
+                new UpdateResourceImageCommand(
+                    resourceId,
+                    RequireValue(request.Image, nameof(request.Image)),
+                    request.RestartIfRunning,
+                    NormalizeOptional(request.TriggeredBy)),
+                cancellationToken);
+
+            return Results.Ok(ToResponse(result));
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }

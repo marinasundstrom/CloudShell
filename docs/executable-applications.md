@@ -105,7 +105,7 @@ ignored by git because this is local machine state.
 
 The application provider supports resource templates for
 `application.executable`, `application.aspnet-core-project`,
-`application.container-image`, and `application.sql-server` resources. Export writes a provider-owned
+`application.container-app`, and `application.sql-server` resources. Export writes a provider-owned
 configuration payload with:
 
 - executable path

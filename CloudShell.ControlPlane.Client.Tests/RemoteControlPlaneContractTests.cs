@@ -129,6 +129,31 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_UpdatesResourceImage()
+    {
+        await using var app = await CreateAppAsync(includeImageResource: true);
+        var controlPlane = CreateClient(app);
+
+        var result = await controlPlane.UpdateResourceImageAsync(
+            ContractImageResourceProvider.ResourceId,
+            "example/api:20260608",
+            restartIfRunning: false,
+            triggeredBy: "build-server");
+        var eventLogs = await controlPlane.ListLogsAsync(
+            new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
+        var eventLog = Assert.Single(eventLogs, log => log.Name == "Resource events");
+        var events = await controlPlane.ReadLogAsync(eventLog.Id);
+
+        Assert.Equal("Updated contract:container-app to example/api:20260608.", result.Message);
+        var provider = app.Services.GetRequiredService<ContractImageResourceProvider>();
+        Assert.Equal(["example/api:20260608:False:build-server"], provider.UpdatedImages);
+        Assert.Contains(events, entry =>
+            entry.Source == "event" &&
+            entry.Message.Contains("image.update", StringComparison.Ordinal) &&
+            entry.Message.Contains("build-server", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_ExposesResourceActionsAsHypermediaAffordances()
     {
         await using var app = await CreateAppAsync(includeLifecycleResource: true);
@@ -216,7 +241,9 @@ public sealed class RemoteControlPlaneContractTests
         var controlPlane = CreateClient(app);
 
         var logs = await controlPlane.ListLogsAsync(new LogQuery(ResourceId: "network:contract"));
-        Assert.Empty(logs);
+        var resourceEvents = Assert.Single(logs);
+        Assert.Equal("Resource events", resourceEvents.Name);
+        Assert.Equal("network:contract", resourceEvents.ResourceId);
 
         var span = new TraceSpan(
             "trace-contract",
@@ -456,7 +483,8 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     private static async Task<WebApplication> CreateAppAsync(
-        bool includeLifecycleResource = false)
+        bool includeLifecycleResource = false,
+        bool includeImageResource = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -480,6 +508,12 @@ public sealed class RemoteControlPlaneContractTests
         {
             builder.Services.AddSingleton<IResourceProvider, ContractLifecycleResourceProvider>();
         }
+        if (includeImageResource)
+        {
+            builder.Services.AddSingleton<ContractImageResourceProvider>();
+            builder.Services.AddSingleton<IResourceProvider>(serviceProvider =>
+                serviceProvider.GetRequiredService<ContractImageResourceProvider>());
+        }
 
         controlPlane.Resources(resources =>
         {
@@ -500,6 +534,14 @@ public sealed class RemoteControlPlaneContractTests
             await registrations.RegisterAsync(
                 ContractLifecycleResourceProvider.ProviderId,
                 ContractLifecycleResourceProvider.ResourceId);
+        }
+        if (includeImageResource)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var registrations = scope.ServiceProvider.GetRequiredService<IResourceRegistrationStore>();
+            await registrations.RegisterAsync(
+                ContractImageResourceProvider.ProviderId,
+                ContractImageResourceProvider.ResourceId);
         }
 
         return app;
@@ -561,5 +603,54 @@ public sealed class RemoteControlPlaneContractTests
                     ResourceAction.Restart
                 ])
         ];
+    }
+
+    private sealed class ContractImageResourceProvider : IResourceProvider, IResourceImageUpdateProvider
+    {
+        public const string ProviderId = "contract.container-app";
+        public const string ResourceId = "contract:container-app";
+
+        public string Id => ProviderId;
+
+        public string DisplayName => "Contract Container App";
+
+        public List<string> UpdatedImages { get; } = [];
+
+        public IReadOnlyList<Resource> GetResources() =>
+        [
+            new(
+                ResourceId,
+                "Contract Container App",
+                "Container app",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [],
+                "example/api:latest",
+                DateTimeOffset.UtcNow,
+                [],
+                TypeId: "application.container-app",
+                ResourceClass: ResourceClass.Container,
+                Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [ResourceAttributeNames.WorkloadKind] = ResourceWorkloadKind.ContainerImage.ToString(),
+                    [ResourceAttributeNames.ContainerImage] = "example/api:latest"
+                })
+        ];
+
+        public bool CanUpdateImage(Resource resource) =>
+            string.Equals(resource.Id, ResourceId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceProcedureResult> UpdateImageAsync(
+            ResourceProcedureContext context,
+            string image,
+            bool restartIfRunning,
+            string? triggeredBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            UpdatedImages.Add($"{image}:{restartIfRunning}:{triggeredBy}");
+            return Task.FromResult(ResourceProcedureResult.Completed(
+                $"Updated {context.Resource.Id} to {image}."));
+        }
     }
 }

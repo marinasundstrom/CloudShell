@@ -16,7 +16,8 @@ public sealed class InProcessControlPlane(
     ResourceTemplateService templates,
     ILogStore logs,
     ITraceStore traces,
-    ICloudShellAuthorizationService authorization) : IControlPlane
+    ICloudShellAuthorizationService authorization,
+    IResourceEventSink? resourceEvents = null) : IControlPlane
 {
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -272,12 +273,64 @@ public sealed class InProcessControlPlane(
             }
         }
 
-        return await orchestration.ExecuteActionAsync(
+        var result = await orchestration.ExecuteActionAsync(
             resource,
             action,
             command.StartDependencies,
             authorization,
             cancellationToken);
+
+        resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            "action.execute",
+            $"Executed action '{action.Id}'. Result: {result.Message}",
+            DateTimeOffset.UtcNow,
+            command.TriggeredBy));
+
+        return result;
+    }
+
+    public async Task<ResourceProcedureResult> UpdateResourceImageAsync(
+        UpdateResourceImageCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
+        var image = RequireValue(command.Image, nameof(command.Image));
+        var resource = resourceManager.GetResource(resourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(resourceId));
+
+        var group = resourceManager.GetGroupForResource(resource.Id);
+        if (!authorization.CanAccessResource(
+                resource.Id,
+                group?.Id,
+                CloudShellPermissions.Resources.Manage))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                resource.Id,
+                CloudShellPermissions.Resources.Manage);
+        }
+
+        var provider = GetImageUpdateProvider(resource);
+        if (provider is null || !provider.CanUpdateImage(resource))
+        {
+            throw new ControlPlaneException(ControlPlaneError.ResourceImageUpdateUnsupported(resource.Name));
+        }
+
+        var result = await provider.UpdateImageAsync(
+            CreateProcedureContext(resource),
+            image,
+            command.RestartIfRunning,
+            command.TriggeredBy,
+            cancellationToken);
+
+        resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            "image.update",
+            $"Updated image to '{image}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
+            DateTimeOffset.UtcNow,
+            command.TriggeredBy));
+
+        return result;
     }
 
     public Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(
@@ -456,6 +509,34 @@ public sealed class InProcessControlPlane(
         return resourceManager.Providers.FirstOrDefault(provider =>
             string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
             as IResourceProcedureProvider;
+    }
+
+    private IResourceImageUpdateProvider? GetImageUpdateProvider(Resource resource)
+    {
+        var registration = GetRegistrationForResourceOrAncestor(resource);
+        if (registration is not null)
+        {
+            return resourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
+                as IResourceImageUpdateProvider;
+        }
+
+        return resourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
+            as IResourceImageUpdateProvider;
+    }
+
+    private ResourceProcedureContext CreateProcedureContext(Resource resource)
+    {
+        var registration = GetRegistrationForResourceOrAncestor(resource);
+        var group = resourceManager.GetGroupForResource(resource.Id);
+        return new ResourceProcedureContext(
+            resource,
+            registration,
+            group?.Id,
+            registrations,
+            resourceManager,
+            orchestration.PreferredContainerEngineId);
     }
 
     private ResourceRegistration? GetRegistrationForResourceOrAncestor(Resource resource)

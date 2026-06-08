@@ -55,7 +55,7 @@ template document, but does not interpret the provider-specific fields.
 
 The application provider preserves specific application-backed resource types,
 including `application.executable`, `application.aspnet-core-project`,
-`application.container-image`, and `application.sql-server`.
+`application.container-app`, and `application.sql-server`.
 
 `name` is the friendly display name. `resourceId` is the stable resource
 identifier used by registrations, links, logs, configuration endpoints, and

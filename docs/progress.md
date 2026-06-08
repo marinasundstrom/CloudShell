@@ -58,6 +58,14 @@ The MVP should prove:
 - CloudShell environment preferences are user-scoped, workload-agnostic, and
   use one configured storage backend: local UI-host storage or Control
   Plane-backed storage.
+- Top-level container app resources own deployment operations such as image
+  updates. Container-engine providers such as Docker may project runtime
+  container resources for inspection, but consumers should not need those
+  runtime resource IDs to deploy a new app image.
+- Resource-scoped events are the platform traceability stream for operations
+  performed on resources, including who or what triggered the operation.
+  Resource-type logs remain available for operational detail such as container
+  console output.
 
 ## Completed recently
 
@@ -136,6 +144,10 @@ The MVP should prove:
   actions through advertised hypermedia hrefs.
 - Grouped sample projects in the solution by sample scenario so logical
   solution folders match the physical `samples/` layout.
+- Added a domain/API image update command for top-level container app
+  resources, with actor-attributed resource events for traceability,
+  application-provider console logs for underlying container output, and
+  split-host client mapping.
 
 ## Active stabilization areas
 

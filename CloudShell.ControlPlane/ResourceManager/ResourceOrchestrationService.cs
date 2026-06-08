@@ -21,6 +21,8 @@ public sealed class ResourceOrchestrationService(
     private readonly IReadOnlyList<IContainerEngineProvider> containerEngineProviders =
         containerEngineProviders.ToArray();
 
+    public string? PreferredContainerEngineId => selectionStore.Get().PreferredContainerEngineId;
+
     public async Task<ResourceProcedureResult> DeleteAsync(
         Resource resource,
         CancellationToken cancellationToken = default)

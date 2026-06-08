@@ -8,7 +8,13 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
-No queued items.
+- Add a Resource Manager deployment affordance for container apps that calls
+  `UpdateResourceImageAsync` with a selected image/version.
+- Persist resource events and expose event filtering by event type, actor, and
+  time range.
+- Define container app runtime instances/replicas separately from the stable
+  container app resource, including explicit container host binding, default
+  engine resolution, and how engine-discovered containers map back to the app.
 
 ## Resource Manager Stabilization
 
