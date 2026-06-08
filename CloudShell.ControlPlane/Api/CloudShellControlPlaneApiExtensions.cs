@@ -203,7 +203,7 @@ public static class CloudShellControlPlaneApiExtensions
 
             return Results.Ok(capabilities.Values.Select(capability => capability.ToResponse()).ToArray());
         }
-        catch (ArgumentException exception)
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException)
         {
             return ToProblem(exception);
         }
@@ -236,7 +236,7 @@ public static class CloudShellControlPlaneApiExtensions
                     $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/resources/{Uri.EscapeDataString(resource.Id)}",
                     await CreateResourceResponse(resourceManager, resource, cancellationToken));
         }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -301,9 +301,10 @@ public static class CloudShellControlPlaneApiExtensions
             return Problem(
                 StatusCodes.Status409Conflict,
                 "Dependent resources are running",
-                $"{exception.Message} Do you want to stop the resource?");
+                $"{exception.Message} Do you want to stop the resource?",
+                ControlPlaneErrorCodes.DependentResourcesRunning);
         }
-        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ControlPlaneException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -333,7 +334,7 @@ public static class CloudShellControlPlaneApiExtensions
                 $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/resource-groups/{Uri.EscapeDataString(group.Id)}",
                 group.ToResponse());
         }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -348,7 +349,7 @@ public static class CloudShellControlPlaneApiExtensions
         {
             return Results.Ok(await templates.ExportResourceGroupTemplateAsync(resourceGroupId, cancellationToken));
         }
-        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ControlPlaneException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -363,7 +364,7 @@ public static class CloudShellControlPlaneApiExtensions
         {
             return Results.Ok(await templates.ImportResourceGroupTemplateAsync(template, cancellationToken));
         }
-        catch (Exception exception) when (exception is InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ControlPlaneException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -412,7 +413,7 @@ public static class CloudShellControlPlaneApiExtensions
                     $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/registrations/{Uri.EscapeDataString(registration.ResourceId)}",
                     registration.ToResponse());
         }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -454,7 +455,7 @@ public static class CloudShellControlPlaneApiExtensions
                 ? Results.NoContent()
                 : Results.Ok(registration.ToResponse());
         }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -479,7 +480,7 @@ public static class CloudShellControlPlaneApiExtensions
                 ? Results.NoContent()
                 : Results.Ok(registration.ToResponse());
         }
-        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }
@@ -620,7 +621,7 @@ public static class CloudShellControlPlaneApiExtensions
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new ArgumentException($"{name} is required.");
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest($"{name} is required."));
         }
 
         return value.Trim();
@@ -633,7 +634,7 @@ public static class CloudShellControlPlaneApiExtensions
     {
         if (configuration.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
         {
-            throw new ArgumentException("Configuration is required.");
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest("Configuration is required."));
         }
 
         return configuration;
@@ -643,7 +644,7 @@ public static class CloudShellControlPlaneApiExtensions
         IReadOnlyList<string>? values,
         string name) =>
         NormalizeOptionalIds(values, name) ??
-        throw new ArgumentException($"{name} is required.");
+        throw new ControlPlaneException(ControlPlaneError.InvalidRequest($"{name} is required."));
 
     private static IReadOnlyList<string>? NormalizeOptionalIds(
         IReadOnlyList<string>? values,
@@ -659,7 +660,7 @@ public static class CloudShellControlPlaneApiExtensions
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                throw new ArgumentException($"{name} cannot contain empty values.");
+                throw new ControlPlaneException(ControlPlaneError.InvalidRequest($"{name} cannot contain empty values."));
             }
 
             normalized.Add(value.Trim());
@@ -677,21 +678,50 @@ public static class CloudShellControlPlaneApiExtensions
             result.RestartResourceId,
             result.RestartMessage);
 
-    private static IResult ToProblem(Exception exception) =>
-        exception is UnauthorizedAccessException
-            ? Results.Forbid()
-            : Problem(
-                StatusCodes.Status400BadRequest,
-                "Control plane request failed",
-                exception.Message);
+    private static IResult ToProblem(Exception exception)
+    {
+        if (exception is UnauthorizedAccessException)
+        {
+            return Results.Forbid();
+        }
 
-    private static IResult Problem(int statusCode, string title, string detail) =>
-        Results.Problem(new ProblemDetails
+        var error = ToControlPlaneError(exception);
+        return Problem(
+            StatusCodes.Status400BadRequest,
+            "Control plane request failed",
+            error.Message,
+            error.Code);
+    }
+
+    private static ControlPlaneError ToControlPlaneError(Exception exception) =>
+        exception switch
+        {
+            ControlPlaneException controlPlaneException => controlPlaneException.Error,
+            ArgumentException argumentException => ControlPlaneError.InvalidRequest(argumentException.Message),
+            _ => new(
+                ControlPlaneErrorCodes.OperationFailed,
+                "The requested control-plane operation could not be completed.")
+        };
+
+    private static IResult Problem(
+        int statusCode,
+        string title,
+        string detail,
+        string? code = null)
+    {
+        var problem = new ProblemDetails
         {
             Status = statusCode,
             Title = title,
             Detail = detail
-        });
+        };
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            problem.Extensions["code"] = code;
+        }
+
+        return Results.Problem(problem);
+    }
 
     private sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);
 }

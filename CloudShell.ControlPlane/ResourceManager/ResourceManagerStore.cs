@@ -26,21 +26,22 @@ public sealed class ResourceManagerStore(
     public IReadOnlyList<CloudResource> GetResources()
     {
         var available = GetAvailableResources();
-        var registrationsById = registrations.GetRegistrations()
-            .ToDictionary(
-                registration => registration.ResourceId,
-                StringComparer.OrdinalIgnoreCase);
         var declarationsById = declarations.GetDeclarations()
             .ToDictionary(
                 declaration => declaration.ResourceId,
                 StringComparer.OrdinalIgnoreCase);
+        var projected = available
+            .Select(resource => ApplyDeclarationMetadata(resource, declarationsById))
+            .ToArray();
+        var registrationsById = registrations.GetRegistrations()
+            .ToDictionary(
+                registration => registration.ResourceId,
+                StringComparer.OrdinalIgnoreCase);
         var registeredIds = registrationsById.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        return available
-            .Where(resource => IsRegisteredOrDescendant(resource, available, registeredIds))
-            .Select(resource => ApplyDeclarationMetadata(
-                ApplyRegistrationMetadata(resource, registrationsById),
-                declarationsById))
+        return projected
+            .Where(resource => IsRegisteredOrDescendant(resource, projected, registeredIds))
+            .Select(resource => ApplyRegistrationMetadata(resource, registrationsById))
             .ToArray();
     }
 

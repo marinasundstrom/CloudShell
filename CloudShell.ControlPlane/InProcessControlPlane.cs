@@ -4,6 +4,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using System.Text.Json;
 
 namespace CloudShell.ControlPlane;
 
@@ -87,26 +88,34 @@ public sealed class InProcessControlPlane(
         CreateResourceCommand command,
         CancellationToken cancellationToken = default)
     {
+        var providerId = RequireValue(command.ProviderId, nameof(command.ProviderId));
+        var resourceType = RequireValue(command.ResourceType, nameof(command.ResourceType));
+        var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
+        var name = RequireValue(command.Name, nameof(command.Name));
+        var configuration = RequireConfiguration(command.Configuration);
+        var resourceGroupId = NormalizeOptional(command.ResourceGroupId);
+        EnsureResourceGroupExists(resourceGroupId);
+
         var provider = resourceManager.Providers
             .OfType<IResourceCreationProvider>()
             .FirstOrDefault(provider =>
-                string.Equals(provider.Id, command.ProviderId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(provider.Id, providerId, StringComparison.OrdinalIgnoreCase) &&
                 provider.CanCreate(new ResourceCreationRequest(
-                    command.ResourceType,
-                    command.ResourceId,
-                    command.Name,
-                    command.Configuration,
-                    command.ResourceGroupId)))
-            ?? throw new InvalidOperationException(
-                $"Resource provider '{command.ProviderId}' cannot create resource type '{command.ResourceType}'.");
+                    resourceType,
+                    resourceId,
+                    name,
+                    configuration,
+                    resourceGroupId)))
+            ?? throw new ControlPlaneException(
+                ControlPlaneError.ResourceProviderCannotCreate(providerId, resourceType));
 
         await provider.CreateAsync(
             new ResourceCreationRequest(
-                command.ResourceType,
-                command.ResourceId,
-                command.Name,
-                command.Configuration,
-                command.ResourceGroupId),
+                resourceType,
+                resourceId,
+                name,
+                configuration,
+                resourceGroupId),
             new ResourceCreationContext(registrations),
             cancellationToken);
     }
@@ -132,13 +141,22 @@ public sealed class InProcessControlPlane(
 
     public Task RegisterResourceAsync(
         RegisterResourceCommand command,
-        CancellationToken cancellationToken = default) =>
-        registrations.RegisterAsync(
-            command.ProviderId,
-            command.ResourceId,
-            command.ResourceGroupId,
-            command.DependsOn,
+        CancellationToken cancellationToken = default)
+    {
+        var providerId = RequireValue(command.ProviderId, nameof(command.ProviderId));
+        var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
+        var resourceGroupId = NormalizeOptional(command.ResourceGroupId);
+        EnsureProviderExists(providerId);
+        EnsureAvailableResourceExists(resourceId);
+        EnsureResourceGroupExists(resourceGroupId);
+
+        return registrations.RegisterAsync(
+            providerId,
+            resourceId,
+            resourceGroupId,
+            NormalizeOptionalDependencies(resourceId, command.DependsOn),
             cancellationToken);
+    }
 
     public Task RemoveResourceRegistrationAsync(
         string resourceId,
@@ -147,17 +165,32 @@ public sealed class InProcessControlPlane(
 
     public Task AssignResourceGroupAsync(
         AssignResourceGroupCommand command,
-        CancellationToken cancellationToken = default) =>
-        registrations.AssignToGroupAsync(
-            command.ResourceId,
-            command.ResourceGroupId,
-            command.DependsOn,
+        CancellationToken cancellationToken = default)
+    {
+        var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
+        var resourceGroupId = NormalizeOptional(command.ResourceGroupId);
+        EnsureRegisteredResourceExists(resourceId);
+        EnsureResourceGroupExists(resourceGroupId);
+
+        return registrations.AssignToGroupAsync(
+            resourceId,
+            resourceGroupId,
+            NormalizeOptionalDependencies(resourceId, command.DependsOn),
             cancellationToken);
+    }
 
     public Task SetResourceDependenciesAsync(
         SetResourceDependenciesCommand command,
-        CancellationToken cancellationToken = default) =>
-        registrations.SetDependenciesAsync(command.ResourceId, command.DependsOn, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
+        EnsureRegisteredResourceExists(resourceId);
+
+        return registrations.SetDependenciesAsync(
+            resourceId,
+            NormalizeRequiredDependencies(resourceId, command.DependsOn),
+            cancellationToken);
+    }
 
     public async Task<ResourceProcedureResult> DeleteResourceAsync(
         string resourceId,
@@ -417,6 +450,103 @@ public sealed class InProcessControlPlane(
         }
 
         return null;
+    }
+
+    private void EnsureProviderExists(string providerId)
+    {
+        if (!resourceManager.Providers.Any(provider =>
+                string.Equals(provider.Id, providerId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ControlPlaneException(ControlPlaneError.ResourceProviderNotFound(providerId));
+        }
+    }
+
+    private void EnsureAvailableResourceExists(string resourceId)
+    {
+        if (!resourceManager.GetAvailableResources().Any(resource =>
+                string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ControlPlaneException(ControlPlaneError.ResourceNotAvailable(resourceId));
+        }
+    }
+
+    private void EnsureRegisteredResourceExists(string resourceId)
+    {
+        if (resourceManager.GetResource(resourceId) is null)
+        {
+            throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(resourceId));
+        }
+    }
+
+    private void EnsureResourceGroupExists(string? resourceGroupId)
+    {
+        if (resourceGroupId is null)
+        {
+            return;
+        }
+
+        if (!resourceManager.GetResourceGroups().Any(group =>
+                string.Equals(group.Id, resourceGroupId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ControlPlaneException(ControlPlaneError.ResourceGroupNotFound(resourceGroupId));
+        }
+    }
+
+    private IReadOnlyList<string>? NormalizeOptionalDependencies(
+        string resourceId,
+        IReadOnlyList<string>? dependsOn) =>
+        dependsOn is null
+            ? null
+            : NormalizeDependencies(resourceId, dependsOn);
+
+    private IReadOnlyList<string> NormalizeRequiredDependencies(
+        string resourceId,
+        IReadOnlyList<string> dependsOn) =>
+        NormalizeDependencies(resourceId, dependsOn);
+
+    private IReadOnlyList<string> NormalizeDependencies(
+        string resourceId,
+        IReadOnlyList<string> dependsOn)
+    {
+        var dependencies = new List<string>(dependsOn.Count);
+        foreach (var dependency in dependsOn)
+        {
+            var dependencyId = RequireValue(dependency, nameof(dependsOn));
+            if (string.Equals(dependencyId, resourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ControlPlaneException(ControlPlaneError.ResourceSelfDependency(resourceId));
+            }
+
+            EnsureAvailableResourceExists(dependencyId);
+            dependencies.Add(dependencyId);
+        }
+
+        return dependencies
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string RequireValue(string? value, string name)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest($"{name} is required."));
+        }
+
+        return value.Trim();
+    }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static JsonElement RequireConfiguration(JsonElement configuration)
+    {
+        if (configuration.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest("Configuration is required."));
+        }
+
+        return configuration;
     }
 
     private IReadOnlyList<CloudResource> ApplyQuery(

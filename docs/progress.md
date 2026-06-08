@@ -46,6 +46,13 @@ The MVP should prove:
 - Added resource action capability modeling.
 - Added hypermedia resource actions to API resource responses.
 - Removed legacy `actions` API compatibility from resource responses.
+- Added direct `IResourceManager` validation for resource creation,
+  registration, group assignment, and dependency updates.
+- Added Resource Manager projection coverage for registered roots, dynamic
+  children, declaration-assigned parents, group inheritance, and parent graph
+  cycle safety.
+- Added contract-level Control Plane errors with API `ProblemDetails` code
+  projection and remote client mapping.
 
 ## Active stabilization areas
 
@@ -57,10 +64,6 @@ The MVP should prove:
 ## Next priorities
 
 1. Continue tightening internal Resource Manager behavior:
-   - registration validation
-   - dependency validation
-   - parent/child resource projection
-   - group inheritance
    - delete/action authorization edge cases
 2. Align OpenAPI output with the intended domain projection.
 3. Expand sample tests to cover the hypermedia resource action path.

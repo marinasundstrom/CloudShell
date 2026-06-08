@@ -7,6 +7,7 @@ using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Tests;
 
@@ -117,9 +118,122 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(["target:stop"], provider.ExecutedActions);
     }
 
+    [Fact]
+    public async Task RegisterResourceAsync_RejectsUnknownProvider()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.RegisterResourceAsync(new RegisterResourceCommand("missing", "target")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceProviderNotFound, exception.Error.Code);
+        Assert.Equal("Resource provider 'missing' is not registered.", exception.Message);
+    }
+
+    [Fact]
+    public async Task RegisterResourceAsync_RejectsUnknownResource()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.RegisterResourceAsync(new RegisterResourceCommand("test", "missing")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceNotAvailable, exception.Error.Code);
+        Assert.Equal("Resource 'missing' is not available.", exception.Message);
+    }
+
+    [Fact]
+    public async Task RegisterResourceAsync_RejectsUnknownResourceGroup()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.RegisterResourceAsync(new RegisterResourceCommand("test", "target", "missing-group")));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceGroupNotFound, exception.Error.Code);
+        Assert.Equal("Resource group 'missing-group' could not be found.", exception.Message);
+    }
+
+    [Fact]
+    public async Task RegisterResourceAsync_RejectsSelfDependencies()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.RegisterResourceAsync(
+                new RegisterResourceCommand("test", "target", DependsOn: [" TARGET "])));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceSelfDependency, exception.Error.Code);
+        Assert.Equal("Resource 'target' cannot depend on itself.", exception.Message);
+    }
+
+    [Fact]
+    public async Task RegisterResourceAsync_NormalizesDependencies()
+    {
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("target", ResourceState.Running),
+                CreateResource("dependency", ResourceState.Running)
+            ]);
+
+        await controlPlane.RegisterResourceAsync(
+            new RegisterResourceCommand("test", "target", DependsOn: [" dependency ", "DEPENDENCY"]));
+
+        var registration = await controlPlane.GetResourceRegistrationAsync("target");
+        Assert.NotNull(registration);
+        Assert.Equal(["dependency"], registration.DependsOn);
+    }
+
+    [Fact]
+    public async Task AssignResourceGroupAsync_NormalizesGroupAndDependencies()
+    {
+        var group = new ResourceGroup("group-one", "Group One", "Test group", []);
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("target", ResourceState.Running),
+                CreateResource("dependency", ResourceState.Running)
+            ],
+            groups: [group]);
+
+        await controlPlane.AssignResourceGroupAsync(
+            new AssignResourceGroupCommand(" target ", " group-one ", [" dependency ", "DEPENDENCY"]));
+
+        var registration = await controlPlane.GetResourceRegistrationAsync("target");
+        Assert.NotNull(registration);
+        Assert.Equal("group-one", registration.ResourceGroupId);
+        Assert.Equal(["dependency"], registration.DependsOn);
+    }
+
+    [Fact]
+    public async Task SetResourceDependenciesAsync_RejectsUnknownDependencies()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.SetResourceDependenciesAsync(
+                new SetResourceDependenciesCommand("target", ["missing"])));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceNotAvailable, exception.Error.Code);
+        Assert.Equal("Resource 'missing' is not available.", exception.Message);
+    }
+
+    [Fact]
+    public async Task CreateResourceAsync_RejectsMissingConfiguration()
+    {
+        var controlPlane = CreateControlPlane([]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.CreateResourceAsync(
+                new CreateResourceCommand("test", "test.resource", "target", "Target", default)));
+
+        Assert.Equal(ControlPlaneErrorCodes.InvalidRequest, exception.Error.Code);
+        Assert.Equal("Configuration is required.", exception.Message);
+    }
+
     private static IResourceManager CreateControlPlane(
         IReadOnlyList<CloudResource> resources,
-        TestResourceProvider? provider = null)
+        TestResourceProvider? provider = null,
+        IReadOnlyList<ResourceGroup>? groups = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
@@ -129,8 +243,8 @@ public sealed class InProcessControlPlaneResourceStateTests
                 null,
                 DateTimeOffset.UtcNow,
                 resource.DependsOn)));
-        var resourceManager = new TestResourceManagerStore(resources, [provider]);
-        var resourceGroups = new TestResourceGroupStore();
+        var resourceManager = new TestResourceManagerStore(resources, [provider], groups ?? []);
+        var resourceGroups = new TestResourceGroupStore(groups ?? []);
         var templates = new ResourceTemplateService(resourceManager, resourceGroups, registrations);
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
@@ -211,11 +325,12 @@ public sealed class InProcessControlPlaneResourceStateTests
 
     private sealed class TestResourceManagerStore(
         IReadOnlyList<CloudResource> resources,
-        IReadOnlyList<IResourceProvider> providers) : IResourceManagerStore
+        IReadOnlyList<IResourceProvider> providers,
+        IReadOnlyList<ResourceGroup> groups) : IResourceManagerStore
     {
         public IReadOnlyList<IResourceProvider> Providers => providers;
 
-        public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
+        public IReadOnlyList<ResourceGroup> GetResourceGroups() => groups;
 
         public IReadOnlyList<CloudResource> GetAvailableResources() => resources;
 
@@ -302,11 +417,13 @@ public sealed class InProcessControlPlaneResourceStateTests
         }
     }
 
-    private sealed class TestResourceGroupStore : IResourceGroupStore
+    private sealed class TestResourceGroupStore(IReadOnlyList<ResourceGroup> groups) : IResourceGroupStore
     {
-        public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
+        public IReadOnlyList<ResourceGroup> GetResourceGroups() => groups;
 
-        public ResourceGroup? GetGroupForResource(string resourceId) => null;
+        public ResourceGroup? GetGroupForResource(string resourceId) =>
+            groups.FirstOrDefault(group =>
+                group.ResourceIds.Contains(resourceId, StringComparer.OrdinalIgnoreCase));
 
         public Task<ResourceGroup> CreateAsync(
             string name,

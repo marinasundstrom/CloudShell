@@ -381,7 +381,8 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             return;
         }
 
-        var message = await ReadProblemMessageAsync(response, cancellationToken);
+        var problem = await ReadProblemAsync(response, cancellationToken);
+        var message = problem?.Detail ?? problem?.Title;
         if (string.IsNullOrWhiteSpace(message))
         {
             message = $"The control plane returned {(int)response.StatusCode} ({response.ReasonPhrase}).";
@@ -393,19 +394,23 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             throw new UnauthorizedAccessException(message);
         }
 
-        throw new InvalidOperationException(message);
+        if (!string.IsNullOrWhiteSpace(problem?.Code))
+        {
+            throw new ControlPlaneException(new ControlPlaneError(problem.Code, message));
+        }
+
+        throw new ControlPlaneException(new ControlPlaneError(ControlPlaneErrorCodes.OperationFailed, message));
     }
 
-    private static async Task<string?> ReadProblemMessageAsync(
+    private static async Task<ProblemResponse?> ReadProblemAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
         try
         {
-            var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>(
+            return await response.Content.ReadFromJsonAsync<ProblemResponse>(
                 SerializerOptions,
                 cancellationToken);
-            return problem?.Detail ?? problem?.Title;
         }
         catch (JsonException)
         {
@@ -542,7 +547,7 @@ file sealed record LogEntryResponse(
 
 file sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);
 
-file sealed record ProblemResponse(string? Title, string? Detail);
+sealed record ProblemResponse(string? Title, string? Detail, string? Code);
 
 file static class RemoteControlPlaneMapper
 {

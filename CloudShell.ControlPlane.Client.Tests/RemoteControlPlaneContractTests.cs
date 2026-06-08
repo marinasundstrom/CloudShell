@@ -228,6 +228,20 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ThrowsContractErrorForInvalidRequest()
+    {
+        await using var app = await CreateAppAsync();
+        var controlPlane = CreateClient(app);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.CreateResourceGroupAsync(
+                new CreateResourceGroupCommand(" ", "Invalid group")));
+
+        Assert.Equal(ControlPlaneErrorCodes.InvalidRequest, exception.Error.Code);
+        Assert.Equal("Name is required.", exception.Message);
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_ReturnsProblemForInvalidCapabilitiesRequest()
     {
         await using var app = await CreateAppAsync();
@@ -331,13 +345,15 @@ public sealed class RemoteControlPlaneContractTests
 
     private static async Task AssertProblemAsync(
         HttpResponseMessage response,
-        string expectedDetail)
+        string expectedDetail,
+        string expectedCode = ControlPlaneErrorCodes.InvalidRequest)
     {
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal("Control plane request failed", document.RootElement.GetProperty("title").GetString());
         Assert.Equal(expectedDetail, document.RootElement.GetProperty("detail").GetString());
+        Assert.Equal(expectedCode, document.RootElement.GetProperty("code").GetString());
     }
 
     private sealed class ContractLifecycleResourceProvider : IResourceProvider
