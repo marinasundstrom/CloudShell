@@ -1,0 +1,79 @@
+<label for="@AssignmentId">@AssignmentLabel</label>
+<FluentSelect TOption="string"
+              Id="@AssignmentId"
+              Value="@Assignment.ToString()"
+              ValueChanged="SetAssignment"
+              Appearance="Appearance.Outline">
+    @foreach (var assignment in EffectiveAssignments)
+    {
+        <FluentOption TOption="string" Value="@assignment.ToString()">@assignment</FluentOption>
+    }
+</FluentSelect>
+
+@if (ShowPort && ShouldShowPort)
+{
+    <label for="@PortId">@PortLabel</label>
+    <FluentNumberField TValue="int?" Id="@PortId" Min="1" Value="@Port" ValueChanged="SetPort" />
+}
+
+@code {
+    [Parameter]
+    public string AssignmentId { get; set; } = "endpoint-assignment";
+
+    [Parameter]
+    public string AssignmentLabel { get; set; } = "Assignment";
+
+    [Parameter]
+    public string PortId { get; set; } = "endpoint-port";
+
+    [Parameter]
+    public string PortLabel { get; set; } = "Port";
+
+    [Parameter]
+    public ResourceEndpointAssignment Assignment { get; set; } = ResourceEndpointAssignment.Auto;
+
+    [Parameter]
+    public EventCallback<ResourceEndpointAssignment> AssignmentChanged { get; set; }
+
+    [Parameter]
+    public int? Port { get; set; }
+
+    [Parameter]
+    public EventCallback<int?> PortChanged { get; set; }
+
+    [Parameter]
+    public bool ShowPort { get; set; } = true;
+
+    [Parameter]
+    public bool ShowPortForAuto { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<ResourceEndpointAssignment>? Assignments { get; set; }
+
+    private IReadOnlyList<ResourceEndpointAssignment> EffectiveAssignments =>
+        Assignments ??
+        [
+            ResourceEndpointAssignment.Auto,
+            ResourceEndpointAssignment.ProviderDefault,
+            ResourceEndpointAssignment.Manual
+        ];
+
+    private bool ShouldShowPort =>
+        Assignment == ResourceEndpointAssignment.Manual ||
+        (ShowPortForAuto && Assignment == ResourceEndpointAssignment.Auto);
+
+    private async Task SetAssignment(string? value)
+    {
+        var assignment = Enum.TryParse<ResourceEndpointAssignment>(value, out var parsed)
+            ? parsed
+            : ResourceEndpointAssignment.Auto;
+        Assignment = assignment;
+        await AssignmentChanged.InvokeAsync(assignment);
+    }
+
+    private async Task SetPort(int? value)
+    {
+        Port = value;
+        await PortChanged.InvokeAsync(value);
+    }
+}

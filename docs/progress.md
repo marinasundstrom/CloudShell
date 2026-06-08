@@ -178,6 +178,8 @@ The MVP should prove:
   assignment.
 - Added Resource Manager network registration UI support for manual,
   auto-assigned, provider-default, and predefined endpoint requests.
+- Added a shared endpoint assignment UI component and reused it across network,
+  service, container image, SQL Server, and ASP.NET Core project registration.
 
 ## Active stabilization areas
 

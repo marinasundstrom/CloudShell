@@ -56,8 +56,11 @@
         <label for="service-target-port">Target port</label>
         <FluentNumberField TValue="int" Id="service-target-port" Min="1" @bind-Value="TargetPort" />
 
-        <label for="service-port">Exposed port</label>
-        <FluentNumberField TValue="int?" Id="service-port" Min="1" @bind-Value="Port" />
+        <EndpointAssignmentEditor AssignmentId="service-port-assignment"
+                                  PortId="service-port"
+                                  PortLabel="Exposed port"
+                                  @bind-Assignment="EndpointAssignment"
+                                  @bind-Port="Port" />
 
         <label for="service-protocol">Protocol</label>
         <FluentSelect TOption="string"
@@ -108,12 +111,16 @@
     private int TargetPort { get; set; } = 80;
     private int? Port { get; set; }
     private string Protocol { get; set; } = "tcp";
+    private ResourceEndpointAssignment EndpointAssignment { get; set; } = ResourceEndpointAssignment.Auto;
     private string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
     private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+
+    private bool IsManualAssignment =>
+        EndpointAssignment == ResourceEndpointAssignment.Manual;
 
     protected override async Task OnInitializedAsync()
     {
@@ -189,15 +196,22 @@
             return;
         }
 
+        if (IsManualAssignment && Port is null)
+        {
+            ErrorMessage = "Manual endpoint assignment requires an exposed port.";
+            return;
+        }
+
         var exposure = Enum.TryParse<ResourceExposureScope>(SelectedExposure, out var parsedExposure)
             ? parsedExposure
             : ResourceExposureScope.Network;
+        var assignedPort = IsManualAssignment ? Port : null;
 
         var definition = new ServiceResourceDefinition(
             ResourceId,
             Name,
             SelectedTargetIds.Select(resourceId => new ServiceTarget(resourceId)).ToArray(),
-            [new ServicePort(PortName, TargetPort, Port, Protocol, exposure)],
+            [new ServicePort(PortName, TargetPort, assignedPort, Protocol, exposure)],
             SelectedNetworkIds.ToArray());
 
         await ResourceManager.CreateResourceAsync(
@@ -211,4 +225,5 @@
 
         Navigation.NavigateTo("/resources");
     }
+
 }

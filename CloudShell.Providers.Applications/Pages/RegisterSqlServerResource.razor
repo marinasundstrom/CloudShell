@@ -42,8 +42,11 @@
             }
         </FluentSelect>
 
-        <label for="sql-local-port">Local port</label>
-        <FluentNumberField TValue="int?" Id="sql-local-port" Min="1" @bind-Value="LocalPort" />
+        <EndpointAssignmentEditor AssignmentId="sql-port-assignment"
+                                  PortId="sql-local-port"
+                                  PortLabel="Local port"
+                                  @bind-Assignment="EndpointAssignment"
+                                  @bind-Port="LocalPort" />
 
         <label for="sql-group">Resource group</label>
         <FluentSelect TOption="string"
@@ -83,10 +86,14 @@
     private string Image { get; set; } = DefaultImage;
     private string Password { get; set; } = DefaultPassword;
     private string SelectedEngineId { get; set; } = string.Empty;
+    private ResourceEndpointAssignment EndpointAssignment { get; set; } = ResourceEndpointAssignment.Manual;
     private int? LocalPort { get; set; } = 14333;
     private string SelectedGroupId { get; set; } = string.Empty;
     private bool StartAfterCreate { get; set; } = true;
     private string? ErrorMessage { get; set; }
+
+    private bool IsManualEndpointAssignment =>
+        EndpointAssignment == ResourceEndpointAssignment.Manual;
 
     private async Task Register()
     {
@@ -105,6 +112,12 @@
 
         if (!ValidateContainerEngine())
         {
+            return;
+        }
+
+        if (IsManualEndpointAssignment && LocalPort is null)
+        {
+            ErrorMessage = "Manual endpoint assignment requires a local port.";
             return;
         }
 
@@ -130,7 +143,12 @@
             containerEngineId: NormalizeNullable(SelectedEngineId),
             endpointPorts:
             [
-                new ServicePort("tds", 1433, LocalPort, "tcp", ResourceExposureScope.Local)
+                new ServicePort(
+                    "tds",
+                    1433,
+                    IsManualEndpointAssignment ? LocalPort : null,
+                    "tcp",
+                    ResourceExposureScope.Local)
             ],
             resourceType: ApplicationResourceTypes.SqlServer);
 

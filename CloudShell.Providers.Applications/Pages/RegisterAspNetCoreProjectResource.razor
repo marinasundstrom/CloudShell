@@ -19,8 +19,16 @@
         <label for="web-application-arguments">Application arguments</label>
         <FluentTextField Id="web-application-arguments" @bind-Value="ApplicationArguments" />
 
-        <label for="web-application-endpoint">Endpoint</label>
-        <FluentTextField Id="web-application-endpoint" @bind-Value="Endpoint" Placeholder="auto assigned, or http://localhost:5127" />
+        <EndpointAssignmentEditor AssignmentId="web-application-endpoint-assignment"
+                                  AssignmentLabel="Endpoint assignment"
+                                  ShowPort="false"
+                                  @bind-Assignment="EndpointAssignment" />
+
+        @if (IsManualEndpointAssignment)
+        {
+            <label for="web-application-endpoint">Endpoint</label>
+            <FluentTextField Id="web-application-endpoint" @bind-Value="Endpoint" Placeholder="http://localhost:5127" />
+        }
 
         <label for="web-application-lifetime">Lifetime</label>
         <FluentSelect TOption="string"
@@ -128,6 +136,8 @@
     private string ProjectPath { get; set; } = string.Empty;
     private string? ApplicationArguments { get; set; }
     private string? Endpoint { get; set; }
+    private ResourceEndpointAssignment EndpointAssignment { get; set; } =
+        ResourceEndpointAssignment.ProviderDefault;
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseHotReload { get; set; } = true;
     private bool UseServiceDiscovery { get; set; } = true;
@@ -140,6 +150,9 @@
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     private bool SupportsHealthChecks => ProbeContext?.SupportsHealthChecks == true;
+
+    private bool IsManualEndpointAssignment =>
+        EndpointAssignment == ResourceEndpointAssignment.Manual;
 
     private bool HealthChecksEnabled
     {
@@ -170,6 +183,14 @@
             return;
         }
 
+        Uri? endpointUri = null;
+        if (IsManualEndpointAssignment &&
+            !Uri.TryCreate(Endpoint, UriKind.Absolute, out endpointUri))
+        {
+            ErrorMessage = "Manual endpoint assignment requires an absolute endpoint URI.";
+            return;
+        }
+
         var references = SelectedReferenceIds.ToArray();
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
@@ -180,7 +201,7 @@
             dependsOn: WaitForReferences ? references : [],
             references: references,
             useServiceDiscovery: UseServiceDiscovery && references.Length > 0,
-            endpointPorts: BuildEndpointPorts(),
+            endpointPorts: BuildEndpointPorts(IsManualEndpointAssignment ? endpointUri : null),
             resourceType: ApplicationResourceTypes.AspNetCoreProject,
             healthChecks: ProbeContext?.GetSelectedHealthChecks(),
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
@@ -203,13 +224,13 @@
             .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
             .ToArray();
 
-    private IReadOnlyList<ServicePort> BuildEndpointPorts()
+    private IReadOnlyList<ServicePort> BuildEndpointPorts(Uri? endpointUri)
     {
-        if (Uri.TryCreate(Endpoint, UriKind.Absolute, out var uri) &&
-            uri.Port > 0)
+        if (endpointUri is not null &&
+            endpointUri.Port > 0)
         {
-            var protocol = string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme;
-            return [new ServicePort("http", uri.Port, uri.Port, protocol, ResourceExposureScope.Local)];
+            var protocol = string.IsNullOrWhiteSpace(endpointUri.Scheme) ? "http" : endpointUri.Scheme;
+            return [new ServicePort("http", endpointUri.Port, endpointUri.Port, protocol, ResourceExposureScope.Local)];
         }
 
         return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];

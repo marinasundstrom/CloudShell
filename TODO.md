@@ -8,8 +8,8 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
-- Extend workload and service registration UI to request endpoint assignment
-  modes from the default network instead of only collecting direct port fields.
+- Extend executable application registration UI to request endpoint assignment
+  modes instead of only collecting a direct endpoint string.
 - Design provider selection and reconciliation for endpoint mappings when a
   networking-capable resource such as a gateway, load balancer, DNS publisher,
   or custom controller materializes the mapping.

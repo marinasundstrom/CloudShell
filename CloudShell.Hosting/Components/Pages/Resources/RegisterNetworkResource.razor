@@ -34,16 +34,12 @@
                 }
             </FluentSelect>
 
-            <label for="network-endpoint-assignment">Assignment</label>
-            <FluentSelect TOption="string"
-                          Id="network-endpoint-assignment"
-                          @bind-Value="SelectedAssignment"
-                          Appearance="Appearance.Outline">
-                @foreach (var assignment in Enum.GetValues<ResourceEndpointAssignment>())
-                {
-                    <FluentOption TOption="string" Value="@assignment.ToString()">@assignment</FluentOption>
-                }
-            </FluentSelect>
+            <EndpointAssignmentEditor AssignmentId="network-endpoint-assignment"
+                                      PortId="network-endpoint-port"
+                                      ShowPortForAuto="true"
+                                      Assignments="AllEndpointAssignments"
+                                      @bind-Assignment="EndpointAssignment"
+                                      @bind-Port="EndpointPort" />
 
             @if (RequiresHost)
             {
@@ -52,12 +48,6 @@
 
                 <label for="network-endpoint-address">IP address</label>
                 <FluentTextField Id="network-endpoint-address" @bind-Value="EndpointIPAddress" />
-            }
-
-            @if (CanSetPort)
-            {
-                <label for="network-endpoint-port">Port</label>
-                <FluentNumberField TValue="int?" Id="network-endpoint-port" Min="1" @bind-Value="EndpointPort" />
             }
 
             @if (IsPredefinedAssignment)
@@ -117,20 +107,21 @@
     private int? EndpointPort { get; set; }
     private string ProviderEndpointId { get; set; } = string.Empty;
     private string SelectedProtocol { get; set; } = ResourceEndpointProtocol.Http.ToString();
-    private string SelectedAssignment { get; set; } = ResourceEndpointAssignment.ProviderDefault.ToString();
+    private ResourceEndpointAssignment EndpointAssignment { get; set; } =
+        ResourceEndpointAssignment.ProviderDefault;
     private string SelectedExposure { get; set; } = ResourceExposureScope.Local.ToString();
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
 
+    private static readonly IReadOnlyList<ResourceEndpointAssignment> AllEndpointAssignments =
+        Enum.GetValues<ResourceEndpointAssignment>();
+
     private bool IsPredefinedAssignment =>
-        GetEndpointAssignment() == ResourceEndpointAssignment.Predefined;
+        EndpointAssignment == ResourceEndpointAssignment.Predefined;
 
     private bool RequiresHost =>
-        GetEndpointAssignment() is ResourceEndpointAssignment.Manual or ResourceEndpointAssignment.Auto;
-
-    private bool CanSetPort =>
-        GetEndpointAssignment() is ResourceEndpointAssignment.Manual or ResourceEndpointAssignment.Auto;
+        EndpointAssignment is ResourceEndpointAssignment.Manual or ResourceEndpointAssignment.Auto;
 
     protected override async Task OnInitializedAsync()
     {
@@ -181,7 +172,7 @@
             return [];
         }
 
-        var assignment = GetEndpointAssignment();
+        var assignment = EndpointAssignment;
         if (assignment == ResourceEndpointAssignment.Manual &&
             EndpointPort is null)
         {
@@ -214,11 +205,6 @@
         Enum.TryParse<ResourceEndpointProtocol>(SelectedProtocol, out var protocol)
             ? protocol
             : ResourceEndpointProtocol.Http;
-
-    private ResourceEndpointAssignment GetEndpointAssignment() =>
-        Enum.TryParse<ResourceEndpointAssignment>(SelectedAssignment, out var assignment)
-            ? assignment
-            : ResourceEndpointAssignment.ProviderDefault;
 
     private ResourceExposureScope GetExposure() =>
         Enum.TryParse<ResourceExposureScope>(SelectedExposure, out var exposure)

@@ -65,8 +65,11 @@
             <label for="container-target-port">Container port</label>
             <FluentNumberField TValue="int" Id="container-target-port" Min="1" @bind-Value="TargetPort" />
 
-            <label for="container-local-port">Local port</label>
-            <FluentNumberField TValue="int?" Id="container-local-port" Min="1" @bind-Value="LocalPort" />
+            <EndpointAssignmentEditor AssignmentId="container-port-assignment"
+                                      PortId="container-local-port"
+                                      PortLabel="Local port"
+                                      @bind-Assignment="EndpointAssignment"
+                                      @bind-Port="LocalPort" />
 
             <label for="container-protocol">Protocol</label>
             <FluentSelect TOption="string"
@@ -160,6 +163,7 @@
     private string PortName { get; set; } = "tcp";
     private int TargetPort { get; set; } = 80;
     private int? LocalPort { get; set; }
+    private ResourceEndpointAssignment EndpointAssignment { get; set; } = ResourceEndpointAssignment.Auto;
     private string Protocol { get; set; } = "tcp";
     private string SelectedGroupId { get; set; } = string.Empty;
     private bool WaitForReferences { get; set; } = true;
@@ -168,6 +172,9 @@
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private bool IsManualEndpointAssignment =>
+        EndpointAssignment == ResourceEndpointAssignment.Manual;
 
     private async Task Register()
     {
@@ -187,6 +194,12 @@
             (string.IsNullOrWhiteSpace(PortName) || TargetPort <= 0))
         {
             ErrorMessage = "Endpoint name and container port are required.";
+            return;
+        }
+
+        if (ExposeEndpoint && IsManualEndpointAssignment && LocalPort is null)
+        {
+            ErrorMessage = "Manual endpoint assignment requires a local port.";
             return;
         }
 
@@ -249,7 +262,12 @@
 
     private IReadOnlyList<ServicePort> BuildEndpointPorts() =>
         ExposeEndpoint
-            ? [new ServicePort(PortName, TargetPort, LocalPort, Protocol, ResourceExposureScope.Local)]
+            ? [new ServicePort(
+                PortName,
+                TargetPort,
+                IsManualEndpointAssignment ? LocalPort : null,
+                Protocol,
+                ResourceExposureScope.Local)]
             : [];
 
     private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
