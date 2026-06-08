@@ -13,6 +13,7 @@ coverage, sample reliability, and API/client contract stability.
 Read these first:
 
 - `docs/progress.md`
+- `TODO.md`
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
 
@@ -32,7 +33,9 @@ Then inspect the current code and tests around the failing or weak behavior.
    exception details.
 5. Update `docs/progress.md` when the stabilized behavior changes MVP status,
    next priorities, or verification expectations.
-6. Run the verification baseline from `docs/progress.md` before committing
+6. Update `TODO.md` when the stabilized behavior completes or changes a current
+   queue item.
+7. Run the verification baseline from `docs/progress.md` before committing
    cross-boundary stabilization work.
 
 ## Stabilization priorities

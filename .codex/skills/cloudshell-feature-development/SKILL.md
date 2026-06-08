@@ -15,6 +15,7 @@ Read these first:
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
 - `docs/progress.md`
+- `TODO.md`
 
 Then inspect the relevant implementation and tests before editing.
 
@@ -36,10 +37,11 @@ Then inspect the relevant implementation and tests before editing.
    or remote adapter changes.
 5. Update docs when a feature changes system concepts, hosting guidance, API
    shape, or MVP progress.
-6. Run the relevant narrow tests first, then the verification baseline from
+6. Update `TODO.md` when the feature changes the current task queue.
+7. Run the relevant narrow tests first, then the verification baseline from
    `docs/progress.md` for cross-boundary changes.
 
 ## Output expectations
 
 Keep changes scoped. Mention any intentionally deferred behavior in
-`docs/progress.md` instead of leaving it implicit.
+`docs/progress.md` and `TODO.md` instead of leaving it implicit.

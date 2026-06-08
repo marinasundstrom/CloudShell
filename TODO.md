@@ -1,7 +1,10 @@
 # TODO
 
-This is the short execution queue. Keep `docs/progress.md` as the living
+This is the current task queue. Keep `docs/progress.md` as the living
 tracker for completed decisions and broader MVP status.
+
+See also: [Progress](docs/progress.md) for completed work, current MVP focus,
+verification baseline, and broader priorities.
 
 ## Resource Management
 
