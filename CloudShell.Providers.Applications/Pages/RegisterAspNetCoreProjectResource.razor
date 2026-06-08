@@ -15,6 +15,9 @@
         <label for="web-application-project">Project path</label>
         <FluentTextField Id="web-application-project" @bind-Value="ProjectPath" Placeholder="samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj" />
 
+        <label for="web-application-arguments">Application arguments</label>
+        <FluentTextField Id="web-application-arguments" @bind-Value="ApplicationArguments" />
+
         <label for="web-application-endpoint">Endpoint</label>
         <FluentTextField Id="web-application-endpoint" @bind-Value="Endpoint" Placeholder="auto assigned, or http://localhost:5127" />
 
@@ -118,6 +121,7 @@
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string ProjectPath { get; set; } = string.Empty;
+    private string? ApplicationArguments { get; set; }
     private string? Endpoint { get; set; }
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseHotReload { get; set; } = true;
@@ -164,8 +168,7 @@
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
             Name,
-            executablePath: "dotnet",
-            arguments: BuildArguments(),
+            executablePath: string.Empty,
             environmentVariables: BuildEnvironmentVariables(),
             lifetime: ParseLifetime(),
             dependsOn: WaitForReferences ? references : [],
@@ -174,16 +177,14 @@
             endpointPorts: BuildEndpointPorts(),
             resourceType: ApplicationResourceTypes.AspNetCoreProject,
             healthChecks: ProbeContext?.GetSelectedHealthChecks(),
-            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
+            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
+            projectPath: ProjectPath,
+            projectArguments: ApplicationArguments,
+            aspNetCoreHotReload: UseHotReload);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         Navigation.NavigateTo("/resources");
     }
-
-    private string BuildArguments() =>
-        UseHotReload
-            ? $"watch --project {QuoteCommandArgument(ProjectPath.Trim())} run --no-launch-profile"
-            : $"run --project {QuoteCommandArgument(ProjectPath.Trim())} --no-launch-profile";
 
     private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
         EnvironmentVariables
@@ -263,11 +264,6 @@
             ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
             _ => "Detached"
         };
-
-    private static string QuoteCommandArgument(string argument) =>
-        argument.Any(char.IsWhiteSpace)
-            ? $"\"{argument.Replace("\\", "\\\\").Replace("\"", "\\\"")}\""
-            : argument;
 
     private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
     {

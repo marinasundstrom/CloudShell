@@ -461,8 +461,11 @@ public sealed class ResourceDeclarationTests
 
         Assert.Empty(declaration.DependsOn);
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, application.ResourceType);
-        Assert.Equal("dotnet", application.ExecutablePath);
-        Assert.Equal("watch --project src/API/API.csproj run --no-launch-profile", application.Arguments);
+        Assert.Equal("src/API/API.csproj", application.ProjectPath);
+        Assert.Null(application.ProjectArguments);
+        Assert.True(application.AspNetCoreHotReload);
+        Assert.Empty(application.ExecutablePath);
+        Assert.Null(application.Arguments);
         Assert.Null(application.Endpoint);
         Assert.DoesNotContain(
             application.EnvironmentVariables,
@@ -474,6 +477,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("http", port.Protocol);
         Assert.Equal(["configuration:settings"], application.References);
         Assert.True(application.UseServiceDiscovery);
+
     }
 
     [Fact]
@@ -519,6 +523,14 @@ public sealed class ResourceDeclarationTests
             Assert.True(resource.EffectiveObservability.Logs);
             Assert.True(resource.EffectiveObservability.Traces);
             Assert.True(resource.EffectiveObservability.Metrics);
+            Assert.Equal(ResourceClass.Project, resource.ResourceClass);
+            Assert.Equal(ResourceWorkloadKind.AspNetCoreProject.ToString(), resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
+            Assert.Equal("src/API/API.csproj", resource.ResourceAttributes[ResourceAttributeNames.ProjectPath]);
+            Assert.Equal("true", resource.ResourceAttributes[ResourceAttributeNames.ProjectHotReload]);
+            Assert.False(resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ExecutablePath));
+            Assert.False(resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ExecutableArguments));
+            Assert.Equal(ResourceWorkloadKind.AspNetCoreProject, workload?.Kind);
+            Assert.Equal("src/API/API.csproj", workload?.ProjectPath);
             Assert.Equal("http://localhost:4317", environment?["OTEL_EXPORTER_OTLP_ENDPOINT"]);
             Assert.Equal("grpc", environment?["OTEL_EXPORTER_OTLP_PROTOCOL"]);
             Assert.Equal("x-otlp-api-key=test-key", environment?["OTEL_EXPORTER_OTLP_HEADERS"]);
@@ -714,11 +726,13 @@ public sealed class ResourceDeclarationTests
             .AddControlPlane()
             .Resources(resources =>
             {
-                resources.AddAspNetCoreProject(
-                    "application:api",
-                    "API",
-                    "src/API/API.csproj",
-                    hotReload: false);
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "API",
+                        "src/API/API.csproj",
+                        hotReload: false)
+                    .WithApplicationArguments("--seed");
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -734,7 +748,10 @@ public sealed class ResourceDeclarationTests
                 .GetProperty("Definition")!
                 .GetValue(declaredApplication));
 
-        Assert.Equal("run --project src/API/API.csproj --no-launch-profile", application.Arguments);
+        Assert.Equal("src/API/API.csproj", application.ProjectPath);
+        Assert.Equal("--seed", application.ProjectArguments);
+        Assert.False(application.AspNetCoreHotReload);
+        Assert.Null(application.Arguments);
     }
 
     [Fact]
@@ -985,7 +1002,7 @@ public sealed class ResourceDeclarationTests
                     .AsContainerImage("example/api:dev")
                     .WithReplicas(2);
 
-                Assert.IsAssignableFrom<ILifetimeBoundResourceBuilder<IExecutableResourceBuilder>>(project);
+                Assert.IsAssignableFrom<ILifetimeBoundResourceBuilder<IProjectResourceBuilder>>(project);
             });
 
         using var serviceProvider = services.BuildServiceProvider();

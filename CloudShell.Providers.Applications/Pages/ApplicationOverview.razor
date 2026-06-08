@@ -11,16 +11,28 @@
 else
 {
     <section class="blade-section">
-        <h3>Command</h3>
+        <h3>@GetConfigurationHeading(Application)</h3>
         <dl class="detail-list">
-            <dt>Executable</dt>
-            <dd>@Application.ExecutablePath</dd>
-            <dt>Arguments</dt>
-            <dd>@(Application.Arguments ?? "none")</dd>
-            <dt>Working directory</dt>
-            <dd>@(Application.WorkingDirectory ?? "executable directory")</dd>
+            @if (IsAspNetCoreProject(Application))
+            {
+                <dt>Project path</dt>
+                <dd>@(Application.ProjectPath ?? "none")</dd>
+                <dt>Application arguments</dt>
+                <dd>@(Application.ProjectArguments ?? "none")</dd>
+                <dt>Hot reload</dt>
+                <dd>@(Application.AspNetCoreHotReload ? "enabled" : "disabled")</dd>
+            }
+            else
+            {
+                <dt>Executable</dt>
+                <dd>@Application.ExecutablePath</dd>
+                <dt>Arguments</dt>
+                <dd>@(Application.Arguments ?? "none")</dd>
+                <dt>Working directory</dt>
+                <dd>@(Application.WorkingDirectory ?? "executable directory")</dd>
+            }
             <dt>Endpoint</dt>
-            <dd>@EndpointLink(Application.Endpoint)</dd>
+            <dd>@EndpointLink(GetEndpointAddress(Application))</dd>
             <dt>Lifetime</dt>
             <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
             <dt>Dependencies</dt>
@@ -72,6 +84,32 @@ else
             ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
             _ => "Detached"
         };
+
+    private static string GetConfigurationHeading(ApplicationResourceDefinition application) =>
+        IsAspNetCoreProject(application)
+            ? "Project"
+            : "Command";
+
+    private static bool IsAspNetCoreProject(ApplicationResourceDefinition application) =>
+        string.Equals(
+            application.ResourceType,
+            ApplicationResourceTypes.AspNetCoreProject,
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string? GetEndpointAddress(ApplicationResourceDefinition application)
+    {
+        if (!IsAspNetCoreProject(application))
+        {
+            return application.Endpoint;
+        }
+
+        var port = application.EndpointPorts.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, "http", StringComparison.OrdinalIgnoreCase)) ??
+            application.EndpointPorts.FirstOrDefault();
+        return port?.Port is null
+            ? null
+            : $"{port.Protocol}://localhost:{port.Port.Value}";
+    }
 
     private static string GetObservabilityLabel(ResourceObservability? observability)
     {

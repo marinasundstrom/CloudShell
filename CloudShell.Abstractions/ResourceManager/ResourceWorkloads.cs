@@ -3,6 +3,7 @@ namespace CloudShell.Abstractions.ResourceManager;
 public enum ResourceWorkloadKind
 {
     LocalExecutable,
+    AspNetCoreProject,
     ContainerImage,
     ContainerBuild
 }
@@ -19,6 +20,9 @@ public sealed record ResourceWorkloadConfiguration(
     string? ExecutablePath = null,
     string? Arguments = null,
     string? WorkingDirectory = null,
+    string? ProjectPath = null,
+    string? ProjectArguments = null,
+    bool? AspNetCoreHotReload = null,
     string? Image = null,
     string? BuildContext = null,
     string? Dockerfile = null,
@@ -126,8 +130,85 @@ public interface IExecutableResourceBuilder :
     new IExecutableResourceBuilder Persist(bool overwrite = false);
 }
 
-public interface IProjectResourceBuilder : IExecutableResourceBuilder
+public interface IProjectResourceBuilder :
+    ILifetimeBoundResourceBuilder<IProjectResourceBuilder>
 {
+    IProjectResourceBuilder WithEndpoint(string? endpoint);
+
+    IProjectResourceBuilder WithEndpointPort(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "http",
+        ResourceExposureScope exposure = ResourceExposureScope.Local);
+
+    IProjectResourceBuilder WithHttpEndpoint(
+        int? port = null,
+        int targetPort = 80,
+        string name = "http");
+
+    IProjectResourceBuilder WithHttpsEndpoint(
+        int? port = null,
+        int targetPort = 443,
+        string name = "https");
+
+    IProjectResourceBuilder WithHttpHealthCheck(
+        string path,
+        string? endpointName = null,
+        string name = "health",
+        TimeSpan? timeout = null);
+
+    IProjectResourceBuilder WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName = null,
+        string? name = null,
+        TimeSpan? timeout = null);
+
+    IProjectResourceBuilder WithEnvironment(
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables);
+
+    IProjectResourceBuilder WithEnvironment(
+        string name,
+        string value);
+
+    IProjectResourceBuilder WithApplicationArguments(string? arguments);
+
+    new IProjectResourceBuilder WithLifetime(ResourceLifetime lifetime);
+
+    IProjectResourceBuilder WithServiceDiscovery(bool enabled = true);
+
+    IProjectResourceBuilder WithObservability(bool enabled = true);
+
+    IProjectResourceBuilder WithOtlpExporter(
+        string? endpoint = null,
+        string? protocol = null,
+        string? headers = null);
+
+    IProjectResourceBuilder WaitFor(IResourceBuilder resource);
+
+    IProjectResourceBuilder WaitFor(IEnumerable<IResourceBuilder> resources);
+
+    new IProjectResourceBuilder DependsOn(string resourceId);
+
+    new IProjectResourceBuilder DependsOn(IResourceBuilder resource);
+
+    new IProjectResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IProjectResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
+
+    new IProjectResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IProjectResourceBuilder WithParent(string? parentResourceId);
+
+    new IProjectResourceBuilder WithParent(IResourceBuilder resource);
+
+    new IProjectResourceBuilder WithReference(IResourceBuilder resource);
+
+    IProjectResourceBuilder WithReferences(IEnumerable<IResourceBuilder> resources);
+
+    new IProjectResourceBuilder Persist(bool overwrite = false);
+
     IProjectResourceBuilder AsContainerImage(string image);
 
     IProjectResourceBuilder WithContainerBuild(

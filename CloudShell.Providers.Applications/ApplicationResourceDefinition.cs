@@ -24,7 +24,10 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         IReadOnlyList<ServicePort>? endpointPorts = null,
         string? resourceType = null,
         IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
-        ResourceObservability? observability = null)
+        ResourceObservability? observability = null,
+        string? projectPath = null,
+        string? projectArguments = null,
+        bool aspNetCoreHotReload = true)
     {
         Id = id;
         Name = name;
@@ -48,6 +51,9 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
             : resourceType;
         HealthChecks = healthChecks ?? [];
         Observability = observability;
+        ProjectPath = projectPath;
+        ProjectArguments = projectArguments;
+        AspNetCoreHotReload = aspNetCoreHotReload;
     }
 
     public string Id { get; init; }
@@ -89,6 +95,12 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public IReadOnlyList<ResourceHealthCheck> HealthChecks { get; init; }
 
     public ResourceObservability? Observability { get; init; }
+
+    public string? ProjectPath { get; init; }
+
+    public string? ProjectArguments { get; init; }
+
+    public bool AspNetCoreHotReload { get; init; }
 }
 
 public enum ApplicationLifetime

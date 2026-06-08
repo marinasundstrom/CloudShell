@@ -29,6 +29,19 @@ else
                 <FluentTextField Id="application-update-working-directory" @bind-Value="WorkingDirectory" />
             }
 
+            @if (CanConfigureProjectSettings)
+            {
+                <label for="application-update-project-path">Project path</label>
+                <FluentTextField Id="application-update-project-path" @bind-Value="ProjectPath" />
+
+                <label for="application-update-project-arguments">Application arguments</label>
+                <FluentTextField Id="application-update-project-arguments" @bind-Value="ApplicationArguments" />
+
+                <FluentCheckbox @bind-Value="UseHotReload">
+                    Use hot reload
+                </FluentCheckbox>
+            }
+
             @if (CanConfigureEndpoint)
             {
                 <label for="application-update-endpoint">Endpoint</label>
@@ -142,6 +155,9 @@ else
     private string ExecutablePath { get; set; } = string.Empty;
     private string? Arguments { get; set; }
     private string? WorkingDirectory { get; set; }
+    private string ProjectPath { get; set; } = string.Empty;
+    private string? ApplicationArguments { get; set; }
+    private bool UseHotReload { get; set; } = true;
     private string? Endpoint { get; set; }
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseServiceDiscovery { get; set; }
@@ -169,7 +185,10 @@ else
         IsResourceType(ApplicationResourceTypes.SqlServer);
 
     private bool CanConfigureProcessSettings =>
-        IsExecutableApplication || IsAspNetCoreProject;
+        IsExecutableApplication;
+
+    private bool CanConfigureProjectSettings =>
+        IsAspNetCoreProject;
 
     private bool CanConfigureEndpoint =>
         IsExecutableApplication || IsAspNetCoreProject;
@@ -205,7 +224,10 @@ else
             ExecutablePath = Application.ExecutablePath;
             Arguments = Application.Arguments;
             WorkingDirectory = Application.WorkingDirectory;
-            Endpoint = Application.Endpoint;
+            ProjectPath = Application.ProjectPath ?? string.Empty;
+            ApplicationArguments = Application.ProjectArguments;
+            UseHotReload = Application.AspNetCoreHotReload;
+            Endpoint = GetConfiguredEndpoint(Application);
             SelectedLifetime = Application.Lifetime.ToString();
             UseServiceDiscovery = Application.UseServiceDiscovery;
             EnableObservability = (Application.Observability ?? ResourceObservability.Default).HasAnySignal;
@@ -260,13 +282,18 @@ else
             return ResourceProcedureResult.Completed("Application resource is unavailable.");
         }
 
+        if (CanConfigureProjectSettings && string.IsNullOrWhiteSpace(ProjectPath))
+        {
+            return ResourceProcedureResult.Completed("Project path is required.");
+        }
+
         var definition = new ApplicationResourceDefinition(
             Application.Id,
             Name,
-            ExecutablePath,
-            Arguments,
-            WorkingDirectory,
-            Endpoint,
+            CanConfigureProcessSettings ? ExecutablePath : Application.ExecutablePath,
+            CanConfigureProcessSettings ? Arguments : Application.Arguments,
+            CanConfigureProcessSettings ? WorkingDirectory : Application.WorkingDirectory,
+            CanConfigureEndpoint && !IsAspNetCoreProject ? Endpoint : Application.Endpoint,
             BuildEnvironmentVariables(),
             CanConfigureLifetime ? ParseLifetime() : Application.Lifetime,
             BuildDependencies(),
@@ -280,7 +307,10 @@ else
             CanConfigureEndpoint ? BuildEndpointPorts(Application.ResourceType, Endpoint) : Application.EndpointPorts,
             resourceType: Application.ResourceType,
             healthChecks: Application.HealthChecks,
-            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
+            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
+            projectPath: CanConfigureProjectSettings ? ProjectPath : Application.ProjectPath,
+            projectArguments: CanConfigureProjectSettings ? ApplicationArguments : Application.ProjectArguments,
+            aspNetCoreHotReload: CanConfigureProjectSettings ? UseHotReload : Application.AspNetCoreHotReload);
 
         var restartRequired =
             ApplicationProvider.IsRunning(Application.Id) &&
@@ -307,6 +337,9 @@ else
         if (!string.Equals(existing.ExecutablePath, updated.ExecutablePath, StringComparison.Ordinal) ||
             !string.Equals(existing.Arguments, updated.Arguments, StringComparison.Ordinal) ||
             !string.Equals(existing.WorkingDirectory, updated.WorkingDirectory, StringComparison.Ordinal) ||
+            !string.Equals(existing.ProjectPath, updated.ProjectPath, StringComparison.Ordinal) ||
+            !string.Equals(existing.ProjectArguments, updated.ProjectArguments, StringComparison.Ordinal) ||
+            existing.AspNetCoreHotReload != updated.AspNetCoreHotReload ||
             !string.Equals(existing.Endpoint, updated.Endpoint, StringComparison.Ordinal) ||
             existing.Lifetime != updated.Lifetime ||
             existing.UseServiceDiscovery != updated.UseServiceDiscovery ||
@@ -355,6 +388,24 @@ else
         }
 
         return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
+    }
+
+    private static string? GetConfiguredEndpoint(ApplicationResourceDefinition application)
+    {
+        if (!string.Equals(
+                application.ResourceType,
+                ApplicationResourceTypes.AspNetCoreProject,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return application.Endpoint;
+        }
+
+        var port = application.EndpointPorts.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, "http", StringComparison.OrdinalIgnoreCase)) ??
+            application.EndpointPorts.FirstOrDefault();
+        return port?.Port is null
+            ? null
+            : $"{port.Protocol}://localhost:{port.Port.Value}";
     }
 
     private IReadOnlyList<string> BuildDependencies() =>

@@ -3,9 +3,15 @@
 CloudShell includes an application provider for local development machines. It
 lets you register commands that run on the CloudShell host as
 `application.executable` resources, and ASP.NET Core project references as
-`application.aspnet-core-project` resources. Both configure endpoint, environment
-variables, process lifetime, and references, then can be started, stopped,
-restarted, and inspected from Resource Manager.
+`application.aspnet-core-project` resources. Both can configure endpoint,
+environment variables, process lifetime, and references, then can be started,
+stopped, restarted, and inspected from Resource Manager.
+
+ASP.NET Core project resources are not plain executable application resources.
+They are project resources with a provider-owned process runner. Resource
+Manager exposes project-shaped attributes such as project path, application
+arguments, and hot reload mode, while the provider hides the generated
+`dotnet run` or `dotnet watch` command used to host the project.
 
 Application resources are primarily intended for local development: ASP.NET Core
 APIs, frontend dev servers, emulators, workers, and similar host-local tools.
@@ -34,6 +40,9 @@ dotnet watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi
 ```
 
 Pass `hotReload: false` to use plain `dotnet run --no-launch-profile` instead.
+Pass `applicationArguments` when the hosted app should receive command-line
+arguments. CloudShell appends those arguments after the hidden `dotnet` runner
+arguments.
 ASP.NET Core project resources always get an HTTP endpoint. If the declaration
 omits `endpoint`, CloudShell assigns a stable local port. If the declaration
 sets `endpoint`, that URL fixes the displayed port. In both cases CloudShell
@@ -47,7 +56,8 @@ resources
     .AddAspNetCoreProject(
         "application:example-web-api",
         "Example Web API",
-        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
+        applicationArguments: "--seed")
     .WithHttpEndpoint(port: 5127)
     .WithEndpointPort("dashboard", targetPort: 18888, port: 18888, protocol: "http");
 ```
@@ -101,6 +111,7 @@ configuration payload with:
 - executable path
 - arguments
 - working directory
+- project path, project application arguments, and ASP.NET Core hot reload mode
 - endpoint
 - environment variables
 - lifetime

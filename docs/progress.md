@@ -49,6 +49,9 @@ The MVP should prove:
 - Common executable, project, and container workload builder contracts live in
   `CloudShell.Abstractions`; provider packages own the concrete factory methods
   and implementations that populate provider-specific configuration.
+- ASP.NET Core project resources are project-shaped resources with a
+  provider-owned process runner; they do not project executable command
+  attributes even though the provider starts them through `dotnet`.
 - Resource declaration builder APIs use concise resource-oriented names such as
   `IResourceDeclarationBuilder` and `IResourceBuilder` instead of repeating the
   CloudShell product prefix.
@@ -105,6 +108,9 @@ The MVP should prove:
 - Added resource model class consistency validation for creation requests,
   provider projections, and declaration metadata, with result/diagnostic-based
   model validation.
+- Separated ASP.NET Core project declaration and projection from executable
+  command details, while preserving project app arguments, environment
+  variables, endpoints, service discovery, and process-backed runtime behavior.
 - Improved generated Resource Manager detail views with related-resource links,
   endpoint copy/open affordances, health metadata, logs, observability links,
   and action capability reasons.

@@ -68,6 +68,9 @@ public static class ResourceAttributeNames
     public const string ExecutablePath = "executable.path";
     public const string ExecutableArguments = "executable.arguments";
     public const string WorkingDirectory = "executable.workingDirectory";
+    public const string ProjectPath = "project.path";
+    public const string ProjectArguments = "project.arguments";
+    public const string ProjectHotReload = "project.hotReload";
     public const string ContainerImage = "container.image";
     public const string ContainerBuildContext = "container.buildContext";
     public const string ContainerDockerfile = "container.dockerfile";

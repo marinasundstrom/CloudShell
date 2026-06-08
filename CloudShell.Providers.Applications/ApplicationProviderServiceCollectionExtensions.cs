@@ -100,7 +100,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         ApplicationLifetime lifetime = ApplicationLifetime.Detached,
         bool hotReload = true,
         bool useServiceDiscovery = false,
-        ResourceObservability? observability = null) =>
+        ResourceObservability? observability = null,
+        string? applicationArguments = null) =>
         builder.AddAspNetCoreProject(
             CreateApplicationResourceId(name),
             name,
@@ -110,7 +111,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             lifetime,
             hotReload,
             useServiceDiscovery,
-            observability);
+            observability,
+            applicationArguments);
 
     public static IProjectResourceBuilder AddAspNetCoreProject(
         this IResourceDeclarationBuilder builder,
@@ -122,7 +124,8 @@ public static class ApplicationProviderServiceCollectionExtensions
         ApplicationLifetime lifetime = ApplicationLifetime.Detached,
         bool hotReload = true,
         bool useServiceDiscovery = false,
-        ResourceObservability? observability = null)
+        ResourceObservability? observability = null,
+        string? applicationArguments = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
@@ -130,14 +133,16 @@ public static class ApplicationProviderServiceCollectionExtensions
         var definition = new ApplicationResourceDefinition(
             id,
             name,
-            executablePath: "dotnet",
-            arguments: BuildDotNetAspNetCoreProjectArguments(projectPath, hotReload),
+            executablePath: string.Empty,
             environmentVariables: environmentVariables,
             lifetime: lifetime,
             useServiceDiscovery: useServiceDiscovery,
             endpointPorts: CreateAspNetCoreProjectEndpointPorts(endpoint),
             resourceType: ApplicationResourceTypes.AspNetCoreProject,
-            observability: observability);
+            observability: observability,
+            projectPath: projectPath,
+            projectArguments: applicationArguments,
+            aspNetCoreHotReload: hotReload);
         var declared = new DeclaredApplicationResource(definition);
 
         builder.Services
@@ -247,11 +252,6 @@ public static class ApplicationProviderServiceCollectionExtensions
             : $"application:{slug}";
     }
 
-    private static string BuildDotNetAspNetCoreProjectArguments(string projectPath, bool hotReload) =>
-        hotReload
-            ? $"watch --project {QuoteCommandArgument(projectPath)} run --no-launch-profile"
-            : $"run --project {QuoteCommandArgument(projectPath)} --no-launch-profile";
-
     internal static IReadOnlyList<ServicePort> CreateAspNetCoreProjectEndpointPorts(string? endpoint)
     {
         if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) &&
@@ -269,18 +269,6 @@ public static class ApplicationProviderServiceCollectionExtensions
         }
 
         return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
-    }
-
-    private static string QuoteCommandArgument(string argument)
-    {
-        if (argument.Length == 0)
-        {
-            return "\"\"";
-        }
-
-        return argument.Any(char.IsWhiteSpace)
-            ? $"\"{argument.Replace("\\", "\\\\").Replace("\"", "\\\"")}\""
-            : argument;
     }
 
     private static IReadOnlyList<ServicePort> CreateEndpointPorts(
@@ -454,6 +442,15 @@ internal sealed class ExecutableApplicationResourceBuilder(
             EnvironmentVariables = declared.Definition.EnvironmentVariables
                 .Append(new EnvironmentVariableAssignment(name, value))
                 .ToArray()
+        };
+        return this;
+    }
+
+    public IProjectResourceBuilder WithApplicationArguments(string? arguments)
+    {
+        declared.Definition = declared.Definition with
+        {
+            ProjectArguments = NormalizeNullable(arguments)
         };
         return this;
     }
@@ -722,6 +719,187 @@ internal sealed class ExecutableApplicationResourceBuilder(
     public IExecutableResourceBuilder Persist(bool overwrite = false)
     {
         inner.Persist(overwrite);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithEndpoint(string? endpoint)
+    {
+        WithEndpoint(endpoint);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithEndpointPort(
+        string name,
+        int targetPort,
+        int? port,
+        string protocol,
+        ResourceExposureScope exposure)
+    {
+        WithEndpointPort(name, targetPort, port, protocol, exposure);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithHttpEndpoint(
+        int? port,
+        int targetPort,
+        string name)
+    {
+        WithHttpEndpoint(port, targetPort, name);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithHttpsEndpoint(
+        int? port,
+        int targetPort,
+        string name)
+    {
+        WithHttpsEndpoint(port, targetPort, name);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithHttpHealthCheck(
+        string path,
+        string? endpointName,
+        string name,
+        TimeSpan? timeout)
+    {
+        WithHttpHealthCheck(path, endpointName, name, timeout);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithHttpProbe(
+        ResourceProbeType type,
+        string path,
+        string? endpointName,
+        string? name,
+        TimeSpan? timeout)
+    {
+        WithHttpProbe(type, path, endpointName, name, timeout);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithEnvironment(
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
+    {
+        WithEnvironment(environmentVariables);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithEnvironment(string name, string value)
+    {
+        WithEnvironment(name, value);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithLifetime(ResourceLifetime lifetime)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Lifetime = ToApplicationLifetime(lifetime)
+        };
+        return this;
+    }
+
+    IProjectResourceBuilder ILifetimeBoundResourceBuilder<IProjectResourceBuilder>.WithLifetime(
+        ResourceLifetime lifetime)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Lifetime = ToApplicationLifetime(lifetime)
+        };
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithServiceDiscovery(bool enabled)
+    {
+        WithServiceDiscovery(enabled);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithObservability(bool enabled)
+    {
+        WithObservability(enabled);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithOtlpExporter(
+        string? endpoint,
+        string? protocol,
+        string? headers)
+    {
+        WithOtlpExporter(endpoint, protocol, headers);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WaitFor(IResourceBuilder resource)
+    {
+        WaitFor(resource);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WaitFor(IEnumerable<IResourceBuilder> resources)
+    {
+        WaitFor(resources);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.DependsOn(string resourceId)
+    {
+        DependsOn(resourceId);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.DependsOn(IResourceBuilder resource)
+    {
+        DependsOn(resource);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.DependsOn(IEnumerable<string> resourceIds)
+    {
+        DependsOn(resourceIds);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.DependsOn(IEnumerable<IResourceBuilder> resources)
+    {
+        DependsOn(resources);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithResourceGroup(string? resourceGroupId)
+    {
+        WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithParent(string? parentResourceId)
+    {
+        WithParent(parentResourceId);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithParent(IResourceBuilder resource)
+    {
+        WithParent(resource);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithReference(IResourceBuilder resource)
+    {
+        WithReference(resource);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithReferences(IEnumerable<IResourceBuilder> resources)
+    {
+        WithReferences(resources);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.Persist(bool overwrite)
+    {
+        Persist(overwrite);
         return this;
     }
 

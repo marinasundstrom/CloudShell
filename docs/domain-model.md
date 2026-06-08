@@ -77,6 +77,11 @@ Consumers can filter resource lists by `ResourceClass` when they need broad
 class-level views, such as all container-backed resources or all logical
 services, without relying on provider-specific `TypeId` values.
 
+`ResourceClass` describes the projected domain shape, not the provider's
+internal runtime mechanics. For example, an ASP.NET Core project resource can be
+process-backed and still project as `ResourceClass.Project` with project-shaped
+attributes rather than executable command attributes.
+
 For known resource types, `ResourceClass` is part of the resource model
 invariant. The class declared by the resource type, creation metadata,
 programmatic declaration metadata, and provider projection should agree.
