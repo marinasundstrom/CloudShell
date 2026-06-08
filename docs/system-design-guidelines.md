@@ -82,8 +82,8 @@ authorization, state, provider support, and other operational constraints.
 Keep startup autostart separate from dependency autostart. Programmatic
 declarations default to startup autostart unless the graph, provider, or
 resource override says otherwise. UI-created resources do not autostart by
-default; create flows may add an explicit start-after-create option whose
-initial value comes from provider policy. Dependency startup uses
+default; create flows use an explicit start-after-create option whose initial
+value comes from provider policy. Dependency startup uses
 `WithDependencyAutoStart(...)` and provider dependency-start defaults, not
 `WithAutoStart(...)`.
 

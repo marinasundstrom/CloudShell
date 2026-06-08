@@ -203,10 +203,10 @@ resource may be started automatically when another resource starts with
 dependency startup enabled. Explicit declaration overrides win over provider
 defaults, and provider defaults win over graph-level defaults.
 
-Resources created through the UI are not startup-autostart resources. A create
-flow may offer an explicit "start after create" option, with the initial value
-coming from the provider policy, but the create operation must request that
-behavior explicitly.
+Resources created through the UI are not startup-autostart resources. Create
+flows use an explicit "start after create" option, with the initial value coming
+from provider policy, and the create operation must request that behavior
+explicitly.
 
 ### Resource action
 

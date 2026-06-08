@@ -1,4 +1,5 @@
 @inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManager ResourceActions
 @inject IResourceManagerStore ResourceManager
 @inject IResourceGroupStore ResourceGroups
 @inject IResourceRegistrationStore Registrations
@@ -107,6 +108,10 @@
             <div class="provider-error">@ErrorMessage</div>
         }
 
+        <FluentCheckbox @bind-Value="StartAfterCreate">
+            Start after create
+        </FluentCheckbox>
+
         <div class="form-actions">
             <FluentButton Appearance="Appearance.Accent" OnClick="Register">
                 Add
@@ -131,6 +136,7 @@
     private string? ContainerDockerfile { get; set; }
     private int Replicas { get; set; } = 1;
     private string SelectedGroupId { get; set; } = string.Empty;
+    private bool StartAfterCreate { get; set; } = true;
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -253,6 +259,11 @@
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
+        if (StartAfterCreate)
+        {
+            await ResourceActions.RunResourceAsync(definition.Id, startDependencies: true);
+        }
+
         Navigation.NavigateTo("/resources");
     }
 

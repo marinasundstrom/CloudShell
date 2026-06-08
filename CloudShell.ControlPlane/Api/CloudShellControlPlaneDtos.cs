@@ -69,7 +69,8 @@ public sealed record CreateResourceRequest(
     JsonElement Configuration,
     string? ResourceGroupId,
     ResourceClass? ResourceClass = null,
-    IReadOnlyDictionary<string, string>? Attributes = null);
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    bool StartAfterCreate = false);
 
 public sealed record RegisterResourceRequest(
     string ProviderId,

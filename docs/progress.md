@@ -127,6 +127,9 @@ The MVP should prove:
   programmatic declarations now use startup autostart semantics with provider
   defaults, while dependency startup uses `WithDependencyAutoStart(...)` and the
   same provider/default precedence.
+- Added explicit start-after-create support for resource creation commands and
+  runnable application registration UI, with provider policy carrying the
+  default checkbox intent.
 
 ## Active stabilization areas
 
@@ -138,13 +141,11 @@ The MVP should prove:
 
 ## Next priorities
 
-1. Add explicit start-after-create UI support with provider-defined default
-   checkbox state.
-2. Align OpenAPI output with the intended domain projection.
-3. Expand sample tests to cover the hypermedia resource action path.
-4. Continue tightening internal Resource Manager behavior as invalid-state gaps
+1. Align OpenAPI output with the intended domain projection.
+2. Expand sample tests to cover the hypermedia resource action path.
+3. Continue tightening internal Resource Manager behavior as invalid-state gaps
    are found.
-5. Document any remaining MVP gaps as concrete tests or issues.
+4. Document any remaining MVP gaps as concrete tests or issues.
 
 ## Verification baseline
 

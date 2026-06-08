@@ -1,4 +1,5 @@
 @inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManager ResourceActions
 @inject IResourceManagerStore ResourceManager
 @inject IResourceGroupStore ResourceGroups
 @inject IResourceRegistrationStore Registrations
@@ -106,6 +107,10 @@
             <div class="provider-error">@ErrorMessage</div>
         }
 
+        <FluentCheckbox @bind-Value="StartAfterCreate">
+            Start after create
+        </FluentCheckbox>
+
         <div class="form-actions">
             <FluentButton Appearance="Appearance.Accent" OnClick="Register">
                 Add
@@ -128,6 +133,7 @@
     private bool UseServiceDiscovery { get; set; } = true;
     private bool EnableObservability { get; set; } = true;
     private bool WaitForReferences { get; set; } = true;
+    private bool StartAfterCreate { get; set; } = true;
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
@@ -183,6 +189,11 @@
             aspNetCoreHotReload: UseHotReload);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
+        if (StartAfterCreate)
+        {
+            await ResourceActions.RunResourceAsync(definition.Id, startDependencies: true);
+        }
+
         Navigation.NavigateTo("/resources");
     }
 

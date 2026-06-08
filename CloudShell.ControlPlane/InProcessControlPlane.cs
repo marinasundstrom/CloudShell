@@ -117,6 +117,16 @@ public sealed class InProcessControlPlane(
             request,
             new ResourceCreationContext(registrations),
             cancellationToken);
+
+        if (command.StartAfterCreate)
+        {
+            await ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    resourceId,
+                    ResourceActionIds.Run,
+                    StartDependencies: true),
+                cancellationToken);
+        }
     }
 
     public Task<IReadOnlyDictionary<string, ResourceOperationCapabilities>> GetResourceOperationCapabilitiesAsync(

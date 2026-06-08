@@ -397,6 +397,25 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task CreateResourceAsync_StartsResourceWhenRequested()
+    {
+        var provider = new TestResourceCreationProvider();
+        var controlPlane = CreateControlPlane([], provider);
+
+        await controlPlane.CreateResourceAsync(
+            new CreateResourceCommand(
+                "test",
+                "test.resource",
+                "target",
+                "Target",
+                JsonSerializer.SerializeToElement(new { enabled = true }),
+                StartAfterCreate: true));
+
+        Assert.NotNull(provider.CreatedRequest);
+        Assert.Equal(["target:run"], provider.ExecutedActions);
+    }
+
+    [Fact]
     public async Task CreateResourceAsync_RejectsResourceClassMismatch()
     {
         var provider = new TestResourceCreationProvider();
@@ -531,7 +550,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         public IReadOnlyList<Resource> GetResources() => [];
     }
 
-    private sealed class TestResourceCreationProvider : IResourceCreationProvider
+    private sealed class TestResourceCreationProvider : IResourceCreationProvider, IResourceProcedureProvider
     {
         public string Id => "test";
 
@@ -539,7 +558,15 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public ResourceCreationRequest? CreatedRequest { get; private set; }
 
-        public IReadOnlyList<Resource> GetResources() => [];
+        public List<string> ExecutedActions { get; } = [];
+
+        public IReadOnlyList<Resource> GetResources() =>
+            CreatedRequest is null
+                ? []
+                :
+                [
+                    CreateResource(CreatedRequest.ResourceId, ResourceState.Stopped)
+                ];
 
         public bool CanCreate(ResourceCreationRequest request) =>
             string.Equals(request.ResourceType, "test.resource", StringComparison.OrdinalIgnoreCase);
@@ -550,7 +577,25 @@ public sealed class InProcessControlPlaneResourceStateTests
             CancellationToken cancellationToken = default)
         {
             CreatedRequest = request;
-            return Task.CompletedTask;
+            return context.Registrations.RegisterAsync(
+                Id,
+                request.ResourceId,
+                request.ResourceGroupId,
+                cancellationToken: cancellationToken);
+        }
+
+        public Task<ResourceProcedureResult> DeleteAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ResourceProcedureResult.Completed($"Deleted {context.Resource.Id}."));
+
+        public Task<ResourceProcedureResult> ExecuteActionAsync(
+            ResourceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
+            return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
         }
     }
 
@@ -564,9 +609,14 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public IReadOnlyList<ResourceGroup> GetResourceGroups() => groups;
 
-        public IReadOnlyList<Resource> GetAvailableResources() => resources;
+        public IReadOnlyList<Resource> GetAvailableResources() =>
+            resources
+                .Concat(providers.SelectMany(provider => provider.GetResources()))
+                .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray();
 
-        public IReadOnlyList<Resource> GetResources() => resources;
+        public IReadOnlyList<Resource> GetResources() => GetAvailableResources();
 
         public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
 
@@ -574,17 +624,17 @@ public sealed class InProcessControlPlaneResourceStateTests
             resourceTypeClasses.GetValueOrDefault(resourceType);
 
         public Resource? GetResource(string id) =>
-            resources.FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
+            GetResources().FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
 
         public IReadOnlyList<Resource> GetChildren(string resourceId) =>
-            resources
+            GetResources()
                 .Where(resource => string.Equals(resource.ParentResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
                 .ToArray();
 
         public ResourceGroup? GetGroupForResource(string resourceId) => null;
 
         public bool IsRegistered(string resourceId) =>
-            resources.Any(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+            GetResources().Any(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
     }
 
     private sealed class TestResourceRegistrationStore(IEnumerable<ResourceRegistration> registrations) :

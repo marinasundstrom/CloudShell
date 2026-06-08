@@ -1,5 +1,6 @@
 @using System.Text.Json
 @inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManager ResourceActions
 @inject IResourceManagerStore ResourceManager
 @inject IResourceGroupStore ResourceGroups
 @inject IResourceRegistrationStore Registrations
@@ -133,6 +134,10 @@
             <div class="provider-error">@ErrorMessage</div>
         }
 
+        <FluentCheckbox @bind-Value="StartAfterCreate">
+            Start after create
+        </FluentCheckbox>
+
         <div class="form-actions">
             <FluentButton Appearance="Appearance.Accent" OnClick="Register">
                 Add
@@ -155,6 +160,7 @@
     private string SelectedGroupId { get; set; } = string.Empty;
     private bool WaitForReferences { get; set; } = true;
     private bool EnableObservability { get; set; } = true;
+    private bool StartAfterCreate { get; set; } = true;
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -205,6 +211,11 @@
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
+        if (StartAfterCreate)
+        {
+            await ResourceActions.RunResourceAsync(definition.Id, startDependencies: true);
+        }
+
         Navigation.NavigateTo("/resources");
     }
 

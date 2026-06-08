@@ -309,9 +309,9 @@ controlPlane.Resources(resources =>
 The graph default is inherited by resources that do not set their own value.
 Provider policies can also define defaults for their resource declarations.
 Effective startup behavior is resolved as resource override, provider default,
-then graph default. UI-created resources do not use this startup path; a UI
-create flow can later expose an explicit start-after-create checkbox whose
-initial value comes from provider policy.
+then graph default. UI-created resources do not use this startup path; create
+flows use an explicit start-after-create option whose initial value comes from
+provider policy.
 
 Dependency auto-start is a separate lifecycle policy. When a Run or Restart
 action is executed with dependency startup enabled, CloudShell may start stopped

@@ -151,7 +151,8 @@ public sealed record CreateResourceCommand(
     JsonElement Configuration,
     string? ResourceGroupId = null,
     ResourceClass? ResourceClass = null,
-    IReadOnlyDictionary<string, string>? Attributes = null)
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    bool StartAfterCreate = false)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
