@@ -254,6 +254,10 @@ Endpoint mappings connect a source endpoint to a target endpoint. A mapping may
 be realized by the same network resource that owns the source endpoint, or by a
 specialized networking provider resource such as a gateway, load balancer,
 service discovery system, or custom controller running as a managed resource.
+The mapping records both the logical network boundary and the provider resource
+that should materialize or validate the mapping. The provider resource must
+advertise `networking.endpointMapper`; resources that assign or reserve
+endpoints advertise `networking.endpointProvider`.
 
 The built-in `cloudshell.network` resource is a logical network boundary and
 basic endpoint provider. For local development, it can reserve manual
@@ -261,6 +265,13 @@ localhost endpoints or auto-assign stable localhost ports from the configured
 range. Richer network topology, routing, policy, TLS, DNS, and load-balancing
 behavior should be expressed as capabilities on authored resources and
 implemented by provider-owned configuration behind those resources.
+
+When endpoint mappings are declared, the network resource exposes a reconcile
+action. The Control Plane action validates that the source endpoint exists, the
+target endpoint exists, and the selected provider resource advertises endpoint
+mapping capability. Provider-owned controllers can then use their own resource
+configuration and actions to apply routing, DNS, load-balancing, policy, TLS,
+or other runtime-specific behavior.
 
 ### Resource action
 

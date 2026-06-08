@@ -133,6 +133,27 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ReconcilesNetworkEndpointMappings()
+    {
+        await using var app = await CreateAppAsync(includeMappedNetwork: true);
+        var controlPlane = CreateClient(app);
+
+        var network = await controlPlane.GetResourceAsync("network:contract");
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync(["network:contract"]);
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            "network:contract",
+            PlatformResourceProvider.ReconcileEndpointMappingsActionId);
+
+        Assert.NotNull(network);
+        var action = network.GetAction(PlatformResourceProvider.ReconcileEndpointMappingsActionId);
+        Assert.NotNull(action);
+        Assert.Equal("Reconcile endpoint mappings", action.DisplayName);
+        Assert.True(capabilities["network:contract"].CanExecuteAction(
+            PlatformResourceProvider.ReconcileEndpointMappingsActionId));
+        Assert.Equal("Reconciled 1 endpoint mapping(s).", result.Message);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_UpdatesResourceImage()
     {
         await using var app = await CreateAppAsync(includeImageResource: true);
@@ -492,7 +513,8 @@ public sealed class RemoteControlPlaneContractTests
 
     private static async Task<WebApplication> CreateAppAsync(
         bool includeLifecycleResource = false,
-        bool includeImageResource = false)
+        bool includeImageResource = false,
+        bool includeMappedNetwork = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -522,12 +544,32 @@ public sealed class RemoteControlPlaneContractTests
             builder.Services.AddSingleton<IResourceProvider>(serviceProvider =>
                 serviceProvider.GetRequiredService<ContractImageResourceProvider>());
         }
+        if (includeMappedNetwork)
+        {
+            builder.Services.AddSingleton<IResourceProvider, ContractNetworkingResourceProvider>();
+        }
 
         controlPlane.Resources(resources =>
         {
-            resources
+            var network = resources
                 .AddNetwork("network:contract", "Contract Network", isDefault: true)
                 .Persist();
+            if (includeMappedNetwork)
+            {
+                var api = resources.Declare(
+                    ContractNetworkingResourceProvider.ProviderId,
+                    ContractNetworkingResourceProvider.ApiResourceId);
+                var proxy = resources.Declare(
+                    ContractNetworkingResourceProvider.ProviderId,
+                    ContractNetworkingResourceProvider.ProxyResourceId);
+                var endpoint = network.RequestHttpEndpoint("api");
+
+                network.MapEndpoint(
+                    endpoint,
+                    new ResourceEndpointReference(api.ResourceId, "http"),
+                    proxy,
+                    "mapping:api");
+            }
         });
 
         var app = builder.Build();
@@ -564,6 +606,45 @@ public sealed class RemoteControlPlaneContractTests
         await resources.AssignResourceGroupAsync(
             new AssignResourceGroupCommand("network:contract", group.Id));
         return group;
+    }
+
+    private sealed class ContractNetworkingResourceProvider : IResourceProvider
+    {
+        public const string ProviderId = "contract.networking";
+        public const string ApiResourceId = "contract:api";
+        public const string ProxyResourceId = "contract:proxy";
+
+        public string Id => ProviderId;
+
+        public string DisplayName => "Contract Networking";
+
+        public IReadOnlyList<Resource> GetResources() =>
+        [
+            new(
+                ApiResourceId,
+                "Contract API",
+                "Application",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [new ResourceEndpoint("http", "http://localhost:8080", "http", true)],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                Capabilities: [new(ResourceCapabilityIds.EndpointSource)]),
+            new(
+                ProxyResourceId,
+                "Contract Proxy",
+                "Networking Provider",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                Capabilities: [new(ResourceCapabilityIds.NetworkingEndpointMapper)])
+        ];
     }
 
     private static async Task AssertProblemAsync(

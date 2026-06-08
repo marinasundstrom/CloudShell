@@ -183,6 +183,9 @@ The MVP should prove:
 - Reused the shared endpoint assignment UI for executable application
   registration so the built-in registration flows expose consistent endpoint
   assignment controls.
+- Added endpoint mapping provider selection for network declarations, a
+  platform reconcile action that validates source, target, and mapper
+  capabilities, and remote Control Plane contract coverage for invoking it.
 
 ## Active stabilization areas
 

@@ -130,7 +130,9 @@ Networks can also reserve or request endpoints. Manual endpoint requests carry
 the concrete host/IP address and port. Auto endpoint requests let the network
 resource allocate from its configured policy; the built-in platform network
 uses stable localhost ports from the Control Plane auto-port range. Endpoint
-mappings connect a network-owned endpoint to a target resource endpoint:
+mappings connect a network-owned endpoint to a target resource endpoint. When
+no provider is specified, the network resource itself is the endpoint-mapping
+provider:
 
 ```csharp
 var appNetwork = resources
@@ -152,7 +154,29 @@ Networking resources advertise capabilities such as
 `networking.endpointProvider` and `networking.endpointMapper`. Authored
 resource types can use the same capability model for richer providers, such as
 a containerized gateway, reverse proxy, load balancer, DNS publisher, or
-network policy controller.
+network policy controller. A mapping can name one of those resources as the
+provider while keeping the logical network as the boundary:
+
+```csharp
+var appNetwork = resources
+    .AddNetwork("network:app", "App Network", isDefault: true);
+
+var api = resources.Declare("applications", "application:example-web-api");
+var gateway = resources.Declare("networking", "networking:gateway");
+var publicEndpoint = appNetwork.RequestHttpEndpoint("api");
+
+appNetwork.MapEndpoint(
+    publicEndpoint,
+    new ResourceEndpointReference(api.ResourceId, "http"),
+    gateway,
+    "mapping:api");
+```
+
+The selected provider resource must advertise `networking.endpointMapper`.
+The platform network exposes a `reconcileEndpointMappings` action for declared
+mappings. That action validates the source endpoint, target endpoint, and
+selected provider capability before provider-owned networking software applies
+its own routing or policy configuration.
 
 Provider-specific resources should stay logical at the declaration site. For
 example, a future SQL Server provider should be able to expose a top-level
