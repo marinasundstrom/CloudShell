@@ -7,4 +7,23 @@
             });
         }
     };
+
+    window.cloudShellTheme = {
+        setMode: function (storageKey, mode) {
+            if (!storageKey) {
+                return;
+            }
+
+            try {
+                var existing = JSON.parse(localStorage.getItem(storageKey) || "{}");
+                existing.mode = mode || "system";
+                localStorage.setItem(storageKey, JSON.stringify(existing));
+            } catch {
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify({ mode: mode || "system" }));
+                } catch {
+                }
+            }
+        }
+    };
 })();
