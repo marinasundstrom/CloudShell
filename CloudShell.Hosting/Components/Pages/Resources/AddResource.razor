@@ -69,14 +69,6 @@
                     <p>@selectedType.Description</p>
                 </div>
             </div>
-            @if (selectedType.ResourceProbeOptions.SupportsHealthChecks)
-            {
-                <div class="form-panel">
-                    <FluentCheckbox @bind-Value="probeContext.EnableHealthChecks">
-                        @L["Enable resource health checks"]
-                    </FluentCheckbox>
-                </div>
-            }
             <CascadingValue Value="probeContext">
                 <CascadingValue Value="selectedType">
                     <DynamicComponent Type="selectedType.RegistrationComponentType" />

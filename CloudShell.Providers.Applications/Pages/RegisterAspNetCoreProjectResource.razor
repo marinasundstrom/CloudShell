@@ -51,6 +51,13 @@
             Enable observability
         </FluentCheckbox>
 
+        @if (SupportsHealthChecks)
+        {
+            <FluentCheckbox @bind-Value="HealthChecksEnabled">
+                Enable resource health checks
+            </FluentCheckbox>
+        }
+
         <label for="web-application-group">Resource group</label>
         <FluentSelect TOption="string"
                       Id="web-application-group"
@@ -131,6 +138,20 @@
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private bool SupportsHealthChecks => ProbeContext?.SupportsHealthChecks == true;
+
+    private bool HealthChecksEnabled
+    {
+        get => ProbeContext?.EnableHealthChecks == true;
+        set
+        {
+            if (ProbeContext is not null)
+            {
+                ProbeContext.EnableHealthChecks = value;
+            }
+        }
+    }
 
     private async Task Register()
     {

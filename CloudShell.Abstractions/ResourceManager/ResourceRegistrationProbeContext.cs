@@ -6,6 +6,8 @@ public sealed class ResourceRegistrationProbeContext(ResourceTypeContribution re
         resourceType.ResourceProbeOptions.EnableHealthChecksByDefault &&
         resourceType.ResourceProbeOptions.SupportsHealthChecks;
 
+    public bool SupportsHealthChecks => resourceType.ResourceProbeOptions.SupportsHealthChecks;
+
     public IReadOnlyList<ResourceHealthCheck> GetSelectedHealthChecks() =>
         EnableHealthChecks
             ? resourceType.ResourceHealthChecks
