@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -924,7 +925,54 @@ public sealed partial class ApplicationResourceProvider(
             Actions: CreateActions(state),
             HealthChecks: application.HealthChecks,
             Observability: GetEffectiveObservability(application),
-            ResourceClass: GetResourceClass(application));
+            ResourceClass: GetResourceClass(application),
+            Attributes: CreateAttributes(application));
+    }
+
+    private static IReadOnlyDictionary<string, string> CreateAttributes(ApplicationResourceDefinition application)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.WorkloadKind] = CreateWorkloadKind(application),
+            [ResourceAttributeNames.ContainerReplicas] = Math.Max(1, application.Replicas).ToString(CultureInfo.InvariantCulture),
+            [ResourceAttributeNames.EndpointCount] = application.EndpointPorts.Count.ToString(CultureInfo.InvariantCulture)
+        };
+
+        AddIfNotEmpty(attributes, ResourceAttributeNames.ExecutablePath, application.ExecutablePath);
+        AddIfNotEmpty(attributes, ResourceAttributeNames.ExecutableArguments, application.Arguments);
+        AddIfNotEmpty(attributes, ResourceAttributeNames.WorkingDirectory, application.WorkingDirectory);
+        AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerImage, application.ContainerImage);
+        AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerBuildContext, application.ContainerBuildContext);
+        AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerDockerfile, application.ContainerDockerfile);
+        AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerEngineId, application.ContainerEngineId);
+
+        return attributes;
+    }
+
+    private static string CreateWorkloadKind(ApplicationResourceDefinition application)
+    {
+        if (!string.IsNullOrWhiteSpace(application.ContainerImage))
+        {
+            return ResourceWorkloadKind.ContainerImage.ToString();
+        }
+
+        if (!string.IsNullOrWhiteSpace(application.ContainerBuildContext))
+        {
+            return ResourceWorkloadKind.ContainerBuild.ToString();
+        }
+
+        return ResourceWorkloadKind.LocalExecutable.ToString();
+    }
+
+    private static void AddIfNotEmpty(
+        IDictionary<string, string> attributes,
+        string name,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            attributes[name] = value.Trim();
+        }
     }
 
     private static ResourceClass GetResourceClass(ApplicationResourceDefinition application) =>

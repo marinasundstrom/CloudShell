@@ -2,6 +2,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.Hosting;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -355,7 +356,13 @@ public sealed partial class ConfigurationResourceProvider :
             TypeId: "configuration.store",
             Actions: CreateActions(configurationStore),
             HealthChecks: configurationStore.HealthChecks,
-            ResourceClass: ResourceClass.Configuration);
+            ResourceClass: ResourceClass.Configuration,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.ConfigurationEntryCount] =
+                    configurationStore.Entries.Count.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.EndpointCount] = "1"
+            });
 
     private ResourceState GetState(ConfigurationStoreDefinition configurationStore)
     {

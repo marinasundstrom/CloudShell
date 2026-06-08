@@ -44,6 +44,8 @@ Important properties:
 - `TypeId` / `EffectiveTypeId`: stable resource type.
 - `ResourceClass`: broad resource classification such as executable, project,
   container, service, network, configuration, or infrastructure.
+- `Attributes`: stable, non-secret details that describe the resource's class,
+  type, or provider-owned shape.
 - `State`: lifecycle or health-oriented state.
 - `Endpoints`: addresses exposed by the resource.
 - `DependsOn`: resource dependencies.
@@ -54,10 +56,16 @@ Important properties:
 
 `Resource` is a uniform projection. It is not subclassed for containers,
 executables, projects, services, or infrastructure. A resource carries common
-attributes such as class, type, endpoints, actions, health checks, and
-observability; providers own the configuration and runtime behavior behind
-those attributes. `Resource` does not imply CloudShell owns all underlying
-provider configuration or runtime state.
+attributes such as class, type, endpoints, actions, health checks,
+observability, and structural metadata; providers own the configuration and
+runtime behavior behind those attributes. `Resource` does not imply CloudShell
+owns all underlying provider configuration or runtime state.
+
+`Attributes` are not a second provider configuration schema. They are projected
+facts useful for inspection, filtering, diagnostics, and orchestration hints,
+such as container image, workload kind, endpoint count, service port count, or
+configuration entry count. Providers must not expose secrets through resource
+attributes.
 
 As a client API entity, `Resource` should be convenient to inspect without
 becoming an active service object. It may expose domain helpers such as

@@ -33,6 +33,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal("Contract Network", network.Name);
         Assert.Equal(PlatformResourceProvider.NetworkResourceType, network.EffectiveTypeId);
         Assert.Equal(ResourceClass.Network, network.ResourceClass);
+        Assert.Equal("Default", network.ResourceAttributes[ResourceAttributeNames.NetworkKind]);
 
         var remoteGroup = Assert.Single(groups);
         Assert.Equal(group.Id, remoteGroup.Id);
@@ -76,6 +77,8 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(["network:contract"], service.DependsOn);
         Assert.Equal("http://localhost:5080", service.PrimaryEndpoint);
         Assert.Equal(ResourceClass.Service, service.ResourceClass);
+        Assert.Equal("1", service.ResourceAttributes[ResourceAttributeNames.ServiceTargetCount]);
+        Assert.Equal("1", service.ResourceAttributes[ResourceAttributeNames.ServicePortCount]);
 
         var registration = await controlPlane.GetResourceRegistrationAsync(service.Id);
         Assert.NotNull(registration);
@@ -120,6 +123,7 @@ public sealed class RemoteControlPlaneContractTests
 
         Assert.False(resource.TryGetProperty("actions", out _));
         Assert.Equal((int)ResourceClass.Executable, resource.GetProperty("resourceClass").GetInt32());
+        Assert.Equal(JsonValueKind.Object, resource.GetProperty("attributes").ValueKind);
         Assert.Equal(JsonValueKind.Object, actions.ValueKind);
         Assert.Equal(ResourceActionIds.Stop, stop.GetProperty("id").GetString());
         Assert.Equal("Stop", stop.GetProperty("displayName").GetString());

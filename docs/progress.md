@@ -36,8 +36,9 @@ The MVP should prove:
 - Provider-owned resource configuration stays separate from platform-owned
   registration/group state.
 - Projected resources use one uniform `Resource` shape. Broad behavior is
-  modeled with `ResourceClass`, precise identity with `TypeId`, and runtime
-  behavior through provider-owned descriptors instead of resource subclasses.
+  modeled with `ResourceClass`, precise identity with `TypeId`, non-secret
+  structural facts with `Attributes`, and runtime behavior through
+  provider-owned descriptors instead of resource subclasses.
 - Programmatic resource builders are declaration-time abstractions that create
   uniform resources and provider-owned configuration; executable, project, and
   container builders expose different authoring conveniences without becoming
@@ -77,6 +78,9 @@ The MVP should prove:
 - Renamed the projected domain entity from `CloudResource` to `Resource` and
   added `ResourceClass` projection through in-process resources, the Control
   Plane API, and the remote client.
+- Added uniform resource attributes for class-defining, non-secret provider
+  details such as workload kind, image, endpoint count, service port count, and
+  configuration entry count.
 
 ## Active stabilization areas
 

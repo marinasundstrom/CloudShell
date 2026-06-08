@@ -12,6 +12,7 @@ public sealed class ResourceActionTests
 
         Assert.Empty(resource.ResourceActions);
         Assert.Equal(ResourceClass.Generic, resource.ResourceClass);
+        Assert.Empty(resource.ResourceAttributes);
     }
 
     [Fact]

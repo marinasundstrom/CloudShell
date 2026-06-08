@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using CloudShell.Abstractions.ResourceManager;
 
@@ -211,7 +212,12 @@ public sealed class PlatformResourceProvider(
             DateTimeOffset.UtcNow,
             [],
             TypeId: NetworkResourceType,
-            ResourceClass: ResourceClass.Network);
+            ResourceClass: ResourceClass.Network,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NetworkKind] = definition.IsDefault ? "Default" : "Local",
+                [ResourceAttributeNames.EndpointCount] = "1"
+            });
 
     private Resource CreateServiceResource(ServiceResourceDefinition definition) =>
         new(
@@ -227,7 +233,16 @@ public sealed class PlatformResourceProvider(
             CreateServiceDependencies(definition),
             TypeId: ServiceResourceType,
             HealthChecks: definition.ResourceHealthChecks,
-            ResourceClass: ResourceClass.Service);
+            ResourceClass: ResourceClass.Service,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.ServiceTargetCount] =
+                    definition.Targets.Count.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.ServicePortCount] =
+                    definition.Ports.Count.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.EndpointCount] =
+                    definition.Ports.Count.ToString(CultureInfo.InvariantCulture)
+            });
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ServiceResourceDefinition definition) =>
         definition.Ports

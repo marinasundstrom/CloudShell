@@ -50,9 +50,9 @@ provider-declared resource actions.
 Resources are composition-based. Do not introduce container, executable,
 project, service, or infrastructure subclasses for the projected domain entity.
 Use `ResourceClass` for broad classification, `TypeId` for precise
-provider/domain identity, and provider-owned descriptors for execution details.
-The projected shape stays uniform; providers decide how each resource class and
-type behaves.
+provider/domain identity, `Attributes` for stable non-secret structural facts,
+and provider-owned descriptors for execution details. The projected shape stays
+uniform; providers decide how each resource class and type behaves.
 
 Resource actions are domain operations on a resource. Standard lifecycle
 actions use `ResourceActionKind.Run`, `Stop`, `Pause`, and `Restart`. Custom

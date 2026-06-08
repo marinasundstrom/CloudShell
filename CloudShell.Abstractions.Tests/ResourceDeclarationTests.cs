@@ -1009,6 +1009,11 @@ public sealed class ResourceDeclarationTests
         Assert.Empty(declaration.DependsOn);
         Assert.Equal(ApplicationResourceTypes.ContainerImage, resource.EffectiveTypeId);
         Assert.Equal(ResourceClass.Container, resource.ResourceClass);
+        Assert.Equal(
+            ResourceWorkloadKind.ContainerImage.ToString(),
+            resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
+        Assert.Equal("example/sql-server:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerImage]);
+        Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerEngineId]);
         Assert.Equal(ApplicationLifetime.Detached, provider.GetApplication("application:sql")?.Lifetime);
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal("example/sql-server:dev", workload?.Image);

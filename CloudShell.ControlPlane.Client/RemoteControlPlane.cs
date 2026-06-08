@@ -460,6 +460,7 @@ file sealed record ResourceResponse(
     string? ParentResourceId,
     ResourceGroupResponse? ResourceGroup,
     bool IsRegistered,
+    IReadOnlyDictionary<string, string>? Attributes,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 file sealed record ResourceEndpointResponse(
@@ -576,7 +577,8 @@ file static class RemoteControlPlaneMapper
             response.GetResourceActionResponses()
                 .Select(action => action.ToResourceAction())
                 .ToArray(),
-            ResourceClass: response.ResourceClass);
+            ResourceClass: response.ResourceClass,
+            Attributes: response.Attributes);
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
         new(response.Name, response.Address, response.Protocol, response.IsExternal);

@@ -17,11 +17,17 @@ public sealed record Resource(
     IReadOnlyList<ResourceAction>? Actions = null,
     IReadOnlyList<ResourceHealthCheck>? HealthChecks = null,
     ResourceObservability? Observability = null,
-    ResourceClass ResourceClass = ResourceClass.Generic)
+    ResourceClass ResourceClass = ResourceClass.Generic,
+    IReadOnlyDictionary<string, string>? Attributes = null)
 {
+    private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
     public string PrimaryEndpoint => Endpoints.FirstOrDefault()?.Address ?? "none";
 
     public string EffectiveTypeId => TypeId ?? Kind;
+
+    public IReadOnlyDictionary<string, string> ResourceAttributes => Attributes ?? EmptyAttributes;
 
     public IReadOnlyList<ResourceAction> ResourceActions => Actions ?? [];
 
@@ -54,6 +60,25 @@ public enum ResourceClass
     Network,
     Configuration,
     Infrastructure
+}
+
+public static class ResourceAttributeNames
+{
+    public const string WorkloadKind = "workload.kind";
+    public const string ExecutablePath = "executable.path";
+    public const string ExecutableArguments = "executable.arguments";
+    public const string WorkingDirectory = "executable.workingDirectory";
+    public const string ContainerImage = "container.image";
+    public const string ContainerBuildContext = "container.buildContext";
+    public const string ContainerDockerfile = "container.dockerfile";
+    public const string ContainerEngineId = "container.engineId";
+    public const string ContainerReplicas = "container.replicas";
+    public const string EndpointCount = "endpoints.count";
+    public const string ConfigurationEntryCount = "configuration.entries";
+    public const string InfrastructureKind = "infrastructure.kind";
+    public const string NetworkKind = "network.kind";
+    public const string ServiceTargetCount = "service.targets";
+    public const string ServicePortCount = "service.ports";
 }
 
 public enum ResourceState

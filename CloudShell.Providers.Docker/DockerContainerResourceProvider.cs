@@ -500,7 +500,11 @@ public sealed partial class DockerContainerResourceProvider :
             "/resources/docker-engine",
             TypeId: "docker.engine",
             HealthChecks: definition.HealthChecks,
-            ResourceClass: ResourceClass.Infrastructure);
+            ResourceClass: ResourceClass.Infrastructure,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.InfrastructureKind] = ContainerEngineKind.Docker.ToString()
+            });
 
     private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
         resource.EffectiveTypeId switch
@@ -706,6 +710,7 @@ public sealed partial class DockerContainerResourceProvider :
             .Select(value => value.Trim('/'))
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
             ?? container.ID[..Math.Min(container.ID.Length, 12)];
+        var endpoints = CreateEndpoints(name, container.Ports);
 
         return new Resource(
             id,
@@ -714,14 +719,15 @@ public sealed partial class DockerContainerResourceProvider :
             "Docker",
             "local",
             MapState(container.State),
-            CreateEndpoints(name, container.Ports),
+            endpoints,
             container.Image,
             new DateTimeOffset(container.Created.ToUniversalTime()),
             [],
             ParentResourceId: EngineResourceId,
             TypeId: "docker.container",
             Actions: CreateContainerActions(container.State),
-            ResourceClass: ResourceClass.Container);
+            ResourceClass: ResourceClass.Container,
+            Attributes: CreateContainerAttributes(container.Image, endpoints.Count));
     }
 
     private IReadOnlyList<Resource> GetDeclaredContainerResources(
@@ -763,8 +769,20 @@ public sealed partial class DockerContainerResourceProvider :
             TypeId: "docker.container",
             Actions: container is null ? [] : CreateContainerActions(container.State),
             HealthChecks: definition.HealthChecks,
-            ResourceClass: ResourceClass.Container);
+            ResourceClass: ResourceClass.Container,
+            Attributes: CreateContainerAttributes(container?.Image ?? definition.Image, endpoints.Count));
     }
+
+    private static IReadOnlyDictionary<string, string> CreateContainerAttributes(
+        string image,
+        int endpointCount) =>
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.WorkloadKind] = ResourceWorkloadKind.ContainerImage.ToString(),
+            [ResourceAttributeNames.ContainerImage] = image,
+            [ResourceAttributeNames.ContainerReplicas] = "1",
+            [ResourceAttributeNames.EndpointCount] = endpointCount.ToString(CultureInfo.InvariantCulture)
+        };
 
     public static string CreateDockerResourceId(string id)
     {
