@@ -28,6 +28,20 @@ is consumed directly by resource processes and uses configuration-service access
 tokens instead of user/session authentication. See
 [Configuration services](configuration-services.md).
 
+Resource-type API groups can exist when a domain operation needs a specialized
+contract surface. For example, container app image deployment is exposed as a
+Container Apps revision operation:
+
+```text
+POST /api/container-apps/v1/{containerAppId}/revisions
+```
+
+That endpoint still uses the Control Plane authentication boundary,
+authorization checks, OpenAPI document, and domain manager implementation. It is
+separate from `/api/control-plane/v1/resources` so the core Resource Manager
+route group does not accumulate resource-type-specific commands. See
+[Container apps](resources/container-apps.md).
+
 Keep breaking changes behind a new route and document, such as
 `/api/control-plane/v2` and `/openapi/control-plane-v2.json`. Remote
 control-plane adapters should pin the generated client to the major API version

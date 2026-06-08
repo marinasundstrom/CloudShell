@@ -224,6 +224,10 @@ public sealed class RemoteControlPlaneContractTests
             "#/components/schemas/ResourceResponse",
             listResources.GetProperty("items").GetProperty("$ref").GetString());
 
+        var paths = root.GetProperty("paths");
+        Assert.False(paths.TryGetProperty("/api/control-plane/v1/resources/{resourceId}/image", out _));
+        Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/revisions", out _));
+
         var createResource = schemas.GetProperty(nameof(CreateResourceRequest));
         Assert.Equal(
             "boolean",

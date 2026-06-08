@@ -55,6 +55,7 @@ public static class CloudShellControlPlaneApplicationExtensions
         endpoints.MapCloudShellControlPlaneOpenApi();
         endpoints.MapCloudShellBuiltInAuthority();
         endpoints.MapCloudShellControlPlaneApi();
+        endpoints.MapCloudShellContainerAppsApi();
         endpoints.MapCloudShellControlPlaneAuthentication();
 
         return endpoints;

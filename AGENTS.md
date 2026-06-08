@@ -25,7 +25,7 @@ For focused areas, read the relevant docs:
 - [Programmatic resources](docs/programmatic-resources.md)
 - [Resource templates](docs/resource-templates.md)
 - [Configuration services](docs/configuration-services.md)
-- [Executable applications](docs/executable-applications.md)
+- [Application resources](docs/resources/application-resources.md)
 - [Persistence](docs/persistence.md)
 
 ## Solution Shape

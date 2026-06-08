@@ -12,6 +12,7 @@ namespace CloudShell.ControlPlane.Client;
 public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
 {
     private const string RoutePrefix = "api/control-plane/v1";
+    private const string ContainerAppsRoutePrefix = "api/container-apps/v1";
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
@@ -237,7 +238,7 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
         CancellationToken cancellationToken = default)
     {
         var response = await httpClient.PostAsJsonAsync(
-            BuildUri($"resources/{Escape(command.ResourceId)}/image"),
+            BuildUri(ContainerAppsRoutePrefix, $"{Escape(command.ResourceId)}/revisions"),
             new UpdateResourceImageRequest(command.Image, command.RestartIfRunning, command.TriggeredBy),
             SerializerOptions,
             cancellationToken);
@@ -447,7 +448,15 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
         string path,
         params (string Name, string? Value)[] query)
     {
-        var uri = $"{RoutePrefix}/{path.TrimStart('/')}";
+        return BuildUri(RoutePrefix, path, query);
+    }
+
+    private static string BuildUri(
+        string routePrefix,
+        string path,
+        params (string Name, string? Value)[] query)
+    {
+        var uri = $"{routePrefix.TrimEnd('/')}/{path.TrimStart('/')}";
         var queryValues = query
             .Where(item => !string.IsNullOrWhiteSpace(item.Value))
             .Select(item => $"{Escape(item.Name)}={Escape(item.Value!)}")

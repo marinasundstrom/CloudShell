@@ -69,6 +69,10 @@ The MVP should prove:
 - Container app image deployments create and project a new app-owned revision;
   runtime container instances/replicas implement a revision but do not define
   the stable revision identity.
+- Build-server container app deployments should push an immutable image tag to
+  a registry, then call the authenticated Container Apps revision API with that
+  tag. The Control Plane authorizes the caller, updates the image, creates the
+  revision, and records resource events for traceability.
 
 ## Completed recently
 
@@ -147,10 +151,15 @@ The MVP should prove:
   actions through advertised hypermedia hrefs.
 - Grouped sample projects in the solution by sample scenario so logical
   solution folders match the physical `samples/` layout.
-- Added a domain/API image update command for top-level container app
-  resources, with actor-attributed resource events for traceability,
-  application-provider console logs for underlying container output, and
-  split-host client mapping.
+- Added a domain image update command for top-level container app resources,
+  exposed through a Container Apps revision API rather than a resource-specific
+  core Resource Manager route, with actor-attributed resource events for
+  traceability, application-provider console logs for underlying container
+  output, split-host client mapping, and documented registry-push deployment
+  procedure.
+- Split application resource documentation into a `docs/resources` area with
+  separate pages for executable applications, ASP.NET Core project resources,
+  and container apps.
 
 ## Active stabilization areas
 

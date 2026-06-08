@@ -77,13 +77,6 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resources/{resourceId}/actions/{actionId}", ExecuteResourceAction)
             .WithName("CloudShellControlPlane_ExecuteResourceAction");
 
-        api.MapPost("/resources/{resourceId}/image", UpdateResourceImage)
-            .WithName("CloudShellControlPlane_UpdateResourceImage")
-            .Accepts<UpdateResourceImageRequest>("application/json")
-            .Produces<ResourceProcedureResponse>(StatusCodes.Status200OK)
-            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
-            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
-
         api.MapGet("/resource-groups", ListResourceGroups)
             .WithName("CloudShellControlPlane_ListResourceGroups");
 
@@ -145,6 +138,24 @@ public static class CloudShellControlPlaneApiExtensions
 
         api.MapDelete("/environment-settings/{key}", RemoveUserSetting)
             .WithName("CloudShellControlPlane_RemoveEnvironmentSetting");
+
+        return api;
+    }
+
+    public static RouteGroupBuilder MapCloudShellContainerAppsApi(
+        this IEndpointRouteBuilder endpoints)
+    {
+        var api = endpoints
+            .MapGroup("/api/container-apps/v1")
+            .WithTags("Container Apps")
+            .WithGroupName(CloudShellControlPlaneApiDefaults.DocumentName);
+
+        api.MapPost("/{containerAppId}/revisions", CreateContainerAppRevision)
+            .WithName("CloudShellContainerApps_CreateRevision")
+            .Accepts<UpdateResourceImageRequest>("application/json")
+            .Produces<ResourceProcedureResponse>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
         return api;
     }
@@ -379,18 +390,18 @@ public static class CloudShellControlPlaneApiExtensions
         }
     }
 
-    private static async Task<IResult> UpdateResourceImage(
-        string resourceId,
+    private static async Task<IResult> CreateContainerAppRevision(
+        string containerAppId,
         UpdateResourceImageRequest request,
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
-        if (await resourceManager.GetResourceAsync(resourceId, cancellationToken) is null)
+        if (await resourceManager.GetResourceAsync(containerAppId, cancellationToken) is null)
         {
-            var error = ControlPlaneError.ResourceNotRegistered(resourceId);
+            var error = ControlPlaneError.ResourceNotRegistered(containerAppId);
             return Problem(
                 StatusCodes.Status404NotFound,
-                "Resource not found",
+                "Container app not found",
                 error.Message,
                 error.Code);
         }
@@ -399,7 +410,7 @@ public static class CloudShellControlPlaneApiExtensions
         {
             var result = await resourceManager.UpdateResourceImageAsync(
                 new UpdateResourceImageCommand(
-                    resourceId,
+                    containerAppId,
                     RequireValue(request.Image, nameof(request.Image)),
                     request.RestartIfRunning,
                     NormalizeOptional(request.TriggeredBy)),

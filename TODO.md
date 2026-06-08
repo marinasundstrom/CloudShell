@@ -10,6 +10,8 @@ verification baseline, and broader priorities.
 
 - Add a Resource Manager deployment affordance for container apps that calls
   `UpdateResourceImageAsync` with a selected image/version.
+- Add a build-action sample that pushes a container image to a registry and
+  calls the authenticated Container Apps revision API with the immutable tag.
 - Persist resource events and expose event filtering by event type, actor, and
   time range.
 - Define container app runtime instances/replicas separately from the stable

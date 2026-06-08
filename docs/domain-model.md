@@ -419,7 +419,16 @@ HTTP adapter.
 
 `UpdateResourceImageCommand` targets the top-level resource that owns the
 deployable image, such as a container app. It should not require consumers to
-target provider-specific runtime children such as Docker containers.
+target provider-specific runtime children such as Docker containers. In the HTTP
+projection this is exposed through the Container Apps API, for example creating
+a revision for a container app, rather than as a resource-type-specific route
+under the core Resource Manager `/resources` endpoints.
+
+The intended build-server deployment procedure is to push an immutable image tag
+to a registry, then call the authenticated Container Apps revision endpoint with
+that tag. The Control Plane authorizes the caller, updates the app-owned image
+configuration, creates a new revision, and records a resource event with the
+actor or external trigger supplied by the build action.
 
 `CreateResourceCommand` may carry `ResourceClass` and stable, non-secret
 attributes from the selected resource type or caller context. Creation providers
