@@ -130,22 +130,24 @@ The MVP should prove:
 - Added explicit start-after-create support for resource creation commands and
   runnable application registration UI, with provider policy carrying the
   default checkbox intent.
+- Aligned OpenAPI output with the domain-shaped resource projection for
+  resources, action affordance dictionaries, attributes, and creation options.
 
 ## Active stabilization areas
 
 - Resource model consistency across provider overrides.
 - Resource Manager state behavior and capability signaling.
-- API contract stability for projected resources, actions, and errors.
+- API contract stability for projected resources, actions, OpenAPI output, and
+  errors.
 - Sample coverage for combined and split hosting.
 - OpenAPI/client generation readiness.
 
 ## Next priorities
 
-1. Align OpenAPI output with the intended domain projection.
-2. Expand sample tests to cover the hypermedia resource action path.
-3. Continue tightening internal Resource Manager behavior as invalid-state gaps
+1. Expand sample tests to cover the hypermedia resource action path.
+2. Continue tightening internal Resource Manager behavior as invalid-state gaps
    are found.
-4. Document any remaining MVP gaps as concrete tests or issues.
+3. Document any remaining MVP gaps as concrete tests or issues.
 
 ## Verification baseline
 

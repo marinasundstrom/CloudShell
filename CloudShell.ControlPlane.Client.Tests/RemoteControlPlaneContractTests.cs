@@ -3,6 +3,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
+using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
@@ -153,6 +154,59 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(
             "/api/control-plane/v1/resources/contract%3Alifecycle/actions/stop",
             stop.GetProperty("href").GetString());
+    }
+
+    [Fact]
+    public async Task ControlPlaneOpenApi_DescribesDomainShapedResourceProjection()
+    {
+        await using var app = await CreateAppAsync();
+        var client = app.GetTestClient();
+
+        var response = await client.GetAsync("/openapi/control-plane-v1.json");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = document.RootElement;
+        var schemas = root.GetProperty("components").GetProperty("schemas");
+        Assert.True(schemas.TryGetProperty(nameof(ResourceResponse), out var resourceSchema));
+        Assert.True(schemas.TryGetProperty(nameof(ResourceActionResponse), out _));
+
+        var resourceProperties = resourceSchema.GetProperty("properties");
+        Assert.True(resourceProperties.TryGetProperty("resourceClass", out _));
+        Assert.True(resourceProperties.TryGetProperty("attributes", out var attributes));
+        Assert.Equal("object", attributes.GetProperty("type").GetString());
+        Assert.Equal(
+            "string",
+            attributes.GetProperty("additionalProperties").GetProperty("type").GetString());
+
+        var resourceActions = resourceProperties.GetProperty("resourceActions");
+        Assert.Equal("object", resourceActions.GetProperty("type").GetString());
+        Assert.Equal(
+            "#/components/schemas/ResourceActionResponse",
+            resourceActions.GetProperty("additionalProperties").GetProperty("$ref").GetString());
+
+        var listResources = root
+            .GetProperty("paths")
+            .GetProperty("/api/control-plane/v1/resources")
+            .GetProperty("get")
+            .GetProperty("responses")
+            .GetProperty("200")
+            .GetProperty("content")
+            .GetProperty("application/json")
+            .GetProperty("schema");
+        Assert.Equal("array", listResources.GetProperty("type").GetString());
+        Assert.Equal(
+            "#/components/schemas/ResourceResponse",
+            listResources.GetProperty("items").GetProperty("$ref").GetString());
+
+        var createResource = schemas.GetProperty(nameof(CreateResourceRequest));
+        Assert.Equal(
+            "boolean",
+            createResource
+                .GetProperty("properties")
+                .GetProperty("startAfterCreate")
+                .GetProperty("type")
+                .GetString());
     }
 
     [Fact]

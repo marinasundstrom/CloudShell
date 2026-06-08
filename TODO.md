@@ -13,4 +13,3 @@ No queued items.
 ## Resource Manager Stabilization
 
 - [ ] Expand sample tests for hypermedia resource actions.
-- [ ] Keep OpenAPI output aligned with the domain-shaped resource projection.

@@ -42,22 +42,31 @@ public static class CloudShellControlPlaneApiExtensions
             .WithGroupName(CloudShellControlPlaneApiDefaults.DocumentName);
 
         api.MapGet("/resources", ListResources)
-            .WithName("CloudShellControlPlane_ListResources");
+            .WithName("CloudShellControlPlane_ListResources")
+            .Produces<ResourceResponse[]>(StatusCodes.Status200OK);
 
         api.MapGet("/resources/available", ListAvailableResources)
-            .WithName("CloudShellControlPlane_ListAvailableResources");
+            .WithName("CloudShellControlPlane_ListAvailableResources")
+            .Produces<ResourceResponse[]>(StatusCodes.Status200OK);
 
         api.MapPost("/resources", CreateResource)
-            .WithName("CloudShellControlPlane_CreateResource");
+            .WithName("CloudShellControlPlane_CreateResource")
+            .Accepts<CreateResourceRequest>("application/json")
+            .Produces<ResourceResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
 
         api.MapPost("/resources/capabilities", GetResourceOperationCapabilities)
             .WithName("CloudShellControlPlane_GetResourceOperationCapabilities");
 
         api.MapGet("/resources/{resourceId}", GetResource)
-            .WithName("CloudShellControlPlane_GetResource");
+            .WithName("CloudShellControlPlane_GetResource")
+            .Produces<ResourceResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         api.MapGet("/resources/{resourceId}/children", ListResourceChildren)
-            .WithName("CloudShellControlPlane_ListResourceChildren");
+            .WithName("CloudShellControlPlane_ListResourceChildren")
+            .Produces<ResourceResponse[]>(StatusCodes.Status200OK);
 
         api.MapGet("/resources/{resourceId}/resource-group", GetResourceGroupForResource)
             .WithName("CloudShellControlPlane_GetResourceGroupForResource");
