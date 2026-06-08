@@ -16,12 +16,12 @@ public sealed class InProcessControlPlaneResourceStateTests
     public static TheoryData<ResourceState, string[]> StateResourceActionCapabilities =>
         new()
         {
-            { ResourceState.Running, ["stop", "pause", "restart"] },
-            { ResourceState.Starting, ["stop", "restart"] },
-            { ResourceState.Paused, ["run", "stop"] },
-            { ResourceState.Degraded, ["stop", "pause", "restart"] },
-            { ResourceState.Stopped, ["run"] },
-            { ResourceState.Unknown, ["run"] }
+            { ResourceState.Running, [ResourceActionIds.Stop, ResourceActionIds.Pause, ResourceActionIds.Restart] },
+            { ResourceState.Starting, [ResourceActionIds.Stop, ResourceActionIds.Restart] },
+            { ResourceState.Paused, [ResourceActionIds.Run, ResourceActionIds.Stop] },
+            { ResourceState.Degraded, [ResourceActionIds.Stop, ResourceActionIds.Pause, ResourceActionIds.Restart] },
+            { ResourceState.Stopped, [ResourceActionIds.Run] },
+            { ResourceState.Unknown, [ResourceActionIds.Run] }
         };
 
     [Theory]
@@ -50,10 +50,10 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Theory]
-    [InlineData(ResourceState.Running, "run")]
-    [InlineData(ResourceState.Stopped, "stop")]
-    [InlineData(ResourceState.Paused, "restart")]
-    [InlineData(ResourceState.Unknown, "pause")]
+    [InlineData(ResourceState.Running, ResourceActionIds.Run)]
+    [InlineData(ResourceState.Stopped, ResourceActionIds.Stop)]
+    [InlineData(ResourceState.Paused, ResourceActionIds.Restart)]
+    [InlineData(ResourceState.Unknown, ResourceActionIds.Pause)]
     public async Task ExecuteResourceActionAsync_RejectsStateInvalidActions(
         ResourceState state,
         string actionId)
@@ -75,7 +75,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
 
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
-            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("missing", "stop")));
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("missing", ResourceActionIds.Stop)));
 
         Assert.Equal(ControlPlaneErrorCodes.ResourceNotRegistered, exception.Error.Code);
         Assert.Equal("Resource 'missing' is not registered.", exception.Message);
@@ -102,7 +102,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             provider);
 
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
-            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", "stop")));
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Stop)));
 
         Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnsupported, exception.Error.Code);
         Assert.Equal("Resource 'target' does not support actions.", exception.Message);
@@ -118,7 +118,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             authorization: new DenyAuthorizationService());
 
         var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
-            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", "stop")));
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Stop)));
 
         Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
         Assert.Equal("The 'resources.manage' permission is required for resource 'target'.", exception.Message);
@@ -126,9 +126,9 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Theory]
-    [InlineData(ResourceState.Starting, "restart")]
-    [InlineData(ResourceState.Paused, "stop")]
-    [InlineData(ResourceState.Unknown, "run")]
+    [InlineData(ResourceState.Starting, ResourceActionIds.Restart)]
+    [InlineData(ResourceState.Paused, ResourceActionIds.Stop)]
+    [InlineData(ResourceState.Unknown, ResourceActionIds.Run)]
     public async Task ExecuteResourceActionAsync_AllowsStateValidActions(
         ResourceState state,
         string actionId)
@@ -153,7 +153,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             provider);
 
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
-            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", "stop")));
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Stop)));
 
         Assert.Equal(ControlPlaneErrorCodes.DependentResourcesRunning, exception.Error.Code);
         Assert.Contains("depend on this resource", exception.Message, StringComparison.OrdinalIgnoreCase);
@@ -171,7 +171,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             ],
             provider);
 
-        await controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", "stop"));
+        await controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Stop));
 
         Assert.Equal(["target:stop"], provider.ExecutedActions);
     }

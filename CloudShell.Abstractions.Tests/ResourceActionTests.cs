@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Abstractions.Tests;
@@ -28,8 +29,56 @@ public sealed class ResourceActionTests
     }
 
     [Fact]
+    public void CloudResource_ProvidesCaseInsensitiveActionLookup()
+    {
+        var resource = CreateResource([ResourceAction.Stop, new ResourceAction("custom", "Custom")]);
+
+        Assert.True(resource.HasAction(ResourceActionIds.Stop));
+        Assert.True(resource.HasAction("STOP"));
+        Assert.NotNull(resource.StopAction);
+        Assert.Null(resource.RunAction);
+        Assert.Equal("custom", resource.GetAction("CUSTOM")?.Id);
+    }
+
+    [Fact]
+    public void ResourceOperationCapabilities_ProvidesCaseInsensitiveActionLookup()
+    {
+        var capabilities = new ResourceOperationCapabilities(
+            "sample:resource",
+            true,
+            true,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ResourceActionIds.Run,
+                ResourceActionIds.Restart
+            },
+            [
+                new ResourceActionCapability(ResourceActionIds.Run, true),
+                new ResourceActionCapability(ResourceActionIds.Stop, false, "Cannot stop while stopped."),
+                new ResourceActionCapability(ResourceActionIds.Restart, true)
+            ]);
+
+        Assert.True(capabilities.CanRun);
+        Assert.False(capabilities.CanStop);
+        Assert.True(capabilities.CanExecuteAction("RESTART"));
+        Assert.Equal("Cannot stop while stopped.", capabilities.GetActionUnavailableReason("STOP"));
+
+        var legacyCapabilities = new ResourceOperationCapabilities(
+            "sample:resource",
+            true,
+            true,
+            new HashSet<string> { ResourceActionIds.Restart });
+
+        Assert.True(legacyCapabilities.CanExecuteAction("RESTART"));
+    }
+
+    [Fact]
     public void StandardActions_MarkDisruptiveCommandsForConfirmation()
     {
+        Assert.Equal(ResourceActionIds.Run, ResourceAction.Run.Id);
+        Assert.Equal(ResourceActionIds.Stop, ResourceAction.Stop.Id);
+        Assert.Equal(ResourceActionIds.Pause, ResourceAction.Pause.Id);
+        Assert.Equal(ResourceActionIds.Restart, ResourceAction.Restart.Id);
         Assert.False(ResourceAction.Run.RequiresConfirmation);
         Assert.True(ResourceAction.Stop.RequiresConfirmation);
         Assert.True(ResourceAction.Pause.RequiresConfirmation);

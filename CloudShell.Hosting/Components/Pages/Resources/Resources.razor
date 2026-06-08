@@ -1110,11 +1110,10 @@
         try
         {
             var result = await ResourceManager.ExecuteResourceActionAsync(
-                new ExecuteResourceActionCommand(
-                    resource.Id,
-                    action.Id,
-                    StartDependencies: startDependencies,
-                    IgnoreDependentWarning: true));
+                resource,
+                action,
+                startDependencies,
+                ignoreDependentWarning: true);
             ProcedureMessage = result.Message;
             await LoadResourceModelAsync();
         }
@@ -1185,11 +1184,11 @@
         GetCapabilities(resource).CanDelete;
 
     private bool CanExecuteAction(CloudResource resource, ResourceAction action) =>
-        GetCapabilities(resource).ExecutableActionIds.Contains(action.Id);
+        GetCapabilities(resource).CanExecuteAction(action.Id);
 
     private ResourceOperationCapabilities GetCapabilities(CloudResource resource) =>
         ResourceCapabilities.GetValueOrDefault(resource.Id) ??
-        new ResourceOperationCapabilities(resource.Id, false, false, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        ResourceOperationCapabilities.None(resource.Id);
 
     private bool IsExecutingAction(CloudResource resource, ResourceAction action) =>
         string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);

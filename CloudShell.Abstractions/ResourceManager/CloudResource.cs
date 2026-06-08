@@ -24,6 +24,20 @@ public sealed record CloudResource(
 
     public IReadOnlyList<ResourceAction> ResourceActions => Actions ?? [];
 
+    public ResourceAction? GetAction(string actionId) =>
+        ResourceActions.FirstOrDefault(action =>
+            string.Equals(action.Id, actionId, StringComparison.OrdinalIgnoreCase));
+
+    public bool HasAction(string actionId) => GetAction(actionId) is not null;
+
+    public ResourceAction? RunAction => GetAction(ResourceActionIds.Run);
+
+    public ResourceAction? StopAction => GetAction(ResourceActionIds.Stop);
+
+    public ResourceAction? PauseAction => GetAction(ResourceActionIds.Pause);
+
+    public ResourceAction? RestartAction => GetAction(ResourceActionIds.Restart);
+
     public IReadOnlyList<ResourceHealthCheck> ResourceHealthChecks => HealthChecks ?? [];
 
     public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;

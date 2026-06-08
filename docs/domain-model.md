@@ -16,17 +16,17 @@ affordances.
 | Level | Audience | Purpose | Examples |
 | --- | --- | --- | --- |
 | Product concepts | Users and extension authors | Describe what CloudShell manages and shows | resources, resource groups, lifecycle actions, logs |
-| Public domain abstraction | Shell integrations and remote adapters | Let consumers work with the Control Plane without caring about transport | `IResourceManager`, `IResourceTemplateManager`, `ILogManager`, `CloudResource` |
+| Public domain abstraction | Shell integrations and remote adapters | Cloud-plane client API for the Control Plane domain without caring about transport | `IResourceManager`, `IResourceTemplateManager`, `ILogManager`, `CloudResource` |
 | Internal Control Plane services | Control Plane implementation | Coordinate state, providers, persistence, authorization, and procedures | `InProcessControlPlane`, `IResourceManagerStore`, `IResourceRegistrationStore`, `ResourceOrchestrationService` |
 | Provider contracts | Provider and extension packages | Project external systems into CloudShell and execute provider-owned operations | `IResourceProvider`, `IResourceCreationProvider`, `IResourceProcedureProvider`, `IResourceTemplateProvider` |
 | HTTP API projection | Remote Control Plane clients and generated clients | Versioned contract for the same domain entities and relationships | `/api/control-plane/v1/resources`, `ResourceResponse`, `resourceActions` |
 | UI projection | Shell UI and extension views | Render resources and operations for users | Resource Manager pages, detail routes, provider-owned views |
 
-The higher-level public abstraction should be less granular than the internal
-Control Plane implementation. A consumer asks the domain manager to list
-resources or execute a resource action. It should not need to compose
-registration stores, provider stores, route templates, and generated HTTP
-clients itself.
+The higher-level public abstraction is the cloud-plane client API. It should be
+less granular than the internal Control Plane implementation while still using
+the same domain concepts. A consumer asks the domain manager to list resources
+or execute a resource action. It should not need to compose registration
+stores, provider stores, route templates, and generated HTTP clients itself.
 
 ## Core concepts
 
@@ -52,6 +52,13 @@ Important properties:
 
 `CloudResource` is a projection. It does not imply CloudShell owns all
 underlying provider configuration or runtime state.
+
+As a client API entity, `CloudResource` should be convenient to inspect without
+becoming an active service object. It may expose domain helpers such as
+case-insensitive resource-action lookup and standard lifecycle action
+properties. It should not execute operations itself. Commands still go through
+`IResourceManager`, which can represent either the in-process Control Plane or a
+remote API-backed adapter.
 
 ### Resource type
 
@@ -155,6 +162,12 @@ The provider declares the action surface on `CloudResource.ResourceActions`.
 The Control Plane validates state, authorization, provider support, and other
 constraints before dispatching execution.
 
+The public abstraction defines canonical action IDs for standard lifecycle
+actions. Consumers should use those IDs and `CloudResource` action lookup
+helpers instead of hard-coding string literals or route templates. The list of
+actions on a resource means "this operation exists for this resource"; it does
+not mean the current caller can execute the operation right now.
+
 ### Resource action capability
 
 A resource action capability describes whether a resource action can currently
@@ -172,6 +185,23 @@ Capabilities are separate from actions:
 
 Capability decisions can combine authorization, resource state, provider
 support, dependency warnings, and other operational constraints.
+
+As a client API convenience, `ResourceOperationCapabilities` can expose
+case-insensitive action-capability lookup and standard lifecycle booleans. This
+keeps the consumer workflow explicit:
+
+1. Inspect `CloudResource.ResourceActions` to discover the resource operation.
+2. Inspect `ResourceOperationCapabilities` to decide whether it can execute now.
+3. Call `IResourceManager.ExecuteResourceActionAsync` to request execution.
+
+The public abstraction may provide manager extension methods for common
+lifecycle operations, such as run, stop, pause, and restart. These helpers
+should construct domain commands for `IResourceManager`; they should not move
+execution behavior onto `CloudResource`.
+
+Client convenience APIs can also provide singular capability lookup helpers for
+a resource. Those helpers are still manager operations because the Control Plane
+owns authorization and state decisions. The resource projection remains passive.
 
 ### Log
 

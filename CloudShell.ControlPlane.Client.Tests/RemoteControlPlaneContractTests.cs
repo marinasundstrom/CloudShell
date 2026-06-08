@@ -113,11 +113,11 @@ public sealed class RemoteControlPlaneContractTests
             .EnumerateArray()
             .Single(item => item.GetProperty("id").GetString() == ContractLifecycleResourceProvider.ResourceId);
         var actions = resource.GetProperty("resourceActions");
-        var stop = actions.GetProperty("stop");
+        var stop = actions.GetProperty(ResourceActionIds.Stop);
 
         Assert.False(resource.TryGetProperty("actions", out _));
         Assert.Equal(JsonValueKind.Object, actions.ValueKind);
-        Assert.Equal("stop", stop.GetProperty("id").GetString());
+        Assert.Equal(ResourceActionIds.Stop, stop.GetProperty("id").GetString());
         Assert.Equal("Stop", stop.GetProperty("displayName").GetString());
         Assert.Equal("POST", stop.GetProperty("method").GetString());
         Assert.Equal(
@@ -249,9 +249,8 @@ public sealed class RemoteControlPlaneContractTests
 
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
             controlPlane.ExecuteResourceActionAsync(
-                new ExecuteResourceActionCommand(
-                    ContractLifecycleResourceProvider.ResourceId,
-                    "missing")));
+                ContractLifecycleResourceProvider.ResourceId,
+                "missing"));
 
         Assert.Equal(ControlPlaneErrorCodes.ResourceActionNotFound, exception.Error.Code);
         Assert.Equal(

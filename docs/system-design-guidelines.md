@@ -28,11 +28,13 @@ The WebUI is the shell surface. The Control Plane owns resource inventory,
 registrations, lifecycle procedures, logs, templates, and provider-backed
 operational data.
 
-Shell integrations should depend on domain managers such as `IResourceManager`,
-`IResourceTemplateManager`, `ILogManager`, and `ITraceManager`. In combined
-hosts these map to in-process services. In split hosts they map to remote
-clients. UI and extension code should not depend directly on internal Control
-Plane stores, providers, or generated HTTP clients.
+Shell integrations should depend on the cloud-plane client API in
+`CloudShell.Abstractions`: domain managers such as `IResourceManager`,
+`IResourceTemplateManager`, `ILogManager`, and `ITraceManager`, plus projected
+domain entities such as `CloudResource`. In combined hosts these managers map
+to in-process services. In split hosts they map to remote clients. UI and
+extension code should not depend directly on internal Control Plane stores,
+providers, or generated HTTP clients.
 
 Internal Control Plane services can use lower-level provider and store
 interfaces such as `IResourceManagerStore`, `IResourceRegistrationStore`, and
@@ -48,6 +50,12 @@ provider-declared resource actions.
 Resource actions are domain operations on a resource. Standard lifecycle
 actions use `ResourceActionKind.Run`, `Stop`, `Pause`, and `Restart`. Custom
 provider actions use stable IDs. Resource actions are not UI actions.
+Use canonical action IDs from the public abstraction for standard lifecycle
+actions. `CloudResource` may provide lookup helpers for those actions, but it
+must remain a projected entity; execution is requested through
+`IResourceManager`. Client API convenience methods should be manager extensions
+that construct domain commands or query capabilities, not active methods on the
+resource entity.
 
 API resource responses should expose resource actions as hypermedia
 affordances on the projected resource, keyed by action ID. Consumers should be

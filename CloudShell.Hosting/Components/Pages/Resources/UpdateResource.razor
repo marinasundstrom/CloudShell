@@ -260,12 +260,9 @@
         IsRestarting = true;
         try
         {
-            var result = await ResourceManager.ExecuteResourceActionAsync(
-                new ExecuteResourceActionCommand(
-                    PendingRestart.ResourceId,
-                    ResourceAction.Restart.Id,
-                    StartDependencies: false,
-                    IgnoreDependentWarning: true));
+            var result = await ResourceManager.RestartResourceAsync(
+                PendingRestart.ResourceId,
+                ignoreDependentWarning: true);
             ProcedureMessage = result.Message;
             PendingRestart = null;
 

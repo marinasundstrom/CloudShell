@@ -56,6 +56,11 @@ The MVP should prove:
 - Added delete/action contract-error coverage for missing resources, missing
   actions, unsupported providers, permission denial, dependent warnings, and
   delete capability alignment.
+- Clarified that `CloudShell.Abstractions` is the cloud-plane client API and
+  that projected resources expose action discovery while managers execute
+  commands.
+- Added client API helpers for canonical resource action IDs, resource action
+  lookup, capability lookup, and manager-driven lifecycle action execution.
 
 ## Active stabilization areas
 

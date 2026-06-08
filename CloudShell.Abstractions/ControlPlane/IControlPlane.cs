@@ -178,6 +178,14 @@ public sealed record ResourceOperationCapabilities(
     IReadOnlySet<string> ExecutableActionIds,
     IReadOnlyList<ResourceActionCapability> ResourceActionCapabilities)
 {
+    public static ResourceOperationCapabilities None(string resourceId) =>
+        new(
+            resourceId,
+            false,
+            false,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            []);
+
     public ResourceOperationCapabilities(
         string resourceId,
         bool canManage,
@@ -193,6 +201,25 @@ public sealed record ResourceOperationCapabilities(
                 .ToArray())
     {
     }
+
+    public ResourceActionCapability? GetActionCapability(string actionId) =>
+        ResourceActionCapabilities.FirstOrDefault(capability =>
+            string.Equals(capability.ActionId, actionId, StringComparison.OrdinalIgnoreCase));
+
+    public bool CanExecuteAction(string actionId) =>
+        GetActionCapability(actionId)?.CanExecute ??
+        ExecutableActionIds.Contains(actionId, StringComparer.OrdinalIgnoreCase);
+
+    public string? GetActionUnavailableReason(string actionId) =>
+        GetActionCapability(actionId)?.Reason;
+
+    public bool CanRun => CanExecuteAction(ResourceActionIds.Run);
+
+    public bool CanStop => CanExecuteAction(ResourceActionIds.Stop);
+
+    public bool CanPause => CanExecuteAction(ResourceActionIds.Pause);
+
+    public bool CanRestart => CanExecuteAction(ResourceActionIds.Restart);
 }
 
 public sealed record ResourceActionCapability(

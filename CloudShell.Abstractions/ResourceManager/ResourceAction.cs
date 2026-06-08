@@ -1,5 +1,13 @@
 namespace CloudShell.Abstractions.ResourceManager;
 
+public static class ResourceActionIds
+{
+    public const string Run = "run";
+    public const string Stop = "stop";
+    public const string Pause = "pause";
+    public const string Restart = "restart";
+}
+
 public sealed record ResourceAction(
     string Id,
     string DisplayName,
@@ -13,27 +21,27 @@ public sealed record ResourceAction(
     public bool RequiresConfirmation => EffectivePresentation.RequiresConfirmation;
 
     public static ResourceAction Run { get; } = new(
-        "run",
+        ResourceActionIds.Run,
         "Run",
         ResourceActionKind.Run,
         Presentation: ResourceActionPresentation.ForKind(ResourceActionKind.Run));
 
     public static ResourceAction Stop { get; } = new(
-        "stop",
+        ResourceActionIds.Stop,
         "Stop",
         ResourceActionKind.Stop,
         "Stop the running resource.",
         ResourceActionPresentation.ForKind(ResourceActionKind.Stop));
 
     public static ResourceAction Pause { get; } = new(
-        "pause",
+        ResourceActionIds.Pause,
         "Pause",
         ResourceActionKind.Pause,
         "Pause the running resource.",
         ResourceActionPresentation.ForKind(ResourceActionKind.Pause));
 
     public static ResourceAction Restart { get; } = new(
-        "restart",
+        ResourceActionIds.Restart,
         "Restart",
         ResourceActionKind.Restart,
         "Restart the resource.",
