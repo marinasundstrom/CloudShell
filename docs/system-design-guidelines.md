@@ -77,6 +77,19 @@ UI actions are downstream presentation choices. A UI button or menu item may
 use a resource action and capability, but the UI element is not the domain
 action.
 
+Resource model validation belongs at the model and resource-management
+boundaries, not in UI components. A known resource type and its projected
+`ResourceClass` must stay consistent across resource type contributions,
+creation requests, programmatic declarations, and provider projections. When a
+provider or declaration projects a known resource type with the wrong class,
+Resource Manager should normalize the projected resource back to the type's
+class and expose a diagnostic instead of returning an invalid resource model.
+
+Prefer result objects or diagnostics for expected validation outcomes in domain
+APIs. Exceptions are still appropriate for programmer errors and for boundary
+adapters that must translate an invalid command into a stable API error, but
+the reusable model rule should be expressible without throwing.
+
 ## State and capability rules
 
 State-specific behavior belongs in the Control Plane service boundary, not in

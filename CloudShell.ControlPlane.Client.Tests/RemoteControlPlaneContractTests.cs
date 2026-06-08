@@ -277,6 +277,35 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task ControlPlaneApi_ReturnsProblemForResourceClassMismatch()
+    {
+        await using var app = await CreateAppAsync();
+        var client = app.GetTestClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/control-plane/v1/resources",
+            new
+            {
+                providerId = PlatformResourceProvider.ProviderId,
+                resourceType = PlatformResourceProvider.ServiceResourceType,
+                resourceId = "service:invalid",
+                name = "Invalid Service",
+                configuration = new ServiceResourceDefinition(
+                    "service:invalid",
+                    "Invalid Service",
+                    [],
+                    [],
+                    []),
+                resourceClass = ResourceClass.Network
+            });
+
+        await AssertProblemAsync(
+            response,
+            "Resource 'service:invalid' uses type 'cloudshell.service' which requires class 'Service', but creation request declares class 'Network'.",
+            ControlPlaneErrorCodes.ResourceClassMismatch);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_ThrowsContractErrorForInvalidRequest()
     {
         await using var app = await CreateAppAsync();

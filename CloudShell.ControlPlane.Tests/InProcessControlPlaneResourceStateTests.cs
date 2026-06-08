@@ -344,7 +344,13 @@ public sealed class InProcessControlPlaneResourceStateTests
     public async Task CreateResourceAsync_PassesClassAndAttributesToCreationProvider()
     {
         var provider = new TestResourceCreationProvider();
-        var controlPlane = CreateControlPlane([], provider);
+        var controlPlane = CreateControlPlane(
+            [],
+            provider,
+            resourceTypeClasses: new Dictionary<string, ResourceClass>
+            {
+                ["test.resource"] = ResourceClass.Project
+            });
 
         await controlPlane.CreateResourceAsync(
             new CreateResourceCommand(
@@ -366,11 +372,63 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.False(provider.CreatedRequest.ResourceAttributes.ContainsKey("empty"));
     }
 
+    [Fact]
+    public async Task CreateResourceAsync_UsesResourceTypeClassWhenCreationClassIsOmitted()
+    {
+        var provider = new TestResourceCreationProvider();
+        var controlPlane = CreateControlPlane(
+            [],
+            provider,
+            resourceTypeClasses: new Dictionary<string, ResourceClass>
+            {
+                ["test.resource"] = ResourceClass.Project
+            });
+
+        await controlPlane.CreateResourceAsync(
+            new CreateResourceCommand(
+                "test",
+                "test.resource",
+                "target",
+                "Target",
+                JsonSerializer.SerializeToElement(new { enabled = true })));
+
+        Assert.NotNull(provider.CreatedRequest);
+        Assert.Equal(ResourceClass.Project, provider.CreatedRequest.ResourceClass);
+    }
+
+    [Fact]
+    public async Task CreateResourceAsync_RejectsResourceClassMismatch()
+    {
+        var provider = new TestResourceCreationProvider();
+        var controlPlane = CreateControlPlane(
+            [],
+            provider,
+            resourceTypeClasses: new Dictionary<string, ResourceClass>
+            {
+                ["test.resource"] = ResourceClass.Project
+            });
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.CreateResourceAsync(
+                new CreateResourceCommand(
+                    "test",
+                    "test.resource",
+                    "target",
+                    "Target",
+                    JsonSerializer.SerializeToElement(new { enabled = true }),
+                    ResourceClass: ResourceClass.Container)));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceClassMismatch, exception.Error.Code);
+        Assert.Contains("requires class 'Project'", exception.Message, StringComparison.Ordinal);
+        Assert.Null(provider.CreatedRequest);
+    }
+
     private static IResourceManager CreateControlPlane(
         IReadOnlyList<Resource> resources,
         IResourceProvider? provider = null,
         IReadOnlyList<ResourceGroup>? groups = null,
-        ICloudShellAuthorizationService? authorization = null)
+        ICloudShellAuthorizationService? authorization = null,
+        IReadOnlyDictionary<string, ResourceClass>? resourceTypeClasses = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
@@ -380,7 +438,11 @@ public sealed class InProcessControlPlaneResourceStateTests
                 null,
                 DateTimeOffset.UtcNow,
                 resource.DependsOn)));
-        var resourceManager = new TestResourceManagerStore(resources, [provider], groups ?? []);
+        var resourceManager = new TestResourceManagerStore(
+            resources,
+            [provider],
+            groups ?? [],
+            resourceTypeClasses ?? new Dictionary<string, ResourceClass>());
         var resourceGroups = new TestResourceGroupStore(groups ?? []);
         var templates = new ResourceTemplateService(resourceManager, resourceGroups, registrations);
         var orchestration = new ResourceOrchestrationService(
@@ -495,7 +557,8 @@ public sealed class InProcessControlPlaneResourceStateTests
     private sealed class TestResourceManagerStore(
         IReadOnlyList<Resource> resources,
         IReadOnlyList<IResourceProvider> providers,
-        IReadOnlyList<ResourceGroup> groups) : IResourceManagerStore
+        IReadOnlyList<ResourceGroup> groups,
+        IReadOnlyDictionary<string, ResourceClass> resourceTypeClasses) : IResourceManagerStore
     {
         public IReadOnlyList<IResourceProvider> Providers => providers;
 
@@ -504,6 +567,11 @@ public sealed class InProcessControlPlaneResourceStateTests
         public IReadOnlyList<Resource> GetAvailableResources() => resources;
 
         public IReadOnlyList<Resource> GetResources() => resources;
+
+        public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
+
+        public ResourceClass? GetResourceTypeClass(string resourceType) =>
+            resourceTypeClasses.GetValueOrDefault(resourceType);
 
         public Resource? GetResource(string id) =>
             resources.FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));

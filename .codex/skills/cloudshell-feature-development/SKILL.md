@@ -33,12 +33,15 @@ Then inspect the relevant implementation and tests before editing.
    resource/domain contracts.
 3. Prefer hypermedia affordances on projected artifacts when an API response
    exposes an operation that can be taken on that artifact.
-4. Add focused tests at the owning layer. Add contract tests when an API shape
+4. Prefer result objects or diagnostics for expected domain validation
+   outcomes; reserve exceptions for programmer errors or boundary adapters that
+   must translate invalid commands into API errors.
+5. Add focused tests at the owning layer. Add contract tests when an API shape
    or remote adapter changes.
-5. Update docs when a feature changes system concepts, hosting guidance, API
+6. Update docs when a feature changes system concepts, hosting guidance, API
    shape, or MVP progress.
-6. Update `TODO.md` when the feature changes the current task queue.
-7. Run the relevant narrow tests first, then the verification baseline from
+7. Update `TODO.md` when the feature changes the current task queue.
+8. Run the relevant narrow tests first, then the verification baseline from
    `docs/progress.md` for cross-boundary changes.
 
 ## Output expectations

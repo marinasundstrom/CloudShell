@@ -59,6 +59,13 @@ Builders are declaration-time abstractions. They create uniform `Resource`
 projections plus provider-owned configuration; they are not runtime resource
 subclasses.
 
+Declaration metadata participates in the same resource model validation as
+other resource-management paths. If a builder or low-level declaration assigns a
+`ResourceClass` for a known resource type, that class must match the class
+declared by the resource type. Resource Manager reports mismatches as resource
+model diagnostics and keeps the projected `Resource` normalized to the known
+type class.
+
 CloudShell uses the same terminology across providers for resource graph
 relationships:
 

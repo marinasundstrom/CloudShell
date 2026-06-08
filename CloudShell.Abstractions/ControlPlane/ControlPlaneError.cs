@@ -17,6 +17,9 @@ public sealed record ControlPlaneError(
             ControlPlaneErrorCodes.ResourceProviderCannotCreate,
             $"Resource provider '{providerId}' cannot create resource type '{resourceType}'.");
 
+    public static ControlPlaneError ResourceClassMismatch(string message) =>
+        new(ControlPlaneErrorCodes.ResourceClassMismatch, message);
+
     public static ControlPlaneError ResourceNotAvailable(string resourceId) =>
         new(
             ControlPlaneErrorCodes.ResourceNotAvailable,
@@ -64,6 +67,7 @@ public static class ControlPlaneErrorCodes
     public const string InvalidRequest = "invalidRequest";
     public const string ResourceProviderNotFound = "resourceProviderNotFound";
     public const string ResourceProviderCannotCreate = "resourceProviderCannotCreate";
+    public const string ResourceClassMismatch = "resourceClassMismatch";
     public const string ResourceNotAvailable = "resourceNotAvailable";
     public const string ResourceNotRegistered = "resourceNotRegistered";
     public const string ResourceActionNotFound = "resourceActionNotFound";

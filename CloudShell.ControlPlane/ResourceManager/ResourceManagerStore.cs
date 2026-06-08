@@ -18,20 +18,28 @@ public sealed class ResourceManagerStore(
         .OrderBy(provider => provider.DisplayName, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
-    public IReadOnlyList<Resource> GetAvailableResources() => Providers
-        .SelectMany(provider => provider.GetResources())
-        .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-        .ToArray();
+    public IReadOnlyList<Resource> GetAvailableResources()
+    {
+        var resourceTypeClasses = GetResourceTypeClasses();
+        var diagnostics = new List<ResourceModelDiagnostic>();
+        return Providers
+            .SelectMany(provider => provider.GetResources())
+            .Select(resource => ApplyResourceClass(resource, resourceTypeClasses, "provider projection", diagnostics))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
 
     public IReadOnlyList<Resource> GetResources()
     {
+        var resourceTypeClasses = GetResourceTypeClasses();
+        var diagnostics = new List<ResourceModelDiagnostic>();
         var available = GetAvailableResources();
         var declarationsById = declarations.GetDeclarations()
             .ToDictionary(
                 declaration => declaration.ResourceId,
                 StringComparer.OrdinalIgnoreCase);
         var projected = available
-            .Select(resource => ApplyDeclarationMetadata(resource, declarationsById))
+            .Select(resource => ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics))
             .ToArray();
         var registrationsById = registrations.GetRegistrations()
             .ToDictionary(
@@ -70,6 +78,33 @@ public sealed class ResourceManagerStore(
 
     public Resource? GetResource(string id) =>
         GetResources().FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
+
+    public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics()
+    {
+        var resourceTypeClasses = GetResourceTypeClasses();
+        var diagnostics = new List<ResourceModelDiagnostic>();
+        var available = Providers
+            .SelectMany(provider => provider.GetResources())
+            .Select(resource => ApplyResourceClass(resource, resourceTypeClasses, "provider projection", diagnostics))
+            .ToArray();
+        var declarationsById = declarations.GetDeclarations()
+            .ToDictionary(
+                declaration => declaration.ResourceId,
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var resource in available)
+        {
+            _ = ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics);
+        }
+
+        return diagnostics.ToArray();
+    }
+
+    public ResourceClass? GetResourceTypeClass(string resourceType)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceType);
+        return GetResourceTypeClasses().GetValueOrDefault(resourceType.Trim());
+    }
 
     public IReadOnlyList<Resource> GetChildren(string resourceId) =>
         GetResources()
@@ -171,7 +206,9 @@ public sealed class ResourceManagerStore(
 
     private static Resource ApplyDeclarationMetadata(
         Resource resource,
-        IReadOnlyDictionary<string, ResourceDeclaration> declarationsById)
+        IReadOnlyDictionary<string, ResourceDeclaration> declarationsById,
+        IReadOnlyDictionary<string, ResourceClass> resourceTypeClasses,
+        List<ResourceModelDiagnostic> diagnostics)
     {
         if (!declarationsById.TryGetValue(resource.Id, out var declaration) ||
             (string.IsNullOrWhiteSpace(declaration.ParentResourceId) &&
@@ -181,12 +218,14 @@ public sealed class ResourceManagerStore(
             return resource;
         }
 
+        var resourceClass = ResolveDeclarationResourceClass(resource, declaration, resourceTypeClasses, diagnostics);
+
         return resource with
         {
             ParentResourceId = string.IsNullOrWhiteSpace(declaration.ParentResourceId)
                 ? resource.ParentResourceId
                 : declaration.ParentResourceId,
-            ResourceClass = declaration.ResourceClassOverride ?? resource.ResourceClass,
+            ResourceClass = resourceClass,
             Attributes = MergeAttributes(resource.ResourceAttributes, declaration.ResourceAttributes)
         };
     }
@@ -207,6 +246,83 @@ public sealed class ResourceManagerStore(
         }
 
         return merged;
+    }
+
+    private IReadOnlyDictionary<string, ResourceClass> GetResourceTypeClasses()
+    {
+        var resourceTypeClasses = new Dictionary<string, ResourceClass>(StringComparer.OrdinalIgnoreCase)
+        {
+            [PlatformResourceProvider.NetworkResourceType] = ResourceClass.Network,
+            [PlatformResourceProvider.ServiceResourceType] = ResourceClass.Service
+        };
+
+        foreach (var resourceType in extensionRegistry
+                     .GetActiveExtensions(activationStore)
+                     .SelectMany(extension => extension.ResourceTypes))
+        {
+            resourceTypeClasses[resourceType.Id] = resourceType.ResourceClass;
+        }
+
+        return resourceTypeClasses;
+    }
+
+    private static Resource ApplyResourceClass(
+        Resource resource,
+        IReadOnlyDictionary<string, ResourceClass> resourceTypeClasses,
+        string source,
+        List<ResourceModelDiagnostic> diagnostics)
+    {
+        if (!resourceTypeClasses.TryGetValue(resource.EffectiveTypeId, out var expectedResourceClass))
+        {
+            return resource;
+        }
+
+        var result = ResourceModelValidation.ValidateResourceClass(
+            resource.Id,
+            resource.EffectiveTypeId,
+            expectedResourceClass,
+            resource.ResourceClass,
+            source);
+
+        if (result.Succeeded)
+        {
+            return resource;
+        }
+
+        diagnostics.Add(result.Diagnostic!);
+        return resource with { ResourceClass = expectedResourceClass };
+    }
+
+    private static ResourceClass ResolveDeclarationResourceClass(
+        Resource resource,
+        ResourceDeclaration declaration,
+        IReadOnlyDictionary<string, ResourceClass> resourceTypeClasses,
+        List<ResourceModelDiagnostic> diagnostics)
+    {
+        if (declaration.ResourceClassOverride is null)
+        {
+            return resource.ResourceClass;
+        }
+
+        if (!resourceTypeClasses.TryGetValue(resource.EffectiveTypeId, out var expectedResourceClass))
+        {
+            return declaration.ResourceClassOverride.Value;
+        }
+
+        var result = ResourceModelValidation.ValidateResourceClass(
+            resource.Id,
+            resource.EffectiveTypeId,
+            expectedResourceClass,
+            declaration.ResourceClassOverride.Value,
+            "declaration metadata");
+
+        if (result.Succeeded)
+        {
+            return declaration.ResourceClassOverride.Value;
+        }
+
+        diagnostics.Add(result.Diagnostic!);
+        return expectedResourceClass;
     }
 
     private bool IsProviderActive(IResourceProvider provider)

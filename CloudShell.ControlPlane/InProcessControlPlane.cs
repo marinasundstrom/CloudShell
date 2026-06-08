@@ -94,13 +94,14 @@ public sealed class InProcessControlPlane(
         var name = RequireValue(command.Name, nameof(command.Name));
         var configuration = RequireConfiguration(command.Configuration);
         var resourceGroupId = NormalizeOptional(command.ResourceGroupId);
+        var resourceClass = ResolveCreationResourceClass(resourceId, resourceType, command.ResourceClass);
         var request = new ResourceCreationRequest(
             resourceType,
             resourceId,
             name,
             configuration,
             resourceGroupId,
-            command.ResourceClass,
+            resourceClass,
             NormalizeAttributes(command.ResourceAttributes));
         EnsureResourceGroupExists(resourceGroupId);
 
@@ -515,6 +516,30 @@ public sealed class InProcessControlPlane(
         {
             throw new ControlPlaneException(ControlPlaneError.ResourceGroupNotFound(resourceGroupId));
         }
+    }
+
+    private ResourceClass? ResolveCreationResourceClass(
+        string resourceId,
+        string resourceType,
+        ResourceClass? resourceClass)
+    {
+        var expectedResourceClass = resourceManager.GetResourceTypeClass(resourceType);
+        if (expectedResourceClass is null)
+        {
+            return resourceClass;
+        }
+
+        var result = ResourceModelValidation.ResolveResourceClass(
+            resourceId,
+            resourceType,
+            expectedResourceClass.Value,
+            resourceClass,
+            "creation request");
+
+        return result.Succeeded
+            ? result.ResourceClass
+            : throw new ControlPlaneException(
+                ControlPlaneError.ResourceClassMismatch(result.Diagnostic!.Message));
     }
 
     private IReadOnlyList<string>? NormalizeOptionalDependencies(

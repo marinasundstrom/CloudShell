@@ -77,6 +77,15 @@ Consumers can filter resource lists by `ResourceClass` when they need broad
 class-level views, such as all container-backed resources or all logical
 services, without relying on provider-specific `TypeId` values.
 
+For known resource types, `ResourceClass` is part of the resource model
+invariant. The class declared by the resource type, creation metadata,
+programmatic declaration metadata, and provider projection should agree.
+Resource Manager validates this at creation and projection boundaries. Invalid
+creation metadata is rejected before provider dispatch; invalid provider or
+declaration projections are reported through resource model diagnostics and the
+projected `Resource` is normalized back to the known type class so consumers do
+not receive an invalid model.
+
 As a client API entity, `Resource` should be convenient to inspect without
 becoming an active service object. It may expose domain helpers such as
 case-insensitive resource-action lookup and standard lifecycle action
@@ -103,6 +112,9 @@ Examples:
 Resource type registration is separate from resource discovery. A provider can
 discover available resources, while a resource type contribution describes how a
 user can add or configure a resource of that type.
+
+Resource type contributions can also declare the expected `ResourceClass` for
+that type. This class is a model constraint, not a UI hint.
 
 ### Resource provider
 

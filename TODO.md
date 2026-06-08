@@ -8,10 +8,6 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
-- [ ] Add resource type/class consistency validation or diagnostics.
-  - Compare `ResourceTypeContribution.ResourceClass`, creation metadata,
-    declaration metadata, and provider-projected `Resource.ResourceClass`.
-  - Add focused tests for built-in providers.
 - [ ] Improve generated resource details.
   - Link dependencies, parents, and child resources.
   - Add endpoint copy/open affordances.

@@ -83,6 +83,57 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetAvailableResources_NormalizesKnownResourceTypeClassMismatch()
+    {
+        var resource = CreateResource(
+            "mismatch",
+            "Mismatch",
+            resourceClass: ResourceClass.Container);
+        var store = CreateStore(
+            [resource],
+            extensionRegistry: CreateExtensionRegistry(ResourceClass.Project));
+
+        var projected = Assert.Single(store.GetAvailableResources());
+        var diagnostic = Assert.Single(store.GetResourceModelDiagnostics());
+
+        Assert.Equal(ResourceClass.Project, projected.ResourceClass);
+        Assert.Equal(ResourceModelValidation.ResourceClassMismatchCode, diagnostic.Code);
+        Assert.Equal("mismatch", diagnostic.ResourceId);
+        Assert.Equal("test.resource", diagnostic.ResourceType);
+        Assert.Equal(ResourceClass.Project, diagnostic.ExpectedResourceClass);
+        Assert.Equal(ResourceClass.Container, diagnostic.ActualResourceClass);
+    }
+
+    [Fact]
+    public void GetResources_NormalizesDeclarationClassMismatchForKnownResourceType()
+    {
+        var resource = CreateResource(
+            "declared",
+            "Declared",
+            resourceClass: ResourceClass.Project);
+        var declarations = new ResourceDeclarationStore();
+        declarations.Declare(
+            new TestCloudShellBuilder(),
+            "test",
+            "declared",
+            resourceClass: ResourceClass.Container);
+        var store = CreateStore(
+            [resource],
+            registrations: [CreateRegistration("declared")],
+            declarations: declarations,
+            extensionRegistry: CreateExtensionRegistry(ResourceClass.Project));
+
+        var projected = Assert.Single(store.GetResources());
+        var diagnostic = Assert.Single(store.GetResourceModelDiagnostics());
+
+        Assert.Equal(ResourceClass.Project, projected.ResourceClass);
+        Assert.Equal(ResourceModelValidation.ResourceClassMismatchCode, diagnostic.Code);
+        Assert.Equal("declaration metadata", diagnostic.Source);
+        Assert.Equal(ResourceClass.Project, diagnostic.ExpectedResourceClass);
+        Assert.Equal(ResourceClass.Container, diagnostic.ActualResourceClass);
+    }
+
+    [Fact]
     public void GetGroupForResource_InheritsGroupFromRegisteredParent()
     {
         var group = new ResourceGroup("group-one", "Group One", "Test group", []);
@@ -117,7 +168,8 @@ public sealed class ResourceManagerStoreProjectionTests
         IReadOnlyList<Resource> resources,
         IReadOnlyList<ResourceGroup>? groups = null,
         IReadOnlyList<ResourceRegistration>? registrations = null,
-        ResourceDeclarationStore? declarations = null)
+        ResourceDeclarationStore? declarations = null,
+        CloudShellExtensionRegistry? extensionRegistry = null)
     {
         var groupStore = new TestResourceGroupStore(groups ?? []);
         var registrationStore = new TestResourceRegistrationStore(registrations ?? []);
@@ -126,8 +178,20 @@ public sealed class ResourceManagerStoreProjectionTests
             groupStore,
             registrationStore,
             declarations ?? new ResourceDeclarationStore(),
-            new CloudShellExtensionRegistry(),
+            extensionRegistry ?? new CloudShellExtensionRegistry(),
             new InMemoryCloudShellExtensionActivationStore());
+    }
+
+    private static CloudShellExtensionRegistry CreateExtensionRegistry(ResourceClass resourceClass)
+    {
+        var services = new ServiceCollection();
+        services
+            .AddCloudShellControlPlane()
+            .AddExtension(new TestResourceTypeExtension(resourceClass));
+
+        return Assert.IsType<CloudShellExtensionRegistry>(
+            Assert.Single(services, descriptor =>
+                descriptor.ServiceType == typeof(CloudShellExtensionRegistry)).ImplementationInstance);
     }
 
     private static Resource CreateResource(
@@ -225,5 +289,29 @@ public sealed class ResourceManagerStoreProjectionTests
     private sealed class TestCloudShellBuilder : ICloudShellBuilder
     {
         public IServiceCollection Services { get; } = new ServiceCollection();
+    }
+
+    private sealed class TestRegistrationComponent;
+
+    private sealed class TestResourceTypeExtension(ResourceClass resourceClass) : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "test.resource-types",
+            "Test resource types",
+            "Test resource type contribution.",
+            "1.0.0",
+            ["resource-type.test.resource"],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder.AddResourceType<TestRegistrationComponent>(
+                "test.resource",
+                "Test resource",
+                "Test resource.",
+                "test",
+                1,
+                resourceClass: resourceClass);
+        }
     }
 }

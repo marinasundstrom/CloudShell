@@ -31,11 +31,14 @@ Then inspect the current code and tests around the failing or weak behavior.
 3. Fix the smallest implementation surface that owns the behavior.
 4. Prefer stable validation messages and ProblemDetails over leaked runtime
    exception details.
-5. Update `docs/progress.md` when the stabilized behavior changes MVP status,
+5. Prefer result objects or diagnostics for expected domain validation
+   outcomes; reserve exceptions for programmer errors or boundary adapters that
+   must translate invalid commands into API errors.
+6. Update `docs/progress.md` when the stabilized behavior changes MVP status,
    next priorities, or verification expectations.
-6. Update `TODO.md` when the stabilized behavior completes or changes a current
+7. Update `TODO.md` when the stabilized behavior completes or changes a current
    queue item.
-7. Run the verification baseline from `docs/progress.md` before committing
+8. Run the verification baseline from `docs/progress.md` before committing
    cross-boundary stabilization work.
 
 ## Stabilization priorities

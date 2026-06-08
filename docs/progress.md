@@ -102,11 +102,14 @@ The MVP should prove:
   commands, HTTP requests, the remote client, and provider creation requests.
 - Added generated Resource Manager detail views for resources without
   provider-owned detail routes, tabs, or update components.
+- Added resource model class consistency validation for creation requests,
+  provider projections, and declaration metadata, with result/diagnostic-based
+  model validation.
 
 ## Active stabilization areas
 
-- Resource model consistency across type contributions, resource projections,
-  creation requests, declarations, generated details, and provider overrides.
+- Resource model consistency across projected attributes, templates,
+  generated details, and provider overrides.
 - Resource Manager state behavior and capability signaling.
 - API contract stability for projected resources, actions, and errors.
 - Sample coverage for combined and split hosting.
@@ -114,20 +117,15 @@ The MVP should prove:
 
 ## Next priorities
 
-1. Tighten resource type/class consistency:
-   - validate or diagnose mismatches between `ResourceTypeContribution`,
-     creation metadata, declaration metadata, and provider-projected
-     `Resource.ResourceClass`
-   - add tests for built-in providers and generated details behavior
-2. Continue improving generated Resource Manager details:
+1. Continue improving generated Resource Manager details:
    - link dependencies, parents, and child resources
    - add endpoint copy/open affordances
    - surface health status, logs, and action capability reasons
-3. Continue tightening internal Resource Manager behavior:
+2. Continue tightening internal Resource Manager behavior:
    - dependency auto-start failure details
-4. Align OpenAPI output with the intended domain projection.
-5. Expand sample tests to cover the hypermedia resource action path.
-6. Document any remaining MVP gaps as concrete tests or issues.
+3. Align OpenAPI output with the intended domain projection.
+4. Expand sample tests to cover the hypermedia resource action path.
+5. Document any remaining MVP gaps as concrete tests or issues.
 
 ## Verification baseline
 

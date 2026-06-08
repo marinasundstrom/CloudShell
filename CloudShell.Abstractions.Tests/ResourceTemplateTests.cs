@@ -274,6 +274,10 @@ public sealed class ResourceTemplateTests
 
         public IReadOnlyList<Resource> GetResources() => provider.GetResources();
 
+        public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
+
+        public ResourceClass? GetResourceTypeClass(string resourceType) => null;
+
         public Resource? GetResource(string resourceId) =>
             GetResources().FirstOrDefault(resource =>
                 string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));

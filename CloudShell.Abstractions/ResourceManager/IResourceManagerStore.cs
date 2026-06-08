@@ -10,6 +10,10 @@ public interface IResourceManagerStore
 
     IReadOnlyList<Resource> GetResources();
 
+    IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics();
+
+    ResourceClass? GetResourceTypeClass(string resourceType);
+
     Resource? GetResource(string id);
 
     IReadOnlyList<Resource> GetChildren(string resourceId);

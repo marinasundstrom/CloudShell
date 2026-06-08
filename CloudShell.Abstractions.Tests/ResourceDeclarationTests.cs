@@ -1236,6 +1236,10 @@ public sealed class ResourceDeclarationTests
                 })
                 .ToArray();
 
+        public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
+
+        public ResourceClass? GetResourceTypeClass(string resourceType) => null;
+
         public Resource? GetResource(string id) =>
             GetResources().FirstOrDefault(resource =>
                 string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
