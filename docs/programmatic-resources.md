@@ -258,7 +258,9 @@ Generic builders can also attach broad projection metadata with
 `WithResourceClass(...)`, `WithResourceAttribute(...)`, and
 `WithResourceAttributes(...)`. These are declaration-time hints for stable,
 non-secret class and attribute data; provider-owned configuration and runtime
-state still belong behind provider contracts.
+state still belong behind provider contracts. UI and API creation flows can
+carry the same metadata to creation providers through `CreateResourceCommand`
+and `ResourceCreationRequest`.
 When a provider exposes executable, project, or container-backed declarations,
 prefer returning the shared workload builder interfaces from
 `CloudShell.Abstractions` instead of defining provider-local resource subclasses

@@ -124,7 +124,9 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
                 command.ResourceId,
                 command.Name,
                 command.Configuration,
-                command.ResourceGroupId),
+                command.ResourceGroupId,
+                command.ResourceClass,
+                command.Attributes),
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
@@ -504,7 +506,9 @@ file sealed record CreateResourceRequest(
     string ResourceId,
     string Name,
     JsonElement Configuration,
-    string? ResourceGroupId);
+    string? ResourceGroupId,
+    ResourceClass? ResourceClass = null,
+    IReadOnlyDictionary<string, string>? Attributes = null);
 
 file sealed record RegisterResourceRequest(
     string ProviderId,

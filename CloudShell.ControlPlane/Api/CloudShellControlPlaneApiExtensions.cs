@@ -250,7 +250,9 @@ public static class CloudShellControlPlaneApiExtensions
                     resourceId,
                     RequireValue(request.Name, nameof(request.Name)),
                     RequireConfiguration(request.Configuration),
-                    NormalizeOptional(request.ResourceGroupId)),
+                    NormalizeOptional(request.ResourceGroupId),
+                    request.ResourceClass,
+                    request.Attributes),
                 cancellationToken);
 
             var resource = await resourceManager.GetResourceAsync(resourceId, cancellationToken);

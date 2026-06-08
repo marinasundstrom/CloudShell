@@ -95,6 +95,8 @@ The MVP should prove:
   attributes, and projected that metadata through Resource Manager overlays.
 - Renamed the common programmatic resource builder contracts to
   `IResourceBuilder` and `IResourceDeclarationBuilder`.
+- Added `ResourceClass` and non-secret attribute metadata to resource creation
+  commands, HTTP requests, the remote client, and provider creation requests.
 
 ## Active stabilization areas
 

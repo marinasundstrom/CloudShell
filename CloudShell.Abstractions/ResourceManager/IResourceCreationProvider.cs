@@ -17,7 +17,15 @@ public sealed record ResourceCreationRequest(
     string ResourceId,
     string Name,
     JsonElement Configuration,
-    string? ResourceGroupId);
+    string? ResourceGroupId,
+    ResourceClass? ResourceClass = null,
+    IReadOnlyDictionary<string, string>? Attributes = null)
+{
+    private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyDictionary<string, string> ResourceAttributes => Attributes ?? EmptyAttributes;
+}
 
 public sealed record ResourceCreationContext(
     IResourceRegistrationStore Registrations);

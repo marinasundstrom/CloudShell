@@ -94,28 +94,26 @@ public sealed class InProcessControlPlane(
         var name = RequireValue(command.Name, nameof(command.Name));
         var configuration = RequireConfiguration(command.Configuration);
         var resourceGroupId = NormalizeOptional(command.ResourceGroupId);
+        var request = new ResourceCreationRequest(
+            resourceType,
+            resourceId,
+            name,
+            configuration,
+            resourceGroupId,
+            command.ResourceClass,
+            NormalizeAttributes(command.ResourceAttributes));
         EnsureResourceGroupExists(resourceGroupId);
 
         var provider = resourceManager.Providers
             .OfType<IResourceCreationProvider>()
             .FirstOrDefault(provider =>
                 string.Equals(provider.Id, providerId, StringComparison.OrdinalIgnoreCase) &&
-                provider.CanCreate(new ResourceCreationRequest(
-                    resourceType,
-                    resourceId,
-                    name,
-                    configuration,
-                    resourceGroupId)))
+                provider.CanCreate(request))
             ?? throw new ControlPlaneException(
                 ControlPlaneError.ResourceProviderCannotCreate(providerId, resourceType));
 
         await provider.CreateAsync(
-            new ResourceCreationRequest(
-                resourceType,
-                resourceId,
-                name,
-                configuration,
-                resourceGroupId),
+            request,
             new ResourceCreationContext(registrations),
             cancellationToken);
     }
@@ -565,6 +563,29 @@ public sealed class InProcessControlPlane(
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static IReadOnlyDictionary<string, string>? NormalizeAttributes(
+        IReadOnlyDictionary<string, string> attributes)
+    {
+        if (attributes.Count == 0)
+        {
+            return null;
+        }
+
+        var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, value) in attributes)
+        {
+            if (string.IsNullOrWhiteSpace(name) ||
+                string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            normalized[name.Trim()] = value.Trim();
+        }
+
+        return normalized.Count == 0 ? null : normalized;
+    }
 
     private static JsonElement RequireConfiguration(JsonElement configuration)
     {

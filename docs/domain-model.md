@@ -333,6 +333,12 @@ The HTTP API maps these commands to routes and request DTOs. Consumers should
 prefer the manager abstraction unless they are implementing or generating an
 HTTP adapter.
 
+`CreateResourceCommand` may carry `ResourceClass` and stable, non-secret
+attributes from the selected resource type or caller context. Creation providers
+receive that metadata through `ResourceCreationRequest`, but provider-owned
+configuration and runtime state remain in the request configuration payload and
+provider stores.
+
 ## Granularity rules
 
 Use this rule of thumb when adding or changing concepts:

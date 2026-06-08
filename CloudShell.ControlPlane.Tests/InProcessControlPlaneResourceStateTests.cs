@@ -340,6 +340,32 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal("Configuration is required.", exception.Message);
     }
 
+    [Fact]
+    public async Task CreateResourceAsync_PassesClassAndAttributesToCreationProvider()
+    {
+        var provider = new TestResourceCreationProvider();
+        var controlPlane = CreateControlPlane([], provider);
+
+        await controlPlane.CreateResourceAsync(
+            new CreateResourceCommand(
+                "test",
+                "test.resource",
+                "target",
+                "Target",
+                JsonSerializer.SerializeToElement(new { enabled = true }),
+                ResourceClass: ResourceClass.Project,
+                Attributes: new Dictionary<string, string>
+                {
+                    [" project.path "] = " src/API/API.csproj ",
+                    ["empty"] = ""
+                }));
+
+        Assert.NotNull(provider.CreatedRequest);
+        Assert.Equal(ResourceClass.Project, provider.CreatedRequest.ResourceClass);
+        Assert.Equal("src/API/API.csproj", provider.CreatedRequest.ResourceAttributes["project.path"]);
+        Assert.False(provider.CreatedRequest.ResourceAttributes.ContainsKey("empty"));
+    }
+
     private static IResourceManager CreateControlPlane(
         IReadOnlyList<Resource> resources,
         IResourceProvider? provider = null,
@@ -441,6 +467,29 @@ public sealed class InProcessControlPlaneResourceStateTests
         public string DisplayName => "Test";
 
         public IReadOnlyList<Resource> GetResources() => [];
+    }
+
+    private sealed class TestResourceCreationProvider : IResourceCreationProvider
+    {
+        public string Id => "test";
+
+        public string DisplayName => "Test";
+
+        public ResourceCreationRequest? CreatedRequest { get; private set; }
+
+        public IReadOnlyList<Resource> GetResources() => [];
+
+        public bool CanCreate(ResourceCreationRequest request) =>
+            string.Equals(request.ResourceType, "test.resource", StringComparison.OrdinalIgnoreCase);
+
+        public Task CreateAsync(
+            ResourceCreationRequest request,
+            ResourceCreationContext context,
+            CancellationToken cancellationToken = default)
+        {
+            CreatedRequest = request;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class TestResourceManagerStore(
