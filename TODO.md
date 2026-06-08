@@ -8,9 +8,6 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
-- [ ] Define attribute conventions.
-  - Stable names, non-secret rule, display behavior, and provider guidance.
-  - Decide whether string-only attributes are enough for MVP.
 - [ ] Align templates/import/export with the uniform `Resource` projection and
   provider-owned configuration.
 

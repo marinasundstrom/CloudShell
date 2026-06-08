@@ -67,6 +67,20 @@ such as container image, workload kind, endpoint count, service port count, or
 configuration entry count. Providers must not expose secrets through resource
 attributes.
 
+Attribute values are strings for the MVP. This keeps the API projection,
+generated details UI, programmatic declarations, and provider implementations
+simple and stable. Use invariant formatting for numbers, lower-case strings for
+booleans, and stable non-localized tokens for enum-like values. If a value needs
+structure, lifecycle semantics, validation, or secrecy, it belongs in
+provider-owned configuration or runtime state instead of `Resource.Attributes`.
+
+Attribute names use dotted lower-camel segments such as `workload.kind`,
+`container.image`, and `configuration.entries`. Names in
+`ResourceAttributeNames` are reserved for CloudShell-defined meanings. Provider
+or extension-specific attributes should use a stable provider or domain prefix,
+for example `acme.cluster` or `postgres.database`. Do not use display labels as
+attribute names; generated details can format the name for presentation.
+
 Because `Resource` is uniform, the shell can generate a default detail view from
 the projected resource shape: identity, class, endpoints, attributes,
 dependencies, health checks, actions, and observability. Provider-owned detail

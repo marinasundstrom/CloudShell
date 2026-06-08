@@ -54,6 +54,12 @@ provider/domain identity, `Attributes` for stable non-secret structural facts,
 and provider-owned descriptors for execution details. The projected shape stays
 uniform; providers decide how each resource class and type behaves.
 
+Keep resource attributes boring and durable. Attribute names use dotted
+lower-camel identifiers, values are string-only for MVP, and providers must not
+project secrets. Attributes are suitable for generated details, diagnostics,
+filtering, and simple orchestration hints; they are not a provider configuration
+schema and should not carry structured payloads.
+
 Resource actions are domain operations on a resource. Standard lifecycle
 actions use `ResourceActionKind.Run`, `Stop`, `Pause`, and `Restart`. Custom
 provider actions use stable IDs. Resource actions are not UI actions.

@@ -114,11 +114,13 @@ The MVP should prove:
 - Improved generated Resource Manager detail views with related-resource links,
   endpoint copy/open affordances, health metadata, logs, observability links,
   and action capability reasons.
+- Defined resource attribute conventions: dotted lower-camel names,
+  string-only non-secret values for MVP, invariant formatting, generated
+  display behavior, and provider-specific prefix guidance.
 
 ## Active stabilization areas
 
-- Resource model consistency across projected attributes, templates, and
-  provider overrides.
+- Resource model consistency across templates and provider overrides.
 - Resource Manager state behavior and capability signaling.
 - API contract stability for projected resources, actions, and errors.
 - Sample coverage for combined and split hosting.

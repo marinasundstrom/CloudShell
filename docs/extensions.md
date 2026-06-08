@@ -382,6 +382,22 @@ Implement `IResourceProvider` to contribute discovered resource data:
 
 Providers are aggregated by Resource Manager. Other extensions consume `IResourceManagerStore`; they do not depend on provider implementations.
 
+When providers project `Resource.Attributes`, follow the shared attribute
+conventions:
+
+- use dotted lower-camel names such as `workload.kind` or `acme.cluster`
+- keep values non-secret and string-only
+- format numbers with invariant culture and booleans as lower-case `true` or
+  `false`
+- use stable non-localized tokens for enum-like values
+- keep provider configuration, structured payloads, and runtime-only state
+  behind provider contracts
+
+Use names from `ResourceAttributeNames` only for their documented CloudShell
+meaning. Provider-specific attributes should use a stable provider or domain
+prefix so generated details and diagnostics can display them without creating a
+global naming collision.
+
 The shell generates a default resource detail view from the projected
 `Resource` when a provider does not contribute a specialized view. The generated
 view shows stable identity, class, endpoints, attributes, dependencies, health

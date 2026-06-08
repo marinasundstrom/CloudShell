@@ -268,6 +268,10 @@ non-secret class and attribute data; provider-owned configuration and runtime
 state still belong behind provider contracts. UI and API creation flows can
 carry the same metadata to creation providers through `CreateResourceCommand`
 and `ResourceCreationRequest`.
+Declaration attributes follow the same conventions as provider-projected
+attributes: dotted lower-camel names, string-only values, invariant formatting,
+and no secrets. Prefer provider-specific builder methods when the value is
+provider configuration rather than a projected inspection fact.
 When a provider exposes executable, project, or container-backed declarations,
 prefer returning the shared workload builder interfaces from
 `CloudShell.Abstractions` instead of defining provider-local resource subclasses
