@@ -343,10 +343,10 @@
                         @L["Open resource"]
                     </FluentButton>
                     @ResourceActionControls(selected)
-                    @if (CanManage(selected) && HasUpdateProcedure(selected))
+                    @if (CanManage(selected) && HasProviderConfiguration(selected))
                     {
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => UpdateResource(selected)">
-                            @L["Update"]
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => OpenResourceDetails(selected)">
+                            @L["Details"]
                         </FluentButton>
                     }
                     @if (CanDelete(selected))
@@ -361,12 +361,9 @@
             {
                 <div class="blade-actions">
                     @ResourceActionControls(selected)
-                    @if (CanManage(selected) && HasUpdateProcedure(selected))
-                    {
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => UpdateResource(selected)">
-                            @L["Update"]
-                        </FluentButton>
-                    }
+                    <FluentButton Appearance="Appearance.Neutral" OnClick="() => OpenResourceDetails(selected)">
+                        @L["Details"]
+                    </FluentButton>
                     @if (CanDelete(selected))
                     {
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => PromptDelete(selected)">
@@ -1029,8 +1026,8 @@
         HealthRefreshLock.Dispose();
     }
 
-    private void UpdateResource(Resource resource) =>
-        Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");
+    private void OpenResourceDetails(Resource resource) =>
+        Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/details?tab=overview");
 
     private void OpenLogs(Resource resource)
     {
@@ -1236,7 +1233,7 @@
     private bool CanManage(Resource resource) =>
         GetCapabilities(resource).CanManage;
 
-    private bool HasUpdateProcedure(Resource resource) =>
+    private bool HasProviderConfiguration(Resource resource) =>
         ShellCatalog.ResourceTypes.Any(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase) &&
             (type.UpdateComponentType is not null || type.ResourceTabs.Count > 0));

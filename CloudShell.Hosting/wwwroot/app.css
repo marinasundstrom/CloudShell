@@ -850,6 +850,41 @@ h3 {
     margin-bottom: .85rem;
 }
 
+.generated-resource-view {
+    display: grid;
+    gap: 1.1rem;
+}
+
+.generated-section {
+    display: grid;
+    gap: .6rem;
+}
+
+.generated-section h3 {
+    margin: 0;
+    font-size: .92rem;
+}
+
+.generated-list {
+    display: grid;
+    gap: .45rem;
+}
+
+.generated-list div {
+    display: grid;
+    gap: .12rem;
+    padding: .55rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.generated-list span,
+.generated-list small {
+    color: var(--cloudshell-text-muted);
+    overflow-wrap: anywhere;
+}
+
 .type-registration {
     display: grid;
     gap: .8rem;

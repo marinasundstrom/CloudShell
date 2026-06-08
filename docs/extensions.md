@@ -382,7 +382,16 @@ Implement `IResourceProvider` to contribute discovered resource data:
 
 Providers are aggregated by Resource Manager. Other extensions consume `IResourceManagerStore`; they do not depend on provider implementations.
 
+The shell generates a default resource detail view from the projected
+`Resource` when a provider does not contribute a specialized view. The generated
+view shows stable identity, class, endpoints, attributes, dependencies, health
+checks, actions, and observability details. The built-in route is
+`/resources/{resourceId}/details?tab=overview`; provider-contributed tabs use
+the same route with their tab ID in the `tab` query parameter.
+
 Resources can set `DetailRoute` to link to an extension-owned view. This supports the familiar cloud-portal pattern where a resource opens its own operational workspace.
+Resource types can also contribute tabs or an update component. Those
+provider-owned views override the generated default for resources of that type.
 
 Resources can also expose actions through `Resource.ResourceActions`. These actions belong to the resource instance, not only to the resource type, so providers can vary commands by state or capability. Use the standard `ResourceActionKind` values for Run, Stop, Pause, and Restart when a command controls lifecycle. Use `ResourceActionKind.Custom` with a stable action ID for provider-specific commands.
 

@@ -1,4 +1,5 @@
 @page "/resources/{ResourceId}/edit"
+@page "/resources/{ResourceId}/details"
 @rendermode InteractiveServer
 @inject IResourceManager ResourceManager
 @inject ShellCatalog ShellCatalog
@@ -7,7 +8,7 @@
 @inject IStringLocalizer<SharedResource> L
 @implements IDisposable
 
-<PageTitle>@L["Resource configuration"]</PageTitle>
+<PageTitle>@L["Resource details"]</PageTitle>
 
 @{
     var resource = Resource;
@@ -18,19 +19,22 @@
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
     var tabs = BuildTabs(resourceType);
     var selectedTab = tabs.FirstOrDefault(tab => tab.Id == SelectedTabId) ?? tabs.FirstOrDefault();
+    var isGeneratedOverview = selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
+    var canManageResource = resource is not null &&
+        Authorization.CanAccessResource(resource.Id, group?.Id, CloudShellPermissions.Resources.Manage);
 }
 
 <section class="page-heading compact">
     <div>
         <span class="eyebrow">@L["Resource Manager"]</span>
         <h1>@(resource?.Name ?? L["Resource"])</h1>
-        <p>@L["Provider-contributed information and configuration views for this resource."]</p>
+        <p>@L["Generated details and provider-contributed views for this resource."]</p>
     </div>
     <div class="heading-actions">
         <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
             @L["Close"]
         </FluentButton>
-        @if (selectedTab?.ShowsApplyButton == true)
+        @if (selectedTab?.ShowsApplyButton == true && canManageResource)
         {
             <FluentButton Appearance="Appearance.Accent"
                           Disabled="@(ConfigurationContext?.CanApply != true || IsApplying)"
@@ -114,8 +118,8 @@
         else if (selectedTab is null)
         {
             <div class="empty-state">
-                <strong>@L["No resource views"]</strong>
-                <span>@L["This provider has not contributed tabs for this resource type."]</span>
+                <strong>@L["No resource selected"]</strong>
+                <span>@L["Select a resource to inspect its projected details."]</span>
             </div>
         }
         else
@@ -123,23 +127,34 @@
             <div class="panel-header">
                 <div>
                     <h2>@selectedTab.Title</h2>
-                    <p>@resourceType?.DisplayName</p>
+                    <p>@(resourceType?.DisplayName ?? resource.EffectiveTypeId)</p>
                 </div>
             </div>
-            <CascadingValue Value="ConfigurationContext">
-                <DynamicComponent Type="selectedTab.ComponentType"
-                                  Parameters="@(new Dictionary<string, object?> { ["ResourceId"] = resource.Id })" />
-            </CascadingValue>
+            @if (isGeneratedOverview)
+            {
+                <GeneratedResourceOverview Resource="resource"
+                                           ResourceGroup="group"
+                                           ResourceType="resourceType" />
+            }
+            else
+            {
+                <CascadingValue Value="ConfigurationContext">
+                    <DynamicComponent Type="selectedTab.ComponentType"
+                                      Parameters="@(new Dictionary<string, object?> { ["ResourceId"] = resource.Id })" />
+                </CascadingValue>
+            }
         }
     </div>
 </section>
 
 @code {
+    private const string GeneratedOverviewTabId = "overview";
+
     [Parameter]
     public string? ResourceId { get; set; }
 
     [SupplyParameterFromQuery(Name = "tab")]
-    private string? RequestedTabId { get; set; }
+    private string? RequestedQueryTabId { get; set; }
 
     private ResourceConfigurationContext? ConfigurationContext { get; set; }
     private Resource? Resource { get; set; }
@@ -160,14 +175,14 @@
             : await ResourceManager.GetResourceGroupForResourceAsync(Resource.Id);
 
         if (Resource is not null &&
-            !Authorization.CanAccessResource(Resource.Id, ResourceGroup?.Id, CloudShellPermissions.Resources.Manage))
+            !Authorization.CanAccessResource(Resource.Id, ResourceGroup?.Id, CloudShellPermissions.Resources.Read))
         {
             Navigation.NavigateTo("/account/access-denied");
         }
 
-        if (!string.IsNullOrWhiteSpace(RequestedTabId))
+        if (!string.IsNullOrWhiteSpace(RequestedQueryTabId))
         {
-            SelectedTabId = RequestedTabId;
+            SelectedTabId = RequestedQueryTabId;
         }
 
         if (Resource is not null && ConfigurationContext?.ResourceId != Resource.Id)
@@ -192,7 +207,7 @@
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
             Navigation.NavigateTo(
-                $"/resources/{Uri.EscapeDataString(ResourceId)}/edit?tab={Uri.EscapeDataString(tabId)}",
+                $"/resources/{Uri.EscapeDataString(ResourceId)}/details?tab={Uri.EscapeDataString(tabId)}",
                 replace: true);
         }
 
@@ -290,27 +305,35 @@
 
     private static IReadOnlyList<ResourceTabContribution> BuildTabs(ResourceTypeContribution? resourceType)
     {
-        if (resourceType is null)
+        var contributedTabs = resourceType?.ResourceTabs ?? [];
+        var tabs = new List<ResourceTabContribution>();
+        if (!contributedTabs.Any(tab =>
+                string.Equals(tab.Id, GeneratedOverviewTabId, StringComparison.OrdinalIgnoreCase)))
         {
-            return [];
+            tabs.Add(new ResourceTabContribution(
+                GeneratedOverviewTabId,
+                "Overview",
+                -100,
+                typeof(GeneratedResourceOverview)));
         }
 
-        if (resourceType.ResourceTabs.Count > 0)
+        if (resourceType?.UpdateComponentType is not null &&
+            !contributedTabs.Any(tab =>
+                string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase)))
         {
-            return resourceType.ResourceTabs;
+            tabs.Add(new ResourceTabContribution(
+                "configuration",
+                "Configuration",
+                0,
+                resourceType.UpdateComponentType,
+                ShowsApplyButton: true));
         }
 
-        return resourceType.UpdateComponentType is null
-            ? []
-            :
-            [
-                new ResourceTabContribution(
-                    "configuration",
-                    "Configuration",
-                    0,
-                    resourceType.UpdateComponentType,
-                    ShowsApplyButton: true)
-            ];
+        return tabs
+            .Concat(contributedTabs)
+            .OrderBy(tab => tab.Order)
+            .ThenBy(tab => tab.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     public void Dispose()

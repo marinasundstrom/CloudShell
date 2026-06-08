@@ -67,6 +67,12 @@ such as container image, workload kind, endpoint count, service port count, or
 configuration entry count. Providers must not expose secrets through resource
 attributes.
 
+Because `Resource` is uniform, the shell can generate a default detail view from
+the projected resource shape: identity, class, endpoints, attributes,
+dependencies, health checks, actions, and observability. Provider-owned detail
+routes, resource tabs, or update components override that default when a
+resource needs a specialized operational experience.
+
 Consumers can filter resource lists by `ResourceClass` when they need broad
 class-level views, such as all container-backed resources or all logical
 services, without relying on provider-specific `TypeId` values.

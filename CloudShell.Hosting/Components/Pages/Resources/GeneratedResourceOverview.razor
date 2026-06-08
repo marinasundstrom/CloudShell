@@ -1,0 +1,148 @@
+@using CloudShell.Abstractions.ResourceManager
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    <section class="generated-section">
+        <h3>@L["Identity"]</h3>
+        <dl class="detail-list">
+            <dt>@L["ID"]</dt>
+            <dd>@Resource.Id</dd>
+            <dt>@L["Type"]</dt>
+            <dd>@Resource.EffectiveTypeId</dd>
+            <dt>@L["Class"]</dt>
+            <dd>@Resource.ResourceClass</dd>
+            <dt>@L["Provider"]</dt>
+            <dd>@Resource.Provider</dd>
+            <dt>@L["Group"]</dt>
+            <dd>@(ResourceGroup?.Name ?? L["Default group"])</dd>
+            <dt>@L["State"]</dt>
+            <dd>@Resource.State</dd>
+            <dt>@L["Version"]</dt>
+            <dd>@Resource.Version</dd>
+            <dt>@L["Updated"]</dt>
+            <dd>@Resource.LastUpdated.ToLocalTime().ToString("g")</dd>
+        </dl>
+    </section>
+
+    @if (Resource.Endpoints.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Endpoints"]</h3>
+            <div class="endpoint-list">
+                @foreach (var endpoint in Resource.Endpoints)
+                {
+                    <div>
+                        <strong>@endpoint.Name</strong>
+                        @EndpointLink(endpoint.Address)
+                        <small>@endpoint.Protocol @(endpoint.IsExternal ? L["external"] : L["internal"])</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (Resource.ResourceAttributes.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Attributes"]</h3>
+            <dl class="detail-list">
+                @foreach (var item in Resource.ResourceAttributes.OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    <dt>@item.Key</dt>
+                    <dd>@item.Value</dd>
+                }
+            </dl>
+        </section>
+    }
+
+    @if (Resource.DependsOn.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Dependencies"]</h3>
+            <div class="dependency-list">
+                @foreach (var dependency in Resource.DependsOn.Order(StringComparer.OrdinalIgnoreCase))
+                {
+                    <span>@dependency</span>
+                }
+            </div>
+        </section>
+    }
+
+    @if (Resource.ResourceHealthChecks.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Health checks"]</h3>
+            <div class="generated-list">
+                @foreach (var healthCheck in Resource.ResourceHealthChecks)
+                {
+                    <div>
+                        <strong>@healthCheck.Name</strong>
+                        <span>@healthCheck.Path</span>
+                        <small>@(healthCheck.EndpointName ?? L["default endpoint"])</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (Resource.ResourceActions.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Actions"]</h3>
+            <div class="tag-row">
+                @foreach (var action in Resource.ResourceActions.OrderBy(action => action.DisplayName, StringComparer.OrdinalIgnoreCase))
+                {
+                    <span>@action.DisplayName</span>
+                }
+            </div>
+        </section>
+    }
+
+    @if (Resource.EffectiveObservability != ResourceObservability.None)
+    {
+        <section class="generated-section">
+            <h3>@L["Observability"]</h3>
+            <dl class="detail-list">
+                <dt>@L["Logs"]</dt>
+                <dd>@FormatEnabled(Resource.EffectiveObservability.Logs)</dd>
+                <dt>@L["Traces"]</dt>
+                <dd>@FormatEnabled(Resource.EffectiveObservability.Traces)</dd>
+                <dt>@L["Metrics"]</dt>
+                <dd>@FormatEnabled(Resource.EffectiveObservability.Metrics)</dd>
+            </dl>
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Resource Resource { get; set; } = null!;
+
+    [Parameter]
+    public ResourceGroup? ResourceGroup { get; set; }
+
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
+    private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
+
+    private RenderFragment EndpointLink(string address) => builder =>
+    {
+        if (Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            builder.OpenElement(0, "a");
+            builder.AddAttribute(1, "class", "endpoint-link");
+            builder.AddAttribute(2, "href", address);
+            builder.AddAttribute(3, "target", "_blank");
+            builder.AddAttribute(4, "rel", "noreferrer");
+            builder.AddContent(5, address);
+            builder.CloseElement();
+            return;
+        }
+
+        builder.OpenElement(6, "span");
+        builder.AddContent(7, string.IsNullOrWhiteSpace(address) ? L["none"] : address);
+        builder.CloseElement();
+    };
+}

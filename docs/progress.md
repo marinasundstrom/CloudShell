@@ -97,6 +97,8 @@ The MVP should prove:
   `IResourceBuilder` and `IResourceDeclarationBuilder`.
 - Added `ResourceClass` and non-secret attribute metadata to resource creation
   commands, HTTP requests, the remote client, and provider creation requests.
+- Added generated Resource Manager detail views for resources without
+  provider-owned detail routes, tabs, or update components.
 
 ## Active stabilization areas
 
