@@ -130,6 +130,11 @@
                     <p>@(resourceType?.DisplayName ?? resource.EffectiveTypeId)</p>
                 </div>
             </div>
+            @if (CanShowImageDeployment(resource, selectedTab))
+            {
+                <ResourceImageDeployment Resource="resource"
+                                         ResourceUpdated="HandleResourceUpdated" />
+            }
             @if (isGeneratedOverview)
             {
                 <GeneratedResourceOverview Resource="resource"
@@ -140,6 +145,7 @@
             {
                 <CascadingValue Value="ConfigurationContext">
                     <DynamicComponent Type="selectedTab.ComponentType"
+                                      @key="GetContentKey(resource, selectedTab)"
                                       Parameters="@(new Dictionary<string, object?> { ["ResourceId"] = resource.Id })" />
                 </CascadingValue>
             }
@@ -164,6 +170,7 @@
     private PendingResourceRestart? PendingRestart { get; set; }
     private bool IsApplying { get; set; }
     private bool IsRestarting { get; set; }
+    private int ResourceContentVersion { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -302,6 +309,24 @@
     private void DismissRestartPrompt() => PendingRestart = null;
 
     private void HandleConfigurationStateChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task HandleResourceUpdated(Resource resource)
+    {
+        Resource = resource;
+        ResourceGroup = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
+        ResourceContentVersion++;
+    }
+
+    private static bool CanShowImageDeployment(
+        Resource resource,
+        ResourceTabContribution selectedTab) =>
+        string.Equals(selectedTab.Id, GeneratedOverviewTabId, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(resource.EffectiveTypeId, "application.container-app", StringComparison.OrdinalIgnoreCase) &&
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerImage) &&
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerRevision);
+
+    private string GetContentKey(Resource resource, ResourceTabContribution selectedTab) =>
+        $"{resource.Id}:{selectedTab.Id}:{ResourceContentVersion}";
 
     private static IReadOnlyList<ResourceTabContribution> BuildTabs(ResourceTypeContribution? resourceType)
     {

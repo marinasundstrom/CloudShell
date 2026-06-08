@@ -1,0 +1,149 @@
+@inject IResourceManager ResourceManager
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedResource> L
+
+@if (CanDeployImage)
+{
+    <section class="generated-section">
+        <h3>@L["Deploy image"]</h3>
+        <div class="generated-deploy-form">
+            <dl class="detail-list compact">
+                <dt>@L["Current image"]</dt>
+                <dd>@GetCurrentContainerImage(Resource)</dd>
+                <dt>@L["Current revision"]</dt>
+                <dd>@GetCurrentContainerRevision(Resource)</dd>
+            </dl>
+
+            <label for="resource-deploy-image">@L["New image"]</label>
+            <FluentTextField Id="resource-deploy-image"
+                              @bind-Value="DeploymentImage"
+                              Immediate="true"
+                              Placeholder="example/api:20260608"
+                              Disabled="@IsDeploying" />
+            <FluentCheckbox @bind-Value="RestartIfRunning" Disabled="@IsDeploying">
+                @L["Restart if running"]
+            </FluentCheckbox>
+
+            @if (!string.IsNullOrWhiteSpace(ImageDeploymentMessage))
+            {
+                <div class="procedure-message compact">@ImageDeploymentMessage</div>
+            }
+
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Accent"
+                              Disabled="@(!CanSubmitImageDeployment)"
+                              OnClick="DeployImage">
+                    @(IsDeploying ? L["Deploying"] : L["Deploy"])
+                </FluentButton>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    private const string ContainerAppResourceType = "application.container-app";
+
+    [Parameter, EditorRequired]
+    public Resource Resource { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<Resource> ResourceUpdated { get; set; }
+
+    private ResourceOperationCapabilities Capabilities { get; set; } =
+        ResourceOperationCapabilities.None(string.Empty);
+    private string? CurrentDeploymentResourceId { get; set; }
+    private string? DeploymentImage { get; set; }
+    private string? ImageDeploymentMessage { get; set; }
+    private bool RestartIfRunning { get; set; } = true;
+    private bool IsDeploying { get; set; }
+
+    private bool CanDeployImage =>
+        string.Equals(Resource.EffectiveTypeId, ContainerAppResourceType, StringComparison.OrdinalIgnoreCase) &&
+        Resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerImage) &&
+        Resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerRevision);
+
+    private bool CanSubmitImageDeployment =>
+        CanDeployImage &&
+        Capabilities.CanManage &&
+        !IsDeploying &&
+        !string.IsNullOrWhiteSpace(DeploymentImage);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
+        InitializeDeploymentImage();
+    }
+
+    private void InitializeDeploymentImage()
+    {
+        if (string.Equals(CurrentDeploymentResourceId, Resource.Id, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(DeploymentImage))
+        {
+            return;
+        }
+
+        CurrentDeploymentResourceId = Resource.Id;
+        DeploymentImage = GetCurrentContainerImage(Resource);
+        ImageDeploymentMessage = null;
+    }
+
+    private async Task DeployImage()
+    {
+        if (!CanSubmitImageDeployment)
+        {
+            return;
+        }
+
+        var requestedImage = await ReadDeploymentImageAsync();
+        if (string.IsNullOrWhiteSpace(requestedImage))
+        {
+            return;
+        }
+
+        DeploymentImage = requestedImage;
+        IsDeploying = true;
+        ImageDeploymentMessage = null;
+        try
+        {
+            var result = await ResourceManager.UpdateResourceImageAsync(
+                Resource,
+                requestedImage,
+                RestartIfRunning,
+                triggeredBy: "Resource Manager");
+            ImageDeploymentMessage = result.Message;
+
+            var updatedResource = await ResourceManager.GetResourceAsync(Resource.Id);
+            if (updatedResource is not null)
+            {
+                Resource = updatedResource;
+                DeploymentImage = GetCurrentContainerImage(Resource);
+                CurrentDeploymentResourceId = Resource.Id;
+                await ResourceUpdated.InvokeAsync(Resource);
+            }
+        }
+        catch (Exception exception)
+        {
+            ImageDeploymentMessage = exception.Message;
+        }
+        finally
+        {
+            IsDeploying = false;
+        }
+    }
+
+    private static string GetCurrentContainerImage(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ?? string.Empty;
+
+    private static string GetCurrentContainerRevision(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision) ?? "unrevisioned";
+
+    private async Task<string> ReadDeploymentImageAsync()
+    {
+        var fieldValue = await JS.InvokeAsync<string?>(
+            "cloudShellForms.getValue",
+            "resource-deploy-image");
+        return (string.IsNullOrWhiteSpace(fieldValue)
+            ? DeploymentImage
+            : fieldValue)?.Trim() ?? string.Empty;
+    }
+}

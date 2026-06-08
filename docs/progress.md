@@ -165,6 +165,9 @@ The MVP should prove:
 - Split application resource documentation into a `docs/resources` area with
   separate pages for executable applications, ASP.NET Core project resources,
   and container apps.
+- Added a Resource Manager overview deployment affordance for container app
+  resources that updates the image through the domain `UpdateResourceImageAsync`
+  operation and refreshes the projected image/revision.
 
 ## Active stabilization areas
 

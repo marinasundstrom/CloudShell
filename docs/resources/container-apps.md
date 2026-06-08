@@ -63,6 +63,14 @@ to the image setting. Docker Engine registration/configuration exposes a
 registry setting for Docker child-container resources; that setting also
 defaults to `http://localhost:5000`.
 
+## Resource Manager Deployment
+
+The Resource Manager overview for a container app includes a deploy image
+control. Enter a new image tag and choose whether CloudShell should restart a
+running app after the update. The shell calls the same domain
+`UpdateResourceImageAsync` operation used by remote clients, then refreshes the
+projected container image and revision.
+
 ## Image Deployment Procedure
 
 The proposed deployment flow for CloudShell-hosted dev environments is:

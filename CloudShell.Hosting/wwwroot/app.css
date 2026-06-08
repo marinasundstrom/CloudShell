@@ -885,6 +885,23 @@ h3 {
     overflow-wrap: anywhere;
 }
 
+.generated-deploy-form {
+    display: grid;
+    gap: .55rem;
+    padding: .7rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.generated-deploy-form fluent-text-field {
+    width: 100%;
+}
+
+.generated-deploy-form label {
+    font-weight: 650;
+}
+
 .generated-endpoint {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;

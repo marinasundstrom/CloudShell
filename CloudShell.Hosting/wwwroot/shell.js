@@ -26,4 +26,13 @@
             }
         }
     };
+
+    window.cloudShellForms = {
+        getValue: function (id) {
+            var element = document.getElementById(id);
+            return element && typeof element.value === "string"
+                ? element.value
+                : "";
+        }
+    };
 })();
