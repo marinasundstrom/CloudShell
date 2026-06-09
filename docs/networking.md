@@ -14,6 +14,12 @@ Endpoint requests are intent. They ask a network or provider to reserve or
 assign an address. Requests can be manual, auto-assigned, provider-default, or
 predefined by a provider.
 
+Platform-owned endpoint assignments are validated before the platform saves a
+network, service, or load-balancer resource. Concrete assignments are compared
+by normalized protocol, host, and port so one host-local address cannot be
+assigned to two platform resources. Logical endpoints and provider-projected
+runtime endpoints are not part of that first validation pass.
+
 Endpoint mappings connect one source endpoint to one target endpoint. A mapping
 can be validated by the network resource itself or materialized by a selected
 networking provider resource.
@@ -23,6 +29,11 @@ data. They are not encoded as dependency metadata or comma-separated
 attributes. This lets the Control Plane API, remote clients, and Resource
 Manager UI show the mapping itself: source endpoint, target endpoint, and the
 provider selected to materialize it.
+
+During reconciliation, the network validates that each mapping source endpoint
+belongs to the reconciled network resource and that a source endpoint is mapped
+only once. The selected provider then validates and materializes any
+runtime-specific behavior it owns.
 
 Network resources have three current kinds:
 

@@ -44,6 +44,9 @@ verification baseline.
 - Expand host-readiness warnings so endpoint mappings can name the specific
   missing gateway, load balancer, DNS, service mesh, firewall, or cluster
   network controller capability.
+- Extend endpoint assignment conflict diagnostics beyond platform-owned
+  endpoints so provider-projected runtime endpoints can participate in a
+  Resource Manager-wide validation pass.
 - Design provider-originated resource change streams so providers such as
   Docker can push discovered container/status changes into Resource Manager
   instead of relying only on UI-side inventory polling.

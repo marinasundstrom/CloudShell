@@ -136,6 +136,9 @@ public sealed class PlatformResourceProvider(
         CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeNetwork(definition);
+        ValidatePlatformEndpointAssignments(
+            normalized.Id,
+            CreateNetworkEndpoints(normalized));
         store.SaveNetwork(normalized);
         await registrations.RegisterAsync(
             Id,
@@ -151,6 +154,9 @@ public sealed class PlatformResourceProvider(
         CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeService(definition);
+        ValidatePlatformEndpointAssignments(
+            normalized.Id,
+            CreateEndpoints(normalized));
         store.SaveService(normalized);
         await registrations.RegisterAsync(
             Id,
@@ -167,6 +173,9 @@ public sealed class PlatformResourceProvider(
         CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeLoadBalancer(definition);
+        ValidatePlatformEndpointAssignments(
+            normalized.Id,
+            CreateLoadBalancerEndpoints(normalized));
         store.SaveLoadBalancer(normalized);
         await registrations.RegisterAsync(
             Id,
@@ -237,16 +246,21 @@ public sealed class PlatformResourceProvider(
             string.Equals(network.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase));
         if (declaredNetwork is not null)
         {
+            var normalized = NormalizeNetwork(declaredNetwork.Definition);
+            ValidatePlatformEndpointAssignments(
+                normalized.Id,
+                CreateNetworkEndpoints(normalized));
+
             if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
             {
                 store.SaveNetwork(
-                    declaredNetwork.Definition,
+                    normalized,
                     persist: true);
             }
 
             return registrations.RegisterAsync(
                 Id,
-                declaredNetwork.Definition.Id,
+                normalized.Id,
                 NormalizeGroupId(declaration.ResourceGroupId),
                 declaration.DependsOn,
                 cancellationToken);
@@ -255,23 +269,24 @@ public sealed class PlatformResourceProvider(
         var declaredService = options.DeclaredServices.FirstOrDefault(service =>
             string.Equals(service.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase));
 
-        if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
-        {
-            if (declaredService is not null)
-            {
-                store.SaveService(
-                    declaredService.Definition,
-                    persist: true);
-            }
-        }
-
         if (declaredService is not null)
         {
+            var normalized = NormalizeService(declaredService.Definition);
+            ValidatePlatformEndpointAssignments(
+                normalized.Id,
+                CreateEndpoints(normalized));
+            if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
+            {
+                store.SaveService(
+                    normalized,
+                    persist: true);
+            }
+
             return registrations.RegisterAsync(
                 Id,
-                declaredService.Definition.Id,
+                normalized.Id,
                 NormalizeGroupId(declaration.ResourceGroupId),
-                CreateServiceDependencies(declaredService.Definition)
+                CreateServiceDependencies(normalized)
                     .Concat(declaration.DependsOn)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToArray(),
@@ -283,18 +298,22 @@ public sealed class PlatformResourceProvider(
             ?? throw new InvalidOperationException(
                 $"Platform resource declaration '{declaration.ResourceId}' was not found.");
 
+        var normalizedLoadBalancer = NormalizeLoadBalancer(declaredLoadBalancer.Definition);
+        ValidatePlatformEndpointAssignments(
+            normalizedLoadBalancer.Id,
+            CreateLoadBalancerEndpoints(normalizedLoadBalancer));
         if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
         {
             store.SaveLoadBalancer(
-                declaredLoadBalancer.Definition,
+                normalizedLoadBalancer,
                 persist: true);
         }
 
         return registrations.RegisterAsync(
             Id,
-            declaredLoadBalancer.Definition.Id,
+            normalizedLoadBalancer.Id,
             NormalizeGroupId(declaration.ResourceGroupId),
-            CreateLoadBalancerDependencies(declaredLoadBalancer.Definition)
+            CreateLoadBalancerDependencies(normalizedLoadBalancer)
                 .Concat(declaration.DependsOn)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
@@ -407,6 +426,8 @@ public sealed class PlatformResourceProvider(
             return ResourceProcedureResult.Completed("No endpoint mappings to reconcile.");
         }
 
+        ValidateEndpointMappings(context.Resource.Id, network);
+
         var provisionedCount = 0;
         foreach (var mapping in network.NetworkEndpointMappings)
         {
@@ -432,6 +453,32 @@ public sealed class PlatformResourceProvider(
             ? $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s)."
             : $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s), provisioned {provisionedCount}.";
         return ResourceProcedureResult.Completed(message);
+    }
+
+    private static void ValidateEndpointMappings(
+        string networkResourceId,
+        NetworkResourceDefinition network)
+    {
+        foreach (var mapping in network.NetworkEndpointMappings)
+        {
+            if (!string.Equals(mapping.Source.ResourceId, networkResourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"Endpoint mapping '{mapping.Id}' source endpoint '{mapping.Source.EndpointName}' must belong to network resource '{networkResourceId}'.");
+            }
+        }
+
+        var duplicateSource = network.NetworkEndpointMappings
+            .GroupBy(
+                mapping => mapping.Source.EndpointName,
+                StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateSource is not null)
+        {
+            var mappingIds = string.Join(", ", duplicateSource.Select(mapping => mapping.Id));
+            throw new InvalidOperationException(
+                $"Network resource '{networkResourceId}' source endpoint '{duplicateSource.Key}' is already used by multiple endpoint mappings: {mappingIds}.");
+        }
     }
 
     private async Task<ResourceProcedureResult> ApplyLoadBalancerConfigurationAsync(
@@ -721,6 +768,147 @@ public sealed class PlatformResourceProvider(
                     entrypoint.Exposure);
             })
             .ToArray();
+
+    private void ValidatePlatformEndpointAssignments(
+        string ownerResourceId,
+        IReadOnlyList<ResourceEndpoint> endpoints)
+    {
+        var occupied = GetPlatformEndpointAssignments(ownerResourceId).ToList();
+        var candidates = endpoints
+            .Select(endpoint => CreateEndpointAssignment(ownerResourceId, endpoint))
+            .Where(assignment => assignment is not null)
+            .Select(assignment => assignment!)
+            .ToArray();
+
+        foreach (var duplicate in candidates
+            .GroupBy(assignment => assignment.Identity, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            var endpointNames = string.Join(", ", duplicate.Select(assignment => assignment.EndpointName));
+            throw new InvalidOperationException(
+                $"Resource '{ownerResourceId}' has conflicting endpoint assignment '{duplicate.Key}' on endpoints: {endpointNames}.");
+        }
+
+        foreach (var candidate in candidates)
+        {
+            var conflict = occupied.FirstOrDefault(assignment =>
+                string.Equals(assignment.Identity, candidate.Identity, StringComparison.OrdinalIgnoreCase));
+            if (conflict is null)
+            {
+                continue;
+            }
+
+            throw new InvalidOperationException(
+                $"Resource '{ownerResourceId}' endpoint '{candidate.EndpointName}' uses endpoint assignment '{candidate.Identity}', which is already assigned to resource '{conflict.ResourceId}' endpoint '{conflict.EndpointName}'.");
+        }
+    }
+
+    private IEnumerable<EndpointAssignment> GetPlatformEndpointAssignments(string excludeResourceId)
+    {
+        foreach (var network in store.GetNetworks())
+        {
+            if (string.Equals(network.Id, excludeResourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (var endpoint in CreateNetworkEndpoints(network))
+            {
+                var assignment = CreateEndpointAssignment(network.Id, endpoint);
+                if (assignment is not null)
+                {
+                    yield return assignment;
+                }
+            }
+        }
+
+        foreach (var service in store.GetServices())
+        {
+            if (string.Equals(service.Id, excludeResourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (var endpoint in CreateEndpoints(service))
+            {
+                var assignment = CreateEndpointAssignment(service.Id, endpoint);
+                if (assignment is not null)
+                {
+                    yield return assignment;
+                }
+            }
+        }
+
+        foreach (var loadBalancer in store.GetLoadBalancers())
+        {
+            if (string.Equals(loadBalancer.Id, excludeResourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (var endpoint in CreateLoadBalancerEndpoints(loadBalancer))
+            {
+                var assignment = CreateEndpointAssignment(loadBalancer.Id, endpoint);
+                if (assignment is not null)
+                {
+                    yield return assignment;
+                }
+            }
+        }
+    }
+
+    private static EndpointAssignment? CreateEndpointAssignment(
+        string resourceId,
+        ResourceEndpoint endpoint)
+    {
+        if (!Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) ||
+            string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return null;
+        }
+
+        var port = GetEndpointPort(uri);
+        if (port is null)
+        {
+            return null;
+        }
+
+        var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
+            ? uri.Scheme
+            : endpoint.Protocol;
+        var host = NormalizeEndpointHost(uri.Host);
+        return new EndpointAssignment(
+            resourceId,
+            endpoint.Name,
+            $"{protocol.ToLowerInvariant()}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}");
+    }
+
+    private static int? GetEndpointPort(Uri uri)
+    {
+        if (uri.Port > 0)
+        {
+            return uri.Port;
+        }
+
+        if (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
+        {
+            return 80;
+        }
+
+        if (uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return 443;
+        }
+
+        return null;
+    }
+
+    private static string NormalizeEndpointHost(string host) =>
+        host switch
+        {
+            "0.0.0.0" or "::" => "localhost",
+            _ => host.Trim('[', ']').ToLowerInvariant()
+        };
 
     private static IReadOnlyList<string> CreateServiceDependencies(ServiceResourceDefinition definition) =>
         definition.Targets
@@ -1026,4 +1214,9 @@ public sealed class PlatformResourceProvider(
     private sealed record ResolvedEndpoint(
         Resource Resource,
         ResourceEndpoint Endpoint);
+
+    private sealed record EndpointAssignment(
+        string ResourceId,
+        string EndpointName,
+        string Identity);
 }

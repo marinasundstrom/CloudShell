@@ -1628,6 +1628,156 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task PlatformProvider_RejectsDuplicatePlatformEndpointAssignment()
+    {
+        var options = new PlatformResourceOptions();
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var registrations = new MutableResourceRegistrationStore();
+
+        await provider.SetupServiceAsync(
+            new ServiceResourceDefinition(
+                "service:api",
+                "API",
+                [new ServiceTarget("application:api")],
+                [new ServicePort("http", 8080, 5080, "http", ResourceExposureScope.Public)],
+                []),
+            null,
+            registrations);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.SetupNetworkAsync(
+                new NetworkResourceDefinition(
+                    "network:app",
+                    "App Network",
+                    Endpoints:
+                    [
+                        new ResourceEndpointRequest(
+                            "public",
+                            ResourceEndpointProtocol.Http,
+                            Host: "localhost",
+                            Port: 5080,
+                            Assignment: ResourceEndpointAssignment.Manual)
+                    ]),
+                null,
+                registrations));
+
+        Assert.Contains("endpoint assignment", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("service:api", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_RejectsEndpointMappingSourceOutsideNetwork()
+    {
+        var definition = new NetworkResourceDefinition(
+            "network:app",
+            "App Network",
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "mapping:api",
+                    "API",
+                    new ResourceEndpointReference("service:api", "public"),
+                    new ResourceEndpointReference("application:api", "http"),
+                    "network:app",
+                    "networking:proxy")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredNetworks.Add(new DeclaredNetworkResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var network = Assert.Single(provider.GetResources(), resource => resource.Id == "network:app");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                network,
+                CreateEndpointResource("service:api", "public", "http://localhost:5080"),
+                CreateEndpointResource("application:api", "http", "http://localhost:8080"),
+                CreateNetworkingProviderResource("networking:proxy")
+            ],
+            [provider]);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.ExecuteActionAsync(
+                new ResourceProcedureContext(
+                    network,
+                    new ResourceRegistration(network.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                    null,
+                    new TestResourceRegistrationStore([]),
+                    resourceManager),
+                network.ResourceActions.Single()));
+
+        Assert.Contains("source endpoint", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("network:app", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_RejectsDuplicateEndpointMappingSources()
+    {
+        var definition = new NetworkResourceDefinition(
+            "network:app",
+            "App Network",
+            Endpoints:
+            [
+                new ResourceEndpointRequest(
+                    "public",
+                    ResourceEndpointProtocol.Http,
+                    Host: "localhost",
+                    Port: 5080,
+                    Assignment: ResourceEndpointAssignment.Manual)
+            ],
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "mapping:api",
+                    "API",
+                    new ResourceEndpointReference("network:app", "public"),
+                    new ResourceEndpointReference("application:api", "http"),
+                    "network:app",
+                    "networking:proxy"),
+                new ResourceEndpointMappingDefinition(
+                    "mapping:web",
+                    "Web",
+                    new ResourceEndpointReference("network:app", "public"),
+                    new ResourceEndpointReference("application:web", "http"),
+                    "network:app",
+                    "networking:proxy")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredNetworks.Add(new DeclaredNetworkResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var network = Assert.Single(provider.GetResources(), resource => resource.Id == "network:app");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                network,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080"),
+                CreateEndpointResource("application:web", "http", "http://localhost:8081"),
+                CreateNetworkingProviderResource("networking:proxy")
+            ],
+            [provider]);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.ExecuteActionAsync(
+                new ResourceProcedureContext(
+                    network,
+                    new ResourceRegistration(network.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                    null,
+                    new TestResourceRegistrationStore([]),
+                    resourceManager),
+                network.ResourceActions.Single()));
+
+        Assert.Contains("already used", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("mapping:api", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("mapping:web", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task PlatformProvider_ProvisionsVirtualEndpointMappingsWithActivatedProvider()
     {
         var definition = new NetworkResourceDefinition(
