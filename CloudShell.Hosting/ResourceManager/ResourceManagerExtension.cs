@@ -41,7 +41,14 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "Create a stable internal or public endpoint over one or more resources.",
                 "service",
                 6,
-                resourceClass: ResourceClass.Service);
+                resourceClass: ResourceClass.Service)
+            .AddResourceType<RegisterLoadBalancerResource>(
+                "cloudshell.loadBalancer",
+                "Load Balancer",
+                "Create provider-backed HTTP, HTTPS, or TCP routes to registered resources.",
+                "network",
+                7,
+                resourceClass: ResourceClass.Network);
 
         if (includeSettings)
         {

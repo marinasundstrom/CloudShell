@@ -81,6 +81,18 @@ The generated Resource Manager views show:
 - dependencies on the selected host and target resources
 - an `Apply load balancer configuration` resource action when routes exist
 
+Users can create a load balancer from Resource Manager with **Add resource**,
+then selecting **Load Balancer**. The add view also supports a resource-type
+deep link:
+
+```text
+/resources/add?type=cloudshell.loadBalancer
+```
+
+The first UI registration slice supports the Traefik provider, optional
+container-host selection, HTTP/HTTPS/TCP entrypoints, and initial HTTP or TCP
+routes to an existing resource endpoint or raw target port.
+
 The apply action validates the route targets and delegates to the selected
 `ILoadBalancerProvider`.
 
@@ -147,6 +159,7 @@ The first implementation focuses on the stable resource contract and Traefik
 file-provider output. It does not yet provide:
 
 - provider configuration preview in the UI
+- editing multiple load-balancer routes after creation
 - structured validation diagnostics before applying routes
 - provider-managed Traefik container lifecycle
 - TLS certificate resources or certificate binding

@@ -76,6 +76,27 @@ else
         </section>
     }
 
+    @if (InboundLoadBalancerRoutes.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Load balancer exposure</h3>
+            <div class="generated-list">
+                @foreach (var exposure in InboundLoadBalancerRoutes)
+                {
+                    <div>
+                        <strong>
+                            <a class="resource-link" href="@BuildResourceRoute(exposure.LoadBalancer.Id)">
+                                @exposure.LoadBalancer.Name
+                            </a>
+                        </strong>
+                        <span>@FormatLoadBalancerRoute(exposure.Route)</span>
+                        <small>Entrypoint: @exposure.Route.EntrypointName</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     <section class="blade-section">
         <h3>Environment</h3>
         @if (Application.EnvironmentVariables.Count == 0)
@@ -102,6 +123,7 @@ else
     private ApplicationResourceDefinition? Application { get; set; }
     private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
+    private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
 
     protected override void OnParametersSet()
     {
@@ -114,6 +136,9 @@ else
         InboundNetworkMappings = Application is null
             ? []
             : GetInboundNetworkMappings(Application.Id);
+        InboundLoadBalancerRoutes = Application is null
+            ? []
+            : GetInboundLoadBalancerRoutes(Application.Id);
     }
 
     private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
@@ -153,6 +178,19 @@ else
                     StringComparison.OrdinalIgnoreCase))
                 .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
             .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<LoadBalancerRouteView> GetInboundLoadBalancerRoutes(string resourceId) =>
+        ResourceManager.GetResources()
+            .Where(IsLoadBalancerResource)
+            .SelectMany(loadBalancer => loadBalancer.ResourceLoadBalancerRoutes
+                .Where(route => string.Equals(
+                    route.Target.ResourceId,
+                    resourceId,
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
+            .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private string FormatMappingSummary(
@@ -203,6 +241,45 @@ else
             ? $"Provider: {providerId}"
             : $"Provider: {provider.Name}";
     }
+
+    private string FormatLoadBalancerRoute(LoadBalancerRoute route) =>
+        $"{FormatLoadBalancerRouteMatch(route)} -> {FormatLoadBalancerRouteTarget(route.Target)}";
+
+    private string FormatLoadBalancerRouteMatch(LoadBalancerRoute route)
+    {
+        if (route.Kind == LoadBalancerRouteKind.Tcp)
+        {
+            return $"TCP {route.Match.Port?.ToString() ?? route.EntrypointName}";
+        }
+
+        var host = string.IsNullOrWhiteSpace(route.Match.Host)
+            ? "any host"
+            : route.Match.Host;
+        return string.IsNullOrWhiteSpace(route.Match.PathPrefix)
+            ? host
+            : $"{host}{route.Match.PathPrefix}";
+    }
+
+    private string FormatLoadBalancerRouteTarget(LoadBalancerRouteTarget target)
+    {
+        var resource = ResolveMappingResource(target.ResourceId);
+        var label = string.Equals(target.ResourceId, Application?.Id, StringComparison.OrdinalIgnoreCase)
+            ? Application?.Name ?? target.ResourceId
+            : resource?.Name ?? target.ResourceId;
+        if (!string.IsNullOrWhiteSpace(target.EndpointName))
+        {
+            return $"{label}/{target.EndpointName}";
+        }
+
+        return target.Port is null
+            ? label
+            : $"{label}:{target.Port.Value}";
+    }
+
+    private static bool IsLoadBalancerResource(Resource resource) =>
+        resource.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer) ||
+        resource.ResourceLoadBalancerRoutes.Count > 0 ||
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.LoadBalancerProvider);
 
     private Resource? ResolveMappingResource(string resourceId, Resource? fallbackResource = null)
     {
@@ -289,4 +366,8 @@ else
     private sealed record NetworkEndpointMappingView(
         Resource Network,
         ResourceEndpointMappingDefinition Mapping);
+
+    private sealed record LoadBalancerRouteView(
+        Resource LoadBalancer,
+        LoadBalancerRoute Route);
 }

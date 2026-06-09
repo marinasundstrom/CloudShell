@@ -30,7 +30,8 @@
         <label for="resource-type">@L["Type"]</label>
         <FluentSelect TOption="string"
                       Id="resource-type"
-                      @bind-Value="SelectedTypeId"
+                      Value="@SelectedTypeId"
+                      ValueChanged="ChangeSelectedType"
                       Appearance="Appearance.Outline">
             @foreach (var type in resourceTypes)
             {
@@ -82,6 +83,7 @@
 </section>
 
 @code {
+    private const string ResourceTypeQueryParameter = "type";
     private string? SelectedTypeId { get; set; }
     private Dictionary<string, ResourceRegistrationProbeContext> ProbeContexts { get; } =
         new(StringComparer.OrdinalIgnoreCase);
@@ -94,10 +96,41 @@
             return;
         }
 
-        SelectedTypeId ??= ShellCatalog.ResourceTypes.FirstOrDefault()?.Id;
+        SelectedTypeId ??= GetRequestedResourceTypeId() ??
+            ShellCatalog.ResourceTypes.FirstOrDefault()?.Id;
     }
 
     private void Cancel() => Navigation.NavigateTo("/resources");
+
+    private void ChangeSelectedType(string? resourceTypeId)
+    {
+        SelectedTypeId = resourceTypeId;
+        var target = Navigation.GetUriWithQueryParameter(
+            ResourceTypeQueryParameter,
+            string.IsNullOrWhiteSpace(resourceTypeId) ? null : resourceTypeId);
+        Navigation.NavigateTo(target, replace: true);
+    }
+
+    private string? GetRequestedResourceTypeId()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (!query.TryGetValue(ResourceTypeQueryParameter, out var values))
+        {
+            return null;
+        }
+
+        var requested = values.ToString();
+        if (string.IsNullOrWhiteSpace(requested))
+        {
+            return null;
+        }
+
+        return ShellCatalog.ResourceTypes.Any(type =>
+            string.Equals(type.Id, requested, StringComparison.OrdinalIgnoreCase))
+            ? requested
+            : null;
+    }
 
     private ResourceRegistrationProbeContext GetProbeContext(ResourceTypeContribution type)
     {

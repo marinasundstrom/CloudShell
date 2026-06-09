@@ -1,6 +1,7 @@
 @page "/resources"
 @rendermode InteractiveServer
 @implements IAsyncDisposable
+@using System.Globalization
 @inject IResourceManager ResourceManager
 @inject ILogManager LogManager
 @inject ShellCatalog ShellCatalog
@@ -439,7 +440,33 @@
                 </div>
             </section>
 
-            @if (IsNetworkResource(selected))
+            @if (IsLoadBalancerResource(selected))
+            {
+                <section class="blade-section">
+                    <h3>@L["Load balancing"]</h3>
+                    <dl class="detail-list">
+                        <dt>@L["Provider"]</dt>
+                        <dd>@GetAttributeValue(selected, ResourceAttributeNames.LoadBalancerProvider, selected.Provider)</dd>
+                        <dt>@L["Host"]</dt>
+                        <dd>
+                            @if (GetLoadBalancerHostResourceId(selected) is { } hostResourceId)
+                            {
+                                @FormatResourceName(hostResourceId)
+                            }
+                            else
+                            {
+                                @L["Default container host"]
+                            }
+                        </dd>
+                        <dt>@L["Entrypoints"]</dt>
+                        <dd>@GetAttributeValue(selected, ResourceAttributeNames.LoadBalancerEntrypointCount, selected.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
+                        <dt>@L["Routes"]</dt>
+                        <dd>@FormatLoadBalancerRouteCounts(selected)</dd>
+                    </dl>
+                </section>
+            }
+
+            @if (IsNetworkResource(selected) && !IsLoadBalancerResource(selected))
             {
                 <section class="blade-section">
                     <h3>@L["Networking"]</h3>
@@ -502,6 +529,23 @@
                                 <strong>@exposure.Network.Name</strong>
                                 <span>@FormatMappingSummary(exposure.Mapping, exposure.Network)</span>
                                 <small>@FormatMappingProvider(exposure.Mapping)</small>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+
+            @if (GetInboundLoadBalancerRoutes(selected).Length > 0)
+            {
+                <section class="blade-section">
+                    <h3>@L["Load balancer exposure"]</h3>
+                    <div class="endpoint-list">
+                        @foreach (var exposure in GetInboundLoadBalancerRoutes(selected))
+                        {
+                            <div>
+                                <strong>@exposure.LoadBalancer.Name</strong>
+                                <span>@FormatLoadBalancerRoute(exposure.Route)</span>
+                                <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
                             </div>
                         }
                     </div>
@@ -1321,6 +1365,11 @@
         resource.ResourceClass == ResourceClass.Network ||
         resource.HasCapability(ResourceCapabilityIds.NetworkingProvider);
 
+    private static bool IsLoadBalancerResource(Resource resource) =>
+        resource.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer) ||
+        resource.ResourceLoadBalancerRoutes.Count > 0 ||
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.LoadBalancerProvider);
+
     private static string GetAttributeValue(
         Resource resource,
         string name,
@@ -1364,6 +1413,20 @@
                     StringComparison.OrdinalIgnoreCase))
                 .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
             .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private LoadBalancerRouteView[] GetInboundLoadBalancerRoutes(Resource resource) =>
+        ResourceInventory
+            .Where(IsLoadBalancerResource)
+            .Where(loadBalancer => !string.Equals(loadBalancer.Id, resource.Id, StringComparison.OrdinalIgnoreCase))
+            .SelectMany(loadBalancer => loadBalancer.ResourceLoadBalancerRoutes
+                .Where(route => string.Equals(
+                    route.Target.ResourceId,
+                    resource.Id,
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
+            .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private string FormatMappingSummary(
@@ -1443,6 +1506,25 @@
         return target.Port is null
             ? label
             : $"{label}:{target.Port.Value}";
+    }
+
+    private static string? GetLoadBalancerHostResourceId(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.LoadBalancerHostResourceId);
+
+    private string FormatResourceName(string resourceId) =>
+        ResourceInventory.FirstOrDefault(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))?.Name ??
+        resourceId;
+
+    private string FormatLoadBalancerRouteCounts(Resource resource)
+    {
+        var routeCount = GetAttributeValue(
+            resource,
+            ResourceAttributeNames.LoadBalancerRouteCount,
+            resource.ResourceLoadBalancerRoutes.Count.ToString(CultureInfo.InvariantCulture));
+        var httpCount = GetAttributeValue(resource, ResourceAttributeNames.LoadBalancerHttpRouteCount, "0");
+        var tcpCount = GetAttributeValue(resource, ResourceAttributeNames.LoadBalancerTcpRouteCount, "0");
+        return L["{0} total ({1} HTTP, {2} TCP)", routeCount, httpCount, tcpCount].Value;
     }
 
     private bool IsExecutingAction(Resource resource, ResourceAction action) =>
@@ -1742,6 +1824,10 @@
     private sealed record NetworkEndpointMappingView(
         Resource Network,
         ResourceEndpointMappingDefinition Mapping);
+
+    private sealed record LoadBalancerRouteView(
+        Resource LoadBalancer,
+        LoadBalancerRoute Route);
 
     private sealed record ResourceClassFilterOption(string Id, string DisplayName);
 

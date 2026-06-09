@@ -1,3 +1,4 @@
+@using System.Globalization
 @using CloudShell.Abstractions.ResourceManager
 @using CloudShell.Abstractions.ControlPlane
 @using Microsoft.AspNetCore.WebUtilities
@@ -96,7 +97,56 @@
         </section>
     }
 
-    @if (IsNetworkResource)
+    @if (InboundLoadBalancerRoutes.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Load balancer exposure"]</h3>
+            <div class="generated-list">
+                @foreach (var exposure in InboundLoadBalancerRoutes)
+                {
+                    <div>
+                        <strong>@ResourceLink(exposure.LoadBalancer)</strong>
+                        <span>
+                            @FormatLoadBalancerRouteMatch(exposure.Route)
+                            <span aria-hidden="true">-&gt;</span>
+                            @FormatLoadBalancerRouteTarget(exposure.Route.Target)
+                        </span>
+                        <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (IsLoadBalancerResource)
+    {
+        <section class="generated-section">
+            <h3>@L["Load balancing"]</h3>
+            <dl class="detail-list">
+                <dt>@L["Provider"]</dt>
+                <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerProvider, Resource.Provider)</dd>
+                <dt>@L["Host"]</dt>
+                <dd>
+                    @if (GetLoadBalancerHostResourceId(Resource) is { } hostResourceId)
+                    {
+                        @ResourceLink(hostResourceId)
+                    }
+                    else
+                    {
+                        @L["Default container host"]
+                    }
+                </dd>
+                <dt>@L["Entrypoints"]</dt>
+                <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerEntrypointCount, Resource.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
+                <dt>@L["Routes"]</dt>
+                <dd>@FormatLoadBalancerRouteCounts(Resource)</dd>
+                <dt>@L["TLS"]</dt>
+                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingTls))</dd>
+            </dl>
+        </section>
+    }
+
+    @if (IsNetworkResource && !IsLoadBalancerResource)
     {
         <section class="generated-section">
             <h3>@L["Networking"]</h3>
@@ -242,7 +292,7 @@
                         <FluentButton Appearance="Appearance.Neutral"
                                       Disabled="@(!CanExecuteAction(action) || IsExecutingAction(action))"
                                       OnClick="() => ExecuteAction(action)">
-                            @(IsExecutingAction(action) ? L["Working"] : L["Run"])
+                            @GetActionButtonLabel(action)
                         </FluentButton>
                         @if (!string.IsNullOrWhiteSpace(capability?.Reason))
                         {
@@ -308,6 +358,7 @@
     private IReadOnlyList<Resource> ChildResources { get; set; } = [];
     private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
+    private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
     private ResourceOperationCapabilities Capabilities { get; set; } =
@@ -318,12 +369,15 @@
     private bool IsNetworkResource => Resource.ResourceClass == ResourceClass.Network ||
         Resource.HasCapability(ResourceCapabilityIds.NetworkingProvider);
 
+    private bool IsLoadBalancerResource => HasLoadBalancerShape(Resource);
+
     protected override async Task OnParametersSetAsync()
     {
         ChildResources = await ResourceManager.ListResourceChildrenAsync(Resource.Id);
         Logs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: Resource.Id));
         Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
         InboundNetworkMappings = await LoadInboundNetworkMappingsAsync();
+        InboundLoadBalancerRoutes = await LoadInboundLoadBalancerRoutesAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
     }
 
@@ -334,6 +388,31 @@
 
     private bool IsExecutingAction(ResourceAction action) =>
         ExecutingActionIds.Contains(action.Id);
+
+    private string GetActionButtonLabel(ResourceAction action)
+    {
+        if (IsExecutingAction(action))
+        {
+            return L["Working"].Value;
+        }
+
+        return action.Kind switch
+        {
+            ResourceActionKind.Run => L["Run"].Value,
+            ResourceActionKind.Stop => L["Stop"].Value,
+            ResourceActionKind.Pause => L["Pause"].Value,
+            ResourceActionKind.Restart => L["Restart"].Value,
+            _ => GetCustomActionCommandLabel(action)
+        };
+    }
+
+    private static string GetCustomActionCommandLabel(ResourceAction action)
+    {
+        var words = action.DisplayName.Split(
+            ' ',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return words.Length == 0 ? action.Id : words[0];
+    }
 
     private async Task ExecuteAction(ResourceAction action)
     {
@@ -418,6 +497,24 @@
                     StringComparison.OrdinalIgnoreCase))
                 .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
             .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<LoadBalancerRouteView>> LoadInboundLoadBalancerRoutesAsync()
+    {
+        var networks = await ResourceManager.ListResourcesAsync(
+            new ResourceQuery(ResourceClass: ResourceClass.Network));
+        return networks
+            .Where(loadBalancer => !string.Equals(loadBalancer.Id, Resource.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(HasLoadBalancerShape)
+            .SelectMany(loadBalancer => loadBalancer.ResourceLoadBalancerRoutes
+                .Where(route => string.Equals(
+                    route.Target.ResourceId,
+                    Resource.Id,
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
+            .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
@@ -540,10 +637,13 @@
         var ids = Resource.DependsOn
             .Concat(ChildResources.Select(resource => resource.Id))
             .Concat(InboundNetworkMappings.Select(mapping => mapping.Network.Id))
+            .Concat(InboundLoadBalancerRoutes.Select(route => route.LoadBalancer.Id))
             .Concat(Resource.ResourceEndpointMappings.SelectMany(GetMappingResourceIds))
             .Concat(InboundNetworkMappings.SelectMany(mapping => GetMappingResourceIds(mapping.Mapping)))
             .Concat(Resource.ResourceLoadBalancerRoutes.Select(route => route.Target.ResourceId))
+            .Concat(InboundLoadBalancerRoutes.Select(route => route.Route.Target.ResourceId))
             .Concat(GetMappingProviderIds())
+            .Append(GetLoadBalancerHostResourceId(Resource))
             .Append(Resource.ParentResourceId)
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Select(id => id!)
@@ -604,6 +704,24 @@
             : $"{label}:{target.Port.Value}";
     }
 
+    private static bool HasLoadBalancerShape(Resource resource) =>
+        resource.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer) ||
+        resource.ResourceLoadBalancerRoutes.Count > 0 ||
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.LoadBalancerProvider);
+
+    private static string? GetLoadBalancerHostResourceId(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.LoadBalancerHostResourceId);
+
+    private string FormatLoadBalancerRouteCounts(Resource resource)
+    {
+        var routeCount = GetAttributeValue(
+            ResourceAttributeNames.LoadBalancerRouteCount,
+            resource.ResourceLoadBalancerRoutes.Count.ToString(CultureInfo.InvariantCulture));
+        var httpCount = GetAttributeValue(ResourceAttributeNames.LoadBalancerHttpRouteCount, "0");
+        var tcpCount = GetAttributeValue(ResourceAttributeNames.LoadBalancerTcpRouteCount, "0");
+        return L["{0} total ({1} HTTP, {2} TCP)", routeCount, httpCount, tcpCount].Value;
+    }
+
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
 
@@ -649,4 +767,8 @@
     private sealed record NetworkEndpointMappingView(
         Resource Network,
         ResourceEndpointMappingDefinition Mapping);
+
+    private sealed record LoadBalancerRouteView(
+        Resource LoadBalancer,
+        LoadBalancerRoute Route);
 }

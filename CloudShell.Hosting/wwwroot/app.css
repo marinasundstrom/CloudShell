@@ -865,6 +865,15 @@ h3 {
     font-size: .92rem;
 }
 
+.generated-resource-view .detail-list {
+    grid-template-columns: minmax(9rem, 16rem) minmax(0, 1fr);
+}
+
+.generated-resource-view .detail-list dt {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .generated-list {
     display: grid;
     gap: .45rem;
@@ -1348,6 +1357,16 @@ h3 {
     min-width: 0;
     margin: 0;
     overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+    .generated-resource-view .detail-list {
+        grid-template-columns: 1fr;
+    }
+
+    .generated-resource-view .detail-list dt {
+        margin-bottom: -.3rem;
+    }
 }
 
 .detail-actions {

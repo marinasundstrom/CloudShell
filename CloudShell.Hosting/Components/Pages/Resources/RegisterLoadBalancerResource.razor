@@ -1,0 +1,434 @@
+@using System.Text.Json
+@inject IResourceManager ResourceManager
+@inject NavigationManager Navigation
+
+<div class="type-registration">
+    <div class="form-panel">
+        <label for="load-balancer-name">Name</label>
+        <FluentTextField Id="load-balancer-name" @bind-Value="Name" />
+
+        <label for="load-balancer-resource-id">Resource ID</label>
+        <FluentTextField Id="load-balancer-resource-id" @bind-Value="ResourceId" Placeholder="load-balancer:public" />
+
+        <label for="load-balancer-provider">Provider</label>
+        <FluentSelect TOption="string"
+                      Id="load-balancer-provider"
+                      @bind-Value="Provider"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="traefik">Traefik</FluentOption>
+        </FluentSelect>
+
+        <label for="load-balancer-host">Container host</label>
+        <FluentSelect TOption="string"
+                      Id="load-balancer-host"
+                      @bind-Value="SelectedHostResourceId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default container host</FluentOption>
+            @foreach (var host in GetHostCandidates())
+            {
+                <FluentOption TOption="string" Value="@host.Id">@host.Name</FluentOption>
+            }
+        </FluentSelect>
+
+        <label for="load-balancer-group">Resource group</label>
+        <FluentSelect TOption="string"
+                      Id="load-balancer-group"
+                      @bind-Value="SelectedGroupId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default group</FluentOption>
+            @foreach (var group in ResourceGroups)
+            {
+                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
+            }
+        </FluentSelect>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Entrypoints</strong>
+            </div>
+
+            <FluentCheckbox @bind-Value="ExposeHttp">
+                HTTP
+            </FluentCheckbox>
+            @if (ExposeHttp)
+            {
+                <label for="load-balancer-http-port">HTTP port</label>
+                <FluentNumberField TValue="int" Id="load-balancer-http-port" Min="1" @bind-Value="HttpPort" />
+            }
+
+            <FluentCheckbox @bind-Value="ExposeHttps">
+                HTTPS
+            </FluentCheckbox>
+            @if (ExposeHttps)
+            {
+                <label for="load-balancer-https-port">HTTPS port</label>
+                <FluentNumberField TValue="int" Id="load-balancer-https-port" Min="1" @bind-Value="HttpsPort" />
+            }
+
+            <FluentCheckbox @bind-Value="ExposeTcp">
+                TCP
+            </FluentCheckbox>
+            @if (ExposeTcp)
+            {
+                <label for="load-balancer-tcp-port">TCP port</label>
+                <FluentNumberField TValue="int" Id="load-balancer-tcp-port" Min="1" @bind-Value="TcpPort" />
+            }
+        </div>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>HTTP route</strong>
+            </div>
+
+            <FluentCheckbox @bind-Value="CreateHttpRoute">
+                Add HTTP route
+            </FluentCheckbox>
+
+            @if (CreateHttpRoute)
+            {
+                <label for="load-balancer-http-host">Host</label>
+                <FluentTextField Id="load-balancer-http-host" @bind-Value="HttpHost" Placeholder="app.local" />
+
+                <label for="load-balancer-http-path">Path prefix</label>
+                <FluentTextField Id="load-balancer-http-path" @bind-Value="HttpPathPrefix" Placeholder="/v1" />
+
+                <label for="load-balancer-http-target">Target resource</label>
+                <FluentSelect TOption="string"
+                              Id="load-balancer-http-target"
+                              @bind-Value="HttpTargetResourceId"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">Select a resource</FluentOption>
+                    @foreach (var target in GetTargetCandidates())
+                    {
+                        <FluentOption TOption="string" Value="@target.Id">@target.Name</FluentOption>
+                    }
+                </FluentSelect>
+
+                @if (GetTargetEndpoints(HttpTargetResourceId).Count > 0)
+                {
+                    <label for="load-balancer-http-target-endpoint">Target endpoint</label>
+                    <FluentSelect TOption="string"
+                                  Id="load-balancer-http-target-endpoint"
+                                  @bind-Value="HttpTargetEndpointName"
+                                  Appearance="Appearance.Outline">
+                        <FluentOption TOption="string" Value="">Use target port</FluentOption>
+                        @foreach (var endpoint in GetTargetEndpoints(HttpTargetResourceId))
+                        {
+                            <FluentOption TOption="string" Value="@endpoint.Name">@endpoint.Name</FluentOption>
+                        }
+                    </FluentSelect>
+                }
+
+                <label for="load-balancer-http-target-port">Target port</label>
+                <FluentNumberField TValue="int?" Id="load-balancer-http-target-port" Min="1" @bind-Value="HttpTargetPort" />
+            }
+        </div>
+
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>TCP route</strong>
+            </div>
+
+            <FluentCheckbox @bind-Value="CreateTcpRoute">
+                Add TCP route
+            </FluentCheckbox>
+
+            @if (CreateTcpRoute)
+            {
+                <label for="load-balancer-tcp-target">Target resource</label>
+                <FluentSelect TOption="string"
+                              Id="load-balancer-tcp-target"
+                              @bind-Value="TcpTargetResourceId"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">Select a resource</FluentOption>
+                    @foreach (var target in GetTargetCandidates())
+                    {
+                        <FluentOption TOption="string" Value="@target.Id">@target.Name</FluentOption>
+                    }
+                </FluentSelect>
+
+                @if (GetTargetEndpoints(TcpTargetResourceId).Count > 0)
+                {
+                    <label for="load-balancer-tcp-target-endpoint">Target endpoint</label>
+                    <FluentSelect TOption="string"
+                                  Id="load-balancer-tcp-target-endpoint"
+                                  @bind-Value="TcpTargetEndpointName"
+                                  Appearance="Appearance.Outline">
+                        <FluentOption TOption="string" Value="">Use target port</FluentOption>
+                        @foreach (var endpoint in GetTargetEndpoints(TcpTargetResourceId))
+                        {
+                            <FluentOption TOption="string" Value="@endpoint.Name">@endpoint.Name</FluentOption>
+                        }
+                    </FluentSelect>
+                }
+
+                <label for="load-balancer-tcp-target-port">Target port</label>
+                <FluentNumberField TValue="int?" Id="load-balancer-tcp-target-port" Min="1" @bind-Value="TcpTargetPort" />
+            }
+        </div>
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private const string PlatformProviderId = "cloudshell.platform";
+    private const string NetworkResourceType = "cloudshell.network";
+    private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
+    private const string ServiceResourceType = "cloudshell.service";
+    private const string LoadBalancerResourceType = "cloudshell.loadBalancer";
+
+    private string ResourceId { get; set; } = string.Empty;
+    private string Name { get; set; } = string.Empty;
+    private string Provider { get; set; } = "traefik";
+    private string SelectedHostResourceId { get; set; } = string.Empty;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private bool ExposeHttp { get; set; } = true;
+    private int HttpPort { get; set; } = 80;
+    private bool ExposeHttps { get; set; } = true;
+    private int HttpsPort { get; set; } = 443;
+    private bool ExposeTcp { get; set; }
+    private int TcpPort { get; set; } = 5432;
+    private bool CreateHttpRoute { get; set; } = true;
+    private string HttpHost { get; set; } = "app.local";
+    private string HttpPathPrefix { get; set; } = string.Empty;
+    private string HttpTargetResourceId { get; set; } = string.Empty;
+    private string HttpTargetEndpointName { get; set; } = string.Empty;
+    private int? HttpTargetPort { get; set; }
+    private bool CreateTcpRoute { get; set; }
+    private string TcpTargetResourceId { get; set; } = string.Empty;
+    private string TcpTargetEndpointName { get; set; } = string.Empty;
+    private int? TcpTargetPort { get; set; } = 5432;
+    private string? ErrorMessage { get; set; }
+    private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+    private IReadOnlyList<Resource> Resources { get; set; } = [];
+    private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
+        new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+        Resources = await ResourceManager.ListResourcesAsync();
+
+        var groupsByResourceId = new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in Resources)
+        {
+            var group = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
+            if (group is not null)
+            {
+                groupsByResourceId[resource.Id] = group;
+            }
+        }
+
+        ResourceGroupsByResourceId = groupsByResourceId;
+        HttpTargetResourceId = GetTargetCandidates().FirstOrDefault()?.Id ?? string.Empty;
+    }
+
+    private IReadOnlyList<Resource> GetHostCandidates() =>
+        Resources
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => resource.ResourceClass == ResourceClass.Infrastructure ||
+                resource.EffectiveTypeId.Contains("docker", StringComparison.OrdinalIgnoreCase) ||
+                resource.EffectiveTypeId.Contains("host", StringComparison.OrdinalIgnoreCase))
+            .Where(IsInSelectedGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<Resource> GetTargetCandidates() =>
+        Resources
+            .Where(resource => !IsPlatformNetworkResource(resource))
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => resource.Endpoints.Count > 0 || resource.HasCapability(ResourceCapabilityIds.EndpointSource))
+            .Where(IsInSelectedGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<ResourceEndpoint> GetTargetEndpoints(string resourceId) =>
+        Resources
+            .FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+            ?.Endpoints ?? [];
+
+    private bool IsInSelectedGroup(Resource resource)
+    {
+        var group = ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
+        return string.IsNullOrWhiteSpace(SelectedGroupId)
+            ? group is null
+            : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsPlatformNetworkResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resource.EffectiveTypeId, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Name))
+        {
+            ErrorMessage = "Name is required.";
+            return;
+        }
+
+        var entrypoints = BuildEntrypoints();
+        if (entrypoints.Count == 0)
+        {
+            ErrorMessage = "Select at least one entrypoint.";
+            return;
+        }
+
+        var routes = BuildRoutes();
+        if (ErrorMessage is not null)
+        {
+            return;
+        }
+
+        var definition = new LoadBalancerResourceDefinition(
+            ResourceId,
+            Name,
+            Provider,
+            string.IsNullOrWhiteSpace(SelectedHostResourceId) ? null : SelectedHostResourceId,
+            entrypoints,
+            routes);
+
+        await ResourceManager.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformProviderId,
+                LoadBalancerResourceType,
+                ResourceId,
+                Name,
+                JsonSerializer.SerializeToElement(definition),
+                string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
+
+        Navigation.NavigateTo("/resources");
+    }
+
+    private IReadOnlyList<LoadBalancerEntrypoint> BuildEntrypoints()
+    {
+        var entrypoints = new List<LoadBalancerEntrypoint>();
+        if (ExposeHttp)
+        {
+            entrypoints.Add(new LoadBalancerEntrypoint("http", ResourceEndpointProtocol.Http, Math.Max(1, HttpPort)));
+        }
+
+        if (ExposeHttps)
+        {
+            entrypoints.Add(new LoadBalancerEntrypoint("https", ResourceEndpointProtocol.Https, Math.Max(1, HttpsPort)));
+        }
+
+        if (ExposeTcp || CreateTcpRoute)
+        {
+            entrypoints.Add(new LoadBalancerEntrypoint(GetTcpEntrypointName(), ResourceEndpointProtocol.Tcp, Math.Max(1, TcpPort)));
+        }
+
+        return entrypoints;
+    }
+
+    private IReadOnlyList<LoadBalancerRoute> BuildRoutes()
+    {
+        var routes = new List<LoadBalancerRoute>();
+        if (CreateHttpRoute)
+        {
+            if (!ExposeHttp)
+            {
+                ErrorMessage = "HTTP routes require the HTTP entrypoint.";
+                return [];
+            }
+
+            if (string.IsNullOrWhiteSpace(HttpHost))
+            {
+                ErrorMessage = "HTTP routes require a host.";
+                return [];
+            }
+
+            var target = BuildTarget(HttpTargetResourceId, HttpTargetEndpointName, HttpTargetPort, "HTTP");
+            if (target is null)
+            {
+                return [];
+            }
+
+            routes.Add(new LoadBalancerRoute(
+                CreateRouteId("http", HttpHost, HttpPathPrefix),
+                string.IsNullOrWhiteSpace(HttpPathPrefix)
+                    ? $"{HttpHost} to {HttpTargetResourceId}"
+                    : $"{HttpHost}{HttpPathPrefix} to {HttpTargetResourceId}",
+                LoadBalancerRouteKind.Http,
+                "http",
+                new LoadBalancerRouteMatch(
+                    Host: HttpHost,
+                    PathPrefix: string.IsNullOrWhiteSpace(HttpPathPrefix) ? null : HttpPathPrefix),
+                target));
+        }
+
+        if (CreateTcpRoute)
+        {
+            var target = BuildTarget(TcpTargetResourceId, TcpTargetEndpointName, TcpTargetPort, "TCP");
+            if (target is null)
+            {
+                return [];
+            }
+
+            routes.Add(new LoadBalancerRoute(
+                CreateRouteId("tcp", TcpPort.ToString()),
+                $"tcp {TcpPort} to {TcpTargetResourceId}",
+                LoadBalancerRouteKind.Tcp,
+                GetTcpEntrypointName(),
+                new LoadBalancerRouteMatch(Port: Math.Max(1, TcpPort)),
+                target));
+        }
+
+        return routes;
+    }
+
+    private LoadBalancerRouteTarget? BuildTarget(
+        string resourceId,
+        string endpointName,
+        int? port,
+        string routeKind)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId))
+        {
+            ErrorMessage = $"{routeKind} routes require a target resource.";
+            return null;
+        }
+
+        var selectedEndpointName = string.IsNullOrWhiteSpace(endpointName)
+            ? GetTargetEndpoints(resourceId).FirstOrDefault()?.Name
+            : endpointName;
+
+        if (string.IsNullOrWhiteSpace(selectedEndpointName) && port is null)
+        {
+            ErrorMessage = $"{routeKind} routes require a target endpoint or target port.";
+            return null;
+        }
+
+        return new LoadBalancerRouteTarget(
+            resourceId,
+            string.IsNullOrWhiteSpace(selectedEndpointName) ? null : selectedEndpointName,
+            port);
+    }
+
+    private string GetTcpEntrypointName() => $"tcp-{Math.Max(1, TcpPort)}";
+
+    private static string CreateRouteId(params string?[] parts)
+    {
+        var value = string.Join(
+            "-",
+            parts
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .Select(part => part!.Trim().ToLowerInvariant()));
+        return new string(value
+            .Select(character => char.IsLetterOrDigit(character) ? character : '-')
+            .ToArray())
+            .Trim('-');
+    }
+}

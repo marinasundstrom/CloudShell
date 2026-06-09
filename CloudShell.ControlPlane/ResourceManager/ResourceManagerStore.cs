@@ -254,7 +254,8 @@ public sealed class ResourceManagerStore(
         {
             [PlatformResourceProvider.NetworkResourceType] = ResourceClass.Network,
             [PlatformResourceProvider.VirtualNetworkResourceType] = ResourceClass.Network,
-            [PlatformResourceProvider.ServiceResourceType] = ResourceClass.Service
+            [PlatformResourceProvider.ServiceResourceType] = ResourceClass.Service,
+            [PlatformResourceProvider.LoadBalancerResourceType] = ResourceClass.Network
         };
 
         foreach (var resourceType in extensionRegistry
