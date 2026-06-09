@@ -184,7 +184,7 @@ across providers and hosts.
 
 Examples:
 
-- `docker.engine`
+- `docker.host`
 - `application.executable`
 - `configuration.store`
 - `cloudshell.network`

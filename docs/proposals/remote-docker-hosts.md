@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Partially implemented.
 
 ## Problem
 
@@ -47,10 +47,15 @@ group, not just the Docker Engine process itself. A local host and a remote host
 both expose a Docker Engine API, but users add, group, update, and de-duplicate
 the host connection.
 
-The CloudShell abstraction is a container host. Docker Engine is the runtime
+The CloudShell UI abstraction is a container host. Docker Engine is the runtime
 product exposed by a Docker host. New docs and APIs should prefer "container
 host" and "container runtime"; "engine" should appear only when referring to
-Docker Engine specifically or to compatibility names.
+Docker Engine specifically, transport details, compatibility names, or existing
+generic container-engine APIs that have not yet been renamed.
+
+`container.host` remains the future generic resource-type direction for
+non-Docker hosts. This implementation keeps the Docker provider concrete with
+`docker.host` so it does not imply support for other host providers yet.
 
 `docker.engine` already exists and should be kept as a compatibility alias
 during migration. Existing local development defaults, tests, routes, and
@@ -161,7 +166,7 @@ var localDocker = resources.AddDocker();
 ```
 
 The builder should also support an explicit local host call when users want a
-named non-default local engine:
+named non-default local host:
 
 ```csharp
 resources

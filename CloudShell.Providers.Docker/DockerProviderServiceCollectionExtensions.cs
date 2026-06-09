@@ -91,14 +91,14 @@ public static class DockerProviderServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Declares the default local Docker Engine resource.
+    /// Declares the default local Docker host resource.
     /// </summary>
     public static IDockerResourceBuilder AddDocker(
         this IResourceDeclarationBuilder builder) =>
-        builder.AddDocker(DockerContainerResourceProvider.EngineResourceId, "Local Docker Engine");
+        builder.AddDocker(DockerContainerResourceProvider.DefaultHostResourceId, "Local Docker Host");
 
     /// <summary>
-    /// Declares a Docker Engine resource that can own Docker container
+    /// Declares a Docker host resource that can own Docker container
     /// sub-resources.
     /// </summary>
     public static IDockerResourceBuilder AddDocker(
@@ -128,19 +128,19 @@ public static class DockerProviderServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Declares the default Docker Engine resource ID without configuring
+    /// Declares the default Docker host resource ID without configuring
     /// Docker-specific child-resource builder state.
     /// </summary>
-    public static IResourceBuilder AddDockerEngine(
+    public static IResourceBuilder AddDockerHost(
         this IResourceDeclarationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        return builder.Declare("docker", DockerContainerResourceProvider.EngineResourceId);
+        return builder.Declare("docker", DockerContainerResourceProvider.DefaultHostResourceId);
     }
 
     /// <summary>
-    /// Declares a Docker container sub-resource under the default Docker Engine
+    /// Declares a Docker container sub-resource under the default Docker host
     /// resource.
     /// </summary>
     public static IDockerContainerResourceBuilder AddDockerContainer(
@@ -151,12 +151,12 @@ public static class DockerProviderServiceCollectionExtensions
         IReadOnlyList<ResourceEndpoint>? endpoints = null) =>
         AddDockerContainerCore(
             builder,
-            DockerContainerResourceProvider.EngineResourceId,
+            DockerContainerResourceProvider.DefaultHostResourceId,
             id,
             name,
             image,
             endpoints,
-            declareEngine: true);
+            declareHost: true);
 
     internal static IDockerContainerResourceBuilder AddDockerContainerCore(
         IResourceDeclarationBuilder builder,
@@ -165,7 +165,7 @@ public static class DockerProviderServiceCollectionExtensions
         string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints,
-        bool declareEngine)
+        bool declareHost)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -183,9 +183,9 @@ public static class DockerProviderServiceCollectionExtensions
             .DeclaredContainers
             .Add(declared);
 
-        if (declareEngine)
+        if (declareHost)
         {
-            builder.AddDockerEngine();
+            builder.AddDockerHost();
         }
 
         var resource = builder.Declare(
@@ -215,7 +215,7 @@ public static class DockerProviderServiceCollectionExtensions
             : $"{image.Trim()}:{tag.Trim()}";
     }
 
-    private static DockerProviderOptions GetOrAddDockerProviderOptions(
+    internal static DockerProviderOptions GetOrAddDockerProviderOptions(
         this IServiceCollection services)
     {
         var options = services
@@ -269,6 +269,32 @@ public static class DockerProviderServiceCollectionExtensions
 
 public interface IDockerResourceBuilder : IResourceBuilder
 {
+    /// <summary>
+    /// Configures this Docker resource to use the resolved local Docker host.
+    /// </summary>
+    IDockerResourceBuilder UseLocalHost();
+
+    /// <summary>
+    /// Configures this Docker resource to use a remote Docker host endpoint.
+    /// </summary>
+    IDockerResourceBuilder UseRemoteHost(Uri endpoint);
+
+    /// <summary>
+    /// Sets TLS certificate file references for a remote Docker host.
+    /// </summary>
+    IDockerResourceBuilder WithTlsCertificateFiles(
+        string certificateAuthorityPath,
+        string clientCertificatePath,
+        string clientKeyPath);
+
+    /// <summary>
+    /// Sets username and password environment-variable references for a remote
+    /// Docker host.
+    /// </summary>
+    IDockerResourceBuilder WithHostCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable);
+
     /// <summary>
     /// Sets the registry used by Docker container resources declared from this
     /// Docker resource. The default registry is
@@ -341,6 +367,76 @@ internal sealed class DockerResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
+    public IDockerResourceBuilder UseLocalHost()
+    {
+        declared.Definition = declared.Definition with
+        {
+            Host = DockerHostDefinition.Local(
+                declarations.CloudShellBuilder.Services.GetOrAddDockerProviderOptions().ResolveEndpoint())
+        };
+        return this;
+    }
+
+    public IDockerResourceBuilder UseRemoteHost(Uri endpoint)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        if (!endpoint.IsAbsoluteUri)
+        {
+            throw new ArgumentException("Docker host endpoint must be absolute.", nameof(endpoint));
+        }
+
+        declared.Definition = declared.Definition with
+        {
+            Host = DockerHostDefinition.Remote(endpoint)
+        };
+        return this;
+    }
+
+    public IDockerResourceBuilder WithTlsCertificateFiles(
+        string certificateAuthorityPath,
+        string clientCertificatePath,
+        string clientKeyPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(certificateAuthorityPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientCertificatePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientKeyPath);
+        var currentHost = declared.Definition.Host ?? DockerHostDefinition.Local(
+            declarations.CloudShellBuilder.Services.GetOrAddDockerProviderOptions().ResolveEndpoint());
+        declared.Definition = declared.Definition with
+        {
+            Host = currentHost with
+            {
+                Credentials = new DockerHostCredentials(
+                    DockerHostCredentialKind.TlsCertificateFiles,
+                    CertificateAuthorityPath: certificateAuthorityPath.Trim(),
+                    ClientCertificatePath: clientCertificatePath.Trim(),
+                    ClientKeyPath: clientKeyPath.Trim())
+            }
+        };
+        return this;
+    }
+
+    public IDockerResourceBuilder WithHostCredentialsFromEnvironment(
+        string username,
+        string passwordEnvironmentVariable)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(username);
+        ArgumentException.ThrowIfNullOrWhiteSpace(passwordEnvironmentVariable);
+        var currentHost = declared.Definition.Host ?? DockerHostDefinition.Local(
+            declarations.CloudShellBuilder.Services.GetOrAddDockerProviderOptions().ResolveEndpoint());
+        declared.Definition = declared.Definition with
+        {
+            Host = currentHost with
+            {
+                Credentials = new DockerHostCredentials(
+                    DockerHostCredentialKind.UsernamePasswordEnvironmentVariable,
+                    Username: username.Trim(),
+                    PasswordEnvironmentVariable: passwordEnvironmentVariable.Trim())
+            }
+        };
+        return this;
+    }
+
     public IDockerContainerResourceBuilder AddContainer(
         string name,
         string image,
@@ -353,7 +449,7 @@ internal sealed class DockerResourceBuilder(
             name,
             DockerProviderServiceCollectionExtensions.CreateImageReference(image, tag),
             endpoints: null,
-            declareEngine: false)
+            declareHost: false)
             .WithRegistry(declared.Definition.Registry);
         return InheritRegistryCredentials(container);
     }
@@ -371,7 +467,7 @@ internal sealed class DockerResourceBuilder(
             name,
             image,
             endpoints,
-            declareEngine: false)
+            declareHost: false)
             .WithRegistry(declared.Definition.Registry);
         return InheritRegistryCredentials(container);
     }

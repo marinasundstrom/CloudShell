@@ -1001,8 +1001,8 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
         var declarations = store.GetDeclarations();
-        var engine = Assert.Single(declarations, declaration =>
-            declaration.ResourceId == DockerContainerResourceProvider.EngineResourceId);
+        var host = Assert.Single(declarations, declaration =>
+            declaration.ResourceId == DockerContainerResourceProvider.DefaultHostResourceId);
         var container = Assert.Single(declarations, declaration =>
             declaration.ResourceId == "docker:container:redis");
         var options = serviceProvider.GetRequiredService<DockerProviderOptions>();
@@ -1017,20 +1017,20 @@ public sealed class ResourceDeclarationTests
                 .GetProperty("Definition")!
                 .GetValue(declaredContainer));
 
-        Assert.Equal("docker", engine.ProviderId);
-        Assert.Empty(engine.DependsOn);
+        Assert.Equal("docker", host.ProviderId);
+        Assert.Empty(host.DependsOn);
         Assert.Equal("docker", container.ProviderId);
-        Assert.Equal(DockerContainerResourceProvider.EngineResourceId, container.ParentResourceId);
+        Assert.Equal(DockerContainerResourceProvider.DefaultHostResourceId, container.ParentResourceId);
         Assert.Equal("group-1", container.ResourceGroupId);
         Assert.Equal(
-            [DockerContainerResourceProvider.EngineResourceId, "postgres-main"],
+            [DockerContainerResourceProvider.DefaultHostResourceId, "postgres-main"],
             container.DependsOn);
         Assert.Equal("redis", definition.Name);
         Assert.Equal("redis:7.2", definition.Image);
         Assert.Equal("http://registry.local:5000", definition.Registry);
         Assert.Equal("registry-user", definition.RegistryCredentials?.Username);
         Assert.Equal("REGISTRY_PASSWORD", definition.RegistryCredentials?.PasswordEnvironmentVariable);
-        Assert.Equal(DockerContainerResourceProvider.EngineResourceId, definition.DockerResourceId);
+        Assert.Equal(DockerContainerResourceProvider.DefaultHostResourceId, definition.DockerResourceId);
         Assert.Equal(container.DependsOn, definition.DependsOn);
         Assert.Equal(ResourceLifetime.Detached, definition.Lifetime);
 
@@ -1096,16 +1096,16 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public async Task DockerProvider_DescribesEngineAsGenericContainerEngine()
+    public async Task DockerProvider_DescribesDefaultHostAsGenericContainerEngine()
     {
         using var provider = new DockerContainerResourceProvider(new DockerProviderOptions());
-        var engine = Assert.Single(provider.GetResources(), resource =>
-            resource.Id == DockerContainerResourceProvider.EngineResourceId);
+        var host = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == DockerContainerResourceProvider.DefaultHostResourceId);
 
-        Assert.True(provider.CanDescribe(engine));
+        Assert.True(provider.CanDescribe(host));
 
         var descriptor = await provider.DescribeAsync(
-            engine,
+            host,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
         var definition = descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
@@ -1116,7 +1116,75 @@ public sealed class ResourceDeclarationTests
         Assert.True(definition.IsDefault);
         Assert.Equal(provider.Endpoint.ToString(), definition.Endpoint);
         Assert.Equal(ContainerRegistryDefaults.Default, definition.Registry);
-        Assert.Equal(ContainerRegistryDefaults.Default, engine.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+        Assert.Equal(DockerContainerResourceProvider.HostResourceType, host.EffectiveTypeId);
+        Assert.Equal("local", host.ResourceAttributes["docker.host.kind"]);
+        Assert.Equal(ContainerRegistryDefaults.Default, host.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+    }
+
+    [Fact]
+    public void DockerBuilder_DeclaresRemoteHostWithRedactedProjectedAttributes()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddDocker("docker:build-01", "Build Host 01")
+                    .UseRemoteHost(new Uri("tcp://user:secret@Build-01.Example.com:2375/?debug=true"))
+                    .WithHostCredentialsFromEnvironment("docker-user", "DOCKER_HOST_PASSWORD")
+                    .AddContainer("redis", "redis", "7.2");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        using var provider = new DockerContainerResourceProvider(
+            serviceProvider.GetRequiredService<DockerProviderOptions>());
+        var host = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "docker:build-01");
+        var container = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "docker:container:redis");
+
+        Assert.Equal(DockerContainerResourceProvider.HostResourceType, host.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Infrastructure, host.ResourceClass);
+        Assert.Equal("remote", host.ResourceAttributes["docker.host.kind"]);
+        Assert.Equal("tcp://build-01.example.com", host.ResourceAttributes["docker.host.endpoint"]);
+        Assert.DoesNotContain("secret", host.PrimaryEndpoint, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("DOCKER_HOST_PASSWORD", host.ResourceAttributes.Values);
+        Assert.Equal("docker:build-01", container.ParentResourceId);
+    }
+
+    [Fact]
+    public async Task DockerProvider_RejectsDuplicateHostIdentityWithinResourceGroup()
+    {
+        using var provider = new DockerContainerResourceProvider(new DockerProviderOptions());
+        var registrations = new MutableResourceRegistrationStore();
+        var endpoint = new Uri("tcp://build-01.example.com:2375");
+
+        await provider.SetupHostAsync(
+            "docker:build-a",
+            "Build A",
+            DockerHostDefinition.Remote(endpoint),
+            "team-a",
+            registrations);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.SetupHostAsync(
+                "docker:build-b",
+                "Build B",
+                DockerHostDefinition.Remote(new Uri("tcp://BUILD-01.example.com:2375/")),
+                "team-a",
+                registrations));
+
+        await provider.SetupHostAsync(
+            "docker:build-c",
+            "Build C",
+            DockerHostDefinition.Remote(endpoint),
+            "team-b",
+            registrations);
+
+        Assert.Contains("already registered", exception.Message);
+        Assert.Equal(2, registrations.GetRegistrations().Count);
     }
 
     [Fact]
@@ -1132,14 +1200,14 @@ public sealed class ResourceDeclarationTests
         var declarations = serviceProvider
             .GetRequiredService<ResourceDeclarationStore>()
             .GetDeclarations();
-        var engine = Assert.Single(serviceProvider.GetServices<IContainerEngineProvider>())
+        var host = Assert.Single(serviceProvider.GetServices<IContainerEngineProvider>())
             .GetContainerEngine();
 
         Assert.Empty(declarations);
-        Assert.Equal("docker", engine.Id);
-        Assert.Equal(ContainerEngineKind.Docker, engine.Kind);
-        Assert.True(engine.IsDefault);
-        Assert.Equal(ContainerRegistryDefaults.Default, engine.Registry);
+        Assert.Equal("docker", host.Id);
+        Assert.Equal(ContainerEngineKind.Docker, host.Kind);
+        Assert.True(host.IsDefault);
+        Assert.Equal(ContainerRegistryDefaults.Default, host.Registry);
     }
 
     [Fact]
@@ -1154,7 +1222,7 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddDockerContainer("rabbitmq", "RabbitMQ", "rabbitmq:4")
                     .DependsOn("configuration:settings")
-                    .DependsOn(DockerContainerResourceProvider.EngineResourceId);
+                    .DependsOn(DockerContainerResourceProvider.DefaultHostResourceId);
             });
 
         var store = services
@@ -1164,7 +1232,7 @@ public sealed class ResourceDeclarationTests
             declaration.ResourceId == "docker:container:rabbitmq");
 
         Assert.Equal(
-            [DockerContainerResourceProvider.EngineResourceId, "configuration:settings"],
+            [DockerContainerResourceProvider.DefaultHostResourceId, "configuration:settings"],
             container.DependsOn);
     }
 
@@ -2112,6 +2180,81 @@ public sealed class ResourceDeclarationTests
             IReadOnlyList<string> dependsOn,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class MutableResourceRegistrationStore : IResourceRegistrationStore
+    {
+        private readonly List<ResourceRegistration> registrations = [];
+
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() => registrations.ToArray();
+
+        public ResourceRegistration? GetRegistration(string resourceId) =>
+            registrations.FirstOrDefault(registration =>
+                string.Equals(registration.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
+
+        public Task RegisterAsync(
+            string providerId,
+            string resourceId,
+            string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = GetRegistration(resourceId);
+            if (existing is not null)
+            {
+                registrations.Remove(existing);
+            }
+
+            registrations.Add(new ResourceRegistration(
+                resourceId,
+                providerId,
+                resourceGroupId,
+                DateTimeOffset.UtcNow,
+                dependsOn ?? []));
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = GetRegistration(resourceId);
+            if (existing is not null)
+            {
+                registrations.Remove(existing);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task AssignToGroupAsync(
+            string resourceId,
+            string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = GetRegistration(resourceId) ??
+                throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+            registrations.Remove(existing);
+            registrations.Add(existing with
+            {
+                ResourceGroupId = resourceGroupId,
+                DependsOn = dependsOn ?? existing.DependsOn
+            });
+            return Task.CompletedTask;
+        }
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = GetRegistration(resourceId) ??
+                throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+            registrations.Remove(existing);
+            registrations.Add(existing with { DependsOn = dependsOn });
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class AutoStartResourceProvider :

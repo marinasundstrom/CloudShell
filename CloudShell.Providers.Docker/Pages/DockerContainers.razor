@@ -1,4 +1,4 @@
-@page "/resources/docker-engine"
+@page "/resources/container-hosts"
 @rendermode InteractiveServer
 @inject DockerContainerResourceProvider DockerProvider
 @inject ILogStore LogStore
@@ -10,28 +10,28 @@
 <PageTitle>Docker</PageTitle>
 
 @{
-    var engine = DockerProvider.GetResources()
-        .FirstOrDefault(resource => resource.EffectiveTypeId == "docker.engine");
-    var canView = engine is not null && ResourceManager.GetResource(engine.Id) is not null;
+    var host = DockerProvider.GetResources()
+        .FirstOrDefault(resource => resource.EffectiveTypeId == DockerContainerResourceProvider.HostResourceType);
+    var canView = host is not null && ResourceManager.GetResource(host.Id) is not null;
 }
 
 @if (!canView)
 {
     <section class="empty-state">
         <strong>Access denied</strong>
-        <span>You do not have access to this Docker resource.</span>
+        <span>You do not have access to this container host.</span>
     </section>
 }
 else
 {
     var status = DockerProvider.ConnectionStatus;
-    var containers = ResourceManager.GetChildren(engine!.Id);
+    var containers = ResourceManager.GetChildren(host!.Id);
 
 <section class="page-heading compact">
     <div>
         <span class="eyebrow">Docker resource</span>
-        <h1>Local Docker Engine</h1>
-        <p>Engine connection and containers contributed by the Docker extension.</p>
+        <h1>Container Host</h1>
+        <p>Host connection and containers contributed by the Docker extension.</p>
     </div>
     <div class="heading-actions">
         <FluentButton Appearance="Appearance.Neutral" OnClick="Refresh">Refresh</FluentButton>
@@ -86,7 +86,7 @@ else
     <div class="panel-header">
         <div>
             <h2>Containers</h2>
-            <p>@containers.Count discovered from the local Docker Engine.</p>
+            <p>@containers.Count discovered from this container host.</p>
         </div>
     </div>
 

@@ -11,13 +11,13 @@ var cloudShell = builder
 ```
 
 - `UseLocalDevelopmentDefaults()` registers Docker as the default container
-  engine and selects the built-in default orchestrator when Resource Manager
+  host and selects the built-in default orchestrator when Resource Manager
   settings have not already been changed.
 
 CloudShell has two usage modes:
 
 - Local dev orchestrator: the default orchestrator runs resources locally.
-  Container resources use the default Docker engine unless a resource calls
+  Container resources use the default Docker host unless a resource calls
   `WithContainerEngine(...)`.
 - On-premise mode: an orchestrator such as Docker Compose owns lifecycle,
   networking, and exposure for the resource graph.

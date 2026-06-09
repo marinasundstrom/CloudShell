@@ -65,9 +65,9 @@ execution time and uses Docker `login --password-stdin` before launching the
 container image.
 
 The Container app registration and configuration tabs expose the registry next
-to the image setting. Docker Engine registration/configuration exposes a
-registry setting for Docker child-container resources; that setting also
-defaults to `docker.io`.
+to the image setting. Docker host registration/configuration exposes a registry
+setting for Docker child-container resources; that setting also defaults to
+`docker.io`.
 
 ## Resource Manager Deployment
 

@@ -5,7 +5,8 @@
 
 @{
     var status = DockerProvider.ConnectionStatus;
-    var engine = DockerProvider.GetResources().FirstOrDefault(resource => resource.EffectiveTypeId == "docker.engine");
+    var host = DockerProvider.GetResources().FirstOrDefault(resource =>
+        resource.EffectiveTypeId == DockerContainerResourceProvider.HostResourceType);
     var groups = ResourceGroups.GetResourceGroups();
 }
 
@@ -27,6 +28,24 @@
         }
     </FluentSelect>
 
+    <label for="docker-host-mode">Host mode</label>
+    <FluentSelect TOption="string"
+                  Id="docker-host-mode"
+                  @bind-Value="HostMode"
+                  Appearance="Appearance.Outline">
+        <FluentOption TOption="string" Value="local">Local</FluentOption>
+        <FluentOption TOption="string" Value="remote">Remote</FluentOption>
+    </FluentSelect>
+
+    <label for="docker-host-name">Name</label>
+    <FluentTextField Id="docker-host-name" @bind-Value="HostName" Placeholder="Local Docker Host" />
+
+    @if (IsRemoteHost)
+    {
+        <label for="docker-host-endpoint">Endpoint</label>
+        <FluentTextField Id="docker-host-endpoint" @bind-Value="RemoteEndpoint" Placeholder="tcp://build-01.example.com:2375" />
+    }
+
     <label for="docker-registry">Registry</label>
     <FluentTextField Id="docker-registry" @bind-Value="Registry" Placeholder="docker.io" />
 
@@ -44,12 +63,12 @@
     <div class="candidate-row single">
         <span class="resource-kind-icon">D</span>
         <div>
-            <strong>@(engine?.Name ?? "Local Docker Engine")</strong>
-            <span>Docker Engine · local</span>
-            <small>@DockerProvider.GetContainers().Count discovered containers will appear as sub-resources.</small>
+            <strong>@(string.IsNullOrWhiteSpace(HostName) ? "Docker Host" : HostName)</strong>
+            <span>Container host · @HostMode</span>
+            <small>@DockerProvider.GetContainers().Count discovered containers can appear as sub-resources.</small>
         </div>
         <FluentButton Appearance="Appearance.Accent"
-                      Disabled="@(engine is null)"
+                      Disabled="@(host is null && !IsRemoteHost)"
                       OnClick="Register">
             Add
         </FluentButton>
@@ -61,26 +80,83 @@
     public ResourceRegistrationProbeContext? ProbeContext { get; set; }
 
     private string SelectedGroupId { get; set; } = string.Empty;
+    private string HostMode { get; set; } = "local";
+    private string HostName { get; set; } = "Local Docker Host";
+    private string? RemoteEndpoint { get; set; }
     private string Registry { get; set; } = ContainerRegistryDefaults.Default;
     private string? RegistryUsername { get; set; }
     private string? RegistryPasswordEnvironmentVariable { get; set; }
     private string? ErrorMessage { get; set; }
 
+    private bool IsRemoteHost => string.Equals(HostMode, "remote", StringComparison.OrdinalIgnoreCase);
+
     private async Task Register()
     {
         ErrorMessage = null;
-        if (!ValidateRegistryCredentials())
+        if (!ValidateHost() || !ValidateRegistryCredentials())
         {
             return;
         }
 
-        await DockerProvider.SetupEngineAsync(
-            SelectedGroupId,
-            Registrations,
-            ProbeContext?.GetSelectedHealthChecks(),
-            NormalizeRegistry(Registry),
-            BuildRegistryCredentials());
+        try
+        {
+            var hostDefinition = BuildHostDefinition();
+            await DockerProvider.SetupHostAsync(
+                BuildResourceId(hostDefinition),
+                NormalizeHostName(HostName),
+                hostDefinition,
+                SelectedGroupId,
+                Registrations,
+                ProbeContext?.GetSelectedHealthChecks(),
+                NormalizeRegistry(Registry),
+                BuildRegistryCredentials());
+        }
+        catch (Exception exception)
+        {
+            ErrorMessage = exception.Message;
+            return;
+        }
+
         Navigation.NavigateTo("/resources");
+    }
+
+    private bool ValidateHost()
+    {
+        if (!IsRemoteHost)
+        {
+            return true;
+        }
+
+        if (Uri.TryCreate(RemoteEndpoint, UriKind.Absolute, out _))
+        {
+            return true;
+        }
+
+        ErrorMessage = "Remote container host endpoint must be an absolute URI.";
+        return false;
+    }
+
+    private DockerHostDefinition BuildHostDefinition() =>
+        IsRemoteHost
+            ? DockerHostDefinition.Remote(new Uri(RemoteEndpoint!))
+            : DockerHostDefinition.Local(DockerProvider.Endpoint);
+
+    private static string NormalizeHostName(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Docker Host" : value.Trim();
+
+    private static string BuildResourceId(DockerHostDefinition host)
+    {
+        if (host.Kind == DockerHostKind.Local)
+        {
+            return DockerContainerResourceProvider.DefaultHostResourceId;
+        }
+
+        var suffix = host.NormalizedEndpoint
+            .Replace("://", "-", StringComparison.Ordinal)
+            .Replace("/", "-", StringComparison.Ordinal)
+            .Replace(":", "-", StringComparison.Ordinal)
+            .Trim('-');
+        return $"docker:{suffix}";
     }
 
     private static string NormalizeRegistry(string? value) =>

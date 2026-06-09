@@ -6,7 +6,7 @@
 @if (Resource is null)
 {
     <div class="empty-state">
-        <strong>Docker Engine is unavailable</strong>
+        <strong>Container host is unavailable</strong>
         <span>The resource may have been removed or is no longer visible.</span>
     </div>
 }
@@ -89,13 +89,14 @@ else
             return ResourceProcedureResult.Completed("Registry username and password environment variable are required together.");
         }
 
-        await DockerProvider.UpdateEngineAsync(
+        await DockerProvider.UpdateHostAsync(
+            Resource?.Id ?? DockerContainerResourceProvider.DefaultHostResourceId,
             SelectedGroupId,
             Registrations,
             NormalizeRegistry(Registry),
             BuildRegistryCredentials(),
             cancellationToken);
-        return ResourceProcedureResult.Completed("Docker Engine configuration updated.");
+        return ResourceProcedureResult.Completed("Container host configuration updated.");
     }
 
     private static string NormalizeRegistry(string? value) =>

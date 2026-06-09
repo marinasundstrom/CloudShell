@@ -7,12 +7,14 @@ public sealed record DockerResourceDefinition
     public DockerResourceDefinition(
         string id,
         string name,
+        DockerHostDefinition? host = null,
         IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
         string? registry = null,
         ContainerRegistryCredentials? registryCredentials = null)
     {
         Id = DockerContainerResourceProvider.CreateDockerResourceId(id);
         Name = name;
+        Host = host;
         Registry = string.IsNullOrWhiteSpace(registry)
             ? DockerProviderOptions.DefaultRegistry
             : registry.Trim();
@@ -23,6 +25,8 @@ public sealed record DockerResourceDefinition
     public string Id { get; init; }
 
     public string Name { get; init; }
+
+    public DockerHostDefinition? Host { get; init; }
 
     public string Registry { get; init; }
 

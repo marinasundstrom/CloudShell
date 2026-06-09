@@ -298,7 +298,7 @@ Use `WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`, or
 `WithEndpointPort(...)` to declare fixed or named endpoints. Named endpoints
 match the Aspire URI shape `https+http://_endpointName.serviceName`.
 
-`AddDocker()` declares the default local Docker Engine resource. The Docker
+`AddDocker()` declares the default local Docker host resource. The Docker
 resource can specify a registry with `WithRegistry(...)`; the registry defaults
 to Docker Hub (`docker.io`) and declared child containers inherit it. Add
 `WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`
@@ -309,7 +309,7 @@ resource ID as `docker:container:<name>` and declares the container as a
 sub-resource of the Docker resource that created it.
 
 Use `DependsOn(...)` to add topology dependencies without changing the
-container's parent relationship to Docker. When you need a custom container
+container's parent relationship to its Docker host. When you need a custom container
 resource ID or display name, use `AddDocker().AddDockerContainer(id, name,
 image)`. To model more than one Docker parent, use `AddDocker(id, name)` and
 add containers from the returned Docker resource builder:

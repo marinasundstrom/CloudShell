@@ -17,7 +17,7 @@
 @if (resource is null)
 {
     <div class="empty-state">
-        <strong>Docker Engine is unavailable</strong>
+        <strong>Container host is unavailable</strong>
         <span>The resource may have been removed or is no longer visible.</span>
     </div>
 }
@@ -49,7 +49,7 @@ else
             <div class="provider-status">
                 <span class="state-dot @(status.IsConnected ? "state-running" : "state-stopped")"></span>
                 <div>
-                    <strong>@(status.IsConnected ? "Docker Engine connected" : "Docker Engine unavailable")</strong>
+                    <strong>@(status.IsConnected ? "Container host connected" : "Container host unavailable")</strong>
                     <span>@EndpointLink(status.Endpoint.ToString())</span>
                 </div>
             </div>
@@ -66,7 +66,7 @@ else
             <dd>@containers.Count</dd>
             <dt>Version</dt>
             <dd>@resource.Version</dd>
-            <dt>Region</dt>
+            <dt>Host mode</dt>
             <dd>@resource.Region</dd>
         </dl>
 

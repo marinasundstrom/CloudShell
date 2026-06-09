@@ -21,29 +21,26 @@ public sealed partial class DockerContainerResourceProvider :
     IDisposable
 {
     private static readonly JsonSerializerOptions DescriptorSerializerOptions = new(JsonSerializerDefaults.Web);
-    public const string EngineResourceId = "docker:engine";
+    public const string HostResourceType = "docker.host";
+    public const string LegacyEngineResourceType = "docker.engine";
+    public const string DefaultHostResourceId = "docker:engine";
     private const string ContainerResourceIdPrefix = "docker:container:";
     private readonly object _gate = new();
     private readonly SemaphoreSlim _refreshGate = new(1, 1);
     private readonly DockerProviderOptions _options;
-    private readonly DockerClient _client;
+    private readonly Dictionary<string, DockerClient> _clients = new(StringComparer.OrdinalIgnoreCase);
     private DockerSnapshot _snapshot;
 
     public DockerContainerResourceProvider(DockerProviderOptions options)
     {
         _options = options;
         Endpoint = options.ResolveEndpoint();
-        _client = new DockerClientConfiguration(
-            Endpoint,
-            defaultTimeout: options.RequestTimeout,
-            namedPipeConnectTimeout: options.RequestTimeout)
-            .CreateClient();
         var initializedAt = DateTimeOffset.UtcNow;
         _snapshot = DockerSnapshot.Pending(
             Endpoint,
             [
-                .. GetEngineResources(ResourceState.Starting, "Connecting", initializedAt),
-                .. GetDeclaredContainerResources([], initializedAt)
+                .. GetHostResources(ResourceState.Starting, "Connecting", initializedAt),
+                .. GetConfiguredHosts().SelectMany(host => GetDeclaredContainerResources(host.Id, [], initializedAt))
             ]);
     }
 
@@ -75,7 +72,7 @@ public sealed partial class DockerContainerResourceProvider :
         DateTimeOffset? before = null,
         CancellationToken cancellationToken = default)
     {
-        if (IsEngineLogId(logId))
+        if (IsHostLogId(logId))
         {
             var status = ConnectionStatus;
             return
@@ -83,10 +80,10 @@ public sealed partial class DockerContainerResourceProvider :
                 new LogEntry(
                     status.LastChecked,
                     status.IsConnected
-                        ? $"Connected to Docker Engine at {status.Endpoint}."
-                        : $"Docker Engine unavailable at {status.Endpoint}: {status.Error}",
+                        ? $"Connected to Docker host at {status.Endpoint}."
+                        : $"Docker host unavailable at {status.Endpoint}: {status.Error}",
                     status.IsConnected ? "Information" : "Error",
-                    "docker-engine")
+                    "docker-host")
             ];
         }
 
@@ -97,6 +94,7 @@ public sealed partial class DockerContainerResourceProvider :
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_options.RequestTimeout);
+        var client = GetClientForContainerResourceId(containerId);
 
         var parameters = new ContainerLogsParameters
         {
@@ -108,7 +106,7 @@ public sealed partial class DockerContainerResourceProvider :
             Until = before?.AddTicks(-1).UtcDateTime.ToString("O", CultureInfo.InvariantCulture)
         };
 
-        using var stream = await _client.Containers.GetContainerLogsAsync(
+        using var stream = await client.Containers.GetContainerLogsAsync(
             containerId,
             tty: false,
             parameters,
@@ -151,7 +149,8 @@ public sealed partial class DockerContainerResourceProvider :
             Tail = "0"
         };
 
-        using var stream = await _client.Containers.GetContainerLogsAsync(
+        var client = GetClientForContainerResourceId(containerId);
+        using var stream = await client.Containers.GetContainerLogsAsync(
             containerId,
             tty: false,
             parameters,
@@ -163,7 +162,28 @@ public sealed partial class DockerContainerResourceProvider :
         }
     }
 
-    public async Task SetupEngineAsync(
+    public Task SetupEngineAsync(
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
+        string? registry = null,
+        ContainerRegistryCredentials? registryCredentials = null,
+        CancellationToken cancellationToken = default) =>
+        SetupHostAsync(
+            DefaultHostResourceId,
+            "Local Docker Host",
+            DockerHostDefinition.Local(_options.ResolveEndpoint()),
+            resourceGroupId,
+            registrations,
+            healthChecks,
+            registry,
+            registryCredentials,
+            cancellationToken);
+
+    public async Task SetupHostAsync(
+        string id,
+        string name,
+        DockerHostDefinition host,
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
         IReadOnlyList<ResourceHealthCheck>? healthChecks = null,
@@ -171,29 +191,62 @@ public sealed partial class DockerContainerResourceProvider :
         ContainerRegistryCredentials? registryCredentials = null,
         CancellationToken cancellationToken = default)
     {
-        UpdateRegistry(registry, registryCredentials);
-        var engine = GetEngineResource(healthChecks);
+        ArgumentNullException.ThrowIfNull(host);
+        var normalizedId = CreateDockerResourceId(id);
+        var groupId = NormalizeGroupId(resourceGroupId);
+        var definition = AddOrUpdateConfiguredHost(
+            normalizedId,
+            name,
+            host,
+            healthChecks,
+            registry,
+            registryCredentials);
+        EnsureUniqueHostRegistration(definition, groupId, registrations);
 
         await registrations.RegisterAsync(
             Id,
-            engine.Id,
-            NormalizeGroupId(resourceGroupId),
+            definition.Id,
+            groupId,
             cancellationToken: cancellationToken);
     }
 
-    public async Task UpdateEngineAsync(
+    public Task UpdateEngineAsync(
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        string? registry = null,
+        ContainerRegistryCredentials? registryCredentials = null,
+        CancellationToken cancellationToken = default) =>
+        UpdateHostAsync(
+            DefaultHostResourceId,
+            resourceGroupId,
+            registrations,
+            registry,
+            registryCredentials,
+            cancellationToken);
+
+    public async Task UpdateHostAsync(
+        string id,
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
         string? registry = null,
         ContainerRegistryCredentials? registryCredentials = null,
         CancellationToken cancellationToken = default)
     {
-        UpdateRegistry(registry, registryCredentials);
-        var engine = GetEngineResource();
+        var normalizedId = CreateDockerResourceId(id);
+        var host = GetHostDefinition(normalizedId);
+        var groupId = NormalizeGroupId(resourceGroupId);
+        var definition = AddOrUpdateConfiguredHost(
+            normalizedId,
+            GetHostName(normalizedId),
+            host,
+            null,
+            registry,
+            registryCredentials);
+        EnsureUniqueHostRegistration(definition, groupId, registrations);
 
         await registrations.AssignToGroupAsync(
-            engine.Id,
-            NormalizeGroupId(resourceGroupId),
+            definition.Id,
+            groupId,
             cancellationToken: cancellationToken);
     }
 
@@ -217,8 +270,8 @@ public sealed partial class DockerContainerResourceProvider :
             _snapshot = _snapshot with
             {
                 Resources = _snapshot.Resources
-                    .Select(resource => string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(resource.Id, EngineResourceId, StringComparison.OrdinalIgnoreCase)
+                    .Select(resource => IsHostResource(resource) &&
+                        string.Equals(resource.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase)
                             ? resource with { Attributes = WithRegistryAttribute(resource.ResourceAttributes, registry) }
                             : resource)
                     .ToArray()
@@ -237,18 +290,22 @@ public sealed partial class DockerContainerResourceProvider :
         return updated;
     }
 
+    private static bool IsHostResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, HostResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resource.EffectiveTypeId, LegacyEngineResourceType, StringComparison.OrdinalIgnoreCase);
+
     public async Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
-        if (!string.Equals(context.Resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase))
+        if (!IsHostResource(context.Resource))
         {
             throw new InvalidOperationException(
                 $"The Docker provider cannot delete resource '{context.Resource.Id}'.");
         }
 
         await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
-        return ResourceProcedureResult.Completed("Docker Engine registration removed.");
+        return ResourceProcedureResult.Completed("Container host registration removed.");
     }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
@@ -259,7 +316,7 @@ public sealed partial class DockerContainerResourceProvider :
 
     public ResourceAutoStartPolicy GetAutoStartPolicy(ResourceDeclaration declaration) =>
         new(
-            StartOnControlPlaneStart: !string.Equals(declaration.ResourceId, EngineResourceId, StringComparison.OrdinalIgnoreCase),
+            StartOnControlPlaneStart: !string.Equals(declaration.ResourceId, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase),
             StartAsDependency: true,
             StartAfterCreate: false);
 
@@ -271,13 +328,16 @@ public sealed partial class DockerContainerResourceProvider :
         var declaredDocker = _options.DeclaredDockerResources.FirstOrDefault(docker =>
             string.Equals(docker.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase));
         if (declaredDocker is not null ||
-            string.Equals(declaration.ResourceId, EngineResourceId, StringComparison.OrdinalIgnoreCase))
+            string.Equals(declaration.ResourceId, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase))
         {
             if (!declaration.OverwritePersistedState &&
                 registrations.GetRegistration(declaration.ResourceId) is not null)
             {
                 return Task.CompletedTask;
             }
+
+            var definition = declaredDocker?.Definition ?? GetDefaultHostDefinition();
+            EnsureUniqueHostRegistration(definition, NormalizeGroupId(declaration.ResourceGroupId), registrations);
 
             return registrations.RegisterAsync(
                 Id,
@@ -323,6 +383,7 @@ public sealed partial class DockerContainerResourceProvider :
         }
 
         var containerId = GetContainerId(context.Resource);
+        var client = GetClientForContainerResource(context.Resource);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_options.RequestTimeout);
@@ -330,28 +391,28 @@ public sealed partial class DockerContainerResourceProvider :
         switch (action.Kind)
         {
             case ResourceActionKind.Run:
-                await _client.Containers.StartContainerAsync(
+                await client.Containers.StartContainerAsync(
                     containerId,
                     new ContainerStartParameters(),
                     timeout.Token);
                 break;
             case ResourceActionKind.Stop:
-                await _client.Containers.StopContainerAsync(
+                await client.Containers.StopContainerAsync(
                     containerId,
                     new ContainerStopParameters(),
                     timeout.Token);
                 break;
             case ResourceActionKind.Pause:
-                await _client.Containers.PauseContainerAsync(containerId, timeout.Token);
+                await client.Containers.PauseContainerAsync(containerId, timeout.Token);
                 break;
             case ResourceActionKind.Restart:
-                await _client.Containers.RestartContainerAsync(
+                await client.Containers.RestartContainerAsync(
                     containerId,
                     new ContainerRestartParameters(),
                     timeout.Token);
                 break;
             case ResourceActionKind.Custom when string.Equals(action.Id, "docker.unpause", StringComparison.OrdinalIgnoreCase):
-                await _client.Containers.UnpauseContainerAsync(containerId, timeout.Token);
+                await client.Containers.UnpauseContainerAsync(containerId, timeout.Token);
                 break;
             default:
                 throw new NotSupportedException(
@@ -363,7 +424,7 @@ public sealed partial class DockerContainerResourceProvider :
     }
 
     public bool CanDescribe(Resource resource) =>
-        string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase) ||
+        IsHostResource(resource) ||
         (string.Equals(resource.EffectiveTypeId, "docker.container", StringComparison.OrdinalIgnoreCase) &&
             _options.DeclaredContainers.Any(container =>
                 string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase)));
@@ -373,14 +434,14 @@ public sealed partial class DockerContainerResourceProvider :
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default)
     {
-        if (string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase))
+        if (IsHostResource(resource))
         {
-            var engine = new ContainerEngineResourceDefinition(
+            var host = new ContainerEngineResourceDefinition(
                 resource.Id,
                 resource.Name,
                 ContainerEngineKind.Docker,
-                Endpoint.ToString(),
-                IsDefault: string.Equals(resource.Id, EngineResourceId, StringComparison.OrdinalIgnoreCase),
+                GetHostDefinition(resource.Id).NormalizedEndpoint,
+                IsDefault: string.Equals(resource.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase),
                 Registry: GetDockerResourceRegistry(resource.Id),
                 RegistryCredentials: GetDockerResourceCredentials(resource.Id));
 
@@ -391,7 +452,7 @@ public sealed partial class DockerContainerResourceProvider :
                 [],
                 resource.Endpoints,
                 "1.0",
-                JsonSerializer.SerializeToElement(engine, DescriptorSerializerOptions)));
+                JsonSerializer.SerializeToElement(host, DescriptorSerializerOptions)));
         }
 
         var definition = _options.DeclaredContainers.FirstOrDefault(container =>
@@ -436,7 +497,11 @@ public sealed partial class DockerContainerResourceProvider :
 
     public void Dispose()
     {
-        _client.Dispose();
+        foreach (var client in _clients.Values)
+        {
+            client.Dispose();
+        }
+
         _refreshGate.Dispose();
     }
 
@@ -448,11 +513,151 @@ public sealed partial class DockerContainerResourceProvider :
         }
     }
 
-    private Resource GetEngineResource(IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
+    private DockerResourceDefinition GetDefaultHostDefinition() =>
+        new(
+            DefaultHostResourceId,
+            "Local Docker Host",
+            DockerHostDefinition.Local(_options.ResolveEndpoint()),
+            registry: _options.Registry,
+            registryCredentials: _options.RegistryCredentials);
+
+    private IReadOnlyList<ConfiguredDockerHost> GetConfiguredHosts() =>
+        _options.DeclaredDockerResources
+            .Select(docker => docker.Definition)
+            .Concat([GetDefaultHostDefinition()])
+            .DistinctBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(definition => new ConfiguredDockerHost(
+                definition.Id,
+                definition.Name,
+                definition.Host ?? DockerHostDefinition.Local(_options.ResolveEndpoint()),
+                definition.Registry,
+                definition.RegistryCredentials,
+                definition.HealthChecks))
+            .ToArray();
+
+    private DockerHostDefinition GetHostDefinition(string hostResourceId) =>
+        GetConfiguredHosts()
+            .FirstOrDefault(host => string.Equals(host.Id, hostResourceId, StringComparison.OrdinalIgnoreCase))
+            ?.Host
+        ?? DockerHostDefinition.Local(_options.ResolveEndpoint());
+
+    private string GetHostName(string hostResourceId) =>
+        GetConfiguredHosts()
+            .FirstOrDefault(host => string.Equals(host.Id, hostResourceId, StringComparison.OrdinalIgnoreCase))
+            ?.Name
+        ?? "Docker Host";
+
+    private DockerResourceDefinition AddOrUpdateConfiguredHost(
+        string id,
+        string name,
+        DockerHostDefinition host,
+        IReadOnlyList<ResourceHealthCheck>? healthChecks,
+        string? registry,
+        ContainerRegistryCredentials? registryCredentials)
+    {
+        var definition = new DockerResourceDefinition(
+            id,
+            string.IsNullOrWhiteSpace(name) ? "Docker Host" : name.Trim(),
+            host,
+            healthChecks,
+            registry,
+            registryCredentials);
+
+        if (string.Equals(definition.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            UpdateRegistry(definition.Registry, definition.RegistryCredentials);
+        }
+
+        var declared = _options.DeclaredDockerResources.FirstOrDefault(resource =>
+            string.Equals(resource.Definition.Id, definition.Id, StringComparison.OrdinalIgnoreCase));
+        if (declared is null)
+        {
+            _options.DeclaredDockerResources.Add(new DeclaredDockerResource(definition));
+        }
+        else
+        {
+            declared.Definition = definition;
+        }
+
+        return definition;
+    }
+
+    private void EnsureUniqueHostRegistration(
+        DockerResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations)
+    {
+        var identity = GetHostIdentity(definition);
+        var duplicate = registrations.GetRegistrations()
+            .Where(registration => string.Equals(registration.ProviderId, Id, StringComparison.OrdinalIgnoreCase))
+            .Where(registration => string.Equals(
+                NormalizeGroupId(registration.ResourceGroupId),
+                NormalizeGroupId(resourceGroupId),
+                StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(registration =>
+                !string.Equals(registration.ResourceId, definition.Id, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(GetHostIdentity(registration.ResourceId), identity, StringComparison.OrdinalIgnoreCase));
+
+        if (duplicate is not null)
+        {
+            throw new InvalidOperationException(
+                $"A container host for '{definition.Host?.NormalizedEndpoint}' is already registered in this resource group as '{duplicate.ResourceId}'.");
+        }
+    }
+
+    private string GetHostIdentity(DockerResourceDefinition definition) =>
+        (definition.Host ?? DockerHostDefinition.Local(_options.ResolveEndpoint())).HostIdentity;
+
+    private string? GetHostIdentity(string hostResourceId) =>
+        GetConfiguredHosts()
+            .FirstOrDefault(host => string.Equals(host.Id, hostResourceId, StringComparison.OrdinalIgnoreCase))
+            ?.Host
+            .HostIdentity;
+
+    private DockerClient GetClient(ConfiguredDockerHost host)
+    {
+        if (_clients.TryGetValue(host.Host.HostIdentity, out var client))
+        {
+            return client;
+        }
+
+        client = new DockerClientConfiguration(
+            host.Host.Endpoint,
+            defaultTimeout: _options.RequestTimeout,
+            namedPipeConnectTimeout: _options.RequestTimeout)
+            .CreateClient();
+        _clients[host.Host.HostIdentity] = client;
+        return client;
+    }
+
+    private DockerClient GetClientForContainerResource(Resource resource)
+    {
+        var host = GetConfiguredHosts()
+            .FirstOrDefault(host => string.Equals(host.Id, resource.ParentResourceId, StringComparison.OrdinalIgnoreCase))
+            ?? GetConfiguredHosts().First(host => string.Equals(host.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase));
+        return GetClient(host);
+    }
+
+    private DockerClient GetClientForContainerResourceId(string containerId)
+    {
+        var resourceId = $"{ContainerResourceIdPrefix}{containerId}";
+        var resource = GetResources().FirstOrDefault(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+        if (resource is not null)
+        {
+            return GetClientForContainerResource(resource);
+        }
+
+        var defaultHost = GetConfiguredHosts()
+            .First(host => string.Equals(host.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase));
+        return GetClient(defaultHost);
+    }
+
+    private Resource GetHostResource(IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
     {
         var resource = GetResources().FirstOrDefault(resource =>
-            string.Equals(resource.EffectiveTypeId, "docker.engine", StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException("The Docker Engine resource is not available.");
+            IsHostResource(resource))
+            ?? throw new InvalidOperationException("The container host resource is not available.");
 
         return healthChecks is null
             ? resource
@@ -469,122 +674,119 @@ public sealed partial class DockerContainerResourceProvider :
             previousSnapshot = _snapshot;
         }
 
-        try
+        var resources = new List<Resource>();
+        DockerConnectionStatus? defaultStatus = null;
+
+        foreach (var host in GetConfiguredHosts())
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(_options.RequestTimeout);
-
-            var containers = await _client.Containers.ListContainersAsync(
-                new ContainersListParameters { All = true },
-                timeout.Token);
-
-            var declaredContainerNames = GetDeclaredContainerNames();
-            var containerResources = containers
-                .Where(container => !ContainerMatchesAnyName(container, declaredContainerNames))
-                .Select(MapContainer)
-                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            var declaredContainerResources = GetDeclaredContainerResources(containers, checkedAt)
-                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            var snapshot = new DockerSnapshot(
-                [
-                    .. GetEngineResources(ResourceState.Running, "Docker Engine API", checkedAt),
-                    .. declaredContainerResources,
-                    .. containerResources
-                ],
-                new DockerConnectionStatus(Endpoint, true, null, checkedAt));
-
-            lock (_gate)
+            try
             {
-                _snapshot = snapshot;
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(_options.RequestTimeout);
+
+                var client = GetClient(host);
+                var containers = await client.Containers.ListContainersAsync(
+                    new ContainersListParameters { All = true },
+                    timeout.Token);
+
+                var declaredContainerNames = GetDeclaredContainerNames(host.Id);
+                resources.Add(CreateHost(host, ResourceState.Running, "Docker host API", checkedAt));
+                resources.AddRange(GetDeclaredContainerResources(host.Id, containers, checkedAt)
+                    .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase));
+                resources.AddRange(containers
+                    .Where(container => !ContainerMatchesAnyName(container, declaredContainerNames))
+                    .Select(container => MapContainer(container, host.Id))
+                    .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase));
+
+                var status = new DockerConnectionStatus(host.Host.Endpoint, true, null, checkedAt);
+                if (string.Equals(host.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase))
+                {
+                    defaultStatus = status;
+                }
+            }
+            catch (Exception exception)
+            {
+                resources.Add(CreateHost(host, ResourceState.Stopped, "Unavailable", checkedAt));
+                resources.AddRange(GetDeclaredContainerResources(host.Id, [], checkedAt));
+                resources.AddRange(previousSnapshot.Resources
+                    .Where(resource => resource.Kind == "Docker Container")
+                    .Where(resource => string.Equals(resource.ParentResourceId, host.Id, StringComparison.OrdinalIgnoreCase))
+                    .Where(resource => !_options.DeclaredContainers.Any(container =>
+                        string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase)))
+                    .Select(resource => resource with { State = ResourceState.Unknown }));
+
+                var status = new DockerConnectionStatus(host.Host.Endpoint, false, GetErrorMessage(exception), checkedAt);
+                if (string.Equals(host.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase))
+                {
+                    defaultStatus = status;
+                }
             }
         }
-        catch (Exception exception)
+
+        var snapshot = new DockerSnapshot(
+            resources
+                .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray(),
+            defaultStatus ?? new DockerConnectionStatus(Endpoint, false, "Docker host unavailable.", checkedAt));
+
+        lock (_gate)
         {
-            var staleContainers = previousSnapshot.Resources
-                .Where(resource => resource.Kind == "Docker Container")
-                .Where(resource => !_options.DeclaredContainers.Any(container =>
-                    string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase)))
-                .Select(resource => resource with { State = ResourceState.Unknown })
-                .ToArray();
-            var declaredContainerResources = GetDeclaredContainerResources([], checkedAt);
-
-            var snapshot = new DockerSnapshot(
-                [
-                    .. GetEngineResources(ResourceState.Stopped, "Unavailable", checkedAt),
-                    .. declaredContainerResources,
-                    .. staleContainers
-                ],
-                new DockerConnectionStatus(Endpoint, false, GetErrorMessage(exception), checkedAt));
-
-            lock (_gate)
-            {
-                _snapshot = snapshot;
-            }
+            _snapshot = snapshot;
         }
     }
 
-    private IReadOnlyList<Resource> GetEngineResources(
+    private IReadOnlyList<Resource> GetHostResources(
         ResourceState state,
         string version,
         DateTimeOffset lastUpdated)
     {
-        var configured = _options.DeclaredDockerResources
-            .Select(docker => docker.Definition)
-            .Prepend(new DockerResourceDefinition(
-                EngineResourceId,
-                "Local Docker Engine",
-                registry: _options.Registry,
-                registryCredentials: _options.RegistryCredentials))
-            .DistinctBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
-        return configured
-            .Select(resource => CreateEngine(resource, state, version, lastUpdated))
+        return GetConfiguredHosts()
+            .Select(resource => CreateHost(resource, state, version, lastUpdated))
             .ToArray();
     }
 
-    private Resource CreateEngine(
-        DockerResourceDefinition definition,
+    private Resource CreateHost(
+        ConfiguredDockerHost configured,
         ResourceState state,
         string version,
         DateTimeOffset lastUpdated) =>
         new(
-            definition.Id,
-            definition.Name,
-            "Docker Engine",
+            configured.Id,
+            configured.Name,
+            "Container Host",
             DisplayName,
-            "local",
+            configured.Host.Kind.ToString().ToLowerInvariant(),
             state,
-            [ResourceEndpoint.FromAddress("engine", Endpoint.ToString(), Endpoint.Scheme, ResourceExposureScope.Private)],
+            [ResourceEndpoint.FromAddress("host", configured.Host.NormalizedEndpoint, configured.Host.Endpoint.Scheme, ResourceExposureScope.Private)],
             version,
             lastUpdated,
             [],
-            "/resources/docker-engine",
-            TypeId: "docker.engine",
-            HealthChecks: definition.HealthChecks,
+            "/resources/container-hosts",
+            TypeId: HostResourceType,
+            HealthChecks: configured.HealthChecks,
             ResourceClass: ResourceClass.Infrastructure,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 [ResourceAttributeNames.InfrastructureKind] = ContainerEngineKind.Docker.ToString(),
-                [ResourceAttributeNames.ContainerRegistry] = NormalizeRegistry(definition.Registry)
+                [ResourceAttributeNames.ContainerRegistry] = NormalizeRegistry(configured.Registry),
+                ["docker.host.kind"] = configured.Host.Kind.ToString().ToLowerInvariant(),
+                ["docker.host.endpoint"] = configured.Host.NormalizedEndpoint
             });
 
     private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
         resource.EffectiveTypeId switch
         {
-            "docker.engine" =>
+            HostResourceType or LegacyEngineResourceType =>
             [
                 new LogDescriptor(
-                    GetEngineLogId(resource.Id),
-                    "Engine diagnostics",
+                    GetHostLogId(resource.Id),
+                    "Host diagnostics",
                     "Docker",
                     resource.Name,
                     LogSourceKind.Resource,
                     ResourceId: resource.Id,
-                    Description: "Docker provider connection and discovery diagnostics.")
+                    Description: "Docker host connection and discovery diagnostics.")
             ],
             "docker.container" =>
             [
@@ -601,9 +803,9 @@ public sealed partial class DockerContainerResourceProvider :
             _ => []
         };
 
-    private static string GetEngineLogId(string resourceId) => $"{resourceId}:diagnostics";
+    private static string GetHostLogId(string resourceId) => $"{resourceId}:diagnostics";
 
-    private static bool IsEngineLogId(string logId) =>
+    private static bool IsHostLogId(string logId) =>
         logId.EndsWith(":diagnostics", StringComparison.OrdinalIgnoreCase);
 
     private static bool TryGetContainerIdFromLogId(
@@ -769,7 +971,7 @@ public sealed partial class DockerContainerResourceProvider :
     [GeneratedRegex(@"\x1B\[[0-?]*[ -/]*[@-~]")]
     private static partial Regex AnsiEscapeSequence();
 
-    private static Resource MapContainer(ContainerListResponse container)
+    private static Resource MapContainer(ContainerListResponse container, string hostResourceId)
     {
         var id = $"{ContainerResourceIdPrefix}{container.ID}";
         var name = container.Names?
@@ -789,7 +991,7 @@ public sealed partial class DockerContainerResourceProvider :
             container.Image,
             new DateTimeOffset(container.Created.ToUniversalTime()),
             [],
-            ParentResourceId: EngineResourceId,
+            ParentResourceId: hostResourceId,
             TypeId: "docker.container",
             Actions: CreateContainerActions(container.State),
             ResourceClass: ResourceClass.Container,
@@ -797,9 +999,11 @@ public sealed partial class DockerContainerResourceProvider :
     }
 
     private IReadOnlyList<Resource> GetDeclaredContainerResources(
+        string hostResourceId,
         IEnumerable<ContainerListResponse> containers,
         DateTimeOffset lastUpdated) =>
         _options.DeclaredContainers
+            .Where(container => string.Equals(container.Definition.DockerResourceId, hostResourceId, StringComparison.OrdinalIgnoreCase))
             .Select(container => MapDeclaredContainer(
                 container.Definition,
                 FindContainer(containers, GetContainerLookupName(container.Definition.Id)),
@@ -861,7 +1065,7 @@ public sealed partial class DockerContainerResourceProvider :
             .FirstOrDefault(resource =>
                 string.Equals(resource.Id, dockerResourceId, StringComparison.OrdinalIgnoreCase))
             ?.Registry
-        ?? (string.Equals(dockerResourceId, EngineResourceId, StringComparison.OrdinalIgnoreCase)
+        ?? (string.Equals(dockerResourceId, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase)
             ? _options.Registry
             : DockerProviderOptions.DefaultRegistry);
 
@@ -871,7 +1075,7 @@ public sealed partial class DockerContainerResourceProvider :
             .FirstOrDefault(resource =>
                 string.Equals(resource.Id, dockerResourceId, StringComparison.OrdinalIgnoreCase))
             ?.RegistryCredentials
-        ?? (string.Equals(dockerResourceId, EngineResourceId, StringComparison.OrdinalIgnoreCase)
+        ?? (string.Equals(dockerResourceId, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase)
             ? _options.RegistryCredentials
             : null);
 
@@ -898,8 +1102,9 @@ public sealed partial class DockerContainerResourceProvider :
             : $"{ContainerResourceIdPrefix}{normalized.TrimStart('/')}";
     }
 
-    private IReadOnlySet<string> GetDeclaredContainerNames() =>
+    private IReadOnlySet<string> GetDeclaredContainerNames(string hostResourceId) =>
         _options.DeclaredContainers
+            .Where(container => string.Equals(container.Definition.DockerResourceId, hostResourceId, StringComparison.OrdinalIgnoreCase))
             .Select(container => GetContainerLookupName(container.Definition.Id))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -1042,4 +1247,12 @@ public sealed partial class DockerContainerResourceProvider :
                 resources,
                 new DockerConnectionStatus(endpoint, false, "Connecting to Docker.", DateTimeOffset.MinValue));
     }
+
+    private sealed record ConfiguredDockerHost(
+        string Id,
+        string Name,
+        DockerHostDefinition Host,
+        string Registry,
+        ContainerRegistryCredentials? RegistryCredentials,
+        IReadOnlyList<ResourceHealthCheck> HealthChecks);
 }

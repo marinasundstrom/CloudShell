@@ -60,7 +60,7 @@ The MVP should prove:
   use one configured storage backend: local UI-host storage or Control
   Plane-backed storage.
 - Top-level container app resources own deployment operations such as image
-  updates. Container-engine providers such as Docker may project runtime
+  updates. Container-host providers such as Docker may project runtime
   container resources for inspection, but consumers should not need those
   runtime resource IDs to deploy a new app image.
 - Resource-scoped events are the platform traceability stream for operations
@@ -79,7 +79,7 @@ The MVP should prove:
   Docker Hub (`docker.io`). Registry credentials are provider-owned
   configuration and use a username plus password environment variable
   reference instead of projecting secrets through resource attributes.
-- Container app and Docker Engine configuration UI exposes registry settings,
+- Container app and Docker host configuration UI exposes registry settings,
   and container app details show the latest projected revision.
 - Networking is modeled through resources and capabilities. Resources can
   advertise endpoint-source and networking-provider capabilities; network
@@ -107,6 +107,10 @@ The MVP should prove:
   target. Docker, Podman, containerd, schedulers, process managers, and
   appliance APIs are host runtime capabilities or provider-owned facts, not
   separate placement primitives.
+- Docker now projects configured local and remote Docker runtime connections as
+  `docker.host` container host resources. UI language uses container host,
+  while `container.host` remains the future generic resource-type direction for
+  non-Docker providers.
 - The first load-balancer implementation slice adds a platform load-balancer
   resource model, fluent route declarations, API/client projection, generated
   Resource Manager route display, an apply-configuration resource action, and a
@@ -121,6 +125,9 @@ The MVP should prove:
   and also polls the inventory so provider-discovered changes, such as runtime
   containers appearing or status changing outside CloudShell, update visible
   resource rows without manual refresh.
+- Added Docker host definitions for local and remote endpoints, safe host
+  endpoint projection, per-host Docker clients, remote host builder APIs, and
+  group-scoped duplicate Docker host validation.
 
 ## Completed recently
 

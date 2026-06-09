@@ -18,9 +18,10 @@ verification baseline.
 - For Traefik container mode, model implementation containers as provider-owned
   runtime state or child resources tied to the load balancer lifecycle on a
   selected host resource, not as user-authored container app resources.
-- Implement the remote Docker hosts proposal, using `docker.host` as the
-  canonical resource type while preserving existing `docker.engine`
-  registrations during migration.
+- Continue the remote Docker hosts proposal beyond the first host-model slice:
+  persist provider-owned UI host configuration, wire supported credential
+  transports into Docker client creation, and add remote container action
+  integration coverage against a testable Docker endpoint.
 - Design provider-owned replication projection for resources that can implement
   replicas, keeping stable resources separate from runtime instances.
 - Design container app revision history as commits of container app

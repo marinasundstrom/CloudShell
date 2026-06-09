@@ -515,8 +515,8 @@ The Docker provider is the reference implementation. Container log descriptors s
 The Docker reference extension uses this hierarchy:
 
 ```text
-Local Docker Engine
-├── detail route: /resources/docker-engine
+Local Docker Host
+├── detail route: /resources/container-hosts
 └── Docker Container sub-resources
     └── depend on docker:engine
 ```
@@ -540,9 +540,9 @@ controlPlane.Resources(resources =>
 });
 ```
 
-`AddDocker()` declares the default local Docker Engine. `AddDocker(id, name)`
-allows more than one Docker parent to be modeled. A Docker resource can specify
-a registry with `WithRegistry(...)`; the registry defaults to
+`AddDocker()` declares the default local Docker host. `AddDocker(id, name)`
+allows more than one Docker host parent to be modeled. A Docker resource can
+specify a registry with `WithRegistry(...)`; the registry defaults to
 Docker Hub (`docker.io`) and is projected as `container.registry`. Add
 `WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`
 when the registry requires authentication. Containers created from a Docker

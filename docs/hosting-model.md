@@ -117,8 +117,8 @@ For container-backed local development, `UseLocalDevelopmentDefaults()`
 registers Docker as the default container host and keeps lifecycle execution
 on CloudShell's built-in default orchestrator unless the user has already saved
 a different Resource Manager orchestration selection. Use `AddDockerProvider()`
-plus `resources.AddDocker()` only when Docker Engine itself should appear as a
-managed resource with discovered child containers.
+plus `resources.AddDocker()` only when the Docker host should appear as a
+managed container host with discovered child containers.
 
 See `samples/CloudShell.ResourceHost`.
 

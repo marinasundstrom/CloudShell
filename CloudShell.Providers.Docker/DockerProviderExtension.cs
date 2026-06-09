@@ -10,9 +10,9 @@ public sealed class DockerProviderExtension : ICloudShellExtension
     public CloudShellExtensionManifest Manifest => new(
         "cloudshell.docker",
         "Docker",
-        "Adds a Docker Engine resource type and maps local containers as sub-resources.",
+        "Adds a Docker container host resource type and maps containers as sub-resources.",
         "0.1.0",
-        ["resource-type.docker.engine"],
+        ["resource-type.docker.host"],
         ["resource-manager.resources"]);
 
     public void Configure(ICloudShellExtensionBuilder builder)
@@ -28,9 +28,9 @@ public sealed class DockerProviderExtension : ICloudShellExtension
             .AddResourceProvider<DockerContainerResourceProvider>()
             .AddLogProvider<DockerContainerResourceProvider>()
             .AddResourceType<Pages.RegisterDockerEngine>(
-                "docker.engine",
-                "Docker Engine",
-                "Register a local Docker Engine and show its containers as sub-resources.",
+                DockerContainerResourceProvider.HostResourceType,
+                "Container Host",
+                "Register a local or remote Docker host and show its containers as sub-resources.",
                 "docker",
                 10,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -38,18 +38,18 @@ public sealed class DockerProviderExtension : ICloudShellExtension
                     [
                         new ResourceHealthCheck(
                             "/_ping",
-                            EndpointName: "engine",
-                            Name: "engine")
+                            EndpointName: "host",
+                            Name: "host")
                     ],
                     EnableHealthChecksByDefault: false),
                 resourceClass: ResourceClass.Infrastructure)
             .AddResourceTab<Pages.DockerEngineOverview>(
-                "docker.engine",
+                DockerContainerResourceProvider.HostResourceType,
                 "overview",
                 "Overview",
                 10)
             .AddResourceTab<Pages.UpdateDockerEngine>(
-                "docker.engine",
+                DockerContainerResourceProvider.HostResourceType,
                 "configuration",
                 "Configuration",
                 20,
