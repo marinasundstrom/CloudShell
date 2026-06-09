@@ -474,6 +474,23 @@
                 </section>
             }
 
+            @if (selected.ResourceLoadBalancerRoutes.Count > 0)
+            {
+                <section class="blade-section">
+                    <h3>@L["Load balancer routes"]</h3>
+                    <div class="endpoint-list">
+                        @foreach (var route in selected.ResourceLoadBalancerRoutes)
+                        {
+                            <div>
+                                <strong>@route.Name</strong>
+                                <span>@FormatLoadBalancerRoute(route)</span>
+                                <small>@L["Entrypoint: {0}", route.EntrypointName]</small>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+
             @if (GetInboundNetworkMappings(selected).Length > 0)
             {
                 <section class="blade-section">
@@ -1395,6 +1412,38 @@
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private string FormatLoadBalancerRoute(LoadBalancerRoute route) =>
+        $"{FormatLoadBalancerRouteMatch(route)} -> {FormatLoadBalancerRouteTarget(route.Target)}";
+
+    private string FormatLoadBalancerRouteMatch(LoadBalancerRoute route)
+    {
+        if (route.Kind == LoadBalancerRouteKind.Tcp)
+        {
+            return L["TCP {0}", route.Match.Port?.ToString() ?? route.EntrypointName].Value;
+        }
+
+        var host = string.IsNullOrWhiteSpace(route.Match.Host)
+            ? L["any host"].Value
+            : route.Match.Host;
+        return string.IsNullOrWhiteSpace(route.Match.PathPrefix)
+            ? host
+            : $"{host}{route.Match.PathPrefix}";
+    }
+
+    private string FormatLoadBalancerRouteTarget(LoadBalancerRouteTarget target)
+    {
+        var resource = ResolveMappingResource(target.ResourceId);
+        var label = resource?.Name ?? target.ResourceId;
+        if (!string.IsNullOrWhiteSpace(target.EndpointName))
+        {
+            return $"{label}/{target.EndpointName}";
+        }
+
+        return target.Port is null
+            ? label
+            : $"{label}:{target.Port.Value}";
+    }
 
     private bool IsExecutingAction(Resource resource, ResourceAction action) =>
         string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);

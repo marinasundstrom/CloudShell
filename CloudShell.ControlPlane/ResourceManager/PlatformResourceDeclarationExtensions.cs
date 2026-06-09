@@ -96,6 +96,37 @@ public static class PlatformResourceDeclarationExtensions
         return new ServiceResourceBuilder(resource, declared);
     }
 
+    public static ILoadBalancerResourceBuilder AddLoadBalancer(
+        this IResourceDeclarationBuilder builder,
+        string id,
+        string? name = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+
+        var normalizedId = NormalizeLoadBalancerId(id);
+        var definition = new LoadBalancerResourceDefinition(
+            normalizedId,
+            string.IsNullOrWhiteSpace(name) ? CreateDisplayName(normalizedId) : name.Trim(),
+            "traefik");
+        var declared = new DeclaredLoadBalancerResource(definition);
+        builder.Services
+            .GetOrAddPlatformResourceOptions()
+            .DeclaredLoadBalancers
+            .Add(declared);
+
+        var resource = builder.Declare(
+            PlatformResourceProvider.ProviderId,
+            definition.Id,
+            onChanged: declaration =>
+            {
+                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
+                declared.OverwritePersistedState = declaration.OverwritePersistedState;
+            });
+
+        return new LoadBalancerResourceBuilder(resource, declared);
+    }
+
     public static IResourceBuilder AddMacOSHostNetworking(
         this IResourceDeclarationBuilder builder,
         string? resourceGroupId = null)
@@ -132,6 +163,25 @@ public static class PlatformResourceDeclarationExtensions
         options = new PlatformResourceOptions();
         services.AddSingleton(options);
         return options;
+    }
+
+    private static string NormalizeLoadBalancerId(string id)
+    {
+        var normalized = id.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : $"load-balancer:{normalized}";
+    }
+
+    private static string CreateDisplayName(string resourceId)
+    {
+        var name = resourceId.Contains(':', StringComparison.Ordinal)
+            ? resourceId[(resourceId.IndexOf(':', StringComparison.Ordinal) + 1)..]
+            : resourceId;
+        return string.Join(
+            " ",
+            name.Split(['-', '_', '.', ':'], StringSplitOptions.RemoveEmptyEntries)
+                .Select(segment => string.Concat(segment[..1].ToUpperInvariant(), segment[1..])));
     }
 }
 
@@ -259,6 +309,98 @@ public interface IServiceResourceBuilder : IResourceBuilder
     new IServiceResourceBuilder WithReferences(IEnumerable<string> resourceIds);
 
     new IServiceResourceBuilder Persist(bool overwrite = false);
+}
+
+public interface ILoadBalancerResourceBuilder : IResourceBuilder
+{
+    ILoadBalancerResourceBuilder UseProvider(string provider);
+
+    ILoadBalancerResourceBuilder UseDefaultHost();
+
+    ILoadBalancerResourceBuilder UseHost(string hostResourceId);
+
+    ILoadBalancerResourceBuilder UseHost(IResourceBuilder host);
+
+    ILoadBalancerResourceBuilder ExposeHttp(
+        int port = 80,
+        string name = "http",
+        ResourceExposureScope exposure = ResourceExposureScope.Public);
+
+    ILoadBalancerResourceBuilder ExposeHttps(
+        int port = 443,
+        string name = "https",
+        ResourceExposureScope exposure = ResourceExposureScope.Public);
+
+    ILoadBalancerResourceBuilder ExposeTcp(
+        int port,
+        string? name = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Public);
+
+    ILoadBalancerResourceBuilder MapHost(
+        string host,
+        IResourceBuilder target,
+        string endpoint = "http",
+        string? id = null,
+        string entrypoint = "http");
+
+    ILoadBalancerResourceBuilder MapHost(
+        string host,
+        IResourceBuilder target,
+        int port,
+        string? id = null,
+        string entrypoint = "http");
+
+    ILoadBalancerResourceBuilder MapPath(
+        string host,
+        string pathPrefix,
+        IResourceBuilder target,
+        string endpoint = "http",
+        string? id = null,
+        string entrypoint = "http");
+
+    ILoadBalancerResourceBuilder MapPath(
+        string host,
+        string pathPrefix,
+        IResourceBuilder target,
+        int port,
+        string? id = null,
+        string entrypoint = "http");
+
+    ILoadBalancerResourceBuilder MapTcp(
+        int port,
+        IResourceBuilder target,
+        string endpoint = "tcp",
+        string? id = null,
+        string? entrypoint = null);
+
+    ILoadBalancerResourceBuilder MapTcp(
+        int port,
+        IResourceBuilder target,
+        int targetPort,
+        string? id = null,
+        string? entrypoint = null);
+
+    new ILoadBalancerResourceBuilder DependsOn(string resourceId);
+
+    new ILoadBalancerResourceBuilder DependsOn(IResourceBuilder resource);
+
+    new ILoadBalancerResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new ILoadBalancerResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
+
+    new ILoadBalancerResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new ILoadBalancerResourceBuilder WithParent(string? parentResourceId);
+
+    new ILoadBalancerResourceBuilder WithParent(IResourceBuilder resource);
+
+    new ILoadBalancerResourceBuilder WithReference(string resourceId);
+
+    new ILoadBalancerResourceBuilder WithReference(IResourceBuilder resource);
+
+    new ILoadBalancerResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+
+    new ILoadBalancerResourceBuilder Persist(bool overwrite = false);
 }
 
 internal sealed class NetworkResourceBuilder(
@@ -661,6 +803,331 @@ internal sealed class ServiceResourceBuilder(
     }
 
     public IServiceResourceBuilder Persist(bool overwrite = false)
+    {
+        inner.Persist(overwrite);
+        return this;
+    }
+
+    IResourceBuilder IResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
+        WithResourceGroup(resourceGroupId);
+
+    IResourceBuilder IResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    IResourceBuilder IResourceBuilder.WithParent(IResourceBuilder resource) =>
+        WithParent(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(string resourceId) =>
+        DependsOn(resourceId);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IResourceBuilder resource) =>
+        DependsOn(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+        DependsOn(resourceIds);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<IResourceBuilder> resources) =>
+        DependsOn(resources);
+
+    IResourceBuilder IResourceBuilder.WithReference(string resourceId) =>
+        WithReference(resourceId);
+
+    IResourceBuilder IResourceBuilder.WithReference(IResourceBuilder resource) =>
+        WithReference(resource);
+
+    IResourceBuilder IResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
+        WithReferences(resourceIds);
+
+    IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
+        Persist(overwrite);
+}
+
+internal sealed class LoadBalancerResourceBuilder(
+    IResourceBuilder inner,
+    DeclaredLoadBalancerResource declared) : ILoadBalancerResourceBuilder
+{
+    public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
+
+    public string ResourceId => inner.ResourceId;
+
+    public ILoadBalancerResourceBuilder UseProvider(string provider)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        declared.Definition = declared.Definition with
+        {
+            Provider = provider.Trim().ToLowerInvariant()
+        };
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder UseDefaultHost()
+    {
+        declared.Definition = declared.Definition with { HostResourceId = null };
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder UseHost(string hostResourceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(hostResourceId);
+        var normalizedHostResourceId = hostResourceId.Trim();
+        declared.Definition = declared.Definition with
+        {
+            HostResourceId = normalizedHostResourceId
+        };
+        inner.DependsOn(normalizedHostResourceId);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder UseHost(IResourceBuilder host)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+        return UseHost(host.ResourceId);
+    }
+
+    public ILoadBalancerResourceBuilder ExposeHttp(
+        int port = 80,
+        string name = "http",
+        ResourceExposureScope exposure = ResourceExposureScope.Public) =>
+        AddEntrypoint(name, ResourceEndpointProtocol.Http, port, exposure);
+
+    public ILoadBalancerResourceBuilder ExposeHttps(
+        int port = 443,
+        string name = "https",
+        ResourceExposureScope exposure = ResourceExposureScope.Public) =>
+        AddEntrypoint(name, ResourceEndpointProtocol.Https, port, exposure);
+
+    public ILoadBalancerResourceBuilder ExposeTcp(
+        int port,
+        string? name = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Public) =>
+        AddEntrypoint(name ?? $"tcp-{port}", ResourceEndpointProtocol.Tcp, port, exposure);
+
+    public ILoadBalancerResourceBuilder MapHost(
+        string host,
+        IResourceBuilder target,
+        string endpoint = "http",
+        string? id = null,
+        string entrypoint = "http") =>
+        AddRoute(
+            LoadBalancerRouteKind.Http,
+            id,
+            $"{host} to {target.ResourceId}",
+            entrypoint,
+            new LoadBalancerRouteMatch(Host: host),
+            new LoadBalancerRouteTarget(target.ResourceId, EndpointName: endpoint),
+            target);
+
+    public ILoadBalancerResourceBuilder MapHost(
+        string host,
+        IResourceBuilder target,
+        int port,
+        string? id = null,
+        string entrypoint = "http") =>
+        AddRoute(
+            LoadBalancerRouteKind.Http,
+            id,
+            $"{host} to {target.ResourceId}:{port}",
+            entrypoint,
+            new LoadBalancerRouteMatch(Host: host),
+            new LoadBalancerRouteTarget(target.ResourceId, Port: port),
+            target);
+
+    public ILoadBalancerResourceBuilder MapPath(
+        string host,
+        string pathPrefix,
+        IResourceBuilder target,
+        string endpoint = "http",
+        string? id = null,
+        string entrypoint = "http") =>
+        AddRoute(
+            LoadBalancerRouteKind.Http,
+            id,
+            $"{host}{pathPrefix} to {target.ResourceId}",
+            entrypoint,
+            new LoadBalancerRouteMatch(Host: host, PathPrefix: pathPrefix),
+            new LoadBalancerRouteTarget(target.ResourceId, EndpointName: endpoint),
+            target);
+
+    public ILoadBalancerResourceBuilder MapPath(
+        string host,
+        string pathPrefix,
+        IResourceBuilder target,
+        int port,
+        string? id = null,
+        string entrypoint = "http") =>
+        AddRoute(
+            LoadBalancerRouteKind.Http,
+            id,
+            $"{host}{pathPrefix} to {target.ResourceId}:{port}",
+            entrypoint,
+            new LoadBalancerRouteMatch(Host: host, PathPrefix: pathPrefix),
+            new LoadBalancerRouteTarget(target.ResourceId, Port: port),
+            target);
+
+    public ILoadBalancerResourceBuilder MapTcp(
+        int port,
+        IResourceBuilder target,
+        string endpoint = "tcp",
+        string? id = null,
+        string? entrypoint = null) =>
+        AddRoute(
+            LoadBalancerRouteKind.Tcp,
+            id,
+            $"tcp {port} to {target.ResourceId}",
+            entrypoint ?? $"tcp-{port}",
+            new LoadBalancerRouteMatch(Port: port),
+            new LoadBalancerRouteTarget(target.ResourceId, EndpointName: endpoint),
+            target);
+
+    public ILoadBalancerResourceBuilder MapTcp(
+        int port,
+        IResourceBuilder target,
+        int targetPort,
+        string? id = null,
+        string? entrypoint = null) =>
+        AddRoute(
+            LoadBalancerRouteKind.Tcp,
+            id,
+            $"tcp {port} to {target.ResourceId}:{targetPort}",
+            entrypoint ?? $"tcp-{port}",
+            new LoadBalancerRouteMatch(Port: port),
+            new LoadBalancerRouteTarget(target.ResourceId, Port: targetPort),
+            target);
+
+    private ILoadBalancerResourceBuilder AddEntrypoint(
+        string name,
+        ResourceEndpointProtocol protocol,
+        int port,
+        ResourceExposureScope exposure)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var normalizedName = name.Trim();
+        declared.Definition = declared.Definition with
+        {
+            Entrypoints = declared.Definition.LoadBalancerEntrypoints
+                .Where(entrypoint => !string.Equals(entrypoint.Name, normalizedName, StringComparison.OrdinalIgnoreCase))
+                .Append(new LoadBalancerEntrypoint(
+                    normalizedName,
+                    protocol,
+                    port,
+                    exposure))
+                .ToArray()
+        };
+        return this;
+    }
+
+    private ILoadBalancerResourceBuilder AddRoute(
+        LoadBalancerRouteKind kind,
+        string? id,
+        string name,
+        string entrypoint,
+        LoadBalancerRouteMatch match,
+        LoadBalancerRouteTarget target,
+        IResourceBuilder targetResource)
+    {
+        ArgumentNullException.ThrowIfNull(targetResource);
+        ArgumentException.ThrowIfNullOrWhiteSpace(entrypoint);
+
+        var routeId = string.IsNullOrWhiteSpace(id)
+            ? CreateRouteId(kind, match, target)
+            : id.Trim();
+        declared.Definition = declared.Definition with
+        {
+            Routes = declared.Definition.LoadBalancerRoutes
+                .Where(route => !string.Equals(route.Id, routeId, StringComparison.OrdinalIgnoreCase))
+                .Append(new LoadBalancerRoute(
+                    routeId,
+                    name.Trim(),
+                    kind,
+                    entrypoint.Trim(),
+                    match,
+                    target))
+                .ToArray()
+        };
+        inner.DependsOn(targetResource);
+        return this;
+    }
+
+    private string CreateRouteId(
+        LoadBalancerRouteKind kind,
+        LoadBalancerRouteMatch match,
+        LoadBalancerRouteTarget target)
+    {
+        var source = kind == LoadBalancerRouteKind.Tcp
+            ? $"tcp-{match.Port}"
+            : string.Join(
+                "-",
+                new[] { match.Host, match.PathPrefix }
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Select(value => value!
+                        .Trim()
+                        .Replace("/", "-", StringComparison.Ordinal)
+                        .Trim('-')));
+        var targetPart = target.EndpointName ?? target.Port?.ToString() ?? "target";
+        return $"{ResourceId}:route:{source}:{target.ResourceId}:{targetPart}";
+    }
+
+    public ILoadBalancerResourceBuilder WithResourceGroup(string? resourceGroupId)
+    {
+        inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder WithParent(IResourceBuilder resource)
+    {
+        inner.WithParent(resource);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder DependsOn(string resourceId)
+    {
+        inner.DependsOn(resourceId);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder DependsOn(IResourceBuilder resource)
+    {
+        inner.DependsOn(resource);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    {
+        inner.DependsOn(resourceIds);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources)
+    {
+        inner.DependsOn(resources);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder WithReference(string resourceId)
+    {
+        inner.WithReference(resourceId);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder WithReference(IResourceBuilder resource)
+    {
+        inner.WithReference(resource);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder WithReferences(IEnumerable<string> resourceIds)
+    {
+        inner.WithReferences(resourceIds);
+        return this;
+    }
+
+    public ILoadBalancerResourceBuilder Persist(bool overwrite = false)
     {
         inner.Persist(overwrite);
         return this;

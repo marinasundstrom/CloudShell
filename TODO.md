@@ -12,9 +12,9 @@ verification baseline.
 - Harden macOS host-provided virtual networking by exercising real local proxy
   mappings end to end, improving action capability reasons, and deciding how
   reconciled mappings should be persisted or stopped.
-- Implement the load balancer resource proposal with Traefik as the first
-  provider target, using HTTP host/path and TCP routes mapped to stable target
-  endpoints.
+- Continue load balancer support beyond the first Traefik file-config provider
+  by adding provider validation diagnostics, configuration preview, and richer
+  host/runtime capability checks.
 - For Traefik container mode, model implementation containers as provider-owned
   runtime state or child resources tied to the load balancer lifecycle on a
   selected host resource, not as user-authored container app resources.

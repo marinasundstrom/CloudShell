@@ -27,6 +27,7 @@ public sealed record ResourceResponse(
     IReadOnlyDictionary<string, string> Attributes,
     IReadOnlyList<ResourceCapabilityResponse> Capabilities,
     IReadOnlyList<ResourceEndpointMappingResponse> EndpointMappings,
+    IReadOnlyList<LoadBalancerRouteResponse> LoadBalancerRoutes,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 public sealed record ResourceEndpointResponse(
@@ -51,6 +52,24 @@ public sealed record ResourceEndpointMappingResponse(
     ResourceEndpointReferenceResponse Target,
     string? NetworkResourceId,
     string? ProviderResourceId);
+
+public sealed record LoadBalancerRouteResponse(
+    string Id,
+    string Name,
+    LoadBalancerRouteKind Kind,
+    string EntrypointName,
+    LoadBalancerRouteMatchResponse Match,
+    LoadBalancerRouteTargetResponse Target);
+
+public sealed record LoadBalancerRouteMatchResponse(
+    string? Host,
+    string? PathPrefix,
+    int? Port);
+
+public sealed record LoadBalancerRouteTargetResponse(
+    string ResourceId,
+    string? EndpointName,
+    int? Port);
 
 public sealed record ResourceActionResponse(
     string Id,
@@ -178,6 +197,7 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.ResourceAttributes,
             resource.ResourceCapabilities.Select(ToResponse).ToArray(),
             resource.ResourceEndpointMappings.Select(ToResponse).ToArray(),
+            resource.ResourceLoadBalancerRoutes.Select(ToResponse).ToArray(),
             CreateResourceActionDictionary(resource));
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
@@ -197,6 +217,21 @@ internal static class CloudShellControlPlaneDtoMapper
             mapping.Target.ToResponse(),
             mapping.NetworkResourceId,
             mapping.ProviderResourceId);
+
+    public static LoadBalancerRouteResponse ToResponse(this LoadBalancerRoute route) =>
+        new(
+            route.Id,
+            route.Name,
+            route.Kind,
+            route.EntrypointName,
+            route.Match.ToResponse(),
+            route.Target.ToResponse());
+
+    public static LoadBalancerRouteMatchResponse ToResponse(this LoadBalancerRouteMatch match) =>
+        new(match.Host, match.PathPrefix, match.Port);
+
+    public static LoadBalancerRouteTargetResponse ToResponse(this LoadBalancerRouteTarget target) =>
+        new(target.ResourceId, target.EndpointName, target.Port);
 
     public static ResourceActionResponse ToResponse(
         this ResourceAction action,

@@ -144,6 +144,27 @@
         </section>
     }
 
+    @if (Resource.ResourceLoadBalancerRoutes.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Load balancer routes"]</h3>
+            <div class="generated-list">
+                @foreach (var route in Resource.ResourceLoadBalancerRoutes)
+                {
+                    <div>
+                        <strong>@route.Name</strong>
+                        <span>
+                            @FormatLoadBalancerRouteMatch(route)
+                            <span aria-hidden="true">-&gt;</span>
+                            @FormatLoadBalancerRouteTarget(route.Target)
+                        </span>
+                        <small>@L["Entrypoint: {0}", route.EntrypointName]</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     @if (Resource.ResourceAttributes.Count > 0)
     {
         <section class="generated-section">
@@ -461,6 +482,7 @@
             .Concat(InboundNetworkMappings.Select(mapping => mapping.Network.Id))
             .Concat(Resource.ResourceEndpointMappings.SelectMany(GetMappingResourceIds))
             .Concat(InboundNetworkMappings.SelectMany(mapping => GetMappingResourceIds(mapping.Mapping)))
+            .Concat(Resource.ResourceLoadBalancerRoutes.Select(route => route.Target.ResourceId))
             .Concat(GetMappingProviderIds())
             .Append(Resource.ParentResourceId)
             .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -492,6 +514,35 @@
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private string FormatLoadBalancerRouteMatch(LoadBalancerRoute route)
+    {
+        if (route.Kind == LoadBalancerRouteKind.Tcp)
+        {
+            return L["TCP {0}", route.Match.Port?.ToString() ?? route.EntrypointName].Value;
+        }
+
+        var host = string.IsNullOrWhiteSpace(route.Match.Host)
+            ? L["any host"].Value
+            : route.Match.Host;
+        return string.IsNullOrWhiteSpace(route.Match.PathPrefix)
+            ? host
+            : $"{host}{route.Match.PathPrefix}";
+    }
+
+    private string FormatLoadBalancerRouteTarget(LoadBalancerRouteTarget target)
+    {
+        var resource = FindRelatedResource(target.ResourceId);
+        var label = resource?.Name ?? target.ResourceId;
+        if (!string.IsNullOrWhiteSpace(target.EndpointName))
+        {
+            return $"{label}/{target.EndpointName}";
+        }
+
+        return target.Port is null
+            ? label
+            : $"{label}:{target.Port.Value}";
+    }
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";

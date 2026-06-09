@@ -20,7 +20,8 @@ public sealed record Resource(
     ResourceClass ResourceClass = ResourceClass.Generic,
     IReadOnlyDictionary<string, string>? Attributes = null,
     IReadOnlyList<ResourceCapability>? Capabilities = null,
-    IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null)
+    IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null,
+    IReadOnlyList<LoadBalancerRoute>? LoadBalancerRoutes = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -55,6 +56,9 @@ public sealed record Resource(
 
     public IReadOnlyList<ResourceEndpointMappingDefinition> ResourceEndpointMappings =>
         EndpointMappings ?? [];
+
+    public IReadOnlyList<LoadBalancerRoute> ResourceLoadBalancerRoutes =>
+        LoadBalancerRoutes ?? [];
 
     public bool HasCapability(string capabilityId) =>
         ResourceCapabilities.Any(capability =>
@@ -95,6 +99,12 @@ public static class ResourceAttributeNames
     public const string NetworkKind = "network.kind";
     public const string NetworkHostReadiness = "network.hostReadiness";
     public const string NetworkMappingProviders = "network.mappingProviders";
+    public const string LoadBalancerProvider = "loadBalancer.provider";
+    public const string LoadBalancerHostResourceId = "loadBalancer.hostResourceId";
+    public const string LoadBalancerEntrypointCount = "loadBalancer.entrypoints";
+    public const string LoadBalancerRouteCount = "loadBalancer.routes";
+    public const string LoadBalancerHttpRouteCount = "loadBalancer.routes.http";
+    public const string LoadBalancerTcpRouteCount = "loadBalancer.routes.tcp";
     public const string ServiceTargetCount = "service.targets";
     public const string ServicePortCount = "service.ports";
 }

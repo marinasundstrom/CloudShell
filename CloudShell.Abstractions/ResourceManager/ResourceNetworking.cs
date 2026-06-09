@@ -112,3 +112,71 @@ public sealed record ServicePort(
     int? Port = null,
     string Protocol = "tcp",
     ResourceExposureScope Exposure = ResourceExposureScope.Local);
+
+public enum LoadBalancerRouteKind
+{
+    Http,
+    Tcp
+}
+
+public sealed record LoadBalancerResourceDefinition(
+    string Id,
+    string Name,
+    string Provider,
+    string? HostResourceId = null,
+    IReadOnlyList<LoadBalancerEntrypoint>? Entrypoints = null,
+    IReadOnlyList<LoadBalancerRoute>? Routes = null)
+{
+    public IReadOnlyList<LoadBalancerEntrypoint> LoadBalancerEntrypoints =>
+        Entrypoints ?? [];
+
+    public IReadOnlyList<LoadBalancerRoute> LoadBalancerRoutes =>
+        Routes ?? [];
+}
+
+public sealed record LoadBalancerEntrypoint(
+    string Name,
+    ResourceEndpointProtocol Protocol,
+    int Port,
+    ResourceExposureScope Exposure = ResourceExposureScope.Public);
+
+public sealed record LoadBalancerRoute(
+    string Id,
+    string Name,
+    LoadBalancerRouteKind Kind,
+    string EntrypointName,
+    LoadBalancerRouteMatch Match,
+    LoadBalancerRouteTarget Target);
+
+public sealed record LoadBalancerRouteMatch(
+    string? Host = null,
+    string? PathPrefix = null,
+    int? Port = null);
+
+public sealed record LoadBalancerRouteTarget(
+    string ResourceId,
+    string? EndpointName = null,
+    int? Port = null);
+
+public sealed record LoadBalancerRouteResolution(
+    LoadBalancerRoute Route,
+    Resource TargetResource,
+    ResourceEndpoint? TargetEndpoint);
+
+public sealed record LoadBalancerProviderContext(
+    Resource LoadBalancerResource,
+    LoadBalancerResourceDefinition Definition,
+    Resource? HostResource,
+    IReadOnlyList<LoadBalancerRouteResolution> Routes,
+    IResourceManagerStore ResourceManager);
+
+public interface ILoadBalancerProvider
+{
+    string ProviderName { get; }
+
+    bool CanApply(LoadBalancerProviderContext context);
+
+    Task<ResourceProcedureResult> ApplyAsync(
+        LoadBalancerProviderContext context,
+        CancellationToken cancellationToken = default);
+}

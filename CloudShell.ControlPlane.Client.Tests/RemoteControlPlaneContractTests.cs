@@ -162,6 +162,39 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ProjectsLoadBalancerRoutes()
+    {
+        await using var app = await CreateAppAsync(includeLoadBalancer: true);
+        var controlPlane = CreateClient(app);
+
+        var loadBalancer = await controlPlane.GetResourceAsync("load-balancer:public");
+
+        Assert.NotNull(loadBalancer);
+        Assert.Equal(PlatformResourceProvider.LoadBalancerResourceType, loadBalancer.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Network, loadBalancer.ResourceClass);
+        Assert.True(loadBalancer.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer));
+        Assert.Equal("traefik", loadBalancer.ResourceAttributes[ResourceAttributeNames.LoadBalancerProvider]);
+        Assert.Equal("docker:engine", loadBalancer.ResourceAttributes[ResourceAttributeNames.LoadBalancerHostResourceId]);
+        Assert.Contains("docker:engine", loadBalancer.DependsOn);
+        Assert.Collection(
+            loadBalancer.ResourceLoadBalancerRoutes.OrderBy(route => route.Name, StringComparer.OrdinalIgnoreCase),
+            route =>
+            {
+                Assert.Equal(LoadBalancerRouteKind.Http, route.Kind);
+                Assert.Equal("app.local", route.Match.Host);
+                Assert.Equal("contract:app", route.Target.ResourceId);
+                Assert.Equal("http", route.Target.EndpointName);
+            },
+            route =>
+            {
+                Assert.Equal(LoadBalancerRouteKind.Tcp, route.Kind);
+                Assert.Equal(5432, route.Match.Port);
+                Assert.Equal("contract:postgres", route.Target.ResourceId);
+                Assert.Equal("postgres", route.Target.EndpointName);
+            });
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_UpdatesResourceImage()
     {
         await using var app = await CreateAppAsync(includeImageResource: true);
@@ -522,7 +555,8 @@ public sealed class RemoteControlPlaneContractTests
     private static async Task<WebApplication> CreateAppAsync(
         bool includeLifecycleResource = false,
         bool includeImageResource = false,
-        bool includeMappedNetwork = false)
+        bool includeMappedNetwork = false,
+        bool includeLoadBalancer = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -577,6 +611,20 @@ public sealed class RemoteControlPlaneContractTests
                     new ResourceEndpointReference(api.ResourceId, "http"),
                     proxy,
                     "mapping:api");
+            }
+            if (includeLoadBalancer)
+            {
+                var dockerHost = resources.Declare("docker", "docker:engine");
+                var app = resources.Declare("applications", "contract:app");
+                var postgres = resources.Declare("applications", "contract:postgres");
+                resources
+                    .AddLoadBalancer("public")
+                    .UseProvider("traefik")
+                    .UseHost(dockerHost)
+                    .ExposeHttp(8080)
+                    .ExposeTcp(5432)
+                    .MapHost("app.local", app, endpoint: "http")
+                    .MapTcp(5432, postgres, endpoint: "postgres");
             }
         });
 

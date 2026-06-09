@@ -37,6 +37,14 @@ public sealed class PlatformResourceStore
                 persist: false,
                 replaceExisting: !service.Persist || service.OverwritePersistedState);
         }
+
+        foreach (var loadBalancer in options.DeclaredLoadBalancers)
+        {
+            UpsertLoadBalancer(
+                loadBalancer.Definition,
+                persist: false,
+                replaceExisting: !loadBalancer.Persist || loadBalancer.OverwritePersistedState);
+        }
     }
 
     public IReadOnlyList<NetworkResourceDefinition> GetNetworks()
@@ -77,6 +85,25 @@ public sealed class PlatformResourceStore
         }
     }
 
+    public IReadOnlyList<LoadBalancerResourceDefinition> GetLoadBalancers()
+    {
+        lock (_gate)
+        {
+            return _definitions.LoadBalancers
+                .OrderBy(loadBalancer => loadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+    }
+
+    public LoadBalancerResourceDefinition? GetLoadBalancer(string id)
+    {
+        lock (_gate)
+        {
+            return _definitions.LoadBalancers.FirstOrDefault(loadBalancer =>
+                string.Equals(loadBalancer.Id, id, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public void SaveNetwork(NetworkResourceDefinition definition, bool persist = true)
     {
         lock (_gate)
@@ -93,6 +120,14 @@ public sealed class PlatformResourceStore
         }
     }
 
+    public void SaveLoadBalancer(LoadBalancerResourceDefinition definition, bool persist = true)
+    {
+        lock (_gate)
+        {
+            UpsertLoadBalancer(definition, persist, replaceExisting: true);
+        }
+    }
+
     public void Remove(string id)
     {
         lock (_gate)
@@ -104,6 +139,9 @@ public sealed class PlatformResourceStore
                     .ToArray(),
                 Services = _definitions.Services
                     .Where(service => !string.Equals(service.Id, id, StringComparison.OrdinalIgnoreCase))
+                    .ToArray(),
+                LoadBalancers = _definitions.LoadBalancers
+                    .Where(loadBalancer => !string.Equals(loadBalancer.Id, id, StringComparison.OrdinalIgnoreCase))
                     .ToArray()
             };
             Persist();
@@ -114,17 +152,18 @@ public sealed class PlatformResourceStore
     {
         if (!File.Exists(_definitionsPath))
         {
-            return new PlatformResourceDefinitions([], []);
+            return new PlatformResourceDefinitions([], [], []);
         }
 
         var json = File.ReadAllText(_definitionsPath);
         var definitions = JsonSerializer.Deserialize<PlatformResourceDefinitions>(json, SerializerOptions)
-            ?? new PlatformResourceDefinitions([], []);
+            ?? new PlatformResourceDefinitions([], [], []);
 
         return definitions with
         {
-            Networks = definitions.Networks.Select(NormalizeNetwork).ToArray(),
-            Services = definitions.Services.Select(NormalizeService).ToArray()
+            Networks = (definitions.Networks ?? []).Select(NormalizeNetwork).ToArray(),
+            Services = (definitions.Services ?? []).Select(NormalizeService).ToArray(),
+            LoadBalancers = (definitions.LoadBalancers ?? []).Select(NormalizeLoadBalancer).ToArray()
         };
     }
 
@@ -172,6 +211,33 @@ public sealed class PlatformResourceStore
         {
             Services = _definitions.Services
                 .Where(service => !string.Equals(service.Id, normalized.Id, StringComparison.OrdinalIgnoreCase))
+                .Append(normalized)
+                .ToArray()
+        };
+
+        if (persist)
+        {
+            Persist();
+        }
+    }
+
+    private void UpsertLoadBalancer(
+        LoadBalancerResourceDefinition definition,
+        bool persist,
+        bool replaceExisting)
+    {
+        var normalized = NormalizeLoadBalancer(definition);
+        var existing = _definitions.LoadBalancers.FirstOrDefault(loadBalancer =>
+            string.Equals(loadBalancer.Id, normalized.Id, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null && !replaceExisting)
+        {
+            return;
+        }
+
+        _definitions = _definitions with
+        {
+            LoadBalancers = _definitions.LoadBalancers
+                .Where(loadBalancer => !string.Equals(loadBalancer.Id, normalized.Id, StringComparison.OrdinalIgnoreCase))
                 .Append(normalized)
                 .ToArray()
         };
@@ -244,6 +310,58 @@ public sealed class PlatformResourceStore
                 EndpointName = string.IsNullOrWhiteSpace(check.EndpointName) ? null : check.EndpointName.Trim(),
                 Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
             })
+            .ToArray();
+
+    private static LoadBalancerResourceDefinition NormalizeLoadBalancer(
+        LoadBalancerResourceDefinition definition) =>
+        definition with
+        {
+            Id = NormalizeId(definition.Id, "load-balancer", definition.Name),
+            Name = definition.Name.Trim(),
+            Provider = string.IsNullOrWhiteSpace(definition.Provider)
+                ? "traefik"
+                : definition.Provider.Trim().ToLowerInvariant(),
+            HostResourceId = NormalizeNullable(definition.HostResourceId),
+            Entrypoints = definition.LoadBalancerEntrypoints
+                .Where(entrypoint => !string.IsNullOrWhiteSpace(entrypoint.Name))
+                .Select(entrypoint => entrypoint with
+                {
+                    Name = entrypoint.Name.Trim(),
+                    Port = Math.Max(1, entrypoint.Port)
+                })
+                .DistinctBy(entrypoint => entrypoint.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            Routes = NormalizeLoadBalancerRoutes(definition.LoadBalancerRoutes)
+        };
+
+    private static IReadOnlyList<LoadBalancerRoute> NormalizeLoadBalancerRoutes(
+        IReadOnlyList<LoadBalancerRoute> routes) =>
+        routes
+            .Where(route =>
+                !string.IsNullOrWhiteSpace(route.Id) &&
+                !string.IsNullOrWhiteSpace(route.EntrypointName) &&
+                !string.IsNullOrWhiteSpace(route.Target.ResourceId) &&
+                (!string.IsNullOrWhiteSpace(route.Target.EndpointName) ||
+                    route.Target.Port is not null))
+            .Select(route => route with
+            {
+                Id = route.Id.Trim(),
+                Name = string.IsNullOrWhiteSpace(route.Name) ? route.Id.Trim() : route.Name.Trim(),
+                EntrypointName = route.EntrypointName.Trim(),
+                Match = route.Match with
+                {
+                    Host = NormalizeNullable(route.Match.Host),
+                    PathPrefix = NormalizeNullable(route.Match.PathPrefix),
+                    Port = route.Match.Port is null ? null : Math.Max(1, route.Match.Port.Value)
+                },
+                Target = route.Target with
+                {
+                    ResourceId = route.Target.ResourceId.Trim(),
+                    EndpointName = NormalizeNullable(route.Target.EndpointName),
+                    Port = route.Target.Port is null ? null : Math.Max(1, route.Target.Port.Value)
+                }
+            })
+            .DistinctBy(route => route.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private static IReadOnlyList<ResourceEndpointRequest> NormalizeEndpointRequests(
@@ -319,5 +437,6 @@ public sealed class PlatformResourceStore
 
     private sealed record PlatformResourceDefinitions(
         IReadOnlyList<NetworkResourceDefinition> Networks,
-        IReadOnlyList<ServiceResourceDefinition> Services);
+        IReadOnlyList<ServiceResourceDefinition> Services,
+        IReadOnlyList<LoadBalancerResourceDefinition> LoadBalancers);
 }

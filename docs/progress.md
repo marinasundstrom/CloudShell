@@ -107,6 +107,11 @@ The MVP should prove:
   target. Docker, Podman, containerd, schedulers, process managers, and
   appliance APIs are host runtime capabilities or provider-owned facts, not
   separate placement primitives.
+- The first load-balancer implementation slice adds a platform load-balancer
+  resource model, fluent route declarations, API/client projection, generated
+  Resource Manager route display, an apply-configuration resource action, and a
+  Traefik file-provider implementation that writes dynamic HTTP/TCP
+  configuration from stable resource routes.
 
 ## Completed recently
 

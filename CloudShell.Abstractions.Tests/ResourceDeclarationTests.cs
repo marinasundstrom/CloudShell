@@ -1298,6 +1298,121 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void PlatformResources_DeclareLoadBalancerRoutes()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var webApp = resources.Declare("applications", "application:web");
+                var apiService = resources.Declare("applications", "application:api");
+                var postgres = resources.Declare("applications", "application:postgres");
+                var dockerHost = resources.Declare("docker", "docker:engine");
+
+                var lb = resources
+                    .AddLoadBalancer("public")
+                    .UseProvider("traefik")
+                    .UseHost(dockerHost)
+                    .ExposeHttp(80)
+                    .ExposeHttps(443);
+
+                lb.MapHost("app.local", webApp, endpoint: "http");
+                lb.MapPath("api.local", "/v1", apiService, port: 5000);
+                lb.MapTcp(5432, postgres, endpoint: "postgres");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = declarations.GetDeclaration("load-balancer:public");
+        Assert.NotNull(declaration);
+        Assert.Equal(
+            ["docker:engine", "application:web", "application:api", "application:postgres"],
+            declaration.DependsOn);
+
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var definition = Assert.Single(options.DeclaredLoadBalancers).Definition;
+
+        Assert.Equal("load-balancer:public", definition.Id);
+        Assert.Equal("Public", definition.Name);
+        Assert.Equal("traefik", definition.Provider);
+        Assert.Equal("docker:engine", definition.HostResourceId);
+        Assert.Collection(
+            definition.LoadBalancerEntrypoints.OrderBy(entrypoint => entrypoint.Name, StringComparer.OrdinalIgnoreCase),
+            entrypoint =>
+            {
+                Assert.Equal("http", entrypoint.Name);
+                Assert.Equal(ResourceEndpointProtocol.Http, entrypoint.Protocol);
+                Assert.Equal(80, entrypoint.Port);
+            },
+            entrypoint =>
+            {
+                Assert.Equal("https", entrypoint.Name);
+                Assert.Equal(ResourceEndpointProtocol.Https, entrypoint.Protocol);
+                Assert.Equal(443, entrypoint.Port);
+            });
+        Assert.Collection(
+            definition.LoadBalancerRoutes.OrderBy(route => route.Name, StringComparer.OrdinalIgnoreCase),
+            route =>
+            {
+                Assert.Equal(LoadBalancerRouteKind.Http, route.Kind);
+                Assert.Equal("http", route.EntrypointName);
+                Assert.Equal("api.local", route.Match.Host);
+                Assert.Equal("/v1", route.Match.PathPrefix);
+                Assert.Equal("application:api", route.Target.ResourceId);
+                Assert.Equal(5000, route.Target.Port);
+            },
+            route =>
+            {
+                Assert.Equal(LoadBalancerRouteKind.Http, route.Kind);
+                Assert.Equal("http", route.EntrypointName);
+                Assert.Equal("app.local", route.Match.Host);
+                Assert.Equal("application:web", route.Target.ResourceId);
+                Assert.Equal("http", route.Target.EndpointName);
+            },
+            route =>
+            {
+                Assert.Equal(LoadBalancerRouteKind.Tcp, route.Kind);
+                Assert.Equal("tcp-5432", route.EntrypointName);
+                Assert.Equal(5432, route.Match.Port);
+                Assert.Equal("application:postgres", route.Target.ResourceId);
+                Assert.Equal("postgres", route.Target.EndpointName);
+            });
+
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "load-balancer:public");
+
+        Assert.Equal(PlatformResourceProvider.LoadBalancerResourceType, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Network, resource.ResourceClass);
+        Assert.Equal("traefik", resource.ResourceAttributes[ResourceAttributeNames.LoadBalancerProvider]);
+        Assert.Equal("docker:engine", resource.ResourceAttributes[ResourceAttributeNames.LoadBalancerHostResourceId]);
+        Assert.Equal("2", resource.ResourceAttributes[ResourceAttributeNames.LoadBalancerEntrypointCount]);
+        Assert.Equal("3", resource.ResourceAttributes[ResourceAttributeNames.LoadBalancerRouteCount]);
+        Assert.Equal("2", resource.ResourceAttributes[ResourceAttributeNames.LoadBalancerHttpRouteCount]);
+        Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.LoadBalancerTcpRouteCount]);
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingGateway));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingTls));
+        Assert.Collection(
+            resource.Endpoints.OrderBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase),
+            endpoint =>
+            {
+                Assert.Equal("http", endpoint.Name);
+                Assert.Equal("http://localhost:80", endpoint.Address);
+            },
+            endpoint =>
+            {
+                Assert.Equal("https", endpoint.Name);
+                Assert.Equal("https://localhost:443", endpoint.Address);
+            });
+    }
+
+    [Fact]
     public void PlatformResources_DeclareVirtualNetworkAsNetworkPrimitive()
     {
         var services = new ServiceCollection();

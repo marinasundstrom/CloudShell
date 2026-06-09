@@ -8,7 +8,8 @@ public sealed class PlatformResourceProvider(
     PlatformResourceStore store,
     PlatformResourceOptions options,
     IHostLocalNetworkEnvironment? hostLocalNetworkEnvironment = null,
-    IEnumerable<IResourceEndpointMappingProvisioner>? endpointMappingProvisioners = null) :
+    IEnumerable<IResourceEndpointMappingProvisioner>? endpointMappingProvisioners = null,
+    IEnumerable<ILoadBalancerProvider>? loadBalancerProviders = null) :
     IResourceProvider,
     IResourceCreationProvider,
     IResourceProcedureProvider,
@@ -23,16 +24,25 @@ public sealed class PlatformResourceProvider(
     public const string NetworkResourceType = "cloudshell.network";
     public const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
     public const string ServiceResourceType = "cloudshell.service";
+    public const string LoadBalancerResourceType = "cloudshell.loadBalancer";
     public const string ReconcileEndpointMappingsActionId = "reconcileEndpointMappings";
+    public const string ApplyLoadBalancerConfigurationActionId = "applyLoadBalancerConfiguration";
     private readonly IHostLocalNetworkEnvironment hostLocalNetwork =
         hostLocalNetworkEnvironment ?? new HostLocalNetworkEnvironment();
     private readonly IReadOnlyList<IResourceEndpointMappingProvisioner> endpointMappingProvisioners =
         endpointMappingProvisioners?.ToArray() ?? [];
+    private readonly IReadOnlyList<ILoadBalancerProvider> loadBalancerProviders =
+        loadBalancerProviders?.ToArray() ?? [];
 
     private static readonly ResourceAction ReconcileEndpointMappingsAction = new(
         ReconcileEndpointMappingsActionId,
         "Reconcile endpoint mappings",
         Description: "Validate and apply endpoint mappings for the network resource.");
+
+    private static readonly ResourceAction ApplyLoadBalancerConfigurationAction = new(
+        ApplyLoadBalancerConfigurationActionId,
+        "Apply load balancer configuration",
+        Description: "Validate and materialize load balancer routes for the selected provider.");
 
     public string Id => ProviderId;
 
@@ -49,12 +59,14 @@ public sealed class PlatformResourceProvider(
         return
         [
             .. networks.Select(CreateNetworkResource),
-            .. store.GetServices().Select(CreateServiceResource)
+            .. store.GetServices().Select(CreateServiceResource),
+            .. store.GetLoadBalancers().Select(CreateLoadBalancerResource)
         ];
     }
 
     public bool CanCreate(ResourceCreationRequest request) =>
         IsNetworkResourceType(request.ResourceType) ||
+        string.Equals(request.ResourceType, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
 
     public async Task CreateAsync(
@@ -86,6 +98,22 @@ public sealed class PlatformResourceProvider(
             var definition = request.Configuration.Deserialize<ServiceResourceDefinition>(SerializerOptions)
                 ?? throw new InvalidOperationException("Service resource configuration is required.");
             await SetupServiceAsync(
+                definition with
+                {
+                    Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
+                    Name = string.IsNullOrWhiteSpace(definition.Name) ? request.Name : definition.Name
+                },
+                request.ResourceGroupId,
+                context.Registrations,
+                cancellationToken);
+            return;
+        }
+
+        if (string.Equals(request.ResourceType, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            var definition = request.Configuration.Deserialize<LoadBalancerResourceDefinition>(SerializerOptions)
+                ?? throw new InvalidOperationException("Load balancer resource configuration is required.");
+            await SetupLoadBalancerAsync(
                 definition with
                 {
                     Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
@@ -132,6 +160,22 @@ public sealed class PlatformResourceProvider(
             cancellationToken);
     }
 
+    public async Task SetupLoadBalancerAsync(
+        LoadBalancerResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeLoadBalancer(definition);
+        store.SaveLoadBalancer(normalized);
+        await registrations.RegisterAsync(
+            Id,
+            normalized.Id,
+            NormalizeGroupId(resourceGroupId),
+            CreateLoadBalancerDependencies(normalized),
+            cancellationToken);
+    }
+
     public async Task<ResourceProcedureResult> DeleteAsync(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
@@ -146,19 +190,30 @@ public sealed class PlatformResourceProvider(
         ResourceAction action,
         CancellationToken cancellationToken = default)
     {
-        if (!string.Equals(action.Id, ReconcileEndpointMappingsActionId, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(action.Id, ReconcileEndpointMappingsActionId, StringComparison.OrdinalIgnoreCase))
         {
-            throw new NotSupportedException(
-                $"CloudShell platform resources do not support action '{action.DisplayName}'.");
+            if (!IsNetworkResourceType(context.Resource.EffectiveTypeId))
+            {
+                throw new InvalidOperationException(
+                    $"Endpoint mappings can only be reconciled for network resources.");
+            }
+
+            return ReconcileEndpointMappingsAsync(context, cancellationToken);
         }
 
-        if (!IsNetworkResourceType(context.Resource.EffectiveTypeId))
+        if (string.Equals(action.Id, ApplyLoadBalancerConfigurationActionId, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException(
-                $"Endpoint mappings can only be reconciled for network resources.");
+            if (!string.Equals(context.Resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Load balancer configuration can only be applied for load balancer resources.");
+            }
+
+            return ApplyLoadBalancerConfigurationAsync(context, cancellationToken);
         }
 
-        return ReconcileEndpointMappingsAsync(context, cancellationToken);
+        throw new NotSupportedException(
+            $"CloudShell platform resources do not support action '{action.DisplayName}'.");
     }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
@@ -198,22 +253,48 @@ public sealed class PlatformResourceProvider(
         }
 
         var declaredService = options.DeclaredServices.FirstOrDefault(service =>
-            string.Equals(service.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase))
+            string.Equals(service.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase));
+
+        if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
+        {
+            if (declaredService is not null)
+            {
+                store.SaveService(
+                    declaredService.Definition,
+                    persist: true);
+            }
+        }
+
+        if (declaredService is not null)
+        {
+            return registrations.RegisterAsync(
+                Id,
+                declaredService.Definition.Id,
+                NormalizeGroupId(declaration.ResourceGroupId),
+                CreateServiceDependencies(declaredService.Definition)
+                    .Concat(declaration.DependsOn)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                cancellationToken);
+        }
+
+        var declaredLoadBalancer = options.DeclaredLoadBalancers.FirstOrDefault(loadBalancer =>
+                string.Equals(loadBalancer.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException(
                 $"Platform resource declaration '{declaration.ResourceId}' was not found.");
 
         if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
         {
-            store.SaveService(
-                declaredService.Definition,
+            store.SaveLoadBalancer(
+                declaredLoadBalancer.Definition,
                 persist: true);
         }
 
         return registrations.RegisterAsync(
             Id,
-            declaredService.Definition.Id,
+            declaredLoadBalancer.Definition.Id,
             NormalizeGroupId(declaration.ResourceGroupId),
-            CreateServiceDependencies(declaredService.Definition)
+            CreateLoadBalancerDependencies(declaredLoadBalancer.Definition)
                 .Concat(declaration.DependsOn)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
@@ -222,6 +303,7 @@ public sealed class PlatformResourceProvider(
 
     public bool CanDescribe(Resource resource) =>
         IsNetworkResourceType(resource.EffectiveTypeId) ||
+        string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
@@ -241,6 +323,20 @@ public sealed class PlatformResourceProvider(
                 resource.Endpoints,
                 "1.0",
                 JsonSerializer.SerializeToElement(network, SerializerOptions)));
+        }
+
+        if (string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            var loadBalancer = store.GetLoadBalancer(resource.Id)
+                ?? throw new InvalidOperationException($"Load balancer resource '{resource.Id}' is not configured.");
+            return Task.FromResult(new ResourceOrchestrationDescriptor(
+                resource.Id,
+                resource.EffectiveTypeId,
+                resource.DependsOn,
+                [],
+                resource.Endpoints,
+                "1.0",
+                JsonSerializer.SerializeToElement(loadBalancer, SerializerOptions)));
         }
 
         var service = store.GetService(resource.Id)
@@ -336,6 +432,95 @@ public sealed class PlatformResourceProvider(
             ? $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s)."
             : $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s), provisioned {provisionedCount}.";
         return ResourceProcedureResult.Completed(message);
+    }
+
+    private async Task<ResourceProcedureResult> ApplyLoadBalancerConfigurationAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken)
+    {
+        var resourceManager = context.ResourceManager
+            ?? throw new InvalidOperationException("Resource Manager is required to apply load balancer configuration.");
+        var definition = store.GetLoadBalancer(context.Resource.Id)
+            ?? throw new InvalidOperationException($"Load balancer resource '{context.Resource.Id}' is not configured.");
+        var host = ResolveLoadBalancerHost(resourceManager, definition);
+        var providerContext = new LoadBalancerProviderContext(
+            context.Resource,
+            definition,
+            host,
+            ResolveLoadBalancerRoutes(resourceManager, definition),
+            resourceManager);
+        var provider = loadBalancerProviders.FirstOrDefault(candidate =>
+            string.Equals(candidate.ProviderName, definition.Provider, StringComparison.OrdinalIgnoreCase) &&
+            candidate.CanApply(providerContext));
+        if (provider is null)
+        {
+            throw new InvalidOperationException(
+                $"No activated load balancer provider can apply provider '{definition.Provider}' for resource '{context.Resource.Id}'.");
+        }
+
+        return await provider.ApplyAsync(providerContext, cancellationToken);
+    }
+
+    private static Resource? ResolveLoadBalancerHost(
+        IResourceManagerStore resourceManager,
+        LoadBalancerResourceDefinition definition)
+    {
+        if (string.IsNullOrWhiteSpace(definition.HostResourceId))
+        {
+            return null;
+        }
+
+        return resourceManager.GetResource(definition.HostResourceId)
+            ?? throw new InvalidOperationException(
+                $"Load balancer resource '{definition.Id}' host resource '{definition.HostResourceId}' could not be found.");
+    }
+
+    private static IReadOnlyList<LoadBalancerRouteResolution> ResolveLoadBalancerRoutes(
+        IResourceManagerStore resourceManager,
+        LoadBalancerResourceDefinition definition) =>
+        definition.LoadBalancerRoutes
+            .Select(route => ResolveLoadBalancerRoute(resourceManager, definition.Id, route))
+            .ToArray();
+
+    private static LoadBalancerRouteResolution ResolveLoadBalancerRoute(
+        IResourceManagerStore resourceManager,
+        string loadBalancerResourceId,
+        LoadBalancerRoute route)
+    {
+        var targetResource = resourceManager.GetResource(route.Target.ResourceId)
+            ?? throw new InvalidOperationException(
+                $"Load balancer resource '{loadBalancerResourceId}' route '{route.Id}' target resource '{route.Target.ResourceId}' could not be found.");
+        var targetEndpoint = ResolveLoadBalancerTargetEndpoint(loadBalancerResourceId, route, targetResource);
+
+        if (targetEndpoint is null && route.Target.Port is null)
+        {
+            throw new InvalidOperationException(
+                $"Load balancer resource '{loadBalancerResourceId}' route '{route.Id}' must specify a target endpoint or port.");
+        }
+
+        return new LoadBalancerRouteResolution(route, targetResource, targetEndpoint);
+    }
+
+    private static ResourceEndpoint? ResolveLoadBalancerTargetEndpoint(
+        string loadBalancerResourceId,
+        LoadBalancerRoute route,
+        Resource targetResource)
+    {
+        if (!string.IsNullOrWhiteSpace(route.Target.EndpointName))
+        {
+            return targetResource.Endpoints.FirstOrDefault(endpoint =>
+                    string.Equals(endpoint.Name, route.Target.EndpointName, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException(
+                    $"Load balancer resource '{loadBalancerResourceId}' route '{route.Id}' target endpoint '{route.Target.EndpointName}' could not be found on resource '{targetResource.Id}'.");
+        }
+
+        if (route.Target.Port is null)
+        {
+            return null;
+        }
+
+        return targetResource.Endpoints.FirstOrDefault(endpoint =>
+            TryGetEndpointPort(endpoint, out var port) && port == route.Target.Port);
     }
 
     private async Task<bool> TryProvisionEndpointMappingAsync(
@@ -447,6 +632,47 @@ public sealed class PlatformResourceProvider(
             },
             Capabilities: [new(ResourceCapabilityIds.EndpointSource)]);
 
+    private Resource CreateLoadBalancerResource(LoadBalancerResourceDefinition definition)
+    {
+        var endpoints = CreateLoadBalancerEndpoints(definition);
+        return new(
+            definition.Id,
+            definition.Name,
+            "Load Balancer",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            endpoints,
+            $"{definition.Provider} {definition.LoadBalancerRoutes.Count} route(s)",
+            DateTimeOffset.UtcNow,
+            CreateLoadBalancerDependencies(definition),
+            TypeId: LoadBalancerResourceType,
+            Actions: definition.LoadBalancerRoutes.Count > 0
+                ? [ApplyLoadBalancerConfigurationAction]
+                : null,
+            ResourceClass: ResourceClass.Network,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.LoadBalancerProvider] = definition.Provider,
+                [ResourceAttributeNames.LoadBalancerHostResourceId] =
+                    string.IsNullOrWhiteSpace(definition.HostResourceId) ? "default" : definition.HostResourceId,
+                [ResourceAttributeNames.LoadBalancerEntrypointCount] =
+                    definition.LoadBalancerEntrypoints.Count.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.LoadBalancerRouteCount] =
+                    definition.LoadBalancerRoutes.Count.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.LoadBalancerHttpRouteCount] =
+                    definition.LoadBalancerRoutes.Count(route => route.Kind == LoadBalancerRouteKind.Http)
+                        .ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.LoadBalancerTcpRouteCount] =
+                    definition.LoadBalancerRoutes.Count(route => route.Kind == LoadBalancerRouteKind.Tcp)
+                        .ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.EndpointCount] =
+                    endpoints.Count.ToString(CultureInfo.InvariantCulture)
+            },
+            Capabilities: CreateLoadBalancerCapabilities(definition),
+            LoadBalancerRoutes: definition.LoadBalancerRoutes);
+    }
+
     private IReadOnlyList<ResourceEndpoint> CreateNetworkEndpoints(NetworkResourceDefinition definition)
     {
         var endpoints = definition.NetworkEndpoints
@@ -476,6 +702,26 @@ public sealed class PlatformResourceProvider(
                 options.AutoLocalPortEnd))
             .ToArray();
 
+    private static IReadOnlyList<ResourceEndpoint> CreateLoadBalancerEndpoints(
+        LoadBalancerResourceDefinition definition) =>
+        definition.LoadBalancerEntrypoints
+            .Select(entrypoint =>
+            {
+                var scheme = entrypoint.Protocol.ToString().ToLowerInvariant();
+                var address = entrypoint.Protocol switch
+                {
+                    ResourceEndpointProtocol.Http => $"http://localhost:{entrypoint.Port}",
+                    ResourceEndpointProtocol.Https => $"https://localhost:{entrypoint.Port}",
+                    _ => $"{scheme}://localhost:{entrypoint.Port}"
+                };
+                return ResourceEndpoint.FromAddress(
+                    entrypoint.Name,
+                    address,
+                    scheme,
+                    entrypoint.Exposure);
+            })
+            .ToArray();
+
     private static IReadOnlyList<string> CreateServiceDependencies(ServiceResourceDefinition definition) =>
         definition.Targets
             .Select(target => target.ResourceId)
@@ -484,6 +730,34 @@ public sealed class PlatformResourceProvider(
             .Select(dependency => dependency.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private static IReadOnlyList<string> CreateLoadBalancerDependencies(LoadBalancerResourceDefinition definition) =>
+        definition.LoadBalancerRoutes
+            .Select(route => route.Target.ResourceId)
+            .Concat([definition.HostResourceId])
+            .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+            .Select(dependency => dependency!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyList<ResourceCapability> CreateLoadBalancerCapabilities(
+        LoadBalancerResourceDefinition definition)
+    {
+        var capabilities = new List<ResourceCapability>
+        {
+            new(ResourceCapabilityIds.NetworkingProvider),
+            new(ResourceCapabilityIds.NetworkingEndpointProvider),
+            new(ResourceCapabilityIds.NetworkingEndpointMapper),
+            new(ResourceCapabilityIds.NetworkingGateway),
+            new(ResourceCapabilityIds.NetworkingLoadBalancer)
+        };
+        if (definition.LoadBalancerEntrypoints.Any(entrypoint => entrypoint.Protocol == ResourceEndpointProtocol.Https))
+        {
+            capabilities.Add(new ResourceCapability(ResourceCapabilityIds.NetworkingTls));
+        }
+
+        return capabilities;
+    }
 
     private static NetworkResourceDefinition NormalizeNetwork(NetworkResourceDefinition definition) =>
         definition with
@@ -497,6 +771,53 @@ public sealed class PlatformResourceProvider(
     private static bool IsNetworkResourceType(string resourceType) =>
         string.Equals(resourceType, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(resourceType, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase);
+
+    private static LoadBalancerResourceDefinition NormalizeLoadBalancer(LoadBalancerResourceDefinition definition) =>
+        definition with
+        {
+            Id = NormalizeResourceId(definition.Id, "load-balancer", definition.Name),
+            Name = definition.Name.Trim(),
+            Provider = string.IsNullOrWhiteSpace(definition.Provider)
+                ? "traefik"
+                : definition.Provider.Trim().ToLowerInvariant(),
+            HostResourceId = NormalizeNullable(definition.HostResourceId),
+            Entrypoints = definition.LoadBalancerEntrypoints
+                .Where(entrypoint => !string.IsNullOrWhiteSpace(entrypoint.Name))
+                .Select(entrypoint => entrypoint with
+                {
+                    Name = entrypoint.Name.Trim(),
+                    Port = Math.Max(1, entrypoint.Port)
+                })
+                .DistinctBy(entrypoint => entrypoint.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            Routes = definition.LoadBalancerRoutes
+                .Where(route =>
+                    !string.IsNullOrWhiteSpace(route.Id) &&
+                    !string.IsNullOrWhiteSpace(route.EntrypointName) &&
+                    !string.IsNullOrWhiteSpace(route.Target.ResourceId) &&
+                    (!string.IsNullOrWhiteSpace(route.Target.EndpointName) ||
+                        route.Target.Port is not null))
+                .Select(route => route with
+                {
+                    Id = route.Id.Trim(),
+                    Name = string.IsNullOrWhiteSpace(route.Name) ? route.Id.Trim() : route.Name.Trim(),
+                    EntrypointName = route.EntrypointName.Trim(),
+                    Match = route.Match with
+                    {
+                        Host = NormalizeNullable(route.Match.Host),
+                        PathPrefix = NormalizeNullable(route.Match.PathPrefix),
+                        Port = route.Match.Port is null ? null : Math.Max(1, route.Match.Port.Value)
+                    },
+                    Target = route.Target with
+                    {
+                        ResourceId = route.Target.ResourceId.Trim(),
+                        EndpointName = NormalizeNullable(route.Target.EndpointName),
+                        Port = route.Target.Port is null ? null : Math.Max(1, route.Target.Port.Value)
+                    }
+                })
+                .DistinctBy(route => route.Id, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+        };
 
     private static string GetNetworkResourceType(NetworkResourceDefinition definition) =>
         definition.Kind == NetworkResourceKind.Virtual
@@ -636,6 +957,28 @@ public sealed class PlatformResourceProvider(
             })
             .DistinctBy(mapping => mapping.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private static bool TryGetEndpointPort(ResourceEndpoint endpoint, out int port)
+    {
+        if (Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort)
+        {
+            port = uri.Port;
+            return true;
+        }
+
+        var separatorIndex = endpoint.Address.LastIndexOf(':');
+        if (separatorIndex >= 0 &&
+            int.TryParse(
+                endpoint.Address.AsSpan(separatorIndex + 1),
+                CultureInfo.InvariantCulture,
+                out port))
+        {
+            return true;
+        }
+
+        port = 0;
+        return false;
+    }
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
