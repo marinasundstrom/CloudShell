@@ -89,6 +89,7 @@ public static class ResourceAttributeNames
     public const string ConfigurationEntryCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";
     public const string NetworkKind = "network.kind";
+    public const string NetworkHostReadiness = "network.hostReadiness";
     public const string ServiceTargetCount = "service.targets";
     public const string ServicePortCount = "service.ports";
 }

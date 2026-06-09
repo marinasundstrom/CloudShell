@@ -283,6 +283,12 @@ policy, TLS, DNS, clustering, and load-balancing behavior should be expressed
 as capabilities on authored resources and implemented by provider-owned
 configuration behind those resources.
 
+When a virtual network is projected by the default host-local implementation,
+it carries `network.hostReadiness=logicalOnly`. The shell can use that projected
+fact to warn that real virtual-network configuration requires an activated host
+networking service such as a gateway, load balancer, DNS publisher, service
+mesh, firewall manager, or cluster network controller.
+
 When endpoint mappings are declared, the network resource exposes a reconcile
 action. The Control Plane action validates that the source endpoint exists, the
 target endpoint exists, and the selected provider resource advertises endpoint

@@ -255,6 +255,16 @@ public sealed class PlatformResourceProvider(
     private Resource CreateNetworkResource(NetworkResourceDefinition definition)
     {
         var endpoints = CreateNetworkEndpoints(definition);
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.NetworkKind] = GetNetworkKindAttribute(definition),
+            [ResourceAttributeNames.EndpointCount] = endpoints.Count.ToString(CultureInfo.InvariantCulture)
+        };
+        if (definition.Kind == NetworkResourceKind.Virtual)
+        {
+            attributes[ResourceAttributeNames.NetworkHostReadiness] = "logicalOnly";
+        }
+
         return new(
             definition.Id,
             definition.Name,
@@ -271,11 +281,7 @@ public sealed class PlatformResourceProvider(
                 ? [ReconcileEndpointMappingsAction]
                 : null,
             ResourceClass: ResourceClass.Network,
-            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ResourceAttributeNames.NetworkKind] = GetNetworkKindAttribute(definition),
-                [ResourceAttributeNames.EndpointCount] = endpoints.Count.ToString(CultureInfo.InvariantCulture)
-            },
+            Attributes: attributes,
             Capabilities: CreateNetworkCapabilities(definition));
     }
 

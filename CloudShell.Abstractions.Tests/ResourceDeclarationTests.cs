@@ -1334,6 +1334,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(PlatformResourceProvider.VirtualNetworkResourceType, resource.EffectiveTypeId);
         Assert.Equal(ResourceClass.Network, resource.ResourceClass);
         Assert.Equal("Default virtual", resource.ResourceAttributes[ResourceAttributeNames.NetworkKind]);
+        Assert.Equal("logicalOnly", resource.ResourceAttributes[ResourceAttributeNames.NetworkHostReadiness]);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingProvider));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointProvider));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper));

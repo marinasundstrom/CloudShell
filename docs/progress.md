@@ -198,6 +198,9 @@ The MVP should prove:
 - Added host/logical/virtual network primitives, an `AddVirtualNetwork(...)`
   declaration helper, and a replaceable host-local network environment for
   default endpoint assignment across Windows, macOS, and Linux.
+- Added host-readiness projection for default virtual networks and Resource
+  Manager settings warnings when a virtual network is running in logical-only
+  host-local mode.
 
 ## Active stabilization areas
 

@@ -254,6 +254,8 @@
 
         foreach (var resource in OrchestrationSnapshot.Resources)
         {
+            AddNetworkConfigurationWarnings(warnings, resource);
+
             var workload = TryReadWorkload(resource);
             if (workload?.Kind is not (ResourceWorkloadKind.ContainerImage or ResourceWorkloadKind.ContainerBuild))
             {
@@ -280,6 +282,25 @@
         return warnings
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private void AddNetworkConfigurationWarnings(
+        List<string> warnings,
+        Resource resource)
+    {
+        if (resource.ResourceClass != ResourceClass.Network ||
+            !resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork))
+        {
+            return;
+        }
+
+        if (!resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NetworkHostReadiness, out var readiness) ||
+            !string.Equals(readiness, "logicalOnly", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        warnings.Add(L["Virtual network '{0}' is using host-local logical networking because no host networking service is active. Activate a gateway, load balancer, or network controller provider to configure real virtual-network routing.", resource.Name]);
     }
 
     private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngineDefinitions()
