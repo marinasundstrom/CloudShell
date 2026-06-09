@@ -96,6 +96,25 @@ public static class PlatformResourceDeclarationExtensions
         return new ServiceResourceBuilder(resource, declared);
     }
 
+    public static IResourceBuilder AddMacOSHostNetworking(
+        this IResourceDeclarationBuilder builder,
+        string? resourceGroupId = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.Declare(
+            MacOSHostNetworkProvider.ProviderId,
+            MacOSHostNetworkProvider.ResourceId,
+            resourceGroupId: resourceGroupId,
+            resourceClass: ResourceClass.Infrastructure,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.InfrastructureKind] = "hostNetworking",
+                ["host.os"] = "macos",
+                ["networking.mode"] = "localProxy"
+            });
+    }
+
     public static PlatformResourceOptions GetOrAddPlatformResourceOptions(
         this IServiceCollection services)
     {

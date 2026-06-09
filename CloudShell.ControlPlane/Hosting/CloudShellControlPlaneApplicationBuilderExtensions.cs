@@ -55,10 +55,15 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.TryAddSingleton(new PlatformResourceOptions());
         builder.Services.TryAddSingleton<IHostLocalNetworkEnvironment, HostLocalNetworkEnvironment>();
         builder.Services.TryAddSingleton<PlatformResourceStore>();
+        builder.Services.TryAddSingleton<MacOSHostNetworkProvisioner>();
+        builder.Services.AddSingleton<IResourceEndpointMappingProvisioner>(
+            serviceProvider => serviceProvider.GetRequiredService<MacOSHostNetworkProvisioner>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceOrchestrationDescriptorProvider, PlatformResourceProvider>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProvider, PlatformResourceProvider>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceProvider, MacOSHostNetworkProvider>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProvider, CloudShellResourceProvider>());
         builder.Services.TryAddEnumerable(

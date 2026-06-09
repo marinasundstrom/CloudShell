@@ -26,6 +26,7 @@ public sealed record ResourceResponse(
     bool IsRegistered,
     IReadOnlyDictionary<string, string> Attributes,
     IReadOnlyList<ResourceCapabilityResponse> Capabilities,
+    IReadOnlyList<ResourceEndpointMappingResponse> EndpointMappings,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 public sealed record ResourceEndpointResponse(
@@ -38,6 +39,18 @@ public sealed record ResourceEndpointResponse(
 public sealed record ResourceCapabilityResponse(
     string Id,
     IReadOnlyDictionary<string, string>? Metadata);
+
+public sealed record ResourceEndpointReferenceResponse(
+    string ResourceId,
+    string EndpointName);
+
+public sealed record ResourceEndpointMappingResponse(
+    string Id,
+    string Name,
+    ResourceEndpointReferenceResponse Source,
+    ResourceEndpointReferenceResponse Target,
+    string? NetworkResourceId,
+    string? ProviderResourceId);
 
 public sealed record ResourceActionResponse(
     string Id,
@@ -164,6 +177,7 @@ internal static class CloudShellControlPlaneDtoMapper
             isRegistered,
             resource.ResourceAttributes,
             resource.ResourceCapabilities.Select(ToResponse).ToArray(),
+            resource.ResourceEndpointMappings.Select(ToResponse).ToArray(),
             CreateResourceActionDictionary(resource));
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
@@ -171,6 +185,18 @@ internal static class CloudShellControlPlaneDtoMapper
 
     public static ResourceCapabilityResponse ToResponse(this ResourceCapability capability) =>
         new(capability.Id, capability.Metadata);
+
+    public static ResourceEndpointReferenceResponse ToResponse(this ResourceEndpointReference reference) =>
+        new(reference.ResourceId, reference.EndpointName);
+
+    public static ResourceEndpointMappingResponse ToResponse(this ResourceEndpointMappingDefinition mapping) =>
+        new(
+            mapping.Id,
+            mapping.Name,
+            mapping.Source.ToResponse(),
+            mapping.Target.ToResponse(),
+            mapping.NetworkResourceId,
+            mapping.ProviderResourceId);
 
     public static ResourceActionResponse ToResponse(
         this ResourceAction action,

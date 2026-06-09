@@ -69,6 +69,81 @@
         </section>
     }
 
+    @if (InboundNetworkMappings.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Network exposure"]</h3>
+            <div class="generated-list">
+                @foreach (var exposure in InboundNetworkMappings)
+                {
+                    <div>
+                        <strong>@ResourceLink(exposure.Network)</strong>
+                        <span>
+                            @EndpointReference(exposure.Mapping.Source, exposure.Network)
+                            <span aria-hidden="true">-&gt;</span>
+                            @EndpointReference(exposure.Mapping.Target, Resource)
+                        </span>
+                        <small>@MappingProviderLabel(exposure.Mapping)</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (IsNetworkResource)
+    {
+        <section class="generated-section">
+            <h3>@L["Networking"]</h3>
+            <dl class="detail-list">
+                <dt>@L["Kind"]</dt>
+                <dd>@GetAttributeValue(ResourceAttributeNames.NetworkKind, Resource.Kind)</dd>
+                <dt>@L["Host readiness"]</dt>
+                <dd>@FormatNetworkReadiness()</dd>
+                @if (GetMappingProviderIds().Length > 0)
+                {
+                    <dt>@L["Mapping providers"]</dt>
+                    <dd>
+                        <div class="dependency-list">
+                            @foreach (var providerId in GetMappingProviderIds())
+                            {
+                                @ResourceLink(providerId)
+                            }
+                        </div>
+                    </dd>
+                }
+                <dt>@L["Endpoint mapper"]</dt>
+                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper))</dd>
+                <dt>@L["Virtual network"]</dt>
+                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork))</dd>
+                <dt>@L["Ingress"]</dt>
+                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingIngress))</dd>
+                <dt>@L["Host network"]</dt>
+                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingHostNetwork))</dd>
+            </dl>
+        </section>
+    }
+
+    @if (IsNetworkResource && Resource.ResourceEndpointMappings.Count > 0)
+    {
+        <section class="generated-section">
+            <h3>@L["Endpoint mappings"]</h3>
+            <div class="generated-list">
+                @foreach (var mapping in Resource.ResourceEndpointMappings)
+                {
+                    <div>
+                        <strong>@mapping.Name</strong>
+                        <span>
+                            @EndpointReference(mapping.Source, Resource)
+                            <span aria-hidden="true">-&gt;</span>
+                            @EndpointReference(mapping.Target)
+                        </span>
+                        <small>@MappingProviderLabel(mapping)</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     @if (Resource.ResourceAttributes.Count > 0)
     {
         <section class="generated-section">
@@ -200,20 +275,124 @@
 
     private IReadOnlyList<Resource> ChildResources { get; set; } = [];
     private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
+    private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
     private ResourceOperationCapabilities Capabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
+
+    private bool IsNetworkResource => Resource.ResourceClass == ResourceClass.Network ||
+        Resource.HasCapability(ResourceCapabilityIds.NetworkingProvider);
 
     protected override async Task OnParametersSetAsync()
     {
         ChildResources = await ResourceManager.ListResourceChildrenAsync(Resource.Id);
         Logs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: Resource.Id));
         Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
+        InboundNetworkMappings = await LoadInboundNetworkMappingsAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
     }
 
     private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
+
+    private string GetAttributeValue(string name, string fallback) =>
+        Resource.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
+
+    private string FormatNetworkReadiness()
+    {
+        var readiness = GetAttributeValue(ResourceAttributeNames.NetworkHostReadiness, "unknown");
+        return readiness switch
+        {
+            "logicalOnly" => L["Logical only"].Value,
+            "providerRequired" when GetMissingMappingProviderIds().Length == 0 => L["Ready"].Value,
+            "providerRequired" => L["Provider missing"].Value,
+            "ready" => L["Ready"].Value,
+            _ => readiness
+        };
+    }
+
+    private string[] GetMappingProviderIds() =>
+        Resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NetworkMappingProviders, out var providers)
+            ? providers
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : [];
+
+    private string[] GetMissingMappingProviderIds() =>
+        GetMappingProviderIds()
+            .Where(providerId => !RelatedResources.ContainsKey(providerId) &&
+                !string.Equals(Resource.Id, providerId, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+    private async Task<IReadOnlyList<NetworkEndpointMappingView>> LoadInboundNetworkMappingsAsync()
+    {
+        var networks = await ResourceManager.ListResourcesAsync(
+            new ResourceQuery(ResourceClass: ResourceClass.Network));
+        return networks
+            .SelectMany(network => network.ResourceEndpointMappings
+                .Where(mapping => string.Equals(
+                    mapping.Target.ResourceId,
+                    Resource.Id,
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
+            .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private RenderFragment EndpointReference(
+        ResourceEndpointReference reference,
+        Resource? fallbackResource = null) => builder =>
+    {
+        var resource = FindMappingResource(reference.ResourceId, fallbackResource);
+        var endpoint = resource?.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
+        builder.OpenElement(0, "span");
+        builder.OpenElement(1, "span");
+        builder.AddContent(2, resource?.Name ?? reference.ResourceId);
+        builder.CloseElement();
+        builder.AddContent(3, " / ");
+        builder.OpenElement(4, "strong");
+        builder.AddContent(5, reference.EndpointName);
+        builder.CloseElement();
+        if (!string.IsNullOrWhiteSpace(endpoint?.Address))
+        {
+            builder.AddContent(6, " ");
+            builder.OpenElement(7, "small");
+            builder.AddContent(8, endpoint.Address);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+
+    private string MappingProviderLabel(ResourceEndpointMappingDefinition mapping)
+    {
+        var providerId = GetMappingProviderId(mapping);
+        if (string.IsNullOrWhiteSpace(providerId))
+        {
+            return L["Provider: network"].Value;
+        }
+
+        var provider = FindRelatedResource(providerId);
+        return provider is null
+            ? L["Provider: {0}", providerId].Value
+            : L["Provider: {0}", provider.Name].Value;
+    }
+
+    private string? GetMappingProviderId(ResourceEndpointMappingDefinition mapping) =>
+        FirstNonEmpty(mapping.ProviderResourceId, mapping.NetworkResourceId, mapping.Source.ResourceId);
+
+    private Resource? FindMappingResource(string resourceId, Resource? fallbackResource = null)
+    {
+        if (fallbackResource is not null &&
+            string.Equals(fallbackResource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return fallbackResource;
+        }
+
+        return FindRelatedResource(resourceId);
+    }
 
     private RenderFragment EndpointLink(string address) => builder =>
     {
@@ -279,6 +458,10 @@
     {
         var ids = Resource.DependsOn
             .Concat(ChildResources.Select(resource => resource.Id))
+            .Concat(InboundNetworkMappings.Select(mapping => mapping.Network.Id))
+            .Concat(Resource.ResourceEndpointMappings.SelectMany(GetMappingResourceIds))
+            .Concat(InboundNetworkMappings.SelectMany(mapping => GetMappingResourceIds(mapping.Mapping)))
+            .Concat(GetMappingProviderIds())
             .Append(Resource.ParentResourceId)
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Select(id => id!)
@@ -298,6 +481,17 @@
 
         return resources;
     }
+
+    private IEnumerable<string?> GetMappingResourceIds(ResourceEndpointMappingDefinition mapping)
+    {
+        yield return mapping.Source.ResourceId;
+        yield return mapping.Target.ResourceId;
+        yield return mapping.NetworkResourceId;
+        yield return mapping.ProviderResourceId;
+    }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
@@ -340,4 +534,8 @@
             ? L["{0} on {1}", healthCheck.Type, endpoint].Value
             : L["{0} on {1}, timeout {2}s", healthCheck.Type, endpoint, healthCheck.Timeout.Value.TotalSeconds].Value;
     }
+
+    private sealed record NetworkEndpointMappingView(
+        Resource Network,
+        ResourceEndpointMappingDefinition Mapping);
 }

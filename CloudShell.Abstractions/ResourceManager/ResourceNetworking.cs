@@ -58,6 +58,25 @@ public sealed record ResourceEndpointMappingDefinition(
     string? NetworkResourceId = null,
     string? ProviderResourceId = null);
 
+public sealed record ResourceEndpointMappingProvisioningContext(
+    Resource NetworkResource,
+    NetworkResourceDefinition NetworkDefinition,
+    ResourceEndpointMappingDefinition Mapping,
+    ResourceEndpoint SourceEndpoint,
+    Resource TargetResource,
+    ResourceEndpoint TargetEndpoint,
+    Resource ProviderResource,
+    IResourceManagerStore ResourceManager);
+
+public interface IResourceEndpointMappingProvisioner
+{
+    bool CanProvisionEndpointMapping(ResourceEndpointMappingProvisioningContext context);
+
+    Task<ResourceProcedureResult> ProvisionEndpointMappingAsync(
+        ResourceEndpointMappingProvisioningContext context,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record NetworkResourceDefinition(
     string Id,
     string Name,

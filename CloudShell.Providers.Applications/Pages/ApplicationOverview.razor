@@ -55,6 +55,27 @@ else
         </dl>
     </section>
 
+    @if (InboundNetworkMappings.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Network exposure</h3>
+            <div class="generated-list">
+                @foreach (var exposure in InboundNetworkMappings)
+                {
+                    <div>
+                        <strong>
+                            <a class="resource-link" href="@BuildResourceRoute(exposure.Network.Id)">
+                                @exposure.Network.Name
+                            </a>
+                        </strong>
+                        <span>@FormatMappingSummary(exposure.Mapping, exposure.Network, Application.Id)</span>
+                        <small>@FormatMappingProvider(exposure.Mapping)</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     <section class="blade-section">
         <h3>Environment</h3>
         @if (Application.EnvironmentVariables.Count == 0)
@@ -80,6 +101,7 @@ else
 
     private ApplicationResourceDefinition? Application { get; set; }
     private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
+    private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
 
     protected override void OnParametersSet()
     {
@@ -89,6 +111,9 @@ else
         EffectiveDependencies = Application is null
             ? []
             : ResourceManager.GetResource(Application.Id)?.DependsOn ?? Application.DependsOn;
+        InboundNetworkMappings = Application is null
+            ? []
+            : GetInboundNetworkMappings(Application.Id);
     }
 
     private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
@@ -117,6 +142,84 @@ else
 
     private static string NormalizeRegistry(string? value) =>
         string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Default : value.Trim();
+
+    private IReadOnlyList<NetworkEndpointMappingView> GetInboundNetworkMappings(string resourceId) =>
+        ResourceManager.GetResources()
+            .Where(resource => resource.ResourceClass == ResourceClass.Network)
+            .SelectMany(network => network.ResourceEndpointMappings
+                .Where(mapping => string.Equals(
+                    mapping.Target.ResourceId,
+                    resourceId,
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
+            .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private string FormatMappingSummary(
+        ResourceEndpointMappingDefinition mapping,
+        Resource network,
+        string targetResourceId) =>
+        $"{FormatEndpointReference(mapping.Source, network)} -> {FormatEndpointReference(mapping.Target, targetResourceId)}";
+
+    private string FormatEndpointReference(
+        ResourceEndpointReference reference,
+        Resource? fallbackResource = null)
+    {
+        var resource = ResolveMappingResource(reference.ResourceId, fallbackResource);
+        var endpoint = resource?.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
+        var address = string.IsNullOrWhiteSpace(endpoint?.Address)
+            ? null
+            : $" ({endpoint.Address})";
+        return $"{resource?.Name ?? reference.ResourceId}/{reference.EndpointName}{address}";
+    }
+
+    private string FormatEndpointReference(
+        ResourceEndpointReference reference,
+        string targetResourceId)
+    {
+        var resource = ResolveMappingResource(reference.ResourceId);
+        var endpoint = resource?.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
+        var label = string.Equals(reference.ResourceId, targetResourceId, StringComparison.OrdinalIgnoreCase)
+            ? Application?.Name ?? reference.ResourceId
+            : resource?.Name ?? reference.ResourceId;
+        var address = string.IsNullOrWhiteSpace(endpoint?.Address)
+            ? null
+            : $" ({endpoint.Address})";
+        return $"{label}/{reference.EndpointName}{address}";
+    }
+
+    private string FormatMappingProvider(ResourceEndpointMappingDefinition mapping)
+    {
+        var providerId = FirstNonEmpty(mapping.ProviderResourceId, mapping.NetworkResourceId, mapping.Source.ResourceId);
+        if (string.IsNullOrWhiteSpace(providerId))
+        {
+            return "Provider: network";
+        }
+
+        var provider = ResolveMappingResource(providerId);
+        return provider is null
+            ? $"Provider: {providerId}"
+            : $"Provider: {provider.Name}";
+    }
+
+    private Resource? ResolveMappingResource(string resourceId, Resource? fallbackResource = null)
+    {
+        if (fallbackResource is not null &&
+            string.Equals(fallbackResource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return fallbackResource;
+        }
+
+        return ResourceManager.GetResource(resourceId);
+    }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private static string BuildResourceRoute(string resourceId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
 
     private static string? GetEndpointAddress(ApplicationResourceDefinition application)
     {
@@ -182,4 +285,8 @@ else
         Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
         (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
          uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
+
+    private sealed record NetworkEndpointMappingView(
+        Resource Network,
+        ResourceEndpointMappingDefinition Mapping);
 }

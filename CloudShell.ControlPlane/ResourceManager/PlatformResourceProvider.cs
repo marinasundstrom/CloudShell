@@ -7,7 +7,8 @@ namespace CloudShell.ControlPlane.ResourceManager;
 public sealed class PlatformResourceProvider(
     PlatformResourceStore store,
     PlatformResourceOptions options,
-    IHostLocalNetworkEnvironment? hostLocalNetworkEnvironment = null) :
+    IHostLocalNetworkEnvironment? hostLocalNetworkEnvironment = null,
+    IEnumerable<IResourceEndpointMappingProvisioner>? endpointMappingProvisioners = null) :
     IResourceProvider,
     IResourceCreationProvider,
     IResourceProcedureProvider,
@@ -25,6 +26,8 @@ public sealed class PlatformResourceProvider(
     public const string ReconcileEndpointMappingsActionId = "reconcileEndpointMappings";
     private readonly IHostLocalNetworkEnvironment hostLocalNetwork =
         hostLocalNetworkEnvironment ?? new HostLocalNetworkEnvironment();
+    private readonly IReadOnlyList<IResourceEndpointMappingProvisioner> endpointMappingProvisioners =
+        endpointMappingProvisioners?.ToArray() ?? [];
 
     private static readonly ResourceAction ReconcileEndpointMappingsAction = new(
         ReconcileEndpointMappingsActionId,
@@ -155,7 +158,7 @@ public sealed class PlatformResourceProvider(
                 $"Endpoint mappings can only be reconciled for network resources.");
         }
 
-        return Task.FromResult(ReconcileEndpointMappings(context));
+        return ReconcileEndpointMappingsAsync(context, cancellationToken);
     }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
@@ -262,7 +265,16 @@ public sealed class PlatformResourceProvider(
         };
         if (definition.Kind == NetworkResourceKind.Virtual)
         {
-            attributes[ResourceAttributeNames.NetworkHostReadiness] = "logicalOnly";
+            var mappingProviderIds = GetExternalMappingProviderIds(definition);
+            if (mappingProviderIds.Count == 0)
+            {
+                attributes[ResourceAttributeNames.NetworkHostReadiness] = "logicalOnly";
+            }
+            else
+            {
+                attributes[ResourceAttributeNames.NetworkHostReadiness] = "providerRequired";
+                attributes[ResourceAttributeNames.NetworkMappingProviders] = string.Join(",", mappingProviderIds);
+            }
         }
 
         return new(
@@ -282,10 +294,13 @@ public sealed class PlatformResourceProvider(
                 : null,
             ResourceClass: ResourceClass.Network,
             Attributes: attributes,
-            Capabilities: CreateNetworkCapabilities(definition));
+            Capabilities: CreateNetworkCapabilities(definition),
+            EndpointMappings: definition.NetworkEndpointMappings);
     }
 
-    private ResourceProcedureResult ReconcileEndpointMappings(ResourceProcedureContext context)
+    private async Task<ResourceProcedureResult> ReconcileEndpointMappingsAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken)
     {
         var resourceManager = context.ResourceManager
             ?? throw new InvalidOperationException("Resource Manager is required to reconcile endpoint mappings.");
@@ -296,18 +311,75 @@ public sealed class PlatformResourceProvider(
             return ResourceProcedureResult.Completed("No endpoint mappings to reconcile.");
         }
 
+        var provisionedCount = 0;
         foreach (var mapping in network.NetworkEndpointMappings)
         {
-            ValidateEndpointReference(resourceManager, mapping.Id, mapping.Source, "source");
-            ValidateEndpointReference(resourceManager, mapping.Id, mapping.Target, "target");
-            ValidateMappingProvider(resourceManager, mapping);
+            cancellationToken.ThrowIfCancellationRequested();
+            var source = ResolveEndpointReference(resourceManager, mapping.Id, mapping.Source, "source");
+            var target = ResolveEndpointReference(resourceManager, mapping.Id, mapping.Target, "target");
+            var provider = ValidateMappingProvider(resourceManager, mapping);
+            if (await TryProvisionEndpointMappingAsync(
+                    context.Resource,
+                    network,
+                    mapping,
+                    source,
+                    target,
+                    provider,
+                    resourceManager,
+                    cancellationToken))
+            {
+                provisionedCount++;
+            }
         }
 
-        return ResourceProcedureResult.Completed(
-            $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s).");
+        var message = provisionedCount == 0
+            ? $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s)."
+            : $"Reconciled {network.NetworkEndpointMappings.Count} endpoint mapping(s), provisioned {provisionedCount}.";
+        return ResourceProcedureResult.Completed(message);
     }
 
-    private static void ValidateEndpointReference(
+    private async Task<bool> TryProvisionEndpointMappingAsync(
+        Resource networkResource,
+        NetworkResourceDefinition network,
+        ResourceEndpointMappingDefinition mapping,
+        ResolvedEndpoint source,
+        ResolvedEndpoint target,
+        Resource provider,
+        IResourceManagerStore resourceManager,
+        CancellationToken cancellationToken)
+    {
+        if (string.Equals(provider.Id, networkResource.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (network.Kind != NetworkResourceKind.Virtual)
+        {
+            return false;
+        }
+
+        var provisioningContext = new ResourceEndpointMappingProvisioningContext(
+            networkResource,
+            network,
+            mapping,
+            source.Endpoint,
+            target.Resource,
+            target.Endpoint,
+            provider,
+            resourceManager);
+        var provisioner = endpointMappingProvisioners.FirstOrDefault(candidate =>
+            candidate.CanProvisionEndpointMapping(provisioningContext));
+        if (provisioner is null)
+        {
+            throw new InvalidOperationException(
+                $"Endpoint mapping '{mapping.Id}' requires provider resource '{provider.Id}', but no activated host networking service can materialize it.");
+        }
+
+        await provisioner.ProvisionEndpointMappingAsync(provisioningContext, cancellationToken);
+        return true;
+    }
+
+    private static ResolvedEndpoint ResolveEndpointReference(
         IResourceManagerStore resourceManager,
         string mappingId,
         ResourceEndpointReference endpoint,
@@ -316,15 +388,18 @@ public sealed class PlatformResourceProvider(
         var resource = resourceManager.GetResource(endpoint.ResourceId)
             ?? throw new InvalidOperationException(
                 $"Endpoint mapping '{mappingId}' {role} resource '{endpoint.ResourceId}' could not be found.");
-        if (!resource.Endpoints.Any(candidate =>
-                string.Equals(candidate.Name, endpoint.EndpointName, StringComparison.OrdinalIgnoreCase)))
+        var resolvedEndpoint = resource.Endpoints.FirstOrDefault(candidate =>
+            string.Equals(candidate.Name, endpoint.EndpointName, StringComparison.OrdinalIgnoreCase));
+        if (resolvedEndpoint is null)
         {
             throw new InvalidOperationException(
                 $"Endpoint mapping '{mappingId}' {role} endpoint '{endpoint.EndpointName}' could not be found on resource '{endpoint.ResourceId}'.");
         }
+
+        return new ResolvedEndpoint(resource, resolvedEndpoint);
     }
 
-    private static void ValidateMappingProvider(
+    private static Resource ValidateMappingProvider(
         IResourceManagerStore resourceManager,
         ResourceEndpointMappingDefinition mapping)
     {
@@ -342,6 +417,8 @@ public sealed class PlatformResourceProvider(
             throw new InvalidOperationException(
                 $"Endpoint mapping '{mapping.Id}' provider resource '{providerResourceId}' does not advertise '{ResourceCapabilityIds.NetworkingEndpointMapper}'.");
         }
+
+        return provider;
     }
 
     private Resource CreateServiceResource(ServiceResourceDefinition definition) =>
@@ -458,6 +535,19 @@ public sealed class PlatformResourceProvider(
 
         return capabilities;
     }
+
+    private static IReadOnlyList<string> GetExternalMappingProviderIds(NetworkResourceDefinition definition) =>
+        definition.NetworkEndpointMappings
+            .Select(mapping => FirstNonEmpty(
+                mapping.ProviderResourceId,
+                mapping.NetworkResourceId,
+                mapping.Source.ResourceId))
+            .Where(providerId =>
+                !string.IsNullOrWhiteSpace(providerId) &&
+                !string.Equals(providerId, definition.Id, StringComparison.OrdinalIgnoreCase))
+            .Select(providerId => providerId!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     private static NetworkResourceDefinition CreateHostNetworkDefinition() =>
         new(
@@ -589,4 +679,8 @@ public sealed class PlatformResourceProvider(
                 Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
             })
             .ToArray();
+
+    private sealed record ResolvedEndpoint(
+        Resource Resource,
+        ResourceEndpoint Endpoint);
 }

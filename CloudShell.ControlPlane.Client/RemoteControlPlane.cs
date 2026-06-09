@@ -490,6 +490,7 @@ file sealed record ResourceResponse(
     bool IsRegistered,
     IReadOnlyDictionary<string, string>? Attributes,
     IReadOnlyList<ResourceCapabilityResponse>? Capabilities,
+    IReadOnlyList<ResourceEndpointMappingResponse>? EndpointMappings,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 file sealed record ResourceEndpointResponse(
@@ -502,6 +503,18 @@ file sealed record ResourceEndpointResponse(
 file sealed record ResourceCapabilityResponse(
     string Id,
     IReadOnlyDictionary<string, string>? Metadata);
+
+file sealed record ResourceEndpointReferenceResponse(
+    string ResourceId,
+    string EndpointName);
+
+file sealed record ResourceEndpointMappingResponse(
+    string Id,
+    string Name,
+    ResourceEndpointReferenceResponse Source,
+    ResourceEndpointReferenceResponse Target,
+    string? NetworkResourceId,
+    string? ProviderResourceId);
 
 file sealed record ResourceActionResponse(
     string Id,
@@ -623,6 +636,9 @@ file static class RemoteControlPlaneMapper
             Attributes: response.Attributes,
             Capabilities: response.GetCapabilityResponses()
                 .Select(capability => capability.ToResourceCapability())
+                .ToArray(),
+            EndpointMappings: response.GetEndpointMappingResponses()
+                .Select(mapping => mapping.ToResourceEndpointMapping())
                 .ToArray());
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
@@ -636,6 +652,20 @@ file static class RemoteControlPlaneMapper
 
     public static ResourceCapability ToResourceCapability(this ResourceCapabilityResponse response) =>
         new(response.Id, response.Metadata);
+
+    public static ResourceEndpointReference ToResourceEndpointReference(
+        this ResourceEndpointReferenceResponse response) =>
+        new(response.ResourceId, response.EndpointName);
+
+    public static ResourceEndpointMappingDefinition ToResourceEndpointMapping(
+        this ResourceEndpointMappingResponse response) =>
+        new(
+            response.Id,
+            response.Name,
+            response.Source.ToResourceEndpointReference(),
+            response.Target.ToResourceEndpointReference(),
+            response.NetworkResourceId,
+            response.ProviderResourceId);
 
     public static ResourceAction ToResourceAction(this ResourceActionResponse response) =>
         new(
@@ -655,6 +685,10 @@ file static class RemoteControlPlaneMapper
     private static IReadOnlyCollection<ResourceCapabilityResponse> GetCapabilityResponses(
         this ResourceResponse response) =>
         response.Capabilities?.ToArray() ?? [];
+
+    private static IReadOnlyCollection<ResourceEndpointMappingResponse> GetEndpointMappingResponses(
+        this ResourceResponse response) =>
+        response.EndpointMappings?.ToArray() ?? [];
 
     public static ResourceGroup ToResourceGroup(this ResourceGroupResponse response) =>
         new(response.Id, response.Name, response.Description, response.ResourceIds);

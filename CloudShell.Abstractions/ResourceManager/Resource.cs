@@ -19,7 +19,8 @@ public sealed record Resource(
     ResourceObservability? Observability = null,
     ResourceClass ResourceClass = ResourceClass.Generic,
     IReadOnlyDictionary<string, string>? Attributes = null,
-    IReadOnlyList<ResourceCapability>? Capabilities = null)
+    IReadOnlyList<ResourceCapability>? Capabilities = null,
+    IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -51,6 +52,9 @@ public sealed record Resource(
     public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;
 
     public IReadOnlyList<ResourceCapability> ResourceCapabilities => Capabilities ?? [];
+
+    public IReadOnlyList<ResourceEndpointMappingDefinition> ResourceEndpointMappings =>
+        EndpointMappings ?? [];
 
     public bool HasCapability(string capabilityId) =>
         ResourceCapabilities.Any(capability =>
@@ -90,6 +94,7 @@ public static class ResourceAttributeNames
     public const string InfrastructureKind = "infrastructure.kind";
     public const string NetworkKind = "network.kind";
     public const string NetworkHostReadiness = "network.hostReadiness";
+    public const string NetworkMappingProviders = "network.mappingProviders";
     public const string ServiceTargetCount = "service.targets";
     public const string ServicePortCount = "service.ports";
 }

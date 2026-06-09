@@ -89,6 +89,13 @@ The MVP should prove:
   When no network is created, the platform projects a default host network.
   Virtual networks reuse endpoint requests and mappings while advertising
   virtual-network and ingress capabilities.
+- Host-provided virtual networking starts with macOS. The built-in macOS host
+  networking provider is an activated resource that can materialize virtual
+  endpoint mappings as local TCP proxies for HTTP, HTTPS, and TCP endpoints.
+- Network resources project endpoint mappings as first-class resource data.
+  Resource Manager shows mappings on the network resource and read-only network
+  exposure on mapped target resources, instead of treating exposure as a
+  dependency or encoded attribute.
 
 ## Completed recently
 
@@ -202,6 +209,9 @@ The MVP should prove:
 - Added host-readiness projection for default virtual networks and Resource
   Manager settings warnings when a virtual network is running in logical-only
   host-local mode.
+- Added a macOS host networking provider resource, endpoint-mapping
+  provisioner contract, Resource Manager UI readiness/provider display, and a
+  Host Virtual Network sample.
 
 ## Active stabilization areas
 

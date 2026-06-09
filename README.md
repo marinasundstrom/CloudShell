@@ -63,6 +63,9 @@ Control Plane hosts can also declare selected baseline resources in code with
 `Resources`. The sample host declares an `Example Configuration`
 service this way, while leaving other resources to be added through the UI.
 See [Programmatic resources](docs/programmatic-resources.md).
+Networking is modeled through resources, endpoint requests, endpoint mappings,
+and capabilities. See [Networking](docs/networking.md) for the host, logical,
+virtual network, and macOS host-provider model.
 
 ### Resource Providers
 

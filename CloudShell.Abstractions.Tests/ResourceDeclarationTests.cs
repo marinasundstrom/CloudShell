@@ -1445,6 +1445,124 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task PlatformProvider_ProvisionsVirtualEndpointMappingsWithActivatedProvider()
+    {
+        var definition = new NetworkResourceDefinition(
+            "network:app",
+            "App Network",
+            IsDefault: true,
+            Endpoints:
+            [
+                new ResourceEndpointRequest(
+                    "api",
+                    ResourceEndpointProtocol.Http,
+                    Host: "localhost",
+                    Port: 5089,
+                    Assignment: ResourceEndpointAssignment.Manual)
+            ],
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "mapping:api",
+                    "API",
+                    new ResourceEndpointReference("network:app", "api"),
+                    new ResourceEndpointReference("application:api", "http"),
+                    "network:app",
+                    "networking:host-macos")
+            ],
+            Kind: NetworkResourceKind.Virtual);
+        var options = new PlatformResourceOptions();
+        options.DeclaredNetworks.Add(new DeclaredNetworkResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provisioner = new TestEndpointMappingProvisioner();
+        var provider = new PlatformResourceProvider(
+            store,
+            options,
+            endpointMappingProvisioners: [provisioner]);
+        var network = Assert.Single(provider.GetResources(), resource => resource.Id == "network:app");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                network,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080"),
+                CreateNetworkingProviderResource("networking:host-macos")
+            ],
+            [provider]);
+
+        var result = await provider.ExecuteActionAsync(
+            new ResourceProcedureContext(
+                network,
+                new ResourceRegistration(network.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                null,
+                new TestResourceRegistrationStore([]),
+                resourceManager),
+            network.ResourceActions.Single());
+
+        Assert.Equal("Reconciled 1 endpoint mapping(s), provisioned 1.", result.Message);
+        Assert.NotNull(provisioner.Context);
+        Assert.Equal("mapping:api", provisioner.Context.Mapping.Id);
+        Assert.Equal("network:app", provisioner.Context.NetworkResource.Id);
+        Assert.Equal("application:api", provisioner.Context.TargetResource.Id);
+        Assert.Equal("networking:host-macos", provisioner.Context.ProviderResource.Id);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_RejectsVirtualEndpointMappingWhenHostProviderIsNotActivated()
+    {
+        var definition = new NetworkResourceDefinition(
+            "network:app",
+            "App Network",
+            IsDefault: true,
+            Endpoints:
+            [
+                new ResourceEndpointRequest(
+                    "api",
+                    ResourceEndpointProtocol.Http,
+                    Host: "localhost",
+                    Port: 5090,
+                    Assignment: ResourceEndpointAssignment.Manual)
+            ],
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "mapping:api",
+                    "API",
+                    new ResourceEndpointReference("network:app", "api"),
+                    new ResourceEndpointReference("application:api", "http"),
+                    "network:app",
+                    "networking:host-macos")
+            ],
+            Kind: NetworkResourceKind.Virtual);
+        var options = new PlatformResourceOptions();
+        options.DeclaredNetworks.Add(new DeclaredNetworkResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var network = Assert.Single(provider.GetResources(), resource => resource.Id == "network:app");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                network,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080"),
+                CreateNetworkingProviderResource("networking:host-macos")
+            ],
+            [provider]);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.ExecuteActionAsync(
+                new ResourceProcedureContext(
+                    network,
+                    new ResourceRegistration(network.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                    null,
+                    new TestResourceRegistrationStore([]),
+                    resourceManager),
+                network.ResourceActions.Single()));
+
+        Assert.Contains("no activated host networking service", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task PlatformProvider_RejectsEndpointMappingProviderWithoutMapperCapability()
     {
         var definition = new NetworkResourceDefinition(
@@ -1829,6 +1947,21 @@ public sealed class ResourceDeclarationTests
             DateTimeOffset.UtcNow,
             [],
             Capabilities: [new(ResourceCapabilityIds.NetworkingEndpointMapper)]);
+
+    private sealed class TestEndpointMappingProvisioner : IResourceEndpointMappingProvisioner
+    {
+        public ResourceEndpointMappingProvisioningContext? Context { get; private set; }
+
+        public bool CanProvisionEndpointMapping(ResourceEndpointMappingProvisioningContext context) => true;
+
+        public Task<ResourceProcedureResult> ProvisionEndpointMappingAsync(
+            ResourceEndpointMappingProvisioningContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Context = context;
+            return Task.FromResult(ResourceProcedureResult.Completed("Provisioned."));
+        }
+    }
 
     private sealed class TestResourceRegistrationStore(
         IReadOnlyList<ResourceRegistration> registrations) : IResourceRegistrationStore

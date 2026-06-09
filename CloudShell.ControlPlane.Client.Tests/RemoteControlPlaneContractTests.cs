@@ -146,6 +146,13 @@ public sealed class RemoteControlPlaneContractTests
             PlatformResourceProvider.ReconcileEndpointMappingsActionId);
 
         Assert.NotNull(network);
+        var mapping = Assert.Single(network.ResourceEndpointMappings);
+        Assert.Equal("mapping:api", mapping.Id);
+        Assert.Equal("network:contract", mapping.Source.ResourceId);
+        Assert.Equal("api", mapping.Source.EndpointName);
+        Assert.Equal("contract:api", mapping.Target.ResourceId);
+        Assert.Equal("http", mapping.Target.EndpointName);
+        Assert.Equal("contract:proxy", mapping.ProviderResourceId);
         var action = network.GetAction(PlatformResourceProvider.ReconcileEndpointMappingsActionId);
         Assert.NotNull(action);
         Assert.Equal("Reconcile endpoint mappings", action.DisplayName);

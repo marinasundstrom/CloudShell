@@ -9,9 +9,9 @@ verification baseline.
 
 ## Resource Management
 
-- Implement host-provided virtual networking for the default orchestrator by
-  letting activated host networking services materialize virtual-network
-  endpoint mappings.
+- Harden macOS host-provided virtual networking by exercising real local proxy
+  mappings end to end, improving action capability reasons, and deciding how
+  reconciled mappings should be persisted or stopped.
 - Add load balancing after host-provided virtual networking works, using stable
   service or backend-pool targets rather than mapping public endpoints directly
   to replicas.

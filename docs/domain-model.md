@@ -258,6 +258,15 @@ Endpoint mappings connect a source endpoint to a target endpoint. A mapping may
 be realized by the same network resource that owns the source endpoint, or by a
 specialized networking provider resource such as a gateway, load balancer,
 service discovery system, or custom controller running as a managed resource.
+
+Network resources project endpoint mappings through
+`Resource.ResourceEndpointMappings`. A mapping is a resource relationship in
+the resource model, not a provider-specific attribute. API-backed clients
+receive the same source endpoint, target endpoint, network reference, and
+provider resource reference as in-process consumers. The Resource Manager uses
+that projection to show mappings on network resources and read-only network
+exposure on target resources.
+
 The mapping records both the logical network boundary and the provider resource
 that should materialize or validate the mapping. The provider resource must
 advertise `networking.endpointMapper`; resources that assign or reserve
@@ -283,11 +292,18 @@ policy, TLS, DNS, clustering, and load-balancing behavior should be expressed
 as capabilities on authored resources and implemented by provider-owned
 configuration behind those resources.
 
-When a virtual network is projected by the default host-local implementation,
-it carries `network.hostReadiness=logicalOnly`. The shell can use that projected
-fact to warn that real virtual-network configuration requires an activated host
-networking service such as a gateway, load balancer, DNS publisher, service
-mesh, firewall manager, or cluster network controller.
+When a virtual network is projected by the default host-local implementation
+without external mapping providers, it carries
+`network.hostReadiness=logicalOnly`. When mappings name external providers, it
+uses `network.hostReadiness=providerRequired` and
+`network.mappingProviders` to name the provider resources. The shell can use
+those projected facts to warn that real virtual-network configuration requires
+an activated host networking service such as a gateway, load balancer, DNS
+publisher, service mesh, firewall manager, or cluster network controller.
+
+The first built-in host networking provider targets macOS. It projects
+`networking:host-macos` when running on macOS and can materialize HTTP, HTTPS,
+and TCP endpoint mappings as local TCP proxies.
 
 When endpoint mappings are declared, the network resource exposes a reconcile
 action. The Control Plane action validates that the source endpoint exists, the

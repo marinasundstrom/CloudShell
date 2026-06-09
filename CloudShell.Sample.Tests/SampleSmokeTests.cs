@@ -163,6 +163,33 @@ public sealed class SampleSmokeTests
             updatedAttributes.GetProperty("container.revision").GetString());
     }
 
+    [Fact]
+    public async Task HostVirtualNetworkSample_ProjectsVirtualNetworkAndHostProvider()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/HostVirtualNetwork/CloudShell.HostVirtualNetwork.csproj",
+            await GetFreePortAsync());
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var network = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "network:sample-vnet");
+        var attributes = network.GetProperty("attributes");
+
+        Assert.Equal("cloudshell.virtualNetwork", network.GetProperty("typeId").GetString());
+        Assert.Equal("providerRequired", attributes.GetProperty("network.hostReadiness").GetString());
+        Assert.Equal("networking:host-macos", attributes.GetProperty("network.mappingProviders").GetString());
+
+        if (OperatingSystem.IsMacOS())
+        {
+            Assert.Contains(resources, resource =>
+                resource.GetProperty("id").GetString() == "networking:host-macos");
+        }
+    }
+
     private static async Task<int> GetFreePortAsync()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);

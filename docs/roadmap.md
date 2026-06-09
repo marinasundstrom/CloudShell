@@ -33,11 +33,13 @@ virtual network can start in logical-only mode, but when a host networking
 service is activated, CloudShell should configure virtual-network endpoint
 mappings through that provider.
 
-This is the next priority because it turns CloudShell from a local app graph
-into an environment control plane that can manage on-premise networking.
+The first provider targets macOS and materializes mappings as local TCP
+proxies. This is the next priority because it turns CloudShell from a local app
+graph into an environment control plane that can manage on-premise networking.
 
 References:
 
+- [Networking](networking.md)
 - [Virtual Network Resource Proposal](proposals/virtual-network-resource.md)
 - [Domain model: Endpoint and networking](domain-model.md#endpoint-and-networking)
 - [Programmatic resources: networks and services](programmatic-resources.md)
@@ -117,4 +119,3 @@ References:
 The current task queue stays in [TODO](../TODO.md). Completed decisions and
 verification expectations stay in [Progress](progress.md). Larger design
 threads should live under [docs/proposals](proposals/).
-

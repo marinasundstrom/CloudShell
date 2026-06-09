@@ -254,7 +254,7 @@
 
         foreach (var resource in OrchestrationSnapshot.Resources)
         {
-            AddNetworkConfigurationWarnings(warnings, resource);
+            AddNetworkConfigurationWarnings(warnings, resource, OrchestrationSnapshot.Resources);
 
             var workload = TryReadWorkload(resource);
             if (workload?.Kind is not (ResourceWorkloadKind.ContainerImage or ResourceWorkloadKind.ContainerBuild))
@@ -286,7 +286,8 @@
 
     private void AddNetworkConfigurationWarnings(
         List<string> warnings,
-        Resource resource)
+        Resource resource,
+        IReadOnlyList<Resource> resources)
     {
         if (resource.ResourceClass != ResourceClass.Network ||
             !resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork))
@@ -295,12 +296,35 @@
         }
 
         if (!resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NetworkHostReadiness, out var readiness) ||
-            !string.Equals(readiness, "logicalOnly", StringComparison.OrdinalIgnoreCase))
+            string.IsNullOrWhiteSpace(readiness))
         {
             return;
         }
 
-        warnings.Add(L["Virtual network '{0}' is using host-local logical networking because no host networking service is active. Activate a gateway, load balancer, or network controller provider to configure real virtual-network routing.", resource.Name]);
+        if (string.Equals(readiness, "logicalOnly", StringComparison.OrdinalIgnoreCase))
+        {
+            warnings.Add(L["Virtual network '{0}' is using host-local logical networking because no host networking service is active. Activate a gateway, load balancer, or network controller provider to configure real virtual-network routing.", resource.Name]);
+            return;
+        }
+
+        if (!string.Equals(readiness, "providerRequired", StringComparison.OrdinalIgnoreCase) ||
+            !resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NetworkMappingProviders, out var providerList))
+        {
+            return;
+        }
+
+        var missingProviders = providerList
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(providerId => !resources.Any(candidate =>
+                string.Equals(candidate.Id, providerId, StringComparison.OrdinalIgnoreCase)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (missingProviders.Length == 0)
+        {
+            return;
+        }
+
+        warnings.Add(L["Virtual network '{0}' requires host networking provider '{1}', but it is not active on this host.", resource.Name, string.Join(", ", missingProviders)]);
     }
 
     private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngineDefinitions()

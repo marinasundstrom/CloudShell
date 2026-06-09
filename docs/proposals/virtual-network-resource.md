@@ -63,6 +63,7 @@ It projects:
 
 - endpoint requests owned by the network boundary
 - endpoint mappings from network-owned endpoints to target resource endpoints
+  through `Resource.ResourceEndpointMappings`
 - dependencies on mapped targets and selected mapping providers
 - networking capabilities that describe the roles it can play
 - resource actions for reconciliation or provider-owned operations
@@ -265,7 +266,9 @@ reason. It should not silently imply isolation or routing that does not exist.
 ## Default Orchestrator Implementation
 
 The default orchestrator should implement virtual networks as logical
-host-local networks.
+host-local networks. The first host-provided implementation targets macOS by
+activating `networking:host-macos`, which materializes selected endpoint
+mappings as local TCP proxies.
 
 Supported behavior:
 
@@ -276,6 +279,8 @@ Supported behavior:
 - Treat provider-default endpoint requests as auto-assigned localhost endpoints
   unless a selected provider overrides them.
 - Validate endpoint mappings through `reconcileEndpointMappings`.
+- Materialize HTTP, HTTPS, and TCP mappings through the activated macOS host
+  networking provider when a mapping selects `networking:host-macos`.
 - Represent load-balanced mappings logically by validating the source endpoint,
   target endpoint or backend pool, and selected provider capabilities.
 - Allow provider-backed local load balancers to run as ordinary resources when
@@ -334,6 +339,8 @@ Expected API surface:
 - `ResourceClass.Network`
 - `TypeId` such as `cloudshell.virtualNetwork`
 - projected endpoints
+- projected endpoint mappings with source endpoint, target endpoint, network
+  resource, and provider resource references
 - resource capabilities
 - `resourceActions` including reconciliation or provider-owned actions
 - normal resource action capability responses
@@ -342,11 +349,13 @@ The UI should render virtual networks through the Resource Manager like other
 network resources:
 
 - show assigned endpoints
-- show mapped targets
-- show selected mapping provider
+- show endpoint mappings as `source endpoint -> target endpoint`
+- show the selected mapping provider for each mapping
 - show backend pools or clustered targets when projected as resources
 - show provider-reported health and action capability reasons for mappings
 - expose reconcile action when present
+- show read-only network exposure on target resources when a mapping points at
+  one of their endpoints
 - use provider-owned details when a provider supplies a detail route or tabs
 
 Authoring UI can reuse the shared endpoint assignment component. Ingress

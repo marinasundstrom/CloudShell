@@ -439,6 +439,58 @@
                 </div>
             </section>
 
+            @if (IsNetworkResource(selected))
+            {
+                <section class="blade-section">
+                    <h3>@L["Networking"]</h3>
+                    <dl class="detail-list">
+                        <dt>@L["Kind"]</dt>
+                        <dd>@GetAttributeValue(selected, ResourceAttributeNames.NetworkKind, selected.Kind)</dd>
+                        <dt>@L["Host readiness"]</dt>
+                        <dd>@FormatNetworkReadiness(selected)</dd>
+                        @if (GetMappingProviderIds(selected).Length > 0)
+                        {
+                            <dt>@L["Mapping providers"]</dt>
+                            <dd>@string.Join(", ", GetMappingProviderIds(selected))</dd>
+                        }
+                    </dl>
+                </section>
+            }
+
+            @if (selected.ResourceEndpointMappings.Count > 0)
+            {
+                <section class="blade-section">
+                    <h3>@L["Endpoint mappings"]</h3>
+                    <div class="endpoint-list">
+                        @foreach (var mapping in selected.ResourceEndpointMappings)
+                        {
+                            <div>
+                                <strong>@mapping.Name</strong>
+                                <span>@FormatMappingSummary(mapping, selected)</span>
+                                <small>@FormatMappingProvider(mapping)</small>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+
+            @if (GetInboundNetworkMappings(selected).Length > 0)
+            {
+                <section class="blade-section">
+                    <h3>@L["Network exposure"]</h3>
+                    <div class="endpoint-list">
+                        @foreach (var exposure in GetInboundNetworkMappings(selected))
+                        {
+                            <div>
+                                <strong>@exposure.Network.Name</strong>
+                                <span>@FormatMappingSummary(exposure.Mapping, exposure.Network)</span>
+                                <small>@FormatMappingProvider(exposure.Mapping)</small>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+
             @if (selected.DependsOn.Count > 0)
             {
                 <section class="blade-section">
@@ -1248,6 +1300,102 @@
         ResourceCapabilities.GetValueOrDefault(resource.Id) ??
         ResourceOperationCapabilities.None(resource.Id);
 
+    private static bool IsNetworkResource(Resource resource) =>
+        resource.ResourceClass == ResourceClass.Network ||
+        resource.HasCapability(ResourceCapabilityIds.NetworkingProvider);
+
+    private static string GetAttributeValue(
+        Resource resource,
+        string name,
+        string fallback) =>
+        resource.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
+
+    private string FormatNetworkReadiness(Resource resource)
+    {
+        var readiness = GetAttributeValue(resource, ResourceAttributeNames.NetworkHostReadiness, "unknown");
+        return readiness switch
+        {
+            "logicalOnly" => L["Logical only"].Value,
+            "providerRequired" when GetMissingMappingProviderIds(resource).Length == 0 => L["Ready"].Value,
+            "providerRequired" => L["Provider missing"].Value,
+            "ready" => L["Ready"].Value,
+            _ => readiness
+        };
+    }
+
+    private static string[] GetMappingProviderIds(Resource resource) =>
+        resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NetworkMappingProviders, out var providers)
+            ? providers
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : [];
+
+    private string[] GetMissingMappingProviderIds(Resource resource) =>
+        GetMappingProviderIds(resource)
+            .Where(providerId => !ResourceInventory.Any(candidate =>
+                string.Equals(candidate.Id, providerId, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+
+    private NetworkEndpointMappingView[] GetInboundNetworkMappings(Resource resource) =>
+        ResourceInventory
+            .Where(candidate => candidate.ResourceClass == ResourceClass.Network)
+            .SelectMany(network => network.ResourceEndpointMappings
+                .Where(mapping => string.Equals(
+                    mapping.Target.ResourceId,
+                    resource.Id,
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
+            .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private string FormatMappingSummary(
+        ResourceEndpointMappingDefinition mapping,
+        Resource? sourceResource = null) =>
+        $"{FormatEndpointReference(mapping.Source, sourceResource)} -> {FormatEndpointReference(mapping.Target)}";
+
+    private string FormatEndpointReference(
+        ResourceEndpointReference reference,
+        Resource? fallbackResource = null)
+    {
+        var resource = ResolveMappingResource(reference.ResourceId, fallbackResource);
+        var endpoint = resource?.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
+        var address = string.IsNullOrWhiteSpace(endpoint?.Address)
+            ? null
+            : $" ({endpoint.Address})";
+        return $"{resource?.Name ?? reference.ResourceId}/{reference.EndpointName}{address}";
+    }
+
+    private string FormatMappingProvider(ResourceEndpointMappingDefinition mapping)
+    {
+        var providerId = FirstNonEmpty(mapping.ProviderResourceId, mapping.NetworkResourceId, mapping.Source.ResourceId);
+        if (string.IsNullOrWhiteSpace(providerId))
+        {
+            return L["Provider: network"].Value;
+        }
+
+        var provider = ResolveMappingResource(providerId);
+        return provider is null
+            ? L["Provider: {0}", providerId].Value
+            : L["Provider: {0}", provider.Name].Value;
+    }
+
+    private Resource? ResolveMappingResource(string resourceId, Resource? fallbackResource = null)
+    {
+        if (fallbackResource is not null &&
+            string.Equals(fallbackResource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return fallbackResource;
+        }
+
+        return ResourceInventory.FirstOrDefault(resource =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
     private bool IsExecutingAction(Resource resource, ResourceAction action) =>
         string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
 
@@ -1541,6 +1689,10 @@
     };
 
     private sealed record ResourceRow(Resource Resource, int Depth, int ChildCount);
+
+    private sealed record NetworkEndpointMappingView(
+        Resource Network,
+        ResourceEndpointMappingDefinition Mapping);
 
     private sealed record ResourceClassFilterOption(string Id, string DisplayName);
 

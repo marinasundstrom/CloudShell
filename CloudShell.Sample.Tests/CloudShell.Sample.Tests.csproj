@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\samples\CloudShell.ResourceHost\CloudShell.ResourceHost.csproj" />
     <ProjectReference Include="..\samples\ContainerAppDeployment\CloudShell.ContainerAppDeployment.csproj" />
+    <ProjectReference Include="..\samples\HostVirtualNetwork\CloudShell.HostVirtualNetwork.csproj" />
     <ProjectReference Include="..\samples\ProjectReference\Host\CloudShell.ProjectReferenceHost.csproj" />
     <ProjectReference Include="..\samples\SplitHosting\ControlPlane\CloudShell.SplitHosting.ControlPlane.csproj" />
     <ProjectReference Include="..\samples\SplitHosting\UI\CloudShell.SplitHosting.UI.csproj" />
