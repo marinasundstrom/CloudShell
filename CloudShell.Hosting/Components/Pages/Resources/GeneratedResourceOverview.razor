@@ -1,4 +1,5 @@
 @using CloudShell.Abstractions.ResourceManager
+@using CloudShell.Abstractions.ControlPlane
 @using Microsoft.AspNetCore.WebUtilities
 @inject IResourceManager ResourceManager
 @inject ILogManager LogManager
@@ -7,6 +8,11 @@
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
+    @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
+    {
+        <div class="procedure-message">@ProcedureMessage</div>
+    }
+
     <section class="generated-section">
         <h3>@L["Identity"]</h3>
         <dl class="detail-list">
@@ -233,6 +239,11 @@
                     <div>
                         <strong>@action.DisplayName</strong>
                         <span>@(capability?.CanExecute == false ? L["Unavailable"] : L["Available"])</span>
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      Disabled="@(!CanExecuteAction(action) || IsExecutingAction(action))"
+                                      OnClick="() => ExecuteAction(action)">
+                            @(IsExecutingAction(action) ? L["Working"] : L["Run"])
+                        </FluentButton>
                         @if (!string.IsNullOrWhiteSpace(capability?.Reason))
                         {
                             <small>@capability.Reason</small>
@@ -301,6 +312,8 @@
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
     private ResourceOperationCapabilities Capabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
+    private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private string? ProcedureMessage { get; set; }
 
     private bool IsNetworkResource => Resource.ResourceClass == ResourceClass.Network ||
         Resource.HasCapability(ResourceCapabilityIds.NetworkingProvider);
@@ -315,6 +328,53 @@
     }
 
     private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
+
+    private bool CanExecuteAction(ResourceAction action) =>
+        Capabilities.CanExecuteAction(action.Id);
+
+    private bool IsExecutingAction(ResourceAction action) =>
+        ExecutingActionIds.Contains(action.Id);
+
+    private async Task ExecuteAction(ResourceAction action)
+    {
+        if (!CanExecuteAction(action) || IsExecutingAction(action))
+        {
+            return;
+        }
+
+        if (action.RequiresConfirmation)
+        {
+            var confirmed = await JS.InvokeAsync<bool>(
+                "confirm",
+                action.Description ??
+                L["Run {0} for {1}?", action.DisplayName, Resource.Name].Value);
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
+        ExecutingActionIds.Add(action.Id);
+        ProcedureMessage = null;
+        try
+        {
+            var result = await ResourceManager.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    Resource.Id,
+                    action.Id,
+                    IgnoreDependentWarning: true));
+            ProcedureMessage = result.Message;
+            Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            ExecutingActionIds.Remove(action.Id);
+        }
+    }
 
     private string GetAttributeValue(string name, string fallback) =>
         Resource.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
