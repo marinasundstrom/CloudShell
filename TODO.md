@@ -8,6 +8,14 @@ verification baseline, and broader priorities.
 
 ## Resource Management
 
+- Implement host-provided virtual networking for the default orchestrator by
+  letting activated host networking services materialize virtual-network
+  endpoint mappings.
+- Add load balancing after host-provided virtual networking works, using stable
+  service or backend-pool targets rather than mapping public endpoints directly
+  to replicas.
+- Design provider-owned replication projection for resources that can implement
+  replicas, keeping stable resources separate from runtime instances.
 - Design container app revision history as commits of container app
   configuration changes, including image, registry, trigger, and runtime
   rollout metadata.
@@ -15,6 +23,11 @@ verification baseline, and broader priorities.
   numeric field, including whether scaling implies load balancing, routing,
   service endpoints, observed runtime instances, scaling events, and provider
   state reporting.
+- Evaluate whether `ResourceDefinition` and `Deployment` should become
+  first-class concepts for desired configuration, applied runtime state,
+  revision history, and rollouts.
+- Evaluate whether container app isolation needs a container application
+  environment resource after virtual networking and load balancing are working.
 - Persist resource events and expose event filtering by event type, actor, and
   time range.
 - Define container app runtime instances/replicas separately from the stable

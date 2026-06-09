@@ -26,10 +26,13 @@ preserving the existing split:
 
 - Model virtual networks as resources, not as a new top-level Control Plane
   primitive.
+- Make host-provided virtual networking work first, so CloudShell can configure
+  useful on-premise networking through activated host services.
 - Let authored resources declare ingress-like intent using endpoint requests
   and endpoint mappings.
 - Let networking provider resources materialize mappings through capabilities
   such as gateway, load balancer, DNS, TLS, policy, or service discovery.
+- Add load balancing after the host virtual-network path is working.
 - Support clustered workloads and load-balanced services without requiring
   every replica or node to become part of the public endpoint contract.
 - Keep the default orchestrator useful for local development through logical
@@ -47,6 +50,9 @@ preserving the existing split:
 - Do not make orchestrators the owner of provider configuration.
 - Do not expose provider-owned network controller state through resource
   attributes unless it is a stable, non-secret projected fact.
+- Do not introduce `ResourceDefinition`, `Deployment`, or container application
+  environment concepts as prerequisites for working host-provided virtual
+  networking.
 
 ## Resource Model
 
@@ -314,6 +320,33 @@ For the default host-local orchestrator, virtual network resources remain usable
 as logical networks, but CloudShell should warn when a declared mapping expects
 real host networking behavior that the current host cannot configure.
 
+## Implementation Sequence
+
+The intended sequence is:
+
+1. Make the resource model clear. Host, logical, and virtual networks should be
+   explicit resource concepts. Endpoint requests and endpoint mappings remain
+   the common primitives.
+2. Make virtual networking work when the host can provide it. The default
+   orchestrator can stay logical until a host networking service is activated,
+   but once a gateway, network controller, DNS publisher, or similar service is
+   present, CloudShell should be able to configure the virtual-network mapping
+   through that provider.
+3. Add load balancing. A load balancer provider should materialize a stable
+   endpoint over a logical backend target or backend pool without exposing every
+   replica as part of the public contract.
+4. Add replication where a provider can implement it. Replicas should be
+   provider-owned runtime instances behind a stable resource, service, or
+   backend pool unless a provider explicitly projects replicas for inspection.
+5. Revisit deployment concepts only when needed. `ResourceDefinition` and
+   `Deployment` may become useful to distinguish desired configuration from
+   applied runtime state, versioned rollouts, or revision history, but they are
+   not required for the first virtual-network implementation.
+6. Revisit container application environments later. A container application
+   environment may become the right isolation boundary for container apps, but
+   it is not the priority before host-provided virtual networking and load
+   balancing work.
+
 ## API and UI Projection
 
 The HTTP API should continue to project virtual networks as ordinary resources.
@@ -366,6 +399,11 @@ only introduce a richer ingress editor once routing fields become standardized.
    provider-backed ingress or load-balanced scenario.
 9. Add host capability warnings when virtual networks or mappings require
    networking services that are not active on the current host.
+10. Add a host networking provider path that can materialize virtual-network
+    endpoint mappings when an activated host service advertises the required
+    gateway, DNS, policy, or load-balancer capability.
+11. Add load-balanced backend targets after host-provided virtual networking is
+    working.
 
 ## Open Questions
 
@@ -387,3 +425,8 @@ only introduce a richer ingress editor once routing fields become standardized.
   deployment is rolling forward?
 - Which host readiness checks should be standardized first, and which should
   remain provider-specific warnings?
+- When should `ResourceDefinition` and `Deployment` become first-class concepts
+  rather than provider-owned configuration and resource events?
+- Is a container application environment the right isolation boundary for
+  container apps, and should it be modeled as a network, infrastructure
+  resource, deployment target, or separate environment resource?
