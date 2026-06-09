@@ -194,7 +194,8 @@ public sealed class PlatformResourceStore
             Id = NormalizeId(definition.Id, "network", definition.Name),
             Name = definition.Name.Trim(),
             Endpoints = NormalizeEndpointRequests(definition.NetworkEndpoints),
-            EndpointMappings = NormalizeEndpointMappings(definition.NetworkEndpointMappings)
+            EndpointMappings = NormalizeEndpointMappings(definition.NetworkEndpointMappings),
+            Kind = definition.Kind
         };
 
     private static ServiceResourceDefinition NormalizeService(ServiceResourceDefinition definition)

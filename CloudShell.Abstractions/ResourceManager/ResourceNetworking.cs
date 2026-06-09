@@ -24,6 +24,13 @@ public enum ResourceExposureScope
     Public
 }
 
+public enum NetworkResourceKind
+{
+    Logical,
+    Virtual,
+    Host
+}
+
 public sealed record ResourceEndpointRequest(
     string Name,
     ResourceEndpointProtocol Protocol,
@@ -56,7 +63,8 @@ public sealed record NetworkResourceDefinition(
     string Name,
     bool IsDefault = false,
     IReadOnlyList<ResourceEndpointRequest>? Endpoints = null,
-    IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null)
+    IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null,
+    NetworkResourceKind Kind = NetworkResourceKind.Logical)
 {
     public IReadOnlyList<ResourceEndpointRequest> NetworkEndpoints => Endpoints ?? [];
 

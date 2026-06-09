@@ -395,7 +395,7 @@ public sealed class ResourceOrchestrationService(
 
     private static ServiceResourceDefinition? TryReadService(ResourceOrchestrationDescriptor descriptor)
     {
-        if (!descriptor.ResourceType.Equals("cloudshell.service", StringComparison.OrdinalIgnoreCase))
+        if (!descriptor.ResourceType.Equals(PlatformResourceProvider.ServiceResourceType, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }

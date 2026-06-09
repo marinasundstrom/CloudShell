@@ -33,6 +33,37 @@ public static class PlatformResourceDeclarationExtensions
         return new NetworkResourceBuilder(resource, declared);
     }
 
+    public static INetworkResourceBuilder AddVirtualNetwork(
+        this IResourceDeclarationBuilder builder,
+        string id,
+        string name,
+        bool isDefault = false)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        var definition = new NetworkResourceDefinition(
+            id,
+            name,
+            isDefault,
+            Kind: NetworkResourceKind.Virtual);
+        var declared = new DeclaredNetworkResource(definition);
+        builder.Services
+            .GetOrAddPlatformResourceOptions()
+            .DeclaredNetworks
+            .Add(declared);
+
+        var resource = builder.Declare(
+            PlatformResourceProvider.ProviderId,
+            definition.Id,
+            onChanged: declaration =>
+            {
+                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
+                declared.OverwritePersistedState = declaration.OverwritePersistedState;
+            });
+
+        return new NetworkResourceBuilder(resource, declared);
+    }
+
     public static IServiceResourceBuilder AddService(
         this IResourceDeclarationBuilder builder,
         string id,

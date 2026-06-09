@@ -117,14 +117,18 @@ resources
 Applications can depend on any declared resource builder, including sub-resources
 such as containers returned from `resources.AddDocker().AddContainer(...)`.
 
-CloudShell also includes logical network and service resources. A network is an
-orchestration boundary. A service is a stable endpoint over one or more target
-resources, with explicit private, local, network, or public exposure. With the
-default orchestrator, CloudShell assumes the host environment owns networking
-and projects services as host-local endpoints. If a service port omits `port`,
-CloudShell assigns a stable local port automatically. Orchestrator extensions
-can translate the same declarations to Docker Compose networks and published
-ports, or another runtime-specific model.
+CloudShell also includes host, logical, virtual network, and service resources.
+If no network has been created, the default network is the host network. A
+logical network is a named orchestration boundary. A virtual network is a
+richer environment boundary for on-premise or provider-backed networking. A
+service is a stable endpoint over one or more target resources, with explicit
+private, local, network, or public exposure. With the default orchestrator,
+CloudShell assumes the host environment owns networking and projects services
+as host-local endpoints through a replaceable host-local network abstraction.
+If a service port omits `port`, CloudShell assigns a stable local port
+automatically. Orchestrator extensions can translate the same declarations to
+Docker Compose networks and published ports, on-premise clusters, or another
+runtime-specific model.
 
 Networks can also reserve or request endpoints. Manual endpoint requests carry
 the concrete host/IP address and port. Auto endpoint requests let the network
@@ -148,6 +152,18 @@ var autoEndpoint = appNetwork.RequestHttpEndpoint("api");
 appNetwork.MapEndpoint(
     autoEndpoint,
     new ResourceEndpointReference("application:example-web-api", "http"));
+```
+
+Virtual networks use the same endpoint request and mapping primitives while
+projecting a richer network capability:
+
+```csharp
+var appNetwork = resources
+    .AddVirtualNetwork("network:app", "App Network", isDefault: true);
+
+var publicEndpoint = appNetwork.RequestHttpEndpoint(
+    "api",
+    exposure: ResourceExposureScope.Public);
 ```
 
 Networking resources advertise capabilities such as

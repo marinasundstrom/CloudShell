@@ -20,6 +20,8 @@ verification baseline, and broader priorities.
 - Define container app runtime instances/replicas separately from the stable
   container app resource, including explicit container host binding, default
   engine resolution, and how engine-discovered containers map back to the app.
+- Warn when virtual network resources or endpoint mappings require networking
+  services that have not been activated on the current host.
 
 ## Resource Manager Stabilization
 

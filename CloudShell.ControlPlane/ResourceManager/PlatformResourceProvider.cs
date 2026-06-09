@@ -6,7 +6,8 @@ namespace CloudShell.ControlPlane.ResourceManager;
 
 public sealed class PlatformResourceProvider(
     PlatformResourceStore store,
-    PlatformResourceOptions options) :
+    PlatformResourceOptions options,
+    IHostLocalNetworkEnvironment? hostLocalNetworkEnvironment = null) :
     IResourceProvider,
     IResourceCreationProvider,
     IResourceProcedureProvider,
@@ -17,9 +18,13 @@ public sealed class PlatformResourceProvider(
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     public const string ProviderId = "cloudshell.platform";
+    public const string HostNetworkResourceId = "network:host";
     public const string NetworkResourceType = "cloudshell.network";
+    public const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
     public const string ServiceResourceType = "cloudshell.service";
     public const string ReconcileEndpointMappingsActionId = "reconcileEndpointMappings";
+    private readonly IHostLocalNetworkEnvironment hostLocalNetwork =
+        hostLocalNetworkEnvironment ?? new HostLocalNetworkEnvironment();
 
     private static readonly ResourceAction ReconcileEndpointMappingsAction = new(
         ReconcileEndpointMappingsActionId,
@@ -30,14 +35,23 @@ public sealed class PlatformResourceProvider(
 
     public string DisplayName => "CloudShell";
 
-    public IReadOnlyList<Resource> GetResources() =>
-    [
-        .. store.GetNetworks().Select(CreateNetworkResource),
-        .. store.GetServices().Select(CreateServiceResource)
-    ];
+    public IReadOnlyList<Resource> GetResources()
+    {
+        var networks = store.GetNetworks();
+        if (networks.Count == 0)
+        {
+            networks = [CreateHostNetworkDefinition()];
+        }
+
+        return
+        [
+            .. networks.Select(CreateNetworkResource),
+            .. store.GetServices().Select(CreateServiceResource)
+        ];
+    }
 
     public bool CanCreate(ResourceCreationRequest request) =>
-        string.Equals(request.ResourceType, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
+        IsNetworkResourceType(request.ResourceType) ||
         string.Equals(request.ResourceType, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
 
     public async Task CreateAsync(
@@ -45,7 +59,7 @@ public sealed class PlatformResourceProvider(
         ResourceCreationContext context,
         CancellationToken cancellationToken = default)
     {
-        if (string.Equals(request.ResourceType, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
+        if (IsNetworkResourceType(request.ResourceType))
         {
             var definition = request.Configuration.Deserialize<NetworkResourceDefinition>(SerializerOptions)
                 ?? throw new InvalidOperationException("Network resource configuration is required.");
@@ -53,7 +67,10 @@ public sealed class PlatformResourceProvider(
                 definition with
                 {
                     Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
-                    Name = string.IsNullOrWhiteSpace(definition.Name) ? request.Name : definition.Name
+                    Name = string.IsNullOrWhiteSpace(definition.Name) ? request.Name : definition.Name,
+                    Kind = string.Equals(request.ResourceType, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase)
+                        ? NetworkResourceKind.Virtual
+                        : definition.Kind
                 },
                 request.ResourceGroupId,
                 context.Registrations,
@@ -132,7 +149,7 @@ public sealed class PlatformResourceProvider(
                 $"CloudShell platform resources do not support action '{action.DisplayName}'.");
         }
 
-        if (!string.Equals(context.Resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
+        if (!IsNetworkResourceType(context.Resource.EffectiveTypeId))
         {
             throw new InvalidOperationException(
                 $"Endpoint mappings can only be reconciled for network resources.");
@@ -201,7 +218,7 @@ public sealed class PlatformResourceProvider(
     }
 
     public bool CanDescribe(Resource resource) =>
-        string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
+        IsNetworkResourceType(resource.EffectiveTypeId) ||
         string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
@@ -209,9 +226,9 @@ public sealed class PlatformResourceProvider(
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default)
     {
-        if (string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase))
+        if (IsNetworkResourceType(resource.EffectiveTypeId))
         {
-            var network = store.GetNetwork(resource.Id)
+            var network = GetNetworkDefinition(resource.Id)
                 ?? throw new InvalidOperationException($"Network resource '{resource.Id}' is not configured.");
             return Task.FromResult(new ResourceOrchestrationDescriptor(
                 resource.Id,
@@ -249,29 +266,24 @@ public sealed class PlatformResourceProvider(
             definition.IsDefault ? "host default" : "host local",
             DateTimeOffset.UtcNow,
             [],
-            TypeId: NetworkResourceType,
+            TypeId: GetNetworkResourceType(definition),
             Actions: definition.NetworkEndpointMappings.Count > 0
                 ? [ReconcileEndpointMappingsAction]
                 : null,
             ResourceClass: ResourceClass.Network,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                [ResourceAttributeNames.NetworkKind] = definition.IsDefault ? "Default" : "Local",
+                [ResourceAttributeNames.NetworkKind] = GetNetworkKindAttribute(definition),
                 [ResourceAttributeNames.EndpointCount] = endpoints.Count.ToString(CultureInfo.InvariantCulture)
             },
-            Capabilities:
-            [
-                new(ResourceCapabilityIds.NetworkingProvider),
-                new(ResourceCapabilityIds.NetworkingEndpointProvider),
-                new(ResourceCapabilityIds.NetworkingEndpointMapper)
-            ]);
+            Capabilities: CreateNetworkCapabilities(definition));
     }
 
     private ResourceProcedureResult ReconcileEndpointMappings(ResourceProcedureContext context)
     {
         var resourceManager = context.ResourceManager
             ?? throw new InvalidOperationException("Resource Manager is required to reconcile endpoint mappings.");
-        var network = store.GetNetwork(context.Resource.Id)
+        var network = GetNetworkDefinition(context.Resource.Id)
             ?? throw new InvalidOperationException($"Network resource '{context.Resource.Id}' is not configured.");
         if (network.NetworkEndpointMappings.Count == 0)
         {
@@ -365,60 +377,21 @@ public sealed class PlatformResourceProvider(
 
     private ResourceEndpoint ResolveNetworkEndpoint(
         string networkId,
-        ResourceEndpointRequest request)
-    {
-        var protocol = request.ProtocolName;
-        var host = FirstNonEmpty(request.IPAddress, request.Host, "localhost")!;
-        var port = request.Port ??
-            (request.Assignment is ResourceEndpointAssignment.Auto or ResourceEndpointAssignment.ProviderDefault
-                ? AssignLocalPort(networkId, request.Name)
-                : null);
-        var address = port is null
-            ? $"{protocol}://{host}"
-            : $"{protocol}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}";
-
-        return ResourceEndpoint.FromAddress(
-            request.Name,
-            address,
-            protocol,
-            request.Exposure);
-    }
+        ResourceEndpointRequest request) =>
+        hostLocalNetwork.ResolveNetworkEndpoint(
+            networkId,
+            request,
+            options.AutoLocalPortStart,
+            options.AutoLocalPortEnd);
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ServiceResourceDefinition definition) =>
         definition.Ports
-            .Select(port =>
-            {
-                var exposedPort = port.Port ?? AssignLocalPort(definition.Id, port.Name);
-                return ResourceEndpoint.FromAddress(
-                    port.Name,
-                    $"{port.Protocol}://localhost:{exposedPort}",
-                    port.Protocol,
-                    port.Exposure);
-            })
+            .Select(port => hostLocalNetwork.ResolveServiceEndpoint(
+                definition.Id,
+                port,
+                options.AutoLocalPortStart,
+                options.AutoLocalPortEnd))
             .ToArray();
-
-    private int AssignLocalPort(string serviceId, string portName)
-    {
-        var start = Math.Max(1, options.AutoLocalPortStart);
-        var end = Math.Max(start, options.AutoLocalPortEnd);
-        var range = end - start + 1;
-        return start + (int)(StableHash($"{serviceId}:{portName}") % (uint)range);
-    }
-
-    private static uint StableHash(string value)
-    {
-        const uint offset = 2166136261;
-        const uint prime = 16777619;
-
-        var hash = offset;
-        foreach (var character in value)
-        {
-            hash ^= character;
-            hash *= prime;
-        }
-
-        return hash;
-    }
 
     private static IReadOnlyList<string> CreateServiceDependencies(ServiceResourceDefinition definition) =>
         definition.Targets
@@ -437,6 +410,61 @@ public sealed class PlatformResourceProvider(
             Endpoints = NormalizeEndpointRequests(definition.NetworkEndpoints),
             EndpointMappings = NormalizeEndpointMappings(definition.NetworkEndpointMappings)
         };
+
+    private static bool IsNetworkResourceType(string resourceType) =>
+        string.Equals(resourceType, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resourceType, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetNetworkResourceType(NetworkResourceDefinition definition) =>
+        definition.Kind == NetworkResourceKind.Virtual
+            ? VirtualNetworkResourceType
+            : NetworkResourceType;
+
+    private static string GetNetworkKindAttribute(NetworkResourceDefinition definition) =>
+        definition.Kind switch
+        {
+            NetworkResourceKind.Host => "Host",
+            NetworkResourceKind.Virtual when definition.IsDefault => "Default virtual",
+            NetworkResourceKind.Virtual => "Virtual",
+            _ when definition.IsDefault => "Default",
+            _ => "Local"
+        };
+
+    private static IReadOnlyList<ResourceCapability> CreateNetworkCapabilities(NetworkResourceDefinition definition)
+    {
+        var capabilities = new List<ResourceCapability>
+        {
+            new(ResourceCapabilityIds.NetworkingProvider),
+            new(ResourceCapabilityIds.NetworkingEndpointProvider),
+            new(ResourceCapabilityIds.NetworkingEndpointMapper)
+        };
+
+        if (definition.Kind == NetworkResourceKind.Host)
+        {
+            capabilities.Add(new(ResourceCapabilityIds.NetworkingHostNetwork));
+        }
+
+        if (definition.Kind == NetworkResourceKind.Virtual)
+        {
+            capabilities.Add(new(ResourceCapabilityIds.NetworkingVirtualNetwork));
+            capabilities.Add(new(ResourceCapabilityIds.NetworkingIngress));
+        }
+
+        return capabilities;
+    }
+
+    private static NetworkResourceDefinition CreateHostNetworkDefinition() =>
+        new(
+            HostNetworkResourceId,
+            "Host Network",
+            IsDefault: true,
+            Kind: NetworkResourceKind.Host);
+
+    private NetworkResourceDefinition? GetNetworkDefinition(string resourceId) =>
+        store.GetNetwork(resourceId) ??
+        (string.Equals(resourceId, HostNetworkResourceId, StringComparison.OrdinalIgnoreCase)
+            ? CreateHostNetworkDefinition()
+            : null);
 
     private static ServiceResourceDefinition NormalizeService(ServiceResourceDefinition definition) =>
         definition with

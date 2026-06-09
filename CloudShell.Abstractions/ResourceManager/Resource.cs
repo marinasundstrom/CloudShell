@@ -119,8 +119,16 @@ public static class ResourceCapabilityIds
     public const string NetworkingProvider = "networking.provider";
     public const string NetworkingEndpointProvider = "networking.endpointProvider";
     public const string NetworkingEndpointMapper = "networking.endpointMapper";
+    public const string NetworkingHostNetwork = "networking.hostNetwork";
+    public const string NetworkingVirtualNetwork = "networking.virtualNetwork";
+    public const string NetworkingIngress = "networking.ingress";
     public const string NetworkingGateway = "networking.gateway";
     public const string NetworkingLoadBalancer = "networking.loadBalancer";
+    public const string NetworkingBackendPool = "networking.backendPool";
+    public const string NetworkingCluster = "networking.cluster";
+    public const string NetworkingClusterNode = "networking.clusterNode";
+    public const string NetworkingHealthProbe = "networking.healthProbe";
+    public const string NetworkingTrafficSplit = "networking.trafficSplit";
     public const string NetworkingServiceDiscovery = "networking.serviceDiscovery";
     public const string NetworkingPolicy = "networking.policy";
     public const string NetworkingEgress = "networking.egress";

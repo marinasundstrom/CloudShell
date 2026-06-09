@@ -84,6 +84,10 @@ The MVP should prove:
   advertise endpoint-source and networking-provider capabilities; network
   resources can reserve or auto-assign endpoint requests and record endpoint
   mappings while richer networking behavior remains provider-owned.
+- Network resources now distinguish host, logical, and virtual network kinds.
+  When no network is created, the platform projects a default host network.
+  Virtual networks reuse endpoint requests and mappings while advertising
+  virtual-network and ingress capabilities.
 
 ## Completed recently
 
@@ -191,6 +195,9 @@ The MVP should prove:
 - Added a Container App Deployment sample with a local registry resource,
   stopped mock container app, and `sh` deployment script that simulates a build
   by posting a new image tag to the Container Apps revision API.
+- Added host/logical/virtual network primitives, an `AddVirtualNetwork(...)`
+  declaration helper, and a replaceable host-local network environment for
+  default endpoint assignment across Windows, macOS, and Linux.
 
 ## Active stabilization areas
 

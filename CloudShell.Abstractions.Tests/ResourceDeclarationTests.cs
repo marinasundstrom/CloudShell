@@ -1298,6 +1298,100 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void PlatformResources_DeclareVirtualNetworkAsNetworkPrimitive()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var network = resources
+                    .AddVirtualNetwork("network:app", "App Network", isDefault: true);
+                var apiEndpoint = network.RequestHttpEndpoint(
+                    "api",
+                    exposure: ResourceExposureScope.Public);
+
+                Assert.Equal(new ResourceEndpointReference("network:app", "api"), apiEndpoint);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declaration = serviceProvider
+            .GetRequiredService<ResourceDeclarationStore>()
+            .GetDeclaration("network:app");
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var definition = Assert.Single(options.DeclaredNetworks).Definition;
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "network:app");
+
+        Assert.NotNull(declaration);
+        Assert.Equal(NetworkResourceKind.Virtual, definition.Kind);
+        Assert.True(definition.IsDefault);
+        Assert.Equal(PlatformResourceProvider.VirtualNetworkResourceType, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Network, resource.ResourceClass);
+        Assert.Equal("Default virtual", resource.ResourceAttributes[ResourceAttributeNames.NetworkKind]);
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingProvider));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointProvider));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingIngress));
+        Assert.StartsWith("http://localhost:", Assert.Single(resource.Endpoints).Address);
+    }
+
+    [Fact]
+    public void PlatformProvider_ProjectsHostNetworkWhenNoNetworkExists()
+    {
+        var options = new PlatformResourceOptions();
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == PlatformResourceProvider.HostNetworkResourceId);
+
+        Assert.Equal(PlatformResourceProvider.NetworkResourceType, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Network, resource.ResourceClass);
+        Assert.Equal("Host", resource.ResourceAttributes[ResourceAttributeNames.NetworkKind]);
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingHostNetwork));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointProvider));
+        Assert.Equal("network://network:host", Assert.Single(resource.Endpoints).Address);
+    }
+
+    [Fact]
+    public void PlatformProvider_UsesHostLocalNetworkEnvironmentForDefaultEndpoints()
+    {
+        var definition = new NetworkResourceDefinition(
+            "network:app",
+            "App Network",
+            Endpoints:
+            [
+                new ResourceEndpointRequest(
+                    "api",
+                    ResourceEndpointProtocol.Http,
+                    Assignment: ResourceEndpointAssignment.Auto)
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredNetworks.Add(new DeclaredNetworkResource(definition));
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(
+            platformStore,
+            options,
+            new TestHostLocalNetworkEnvironment());
+
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "network:app");
+
+        Assert.Equal("http://loopback.test:4123", Assert.Single(resource.Endpoints).Address);
+    }
+
+    [Fact]
     public async Task PlatformProvider_ReconcilesEndpointMappingsWithSelectedProvider()
     {
         var definition = new NetworkResourceDefinition(
@@ -1956,5 +2050,32 @@ public sealed class ResourceDeclarationTests
         public string ContentRootPath { get; set; } = contentRootPath;
 
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+    }
+
+    private sealed class TestHostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
+    {
+        public string DefaultHost => "loopback.test";
+
+        public ResourceEndpoint ResolveNetworkEndpoint(
+            string networkId,
+            ResourceEndpointRequest request,
+            int autoLocalPortStart,
+            int autoLocalPortEnd) =>
+            ResourceEndpoint.FromAddress(
+                request.Name,
+                $"{request.ProtocolName}://{DefaultHost}:4123",
+                request.ProtocolName,
+                request.Exposure);
+
+        public ResourceEndpoint ResolveServiceEndpoint(
+            string serviceId,
+            ServicePort port,
+            int autoLocalPortStart,
+            int autoLocalPortEnd) =>
+            ResourceEndpoint.FromAddress(
+                port.Name,
+                $"{port.Protocol}://{DefaultHost}:4124",
+                port.Protocol,
+                port.Exposure);
     }
 }

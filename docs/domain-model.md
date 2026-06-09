@@ -263,12 +263,25 @@ that should materialize or validate the mapping. The provider resource must
 advertise `networking.endpointMapper`; resources that assign or reserve
 endpoints advertise `networking.endpointProvider`.
 
-The built-in `cloudshell.network` resource is a logical network boundary and
-basic endpoint provider. For local development, it can reserve manual
-localhost endpoints or auto-assign stable localhost ports from the configured
-range. Richer network topology, routing, policy, TLS, DNS, and load-balancing
-behavior should be expressed as capabilities on authored resources and
-implemented by provider-owned configuration behind those resources.
+CloudShell uses three basic network resource kinds:
+
+- Host network: the implicit default when no network resource has been created.
+  The default Control Plane projects it as the local host environment.
+- Logical network: a named CloudShell boundary for endpoint requests and
+  endpoint mappings.
+- Virtual network: a richer environment boundary intended for on-premise or
+  provider-backed infrastructure, including ingresses, gateways, backend pools,
+  clusters, and load balancers.
+
+The built-in `cloudshell.network` resource represents host or logical network
+boundaries. The built-in `cloudshell.virtualNetwork` resource represents a
+virtual network boundary using the same endpoint request and endpoint mapping
+model. For local development, the default host-local implementation can reserve
+manual localhost endpoints or auto-assign stable localhost ports from the
+configured range on Windows, macOS, and Linux. Richer network topology, routing,
+policy, TLS, DNS, clustering, and load-balancing behavior should be expressed
+as capabilities on authored resources and implemented by provider-owned
+configuration behind those resources.
 
 When endpoint mappings are declared, the network resource exposes a reconcile
 action. The Control Plane action validates that the source endpoint exists, the

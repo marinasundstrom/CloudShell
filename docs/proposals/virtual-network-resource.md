@@ -293,6 +293,27 @@ The default orchestrator should describe this mode as local logical networking.
 It can prove the declaration shape and endpoint assignment behavior without
 claiming cloud or container-network semantics.
 
+## Host Capability Warnings
+
+Virtual network resources can require host services to configure real
+networking, such as a gateway controller, load balancer, DNS publisher, service
+mesh, firewall manager, or cluster network controller.
+
+CloudShell should distinguish two states:
+
+- the resource model is valid and can be declared
+- the current host is ready to materialize that model
+
+When a virtual network requires a host service that has not been activated, the
+Control Plane should surface a warning or action capability reason instead of
+silently treating the environment as fully configured. The warning should name
+the missing capability or service, the affected network resource, and the
+provider action that would activate or install it when available.
+
+For the default host-local orchestrator, virtual network resources remain usable
+as logical networks, but CloudShell should warn when a declared mapping expects
+real host networking behavior that the current host cannot configure.
+
 ## API and UI Projection
 
 The HTTP API should continue to project virtual networks as ordinary resources.
@@ -343,6 +364,8 @@ only introduce a richer ingress editor once routing fields become standardized.
    surfaces need labels or provider selection for virtual-network resources.
 8. Add sample declarations for local default-orchestrator behavior and one
    provider-backed ingress or load-balanced scenario.
+9. Add host capability warnings when virtual networks or mappings require
+   networking services that are not active on the current host.
 
 ## Open Questions
 
@@ -362,3 +385,5 @@ only introduce a richer ingress editor once routing fields become standardized.
   probe path, algorithm, weights, session affinity, or traffic splitting?
 - How should container app revisions and replicas map to backend pools when a
   deployment is rolling forward?
+- Which host readiness checks should be standardized first, and which should
+  remain provider-specific warnings?

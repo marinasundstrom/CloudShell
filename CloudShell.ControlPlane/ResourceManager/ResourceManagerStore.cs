@@ -253,6 +253,7 @@ public sealed class ResourceManagerStore(
         var resourceTypeClasses = new Dictionary<string, ResourceClass>(StringComparer.OrdinalIgnoreCase)
         {
             [PlatformResourceProvider.NetworkResourceType] = ResourceClass.Network,
+            [PlatformResourceProvider.VirtualNetworkResourceType] = ResourceClass.Network,
             [PlatformResourceProvider.ServiceResourceType] = ResourceClass.Service
         };
 

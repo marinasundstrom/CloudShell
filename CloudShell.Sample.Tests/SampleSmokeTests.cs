@@ -132,8 +132,8 @@ public sealed class SampleSmokeTests
         var registry = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "docker:container:sample-registry");
 
-        Assert.Equal("localhost:5000", app.GetProperty("attributes").GetProperty("container.registry").GetString());
-        Assert.Equal("localhost:5000", registry.GetProperty("attributes").GetProperty("container.registry").GetString());
+        Assert.Equal("localhost:5023", app.GetProperty("attributes").GetProperty("container.registry").GetString());
+        Assert.Equal("localhost:5023", registry.GetProperty("attributes").GetProperty("container.registry").GetString());
 
         var updateJson = await host.SendJsonAsync(
             HttpMethod.Post,

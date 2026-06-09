@@ -427,7 +427,8 @@ public sealed partial class DockerComposeResourceOrchestrator(
 
     private static NetworkResourceDefinition? TryReadNetwork(ResourceOrchestrationDescriptor descriptor)
     {
-        if (!descriptor.ResourceType.Equals("cloudshell.network", StringComparison.OrdinalIgnoreCase))
+        if (!descriptor.ResourceType.Equals("cloudshell.network", StringComparison.OrdinalIgnoreCase) &&
+            !descriptor.ResourceType.Equals("cloudshell.virtualNetwork", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
