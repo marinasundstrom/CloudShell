@@ -142,6 +142,23 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_NotifiesResourceChanges()
+    {
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)], provider);
+        var notifications = new List<ResourceChangeNotification>();
+        controlPlane.ResourcesChanged += (_, notification) => notifications.Add(notification);
+
+        await controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Stop));
+
+        var notification = Assert.Single(notifications);
+        Assert.Equal(ResourceChangeKind.ResourceActionExecuted, notification.Kind);
+        Assert.Equal("target", notification.ResourceId);
+        Assert.Equal(ResourceActionIds.Stop, notification.ActionId);
+        Assert.Contains("target", notification.Resources);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_BlocksStopWhenRunningDependentsExist()
     {
         var provider = new TestResourceProvider();

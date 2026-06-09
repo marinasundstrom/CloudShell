@@ -145,6 +145,12 @@ public sealed class ResourceManagerClientExtensionsTests
 
     private sealed class RecordingResourceManager : IResourceManager
     {
+        public event EventHandler<ResourceChangeNotification>? ResourcesChanged
+        {
+            add { }
+            remove { }
+        }
+
         public ExecuteResourceActionCommand? LastCommand { get; private set; }
 
         public UpdateResourceImageCommand? LastImageCommand { get; private set; }

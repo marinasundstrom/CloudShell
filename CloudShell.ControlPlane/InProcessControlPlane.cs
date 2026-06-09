@@ -19,6 +19,8 @@ public sealed class InProcessControlPlane(
     ICloudShellAuthorizationService authorization,
     IResourceEventSink? resourceEvents = null) : IControlPlane
 {
+    public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
+
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -128,6 +130,11 @@ public sealed class InProcessControlPlane(
                     StartDependencies: true),
                 cancellationToken);
         }
+
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceCreated,
+            resourceId,
+            AffectedResourceIds: [resourceId]));
     }
 
     public Task<IReadOnlyDictionary<string, ResourceOperationCapabilities>> GetResourceOperationCapabilitiesAsync(
@@ -149,7 +156,7 @@ public sealed class InProcessControlPlane(
         return Task.FromResult<IReadOnlyDictionary<string, ResourceOperationCapabilities>>(capabilities);
     }
 
-    public Task RegisterResourceAsync(
+    public async Task RegisterResourceAsync(
         RegisterResourceCommand command,
         CancellationToken cancellationToken = default)
     {
@@ -160,20 +167,32 @@ public sealed class InProcessControlPlane(
         EnsureAvailableResourceExists(resourceId);
         EnsureResourceGroupExists(resourceGroupId);
 
-        return registrations.RegisterAsync(
+        await registrations.RegisterAsync(
             providerId,
             resourceId,
             resourceGroupId,
             NormalizeOptionalDependencies(resourceId, command.DependsOn),
             cancellationToken);
+
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceRegistered,
+            resourceId,
+            AffectedResourceIds: [resourceId]));
     }
 
-    public Task RemoveResourceRegistrationAsync(
+    public async Task RemoveResourceRegistrationAsync(
         string resourceId,
-        CancellationToken cancellationToken = default) =>
-        registrations.RemoveAsync(resourceId, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        resourceId = RequireValue(resourceId, nameof(resourceId));
+        await registrations.RemoveAsync(resourceId, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceRegistrationRemoved,
+            resourceId,
+            AffectedResourceIds: [resourceId]));
+    }
 
-    public Task AssignResourceGroupAsync(
+    public async Task AssignResourceGroupAsync(
         AssignResourceGroupCommand command,
         CancellationToken cancellationToken = default)
     {
@@ -182,24 +201,34 @@ public sealed class InProcessControlPlane(
         EnsureRegisteredResourceExists(resourceId);
         EnsureResourceGroupExists(resourceGroupId);
 
-        return registrations.AssignToGroupAsync(
+        await registrations.AssignToGroupAsync(
             resourceId,
             resourceGroupId,
             NormalizeOptionalDependencies(resourceId, command.DependsOn),
             cancellationToken);
+
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceGroupAssigned,
+            resourceId,
+            AffectedResourceIds: [resourceId]));
     }
 
-    public Task SetResourceDependenciesAsync(
+    public async Task SetResourceDependenciesAsync(
         SetResourceDependenciesCommand command,
         CancellationToken cancellationToken = default)
     {
         var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
         EnsureRegisteredResourceExists(resourceId);
 
-        return registrations.SetDependenciesAsync(
+        await registrations.SetDependenciesAsync(
             resourceId,
             NormalizeRequiredDependencies(resourceId, command.DependsOn),
             cancellationToken);
+
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceDependenciesChanged,
+            resourceId,
+            AffectedResourceIds: [resourceId]));
     }
 
     public async Task<ResourceProcedureResult> DeleteResourceAsync(
@@ -226,7 +255,12 @@ public sealed class InProcessControlPlane(
             throw new ControlPlaneException(ControlPlaneError.ResourceDeleteUnsupported(resource.Name));
         }
 
-        return await orchestration.DeleteAsync(resource, cancellationToken);
+        var result = await orchestration.DeleteAsync(resource, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceDeleted,
+            resource.Id,
+            AffectedResourceIds: [resource.Id]));
+        return result;
     }
 
     public async Task<ResourceProcedureResult> ExecuteResourceActionAsync(
@@ -287,6 +321,12 @@ public sealed class InProcessControlPlane(
             DateTimeOffset.UtcNow,
             command.TriggeredBy));
 
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceActionExecuted,
+            resource.Id,
+            action.Id,
+            [resource.Id]));
+
         return result;
     }
 
@@ -333,6 +373,11 @@ public sealed class InProcessControlPlane(
                 : $"Updated image to '{image}' and created revision '{revision}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
             DateTimeOffset.UtcNow,
             command.TriggeredBy));
+
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceImageUpdated,
+            resource.Id,
+            AffectedResourceIds: [resource.Id]));
 
         return result;
     }
@@ -404,6 +449,9 @@ public sealed class InProcessControlPlane(
             .Where(candidate => candidate.State == ResourceState.Running)
             .Where(candidate => candidate.DependsOn.Contains(resource.Id, StringComparer.OrdinalIgnoreCase))
             .ToArray();
+
+    private void NotifyResourcesChanged(ResourceChangeNotification notification) =>
+        ResourcesChanged?.Invoke(this, notification);
 
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart or ResourceActionKind.Pause;

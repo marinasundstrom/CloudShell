@@ -138,6 +138,8 @@ public sealed class RemoteControlPlaneContractTests
     {
         await using var app = await CreateAppAsync(includeMappedNetwork: true);
         var controlPlane = CreateClient(app);
+        var notifications = new List<ResourceChangeNotification>();
+        controlPlane.ResourcesChanged += (_, notification) => notifications.Add(notification);
 
         var network = await controlPlane.GetResourceAsync("network:contract");
         var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync(["network:contract"]);
@@ -159,6 +161,10 @@ public sealed class RemoteControlPlaneContractTests
         Assert.True(capabilities["network:contract"].CanExecuteAction(
             PlatformResourceProvider.ReconcileEndpointMappingsActionId));
         Assert.Equal("Reconciled 1 endpoint mapping(s).", result.Message);
+        var notification = Assert.Single(notifications);
+        Assert.Equal(ResourceChangeKind.ResourceActionExecuted, notification.Kind);
+        Assert.Equal("network:contract", notification.ResourceId);
+        Assert.Equal(PlatformResourceProvider.ReconcileEndpointMappingsActionId, notification.ActionId);
     }
 
     [Fact]

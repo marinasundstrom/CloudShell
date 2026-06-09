@@ -134,6 +134,16 @@ Consumers can filter resource lists by `ResourceClass` when they need broad
 class-level views, such as all container-backed resources or all logical
 services, without relying on provider-specific `TypeId` values.
 
+`IResourceManager` publishes `ResourcesChanged` notifications after
+resource-manager mutations such as create, registration changes, dependency
+updates, deletion, resource actions, and image updates. The notification is a
+coarse inventory signal, not a replacement for re-reading resources. Consumers
+that need current state should reload the relevant resource or resource list
+when notified. Provider-discovered external changes, such as a Docker
+container appearing outside CloudShell, still require provider polling or a
+future provider push channel unless the provider itself raises a resource
+manager mutation.
+
 `ResourceClass` describes the projected domain shape, not the provider's
 internal runtime mechanics. For example, an ASP.NET Core project resource can be
 process-backed and still project as `ResourceClass.Project` with project-shaped

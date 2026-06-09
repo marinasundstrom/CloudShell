@@ -116,6 +116,11 @@ The MVP should prove:
   container-app targets, and a Traefik-backed public load balancer. Its smoke
   test invokes the advertised apply action and verifies the generated dynamic
   configuration file.
+- `IResourceManager` publishes coarse `ResourcesChanged` notifications after
+  resource-manager mutations. Resource Manager listens for those notifications
+  and also polls the inventory so provider-discovered changes, such as runtime
+  containers appearing or status changing outside CloudShell, update visible
+  resource rows without manual refresh.
 
 ## Completed recently
 

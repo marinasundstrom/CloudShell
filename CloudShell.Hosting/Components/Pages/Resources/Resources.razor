@@ -596,8 +596,8 @@
     private bool IsCheckingHealth { get; set; }
     private IReadOnlyDictionary<string, ResourceHealthSummary> HealthResults { get; set; } =
         new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
-    private CancellationTokenSource? HealthPollingCancellation { get; set; }
-    private Task? HealthPollingTask { get; set; }
+    private CancellationTokenSource? ResourcePollingCancellation { get; set; }
+    private Task? ResourcePollingTask { get; set; }
     private bool IsDisposed { get; set; }
     private IReadOnlyList<Resource> ResourceInventory { get; set; } = [];
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
@@ -680,11 +680,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ResourceManager.ResourcesChanged += OnResourcesChanged;
         ApplyPaginationFromUrl();
         await LoadResourceModelAsync();
 
-        HealthPollingCancellation = new CancellationTokenSource();
-        HealthPollingTask = PollResourceHealthAsync(HealthPollingCancellation.Token);
+        ResourcePollingCancellation = new CancellationTokenSource();
+        ResourcePollingTask = PollResourcesAsync(ResourcePollingCancellation.Token);
 
         await RefreshResourceHealthAsync();
     }
@@ -1055,6 +1056,16 @@
         await RefreshResourceHealthAsync();
     }
 
+    private void OnResourcesChanged(object? sender, ResourceChangeNotification notification)
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(RefreshResourcesAsync);
+    }
+
     private async Task RefreshResourceHealthAsync(CancellationToken cancellationToken = default)
     {
         if (IsDisposed ||
@@ -1097,14 +1108,14 @@
         }
     }
 
-    private async Task PollResourceHealthAsync(CancellationToken cancellationToken)
+    private async Task PollResourcesAsync(CancellationToken cancellationToken)
     {
         try
         {
             while (!cancellationToken.IsCancellationRequested)
             {
                 await Task.Delay(GetHealthCheckInterval(), cancellationToken);
-                await RefreshResourceHealthAsync(cancellationToken);
+                await InvokeAsync(RefreshResourcesAsync);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1118,24 +1129,25 @@
     public async ValueTask DisposeAsync()
     {
         IsDisposed = true;
+        ResourceManager.ResourcesChanged -= OnResourcesChanged;
 
-        if (HealthPollingCancellation is not null)
+        if (ResourcePollingCancellation is not null)
         {
-            await HealthPollingCancellation.CancelAsync();
+            await ResourcePollingCancellation.CancelAsync();
         }
 
-        if (HealthPollingTask is not null)
+        if (ResourcePollingTask is not null)
         {
             try
             {
-                await HealthPollingTask;
+                await ResourcePollingTask;
             }
             catch (OperationCanceledException)
             {
             }
         }
 
-        HealthPollingCancellation?.Dispose();
+        ResourcePollingCancellation?.Dispose();
         HealthRefreshLock.Dispose();
     }
 
@@ -1286,7 +1298,6 @@
                 startDependencies,
                 ignoreDependentWarning: true);
             ProcedureMessage = result.Message;
-            await LoadResourceModelAsync();
         }
         catch (Exception exception)
         {

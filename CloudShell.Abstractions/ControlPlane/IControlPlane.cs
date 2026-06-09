@@ -13,6 +13,8 @@ public interface IControlPlane :
 
 public interface IResourceManager
 {
+    event EventHandler<ResourceChangeNotification>? ResourcesChanged;
+
     Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default);
 
@@ -132,6 +134,28 @@ public sealed record ResourceQuery(
     string? ResourceType = null,
     bool? IsRegistered = null,
     ResourceClass? ResourceClass = null);
+
+public sealed record ResourceChangeNotification(
+    ResourceChangeKind Kind,
+    string? ResourceId = null,
+    string? ActionId = null,
+    IReadOnlyList<string>? AffectedResourceIds = null)
+{
+    public IReadOnlyList<string> Resources =>
+        AffectedResourceIds ?? [];
+}
+
+public enum ResourceChangeKind
+{
+    ResourceCreated,
+    ResourceRegistered,
+    ResourceRegistrationRemoved,
+    ResourceGroupAssigned,
+    ResourceDependenciesChanged,
+    ResourceDeleted,
+    ResourceActionExecuted,
+    ResourceImageUpdated
+}
 
 public sealed record LogQuery(
     string? ResourceId = null,

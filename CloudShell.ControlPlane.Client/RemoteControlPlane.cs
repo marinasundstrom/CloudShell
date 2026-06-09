@@ -15,6 +15,8 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
     private const string ContainerAppsRoutePrefix = "api/container-apps/v1";
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
+    public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
+
     public async Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default) =>
         (await GetRequiredAsync<IReadOnlyList<ResourceGroupResponse>>(
@@ -132,6 +134,10 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceCreated,
+            command.ResourceId,
+            AffectedResourceIds: [command.ResourceId]));
     }
 
     public async Task<IReadOnlyDictionary<string, ResourceOperationCapabilities>> GetResourceOperationCapabilitiesAsync(
@@ -168,6 +174,10 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceRegistered,
+            command.ResourceId,
+            AffectedResourceIds: [command.ResourceId]));
     }
 
     public async Task RemoveResourceRegistrationAsync(
@@ -178,6 +188,10 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             BuildUri($"registrations/{Escape(resourceId)}"),
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceRegistrationRemoved,
+            resourceId,
+            AffectedResourceIds: [resourceId]));
     }
 
     public async Task AssignResourceGroupAsync(
@@ -190,6 +204,10 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceGroupAssigned,
+            command.ResourceId,
+            AffectedResourceIds: [command.ResourceId]));
     }
 
     public async Task SetResourceDependenciesAsync(
@@ -202,6 +220,10 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceDependenciesChanged,
+            command.ResourceId,
+            AffectedResourceIds: [command.ResourceId]));
     }
 
     public async Task<ResourceProcedureResult> DeleteResourceAsync(
@@ -212,8 +234,13 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             BuildUri($"resources/{Escape(resourceId)}"),
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await ReadRequiredAsync<ResourceProcedureResponse>(response, cancellationToken))
+        var result = (await ReadRequiredAsync<ResourceProcedureResponse>(response, cancellationToken))
             .ToProcedureResult();
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceDeleted,
+            resourceId,
+            AffectedResourceIds: [resourceId]));
+        return result;
     }
 
     public async Task<ResourceProcedureResult> ExecuteResourceActionAsync(
@@ -229,8 +256,14 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             null,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await ReadRequiredAsync<ResourceProcedureResponse>(response, cancellationToken))
+        var result = (await ReadRequiredAsync<ResourceProcedureResponse>(response, cancellationToken))
             .ToProcedureResult();
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceActionExecuted,
+            command.ResourceId,
+            command.ActionId,
+            [command.ResourceId]));
+        return result;
     }
 
     public async Task<ResourceProcedureResult> UpdateResourceImageAsync(
@@ -243,9 +276,17 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             SerializerOptions,
             cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
-        return (await ReadRequiredAsync<ResourceProcedureResponse>(response, cancellationToken))
+        var result = (await ReadRequiredAsync<ResourceProcedureResponse>(response, cancellationToken))
             .ToProcedureResult();
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceImageUpdated,
+            command.ResourceId,
+            AffectedResourceIds: [command.ResourceId]));
+        return result;
     }
+
+    private void NotifyResourcesChanged(ResourceChangeNotification notification) =>
+        ResourcesChanged?.Invoke(this, notification);
 
     public Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(
         string resourceGroupId,
