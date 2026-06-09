@@ -42,6 +42,11 @@ separate from `/api/control-plane/v1/resources` so the core Resource Manager
 route group does not accumulate resource-type-specific commands. See
 [Container apps](resources/container-apps.md).
 
+Load balancers currently use the core Resource Manager API. Routes are projected
+on the resource response, and provider application runs through the advertised
+`applyLoadBalancerConfiguration` resource action. See
+[Load balancers](resources/load-balancers.md).
+
 Keep breaking changes behind a new route and document, such as
 `/api/control-plane/v2` and `/openapi/control-plane-v2.json`. Remote
 control-plane adapters should pin the generated client to the major API version

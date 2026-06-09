@@ -63,6 +63,7 @@ provider contracts.
 
 References:
 
+- [Load balancers](resources/load-balancers.md)
 - [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
 - [Virtual Network Resource Proposal: Clustering and Load Balancing](proposals/virtual-network-resource.md#clustering-and-load-balancing)
 - [Application resources](resources/application-resources.md)

@@ -112,6 +112,10 @@ The MVP should prove:
   Resource Manager route display, an apply-configuration resource action, and a
   Traefik file-provider implementation that writes dynamic HTTP/TCP
   configuration from stable resource routes.
+- The load-balancer sample declares a selected container host, mock web/API/TCP
+  container-app targets, and a Traefik-backed public load balancer. Its smoke
+  test invokes the advertised apply action and verifies the generated dynamic
+  configuration file.
 
 ## Completed recently
 

@@ -194,6 +194,25 @@ mappings. That action validates the source endpoint, target endpoint, and
 selected provider capability before provider-owned networking software applies
 its own routing or policy configuration.
 
+Load balancers are a provider-neutral routing resource built on the same stable
+resource model. Use `AddLoadBalancer(...)` when the user-facing resource should
+own entrypoints and routes while a provider such as Traefik materializes the
+implementation:
+
+```csharp
+var lb = resources
+    .AddLoadBalancer("public")
+    .UseProvider("traefik")
+    .ExposeHttp(80)
+    .ExposeHttps(443);
+
+lb.MapHost("app.local", webApp, endpoint: "http");
+lb.MapPath("api.local", "/v1", apiService, endpoint: "http");
+lb.MapTcp(5432, postgres, endpoint: "postgres");
+```
+
+See [Load balancers](resources/load-balancers.md).
+
 Provider-specific resources should stay logical at the declaration site. For
 example, a future SQL Server provider should be able to expose a top-level
 resource without making the caller choose a Docker host:

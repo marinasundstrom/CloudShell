@@ -190,6 +190,54 @@ public sealed class SampleSmokeTests
         }
     }
 
+    [Fact]
+    public async Task LoadBalancerSample_AppliesTraefikConfigurationFromAdvertisedAction()
+    {
+        var root = SampleProcess.FindRepositoryRoot();
+        var dataDirectory = Path.Combine(root, "samples", "LoadBalancer", "Data");
+        if (Directory.Exists(dataDirectory))
+        {
+            Directory.Delete(dataDirectory, recursive: true);
+        }
+
+        using var host = await SampleProcess.StartAsync(
+            "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
+            await GetFreePortAsync());
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var loadBalancer = Assert.Single(resourcesDocument.RootElement.EnumerateArray(), resource =>
+            resource.GetProperty("id").GetString() == "load-balancer:public");
+        var attributes = loadBalancer.GetProperty("attributes");
+
+        Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
+        Assert.Equal("traefik", attributes.GetProperty("loadBalancer.provider").GetString());
+        Assert.Equal("docker:sample-host", attributes.GetProperty("loadBalancer.hostResourceId").GetString());
+        Assert.Equal("3", attributes.GetProperty("loadBalancer.routes").GetString());
+        Assert.Equal(3, loadBalancer.GetProperty("loadBalancerRoutes").GetArrayLength());
+
+        var applyAction = loadBalancer
+            .GetProperty("resourceActions")
+            .GetProperty("applyLoadBalancerConfiguration");
+        var applyHref = applyAction.GetProperty("href").GetString() ??
+            throw new InvalidOperationException("The load balancer apply action did not include an href.");
+
+        var applyJson = await host.SendAsync(HttpMethod.Post, applyHref);
+        using var applyDocument = JsonDocument.Parse(applyJson);
+        Assert.Contains(
+            "Applied Traefik configuration for 3 route(s)",
+            applyDocument.RootElement.GetProperty("message").GetString());
+
+        var configPath = Path.Combine(dataDirectory, "traefik", "load-balancer-public.dynamic.yml");
+        var config = await File.ReadAllTextAsync(configPath);
+        Assert.Contains("Host(`app.local`)", config);
+        Assert.Contains("Host(`api.local`) && PathPrefix(`/v1`)", config);
+        Assert.Contains("HostSNI(`*`)", config);
+        Assert.Contains("address: \"localhost:55432\"", config);
+    }
+
     private static async Task<int> GetFreePortAsync()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -418,7 +466,7 @@ public sealed class SampleSmokeTests
             }
         }
 
-        private static string FindRepositoryRoot()
+        public static string FindRepositoryRoot()
         {
             var directory = new DirectoryInfo(AppContext.BaseDirectory);
             while (directory is not null)
