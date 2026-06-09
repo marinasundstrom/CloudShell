@@ -99,6 +99,14 @@ The MVP should prove:
 - Load balancing should be modeled as a resource abstraction over providers.
   Traefik is the proposed first provider target, with routes mapped to stable
   resource endpoints and raw ports treated as authoring convenience.
+- Provider-owned resources can create and manage implementation containers as
+  runtime state or child resources without becoming container app resources.
+  The stable resource, such as a load balancer, owns the user-facing lifecycle.
+- Provider-owned runtime infrastructure should select a host resource, where
+  host means an instance of a runtime or control boundary CloudShell can
+  target. Docker, Podman, containerd, schedulers, process managers, and
+  appliance APIs are host runtime capabilities or provider-owned facts, not
+  separate placement primitives.
 
 ## Completed recently
 

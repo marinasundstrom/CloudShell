@@ -67,15 +67,37 @@ owns all underlying provider configuration or runtime state.
 
 A container app resource is the top-level deployable workload. It may be bound
 to a specific container host resource, such as Local Docker, or it may omit that
-binding and let CloudShell resolve the configured default container engine. That
+binding and let CloudShell resolve the configured default container host. That
 host selection is deployment plumbing; consumers should not need to know which
-engine or runtime container is used to deploy the app. A container app is more
+runtime type or runtime container is used to deploy the app. A container app is more
 than a single container: it may be backed by one or more runtime container
 instances/replicas, and those runtime instances may change across deployments.
-Docker and other engine providers may also project runtime container resources,
-often as children under a host/engine resource. Those runtime container
+Docker and other host providers may also project runtime container resources,
+often as children under a container host resource. Those runtime container
 resources are useful for inspection and low-level operations, but they are not
 the stable deployment target for app image updates.
+
+Provider-owned resources may create and manage runtime containers without
+becoming container app resources. For example, a load balancer provider can run
+Traefik in a container, track that container as provider-owned runtime state or
+as a child resource, and tie its lifetime to the load balancer resource. The
+stable resource remains the load balancer; the container is implementation
+detail unless the user explicitly models it as a workload they want to manage.
+
+When provider-owned infrastructure needs placement, CloudShell should select a
+host resource rather than a container engine. In this context, a host is an
+instance of a runtime or control boundary that CloudShell can target, not
+necessarily a physical machine. A host may represent Docker, Podman,
+containerd, Kubernetes, systemd, a VM boundary, a scheduler, or a vendor
+appliance API through capabilities and provider-owned attributes. The stable
+resource records the selected host; the provider decides how to use that host's
+runtime capabilities.
+
+Use "container host" for the selectable CloudShell resource or configured
+runtime instance. Use "container runtime" for the implementation capability or
+product family behind that host, such as Docker, Podman, containerd, or CRI-O.
+Avoid "engine" as a CloudShell abstraction except when naming a specific product
+concept such as Docker Engine or preserving compatibility with older APIs.
 
 Container app deployments create app-owned revisions. The current revision is
 projected on the container app resource and changes when the deployable image

@@ -6,15 +6,15 @@ Proposed.
 
 ## Problem
 
-The Docker provider currently models the Docker Engine as the local host
-engine. That works for local development, but CloudShell also needs to register
-Docker hosts that run on remote machines while preserving the existing resource
-model and provider-owned configuration boundary.
+The Docker provider currently models Docker Engine as the local container host.
+That works for local development, but CloudShell also needs to register Docker
+hosts that run on remote machines while preserving the existing resource model
+and provider-owned configuration boundary.
 
 Remote Docker support should let a resource group contain Docker host
-resources for the engines it can operate. A host should be registered only once
-in a given resource group, even if a user tries to add it again with a
-different display name or through a different registration path.
+resources for the runtime instances it can operate. A host should be registered
+only once in a given resource group, even if a user tries to add it again with
+a different display name or through a different registration path.
 
 ## Goals
 
@@ -37,7 +37,7 @@ different display name or through a different registration path.
 - Do not require remote Docker support for local development defaults.
 - Do not model Docker contexts as first-class CloudShell resources in the first
   version.
-- Do not implement multi-engine container scheduling in this proposal.
+- Do not implement multi-host container scheduling in this proposal.
 
 ## Resource Type Naming
 
@@ -46,6 +46,11 @@ The resource represents a configured Docker host connection in a resource
 group, not just the Docker Engine process itself. A local host and a remote host
 both expose a Docker Engine API, but users add, group, update, and de-duplicate
 the host connection.
+
+The CloudShell abstraction is a container host. Docker Engine is the runtime
+product exposed by a Docker host. New docs and APIs should prefer "container
+host" and "container runtime"; "engine" should appear only when referring to
+Docker Engine specifically or to compatibility names.
 
 `docker.engine` already exists and should be kept as a compatibility alias
 during migration. Existing local development defaults, tests, routes, and
@@ -81,8 +86,8 @@ The Docker provider should add non-secret attributes:
 
 `docker.host.kind` distinguishes the existing local host from a remote host
 without introducing a parallel resource shape. Local hosts use the current
-socket or named-pipe endpoint resolution. Remote engines use an explicit
-endpoint supplied during registration or programmatic declaration.
+socket or named-pipe endpoint resolution. Remote hosts use an explicit endpoint
+supplied during registration or programmatic declaration.
 
 ## Host Configuration
 

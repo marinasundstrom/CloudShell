@@ -15,7 +15,7 @@ Nginx, HAProxy, Envoy, a cloud load balancer, or a custom provider.
 The abstraction should not assume that the provider runs in Docker. A load
 balancer provider may be:
 
-- a container app managed by CloudShell
+- a provider-owned runtime container on a selected host
 - a process installed on the host
 - a host service activated by the operator
 - an appliance or external controller
@@ -45,7 +45,8 @@ surface than CloudShell needs for the first pass.
   convenience only when the target resource has not projected a named endpoint.
 - Let the provider own runtime config, generated files, reloads, containers,
   TLS internals, health probes, and balancing algorithms.
-- Support providers that run in Docker and providers that do not.
+- Support providers that run on different host runtime models, including but
+  not limited to container-compatible hosts.
 - Keep UI projection understandable: entrypoints, routes, targets, provider,
   and readiness.
 
@@ -79,6 +80,58 @@ The load balancer resource is the stable user-facing abstraction. Provider
 resources may be projected separately when the implementation is an activated
 host service, container app, or external controller.
 
+The load balancer resource does not become a container app just because the
+selected provider uses containers. A provider may create, start, stop, replace,
+and inspect implementation containers that belong to the load balancer. Those
+runtime containers are provider-owned child resources or internal provider
+state. They are useful for logs, health, diagnostics, and low-level operations,
+but they are not the stable resource users target when they define routes.
+
+## Host Selection
+
+CloudShell should use one host-selection strategy across provider-owned
+runtime infrastructure. Users select a host resource, not a container engine.
+In this context, a host is an instance of a runtime or control boundary that
+CloudShell can target. It is not necessarily a physical machine or VM. A host
+can represent a Docker Engine, Podman machine, containerd endpoint, Kubernetes
+cluster, Nomad cluster, systemd-capable node, VM boundary, or vendor appliance
+API.
+
+The recommended vocabulary is:
+
+- container host: the selectable CloudShell resource or configured runtime
+  instance
+- container runtime: the implementation capability or product family available
+  through that host
+- engine: product-specific wording only, such as Docker Engine, or a temporary
+  compatibility term for existing APIs
+
+The host advertises runtime capabilities and provider-owned facts. Those facts
+describe what the host can execute or control; they are not separate placement
+primitives in the load-balancer model.
+
+For local development, host selection can stay implicit and resolve to the
+configured default or preferred host. For on-premise or multi-host
+environments, the load balancer should be able to reference an explicit host
+resource. That host may currently be projected by the Docker provider, but the
+load balancer abstraction should not bind directly to a Docker engine concept.
+
+This keeps three concepts separate:
+
+- provider: the implementation kind, such as `traefik`
+- host: the runtime/control instance where provider-owned infrastructure is
+  materialized
+- runtime capability: what the host can execute or control, described by host
+  capabilities and provider-owned attributes
+
+If the selected provider runs in a container, it creates provider-owned
+runtime containers on the selected host and parents or tracks those containers
+according to provider policy. If the selected provider is host-managed, the
+same `HostResourceId` can identify the host service or appliance boundary.
+If the selected provider runs through a scheduler or appliance, the host
+represents that scheduler or appliance instance instead of a Docker-compatible
+endpoint.
+
 ## Normalized Route Model
 
 The fluent API should normalize into route definitions with this conceptual
@@ -89,6 +142,7 @@ public sealed record LoadBalancerResourceDefinition(
     string Id,
     string Name,
     string Provider,
+    string? HostResourceId,
     IReadOnlyList<LoadBalancerEntrypoint> Entrypoints,
     IReadOnlyList<LoadBalancerRoute> Routes);
 
@@ -134,6 +188,7 @@ The user-facing API should support the concise shape:
 ```csharp
 var lb = resources.AddLoadBalancer("load-balancer:public", "Public")
     .UseProvider("traefik")
+    .UseHost("docker:engine")
     .ExposeHttp(80)
     .ExposeHttps(443);
 
@@ -173,6 +228,12 @@ lb.MapTcp("postgres")
 The concise API should compile into the explicit route model. The explicit API
 is useful when a route needs a custom ID, entrypoint selection, future TLS
 policy, or provider-owned options.
+
+`UseHost(...)` is optional. When omitted, provider execution should use the
+environment's configured default or preferred host. The Resource Manager
+creation and configuration UI should prompt for this host when more than one
+eligible host is available, using the same host list used by container-backed
+resources and future remote-host support.
 
 ## Relationship to Virtual Networks
 
@@ -218,8 +279,11 @@ A load balancer provider must:
 3. Prefer target endpoint references and validate that the endpoint exists
    when the route uses `EndpointName`.
 4. Resolve port-only targets according to provider rules.
-5. Materialize route configuration for the selected implementation.
-6. Report action capability reasons when a provider cannot apply a route.
+5. Resolve the selected host, defaulting through CloudShell's configured host
+   preference when `HostResourceId` is omitted.
+6. Validate that the host can run or reach the selected provider mode.
+7. Materialize route configuration for the selected implementation.
+8. Report action capability reasons when a provider cannot apply a route.
 
 For Traefik, the first implementation should generate dynamic configuration:
 
@@ -232,10 +296,21 @@ The initial Traefik provider can run in one of two modes:
 
 - file-config mode, where CloudShell writes dynamic configuration for an
   existing Traefik process or host service
-- container mode, where CloudShell runs Traefik as a container app when Docker
-  or another container provider is available
+- container mode, where the Traefik provider creates and manages its own
+  runtime container resources on the selected host when that host advertises a
+  compatible container runtime capability
+- orchestrated or appliance mode later, where the selected host represents a
+  scheduler, platform, or appliance API rather than a Docker-compatible engine
 
 The same load balancer resource model should work for both modes.
+
+In container mode, the provider-owned container lifecycle should be tied to the
+load balancer resource lifecycle. Starting the load balancer can start or create
+the implementation container; stopping it can stop that container; deleting the
+load balancer can remove provider-owned runtime state according to provider
+policy. The user should not need to model that implementation container as a
+separate container app unless they explicitly want to manage Traefik as an
+ordinary workload.
 
 ## UI Projection
 
@@ -259,9 +334,10 @@ mappings.
   or both?
 - Should the first implementation create a provider resource automatically, or
   require an explicit `resources.AddTraefikLoadBalancerProvider(...)`?
-- Should load balancer routes be projected through a first-class
-  `ResourceLoadBalancerRoutes` property or provider-neutral attributes until
-  the model stabilizes?
+- What host capability vocabulary should CloudShell standardize first, and
+  which runtime facts should remain provider-owned attributes?
+- Which provider-owned runtime containers should be projected as child
+  resources, and which should remain internal provider state?
 - How should TLS be represented: entrypoint-level, route-level, certificate
   resource reference, or provider-owned configuration?
 - Should DNS hostnames such as `app.local` become resource references to a DNS
@@ -275,12 +351,14 @@ mappings.
 
 1. Add load-balancer route and entrypoint definitions to the resource model.
 2. Add `AddLoadBalancer(...)` and fluent route builders.
-3. Project `cloudshell.loadBalancer` resources from the platform provider.
-4. Add declaration tests for provider selection, entrypoints, HTTP host/path
-   routes, TCP routes, dependencies, and capabilities.
-5. Add Resource Manager generated UI support for entrypoints and routes.
-6. Add a Traefik provider in file-config mode first.
-7. Add optional Traefik container mode after the container-provider lifecycle is
-   ready for provider-managed infrastructure resources.
-8. Add a sample with a web app, API service, PostgreSQL-style TCP target, and a
+3. Add `HostResourceId` and `UseHost(...)` so provider-owned runtime
+   infrastructure is placed on hosts rather than engines.
+4. Project `cloudshell.loadBalancer` resources from the platform provider.
+5. Add declaration tests for provider selection, host selection, entrypoints,
+   HTTP host/path routes, TCP routes, dependencies, and capabilities.
+6. Add Resource Manager generated UI support for entrypoints and routes.
+7. Add a Traefik provider in file-config mode first.
+8. Add optional Traefik container mode where the load-balancer provider creates
+   and owns implementation containers as child/runtime resources.
+9. Add a sample with a web app, API service, PostgreSQL-style TCP target, and a
    public Traefik load balancer.

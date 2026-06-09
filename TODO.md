@@ -15,6 +15,9 @@ verification baseline.
 - Implement the load balancer resource proposal with Traefik as the first
   provider target, using HTTP host/path and TCP routes mapped to stable target
   endpoints.
+- For Traefik container mode, model implementation containers as provider-owned
+  runtime state or child resources tied to the load balancer lifecycle on a
+  selected host resource, not as user-authored container app resources.
 - Implement the remote Docker hosts proposal, using `docker.host` as the
   canonical resource type while preserving existing `docker.engine`
   registrations during migration.
@@ -36,7 +39,7 @@ verification baseline.
   time range.
 - Define container app runtime instances/replicas separately from the stable
   container app resource, including explicit container host binding, default
-  engine resolution, and how engine-discovered containers map back to the app.
+  host resolution, and how host-discovered containers map back to the app.
 - Expand host-readiness warnings so endpoint mappings can name the specific
   missing gateway, load balancer, DNS, service mesh, firewall, or cluster
   network controller capability.

@@ -114,7 +114,7 @@ runtime process and exposes resource logs directly, while still keeping store
 definitions and Resource Manager integration under the configuration resource.
 
 For container-backed local development, `UseLocalDevelopmentDefaults()`
-registers Docker as the default container engine and keeps lifecycle execution
+registers Docker as the default container host and keeps lifecycle execution
 on CloudShell's built-in default orchestrator unless the user has already saved
 a different Resource Manager orchestration selection. Use `AddDockerProvider()`
 plus `resources.AddDocker()` only when Docker Engine itself should appear as a

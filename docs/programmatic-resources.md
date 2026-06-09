@@ -224,9 +224,10 @@ cloudShell.Resources(resources =>
 Use `resources.AddDocker().AddContainer(...)` only when the Docker container
 itself should be modeled as a sub-resource under a Docker resource.
 
-The selected orchestrator and preferred container engine decide whether that
-workload runs through Docker Compose or another runtime. The engine is
-infrastructure selection, not part of the logical resource parentage.
+The selected orchestrator and preferred container host decide whether that
+workload runs through Docker Compose or another runtime. The host is an
+instance of a runtime or control boundary; Docker, Podman, and similar runtime
+types are host facts rather than logical resource parentage.
 
 ```csharp
 var configuration = resources.AddConfigurationStore(
@@ -433,10 +434,11 @@ network, service, and exposure descriptors into runtime-specific artifacts.
 
 The Docker Compose orchestrator runs lifecycle commands through `docker compose`
 for matching Compose service names. For example, `application:api` maps to the
-`api` Compose service. `UseDocker(...)` registers Docker as an implicit
-container engine and enables Docker Compose orchestration without adding Docker
-to the resource graph. Use `UseContainerEngine(...)` to register another
-Docker-compatible or Podman-compatible engine directly.
+`api` Compose service. `UseDocker(...)` registers Docker as the implicit
+default container host and enables Docker Compose orchestration without adding
+Docker to the resource graph. Existing APIs such as `UseContainerEngine(...)`
+use engine-oriented naming for compatibility, but conceptually they register a
+container host instance with runtime-specific provider facts.
 
 When a project uses `AsContainerImage(...)` or `WithContainerBuild(...)`, or a
 resource is declared through `AddContainer(...)`, it can be materialized into
@@ -445,14 +447,14 @@ build metadata remains a default-orchestrator workload. Container-backed
 resource builders expose `WithImage(...)` so provider-specific resources such as
 `AddSqlServer(...)` can let callers override their default image without
 exposing Docker in the logical graph. The Resource Manager settings can record a
-preferred container engine, but application and service declarations do not need
-to be tied to a specific engine in the user-facing graph.
+preferred container host, but application and service declarations do not need
+to be tied to a specific runtime implementation in the user-facing graph.
 
 The explicit Docker resource model remains available separately. Use
 `AddDockerProvider()` plus `resources.AddDocker()` when Docker itself should
 appear as a managed resource with child container resources. It can coexist with
-an implicit default engine; CloudShell does not enforce that both point at the
-same environment.
+an implicit default container host; CloudShell does not enforce that both point
+at the same runtime instance.
 
 The active orchestrator can be changed from Resource Manager settings. Changing
 orchestrators does not migrate existing runtime state; the selected orchestrator

@@ -5,7 +5,7 @@ resources project as `application.container-app`. The container app is the
 stable deployment target. It is not the same thing as a Docker container
 resource, even when the current host is Local Docker.
 
-Docker or another container-engine provider may expose runtime containers or
+Docker or another container host provider may expose runtime containers or
 replicas as separate resources for inspection and low-level operations, but
 deployment automation should target the container app.
 
@@ -17,7 +17,7 @@ see [Executable applications](executable-applications.md) and
 ## Host Binding
 
 Container apps can be bound to a specific container host resource, such as Local
-Docker, or can rely on the configured default container engine. That binding is
+Docker, or can rely on the configured default container host. That binding is
 host plumbing. Build systems, shell integrations, and users should not need to
 know which runtime container instance currently backs the app.
 
