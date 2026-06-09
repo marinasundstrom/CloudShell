@@ -46,6 +46,30 @@ CloudShell adds value when the team needs more than app composition:
 CloudShell is therefore not just an app launcher. It is a resource shell and
 Control Plane that can use Aspire-like declarations as one entry point.
 
+## Growth path
+
+CloudShell lets a solution grow without forcing the user to choose the full
+infrastructure model on day one.
+
+1. Start with the application model. Declare a web app, another worker or API,
+   and a database through the programmatic resource API. The workflow feels
+   like Aspire: describe the distributed app, run it locally, and let the
+   system handle the implied container and endpoint details.
+2. Share the development environment. Host the CloudShell environment so other
+   developers, testers, or stakeholders can inspect and operate the same
+   resources without setting up separate infrastructure. Build pipelines can
+   integrate with the Control Plane to update running resources.
+3. Add infrastructure when it starts to matter. When the team wants more
+   control over hosting, networking, registries, deployment targets, or
+   provider configuration, those pieces can be added to the resource model and
+   managed through CloudShell.
+4. Run it as an environment platform. The same shell can grow into a full
+   on-premise Control Plane for team-owned infrastructure, provider-backed
+   operations, and environment-specific resource management.
+
+The user can therefore begin with a simple distributed application and expand
+the model only when the environment needs more explicit control.
+
 ## Positioning
 
 Use Aspire-style composition when the immediate goal is to make an application
@@ -64,4 +88,3 @@ The practical product position is:
 
 That lets CloudShell start with familiar local-development value while leaving
 room for capabilities that do not naturally belong in a single app host.
-
