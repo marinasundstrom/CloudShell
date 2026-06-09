@@ -11,6 +11,9 @@ Shell and integration consumers use higher-level managers. The HTTP API
 projects the same domain entities through versioned contracts with hypermedia
 affordances.
 
+For implementation and verification checklists for each resource-model
+artifact, see [Artifact implementation guidelines](artifact-implementation-guidelines.md).
+
 ## Abstraction levels
 
 | Level | Audience | Purpose | Examples |

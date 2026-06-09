@@ -14,6 +14,7 @@ Read these first:
 
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
+- `docs/artifact-implementation-guidelines.md`
 - `docs/progress.md`
 - `TODO.md`
 
@@ -29,19 +30,24 @@ Then inspect the relevant implementation and tests before editing.
    - shell UI
    - provider/extension
    - sample
-2. Keep resource concepts domain-shaped. Do not introduce UI terminology into
+2. For a new resource type, walk the full chain in
+   `docs/artifact-implementation-guidelines.md`: contribution, provider,
+   projected resource shape, Control Plane behavior, authoring surfaces,
+   API/client projection, shell UI, tests, samples, and docs. If any chain link
+   is intentionally deferred, record that in `docs/progress.md` and `TODO.md`.
+3. Keep resource concepts domain-shaped. Do not introduce UI terminology into
    resource/domain contracts.
-3. Prefer hypermedia affordances on projected artifacts when an API response
+4. Prefer hypermedia affordances on projected artifacts when an API response
    exposes an operation that can be taken on that artifact.
-4. Prefer result objects or diagnostics for expected domain validation
+5. Prefer result objects or diagnostics for expected domain validation
    outcomes; reserve exceptions for programmer errors or boundary adapters that
    must translate invalid commands into API errors.
-5. Add focused tests at the owning layer. Add contract tests when an API shape
+6. Add focused tests at the owning layer. Add contract tests when an API shape
    or remote adapter changes.
-6. Update docs when a feature changes system concepts, hosting guidance, API
+7. Update docs when a feature changes system concepts, hosting guidance, API
    shape, or MVP progress.
-7. Update `TODO.md` when the feature changes the current task queue.
-8. Run the relevant narrow tests first, then the verification baseline from
+8. Update `TODO.md` when the feature changes the current task queue.
+9. Run the relevant narrow tests first, then the verification baseline from
    `docs/progress.md` for cross-boundary changes.
 
 ## Output expectations

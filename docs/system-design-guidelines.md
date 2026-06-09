@@ -5,6 +5,8 @@ features, stabilizing behavior, or deciding where a concept belongs.
 
 For a concept-by-concept explanation of the domain model, abstraction levels,
 and API projection, see [Domain model](domain-model.md).
+For artifact-by-artifact implementation and verification expectations, see
+[Artifact implementation guidelines](artifact-implementation-guidelines.md).
 
 ## Product goals
 

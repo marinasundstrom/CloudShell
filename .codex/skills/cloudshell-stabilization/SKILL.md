@@ -16,6 +16,7 @@ Read these first:
 - `TODO.md`
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
+- `docs/artifact-implementation-guidelines.md`
 
 Then inspect the current code and tests around the failing or weak behavior.
 
@@ -28,17 +29,21 @@ Then inspect the current code and tests around the failing or weak behavior.
      remote mapping
    - sample tests for hosted scenarios
    - abstraction tests for extension DSL and public contracts
-3. Fix the smallest implementation surface that owns the behavior.
-4. Prefer stable validation messages and ProblemDetails over leaked runtime
+3. For resource-type stabilization, check the full implementation chain in
+   `docs/artifact-implementation-guidelines.md`: contribution, provider,
+   projected shape, Control Plane behavior, authoring surfaces, API/client
+   projection, shell UI, tests, samples, and docs.
+4. Fix the smallest implementation surface that owns the behavior.
+5. Prefer stable validation messages and ProblemDetails over leaked runtime
    exception details.
-5. Prefer result objects or diagnostics for expected domain validation
+6. Prefer result objects or diagnostics for expected domain validation
    outcomes; reserve exceptions for programmer errors or boundary adapters that
    must translate invalid commands into API errors.
-6. Update `docs/progress.md` when the stabilized behavior changes MVP status,
+7. Update `docs/progress.md` when the stabilized behavior changes MVP status,
    next priorities, or verification expectations.
-7. Update `TODO.md` when the stabilized behavior completes or changes a current
+8. Update `TODO.md` when the stabilized behavior completes or changes a current
    queue item.
-8. Run the verification baseline from `docs/progress.md` before committing
+9. Run the verification baseline from `docs/progress.md` before committing
    cross-boundary stabilization work.
 
 ## Stabilization priorities

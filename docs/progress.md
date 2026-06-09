@@ -96,6 +96,10 @@ The MVP should prove:
   Resource Manager shows mappings on the network resource and read-only network
   exposure on mapped target resources, instead of treating exposure as a
   dependency or encoded attribute.
+- Platform-owned network, service, and load-balancer endpoint assignments are
+  validated for concrete protocol/host/port conflicts before registration.
+  Endpoint mapping reconciliation also validates that mapping sources belong to
+  the reconciled network and are not reused across multiple mappings.
 - Load balancing should be modeled as a resource abstraction over providers.
   Traefik is the proposed first provider target, with routes mapped to stable
   resource endpoints and raw ports treated as authoring convenience.
@@ -128,6 +132,10 @@ The MVP should prove:
 - Added Docker host definitions for local and remote endpoints, safe host
   endpoint projection, per-host Docker clients, remote host builder APIs, and
   group-scoped duplicate Docker host validation.
+- Defined artifact implementation guidelines for resource-model artifacts,
+  including ownership, projection, API/client mapping, provider boundaries, UI
+  responsibilities, end-to-end resource type implementation, and verification
+  expectations.
 
 ## Completed recently
 
@@ -232,6 +240,9 @@ The MVP should prove:
 - Added endpoint mapping provider selection for network declarations, a
   platform reconcile action that validates source, target, and mapper
   capabilities, and remote Control Plane contract coverage for invoking it.
+- Added platform endpoint assignment conflict validation for network, service,
+  and load-balancer resources, plus endpoint mapping source ownership and
+  duplicate-source validation during reconciliation.
 - Added a Container App Deployment sample with a local registry resource,
   stopped mock container app, and `sh` deployment script that simulates a build
   by posting a new image tag to the Container Apps revision API.
