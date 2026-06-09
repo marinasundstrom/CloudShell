@@ -30,6 +30,8 @@ preserving the existing split:
   and endpoint mappings.
 - Let networking provider resources materialize mappings through capabilities
   such as gateway, load balancer, DNS, TLS, policy, or service discovery.
+- Support clustered workloads and load-balanced services without requiring
+  every replica or node to become part of the public endpoint contract.
 - Keep the default orchestrator useful for local development through logical
   localhost networking.
 - Leave room for runtime-specific orchestrators to translate the same graph to
@@ -40,6 +42,8 @@ preserving the existing split:
 - Do not introduce real network isolation in the default orchestrator.
 - Do not standardize every ingress, TLS, DNS, or network policy field in the
   first version.
+- Do not standardize every load-balancing algorithm, health-probe shape, or
+  cluster scheduling field in the first version.
 - Do not make orchestrators the owner of provider configuration.
 - Do not expose provider-owned network controller state through resource
   attributes unless it is a stable, non-secret projected fact.
@@ -70,6 +74,12 @@ Suggested capability identifiers:
 - `networking.ingress`: resource can expose ingress-style endpoints.
 - `networking.gateway`: resource can route traffic through a gateway.
 - `networking.loadBalancer`: resource can distribute traffic across targets.
+- `networking.backendPool`: resource represents a load-balancer target set.
+- `networking.cluster`: resource represents a clustered runtime boundary.
+- `networking.clusterNode`: resource represents a node in a clustered runtime.
+- `networking.healthProbe`: resource can evaluate target health for routing.
+- `networking.trafficSplit`: resource can split traffic across versions or
+  target groups.
 - `networking.serviceDiscovery`: resource can publish discovery records.
 - `networking.policy`: resource can apply network policy.
 - `networking.tls`: resource can manage TLS material or termination.
@@ -116,6 +126,76 @@ vnet.AddIngress("ingress:api")
 That higher-level ingress builder should still produce endpoint requests,
 endpoint mappings, dependencies, and provider references.
 
+## Clustering and Load Balancing
+
+Virtual networks should support clustered workloads by keeping the public
+endpoint stable while allowing the backing targets to change.
+
+The stable user-facing concepts are:
+
+- a virtual network boundary
+- an ingress or service endpoint owned by that boundary
+- a mapping provider, such as a gateway or load balancer
+- a logical backend target, such as an application resource, service resource,
+  or backend pool resource
+
+The provider-owned concepts are:
+
+- concrete runtime replicas
+- cluster nodes
+- scheduling decisions
+- health probes and target readiness
+- load-balancing strategy
+- traffic splitting between versions or target groups
+
+This keeps the CloudShell resource graph understandable while leaving runtime
+mechanics to the provider or orchestrator that owns them.
+
+For the first version, endpoint mappings should continue to map a network-owned
+endpoint to one logical target endpoint. A clustered or load-balanced mapping
+can use one of these targets:
+
+- a service resource endpoint that represents a stable frontend over one or
+  more backing resources
+- a backend pool resource whose provider owns the target membership
+- a container app or application resource whose provider resolves the current
+  replicas behind the stable resource endpoint
+- a single resource endpoint for non-clustered cases
+
+That avoids making endpoint mappings point directly at every replica. Replicas
+and nodes can still be projected as resources for inspection, logs, health, and
+operations, but they should not become the stable address consumers depend on.
+
+Future convenience syntax can make the clustered intent clearer:
+
+```csharp
+var vnet = resources.AddVirtualNetwork(
+    "network:app",
+    "Application Network");
+
+var api = resources.Declare("applications", "application:api");
+var loadBalancer = resources.Declare("networking", "networking:lb");
+
+var backendPool = vnet.AddBackendPool("pool:api")
+    .Targets(api, "http")
+    .WithHealthProbe("http", "/health");
+
+var ingress = vnet.RequestHttpEndpoint(
+    "api-public",
+    host: "api.localhost",
+    exposure: ResourceExposureScope.Public);
+
+vnet.MapEndpoint(
+    ingress,
+    new ResourceEndpointReference(backendPool.ResourceId, "http"),
+    loadBalancer,
+    "ingress:api");
+```
+
+The backend-pool builder should still compile down to ordinary resources,
+endpoints, dependencies, capabilities, and provider-owned configuration. It
+should not require a special Control Plane primitive.
+
 ## Provider Responsibilities
 
 A networking provider resource can be a gateway, load balancer, DNS publisher,
@@ -135,6 +215,18 @@ For endpoint mappings:
 4. The selected provider resource must advertise `networking.endpointMapper`.
 5. Additional provider-owned validation can happen inside provider actions.
 
+For load-balanced mappings:
+
+1. The selected provider resource should also advertise
+   `networking.loadBalancer`.
+2. If the target is a backend pool, the backend pool should advertise
+   `networking.backendPool`.
+3. Backend pool membership, health probes, traffic weights, and balancing
+   strategy remain provider-owned unless they are later standardized as common
+   CloudShell fields.
+4. The Control Plane validates the resource graph and capabilities; the
+   provider validates runtime-specific routing and target eligibility.
+
 ## Orchestrator Relationship
 
 The orchestrator materializes the resource graph for a runtime. It should not
@@ -152,10 +244,12 @@ The Control Plane and resource declarations define intent:
 An orchestrator can inspect that graph and translate it to runtime artifacts:
 
 - Docker Compose networks, published ports, and gateway containers
-- Kubernetes namespaces, Services, Ingresses, Gateway API resources, and
-  NetworkPolicies
+- Kubernetes namespaces, Services, EndpointSlices, Ingresses, Gateway API
+  resources, ingress controllers, and NetworkPolicies
 - Azure virtual networks, subnets, private endpoints, application gateways, or
   DNS records
+- load-balancer backend pools, target groups, health probes, and traffic
+  weights where the runtime supports them
 - local development localhost ports and logical mappings
 
 If an orchestrator cannot materialize a capability, it should either leave the
@@ -176,6 +270,10 @@ Supported behavior:
 - Treat provider-default endpoint requests as auto-assigned localhost endpoints
   unless a selected provider overrides them.
 - Validate endpoint mappings through `reconcileEndpointMappings`.
+- Represent load-balanced mappings logically by validating the source endpoint,
+  target endpoint or backend pool, and selected provider capabilities.
+- Allow provider-backed local load balancers to run as ordinary resources when
+  a team wants to exercise balancing behavior locally.
 - Preserve dependencies so starting a resource can start required target or
   provider resources according to normal dependency-start rules.
 - Expose clear capabilities and action availability for local development.
@@ -185,7 +283,9 @@ Unsupported behavior:
 - No real virtual network isolation.
 - No subnets, route tables, firewall rules, or private DNS zones.
 - No TLS termination unless a provider resource implements it.
-- No load balancing beyond whatever a provider resource implements.
+- No cluster scheduling, replica placement, or automatic horizontal scaling.
+- No built-in load-balancing algorithm beyond whatever a provider resource
+  implements.
 - No path-based or host-based routing unless represented by provider-owned
   configuration.
 
@@ -213,6 +313,8 @@ network resources:
 - show assigned endpoints
 - show mapped targets
 - show selected mapping provider
+- show backend pools or clustered targets when projected as resources
+- show provider-reported health and action capability reasons for mappings
 - expose reconcile action when present
 - use provider-owned details when a provider supplies a detail route or tabs
 
@@ -224,12 +326,15 @@ only introduce a richer ingress editor once routing fields become standardized.
 
 1. Add a `cloudshell.virtualNetwork` resource type and builder convenience that
    wraps the existing network definition shape.
-2. Add `networking.virtualNetwork` and `networking.ingress` capability
-   identifiers.
+2. Add `networking.virtualNetwork`, `networking.ingress`,
+   `networking.backendPool`, `networking.cluster`,
+   `networking.clusterNode`, `networking.healthProbe`, and
+   `networking.trafficSplit` capability identifiers as needed by the first
+   provider scenario.
 3. Keep endpoint request and endpoint mapping persistence unchanged for the
    first version.
 4. Add declaration tests showing virtual network endpoints, explicit provider
-   mapping, dependencies, and capabilities.
+   mapping, backend-pool targets, dependencies, and capabilities.
 5. Add Control Plane tests for default-orchestrator validation and action
    capabilities.
 6. Add client/API contract coverage for projected capabilities and reconcile
@@ -237,7 +342,7 @@ only introduce a richer ingress editor once routing fields become standardized.
 7. Add UI support only where the current network registration and detail
    surfaces need labels or provider selection for virtual-network resources.
 8. Add sample declarations for local default-orchestrator behavior and one
-   provider-backed ingress scenario.
+   provider-backed ingress or load-balanced scenario.
 
 ## Open Questions
 
@@ -251,3 +356,9 @@ only introduce a richer ingress editor once routing fields become standardized.
   same mapping?
 - Should network reconciliation produce diagnostics as a structured result
   rather than only a procedure result message?
+- Should backend pools be a first-class built-in resource type, or should the
+  first implementation model them as provider-authored resources?
+- Which load-balancing fields are common enough to standardize first: health
+  probe path, algorithm, weights, session affinity, or traffic splitting?
+- How should container app revisions and replicas map to backend pools when a
+  deployment is rolling forward?
