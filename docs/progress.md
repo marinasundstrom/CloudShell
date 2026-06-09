@@ -3,8 +3,9 @@
 This is the living CloudShell progress tracker. Update it when a feature,
 stabilization pass, or design decision changes the current direction.
 
-See also: [TODO](../TODO.md) for the current task queue that turns these
-priorities into concrete next tasks.
+See also: [Roadmap](roadmap.md) for product direction and [TODO](../TODO.md)
+for the current task queue that turns those priorities into concrete next
+tasks.
 
 ## Current MVP focus
 

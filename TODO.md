@@ -3,8 +3,9 @@
 This is the current task queue. Keep `docs/progress.md` as the living
 tracker for completed decisions and broader MVP status.
 
-See also: [Progress](docs/progress.md) for completed work, current MVP focus,
-verification baseline, and broader priorities.
+See also: [Roadmap](docs/roadmap.md) for product direction and
+[Progress](docs/progress.md) for completed work, current MVP focus, and the
+verification baseline.
 
 ## Resource Management
 

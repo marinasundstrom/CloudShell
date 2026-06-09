@@ -320,32 +320,9 @@ For the default host-local orchestrator, virtual network resources remain usable
 as logical networks, but CloudShell should warn when a declared mapping expects
 real host networking behavior that the current host cannot configure.
 
-## Implementation Sequence
-
-The intended sequence is:
-
-1. Make the resource model clear. Host, logical, and virtual networks should be
-   explicit resource concepts. Endpoint requests and endpoint mappings remain
-   the common primitives.
-2. Make virtual networking work when the host can provide it. The default
-   orchestrator can stay logical until a host networking service is activated,
-   but once a gateway, network controller, DNS publisher, or similar service is
-   present, CloudShell should be able to configure the virtual-network mapping
-   through that provider.
-3. Add load balancing. A load balancer provider should materialize a stable
-   endpoint over a logical backend target or backend pool without exposing every
-   replica as part of the public contract.
-4. Add replication where a provider can implement it. Replicas should be
-   provider-owned runtime instances behind a stable resource, service, or
-   backend pool unless a provider explicitly projects replicas for inspection.
-5. Revisit deployment concepts only when needed. `ResourceDefinition` and
-   `Deployment` may become useful to distinguish desired configuration from
-   applied runtime state, versioned rollouts, or revision history, but they are
-   not required for the first virtual-network implementation.
-6. Revisit container application environments later. A container application
-   environment may become the right isolation boundary for container apps, but
-   it is not the priority before host-provided virtual networking and load
-   balancing work.
+For sequencing across virtual networking, load balancing, replication,
+deployment concepts, and container application environments, see the
+[Roadmap](../roadmap.md).
 
 ## API and UI Projection
 

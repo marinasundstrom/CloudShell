@@ -319,6 +319,7 @@ Deployment configuration:
 
 - [Domain model](docs/domain-model.md)
 - [System design guidelines](docs/system-design-guidelines.md)
+- [Roadmap](docs/roadmap.md)
 - [Progress and MVP tracker](docs/progress.md)
 - [Control plane API and generated clients](docs/control-plane-api.md)
 - [Authentication and authorization](docs/authentication-and-authorization.md)
