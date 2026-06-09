@@ -56,8 +56,14 @@ Load-balancing behavior should be provider-owned at first, with CloudShell
 standardizing only the common resource capabilities and target relationships
 needed for validation, display, and orchestration.
 
+The first proposed provider target is Traefik. The CloudShell abstraction
+should expose HTTP, HTTPS, and TCP entrypoints, route host/path/TCP rules to
+stable resource endpoints, and keep generated provider configuration behind
+provider contracts.
+
 References:
 
+- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
 - [Virtual Network Resource Proposal: Clustering and Load Balancing](proposals/virtual-network-resource.md#clustering-and-load-balancing)
 - [Application resources](resources/application-resources.md)
 - [Container apps](resources/container-apps.md)

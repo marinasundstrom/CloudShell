@@ -12,9 +12,9 @@ verification baseline.
 - Harden macOS host-provided virtual networking by exercising real local proxy
   mappings end to end, improving action capability reasons, and deciding how
   reconciled mappings should be persisted or stopped.
-- Add load balancing after host-provided virtual networking works, using stable
-  service or backend-pool targets rather than mapping public endpoints directly
-  to replicas.
+- Implement the load balancer resource proposal with Traefik as the first
+  provider target, using HTTP host/path and TCP routes mapped to stable target
+  endpoints.
 - Design provider-owned replication projection for resources that can implement
   replicas, keeping stable resources separate from runtime instances.
 - Design container app revision history as commits of container app

@@ -96,6 +96,9 @@ The MVP should prove:
   Resource Manager shows mappings on the network resource and read-only network
   exposure on mapped target resources, instead of treating exposure as a
   dependency or encoded attribute.
+- Load balancing should be modeled as a resource abstraction over providers.
+  Traefik is the proposed first provider target, with routes mapped to stable
+  resource endpoints and raw ports treated as authoring convenience.
 
 ## Completed recently
 

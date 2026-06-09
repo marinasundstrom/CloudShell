@@ -129,9 +129,17 @@ This keeps the public contract stable while still allowing providers to project
 runtime instances as child resources for inspection, logs, health, and
 operations.
 
+The first proposed load-balancer provider target is Traefik because it supports
+dynamic configuration, HTTP host/path routing, TCP routing, TLS later, and both
+containerized and host-managed operation. The proposed fluent API exposes
+entrypoints and maps routes to target resource endpoints first, with raw target
+ports available as a convenience when the target has not projected a named
+endpoint yet.
+
 ## References
 
 - [Virtual Network Resource Proposal](proposals/virtual-network-resource.md)
+- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
 - [Programmatic resources](programmatic-resources.md)
 - [Domain model](domain-model.md)
 - [Roadmap](roadmap.md)
