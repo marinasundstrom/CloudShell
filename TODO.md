@@ -15,6 +15,9 @@ verification baseline.
 - Implement the load balancer resource proposal with Traefik as the first
   provider target, using HTTP host/path and TCP routes mapped to stable target
   endpoints.
+- Implement the remote Docker hosts proposal, using `docker.host` as the
+  canonical resource type while preserving existing `docker.engine`
+  registrations during migration.
 - Design provider-owned replication projection for resources that can implement
   replicas, keeping stable resources separate from runtime instances.
 - Design container app revision history as commits of container app
