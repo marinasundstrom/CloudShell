@@ -53,12 +53,12 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 ## Goals
 
 * Introduce Deployment as a standard orchestrator primitive.
-* Introduce Revision as the versioned result of applying a deployment.
+* Introduce Orchestrator Revision as the versioned runtime result of applying an orchestrator deployment.
 * Allow higher-level resources to request orchestration without managing replicas directly.
 * Allow orchestrators to compute runtime resources and service replicas from resource intent.
 * Support consistent deployment behavior across the default orchestrator and Docker Compose orchestrator.
 * Support traceability from user-managed resources to deployments, revisions, services, replicas, and runtime-managed resources.
-* Enable rollback, diagnostics, and history inspection.
+* Enable orchestration-level rollback, diagnostics, and history inspection while allowing higher-level resources to maintain their own domain-specific revision models.
 * Keep deployments and revisions in the orchestrator layer rather than making them normal user-authored resources.
 * Allow deployments and revisions to participate in diagnostics and runtime inspection.
 * Preserve the existing Resource Manager responsibility for validation, lifecycle coordination, state, ownership, and graph management.
@@ -77,9 +77,59 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 
 ## Domain Model
 
+### Revision Terminology
+
+The term `Revision` is used in different CloudShell subdomains and should not
+be treated as a single global concept.
+
+A resource type may define its own revision concept as part of its domain model.
+For example, a Container App may have Container App revisions that represent
+versioned application configuration, traffic behavior, image references,
+environment settings, and rollback state.
+
+The orchestrator may also define revisions. An orchestrator revision represents
+a versioned runtime realization of a deployment. It tracks the workload shape
+that was applied, the service state that resulted, and the runtime-managed
+resources associated with that version.
+
+These concepts may be correlated, and they may even share identifiers for
+traceability, but they are not the same entity.
+
+```text
+Container App Revision
+        ↓
+causes / maps to
+        ↓
+Orchestrator Deployment
+        ↓
+Orchestrator Revision
+        ↓
+Service + Runtime Resources
+```
+
+Each subdomain owns the revision data relevant to its own behavior.
+
+Container App revisions answer questions such as:
+
+* what application configuration changed?
+* which image and environment settings are part of this app version?
+* which revision receives traffic?
+* which revision can the app roll back to?
+
+Orchestrator revisions answer questions such as:
+
+* what workload definition was applied?
+* which orchestrator service was reconciled?
+* which replicas were created or removed?
+* which runtime-managed resources belong to this applied deployment?
+* what rollout state resulted?
+
+The deployment and revision model in this proposal refers specifically to
+orchestrator deployments and orchestrator revisions unless otherwise stated.
+
 A Deployment is an orchestrator-owned description of an applied workload change.
 
-A Revision is the immutable version produced when a deployment is applied.
+An Orchestrator Revision is the immutable runtime version produced when an orchestrator deployment is applied.
 
 Suggested model:
 
