@@ -276,14 +276,12 @@ public sealed class InProcessControlPlane(
             ?? throw new ControlPlaneException(ControlPlaneError.ResourceActionNotFound(resource.Id, actionId));
 
         var group = resourceManager.GetGroupForResource(resource.Id);
-        if (!authorization.CanAccessResource(
-                resource.Id,
-                group?.Id,
-                CloudShellPermissions.Resources.Manage))
+        var actionPermission = ResourceActionPermissions.GetRequiredPermission(action);
+        if (!CanAccessResource(resource.Id, group?.Id, actionPermission))
         {
             throw ControlPlaneAccessDeniedException.ForResource(
                 resource.Id,
-                CloudShellPermissions.Resources.Manage);
+                FormatPermissionRequirement(actionPermission));
         }
 
         if (GetProcedureProvider(resource) is null)
@@ -517,7 +515,14 @@ public sealed class InProcessControlPlane(
             CloudShellPermissions.Resources.Manage);
         var procedureProvider = GetProcedureProvider(resource);
         var actionCapabilities = resource.ResourceActions
-            .Select(action => CreateActionCapability(resource, action, canManage, procedureProvider is not null))
+            .Select(action => CreateActionCapability(
+                resource,
+                action,
+                CanAccessResource(
+                    resource.Id,
+                    group?.Id,
+                    ResourceActionPermissions.GetRequiredPermission(action)),
+                procedureProvider is not null))
             .ToArray();
         var executableActionIds = actionCapabilities
             .Where(capability => capability.CanExecute)
@@ -535,15 +540,16 @@ public sealed class InProcessControlPlane(
     private static ResourceActionCapability CreateActionCapability(
         Resource resource,
         ResourceAction action,
-        bool canManage,
+        bool canExecute,
         bool hasProcedureProvider)
     {
-        if (!canManage)
+        if (!canExecute)
         {
+            var permission = ResourceActionPermissions.GetRequiredPermission(action);
             return new ResourceActionCapability(
                 action.Id,
                 false,
-                $"The '{CloudShellPermissions.Resources.Manage}' permission is required.");
+                $"The '{FormatPermissionRequirement(permission)}' permission is required.");
         }
 
         if (!hasProcedureProvider)
@@ -560,6 +566,19 @@ public sealed class InProcessControlPlane(
             unavailableReason is null,
             unavailableReason);
     }
+
+    private bool CanAccessResource(
+        string resourceId,
+        string? resourceGroupId,
+        string permission) =>
+        authorization.CanAccessResource(resourceId, resourceGroupId, permission) ||
+        !string.Equals(permission, CloudShellPermissions.Resources.Manage, StringComparison.OrdinalIgnoreCase) &&
+        authorization.CanAccessResource(resourceId, resourceGroupId, CloudShellPermissions.Resources.Manage);
+
+    private static string FormatPermissionRequirement(string permission) =>
+        string.Equals(permission, CloudShellPermissions.Resources.Manage, StringComparison.OrdinalIgnoreCase)
+            ? permission
+            : $"{permission}' or '{CloudShellPermissions.Resources.Manage}";
 
     private static string? GetActionUnavailableReason(
         Resource resource,

@@ -37,12 +37,16 @@ Work the current proposals in this order:
 - Define resource identity bindings for workload, service, and provider-owned
   scenarios, including subject, scopes, and provider-specific claim metadata.
 - Define the resource permission foundation: permission assignments,
-  permission inheritance boundaries, resource-scoped permission names, token
-  claim mapping, workload identity lifecycle, and provider or orchestrator
-  identities.
-- Define resource action authorization rules so Resource Manager can evaluate
-  permissions before dispatching lifecycle actions, configuration updates,
-  deployment operations, logs, diagnostics, and provider actions.
+  permission inheritance boundaries, token claim mapping, workload identity
+  lifecycle, and provider or orchestrator identities. Standard resource action
+  permissions now use Azure-style operation names with `resources.manage` as a
+  compatibility superset.
+- Assign specific Azure-style operation permissions to important custom
+  resource actions, such as load-balancer apply and network reconciliation,
+  instead of relying on the generic custom-action execute permission.
+- Continue resource action authorization beyond lifecycle actions so Resource
+  Manager evaluates permissions before configuration updates, deployment
+  operations, logs, diagnostics, and provider actions.
 - Wire the identity contract into one provider-backed workload type so the
   model is validated against a concrete resource path.
 - Add authorization diagnostics and capability reasons for denied or

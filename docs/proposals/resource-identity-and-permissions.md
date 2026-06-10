@@ -99,9 +99,24 @@ authorization model:
 - `resource.identity.read`
 - `resource.identity.manage`
 - provider-specific permission names
+- Azure RBAC-style resource action operations such as
+  `CloudShell.Resources/resources/lifecycle/action`
 
 The evaluation model should be able to reason about resource identity and
 resource scope instead of relying only on user session claims.
+
+The first implementation slice maps standard CloudShell resource actions to
+operation permissions:
+
+- `run`, `stop`, `pause`, and `restart` ->
+  `CloudShell.Resources/resources/lifecycle/action`
+- custom actions with a declared permission -> that declared Azure-style
+  operation
+- custom actions without a declared permission ->
+  `CloudShell.Resources/resources/actions/execute/action`
+
+The existing `resources.manage` permission remains a compatibility superset
+while the model moves toward resource operation permissions.
 
 ## Proposed Fluent API
 

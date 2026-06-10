@@ -83,6 +83,11 @@ The MVP should prove:
   affordances.
 - Resource action capabilities are separate signals that describe current
   executability and reasons.
+- Standard lifecycle resource actions map to the Azure RBAC-style
+  `CloudShell.Resources/resources/lifecycle/action` operation permission.
+  Custom actions can declare narrower Azure-style operation permissions and
+  otherwise use `CloudShell.Resources/resources/actions/execute/action`.
+  `resources.manage` remains a compatibility superset for resource actions.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.

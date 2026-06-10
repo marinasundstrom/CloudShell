@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.Authorization;
+
 namespace CloudShell.Abstractions.ResourceManager;
 
 public static class ResourceActionIds
@@ -13,7 +15,8 @@ public sealed record ResourceAction(
     string DisplayName,
     ResourceActionKind Kind = ResourceActionKind.Custom,
     string? Description = null,
-    ResourceActionPresentation? Presentation = null)
+    ResourceActionPresentation? Presentation = null,
+    string? RequiredPermission = null)
 {
     public ResourceActionPresentation EffectivePresentation =>
         Presentation ?? ResourceActionPresentation.ForKind(Kind);
@@ -55,6 +58,24 @@ public enum ResourceActionKind
     Stop,
     Pause,
     Restart
+}
+
+public static class ResourceActionPermissions
+{
+    public static string GetRequiredPermission(ResourceAction action) =>
+        !string.IsNullOrWhiteSpace(action.RequiredPermission)
+            ? action.RequiredPermission
+            : GetDefaultRequiredPermission(action);
+
+    private static string GetDefaultRequiredPermission(ResourceAction action) =>
+        action.Kind switch
+        {
+            ResourceActionKind.Run or
+            ResourceActionKind.Stop or
+            ResourceActionKind.Pause or
+            ResourceActionKind.Restart => CloudShellPermissions.Resources.Actions.Lifecycle,
+            _ => CloudShellPermissions.Resources.Actions.Execute
+        };
 }
 
 public sealed record ResourceActionPresentation(

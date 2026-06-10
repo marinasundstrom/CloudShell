@@ -22,5 +22,11 @@ public static class CloudShellPermissions
         public const string Read = "resources.read";
         public const string Create = "resources.create";
         public const string Manage = "resources.manage";
+
+        public static class Actions
+        {
+            public const string Lifecycle = "CloudShell.Resources/resources/lifecycle/action";
+            public const string Execute = "CloudShell.Resources/resources/actions/execute/action";
+        }
     }
 }

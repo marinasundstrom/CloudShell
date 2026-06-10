@@ -342,6 +342,16 @@ Available permissions are:
 - `resources.read`
 - `resources.create`
 - `resources.manage`
+- `CloudShell.Resources/resources/lifecycle/action`
+- `CloudShell.Resources/resources/actions/execute/action`
+
+Resource action permissions use Azure RBAC-style operation names. Standard
+lifecycle actions such as run, stop, pause, and restart map to
+`CloudShell.Resources/resources/lifecycle/action`. Custom resource actions can
+declare a specific operation permission, such as
+`CloudShell.Network/loadBalancers/apply/action`; otherwise they use
+`CloudShell.Resources/resources/actions/execute/action`. `resources.manage`
+remains a compatibility superset for resource actions.
 
 Role permissions and group scopes can be replaced in configuration:
 

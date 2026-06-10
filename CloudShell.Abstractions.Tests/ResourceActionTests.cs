@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 
@@ -95,6 +96,46 @@ public sealed class ResourceActionTests
         Assert.Equal(ResourceActionDisplayStyle.Inline, ResourceAction.Pause.EffectivePresentation.DisplayStyle);
         Assert.Equal(ResourceActionDisplayStyle.Overflow, ResourceAction.Restart.EffectivePresentation.DisplayStyle);
         Assert.Equal(ResourceActionIcon.Restart, ResourceAction.Restart.EffectivePresentation.Icon);
+    }
+
+    [Fact]
+    public void ResourceActionPermissions_MapStandardActionsToLifecyclePermission()
+    {
+        Assert.Equal(
+            CloudShellPermissions.Resources.Actions.Lifecycle,
+            ResourceActionPermissions.GetRequiredPermission(ResourceAction.Run));
+        Assert.Equal(
+            CloudShellPermissions.Resources.Actions.Lifecycle,
+            ResourceActionPermissions.GetRequiredPermission(ResourceAction.Stop));
+        Assert.Equal(
+            CloudShellPermissions.Resources.Actions.Lifecycle,
+            ResourceActionPermissions.GetRequiredPermission(ResourceAction.Pause));
+        Assert.Equal(
+            CloudShellPermissions.Resources.Actions.Lifecycle,
+            ResourceActionPermissions.GetRequiredPermission(ResourceAction.Restart));
+    }
+
+    [Fact]
+    public void ResourceActionPermissions_MapCustomActionsToGenericExecutePermission()
+    {
+        var action = new ResourceAction("applyLoadBalancerConfiguration", "Apply");
+
+        Assert.Equal(
+            CloudShellPermissions.Resources.Actions.Execute,
+            ResourceActionPermissions.GetRequiredPermission(action));
+    }
+
+    [Fact]
+    public void ResourceActionPermissions_UseCustomActionPermissionWhenDeclared()
+    {
+        var action = new ResourceAction(
+            "applyLoadBalancerConfiguration",
+            "Apply",
+            RequiredPermission: "CloudShell.Network/loadBalancers/apply/action");
+
+        Assert.Equal(
+            "CloudShell.Network/loadBalancers/apply/action",
+            ResourceActionPermissions.GetRequiredPermission(action));
     }
 
     private static Resource CreateResource(IReadOnlyList<ResourceAction>? actions = null) =>

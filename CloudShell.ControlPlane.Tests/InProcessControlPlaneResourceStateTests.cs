@@ -49,6 +49,45 @@ public sealed class InProcessControlPlaneResourceStateTests
             action => Assert.False(string.IsNullOrWhiteSpace(action.Reason)));
     }
 
+    [Fact]
+    public async Task GetResourceOperationCapabilities_UsesActionSpecificPermissions()
+    {
+        var resource = CreateResource(
+            "target",
+            ResourceState.Running,
+            actions:
+            [
+                ResourceAction.Run,
+                ResourceAction.Stop,
+                ResourceAction.Pause,
+                ResourceAction.Restart,
+                new ResourceAction("custom", "Custom")
+            ]);
+        var controlPlane = CreateControlPlane(
+            [resource],
+            authorization: new PermissionAuthorizationService(
+                CloudShellPermissions.Resources.Actions.Lifecycle));
+
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync([resource.Id]);
+
+        var capability = Assert.Single(capabilities).Value;
+        Assert.False(capability.CanManage);
+        Assert.False(capability.CanDelete);
+        Assert.Equal(
+            [
+                ResourceActionIds.Pause,
+                ResourceActionIds.Restart,
+                ResourceActionIds.Stop
+            ],
+            capability.ExecutableActionIds.Order(StringComparer.OrdinalIgnoreCase));
+        Assert.True(capability.CanExecuteAction(ResourceActionIds.Stop));
+        Assert.True(capability.CanExecuteAction(ResourceActionIds.Pause));
+        Assert.False(capability.CanExecuteAction("custom"));
+        Assert.Equal(
+            "The 'CloudShell.Resources/resources/actions/execute/action' or 'resources.manage' permission is required.",
+            capability.GetActionUnavailableReason("custom"));
+    }
+
     [Theory]
     [InlineData(ResourceState.Running, ResourceActionIds.Run)]
     [InlineData(ResourceState.Stopped, ResourceActionIds.Stop)]
@@ -121,8 +160,70 @@ public sealed class InProcessControlPlaneResourceStateTests
             controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Stop)));
 
         Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
-        Assert.Equal("The 'resources.manage' permission is required for resource 'target'.", exception.Message);
+        Assert.Equal(
+            "The 'CloudShell.Resources/resources/lifecycle/action' or 'resources.manage' permission is required for resource 'target'.",
+            exception.Message);
         Assert.Empty(provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_AllowsActionSpecificPermission()
+    {
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            authorization: new PermissionAuthorizationService(
+                CloudShellPermissions.Resources.Actions.Lifecycle));
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand("target", ResourceActionIds.Stop));
+
+        Assert.Equal(["target:stop"], provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_KeepsManagePermissionAsActionSuperset()
+    {
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            authorization: new PermissionAuthorizationService(
+                CloudShellPermissions.Resources.Manage));
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand("target", ResourceActionIds.Stop));
+
+        Assert.Equal(["target:stop"], provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_UsesCustomActionPermissionWhenDeclared()
+    {
+        const string actionId = "apply";
+        const string permission = "CloudShell.Network/loadBalancers/apply/action";
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource(
+                    "target",
+                    ResourceState.Running,
+                    actions:
+                    [
+                        new ResourceAction(
+                            actionId,
+                            "Apply",
+                            RequiredPermission: permission)
+                    ])
+            ],
+            provider,
+            authorization: new PermissionAuthorizationService(permission));
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand("target", actionId));
+
+        Assert.Equal(["target:apply"], provider.ExecutedActions);
     }
 
     [Theory]
@@ -674,7 +775,8 @@ public sealed class InProcessControlPlaneResourceStateTests
     private static Resource CreateResource(
         string id,
         ResourceState state,
-        IReadOnlyList<string>? dependsOn = null) =>
+        IReadOnlyList<string>? dependsOn = null,
+        IReadOnlyList<ResourceAction>? actions = null) =>
         new(
             id,
             id,
@@ -686,7 +788,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             "1.0",
             DateTimeOffset.UtcNow,
             dependsOn ?? [],
-            Actions:
+            Actions: actions ??
             [
                 ResourceAction.Run,
                 ResourceAction.Stop,
@@ -1064,6 +1166,20 @@ public sealed class InProcessControlPlaneResourceStateTests
         public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => false;
 
         public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) => false;
+    }
+
+    private sealed class PermissionAuthorizationService(params string[] permissions) : ICloudShellAuthorizationService
+    {
+        private readonly HashSet<string> permissions = new(permissions, StringComparer.OrdinalIgnoreCase);
+
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => permissions.Contains(permission);
+
+        public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => HasPermission(permission);
+
+        public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) =>
+            HasPermission(permission);
     }
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
