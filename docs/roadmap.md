@@ -36,15 +36,23 @@ Docker host projection, Secrets Vault resources, app-owned container ingress,
 and explicit container-app replica counts. The remaining roadmap turns those
 slices into coherent security, host, networking, and deployment foundations.
 
-### 1. Identity and Permissions
+### 1. Resource Identity and Permissions
 
-Goal: define the platform identity and authorization foundation first.
+Goal: define resource identity and authorization first, then use that slice as
+the foundation for broader platform identity.
 
-Start with the broad identity-and-permissions proposal, using the resource
-identity proposal as the first concrete resource-level slice. The initial work
-should define identities, permission assignments, resource-scoped permission
-names, workload identity lifecycle, provider and orchestrator identities, token
-claim mapping, and action authorization diagnostics.
+Start with the resource identity and permissions proposal. The initial work
+should define the resource identity-provider contract, default provider
+selection, resource identity bindings, resource-scoped permission names,
+permission assignments, workload identity lifecycle, token claim mapping, and
+action authorization diagnostics.
+
+For development, CloudShell should host a separate reference identity server
+instance that speaks standard OIDC and OAuth 2.0. That instance is development
+infrastructure, not the CloudShell identity domain model. The same contracts
+must work with Microsoft Entra ID (Azure AD) and allow teams to replace the
+development server with Keycloak, Auth0, Okta, or another standards-compliant
+provider later.
 
 This phase should also establish the audit hooks required to explain allow and
 deny decisions. Full policy engines, wildcard permissions, and advanced
@@ -59,7 +67,30 @@ References:
 - [Authentication and authorization](authentication-and-authorization.md)
 - [Platform Foundations Proposal](proposals/platform-foundations.md)
 
-### 2. Configuration and Secrets Access
+### 2. Host Abstractions
+
+Goal: jump next to the shared host resolver and runtime contract after the
+resource identity slice is stable.
+
+Host abstraction work remains the next major implementation chain. Load
+balancers, app ingress, remote Docker hosts, and future runtime-managed
+resources all need the same answer to "which host should materialize this?"
+and "how does provider-owned runtime state get created, probed, stopped, and
+cleaned up?"
+
+The first slice should add host descriptors, compatibility adapters for the
+existing container-engine contracts, a shared explicit/default host resolver,
+and diagnostics for missing or unsuitable hosts. Provider-owned runtime
+containers should come after the resolver is in place.
+
+References:
+
+- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
+- [Remote Docker Hosts Proposal](proposals/remote-docker-hosts.md)
+- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
+- [Container apps](resources/container-apps.md)
+
+### 3. Configuration and Secrets Access
 
 Goal: align secret consumption and in-process configuration with the identity
 foundation.
@@ -76,7 +107,7 @@ References:
 - [Resource templates](resource-templates.md)
 - [Programmatic resources](programmatic-resources.md)
 
-### 3. Traceability and Audit
+### 4. Traceability and Audit
 
 Goal: make resource changes, deployment triggers, authorization decisions, and
 reconciliation outcomes explainable over time.
@@ -91,28 +122,6 @@ References:
 - [Platform Foundations Proposal](proposals/platform-foundations.md)
 - [Identity and Permissions Proposal](proposals/identity-and-permissions.md)
 - [Container apps](resources/container-apps.md#logs-and-events)
-
-### 4. Container Host Abstraction
-
-Goal: establish the shared host resolver and runtime contract before adding
-more provider-owned infrastructure.
-
-This unblocks multiple in-progress proposals. Load balancers, app ingress,
-remote Docker hosts, and future runtime-managed resources all need the same
-answer to "which host should materialize this?" and "how does provider-owned
-runtime state get created, probed, stopped, and cleaned up?"
-
-The first slice should add host descriptors, compatibility adapters for the
-existing container-engine contracts, a shared explicit/default host resolver,
-and diagnostics for missing or unsuitable hosts. Provider-owned runtime
-containers should come after the resolver is in place.
-
-References:
-
-- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
-- [Remote Docker Hosts Proposal](proposals/remote-docker-hosts.md)
-- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
-- [Container apps](resources/container-apps.md)
 
 ### 5. Remote Docker Host Completion
 

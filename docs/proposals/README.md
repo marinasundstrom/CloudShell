@@ -13,10 +13,10 @@ skills also require this synchronization for feature and stabilization work.
 
 Work proposal areas in the current product order:
 
-1. Identity and permissions
-2. Configuration and secrets access
-3. Traceability and audit
-4. Container host abstraction
+1. Resource identity and permissions
+2. Host abstractions
+3. Configuration and secrets access
+4. Traceability and audit
 5. Remote Docker host completion
 6. Provider-owned runtime lifecycle
 7. Network and routing hardening

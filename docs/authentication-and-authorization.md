@@ -28,6 +28,9 @@ Implemented today:
 
 Direction:
 
+- Resource identity and permissions should work with Microsoft Entra ID
+  (Azure AD) through standard OIDC/OAuth validation while also supporting a
+  separate development identity server instance for local testing.
 - Protected API resource metadata for services that expose their own direct
   APIs.
 - Optional provider-specific provisioning against systems such as Microsoft

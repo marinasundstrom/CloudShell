@@ -285,7 +285,8 @@ CloudShell should use OpenID Connect and OAuth 2.0 as the primary authentication
 
 The platform should remain identity-provider agnostic.
 
-Any standards-compliant identity provider should be usable.
+Microsoft Entra ID (Azure AD) is a required external provider target. Other
+standards-compliant identity providers should remain usable.
 
 Examples:
 
@@ -297,7 +298,8 @@ Examples:
 
 ## IdentityServer Development Strategy
 
-During development, CloudShell should use IdentityServer as the reference identity provider.
+During development, CloudShell should host a separate IdentityServer-compatible
+reference identity provider.
 
 IdentityServer provides:
 
@@ -308,11 +310,16 @@ IdentityServer provides:
 * workload authentication
 * development-time testing
 
-IdentityServer is not part of the CloudShell domain model.
+The development identity server is not part of the CloudShell domain model.
 
 It is a protocol implementation used during development and testing.
 
-CloudShell should interact with IdentityServer through standard OIDC and OAuth flows so that alternative identity providers can be substituted later without changing the platform authorization model.
+CloudShell should interact with the development identity server through
+standard OIDC and OAuth flows. The same contracts must work with Microsoft
+Entra ID (Azure AD), including issuer and audience validation, claim mapping,
+groups or app roles, and client-credentials/service-principal flows for
+automation. Other identity providers can then be substituted without changing
+the platform authorization model.
 
 ## Authentication Flow
 
@@ -410,11 +417,13 @@ Normal users should only see information they are authorized to view.
 6. Integrate OpenID Connect authentication.
 7. Integrate OAuth 2.0 token validation.
 8. Add IdentityServer development integration.
-9. Add authorization evaluation APIs.
-10. Add secret-access authorization.
-11. Add diagnostics and audit events.
-12. Add API and UI projection support.
-13. Add integration tests.
+9. Add Microsoft Entra ID (Azure AD) compatibility for token validation, claim
+   mapping, groups or app roles, and service-principal automation.
+10. Add authorization evaluation APIs.
+11. Add secret-access authorization.
+12. Add diagnostics and audit events.
+13. Add API and UI projection support.
+14. Add integration tests.
 
 ## Remaining Tasks
 
@@ -437,5 +446,4 @@ Normal users should only see information they are authorized to view.
 * How should provider and orchestrator permissions be granted?
 * Which permission evaluation model should be used initially?
 * Should permissions support policy-based evaluation in the future?
-* Which identity provider should be used for local development by default?
 * How should CloudShell expose effective permissions through APIs?

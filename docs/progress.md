@@ -25,8 +25,9 @@ The MVP should prove:
 ## Proposal status snapshot
 
 - Platform foundations proposal: In progress
-- Identity and permissions proposal: In progress; current implementation focus
-- Resource identity and permissions proposal: Proposed resource-level slice
+- Resource identity and permissions proposal: Proposed; current implementation
+  focus
+- Identity and permissions proposal: In progress platform foundation
 - Secrets management proposal: In progress
 - Container host abstraction proposal: Proposed
 - Remote Docker hosts proposal: Partially implemented
@@ -37,18 +38,21 @@ The MVP should prove:
 
 ## Current proposal order
 
-1. Define identity and permissions first: stable identities, permission
-   assignments, resource-scoped permissions, workload identity lifecycle,
-   provider/orchestrator identities, token claim mapping, action authorization,
-   and authorization diagnostics.
-2. Align configuration and secrets access with identity: Resource Manager
+1. Define resource identity and permissions first: resource identity-provider
+   contracts, default provider selection, identity bindings, resource-scoped
+   permissions, workload identity lifecycle, token claim mapping, action
+   authorization, authorization diagnostics, and a separate replaceable
+   development identity server using standard OIDC/OAuth. The same provider
+   contract must work with Microsoft Entra ID (Azure AD), including
+   issuer/audience validation, claim mapping, groups or app roles, and
+   service-principal automation flows.
+2. Jump next to host abstractions: host descriptors, compatibility adapters,
+   default/explicit host resolver, and host-resolution diagnostics.
+3. Align configuration and secrets access with identity: Resource Manager
    assignment UI, in-process secrets client, and secret-read authorization.
-3. Persist and filter resource events, then define audit event schemas for
+4. Persist and filter resource events, then define audit event schemas for
    actions, host/runtime operations, deployments, authorization, and secret
    access.
-4. Implement the shared container host abstraction: host descriptors,
-   compatibility adapters, default/explicit host resolver, and host-resolution
-   diagnostics.
 5. Complete remote Docker hosts as the first concrete user-managed container
    host: UI registration, provider-owned persistence, credentials,
    duplicate-host validation, and remote action coverage.

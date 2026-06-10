@@ -7,7 +7,10 @@ In progress.
 CloudShell already provides a resource model, Resource Manager, orchestration abstractions, runtime-managed resources, deployments, revisions, networking abstractions, and runtime execution capabilities.
 
 Several foundational platform capabilities remain undefined or only partially specified.
-Identity and permissions are the current first foundation focus.
+Resource identity and permissions are the current first foundation focus. The
+initial provider model must support a separate development identity server for
+local work and Microsoft Entra ID (Azure AD) as a required external
+OIDC/OAuth provider target.
 
 This proposal identifies the platform areas that should be treated as foundational and prioritized before introducing more advanced platform features.
 

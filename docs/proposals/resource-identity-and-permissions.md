@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Current implementation focus.
 
 This proposal is the first concrete resource-level slice of the broader
 [Identity and Permissions Proposal](identity-and-permissions.md). It should be
@@ -28,6 +28,10 @@ That makes it difficult to model scenarios such as:
 
 - Introduce a resource identity-provider contract for resources and resource groups.
 - Let Resource Manager select or inherit a default identity provider.
+- Provide a separate development identity server instance that implements
+  standard OIDC and OAuth 2.0 flows for local development and testing.
+- Support Microsoft Entra ID (Azure AD) as a required external provider target
+  through the same OIDC/OAuth contract.
 - Support resource identity bindings for workload, service, and provider-owned
   scenarios.
 - Extend the existing authorization model with resource-level permission concepts.
@@ -36,6 +40,8 @@ That makes it difficult to model scenarios such as:
 
 - Do not define secret storage, vaults, or secret references here.
 - Do not replace the existing user authentication model.
+- Do not make the development identity server part of the CloudShell domain
+  model or a required production dependency.
 - Do not require every provider to implement all identity modes immediately.
 
 ## Proposed Model
@@ -58,6 +64,17 @@ Supported kinds can include:
 - `Managed`
 - `Oidc`
 - `Custom`
+
+For local development, CloudShell should host a separate reference identity
+server instance and register it as an OIDC-compatible provider. That server is
+development infrastructure for issuing tokens, exercising client credentials,
+and validating workload authentication. Production and team environments
+must be able to use Microsoft Entra ID (Azure AD) through the same provider
+contract, including issuer and audience validation, claim mapping, group or app
+role mapping, and client-credentials/service-principal flows for automation.
+Other standards-compliant providers such as Keycloak, Auth0, and Okta should
+remain replaceable options without changing CloudShell's resource identity
+model.
 
 ### Resource identity bindings
 
@@ -100,6 +117,11 @@ resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
 ## Remaining tasks
 
 - Define the resource identity-provider contract and default selection rules.
+- Add the reference development identity server hosting path and OIDC/OAuth
+  configuration.
+- Add Microsoft Entra ID (Azure AD) provider configuration and compatibility
+  tests for tokens, claim mapping, groups or app roles, and service-principal
+  automation.
 - Decide how resource identity should inherit from a resource group or parent
   resource.
 - Add resource-level permission names and policy evaluation rules.

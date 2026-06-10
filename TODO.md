@@ -11,10 +11,10 @@ verification baseline.
 
 Work the current proposals in this order:
 
-1. Identity and permissions
-2. Configuration and secrets access
-3. Traceability and audit
-4. Container host abstraction
+1. Resource identity and permissions
+2. Host abstractions
+3. Configuration and secrets access
+4. Traceability and audit
 5. Remote Docker host completion
 6. Provider-owned runtime lifecycle
 7. Network and routing hardening
@@ -22,23 +22,45 @@ Work the current proposals in this order:
 9. Deployments and revisions
 10. Advanced app and environment concepts
 
-## Now: Identity, Permissions, and Secure Access
+## Now: Resource Identity and Permissions
 
-- Define the platform identity and permission foundation before expanding
-  service-to-service secret access: identity identifiers, permission
-  assignments, permission inheritance boundaries, resource-scoped permissions,
-  token claim mapping, workload identity lifecycle, and provider or
-  orchestrator identities.
-- Define resource action authorization rules so Resource Manager can evaluate
-  permissions before dispatching lifecycle actions, configuration updates,
-  deployment operations, logs, diagnostics, and provider actions.
 - Define the resource identity-provider contract and default selection rules,
   including inheritance from resource groups or parent resources where the
   first model needs it.
+- Add a replaceable development identity-provider path by hosting a separate
+  reference identity server instance that speaks standard OIDC and OAuth 2.0.
+  Treat it as development infrastructure, not as the CloudShell identity domain
+  model, so teams can replace it with another standards-compliant provider.
+- Make the same identity-provider contract work with Microsoft Entra ID
+  (Azure AD), including issuer/audience validation, claim mapping, groups or
+  app roles, and client-credentials/service-principal flows for automation.
+- Define resource identity bindings for workload, service, and provider-owned
+  scenarios, including subject, scopes, and provider-specific claim metadata.
+- Define the resource permission foundation: permission assignments,
+  permission inheritance boundaries, resource-scoped permission names, token
+  claim mapping, workload identity lifecycle, and provider or orchestrator
+  identities.
+- Define resource action authorization rules so Resource Manager can evaluate
+  permissions before dispatching lifecycle actions, configuration updates,
+  deployment operations, logs, diagnostics, and provider actions.
 - Wire the identity contract into one provider-backed workload type so the
   model is validated against a concrete resource path.
 - Add authorization diagnostics and capability reasons for denied or
   unavailable actions without leaking provider-specific internals.
+
+## Next: Host Abstractions
+
+- Implement the container host abstraction design next: add host-oriented
+  descriptors, compatibility adapters for existing container-engine contracts,
+  and a shared default/explicit host resolver.
+- Migrate Docker Compose and default container-app host resolution to the
+  shared resolver while preserving existing `ContainerEngineId` compatibility.
+- Add host-resolution diagnostics and action capability reasons for missing
+  hosts, unavailable hosts, missing credentials, and unsupported runtime
+  capabilities.
+
+## Next: Configuration, Secrets, and Audit
+
 - Add Resource Manager UI support for assigning literal app settings,
   configuration-entry references, and vault-backed secret references on
   resources that advertise the environment-variable capability.
@@ -50,16 +72,8 @@ Work the current proposals in this order:
 - Define audit event schemas for resource actions, host/runtime operations,
   image deployments, authorization decisions, and secret access.
 
-## Next: Host and Runtime Foundation
+## Next: Concrete Host and Runtime Foundation
 
-- Implement the container host abstraction design first: add
-  host-oriented descriptors, compatibility adapters for existing
-  container-engine contracts, and a shared default/explicit host resolver.
-- Migrate Docker Compose and default container-app host resolution to the
-  shared resolver while preserving existing `ContainerEngineId` compatibility.
-- Add host-resolution diagnostics and action capability reasons for missing
-  hosts, unavailable hosts, missing credentials, and unsupported runtime
-  capabilities.
 - Continue the remote Docker hosts proposal on top of the shared host model:
   persist provider-owned UI host configuration, wire supported credential
   transports into Docker client creation, and keep credentials out of projected
