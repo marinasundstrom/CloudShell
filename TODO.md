@@ -38,11 +38,15 @@ verification baseline.
 - Design container app scaling beyond the current explicit replica-count API,
   including whether scaling implies load balancing, routing, service endpoints,
   observed runtime instances, scaling events, and provider state reporting.
-- Harden provider-owned runtime mapping for replicated container apps,
-  including Docker Compose service naming, Kubernetes Service/Deployment
-  mapping, backend-pool behavior, provider-observed replica health, traffic
-  weights, and generated diagnostics, while keeping those runtime artifacts
+- Harden `ResourceOrchestratorService` runtime mapping for replicated
+  container apps, including Kubernetes Service/Deployment mapping,
+  backend-pool behavior, provider-observed replica health, traffic weights,
+  and generated diagnostics, while keeping those runtime artifacts
   implementation details below the container app resource.
+- Complete the `cloudshell.service` resource story for outward exposure,
+  including its relationship to load balancers, service discovery, gateways,
+  and Kubernetes-style service projection without making it the internal
+  replica-management abstraction.
 - Evaluate whether `ResourceDefinition` and `Deployment` should become
   first-class concepts for desired configuration, applied runtime state,
   revision history, and rollouts.

@@ -105,6 +105,14 @@ runtime-specific management shape. The provider configures that implementation
 with the app's current image or revision and desired replica count, then
 creates, updates, inspects, or replaces individual runtime containers as needed.
 
+Inside the orchestration layer, CloudShell represents this management group as
+a `ResourceOrchestratorService` descriptor. The descriptor is built from the
+container app's workload configuration, ports, dependencies, networks, and
+replica count. It is consumed by orchestrator providers and is not projected as
+a separate Resource Manager resource. It is also distinct from the
+`cloudshell.service` resource type, which can still be declared when a stable
+platform endpoint should expose one or more target resources.
+
 Runtime replica containers are not Resource Manager targets. When multiple
 local containers are materialized, they are named by convention from the parent
 container app, for example with a `-replica-{n}` suffix. Docker Compose maps

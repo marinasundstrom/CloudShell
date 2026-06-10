@@ -265,7 +265,7 @@ public sealed partial class DockerComposeResourceOrchestrator(
             return null;
         }
 
-        var services = descriptors
+        var platformServices = descriptors
             .Select(TryReadService)
             .Where(service => service is not null)
             .Select(service => service!)
@@ -276,7 +276,8 @@ public sealed partial class DockerComposeResourceOrchestrator(
             .Select(network => network!)
             .ToArray();
 
-        return RenderComposeDocument(workloads, services, networks);
+        var orchestratorServices = CreateOrchestratorServices(workloads, platformServices);
+        return RenderComposeDocument(orchestratorServices, platformServices, networks);
     }
 
     private static bool IsSameGroup(
@@ -461,19 +462,57 @@ public sealed partial class DockerComposeResourceOrchestrator(
         }
     }
 
-    private string RenderComposeDocument(
+    private static IReadOnlyList<ResourceOrchestratorService> CreateOrchestratorServices(
         IReadOnlyDictionary<string, (ResourceOrchestrationDescriptor Descriptor, ResourceWorkloadConfiguration? Workload)> workloads,
-        IReadOnlyList<ServiceResourceDefinition> serviceDefinitions,
+        IReadOnlyList<ServiceResourceDefinition> platformServices) =>
+        workloads
+            .Select(item =>
+            {
+                var platformServicesForWorkload = platformServices
+                    .Where(service => service.Targets.Any(target =>
+                        string.Equals(target.ResourceId, item.Key, StringComparison.OrdinalIgnoreCase)))
+                    .ToArray();
+                var ports = platformServicesForWorkload
+                    .SelectMany(service => service.Ports)
+                    .Concat(item.Value.Workload!.WorkloadPorts)
+                    .GroupBy(
+                        port => $"{port.Name}:{port.TargetPort}:{port.Port?.ToString() ?? string.Empty}:{port.Protocol}",
+                        StringComparer.OrdinalIgnoreCase)
+                    .Select(group => group.Last())
+                    .ToArray();
+                var networks = platformServicesForWorkload
+                    .SelectMany(service => service.NetworkIds)
+                    .Concat(item.Value.Descriptor.Networks)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var dependencies = item.Value.Descriptor.DependsOn
+                    .Where(workloads.ContainsKey)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+                return new ResourceOrchestratorService(
+                    item.Key,
+                    ToComposeServiceName(item.Key),
+                    item.Value.Workload!,
+                    dependencies,
+                    networks,
+                    ports);
+            })
+            .ToArray();
+
+    private string RenderComposeDocument(
+        IReadOnlyList<ResourceOrchestratorService> orchestratorServices,
+        IReadOnlyList<ServiceResourceDefinition> platformServices,
         IReadOnlyList<NetworkResourceDefinition> networkDefinitions)
     {
         var builder = new StringBuilder();
         builder.AppendLine($"name: {QuoteYaml(string.IsNullOrWhiteSpace(options.ProjectName) ? "cloudshell" : options.ProjectName.Trim())}");
         builder.AppendLine("services:");
 
-        foreach (var (resourceId, item) in workloads.OrderBy(item => ToComposeServiceName(item.Key), StringComparer.OrdinalIgnoreCase))
+        foreach (var service in orchestratorServices.OrderBy(service => service.Name, StringComparer.OrdinalIgnoreCase))
         {
-            var workload = item.Workload!;
-            var serviceName = ToComposeServiceName(resourceId);
+            var workload = service.Workload;
+            var serviceName = service.Name;
             builder.AppendLine($"  {serviceName}:");
 
             if (workload.Kind == ResourceWorkloadKind.ContainerImage)
@@ -499,36 +538,19 @@ public sealed partial class DockerComposeResourceOrchestrator(
                 }
             }
 
-            var dependsOn = item.Descriptor.DependsOn
-                .Where(workloads.ContainsKey)
-                .Select(ToComposeServiceName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            if (dependsOn.Length > 0)
+            if (service.ServiceDependencies.Count > 0)
             {
                 builder.AppendLine("    depends_on:");
-                foreach (var dependency in dependsOn)
+                foreach (var dependency in service.ServiceDependencies.Select(ToComposeServiceName))
                 {
                     builder.AppendLine($"      - {dependency}");
                 }
             }
 
-            var serviceDefinitionsForWorkload = serviceDefinitions
-                .Where(service => service.Targets.Any(target =>
-                    string.Equals(target.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase)))
-                .ToArray();
-            var ports = serviceDefinitionsForWorkload
-                .SelectMany(service => service.Ports)
-                .Concat(workload.WorkloadPorts)
-                .GroupBy(
-                    port => $"{port.Name}:{port.TargetPort}:{port.Port?.ToString() ?? string.Empty}:{port.Protocol}",
-                    StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.Last())
-                .ToArray();
-            if (ports.Length > 0)
+            if (service.ServicePorts.Count > 0)
             {
                 builder.AppendLine("    ports:");
-                foreach (var port in ports)
+                foreach (var port in service.ServicePorts)
                 {
                     builder.AppendLine("      - target: " + port.TargetPort);
                     if (port.Port is not null)
@@ -540,30 +562,25 @@ public sealed partial class DockerComposeResourceOrchestrator(
                 }
             }
 
-            var networks = serviceDefinitionsForWorkload
-                .SelectMany(service => service.NetworkIds)
-                .Concat(item.Descriptor.Networks)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            if (networks.Length > 0)
+            if (service.ServiceNetworks.Count > 0)
             {
                 builder.AppendLine("    networks:");
-                foreach (var network in networks)
+                foreach (var network in service.ServiceNetworks)
                 {
                     builder.AppendLine($"      - {ToComposeServiceName(network)}");
                 }
             }
 
-            if (workload.Replicas > 1)
+            if (service.Replicas > 1)
             {
                 builder.AppendLine("    deploy:");
-                builder.AppendLine($"      replicas: {workload.Replicas}");
+                builder.AppendLine($"      replicas: {service.Replicas}");
             }
         }
 
         var networkIds = networkDefinitions
             .Select(network => network.Id)
-            .Concat(serviceDefinitions.SelectMany(service => service.NetworkIds))
+            .Concat(platformServices.SelectMany(service => service.NetworkIds))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(ToComposeServiceName, StringComparer.OrdinalIgnoreCase)
             .ToArray();

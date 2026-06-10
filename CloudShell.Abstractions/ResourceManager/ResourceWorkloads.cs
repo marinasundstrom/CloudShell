@@ -46,6 +46,25 @@ public sealed record ResourceWorkloadConfiguration(
     public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;
 }
 
+// Orchestrator-owned workload grouping used to materialize one stable resource
+// into one or more runtime instances. This is not a Resource Manager resource.
+public sealed record ResourceOrchestratorService(
+    string ResourceId,
+    string Name,
+    ResourceWorkloadConfiguration Workload,
+    IReadOnlyList<string>? DependsOn = null,
+    IReadOnlyList<string>? Networks = null,
+    IReadOnlyList<ServicePort>? Ports = null)
+{
+    public int Replicas => Math.Max(1, Workload.Replicas);
+
+    public IReadOnlyList<string> ServiceDependencies => DependsOn ?? [];
+
+    public IReadOnlyList<string> ServiceNetworks => Networks ?? [];
+
+    public IReadOnlyList<ServicePort> ServicePorts => Ports ?? Workload.WorkloadPorts;
+}
+
 public interface ILifetimeBoundResourceBuilder<out TBuilder> : IResourceBuilder
     where TBuilder : IResourceBuilder
 {

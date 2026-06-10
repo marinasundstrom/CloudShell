@@ -195,6 +195,12 @@ The MVP should prove:
   map that state to Docker Compose, Kubernetes, the default local runner, or
   another runtime without exposing those implementation objects as Resource
   Manager targets.
+- Added `ResourceOrchestratorService` as the orchestration-layer service
+  descriptor for a stable workload. Docker Compose now renders Compose services
+  from that descriptor, including replica count, ports, dependencies, and
+  networks, instead of treating workload configuration as the service directly.
+  The existing `cloudshell.service` resource remains a separate platform
+  exposure resource for stable endpoints over one or more targets.
 
 ## Completed recently
 

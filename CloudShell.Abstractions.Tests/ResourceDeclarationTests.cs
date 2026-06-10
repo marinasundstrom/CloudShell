@@ -8,6 +8,7 @@ using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
+using CloudShell.Providers.DockerCompose;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -2655,6 +2656,95 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal(ContainerRegistryDefaults.Default, resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
         Assert.Equal(ContainerRegistryDefaults.Default, workload?.Registry);
+    }
+
+    [Fact]
+    public void ResourceOrchestratorService_DefaultsToWorkloadPortsAndReplicaCount()
+    {
+        var workload = new ResourceWorkloadConfiguration(
+            ResourceWorkloadKind.ContainerImage,
+            "API",
+            Image: "example/api:dev",
+            Replicas: 3,
+            Ports:
+            [
+                new ServicePort("http", 8080, 5080, "http")
+            ]);
+        var service = new ResourceOrchestratorService(
+            "application:api",
+            "api",
+            workload);
+
+        Assert.Equal("application:api", service.ResourceId);
+        Assert.Equal("api", service.Name);
+        Assert.Same(workload, service.Workload);
+        Assert.Equal(3, service.Replicas);
+        Assert.Equal(workload.WorkloadPorts, service.ServicePorts);
+        Assert.Empty(service.ServiceDependencies);
+        Assert.Empty(service.ServiceNetworks);
+    }
+
+    [Fact]
+    public void DockerComposeOrchestrator_RendersOrchestratorServiceShape()
+    {
+        var orchestrator = new DockerComposeResourceOrchestrator(
+            new DockerComposeOrchestratorOptions
+            {
+                ProjectName = "sample"
+            },
+            [],
+            []);
+        var render = typeof(DockerComposeResourceOrchestrator).GetMethod(
+            "RenderComposeDocument",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        var service = new ResourceOrchestratorService(
+            "application:api",
+            "api",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "API",
+                Image: "example/api:dev",
+                Registry: "ghcr.io",
+                Replicas: 3,
+                EnvironmentVariables:
+                [
+                    new EnvironmentVariableAssignment("ASPNETCORE_ENVIRONMENT", "Development")
+                ]),
+            DependsOn:
+            [
+                "application:db"
+            ],
+            Networks:
+            [
+                "network:app"
+            ],
+            Ports:
+            [
+                new ServicePort("http", 8080, 5080, "http")
+            ]);
+
+        Assert.NotNull(render);
+        var yaml = Assert.IsType<string>(render.Invoke(
+            orchestrator,
+            [
+                new[] { service },
+                Array.Empty<ServiceResourceDefinition>(),
+                new[] { new NetworkResourceDefinition("network:app", "App Network") }
+            ]));
+
+        Assert.Contains("name: \"sample\"", yaml);
+        Assert.Contains("  api:", yaml);
+        Assert.Contains("    image: \"ghcr.io/example/api:dev\"", yaml);
+        Assert.Contains("    depends_on:", yaml);
+        Assert.Contains("      - db", yaml);
+        Assert.Contains("    ports:", yaml);
+        Assert.Contains("      - target: 8080", yaml);
+        Assert.Contains("        published: 5080", yaml);
+        Assert.Contains("        protocol: \"http\"", yaml);
+        Assert.Contains("    networks:", yaml);
+        Assert.Contains("      - app", yaml);
+        Assert.Contains("    deploy:", yaml);
+        Assert.Contains("      replicas: 3", yaml);
     }
 
     [Theory]

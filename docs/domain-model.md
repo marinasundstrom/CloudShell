@@ -107,6 +107,24 @@ projected on the container app resource and changes when the deployable image
 is updated. Runtime container instances/replicas are implementations of a
 revision; they are not themselves the revision identity.
 
+Orchestrators materialize a container app through a provider-owned workload
+service shape. In CloudShell's orchestration contracts this is represented by
+`ResourceOrchestratorService`: a runtime service descriptor derived from the
+stable resource id, workload configuration, desired replica count, ports,
+networks, and dependencies. It is not a projected Resource Manager resource.
+It groups the runtime implementation artifacts for one stable workload, not
+multiple CloudShell resources. Docker Compose maps it to a Compose service,
+Kubernetes-oriented providers can map it to Service/Deployment-style objects,
+and the default local runner uses the container app identity as the implicit
+service identity for convention named replica containers.
+
+This is separate from the `cloudshell.service` resource type. A
+`cloudshell.service` resource is a user-facing platform exposure resource: it
+can provide a stable endpoint over one or more target resources and describe
+ports, networks, and exposure scope. It is useful for Kubernetes-style service
+exposure, gateways, and service discovery, but it is not the internal
+orchestrator service used to maintain a container app's replicas.
+
 `Attributes` are not a second provider configuration schema. They are projected
 facts useful for inspection, filtering, diagnostics, and orchestration hints,
 such as container image, workload kind, endpoint count, service port count, or
