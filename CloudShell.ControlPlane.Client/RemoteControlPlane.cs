@@ -609,7 +609,8 @@ file sealed record ResourceActionResponse(
     string? Href);
 
 file sealed record ResourceIdentityBindingResponse(
-    string ProviderId,
+    ResourceIdentityBindingKind Kind,
+    string? ProviderId,
     string? Subject,
     IReadOnlyList<string>? Scopes,
     IReadOnlyDictionary<string, string>? Claims);
@@ -798,7 +799,8 @@ file static class RemoteControlPlaneMapper
             response.ProviderId,
             response.Subject,
             response.Scopes,
-            response.Claims);
+            response.Claims,
+            response.Kind);
 
     private static IReadOnlyCollection<ResourceActionResponse> GetResourceActionResponses(
         this ResourceResponse response) =>

@@ -57,7 +57,7 @@ public sealed record ResourceIdentityProviderDefinition(
     string Id,
     string Name,
     ResourceIdentityProviderKind Kind,
-    IReadOnlyDictionary<string, string> Settings);
+    IReadOnlyDictionary<string, string>? Settings = null);
 ```
 
 Supported kinds can include:
@@ -78,39 +78,55 @@ Other standards-compliant providers such as Keycloak, Auth0, and Okta should
 remain replaceable options without changing CloudShell's resource identity
 model.
 
+Programmatic resource declarations should be able to express identity intent as
+part of normal resource authoring. A resource may bind to a concrete provider
+identity, or it may declare that it will have an identity even when the concrete
+provider, subject, scopes, or claims are supplied later by deployment policy or
+environment configuration.
+
 When CloudShell authentication is disabled for isolated local development,
-resource identity declarations should still be accepted and projected. Runtime
+resource identity declarations may still be accepted and projected. Runtime
 authorization is bypassed in that mode, but the declared identity shape remains
 valuable because applications, providers, templates, and Resource Manager can
 exercise the same identity metadata they will use later with a real provider.
 
-Local development should support a mock or development identity provider. That
-provider can issue deterministic subjects, scopes, and claims or simply project
-the declared binding without acquiring tokens. This lets a team start an app
-locally, verify the intended identity contract, and gradually wire the same
-resource to Microsoft Entra ID or another provider before publishing.
+Local development can support a mock or development identity provider. That
+provider could issue deterministic subjects, scopes, and claims or simply
+project the declared binding without acquiring tokens. This lets a team start
+an app locally, verify the intended identity contract, and gradually wire the
+same resource to Microsoft Entra ID or another provider before publishing.
 
 ### Resource identity bindings
 
 Resources should be able to declare which identity provider they rely on:
 
 ```csharp
+public enum ResourceIdentityBindingKind
+{
+    Provider,
+    Required
+}
+
 public sealed record ResourceIdentityBinding(
-    string ProviderId,
+    string? ProviderId,
     string? Subject = null,
-    IReadOnlyList<string> Scopes = null,
-    IReadOnlyDictionary<string, string> Claims = null);
+    IReadOnlyList<string>? Scopes = null,
+    IReadOnlyDictionary<string, string>? Claims = null,
+    ResourceIdentityBindingKind Kind = ResourceIdentityBindingKind.Provider);
 ```
 
 This gives providers a stable contract for identity selection, workload identity,
-scopes, and provider-specific metadata.
+scopes, and provider-specific metadata. `Provider` means the binding names a
+resolved identity provider. `Required` means the resource declares identity
+intent but expects provider-specific details to be resolved later.
 
 The first projection slice adds `ResourceIdentityProviderDefinition` and
 `ResourceIdentityBinding` public contracts. A resource can project an optional
-identity binding with provider ID, subject, scopes, and non-secret claim
-metadata. The Control Plane API and remote client map that binding through
-`ResourceResponse.identity`. Default provider selection, inheritance, and
-provider-backed token behavior remain separate implementation work.
+identity binding with kind, provider ID when resolved, subject, scopes, and
+non-secret claim metadata. The Control Plane API and remote client map that
+binding through `ResourceResponse.identity`. Default provider selection,
+inheritance, and provider-backed token behavior remain separate implementation
+work.
 
 ### Resource permissions
 
@@ -136,6 +152,15 @@ operation permissions:
 - custom actions without a declared permission ->
   `CloudShell.Resources/resources/actions/execute/action`
 
+Current resource-type and resource-class operation permissions:
+
+| Resource type or class | Action | Permission |
+| --- | --- | --- |
+| Any resource with standard lifecycle actions | `run`, `stop`, `pause`, `restart` | `CloudShell.Resources/resources/lifecycle/action` |
+| Any resource with a custom action and no narrower declared operation | custom action execution | `CloudShell.Resources/resources/actions/execute/action` |
+| `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `CloudShell.Network/networks/reconcileEndpointMappings/action` |
+| `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `CloudShell.Network/loadBalancers/applyConfiguration/action` |
+
 The existing `resources.manage` permission remains a compatibility superset
 while the model moves toward resource operation permissions.
 
@@ -150,12 +175,17 @@ resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
         identity.Scopes.Add("db.read");
         identity.Claims["appRole"] = "Api";
     });
+
+resources.AddContainerApplication("worker", "ghcr.io/example/worker:latest")
+    .RequiresIdentity();
 ```
 
-Programmatic identity declarations should work before the production identity
-provider exists. A local declaration can bind to `identity:dev` or another
-mock provider first, then switch the provider ID and provider-specific scopes
-or claims when the app is wired to Microsoft Entra ID.
+Programmatic identity declarations are not limited to local or unauthenticated
+development. A declaration can bind to a production identity provider, point at
+a mock provider, or state only that the resource requires an identity whose
+provider-specific details are resolved later. The mock-provider path is a
+convenience for local development before wiring the same app to Microsoft Entra
+ID or another production provider.
 
 ## Remaining tasks
 
@@ -172,6 +202,6 @@ or claims when the app is wired to Microsoft Entra ID.
   resource.
 - Add resource-level permission names and policy evaluation rules.
 - Add authoring APIs for resource identity bindings.
-- Add programmatic identity declaration helpers that can target a mock provider
-  first and later switch to Microsoft Entra ID or another production provider.
+- Add programmatic identity declaration helpers for concrete provider bindings,
+  identity-required declarations, and optional mock-provider development flows.
 - Wire the identity contract into at least one provider-backed workload type.

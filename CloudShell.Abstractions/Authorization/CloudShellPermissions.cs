@@ -29,4 +29,15 @@ public static class CloudShellPermissions
             public const string Execute = "CloudShell.Resources/resources/actions/execute/action";
         }
     }
+
+    public static class Network
+    {
+        public static class Actions
+        {
+            public const string ReconcileEndpointMappings =
+                "CloudShell.Network/networks/reconcileEndpointMappings/action";
+            public const string ApplyLoadBalancerConfiguration =
+                "CloudShell.Network/loadBalancers/applyConfiguration/action";
+        }
+    }
 }

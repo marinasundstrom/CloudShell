@@ -144,6 +144,7 @@ public sealed class RemoteControlPlaneContractTests
 
         Assert.NotNull(resource);
         Assert.NotNull(resource.IdentityBinding);
+        Assert.Equal(ResourceIdentityBindingKind.Provider, resource.IdentityBinding.Kind);
         Assert.Equal("identity:dev", resource.IdentityBinding.ProviderId);
         Assert.Equal("contract-lifecycle", resource.IdentityBinding.Subject);
         Assert.Equal(["api://cloudshell-control-plane/.default"], resource.IdentityBinding.IdentityScopes);
@@ -178,6 +179,9 @@ public sealed class RemoteControlPlaneContractTests
         var action = network.GetAction(PlatformResourceProvider.ReconcileEndpointMappingsActionId);
         Assert.NotNull(action);
         Assert.Equal("Reconcile endpoint mappings", action.DisplayName);
+        Assert.Equal(
+            CloudShellPermissions.Network.Actions.ReconcileEndpointMappings,
+            ResourceActionPermissions.GetRequiredPermission(action));
         Assert.True(capabilities["network:contract"].CanExecuteAction(
             PlatformResourceProvider.ReconcileEndpointMappingsActionId));
         Assert.Equal("Reconciled 1 endpoint mapping(s).", result.Message);
@@ -185,6 +189,13 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ResourceChangeKind.ResourceActionExecuted, notification.Kind);
         Assert.Equal("network:contract", notification.ResourceId);
         Assert.Equal(PlatformResourceProvider.ReconcileEndpointMappingsActionId, notification.ActionId);
+
+        var api = await controlPlane.GetResourceAsync(ContractNetworkingResourceProvider.ApiResourceId);
+        Assert.NotNull(api);
+        Assert.NotNull(api.IdentityBinding);
+        Assert.Equal(ResourceIdentityBindingKind.Required, api.IdentityBinding.Kind);
+        Assert.Null(api.IdentityBinding.ProviderId);
+        Assert.Equal(["api.read"], api.IdentityBinding.IdentityScopes);
     }
 
     [Fact]
@@ -202,6 +213,11 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal("traefik", loadBalancer.ResourceAttributes[ResourceAttributeNames.LoadBalancerProvider]);
         Assert.Equal("docker:engine", loadBalancer.ResourceAttributes[ResourceAttributeNames.LoadBalancerHostResourceId]);
         Assert.Contains("docker:engine", loadBalancer.DependsOn);
+        var action = loadBalancer.GetAction(PlatformResourceProvider.ApplyLoadBalancerConfigurationActionId);
+        Assert.NotNull(action);
+        Assert.Equal(
+            CloudShellPermissions.Network.Actions.ApplyLoadBalancerConfiguration,
+            ResourceActionPermissions.GetRequiredPermission(action));
         Assert.Collection(
             loadBalancer.ResourceLoadBalancerRoutes.OrderBy(route => route.Name, StringComparer.OrdinalIgnoreCase),
             route =>
@@ -300,6 +316,9 @@ public sealed class RemoteControlPlaneContractTests
             "/api/control-plane/v1/resources/contract%3Alifecycle/actions/stop",
             stop.GetProperty("href").GetString());
         var identity = resource.GetProperty("identity");
+        Assert.Equal(
+            (int)ResourceIdentityBindingKind.Provider,
+            identity.GetProperty("kind").GetInt32());
         Assert.Equal("identity:dev", identity.GetProperty("providerId").GetString());
         Assert.Equal("contract-lifecycle", identity.GetProperty("subject").GetString());
         Assert.Equal(
@@ -750,6 +769,7 @@ public sealed class RemoteControlPlaneContractTests
                 "1.0",
                 DateTimeOffset.UtcNow,
                 [],
+                Identity: ResourceIdentityBinding.RequireIdentity(["api.read"]),
                 Capabilities: [new(ResourceCapabilityIds.EndpointSource)]),
             new(
                 ProxyResourceId,

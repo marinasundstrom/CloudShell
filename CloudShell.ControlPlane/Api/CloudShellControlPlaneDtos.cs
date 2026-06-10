@@ -85,7 +85,8 @@ public sealed record ResourceActionResponse(
     string Href);
 
 public sealed record ResourceIdentityBindingResponse(
-    string ProviderId,
+    ResourceIdentityBindingKind Kind,
+    string? ProviderId,
     string? Subject,
     IReadOnlyList<string> Scopes,
     IReadOnlyDictionary<string, string> Claims);
@@ -268,6 +269,7 @@ internal static class CloudShellControlPlaneDtoMapper
     public static ResourceIdentityBindingResponse ToResponse(
         this ResourceIdentityBinding identity) =>
         new(
+            identity.Kind,
             identity.ProviderId,
             identity.Subject,
             identity.IdentityScopes,

@@ -59,9 +59,29 @@ public sealed class ResourceActionTests
 
         Assert.NotNull(binding);
         Assert.Same(identity, binding);
+        Assert.Equal(ResourceIdentityBindingKind.Provider, binding.Kind);
+        Assert.True(binding.HasResolvedProvider);
         Assert.Equal("identity:entra", binding.ProviderId);
         Assert.Equal(["api://cloudshell-control-plane/.default"], binding.IdentityScopes);
         Assert.Equal("Api", binding.IdentityClaims["appRole"]);
+    }
+
+    [Fact]
+    public void ResourceIdentityBinding_CanRequireIdentityWithoutProviderBinding()
+    {
+        var identity = ResourceIdentityBinding.RequireIdentity(["db.read"]);
+
+        Assert.Equal(ResourceIdentityBindingKind.Required, identity.Kind);
+        Assert.False(identity.HasResolvedProvider);
+        Assert.Null(identity.ProviderId);
+        Assert.Equal(["db.read"], identity.IdentityScopes);
+        Assert.Empty(identity.IdentityClaims);
+    }
+
+    [Fact]
+    public void ResourceIdentityBinding_RequiresProviderForProviderBinding()
+    {
+        Assert.ThrowsAny<ArgumentException>(() => new ResourceIdentityBinding(null));
     }
 
     [Fact]
@@ -163,10 +183,10 @@ public sealed class ResourceActionTests
         var action = new ResourceAction(
             "applyLoadBalancerConfiguration",
             "Apply",
-            RequiredPermission: "CloudShell.Network/loadBalancers/apply/action");
+            RequiredPermission: CloudShellPermissions.Network.Actions.ApplyLoadBalancerConfiguration);
 
         Assert.Equal(
-            "CloudShell.Network/loadBalancers/apply/action",
+            CloudShellPermissions.Network.Actions.ApplyLoadBalancerConfiguration,
             ResourceActionPermissions.GetRequiredPermission(action));
     }
 

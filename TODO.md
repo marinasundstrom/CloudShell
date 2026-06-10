@@ -32,25 +32,25 @@ Work the current proposals in this order:
   reference identity server instance that speaks standard OIDC and OAuth 2.0.
   Treat it as development infrastructure, not as the CloudShell identity domain
   model, so teams can replace it with another standards-compliant provider.
-- Add a mock/development identity-provider mode for authentication-disabled
-  local development so resources can declare and project identity bindings
-  before a real provider is wired up.
+- Consider a mock/development identity-provider mode for authentication-disabled
+  local development so declared identity metadata can be exercised before a
+  real provider is wired up.
 - Make the same identity-provider contract work with Microsoft Entra ID
   (Azure AD), including issuer/audience validation, claim mapping, groups or
   app roles, and client-credentials/service-principal flows for automation.
 - Add authoring APIs for resource identity bindings in workload, service, and
   provider-owned scenarios.
-- Add programmatic identity declaration helpers that can start against a mock
-  provider and later switch to Microsoft Entra ID or another production
-  provider before publishing.
+- Add programmatic identity declaration helpers for concrete provider bindings,
+  identity-required declarations, and optional mock-provider development flows.
 - Define the resource permission foundation: permission assignments,
   permission inheritance boundaries, token claim mapping, workload identity
   lifecycle, and provider or orchestrator identities. Standard resource action
   permissions now use Azure-style operation names with `resources.manage` as a
   compatibility superset.
-- Assign specific Azure-style operation permissions to important custom
-  resource actions, such as load-balancer apply and network reconciliation,
-  instead of relying on the generic custom-action execute permission.
+- Continue assigning and documenting specific Azure-style operation permissions
+  per resource type or class. Load-balancer apply and network endpoint
+  reconciliation now use documented network operation permissions instead of
+  the generic custom-action execute permission.
 - Continue resource action authorization beyond lifecycle actions so Resource
   Manager evaluates permissions before configuration updates, deployment
   operations, logs, diagnostics, and provider actions.

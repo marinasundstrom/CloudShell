@@ -344,14 +344,26 @@ Available permissions are:
 - `resources.manage`
 - `CloudShell.Resources/resources/lifecycle/action`
 - `CloudShell.Resources/resources/actions/execute/action`
+- `CloudShell.Network/networks/reconcileEndpointMappings/action`
+- `CloudShell.Network/loadBalancers/applyConfiguration/action`
 
 Resource action permissions use Azure RBAC-style operation names. Standard
 lifecycle actions such as run, stop, pause, and restart map to
 `CloudShell.Resources/resources/lifecycle/action`. Custom resource actions can
 declare a specific operation permission, such as
-`CloudShell.Network/loadBalancers/apply/action`; otherwise they use
+`CloudShell.Network/loadBalancers/applyConfiguration/action`; otherwise they use
 `CloudShell.Resources/resources/actions/execute/action`. `resources.manage`
 remains a compatibility superset for resource actions.
+
+Resource operation permissions should be documented when they are added. The
+current resource-type and resource-class operation catalog is:
+
+| Resource type or class | Action | Permission |
+| --- | --- | --- |
+| Any resource with standard lifecycle actions | `run`, `stop`, `pause`, `restart` | `CloudShell.Resources/resources/lifecycle/action` |
+| Any resource with a custom action and no narrower declared operation | custom action execution | `CloudShell.Resources/resources/actions/execute/action` |
+| `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `CloudShell.Network/networks/reconcileEndpointMappings/action` |
+| `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `CloudShell.Network/loadBalancers/applyConfiguration/action` |
 
 Role permissions and group scopes can be replaced in configuration:
 
@@ -402,10 +414,12 @@ Authorization services then allow all operations and no authentication
 fallback policy is installed. This also makes the Control Plane API
 unauthenticated, so do not use this setting for shared or production hosts.
 
-Resource identity declarations should still be usable when authentication is
-disabled. In that mode CloudShell does not enforce token-based authorization,
-but resources can still project identity bindings for local testing,
-templates, provider wiring, and UI inspection. A mock or development identity
-provider can project deterministic subjects, scopes, and claims before the
-same resource is later wired to Microsoft Entra ID or another production
-provider.
+Programmatic resource identity declarations are part of the resource model, not
+only an unauthenticated development feature. Resources may declare concrete
+identity bindings or state that they require an identity whose provider-specific
+details are resolved later. When authentication is disabled, CloudShell does not
+enforce token-based authorization, but resources can still project identity
+bindings for local testing, templates, provider wiring, and UI inspection. A
+mock or development identity provider can project deterministic subjects,
+scopes, and claims before the same resource is later wired to Microsoft Entra
+ID or another production provider.

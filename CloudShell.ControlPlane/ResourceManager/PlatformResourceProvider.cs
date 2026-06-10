@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager;
@@ -37,12 +38,14 @@ public sealed class PlatformResourceProvider(
     private static readonly ResourceAction ReconcileEndpointMappingsAction = new(
         ReconcileEndpointMappingsActionId,
         "Reconcile endpoint mappings",
-        Description: "Validate and apply endpoint mappings for the network resource.");
+        Description: "Validate and apply endpoint mappings for the network resource.",
+        RequiredPermission: CloudShellPermissions.Network.Actions.ReconcileEndpointMappings);
 
     private static readonly ResourceAction ApplyLoadBalancerConfigurationAction = new(
         ApplyLoadBalancerConfigurationActionId,
         "Apply load balancer configuration",
-        Description: "Validate and materialize load balancer routes for the selected provider.");
+        Description: "Validate and materialize load balancer routes for the selected provider.",
+        RequiredPermission: CloudShellPermissions.Network.Actions.ApplyLoadBalancerConfiguration);
 
     public string Id => ProviderId;
 
