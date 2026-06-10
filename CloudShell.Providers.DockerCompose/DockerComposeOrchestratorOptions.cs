@@ -29,4 +29,8 @@ public sealed class DockerComposeOrchestratorOptions
     public bool GenerateComposeFile { get; set; } = true;
 
     public string GeneratedComposeFilePath { get; set; } = "Data/docker-compose.generated.yaml";
+
+    public bool EnableReplicatedContainerAppIngress { get; set; } = true;
+
+    public string ReplicatedContainerAppIngressImage { get; set; } = "traefik:v3.0";
 }

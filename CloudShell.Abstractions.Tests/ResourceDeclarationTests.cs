@@ -2737,14 +2737,20 @@ public sealed class ResourceDeclarationTests
         Assert.Contains("    image: \"ghcr.io/example/api:dev\"", yaml);
         Assert.Contains("    depends_on:", yaml);
         Assert.Contains("      - db", yaml);
-        Assert.Contains("    ports:", yaml);
-        Assert.Contains("      - target: 8080", yaml);
-        Assert.Contains("        published: 5080", yaml);
-        Assert.Contains("        protocol: \"http\"", yaml);
+        Assert.Contains("    labels:", yaml);
+        Assert.Contains("      - \"traefik.enable=true\"", yaml);
+        Assert.Contains("traefik.http.routers.api-http-8080.rule", yaml);
+        Assert.Contains("traefik.http.services.api-http-8080.loadbalancer.server.port=8080", yaml);
         Assert.Contains("    networks:", yaml);
         Assert.Contains("      - app", yaml);
         Assert.Contains("    deploy:", yaml);
         Assert.Contains("      replicas: 3", yaml);
+        Assert.Contains("  api-ingress:", yaml);
+        Assert.Contains("    image: \"traefik:v3.0\"", yaml);
+        Assert.Contains("      - \"--entrypoints.api-http-5080.address=:5080\"", yaml);
+        Assert.Contains("      - target: 5080", yaml);
+        Assert.Contains("        published: 5080", yaml);
+        Assert.Contains("      - \"/var/run/docker.sock:/var/run/docker.sock:ro\"", yaml);
     }
 
     [Theory]
@@ -2841,6 +2847,39 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("http", port.Name);
         Assert.Equal(8080, port.TargetPort);
         Assert.Equal(5080, port.Port);
+    }
+
+    [Fact]
+    public void ContainerApplicationProvider_CreatesReplicatedContainerAppIngressConfiguration()
+    {
+        var method = typeof(ApplicationResourceProvider).GetMethod(
+            "CreateContainerAppIngressConfiguration",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var service = new ResourceOrchestratorService(
+            "application:api",
+            "cloudshell-application-api",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "API",
+                Image: "example/api:latest",
+                Replicas: 3),
+            Ports:
+            [
+                new ServicePort("http", 80, 5081, "http")
+            ]);
+
+        Assert.NotNull(method);
+        var yaml = Assert.IsType<string>(method.Invoke(
+            null,
+            [
+                service,
+                service.ServicePorts
+            ]));
+
+        Assert.Contains("PathPrefix(`/`)", yaml);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-1:80\"", yaml);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-2:80\"", yaml);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-3:80\"", yaml);
     }
 
     [Fact]

@@ -120,12 +120,34 @@ the same desired count to `deploy.replicas`; future orchestrators should map it
 to their native service and replica abstractions without changing the
 CloudShell API shape.
 
+## Ingress
+
+Container app endpoints are app-owned ingress by default. When a replicated
+container app exposes an HTTP or TCP endpoint, the default Docker runner starts
+provider-owned ingress infrastructure for that app as part of the normal
+run/restart lifecycle. The projected container app endpoint remains the URL or
+address users call; they do not need to create a separate load-balancer
+resource or manually apply routing configuration for the common case.
+
+For the default Docker runner, that ingress is currently implemented as a
+provider-owned Traefik container attached to the same Docker network as the app
+replicas. It owns the host-published app port and balances to the convention
+named replica containers. Single-replica apps keep the direct published-port
+path.
+
+Docker Compose follows the same app-owned model when CloudShell generates the
+Compose file: the application remains one Compose service with
+`deploy.replicas`, and replicated services with published HTTP or TCP ports get
+a generated Traefik sidecar plus labels so traffic is routed to the Compose
+service replicas. This keeps Compose service DNS and replica management as the
+runtime implementation detail instead of exposing individual containers as
+CloudShell resources.
+
 Load balancers and `cloudshell.service` resources should target the stable
-container app or another stable Resource Manager artifact. For the default
-container convention, a port-based load-balancer route to a replicated
-container app can expand to the convention-named replica backends. The replica
-containers themselves still remain runtime artifacts, not separate Resource
-Manager resources.
+container app or another stable Resource Manager artifact when the user wants
+gateway-level control beyond a single app's ingress. The replica containers
+themselves still remain runtime artifacts, not separate Resource Manager
+resources.
 
 ## Image Deployment Procedure
 

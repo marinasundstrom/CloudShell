@@ -43,6 +43,10 @@ verification baseline.
   provider-observed replica health, traffic weights, generated diagnostics, and
   richer dynamic backend-pool behavior while keeping runtime artifacts
   implementation details below the container app resource.
+- Extend container app ingress beyond the default replicated HTTP/TCP path with
+  explicit ingress settings, TLS/certificate binding, host rules, richer
+  health-aware backend selection, and stop/delete lifecycle projection for
+  provider-owned ingress infrastructure.
 - Decide how Docker-discovered container resources should expose grouping
   metadata for runtime containers, including manually assigned groups and
   Docker Compose project/service labels, when those containers are shown as

@@ -210,6 +210,13 @@ The MVP should prove:
   be resolved by provider-owned runtime infrastructure such as Traefik. The
   Traefik provider can optionally start a provider-owned runtime container on
   the selected Docker host when applying load-balancer configuration.
+- Replicated container apps now own app-specific ingress for the default path.
+  The default Docker runner starts a provider-owned Traefik ingress container
+  automatically during app run/restart for replicated HTTP/TCP endpoints, and
+  the Docker Compose generator renders a Traefik sidecar plus labels for
+  replicated services with published HTTP/TCP ports. Explicit
+  `cloudshell.loadBalancer` resources remain the higher-control gateway
+  scenario rather than the normal app endpoint path.
 
 ## Completed recently
 

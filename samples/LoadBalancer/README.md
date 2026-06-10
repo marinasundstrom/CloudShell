@@ -14,8 +14,18 @@ Open `http://127.0.0.1:5011/resources`, start **Web App**, **API Service**,
 and **Postgres Replica Set**, then run **Apply load balancer configuration** on
 **Public Load Balancer**.
 
+For the normal container-app path, **API Service** exposes its own app endpoint
+as soon as it starts. Because it has three replicas, CloudShell starts
+app-owned ingress for `http://localhost:5081` automatically; no public load
+balancer action is required for that endpoint.
+
+```bash
+curl http://localhost:5081/
+```
+
 The HTTP routes are host-based, so `http://localhost/` is not a configured
-route. Use the declared hosts:
+public load-balancer route. Use the declared hosts after applying the public
+load-balancer configuration:
 
 ```bash
 curl --resolve app.local:80:127.0.0.1 http://app.local/

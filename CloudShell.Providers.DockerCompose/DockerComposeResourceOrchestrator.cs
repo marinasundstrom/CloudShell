@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -513,6 +514,10 @@ public sealed partial class DockerComposeResourceOrchestrator(
         {
             var workload = service.Workload;
             var serviceName = service.Name;
+            var usesIngress = ShouldUseComposeIngress(service);
+            var directPorts = service.ServicePorts
+                .Where(port => !usesIngress || !IsComposeIngressPort(port))
+                .ToArray();
             builder.AppendLine($"  {serviceName}:");
 
             if (workload.Kind == ResourceWorkloadKind.ContainerImage)
@@ -538,6 +543,19 @@ public sealed partial class DockerComposeResourceOrchestrator(
                 }
             }
 
+            if (usesIngress)
+            {
+                builder.AppendLine("    labels:");
+                builder.AppendLine("      - \"traefik.enable=true\"");
+                foreach (var port in service.ServicePorts.Where(IsComposeIngressPort))
+                {
+                    foreach (var label in CreateComposeIngressLabels(service, port))
+                    {
+                        builder.AppendLine($"      - {QuoteYaml(label)}");
+                    }
+                }
+            }
+
             if (service.ServiceDependencies.Count > 0)
             {
                 builder.AppendLine("    depends_on:");
@@ -547,10 +565,10 @@ public sealed partial class DockerComposeResourceOrchestrator(
                 }
             }
 
-            if (service.ServicePorts.Count > 0)
+            if (directPorts.Length > 0)
             {
                 builder.AppendLine("    ports:");
-                foreach (var port in service.ServicePorts)
+                foreach (var port in directPorts)
                 {
                     builder.AppendLine("      - target: " + port.TargetPort);
                     if (port.Port is not null)
@@ -578,9 +596,17 @@ public sealed partial class DockerComposeResourceOrchestrator(
             }
         }
 
+        foreach (var service in orchestratorServices
+                     .Where(ShouldUseComposeIngress)
+                     .OrderBy(service => service.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            RenderComposeIngressService(builder, service);
+        }
+
         var networkIds = networkDefinitions
             .Select(network => network.Id)
             .Concat(platformServices.SelectMany(service => service.NetworkIds))
+            .Concat(orchestratorServices.SelectMany(service => service.ServiceNetworks))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(ToComposeServiceName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -594,6 +620,104 @@ public sealed partial class DockerComposeResourceOrchestrator(
         }
 
         return builder.ToString();
+    }
+
+    private void RenderComposeIngressService(
+        StringBuilder builder,
+        ResourceOrchestratorService service)
+    {
+        var ingressPorts = service.ServicePorts
+            .Where(IsComposeIngressPort)
+            .ToArray();
+        var ingressServiceName = $"{service.Name}-ingress";
+
+        builder.AppendLine($"  {ingressServiceName}:");
+        builder.AppendLine($"    image: {QuoteYaml(options.ReplicatedContainerAppIngressImage)}");
+        builder.AppendLine("    command:");
+        builder.AppendLine("      - \"--providers.docker=true\"");
+        builder.AppendLine("      - \"--providers.docker.exposedbydefault=false\"");
+        foreach (var port in ingressPorts)
+        {
+            builder.AppendLine($"      - {QuoteYaml($"--entrypoints.{CreateComposeIngressEntrypoint(service, port)}.address=:{ResolveComposePublishedPort(port).ToString(CultureInfo.InvariantCulture)}")}");
+        }
+
+        builder.AppendLine("    ports:");
+        foreach (var port in ingressPorts)
+        {
+            var publishedPort = ResolveComposePublishedPort(port);
+            builder.AppendLine("      - target: " + publishedPort.ToString(CultureInfo.InvariantCulture));
+            builder.AppendLine("        published: " + publishedPort.ToString(CultureInfo.InvariantCulture));
+            builder.AppendLine("        protocol: \"tcp\"");
+        }
+
+        builder.AppendLine("    volumes:");
+        builder.AppendLine("      - \"/var/run/docker.sock:/var/run/docker.sock:ro\"");
+
+        if (service.ServiceNetworks.Count > 0)
+        {
+            builder.AppendLine("    networks:");
+            foreach (var network in service.ServiceNetworks)
+            {
+                builder.AppendLine($"      - {ToComposeServiceName(network)}");
+            }
+        }
+    }
+
+    private bool ShouldUseComposeIngress(ResourceOrchestratorService service) =>
+        options.EnableReplicatedContainerAppIngress &&
+        service.Replicas > 1 &&
+        service.ServicePorts.Any(IsComposeIngressPort);
+
+    private static bool IsComposeIngressPort(ServicePort port) =>
+        NormalizeProtocol(port.Protocol) is "http" or "tcp";
+
+    private static IEnumerable<string> CreateComposeIngressLabels(
+        ResourceOrchestratorService service,
+        ServicePort port)
+    {
+        var routeId = CreateComposeIngressRouteId(service, port);
+        var entrypoint = CreateComposeIngressEntrypoint(service, port);
+        if (NormalizeProtocol(port.Protocol) == "tcp")
+        {
+            yield return $"traefik.tcp.routers.{routeId}.rule=HostSNI(`*`)";
+            yield return $"traefik.tcp.routers.{routeId}.entrypoints={entrypoint}";
+            yield return $"traefik.tcp.routers.{routeId}.service={routeId}";
+            yield return $"traefik.tcp.services.{routeId}.loadbalancer.server.port={port.TargetPort.ToString(CultureInfo.InvariantCulture)}";
+            yield break;
+        }
+
+        yield return $"traefik.http.routers.{routeId}.rule=PathPrefix(`/`)";
+        yield return $"traefik.http.routers.{routeId}.entrypoints={entrypoint}";
+        yield return $"traefik.http.routers.{routeId}.service={routeId}";
+        yield return $"traefik.http.services.{routeId}.loadbalancer.server.port={port.TargetPort.ToString(CultureInfo.InvariantCulture)}";
+    }
+
+    private static string CreateComposeIngressEntrypoint(
+        ResourceOrchestratorService service,
+        ServicePort port) =>
+        CreateStableIdentifier($"{service.Name}-{port.Name}-{ResolveComposePublishedPort(port).ToString(CultureInfo.InvariantCulture)}");
+
+    private static string CreateComposeIngressRouteId(
+        ResourceOrchestratorService service,
+        ServicePort port) =>
+        CreateStableIdentifier($"{service.Name}-{port.Name}-{port.TargetPort.ToString(CultureInfo.InvariantCulture)}");
+
+    private static int ResolveComposePublishedPort(ServicePort port) =>
+        port.Port ?? port.TargetPort;
+
+    private static string NormalizeProtocol(string? protocol) =>
+        string.IsNullOrWhiteSpace(protocol) ? "tcp" : protocol.Trim().ToLowerInvariant();
+
+    private static string CreateStableIdentifier(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            builder.Append(char.IsLetterOrDigit(character) ? character : '-');
+        }
+
+        var identifier = builder.ToString().Trim('-');
+        return string.IsNullOrWhiteSpace(identifier) ? "cloudshell" : identifier;
     }
 
     private static string CreateRegistryImageReference(string? registry, string image)

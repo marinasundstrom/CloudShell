@@ -278,6 +278,16 @@ public sealed partial class ApplicationResourceProvider(
             cancellationToken);
         var processLog = GetProcessLog(application.Id);
 
+        if (action.Kind is ResourceActionKind.Stop && ShouldUseContainerAppIngress(context.Service))
+        {
+            await StopContainerAppIngressAsync(
+                application,
+                engine,
+                processLog,
+                cancellationToken);
+            return;
+        }
+
         await LoginToContainerRegistryAsync(
             engine,
             GetEffectiveContainerRegistry(application),
@@ -1161,9 +1171,10 @@ public sealed partial class ApplicationResourceProvider(
             startInfo.ArgumentList.Add(network);
         }
 
+        var useIngress = ShouldUseContainerAppIngress(service);
         if (instance.ReplicaOrdinal == 1)
         {
-            foreach (var port in service.ServicePorts)
+            foreach (var port in service.ServicePorts.Where(port => !useIngress || !IsContainerAppIngressPort(port)))
             {
                 var hostPort = ResolveLocalPort(definition.Id, port);
                 startInfo.ArgumentList.Add("-p");
@@ -1236,6 +1247,17 @@ public sealed partial class ApplicationResourceProvider(
             processLog,
             definition.Lifetime,
             logPath);
+
+        if (instance.ReplicaOrdinal == instance.ReplicaCount &&
+            useIngress)
+        {
+            await StartContainerAppIngressAsync(
+                definition,
+                engine,
+                service,
+                processLog,
+                cancellationToken);
+        }
     }
 
     private static bool IsSameResourceGroup(
@@ -1373,6 +1395,15 @@ public sealed partial class ApplicationResourceProvider(
         CancellationToken cancellationToken)
     {
         var service = CreateDefaultContainerOrchestratorService(definition);
+        if (ShouldUseContainerAppIngress(service))
+        {
+            await StopContainerAppIngressAsync(
+                definition,
+                engine,
+                log,
+                cancellationToken);
+        }
+
         foreach (var instance in CreateDefaultContainerServiceInstances(service))
         {
             await StopContainerApplicationInstanceAsync(
@@ -1435,6 +1466,190 @@ public sealed partial class ApplicationResourceProvider(
                 log,
                 cancellationToken);
         }
+    }
+
+    private async Task StartContainerAppIngressAsync(
+        ApplicationResourceDefinition definition,
+        ContainerEngineResourceDefinition engine,
+        ResourceOrchestratorService service,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken)
+    {
+        var ingressPorts = service.ServicePorts
+            .Where(IsContainerAppIngressPort)
+            .ToArray();
+        if (ingressPorts.Length == 0)
+        {
+            return;
+        }
+
+        var ingressName = GetContainerAppIngressName(service);
+        var configurationDirectory = GetContainerAppIngressConfigurationDirectory(definition.Id);
+        Directory.CreateDirectory(configurationDirectory);
+        var configurationPath = Path.Combine(configurationDirectory, "dynamic.yml");
+        await File.WriteAllTextAsync(
+            configurationPath,
+            CreateContainerAppIngressConfiguration(service, ingressPorts),
+            cancellationToken);
+
+        await RunContainerEngineCommandAsync(
+            engine,
+            ["rm", "-f", ingressName],
+            log,
+            cancellationToken);
+
+        var arguments = new List<string>
+        {
+            "run",
+            "-d",
+            "--name",
+            ingressName,
+            "--network",
+            DefaultContainerNetworkName
+        };
+
+        foreach (var port in ingressPorts)
+        {
+            var hostPort = ResolveLocalPort(definition.Id, port);
+            arguments.Add("-p");
+            arguments.Add($"{hostPort.ToString(CultureInfo.InvariantCulture)}:{hostPort.ToString(CultureInfo.InvariantCulture)}/{NormalizeContainerPublishProtocol(port.Protocol)}");
+        }
+
+        arguments.Add("-v");
+        arguments.Add($"{configurationDirectory}:/etc/traefik/dynamic:ro");
+        arguments.Add(options.ReplicatedContainerAppIngressImage);
+        arguments.Add("--providers.file.directory=/etc/traefik/dynamic");
+        arguments.Add("--providers.file.watch=true");
+
+        foreach (var port in ingressPorts)
+        {
+            var entrypoint = CreateContainerAppIngressEntrypoint(port);
+            var hostPort = ResolveLocalPort(definition.Id, port);
+            arguments.Add($"--entrypoints.{entrypoint}.address=:{hostPort.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        await RunContainerEngineCommandAsync(
+            engine,
+            arguments,
+            log,
+            cancellationToken);
+        log.Append(
+            $"Started replicated container app ingress '{ingressName}' for {definition.Name}.",
+            "process",
+            "Information");
+    }
+
+    private Task StopContainerAppIngressAsync(
+        ApplicationResourceDefinition definition,
+        ContainerEngineResourceDefinition engine,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken)
+    {
+        var service = CreateDefaultContainerOrchestratorService(definition);
+        return StopContainerAppIngressAsync(
+            service,
+            engine,
+            log,
+            cancellationToken);
+    }
+
+    private static async Task StopContainerAppIngressAsync(
+        ResourceOrchestratorService service,
+        ContainerEngineResourceDefinition engine,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken)
+    {
+        await RunContainerEngineCommandAsync(
+            engine,
+            ["rm", "-f", GetContainerAppIngressName(service)],
+            log,
+            cancellationToken);
+    }
+
+    private string GetContainerAppIngressConfigurationDirectory(string resourceId)
+    {
+        var root = Path.IsPathRooted(options.IngressConfigurationDirectory)
+            ? options.IngressConfigurationDirectory
+            : Path.GetFullPath(options.IngressConfigurationDirectory, environment.ContentRootPath);
+        var directoryName = SlugPattern()
+            .Replace(resourceId.ToLowerInvariant(), "-")
+            .Trim('-');
+
+        return Path.Combine(root, string.IsNullOrWhiteSpace(directoryName) ? "container-app" : directoryName);
+    }
+
+    private static string CreateContainerAppIngressConfiguration(
+        ResourceOrchestratorService service,
+        IReadOnlyList<ServicePort> ports)
+    {
+        var httpPorts = ports
+            .Where(port => NormalizeProtocol(port.Protocol) == "http")
+            .ToArray();
+        var tcpPorts = ports
+            .Where(port => NormalizeProtocol(port.Protocol) == "tcp")
+            .ToArray();
+        var builder = new StringBuilder();
+
+        if (httpPorts.Length > 0)
+        {
+            builder.AppendLine("http:");
+            builder.AppendLine("  routers:");
+            foreach (var port in httpPorts)
+            {
+                var routeId = CreateContainerAppIngressRouteId(service, port);
+                builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"      entryPoints: [\"{CreateContainerAppIngressEntrypoint(port)}\"]");
+                builder.AppendLine("      rule: \"PathPrefix(`/`)\"");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"      service: \"{routeId}\"");
+            }
+
+            builder.AppendLine("  services:");
+            foreach (var port in httpPorts)
+            {
+                var routeId = CreateContainerAppIngressRouteId(service, port);
+                builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
+                builder.AppendLine("      loadBalancer:");
+                builder.AppendLine("        servers:");
+                foreach (var instance in ResourceOrchestratorServiceInstances.CreateDefaultInstances(service))
+                {
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - url: \"http://{instance.Name}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
+                }
+            }
+        }
+
+        if (tcpPorts.Length > 0)
+        {
+            if (builder.Length > 0)
+            {
+                builder.AppendLine();
+            }
+
+            builder.AppendLine("tcp:");
+            builder.AppendLine("  routers:");
+            foreach (var port in tcpPorts)
+            {
+                var routeId = CreateContainerAppIngressRouteId(service, port);
+                builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"      entryPoints: [\"{CreateContainerAppIngressEntrypoint(port)}\"]");
+                builder.AppendLine("      rule: \"HostSNI(`*`)\"");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"      service: \"{routeId}\"");
+            }
+
+            builder.AppendLine("  services:");
+            foreach (var port in tcpPorts)
+            {
+                var routeId = CreateContainerAppIngressRouteId(service, port);
+                builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
+                builder.AppendLine("      loadBalancer:");
+                builder.AppendLine("        servers:");
+                foreach (var instance in ResourceOrchestratorServiceInstances.CreateDefaultInstances(service))
+                {
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - address: \"{instance.Name}:{port.TargetPort.ToString(CultureInfo.InvariantCulture)}\"");
+                }
+            }
+        }
+
+        return builder.ToString();
     }
 
     private static async Task EnsureContainerNetworkAsync(
@@ -2530,6 +2745,37 @@ public sealed partial class ApplicationResourceProvider(
 
     private static string GetContainerServiceName(string resourceId) =>
         ResourceOrchestratorServiceInstances.CreateDefaultServiceName(resourceId);
+
+    private bool ShouldUseContainerAppIngress(ResourceOrchestratorService service) =>
+        options.EnableReplicatedContainerAppIngress &&
+        service.Replicas > 1 &&
+        service.ServicePorts.Any(IsContainerAppIngressPort);
+
+    private static bool IsContainerAppIngressPort(ServicePort port) =>
+        NormalizeProtocol(port.Protocol) is "http" or "tcp";
+
+    private static string GetContainerAppIngressName(ResourceOrchestratorService service) =>
+        $"{service.Name}-ingress";
+
+    private static string CreateContainerAppIngressEntrypoint(ServicePort port) =>
+        CreateStableIdentifier(string.IsNullOrWhiteSpace(port.Name) ? $"port-{port.TargetPort}" : port.Name);
+
+    private static string CreateContainerAppIngressRouteId(
+        ResourceOrchestratorService service,
+        ServicePort port) =>
+        CreateStableIdentifier($"{service.Name}-{port.Name}-{port.TargetPort.ToString(CultureInfo.InvariantCulture)}");
+
+    private static string CreateStableIdentifier(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            builder.Append(char.IsLetterOrDigit(character) ? character : '-');
+        }
+
+        var identifier = builder.ToString().Trim('-');
+        return string.IsNullOrWhiteSpace(identifier) ? "cloudshell" : identifier;
+    }
 
     private static string GetContainerEngineExecutable(ContainerEngineResourceDefinition engine) =>
         engine.Kind == ContainerEngineKind.Podman ? "podman" : "docker";

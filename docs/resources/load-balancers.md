@@ -1,8 +1,14 @@
 # Load Balancers
 
-Use a load balancer resource when CloudShell should own the stable routing
-contract and a provider should materialize the actual proxy or gateway
+Use a load balancer resource when the user wants gateway-level control over
+stable routing and a provider should materialize the actual proxy or gateway
 configuration. Load balancers project as `cloudshell.loadBalancer` resources.
+
+For the normal single-application case, prefer container app ingress. A
+replicated container app with an HTTP or TCP endpoint owns its exposed app
+endpoint and the orchestrator starts or renders the app-specific ingress
+implementation during the app run/restart flow. No separate load-balancer
+resource or manual apply action is required for that path.
 
 The resource is intentionally provider-neutral. The first provider is Traefik
 in file-provider mode, but the resource model does not require Traefik, Docker,
@@ -23,17 +29,16 @@ A load balancer has:
 
 Routes target resources and their projected endpoints. A route can also specify
 a raw target port as an authoring convenience. Endpoint references remain the
-preferred stable contract for single-instance targets; a port-based route to a
-replicated container app lets the load-balancer provider expand the stable app
-target into replica backends using the selected orchestrator's runtime naming
-convention.
+preferred stable contract for single-app targets because the container app
+endpoint can already represent app-owned ingress over one or more replicas.
+Port-based routes remain useful for advanced provider-owned routing scenarios.
 
 When a provider materializes a container app through Docker Compose,
-Kubernetes, or another runtime, the orchestrator-specific service or backend is
-implementation detail of the container app. It is not a separate CloudShell
-resource target. CloudShell routes should continue to target the stable
-container app or another stable Resource Manager artifact; providers map that
-target to their own service, backend, or endpoint model.
+Kubernetes, or another runtime, the orchestrator-specific service, ingress, or
+backend is implementation detail of the container app. It is not a separate
+CloudShell resource target. CloudShell routes should continue to target the
+stable container app or another stable Resource Manager artifact; providers map
+that target to their own service, backend, or endpoint model.
 
 ```csharp
 var dockerHost = resources.AddDocker("docker:sample-host", "Sample Container Host");

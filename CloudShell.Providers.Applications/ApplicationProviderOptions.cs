@@ -8,6 +8,12 @@ public sealed class ApplicationProviderOptions
 
     public string LogDirectory { get; set; } = "Data/application-logs";
 
+    public string IngressConfigurationDirectory { get; set; } = "Data/application-ingress";
+
+    public bool EnableReplicatedContainerAppIngress { get; set; } = true;
+
+    public string ReplicatedContainerAppIngressImage { get; set; } = "traefik:v3.0";
+
     public int AutoLocalPortStart { get; set; } = 20000;
 
     public int AutoLocalPortEnd { get; set; } = 29999;
