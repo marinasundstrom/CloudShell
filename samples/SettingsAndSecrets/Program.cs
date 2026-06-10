@@ -9,6 +9,15 @@ using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
+var repositoryRootPath = Path.GetFullPath("../..", builder.Environment.ContentRootPath);
+var configurationStoreServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.ConfigurationStoreService",
+    "CloudShell.ConfigurationStoreService.csproj");
+var secretsVaultServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.SecretsVaultService",
+    "CloudShell.SecretsVaultService.csproj");
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -17,7 +26,13 @@ cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
     .AddApplicationProvider()
-    .AddConfigurationProvider();
+    .AddConfigurationProvider(options =>
+    {
+        options.ServiceProjectPath = configurationStoreServiceProjectPath;
+        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+        options.SecretsServiceWorkingDirectory = repositoryRootPath;
+    });
 
 cloudShell.Resources(resources =>
 {

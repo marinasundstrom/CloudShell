@@ -1036,6 +1036,42 @@ h3 {
     grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.5fr) auto;
 }
 
+.resource-environment-row {
+    display: grid;
+    grid-template-columns: minmax(9rem, 1fr) minmax(10rem, .8fr) minmax(12rem, 1.2fr) minmax(10rem, 1fr) minmax(7rem, .7fr) auto;
+    gap: .5rem;
+    align-items: center;
+}
+
+.resource-environment-row fluent-text-field,
+.resource-environment-row select {
+    width: 100%;
+    min-width: 0;
+}
+
+.resource-environment-row select {
+    height: 2rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface);
+    color: var(--cloudshell-text);
+    padding: 0 .55rem;
+}
+
+.resource-environment-row .resource-environment-source {
+    min-width: 9rem;
+}
+
+@media (max-width: 1000px) {
+    .resource-environment-row {
+        grid-template-columns: minmax(0, 1fr);
+        padding: .65rem;
+        border: 1px solid var(--cloudshell-divider);
+        border-radius: 4px;
+        background: var(--cloudshell-surface-muted);
+    }
+}
+
 .configuration-entry-row {
     grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.5fr) auto auto;
 }

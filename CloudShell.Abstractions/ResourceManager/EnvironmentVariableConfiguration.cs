@@ -5,6 +5,18 @@ public interface IEnvironmentVariableConfiguration
     IReadOnlyList<EnvironmentVariableAssignment> EnvironmentVariables { get; }
 }
 
+public interface IResourceEnvironmentVariableConfigurationProvider
+{
+    bool CanConfigureEnvironmentVariables(Resource resource);
+
+    IReadOnlyList<EnvironmentVariableAssignment> GetConfiguredEnvironmentVariables(string resourceId);
+
+    Task<ResourceProcedureResult> UpdateEnvironmentVariablesAsync(
+        ResourceProcedureContext context,
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record EnvironmentVariableAssignment(
     string Name,
     string Value,

@@ -31,6 +31,7 @@ public sealed partial class ApplicationResourceProvider(
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
+    IResourceEnvironmentVariableConfigurationProvider,
     IDisposable
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
@@ -223,6 +224,47 @@ public sealed partial class ApplicationResourceProvider(
     public bool CanUpdateImage(Resource resource) =>
         ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
+
+    public bool CanConfigureEnvironmentVariables(Resource resource) =>
+        ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
+        store.GetApplication(resource.Id) is not null;
+
+    public IReadOnlyList<EnvironmentVariableAssignment> GetConfiguredEnvironmentVariables(string resourceId) =>
+        store.GetApplication(resourceId)?.EnvironmentVariables ?? [];
+
+    public async Task<ResourceProcedureResult> UpdateEnvironmentVariablesAsync(
+        ResourceProcedureContext context,
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables,
+        CancellationToken cancellationToken = default)
+    {
+        var application = store.GetApplication(context.Resource.Id)
+            ?? throw new InvalidOperationException($"Application resource '{context.Resource.Id}' is not configured.");
+        var dependencies = application.DependsOn
+            .Concat(GetEnvironmentVariableReferenceResourceIds(environmentVariables))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var definition = application with
+        {
+            EnvironmentVariables = environmentVariables,
+            DependsOn = dependencies
+        };
+        var restartRequired =
+            IsRunning(application.Id) &&
+            !application.EnvironmentVariables.SequenceEqual(environmentVariables);
+
+        await UpdateApplicationAsync(
+            definition,
+            context.ResourceGroupId,
+            context.Registrations,
+            cancellationToken);
+
+        return restartRequired
+            ? ResourceProcedureResult.CompletedWithRestartRequired(
+                "Environment variables updated.",
+                application.Id,
+                "The resource is running. Restart it now to apply the environment changes.")
+            : ResourceProcedureResult.Completed("Environment variables updated.");
+    }
 
     public async Task<ResourceProcedureResult> UpdateImageAsync(
         ResourceProcedureContext context,
@@ -1196,9 +1238,23 @@ public sealed partial class ApplicationResourceProvider(
             Observability: GetEffectiveObservability(application),
             ResourceClass: GetResourceClass(application),
             Attributes: CreateAttributes(application),
-            Capabilities: endpoints.Count > 0
-                ? [new(ResourceCapabilityIds.EndpointSource)]
-                : []);
+            Capabilities: CreateCapabilities(endpoints));
+    }
+
+    private static IReadOnlyList<ResourceCapability> CreateCapabilities(
+        IReadOnlyList<ResourceEndpoint> endpoints)
+    {
+        var capabilities = new List<ResourceCapability>
+        {
+            new(ResourceCapabilityIds.EnvironmentVariables)
+        };
+
+        if (endpoints.Count > 0)
+        {
+            capabilities.Add(new(ResourceCapabilityIds.EndpointSource));
+        }
+
+        return capabilities;
     }
 
     private static IReadOnlyDictionary<string, string> CreateAttributes(ApplicationResourceDefinition application)
@@ -1607,6 +1663,23 @@ public sealed partial class ApplicationResourceProvider(
             })
             .Where(variable => variable.ConfigurationEntry is null || variable.Secret is null)
             .ToArray();
+
+    private static IEnumerable<string> GetEnvironmentVariableReferenceResourceIds(
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)
+    {
+        foreach (var variable in environmentVariables)
+        {
+            if (!string.IsNullOrWhiteSpace(variable.ConfigurationEntry?.StoreResourceId))
+            {
+                yield return variable.ConfigurationEntry.StoreResourceId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(variable.Secret?.VaultResourceId))
+            {
+                yield return variable.Secret.VaultResourceId;
+            }
+        }
+    }
 
     private static ConfigurationEntryReference? NormalizeConfigurationEntryReference(
         ConfigurationEntryReference? reference) =>

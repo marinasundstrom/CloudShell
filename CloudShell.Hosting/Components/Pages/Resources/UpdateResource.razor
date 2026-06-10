@@ -17,7 +17,7 @@
         ? null
         : ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
-    var tabs = BuildTabs(resourceType);
+    var tabs = BuildTabs(resource, resourceType);
     var selectedTab = tabs.FirstOrDefault(tab => tab.Id == SelectedTabId) ?? tabs.FirstOrDefault();
     var isGeneratedOverview = selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
     var canManageResource = resource is not null &&
@@ -328,7 +328,9 @@
     private string GetContentKey(Resource resource, ResourceTabContribution selectedTab) =>
         $"{resource.Id}:{selectedTab.Id}:{ResourceContentVersion}";
 
-    private static IReadOnlyList<ResourceTabContribution> BuildTabs(ResourceTypeContribution? resourceType)
+    private static IReadOnlyList<ResourceTabContribution> BuildTabs(
+        Resource? resource,
+        ResourceTypeContribution? resourceType)
     {
         var contributedTabs = resourceType?.ResourceTabs ?? [];
         var tabs = new List<ResourceTabContribution>();
@@ -351,6 +353,18 @@
                 "Configuration",
                 0,
                 resourceType.UpdateComponentType,
+                ShowsApplyButton: true));
+        }
+
+        if (resource?.HasCapability(ResourceCapabilityIds.EnvironmentVariables) == true &&
+            !contributedTabs.Any(tab =>
+                string.Equals(tab.Id, "environment", StringComparison.OrdinalIgnoreCase)))
+        {
+            tabs.Add(new ResourceTabContribution(
+                "environment",
+                "Environment",
+                30,
+                typeof(ResourceEnvironmentVariables),
                 ShowsApplyButton: true));
         }
 

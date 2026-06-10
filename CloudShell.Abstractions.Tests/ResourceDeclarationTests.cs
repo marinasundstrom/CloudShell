@@ -1020,6 +1020,93 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ConfiguresEnvironmentVariablesAsResourceCapability()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var configurationProvider = Assert.Single(
+                serviceProvider.GetServices<IResourceEnvironmentVariableConfigurationProvider>());
+            var registrations = new MutableResourceRegistrationStore();
+
+            await provider.SetupApplicationAsync(
+                new ApplicationResourceDefinition(
+                    "application:api",
+                    "API",
+                    "dotnet",
+                    dependsOn: ["postgres:db"],
+                    environmentVariables:
+                    [
+                        new EnvironmentVariableAssignment("ASPNETCORE_ENVIRONMENT", "Development")
+                    ]),
+                resourceGroupId: null,
+                registrations);
+
+            var resource = Assert.Single(provider.GetResources());
+            Assert.True(resource.HasCapability(ResourceCapabilityIds.EnvironmentVariables));
+            Assert.True(configurationProvider.CanConfigureEnvironmentVariables(resource));
+
+            var result = await configurationProvider.UpdateEnvironmentVariablesAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations),
+                [
+                    new EnvironmentVariableAssignment("ASPNETCORE_ENVIRONMENT", "Staging"),
+                    EnvironmentVariableAssignment.FromConfiguration(
+                        "ConnectionStrings__Default",
+                        new ConfigurationEntryReference("configuration:app", "ConnectionStrings:Default")),
+                    EnvironmentVariableAssignment.FromSecret(
+                        "EXTERNAL_API_KEY",
+                        new SecretReference("secrets-vault:app", "ExternalApiKey"))
+                ]);
+
+            var application = provider.GetApplication("application:api");
+            var registration = registrations.GetRegistration("application:api");
+
+            Assert.Equal("Environment variables updated.", result.Message);
+            Assert.Equal(
+                ["postgres:db", "configuration:app", "secrets-vault:app"],
+                application?.DependsOn);
+            Assert.Equal(
+                ["postgres:db", "configuration:app", "secrets-vault:app"],
+                registration?.DependsOn);
+            Assert.Contains(
+                application?.EnvironmentVariables ?? [],
+                variable => variable.Name == "ConnectionStrings__Default" &&
+                    variable.ConfigurationEntry?.StoreResourceId == "configuration:app" &&
+                    variable.ConfigurationEntry.EntryName == "ConnectionStrings:Default");
+            Assert.Contains(
+                application?.EnvironmentVariables ?? [],
+                variable => variable.Name == "EXTERNAL_API_KEY" &&
+                    variable.Secret?.VaultResourceId == "secrets-vault:app" &&
+                    variable.Secret.SecretName == "ExternalApiKey");
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void TypedExecutableBuilder_CanDependOnContainerResource()
     {
         var services = new ServiceCollection();

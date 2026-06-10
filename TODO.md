@@ -9,9 +9,12 @@ verification baseline.
 
 ## Resource Management
 
-- Continue settings and secrets integration by adding Resource Manager UI for
-  assigning literal app settings, configuration-entry references, and
-  vault-backed secret references to application resources.
+- Continue settings and secrets integration by preserving configuration-entry
+  and secret references in resource template export/import tests and behavior.
+- Evaluate splitting the configuration provider registration into
+  `AddConfigurationProvider()` for configuration stores and
+  `AddSecretsProvider()` for Secrets Vault resources and secret resolvers,
+  keeping compatibility for hosts that currently call `AddConfigurationProvider()`.
 - Add a separate secrets client/provider for applications that load secrets
   in-process instead of receiving them through resource-assigned environment
   variables.

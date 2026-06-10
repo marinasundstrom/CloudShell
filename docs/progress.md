@@ -167,6 +167,11 @@ The MVP should prove:
 - Split the provider-owned runtime service names around product boundaries:
   `CloudShell.ConfigurationStoreService` serves configuration-store entries,
   and `CloudShell.SecretsVaultService` serves Secrets Vault secrets.
+- Environment-variable assignment is a resource capability, not an
+  application-only UI feature. Resources that advertise the capability can use
+  the shared Resource Manager environment tab to assign literal values,
+  configuration-entry references, or Secrets Vault references through a
+  provider-owned configuration contract.
 
 ## Completed recently
 
