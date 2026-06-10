@@ -154,6 +154,10 @@ The MVP should prove:
   through host-configuration source resources for development scenarios. These
   sources resolve through the same configuration-entry reference path as
   configuration stores and do not expose the entire host configuration surface.
+- Added the first built-in Secrets Vault slice: `AddSecretsVault(...)`
+  programmatic resources, `vault.Secret(...)` reference helpers, a
+  secrets-provider resolver implementation, multiple vault support, and
+  template export that preserves secret names without exporting secret values.
 
 ## Completed recently
 
@@ -280,6 +284,8 @@ The MVP should prove:
   runtime resolution for non-secret configuration entries.
 - Added programmatic host-configuration source resources that expose selected
   host `IConfiguration` keys through configuration-entry references.
+- Added built-in Secrets Vault programmatic resources and provider-backed
+  secret reference resolution.
 
 ## Active stabilization areas
 

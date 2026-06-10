@@ -66,6 +66,8 @@ instance.
 
 Configuration service templates include non-secret entry values. Secret entries
 are exported as empty placeholders so templates do not leak secrets by default.
+Secrets Vault templates export secret names and empty placeholders only; secret
+material stays provider-owned and must be supplied after import.
 
 ## Provider Contract
 

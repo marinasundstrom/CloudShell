@@ -87,6 +87,29 @@ public static class ConfigurationProviderServiceCollectionExtensions
         return new HostConfigurationSourceResourceBuilder(resource, declared);
     }
 
+    public static ISecretsVaultResourceBuilder AddSecretsVault(
+        this IResourceDeclarationBuilder builder,
+        string id,
+        string? name = null,
+        IReadOnlyList<SecretsVaultSecret>? secrets = null)
+    {
+        var definition = new SecretsVaultDefinition(
+            id,
+            string.IsNullOrWhiteSpace(name) ? id : name,
+            secrets);
+        var declared = new DeclaredSecretsVault(definition);
+        var options = builder.Services.GetOrAddConfigurationProviderOptions();
+
+        options.DeclaredSecretsVaults.Add(declared);
+
+        var resource = builder.Declare(
+            SecretsVaultProvider.ProviderId,
+            id,
+            resourceClass: ResourceClass.SecretsVault);
+
+        return new SecretsVaultResourceBuilder(resource, declared);
+    }
+
     private static ConfigurationProviderOptions GetOrAddConfigurationProviderOptions(
         this IServiceCollection services)
     {
@@ -105,6 +128,182 @@ public static class ConfigurationProviderServiceCollectionExtensions
         services.AddSingleton(options);
         return options;
     }
+}
+
+public interface ISecretsVaultResourceBuilder : IResourceBuilder
+{
+    ISecretsVaultResourceBuilder WithSecrets(IReadOnlyList<SecretsVaultSecret> secrets);
+
+    ISecretsVaultResourceBuilder WithSecret(
+        string name,
+        string value,
+        string? version = null);
+
+    SecretReference Secret(
+        string name,
+        string? version = null);
+
+    new ISecretsVaultResourceBuilder DependsOn(string resourceId);
+
+    new ISecretsVaultResourceBuilder DependsOn(IResourceBuilder resource);
+
+    new ISecretsVaultResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new ISecretsVaultResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
+
+    new ISecretsVaultResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new ISecretsVaultResourceBuilder WithParent(string? parentResourceId);
+
+    new ISecretsVaultResourceBuilder WithParent(IResourceBuilder resource);
+
+    new ISecretsVaultResourceBuilder WithReference(string resourceId);
+
+    new ISecretsVaultResourceBuilder WithReference(IResourceBuilder resource);
+
+    new ISecretsVaultResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+
+    new ISecretsVaultResourceBuilder Persist(bool overwrite = false);
+}
+
+internal sealed class SecretsVaultResourceBuilder(
+    IResourceBuilder inner,
+    DeclaredSecretsVault declared) : ISecretsVaultResourceBuilder
+{
+    public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
+
+    public string ResourceId => inner.ResourceId;
+
+    public ISecretsVaultResourceBuilder WithSecrets(IReadOnlyList<SecretsVaultSecret> secrets)
+    {
+        declared.Definition = declared.Definition with { Secrets = secrets };
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder WithSecret(
+        string name,
+        string value,
+        string? version = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        declared.Definition = declared.Definition with
+        {
+            Secrets = declared.Definition.Secrets
+                .Append(new SecretsVaultSecret(name, value, version))
+                .ToArray()
+        };
+        return this;
+    }
+
+    public SecretReference Secret(
+        string name,
+        string? version = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return new SecretReference(
+            ResourceId,
+            name.Trim(),
+            string.IsNullOrWhiteSpace(version) ? null : version.Trim());
+    }
+
+    public ISecretsVaultResourceBuilder WithResourceGroup(string? resourceGroupId)
+    {
+        inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder WithParent(IResourceBuilder resource)
+    {
+        inner.WithParent(resource);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder DependsOn(string resourceId)
+    {
+        inner.DependsOn(resourceId);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder DependsOn(IResourceBuilder resource)
+    {
+        inner.DependsOn(resource);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    {
+        inner.DependsOn(resourceIds);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources)
+    {
+        inner.DependsOn(resources);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder WithReference(string resourceId)
+    {
+        inner.WithReference(resourceId);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder WithReference(IResourceBuilder resource)
+    {
+        inner.WithReference(resource);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder WithReferences(IEnumerable<string> resourceIds)
+    {
+        inner.WithReferences(resourceIds);
+        return this;
+    }
+
+    public ISecretsVaultResourceBuilder Persist(bool overwrite = false)
+    {
+        inner.Persist(overwrite);
+        return this;
+    }
+
+    IResourceBuilder IResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
+        WithResourceGroup(resourceGroupId);
+
+    IResourceBuilder IResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    IResourceBuilder IResourceBuilder.WithParent(IResourceBuilder resource) =>
+        WithParent(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(string resourceId) =>
+        DependsOn(resourceId);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IResourceBuilder resource) =>
+        DependsOn(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+        DependsOn(resourceIds);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<IResourceBuilder> resources) =>
+        DependsOn(resources);
+
+    IResourceBuilder IResourceBuilder.WithReference(string resourceId) =>
+        WithReference(resourceId);
+
+    IResourceBuilder IResourceBuilder.WithReference(IResourceBuilder resource) =>
+        WithReference(resource);
+
+    IResourceBuilder IResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
+        WithReferences(resourceIds);
+
+    IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
+        Persist(overwrite);
 }
 
 public interface IHostConfigurationSourceResourceBuilder : IResourceBuilder

@@ -32,6 +32,8 @@ public sealed class ConfigurationProviderOptions
     internal IList<DeclaredConfigurationStore> DeclaredStores { get; } = [];
 
     internal IList<DeclaredHostConfigurationSource> DeclaredHostConfigurationSources { get; } = [];
+
+    internal IList<DeclaredSecretsVault> DeclaredSecretsVaults { get; } = [];
 }
 
 internal sealed class DeclaredConfigurationStore(ConfigurationStoreDefinition definition)
@@ -46,4 +48,9 @@ internal sealed class DeclaredConfigurationStore(ConfigurationStoreDefinition de
 internal sealed class DeclaredHostConfigurationSource(HostConfigurationSourceDefinition definition)
 {
     public HostConfigurationSourceDefinition Definition { get; set; } = definition;
+}
+
+internal sealed class DeclaredSecretsVault(SecretsVaultDefinition definition)
+{
+    public SecretsVaultDefinition Definition { get; set; } = definition;
 }

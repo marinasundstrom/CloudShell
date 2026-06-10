@@ -30,10 +30,13 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
         builder.Services.AddSingleton<IConfigurationEntryReferenceResolver>(
             serviceProvider => serviceProvider.GetRequiredService<HostConfigurationSourceProvider>());
+        builder.Services.AddSingleton<ISecretReferenceResolver>(
+            serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProvider>());
 
         builder
             .AddResourceProvider<ConfigurationResourceProvider>()
             .AddResourceProvider<HostConfigurationSourceProvider>()
+            .AddResourceProvider<SecretsVaultProvider>()
             .AddLogProvider<ConfigurationResourceProvider>()
             .AddResourceType<Pages.RegisterConfigurationStore>(
                 "configuration.store",

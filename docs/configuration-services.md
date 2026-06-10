@@ -7,8 +7,8 @@ the runtime process that serves its HTTP API; it does not register that process
 as a separate application resource.
 
 Use separate configuration services when different projects or resource groups
-need different settings or secrets. For example, a frontend/API group can depend
-on one configuration service while a worker group depends on another.
+need different non-secret settings. Secrets should be modeled as
+`secrets.vault` references so settings and credentials remain separate.
 
 ## Resource Model
 
@@ -36,7 +36,8 @@ Each store stores key-value entries:
 
 - `Name`: the setting name.
 - `Value`: the stored value.
-- `Secret`: marks the entry as sensitive in UI and template export behavior.
+- `Secret`: legacy sensitive-entry marker. New authoring should prefer
+  Secrets Vault references for credentials and other secret values.
 
 Provider-owned state is persisted in:
 

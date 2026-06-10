@@ -594,6 +594,119 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedSecretsVaultBuilder_DeclaresResourceAndCreatesSecretReferences()
+    {
+        var services = new ServiceCollection();
+        SecretReference? reference = null;
+
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                var vault = resources
+                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .WithSecret("db-password", "local-dev-password");
+
+                reference = vault.Secret("db-password");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "secrets-vault:app");
+        var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        var resource = Assert.Single(provider.GetResources());
+
+        Assert.Equal(SecretsVaultProvider.ProviderId, declaration.ProviderId);
+        Assert.Equal(ResourceClass.SecretsVault, declaration.ResourceClassOverride);
+        Assert.Equal("secrets-vault:app", reference?.VaultResourceId);
+        Assert.Equal("db-password", reference?.SecretName);
+        Assert.Equal("secrets-vault:app", resource.Id);
+        Assert.Equal(SecretsVaultProvider.ResourceType, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.SecretsVault, resource.ResourceClass);
+        Assert.Equal("1", resource.ResourceAttributes["secretsVault.secrets"]);
+    }
+
+    [Fact]
+    public async Task SecretsVaultProvider_ResolvesSecretsFromMultipleVaults()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                resources
+                    .AddSecretsVault("secrets-vault:one", "One")
+                    .WithSecret("token", "one-token");
+                resources
+                    .AddSecretsVault("secrets-vault:two", "Two")
+                    .WithSecret("token", "two-token");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        var context = new ResourceSettingResolutionContext("application:api", "group-1", "run");
+
+        var first = await provider.ResolveSecretAsync(
+            new SecretReference("secrets-vault:one", "token"),
+            context);
+        var second = await provider.ResolveSecretAsync(
+            new SecretReference("secrets-vault:two", "token"),
+            context);
+        var missing = await provider.ResolveSecretAsync(
+            new SecretReference("secrets-vault:one", "missing"),
+            context);
+
+        Assert.True(first.IsResolved);
+        Assert.Equal("one-token", first.Value);
+        Assert.True(second.IsResolved);
+        Assert.Equal("two-token", second.Value);
+        Assert.False(missing.IsResolved);
+        Assert.Contains("was not found", missing.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task SecretsVaultProvider_ExportsSecretNamesWithoutValues()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                resources
+                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .WithSecret("db-password", "local-dev-password");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        var resource = Assert.Single(provider.GetResources());
+
+        var template = await provider.ExportAsync(
+            resource,
+            new ResourceTemplateExportContext(
+                new ResourceRegistration(
+                    resource.Id,
+                    provider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    []),
+                null));
+
+        var secret = Assert.Single(template.Configuration.GetProperty("secrets").EnumerateArray());
+
+        Assert.Equal(SecretsVaultProvider.ProviderId, template.ProviderId);
+        Assert.Equal(SecretsVaultProvider.ResourceType, template.ResourceType);
+        Assert.Equal("db-password", secret.GetProperty("name").GetString());
+        Assert.Equal(string.Empty, secret.GetProperty("value").GetString());
+    }
+
+    [Fact]
     public async Task ConfigurationProvider_ExposesStoreLogs()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -805,6 +918,8 @@ public sealed class ResourceDeclarationTests
             {
                 var settings = resources
                     .AddConfigurationStore("configuration:app", "App Settings");
+                var secrets = resources
+                    .AddSecretsVault("secrets-vault:app", "App Secrets");
 
                 resources
                     .AddExecutableApplication(
@@ -814,7 +929,7 @@ public sealed class ResourceDeclarationTests
                     .WithAppSetting("Database:Host", settings.Entry("Database:Host"))
                     .WithEnvironment(
                         "DB_PASSWORD",
-                        new SecretReference("vault:local", "db-password"));
+                        secrets.Secret("db-password"));
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -834,14 +949,14 @@ public sealed class ResourceDeclarationTests
                 .GetProperty("Definition")!
                 .GetValue(declaredApplication));
 
-        Assert.Equal(["configuration:app", "vault:local"], declaration.DependsOn);
+        Assert.Equal(["configuration:app", "secrets-vault:app"], declaration.DependsOn);
         var appSetting = Assert.Single(application.AppSettings);
         Assert.Equal("Database:Host", appSetting.Name);
         Assert.Equal("configuration:app", appSetting.ConfigurationEntry?.StoreResourceId);
         Assert.Equal("Database:Host", appSetting.ConfigurationEntry?.EntryName);
         var environment = Assert.Single(application.EnvironmentVariables);
         Assert.Equal("DB_PASSWORD", environment.Name);
-        Assert.Equal("vault:local", environment.Secret?.VaultResourceId);
+        Assert.Equal("secrets-vault:app", environment.Secret?.VaultResourceId);
         Assert.Equal("db-password", environment.Secret?.SecretName);
     }
 

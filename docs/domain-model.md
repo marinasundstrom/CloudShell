@@ -190,6 +190,7 @@ Examples:
 - `docker.host`
 - `application.executable`
 - `configuration.store`
+- `secrets.vault`
 - `cloudshell.network`
 - `cloudshell.service`
 

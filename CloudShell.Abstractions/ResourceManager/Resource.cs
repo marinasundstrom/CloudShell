@@ -74,7 +74,8 @@ public enum ResourceClass
     Service,
     Network,
     Configuration,
-    Infrastructure
+    Infrastructure,
+    SecretsVault
 }
 
 public static class ResourceAttributeNames
