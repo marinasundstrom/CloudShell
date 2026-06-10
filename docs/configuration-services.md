@@ -6,6 +6,12 @@ entries, endpoint, access token, and resource group assignment. Each store owns
 the runtime process that serves its HTTP API; it does not register that process
 as a separate application resource.
 
+CloudShell also includes a separate Secrets provider that contributes
+`secrets.vault` resources and secret-reference resolution. Hosts can call
+`AddSecretsProvider()` when they only need Secrets Vault resources. Existing
+hosts that call `AddConfigurationProvider()` still get both configuration store
+and Secrets Vault support for compatibility.
+
 Use separate configuration services when different projects or resource groups
 need different non-secret settings. Secrets should be modeled as
 `secrets.vault` references so settings and credentials remain separate.
@@ -82,6 +88,18 @@ ServiceUrlScheme
 ServiceProjectPath
 ServiceWorkingDirectory
 ServiceProcessIdPrefix
+```
+
+Secrets Vault runtime defaults can be configured through either
+`AddSecretsProvider(...)` or the compatibility `AddConfigurationProvider(...)`
+registration:
+
+```text
+SecretsServiceBasePort
+SecretsServiceProjectPath
+SecretsServiceWorkingDirectory
+SecretsServiceProcessIdPrefix
+SecretsVaultDefinitionsPath
 ```
 
 The service process receives the provider-owned store file path and its own

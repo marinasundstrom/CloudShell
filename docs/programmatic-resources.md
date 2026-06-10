@@ -11,6 +11,7 @@ hand.
 var controlPlane = builder
     .AddCloudShell()
     .AddConfigurationProvider()
+    .AddSecretsProvider()
     .AddApplicationProvider()
     .UseDocker();
 
@@ -31,6 +32,7 @@ types. Built-in methods include:
 
 - `AddNetwork(...)` and `AddService(...)` from the core Resource Manager.
 - `AddConfigurationStore(...)` from `CloudShell.Providers.Configuration`.
+- `AddSecretsVault(...)` from `CloudShell.Providers.Configuration`.
 - `AddExecutable(...)`, `AddExecutableApplication(...)`,
   `AddAspNetCoreProject(...)`, and `AddAspNetCoreProjectFromName(...)` from
   `CloudShell.Providers.Applications`. Executable builders configure command

@@ -73,6 +73,7 @@ cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
     .AddConfigurationProvider()
+    .AddSecretsProvider()
     .AddApplicationProvider()
     .UseLocalDevelopmentDefaults();
 
@@ -132,7 +133,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 var controlPlane = builder
     .AddCloudShellControlPlane()
-    .AddConfigurationProvider();
+    .AddConfigurationProvider()
+    .AddSecretsProvider();
 
 controlPlane.Resources(resources =>
 {
@@ -186,7 +188,8 @@ Declarative resources must be configured in the Control Plane host:
 ```csharp
 var controlPlane = builder
     .AddCloudShellControlPlane()
-    .AddConfigurationProvider();
+    .AddConfigurationProvider()
+    .AddSecretsProvider();
 
 controlPlane.Resources(resources =>
 {

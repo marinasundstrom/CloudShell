@@ -175,6 +175,10 @@ The MVP should prove:
 - Application resource templates preserve reference-backed app settings and
   environment variables by carrying configuration-entry references and Secrets
   Vault references without embedding secret values.
+- Secrets Vault registration is available through a separate
+  `AddSecretsProvider()` path, while `AddConfigurationProvider()` keeps
+  compatibility by registering both configuration stores and Secrets Vault
+  support unless the Secrets provider is already registered.
 
 ## Completed recently
 

@@ -11,10 +11,10 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
 {
     public CloudShellExtensionManifest Manifest => new(
         "cloudshell.configuration",
-        "Configuration",
-        "Adds configuration service and Secrets Vault resources for settings and secret references.",
+        "Configuration Store",
+        "Adds configuration store resources for non-secret setting references.",
         "0.1.0",
-        ["resource-type.configuration.store", "resource-type.secrets.vault", "resource-trait.environment-variables"],
+        ["resource-type.configuration.store", "resource-trait.environment-variables"],
         ["resource-manager.resources"]);
 
     public void Configure(ICloudShellExtensionBuilder builder)
@@ -22,7 +22,6 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
         builder.Services.AddLocalProcessRunner();
         builder.Services.TryAddSingleton<ConfigurationProviderOptions>();
         builder.Services.TryAddSingleton<ConfigurationStore>();
-        builder.Services.TryAddSingleton<SecretsVaultStore>();
         builder.Services.TryAddSingleton<IConfiguration>(
             _ => new ConfigurationBuilder().Build());
         builder.Services.AddSingleton<IResourceEnvironmentVariableProvider>(
@@ -31,15 +30,11 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
         builder.Services.AddSingleton<IConfigurationEntryReferenceResolver>(
             serviceProvider => serviceProvider.GetRequiredService<HostConfigurationSourceProvider>());
-        builder.Services.AddSingleton<ISecretReferenceResolver>(
-            serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProvider>());
 
         builder
             .AddResourceProvider<ConfigurationResourceProvider>()
             .AddResourceProvider<HostConfigurationSourceProvider>()
-            .AddResourceProvider<SecretsVaultProvider>()
             .AddLogProvider<ConfigurationResourceProvider>()
-            .AddLogProvider<SecretsVaultProvider>()
             .AddResourceType<Pages.RegisterConfigurationStore>(
                 "configuration.store",
                 "Configuration service",
@@ -64,7 +59,31 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                 "configuration",
                 "Configuration",
                 20,
-                showsApplyButton: true)
+                showsApplyButton: true);
+    }
+}
+
+public sealed class SecretsProviderExtension : ICloudShellExtension
+{
+    public CloudShellExtensionManifest Manifest => new(
+        "cloudshell.secrets",
+        "Secrets Provider",
+        "Adds Secrets Vault resources and secret reference resolution.",
+        "0.1.0",
+        ["resource-type.secrets.vault", "resource-trait.environment-variables"],
+        ["resource-manager.resources"]);
+
+    public void Configure(ICloudShellExtensionBuilder builder)
+    {
+        builder.Services.AddLocalProcessRunner();
+        builder.Services.TryAddSingleton<ConfigurationProviderOptions>();
+        builder.Services.TryAddSingleton<SecretsVaultStore>();
+        builder.Services.AddSingleton<ISecretReferenceResolver>(
+            serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProvider>());
+
+        builder
+            .AddResourceProvider<SecretsVaultProvider>()
+            .AddLogProvider<SecretsVaultProvider>()
             .AddResourceType<Pages.RegisterSecretsVault, Pages.UpdateSecretsVault>(
                 SecretsVaultProvider.ResourceType,
                 "Secrets Vault",

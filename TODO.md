@@ -9,10 +9,6 @@ verification baseline.
 
 ## Resource Management
 
-- Evaluate splitting the configuration provider registration into
-  `AddConfigurationProvider()` for configuration stores and
-  `AddSecretsProvider()` for Secrets Vault resources and secret resolvers,
-  keeping compatibility for hosts that currently call `AddConfigurationProvider()`.
 - Add a separate secrets client/provider for applications that load secrets
   in-process instead of receiving them through resource-assigned environment
   variables.

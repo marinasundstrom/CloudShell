@@ -37,10 +37,13 @@ cloudShell
     .AddConfigurationProvider(options =>
     {
         options.DefinitionsPath = configurationStoreDefinitionsPath;
-        options.SecretsVaultDefinitionsPath = secretsVaultDefinitionsPath;
         options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
         options.ServiceWorkingDirectory = repositoryRootPath;
+    })
+    .AddSecretsProvider(options =>
+    {
+        options.SecretsVaultDefinitionsPath = secretsVaultDefinitionsPath;
+        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
         options.SecretsServiceWorkingDirectory = repositoryRootPath;
     })
     .AddApplicationProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged)

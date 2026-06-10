@@ -29,8 +29,11 @@ cloudShell
     .AddConfigurationProvider(options =>
     {
         options.ServiceProjectPath = configurationStoreServiceProjectPath;
-        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
         options.ServiceWorkingDirectory = repositoryRootPath;
+    })
+    .AddSecretsProvider(options =>
+    {
+        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
         options.SecretsServiceWorkingDirectory = repositoryRootPath;
     });
 

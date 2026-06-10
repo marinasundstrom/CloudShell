@@ -14,7 +14,9 @@ public static class ConfigurationProviderServiceCollectionExtensions
         CloudShellExtensionActivationPolicy activationPolicy = CloudShellExtensionActivationPolicy.Enabled)
     {
         AddConfigurationProviderCore(builder, configure);
-        return builder.AddExtension(new ConfigurationProviderExtension(), activationPolicy);
+        builder.AddExtensionIfMissing(new ConfigurationProviderExtension(), activationPolicy);
+        builder.AddExtensionIfMissing(new SecretsProviderExtension(), activationPolicy);
+        return builder;
     }
 
     public static IControlPlaneBuilder AddConfigurationProvider(
@@ -23,10 +25,41 @@ public static class ConfigurationProviderServiceCollectionExtensions
         CloudShellExtensionActivationPolicy activationPolicy = CloudShellExtensionActivationPolicy.Enabled)
     {
         AddConfigurationProviderCore(builder, configure);
-        return builder.AddExtension(new ConfigurationProviderExtension(), activationPolicy);
+        builder.AddExtensionIfMissing(new ConfigurationProviderExtension(), activationPolicy);
+        builder.AddExtensionIfMissing(new SecretsProviderExtension(), activationPolicy);
+        return builder;
+    }
+
+    public static ICloudShellBuilder AddSecretsProvider(
+        this ICloudShellBuilder builder,
+        Action<ConfigurationProviderOptions>? configure = null,
+        CloudShellExtensionActivationPolicy activationPolicy = CloudShellExtensionActivationPolicy.Enabled)
+    {
+        AddSecretsProviderCore(builder, configure);
+        builder.AddExtensionIfMissing(new SecretsProviderExtension(), activationPolicy);
+        return builder;
+    }
+
+    public static IControlPlaneBuilder AddSecretsProvider(
+        this IControlPlaneBuilder builder,
+        Action<ConfigurationProviderOptions>? configure = null,
+        CloudShellExtensionActivationPolicy activationPolicy = CloudShellExtensionActivationPolicy.Enabled)
+    {
+        AddSecretsProviderCore(builder, configure);
+        builder.AddExtensionIfMissing(new SecretsProviderExtension(), activationPolicy);
+        return builder;
     }
 
     private static void AddConfigurationProviderCore(
+        ICloudShellBuilder builder,
+        Action<ConfigurationProviderOptions>? configure)
+    {
+        var options = builder.Services.GetOrAddConfigurationProviderOptions();
+        configure?.Invoke(options);
+        builder.Services.AddLocalProcessRunner();
+    }
+
+    private static void AddSecretsProviderCore(
         ICloudShellBuilder builder,
         Action<ConfigurationProviderOptions>? configure)
     {
@@ -127,6 +160,22 @@ public static class ConfigurationProviderServiceCollectionExtensions
         options = new ConfigurationProviderOptions();
         services.AddSingleton(options);
         return options;
+    }
+
+    private static void AddExtensionIfMissing<TExtension>(
+        this ICloudShellBuilder builder,
+        TExtension extension,
+        CloudShellExtensionActivationPolicy activationPolicy)
+        where TExtension : class, ICloudShellExtension
+    {
+        if (builder.Services.Any(descriptor =>
+                descriptor.ServiceType == typeof(ICloudShellExtension) &&
+                descriptor.ImplementationInstance is TExtension))
+        {
+            return;
+        }
+
+        builder.AddExtension(extension, activationPolicy);
     }
 }
 

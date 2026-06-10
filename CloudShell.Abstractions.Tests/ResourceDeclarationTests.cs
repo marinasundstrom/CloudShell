@@ -631,6 +631,69 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedSecretsVaultBuilder_WorksWithSecretsProviderOnly()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+        SecretReference? reference = null;
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddSecretsProvider()
+            .Resources(resources =>
+            {
+                var vault = resources
+                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .WithSecret("db-password", "local-dev-password");
+
+                reference = vault.Secret("db-password");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        var resolver = Assert.Single(serviceProvider.GetServices<ISecretReferenceResolver>());
+        var resource = Assert.Single(provider.GetResources());
+
+        Assert.Same(provider, resolver);
+        Assert.Null(serviceProvider.GetService<ConfigurationResourceProvider>());
+        Assert.Equal("secrets-vault:app", reference?.VaultResourceId);
+        Assert.Equal("db-password", reference?.SecretName);
+        Assert.Equal("secrets-vault:app", resource.Id);
+        Assert.Equal(SecretsVaultProvider.ResourceType, resource.EffectiveTypeId);
+    }
+
+    [Fact]
+    public void ConfigurationAndSecretsProviders_ComposeWithoutDuplicateExtensions()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .AddSecretsProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var registry = serviceProvider.GetRequiredService<CloudShellExtensionRegistry>();
+        var extensionIds = registry.Extensions
+            .Select(extension => extension.Id)
+            .ToArray();
+        var resourceTypeIds = registry.Extensions
+            .SelectMany(extension => extension.ResourceTypes)
+            .Select(resourceType => resourceType.Id)
+            .ToArray();
+
+        Assert.Contains("cloudshell.configuration", extensionIds);
+        Assert.Contains("cloudshell.secrets", extensionIds);
+        Assert.Equal(
+            resourceTypeIds.Length,
+            resourceTypeIds.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Single(serviceProvider.GetServices<ISecretReferenceResolver>());
+    }
+
+    [Fact]
     public async Task SecretsVaultProvider_ResolvesSecretsFromMultipleVaults()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
