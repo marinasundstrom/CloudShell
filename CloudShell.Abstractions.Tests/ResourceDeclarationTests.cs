@@ -2777,10 +2777,52 @@ public sealed class ResourceDeclarationTests
     {
         var method = typeof(ApplicationResourceProvider).GetMethod(
             "GetContainerName",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+            [typeof(string), typeof(int), typeof(int)]);
 
         Assert.NotNull(method);
         Assert.Equal(expected, method.Invoke(null, [resourceId, replica, replicas]));
+    }
+
+    [Fact]
+    public void ContainerApplicationProvider_CreatesDefaultContainerOrchestratorService()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services.AddSingleton(new ApplicationProviderOptions());
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var application = new ApplicationResourceDefinition(
+            "application:api",
+            "api",
+            executablePath: string.Empty,
+            containerImage: "example/api:latest",
+            replicas: 3,
+            endpointPorts:
+            [
+                new ServicePort("http", 8080, 5080, "http")
+            ],
+            resourceType: ApplicationResourceTypes.ContainerApp);
+        var method = typeof(ApplicationResourceProvider).GetMethod(
+            "CreateDefaultContainerOrchestratorService",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+        Assert.NotNull(method);
+        var service = Assert.IsType<ResourceOrchestratorService>(method.Invoke(provider, [application]));
+
+        Assert.Equal("application:api", service.ResourceId);
+        Assert.Equal("cloudshell-application-api", service.Name);
+        Assert.Equal(3, service.Replicas);
+        var port = Assert.Single(service.ServicePorts);
+        Assert.Equal("http", port.Name);
+        Assert.Equal(8080, port.TargetPort);
+        Assert.Equal(5080, port.Port);
     }
 
     [Fact]

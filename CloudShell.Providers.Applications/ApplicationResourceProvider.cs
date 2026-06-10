@@ -993,13 +993,14 @@ public sealed partial class ApplicationResourceProvider(
         var logPath = GetLogPath(definition.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
         var processLog = new ApplicationProcessLog(logPath);
+        var service = CreateDefaultContainerOrchestratorService(definition);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
-            for (var replica = 1; replica <= Math.Max(1, definition.Replicas); replica++)
+            for (var replica = 1; replica <= service.Replicas; replica++)
             {
                 await RunContainerEngineCommandAsync(
                     engine,
-                    ["rm", "-f", GetContainerName(definition.Id, replica, definition.Replicas)],
+                    ["rm", "-f", GetContainerName(service, replica)],
                     processLog,
                     cancellationToken);
             }
@@ -1012,10 +1013,10 @@ public sealed partial class ApplicationResourceProvider(
             processLog,
             cancellationToken);
 
-        var replicas = Math.Max(1, definition.Replicas);
+        var replicas = service.Replicas;
         for (var replica = 1; replica <= replicas; replica++)
         {
-            var containerName = GetContainerName(definition.Id, replica, replicas);
+            var containerName = GetContainerName(service, replica);
             var startInfo = new ProcessStartInfo
             {
                 FileName = GetContainerEngineExecutable(engine),
@@ -1036,7 +1037,7 @@ public sealed partial class ApplicationResourceProvider(
 
             if (replica == 1)
             {
-                foreach (var port in definition.EndpointPorts)
+                foreach (var port in service.ServicePorts)
                 {
                     var hostPort = ResolveLocalPort(definition.Id, port);
                     startInfo.ArgumentList.Add("-p");
@@ -1246,9 +1247,10 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationProcessLog log,
         CancellationToken cancellationToken)
     {
-        for (var replica = 1; replica <= Math.Max(1, definition.Replicas); replica++)
+        var service = CreateDefaultContainerOrchestratorService(definition);
+        for (var replica = 1; replica <= service.Replicas; replica++)
         {
-            var containerName = GetContainerName(definition.Id, replica, definition.Replicas);
+            var containerName = GetContainerName(service, replica);
             await RunContainerEngineCommandAsync(
                 engine,
                 ["stop", containerName],
@@ -2088,6 +2090,13 @@ public sealed partial class ApplicationResourceProvider(
             Observability: GetEffectiveObservability(application));
     }
 
+    private ResourceOrchestratorService CreateDefaultContainerOrchestratorService(
+        ApplicationResourceDefinition application) =>
+        new(
+            application.Id,
+            GetContainerServiceName(application.Id),
+            CreateWorkloadConfiguration(application));
+
     private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
         string? containerEngineId,
         string? preferredContainerEngineId,
@@ -2277,14 +2286,24 @@ public sealed partial class ApplicationResourceProvider(
         return hash;
     }
 
+    private static string GetContainerName(ResourceOrchestratorService service, int replica = 1) =>
+        service.Replicas <= 1
+            ? service.Name
+            : $"{service.Name}-replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
+
     private static string GetContainerName(string resourceId, int replica = 1, int replicas = 1)
     {
-        var parentName = "cloudshell-" + SlugPattern()
+        var serviceName = GetContainerServiceName(resourceId);
+        return replicas <= 1
+            ? serviceName
+            : $"{serviceName}-replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
+    }
+
+    private static string GetContainerServiceName(string resourceId)
+    {
+        return "cloudshell-" + SlugPattern()
             .Replace(resourceId.Trim().ToLowerInvariant(), "-")
             .Trim('-');
-        return replicas <= 1
-            ? parentName
-            : $"{parentName}-replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
     }
 
     private static string GetContainerEngineExecutable(ContainerEngineResourceDefinition engine) =>
