@@ -124,9 +124,14 @@ The first projection slice adds `ResourceIdentityProviderDefinition` and
 `ResourceIdentityBinding` public contracts. A resource can project an optional
 identity binding with kind, provider ID when resolved, subject, scopes, and
 non-secret claim metadata. The Control Plane API and remote client map that
-binding through `ResourceResponse.identity`. Default provider selection,
-inheritance, and provider-backed token behavior remain separate implementation
-work.
+binding through `ResourceResponse.identity`.
+
+The first provider-selection slice adds `ResourceIdentityProviderCatalog`.
+Concrete `Provider` bindings resolve by provider ID. `Required` bindings
+resolve to the configured default provider; when exactly one provider is
+registered, that provider is the default. Multiple providers require an
+explicit default. Resource-group or parent-resource inheritance and
+provider-backed token behavior remain separate implementation work.
 
 ### Resource permissions
 

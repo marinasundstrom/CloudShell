@@ -24,10 +24,10 @@ Work the current proposals in this order:
 
 ## Now: Resource Identity and Permissions
 
-- Define default resource identity-provider selection rules, including
-  inheritance from resource groups or parent resources where the first model
-  needs it. Public identity provider and binding projection contracts are now
-  available on resources and the Control Plane API.
+- Extend default resource identity-provider selection beyond the new provider
+  catalog, including inheritance from resource groups or parent resources where
+  the first model needs it. Public identity provider and binding projection
+  contracts are now available on resources and the Control Plane API.
 - Add a replaceable development identity-provider path by hosting a separate
   reference identity server instance that speaks standard OIDC and OAuth 2.0.
   Treat it as development infrastructure, not as the CloudShell identity domain

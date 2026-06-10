@@ -12,6 +12,113 @@ public sealed record ResourceIdentityProviderDefinition(
     public IReadOnlyDictionary<string, string> ProviderSettings => Settings ?? EmptySettings;
 }
 
+public sealed class ResourceIdentityProviderCatalog
+{
+    private readonly IReadOnlyDictionary<string, ResourceIdentityProviderDefinition> providersById;
+
+    public ResourceIdentityProviderCatalog(
+        IEnumerable<ResourceIdentityProviderDefinition>? providers = null,
+        string? defaultProviderId = null)
+    {
+        var normalizedProviders = new Dictionary<string, ResourceIdentityProviderDefinition>(
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var provider in providers ?? [])
+        {
+            ArgumentNullException.ThrowIfNull(provider);
+            ArgumentException.ThrowIfNullOrWhiteSpace(provider.Id);
+            ArgumentException.ThrowIfNullOrWhiteSpace(provider.Name);
+
+            var normalizedProvider = provider with
+            {
+                Id = provider.Id.Trim(),
+                Name = provider.Name.Trim()
+            };
+            if (!normalizedProviders.TryAdd(normalizedProvider.Id, normalizedProvider))
+            {
+                throw new InvalidOperationException(
+                    $"Resource identity provider '{normalizedProvider.Id}' is already registered.");
+            }
+        }
+
+        providersById = normalizedProviders;
+        Providers = normalizedProviders.Values
+            .OrderBy(provider => provider.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        DefaultProviderId = ResolveDefaultProviderId(defaultProviderId);
+    }
+
+    public IReadOnlyList<ResourceIdentityProviderDefinition> Providers { get; }
+
+    public string? DefaultProviderId { get; }
+
+    public ResourceIdentityProviderDefinition? DefaultProvider =>
+        DefaultProviderId is null ? null : GetProvider(DefaultProviderId);
+
+    public ResourceIdentityProviderDefinition? GetProvider(string? providerId) =>
+        string.IsNullOrWhiteSpace(providerId)
+            ? null
+            : providersById.GetValueOrDefault(providerId.Trim());
+
+    public ResourceIdentityProviderResolution Resolve(ResourceIdentityBinding binding)
+    {
+        ArgumentNullException.ThrowIfNull(binding);
+
+        if (binding.Kind == ResourceIdentityBindingKind.Provider)
+        {
+            var provider = GetProvider(binding.ProviderId);
+            return provider is null
+                ? ResourceIdentityProviderResolution.Unresolved(
+                    binding,
+                    $"Resource identity provider '{binding.ProviderId}' is not registered.")
+                : ResourceIdentityProviderResolution.Resolved(binding, provider);
+        }
+
+        var defaultProvider = DefaultProvider;
+        return defaultProvider is null
+            ? ResourceIdentityProviderResolution.Unresolved(
+                binding,
+                "No default resource identity provider is registered.")
+            : ResourceIdentityProviderResolution.Resolved(binding, defaultProvider);
+    }
+
+    private string? ResolveDefaultProviderId(string? defaultProviderId)
+    {
+        if (!string.IsNullOrWhiteSpace(defaultProviderId))
+        {
+            var normalizedDefaultProviderId = defaultProviderId.Trim();
+            if (!providersById.ContainsKey(normalizedDefaultProviderId))
+            {
+                throw new InvalidOperationException(
+                    $"Default resource identity provider '{normalizedDefaultProviderId}' is not registered.");
+            }
+
+            return normalizedDefaultProviderId;
+        }
+
+        return providersById.Count == 1
+            ? providersById.Values.Single().Id
+            : null;
+    }
+}
+
+public sealed record ResourceIdentityProviderResolution(
+    ResourceIdentityBinding Binding,
+    ResourceIdentityProviderDefinition? Provider,
+    string? Reason)
+{
+    public bool IsResolved => Provider is not null;
+
+    public static ResourceIdentityProviderResolution Resolved(
+        ResourceIdentityBinding binding,
+        ResourceIdentityProviderDefinition provider) =>
+        new(binding, provider, null);
+
+    public static ResourceIdentityProviderResolution Unresolved(
+        ResourceIdentityBinding binding,
+        string reason) =>
+        new(binding, null, reason);
+}
+
 public enum ResourceIdentityProviderKind
 {
     BuiltIn,

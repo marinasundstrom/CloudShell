@@ -47,6 +47,11 @@ selection, resource identity bindings, resource-scoped permission names,
 permission assignments, workload identity lifecycle, token claim mapping, and
 action authorization diagnostics.
 
+The first provider-selection contract should stay small: concrete identity
+bindings resolve by provider ID, required-but-unresolved bindings resolve to a
+default provider, and richer inheritance can follow when resource groups and
+parent resources participate in identity policy.
+
 For development, CloudShell should host a separate reference identity server
 instance that speaks standard OIDC and OAuth 2.0. That instance is development
 infrastructure, not the CloudShell identity domain model. The same contracts

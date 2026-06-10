@@ -96,8 +96,13 @@ The MVP should prove:
 - Resources can project an optional resource identity binding with kind,
   provider ID when resolved, subject, scopes, and non-secret claim metadata.
   The Control Plane API and remote client expose this as
-  `ResourceResponse.identity`; provider selection, inheritance, token issuance,
-  and provider-backed workload behavior remain future resource identity work.
+  `ResourceResponse.identity`.
+- Resource identity provider selection now has a catalog abstraction. Concrete
+  provider bindings resolve by provider ID; required-but-unresolved bindings
+  resolve to the configured default provider, with a single registered provider
+  used as the implicit default. Resource-group or parent-resource inheritance,
+  token issuance, and provider-backed workload behavior remain future resource
+  identity work.
 - Programmatic resource declarations should support identity intent as a normal
   authoring concern, including concrete provider bindings and declarations
   that a resource will have an identity whose provider-specific details are

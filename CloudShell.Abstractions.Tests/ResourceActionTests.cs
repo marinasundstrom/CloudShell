@@ -96,6 +96,94 @@ public sealed class ResourceActionTests
     }
 
     [Fact]
+    public void ResourceIdentityProviderCatalog_ResolvesConcreteProviderBinding()
+    {
+        var catalog = new ResourceIdentityProviderCatalog(
+            [
+                new("identity:dev", "Development identity", ResourceIdentityProviderKind.Oidc),
+                new("identity:entra", "Microsoft Entra ID", ResourceIdentityProviderKind.Oidc)
+            ],
+            "identity:entra");
+        var binding = new ResourceIdentityBinding("IDENTITY:DEV");
+
+        var resolution = catalog.Resolve(binding);
+
+        Assert.True(resolution.IsResolved);
+        Assert.Same(binding, resolution.Binding);
+        Assert.Equal("identity:dev", resolution.Provider?.Id);
+        Assert.Null(resolution.Reason);
+    }
+
+    [Fact]
+    public void ResourceIdentityProviderCatalog_ResolvesRequiredIdentityToDefaultProvider()
+    {
+        var catalog = new ResourceIdentityProviderCatalog(
+            [
+                new("identity:dev", "Development identity", ResourceIdentityProviderKind.Oidc),
+                new("identity:entra", "Microsoft Entra ID", ResourceIdentityProviderKind.Oidc)
+            ],
+            "identity:entra");
+
+        var resolution = catalog.Resolve(ResourceIdentityBinding.RequireIdentity(["api.read"]));
+
+        Assert.True(resolution.IsResolved);
+        Assert.Equal("identity:entra", resolution.Provider?.Id);
+    }
+
+    [Fact]
+    public void ResourceIdentityProviderCatalog_UsesSingleProviderAsDefault()
+    {
+        var catalog = new ResourceIdentityProviderCatalog(
+            [new("identity:dev", "Development identity", ResourceIdentityProviderKind.Oidc)]);
+
+        Assert.Equal("identity:dev", catalog.DefaultProviderId);
+        Assert.Equal("identity:dev", catalog.DefaultProvider?.Id);
+    }
+
+    [Fact]
+    public void ResourceIdentityProviderCatalog_ReportsUnresolvedProvider()
+    {
+        var catalog = new ResourceIdentityProviderCatalog(
+            [new("identity:dev", "Development identity", ResourceIdentityProviderKind.Oidc)]);
+
+        var resolution = catalog.Resolve(new ResourceIdentityBinding("identity:missing"));
+
+        Assert.False(resolution.IsResolved);
+        Assert.Null(resolution.Provider);
+        Assert.Equal(
+            "Resource identity provider 'identity:missing' is not registered.",
+            resolution.Reason);
+    }
+
+    [Fact]
+    public void ResourceIdentityProviderCatalog_ReportsMissingDefaultProvider()
+    {
+        var catalog = new ResourceIdentityProviderCatalog(
+            [
+                new("identity:dev", "Development identity", ResourceIdentityProviderKind.Oidc),
+                new("identity:entra", "Microsoft Entra ID", ResourceIdentityProviderKind.Oidc)
+            ]);
+
+        var resolution = catalog.Resolve(ResourceIdentityBinding.RequireIdentity());
+
+        Assert.False(resolution.IsResolved);
+        Assert.Equal("No default resource identity provider is registered.", resolution.Reason);
+    }
+
+    [Fact]
+    public void ResourceIdentityProviderCatalog_RejectsUnknownDefaultProvider()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            new ResourceIdentityProviderCatalog(
+                [new("identity:dev", "Development identity", ResourceIdentityProviderKind.Oidc)],
+                "identity:missing"));
+
+        Assert.Equal(
+            "Default resource identity provider 'identity:missing' is not registered.",
+            exception.Message);
+    }
+
+    [Fact]
     public void ResourceOperationCapabilities_ProvidesCaseInsensitiveActionLookup()
     {
         var capabilities = new ResourceOperationCapabilities(
