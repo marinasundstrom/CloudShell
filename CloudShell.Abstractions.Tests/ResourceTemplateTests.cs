@@ -85,6 +85,98 @@ public sealed class ResourceTemplateTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ExportsReferenceBackedSettings()
+    {
+        using var fixture = new TemplateFixture();
+
+        await fixture.Provider.UpdateApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:example-web-api",
+                "Example Web API",
+                "dotnet",
+                "run",
+                "/workspace",
+                "http://localhost:5127",
+                [
+                    new EnvironmentVariableAssignment("ASPNETCORE_URLS", "http://localhost:5127"),
+                    EnvironmentVariableAssignment.FromConfiguration(
+                        "ConnectionStrings__Default",
+                        new ConfigurationEntryReference(
+                            "configuration:app",
+                            "ConnectionStrings:Default",
+                            "v1")),
+                    EnvironmentVariableAssignment.FromSecret(
+                        "EXTERNAL_API_KEY",
+                        new SecretReference(
+                            "secrets-vault:app",
+                            "ExternalApiKey",
+                            "current"))
+                ],
+                dependsOn: ["configuration:app", "secrets-vault:app"],
+                appSettings:
+                [
+                    AppSetting.FromConfiguration(
+                        "FeatureFlags:Preview",
+                        new ConfigurationEntryReference("configuration:app", "FeatureFlags:Preview")),
+                    AppSetting.FromSecret(
+                        "ConnectionStrings:Password",
+                        new SecretReference("secrets-vault:app", "DatabasePassword"))
+                ]),
+            fixture.Group.Id,
+            fixture.Registrations);
+
+        var resource = Assert.Single(fixture.ResourceManager.GetResources());
+        var provider = Assert.IsAssignableFrom<IResourceTemplateProvider>(
+            Assert.Single(fixture.ResourceManager.Providers));
+
+        var template = await provider.ExportAsync(
+            resource,
+            new ResourceTemplateExportContext(
+                fixture.Registrations.GetRegistration(resource.Id)!,
+                fixture.Group));
+        var environmentVariables = template.Configuration
+            .GetProperty("environmentVariables")
+            .EnumerateArray()
+            .ToArray();
+        var appSettings = template.Configuration
+            .GetProperty("appSettings")
+            .EnumerateArray()
+            .ToArray();
+
+        var configurationVariable = Assert.Single(environmentVariables, variable =>
+            variable.GetProperty("name").GetString() == "ConnectionStrings__Default");
+        var configurationEntry = configurationVariable.GetProperty("configurationEntry");
+        Assert.Equal("configuration:app", configurationEntry.GetProperty("storeResourceId").GetString());
+        Assert.Equal("ConnectionStrings:Default", configurationEntry.GetProperty("entryName").GetString());
+        Assert.Equal("v1", configurationEntry.GetProperty("version").GetString());
+
+        var secretVariable = Assert.Single(environmentVariables, variable =>
+            variable.GetProperty("name").GetString() == "EXTERNAL_API_KEY");
+        var secret = secretVariable.GetProperty("secret");
+        Assert.Equal("secrets-vault:app", secret.GetProperty("vaultResourceId").GetString());
+        Assert.Equal("ExternalApiKey", secret.GetProperty("secretName").GetString());
+        Assert.Equal("current", secret.GetProperty("version").GetString());
+
+        var configurationSetting = Assert.Single(appSettings, setting =>
+            setting.GetProperty("name").GetString() == "FeatureFlags:Preview");
+        Assert.Equal(
+            "configuration:app",
+            configurationSetting
+                .GetProperty("configurationEntry")
+                .GetProperty("storeResourceId")
+                .GetString());
+
+        var secretSetting = Assert.Single(appSettings, setting =>
+            setting.GetProperty("name").GetString() == "ConnectionStrings:Password");
+        Assert.Equal(
+            "DatabasePassword",
+            secretSetting
+                .GetProperty("secret")
+                .GetProperty("secretName")
+                .GetString());
+    }
+
+    [Fact]
     public async Task TemplateService_ExportsAndImportsAResourceGroup()
     {
         using var fixture = new TemplateFixture();
@@ -207,6 +299,87 @@ public sealed class ResourceTemplateTests
         Assert.False(application.Observability.Traces);
         Assert.True(application.Observability.Metrics);
         Assert.Equal("imported-api", application.Observability.ServiceName);
+    }
+
+    [Fact]
+    public async Task TemplateService_ImportsReferenceBackedSettings()
+    {
+        using var fixture = new TemplateFixture();
+        var service = fixture.CreateTemplateService();
+        var configuration = JsonSerializer.SerializeToElement(
+            new
+            {
+                executablePath = "dotnet",
+                arguments = "run",
+                workingDirectory = "/workspace",
+                endpoint = "http://localhost:5127",
+                environmentVariables = new EnvironmentVariableAssignment[]
+                {
+                    new("ASPNETCORE_ENVIRONMENT", "Development"),
+                    EnvironmentVariableAssignment.FromConfiguration(
+                        "ConnectionStrings__Default",
+                        new ConfigurationEntryReference("configuration:app", "ConnectionStrings:Default")),
+                    EnvironmentVariableAssignment.FromSecret(
+                        "EXTERNAL_API_KEY",
+                        new SecretReference("secrets-vault:app", "ExternalApiKey"))
+                },
+                appSettings = new AppSetting[]
+                {
+                    AppSetting.FromConfiguration(
+                        "FeatureFlags:Preview",
+                        new ConfigurationEntryReference("configuration:app", "FeatureFlags:Preview")),
+                    AppSetting.FromSecret(
+                        "ConnectionStrings:Password",
+                        new SecretReference("secrets-vault:app", "DatabasePassword"))
+                },
+                lifetime = ApplicationLifetime.Detached,
+                references = Array.Empty<string>(),
+                useServiceDiscovery = false
+            },
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var template = new ResourceGroupTemplate(
+            "1.0",
+            "resourceGroup",
+            "Imported group",
+            null,
+            [
+                new ResourceTemplateDefinition(
+                    "Imported API",
+                    "applications",
+                    "application.executable",
+                    ["configuration:app", "secrets-vault:app"],
+                    "1.0",
+                    configuration)
+            ]);
+
+        var result = await service.ImportGroupAsync(template);
+
+        var imported = Assert.Single(result.ImportedResources);
+        var application = fixture.Provider.GetApplication(imported.ResourceId)!;
+        var registration = fixture.Registrations.GetRegistration(imported.ResourceId);
+
+        Assert.Equal(["configuration:app", "secrets-vault:app"], application.DependsOn);
+        Assert.Equal(["configuration:app", "secrets-vault:app"], registration?.DependsOn);
+        Assert.Contains(
+            application.EnvironmentVariables,
+            variable => variable.Name == "ConnectionStrings__Default" &&
+                variable.ConfigurationEntry?.StoreResourceId == "configuration:app" &&
+                variable.ConfigurationEntry.EntryName == "ConnectionStrings:Default");
+        Assert.Contains(
+            application.EnvironmentVariables,
+            variable => variable.Name == "EXTERNAL_API_KEY" &&
+                variable.Secret?.VaultResourceId == "secrets-vault:app" &&
+                variable.Secret.SecretName == "ExternalApiKey");
+        Assert.Contains(
+            application.AppSettings,
+            setting => setting.Name == "FeatureFlags:Preview" &&
+                setting.ConfigurationEntry?.StoreResourceId == "configuration:app" &&
+                setting.ConfigurationEntry.EntryName == "FeatureFlags:Preview");
+        Assert.Contains(
+            application.AppSettings,
+            setting => setting.Name == "ConnectionStrings:Password" &&
+                setting.Secret?.VaultResourceId == "secrets-vault:app" &&
+                setting.Secret.SecretName == "DatabasePassword");
     }
 
     private sealed class TemplateFixture : IDisposable

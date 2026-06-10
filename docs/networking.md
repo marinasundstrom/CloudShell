@@ -45,19 +45,13 @@ Network resources have three current kinds:
 
 ## Capabilities
 
-Resources advertise the roles they can play through capabilities. Important
-networking capabilities include:
-
-- `endpoint.source`: resource exposes endpoints.
-- `networking.provider`: resource participates in network management.
-- `networking.endpointProvider`: resource can assign or reserve endpoints.
-- `networking.endpointMapper`: resource can materialize endpoint mappings.
-- `networking.hostNetwork`: resource represents host networking.
-- `networking.virtualNetwork`: resource represents a virtual network boundary.
-- `networking.ingress`: resource can expose ingress-style endpoints.
-- `networking.gateway`: resource can route traffic through a gateway.
-- `networking.loadBalancer`: resource can distribute traffic across targets.
-- `networking.backendPool`: resource represents a load-balancer target set.
+Resources advertise the roles they can play through capabilities. The common
+capability vocabulary is documented in [Resource capabilities](capabilities.md).
+Networking uses capabilities such as `endpoint.source`,
+`networking.endpointProvider`, `networking.endpointMapper`,
+`networking.hostNetwork`, `networking.virtualNetwork`,
+`networking.ingress`, `networking.gateway`, and
+`networking.loadBalancer`.
 
 Capabilities describe what a resource can provide. They do not move provider
 configuration into the platform resource model. Provider-owned settings and

@@ -172,6 +172,9 @@ The MVP should prove:
   the shared Resource Manager environment tab to assign literal values,
   configuration-entry references, or Secrets Vault references through a
   provider-owned configuration contract.
+- Application resource templates preserve reference-backed app settings and
+  environment variables by carrying configuration-entry references and Secrets
+  Vault references without embedding secret values.
 
 ## Completed recently
 

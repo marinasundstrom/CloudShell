@@ -9,8 +9,6 @@ verification baseline.
 
 ## Resource Management
 
-- Continue settings and secrets integration by preserving configuration-entry
-  and secret references in resource template export/import tests and behavior.
 - Evaluate splitting the configuration provider registration into
   `AddConfigurationProvider()` for configuration stores and
   `AddSecretsProvider()` for Secrets Vault resources and secret resolvers,

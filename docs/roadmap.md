@@ -16,6 +16,7 @@ Resource Manager UI, provider-owned configuration, and a Control Plane API.
 Useful references:
 
 - [Domain model](domain-model.md)
+- [Resource capabilities](capabilities.md)
 - [System design guidelines](system-design-guidelines.md)
 - [Programmatic resources](programmatic-resources.md)
 - [Control Plane API](control-plane-api.md)

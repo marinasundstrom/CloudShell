@@ -170,12 +170,15 @@ remote API-backed adapter.
 
 Capabilities describe what role a resource can play; they do not make the
 resource an active service object. A workload that exposes endpoints can
-advertise `endpoint.source`. A managed network, reverse proxy, load balancer,
-or containerized network controller can advertise networking capabilities such
-as `networking.provider`, `networking.endpointProvider`,
-`networking.endpointMapper`, `networking.gateway`,
-`networking.loadBalancer`, or `networking.serviceDiscovery`. The Control Plane
-still mediates operations, authorization, audit, and remote access.
+advertise `endpoint.source`. A resource that supports configured environment
+variables can advertise `environment.variables`. A managed network, reverse
+proxy, load balancer, or containerized network controller can advertise
+networking capabilities such as `networking.provider`,
+`networking.endpointProvider`, `networking.endpointMapper`,
+`networking.gateway`, `networking.loadBalancer`, or
+`networking.serviceDiscovery`. The Control Plane still mediates operations,
+authorization, audit, and remote access. See [Resource capabilities](capabilities.md)
+for the common capability vocabulary.
 
 ### Resource type
 

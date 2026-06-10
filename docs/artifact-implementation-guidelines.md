@@ -400,7 +400,8 @@ Verification:
 
 `ResourceCapability` describes the role a resource can play, such as endpoint
 source, endpoint provider, endpoint mapper, gateway, load balancer, service
-discovery, or host network.
+discovery, host network, or environment-variable configuration. Common
+capabilities are documented in [Resource capabilities](capabilities.md).
 
 Implementation:
 

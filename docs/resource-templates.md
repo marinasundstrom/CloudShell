@@ -57,6 +57,15 @@ The application provider preserves specific application-backed resource types,
 including `application.executable`, `application.aspnet-core-project`,
 `application.container-app`, and `application.sql-server`.
 
+Application provider templates also preserve app settings and environment
+variables, including literal values, configuration-entry references, and
+Secrets Vault references. Reference-backed entries keep the referenced store or
+vault resource ID, entry or secret name, and optional version. Secret values are
+not embedded in application templates; only the `SecretReference` is preserved.
+Templates should include the referenced configuration store or Secrets Vault
+resources, or the imported application should keep dependencies pointing to
+equivalent resources in the target environment.
+
 `name` is the friendly display name. `resourceId` is the stable resource
 identifier used by registrations, links, logs, configuration endpoints, and
 authorization. New exports include `resourceId`; older templates without it are
