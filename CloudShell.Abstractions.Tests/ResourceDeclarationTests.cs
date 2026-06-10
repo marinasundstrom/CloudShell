@@ -8,6 +8,7 @@ using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -558,6 +559,41 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedHostConfigurationSourceBuilder_DeclaresResourceAndCreatesEntryReferences()
+    {
+        var services = new ServiceCollection();
+        ConfigurationEntryReference? reference = null;
+
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                var hostSettings = resources
+                    .AddHostConfigurationSource("configuration:host-dev", "Host Development Settings")
+                    .WithEntry("ExternalApi:BaseUrl");
+
+                reference = hostSettings.Entry("ExternalApi:BaseUrl");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "configuration:host-dev");
+        var provider = serviceProvider.GetRequiredService<HostConfigurationSourceProvider>();
+        var resource = Assert.Single(provider.GetResources());
+
+        Assert.Equal(HostConfigurationSourceProvider.ProviderId, declaration.ProviderId);
+        Assert.Equal(ResourceClass.Configuration, declaration.ResourceClassOverride);
+        Assert.Equal("configuration:host-dev", reference?.StoreResourceId);
+        Assert.Equal("ExternalApi:BaseUrl", reference?.EntryName);
+        Assert.Equal("configuration:host-dev", resource.Id);
+        Assert.Equal(HostConfigurationSourceProvider.ResourceType, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Configuration, resource.ResourceClass);
+        Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.ConfigurationEntryCount]);
+    }
+
+    [Fact]
     public async Task ConfigurationProvider_ExposesStoreLogs()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -610,7 +646,7 @@ public sealed class ResourceDeclarationTests
                     new("Database:Name", "appdb"),
                     new("Database:Password", "secret", IsSecret: true)
                 ]));
-        var resolver = serviceProvider.GetRequiredService<IConfigurationEntryReferenceResolver>();
+        var resolver = serviceProvider.GetRequiredService<ConfigurationResourceProvider>();
         var context = new ResourceSettingResolutionContext("application:api", "group-1", "run");
 
         var resolved = resolver.ResolveConfigurationEntry(
@@ -624,6 +660,92 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("appdb", resolved.Value);
         Assert.False(rejected.IsResolved);
         Assert.Contains("must be referenced through a vault secret", rejected.ErrorMessage);
+    }
+
+    [Fact]
+    public void HostConfigurationSourceProvider_ResolvesOnlyExplicitlyExposedEntries()
+    {
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ExternalApi:BaseUrl"] = "https://api.example.test",
+                ["ConnectionStrings:Default"] = "Server=localhost"
+            })
+            .Build();
+
+        services.AddSingleton<IConfiguration>(configuration);
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                resources
+                    .AddHostConfigurationSource("configuration:host-dev", "Host Development Settings")
+                    .WithEntry("ExternalApi:BaseUrl");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<HostConfigurationSourceProvider>();
+        var context = new ResourceSettingResolutionContext("application:api", "group-1", "run");
+
+        var resolved = provider.ResolveConfigurationEntry(
+            new ConfigurationEntryReference("configuration:host-dev", "ExternalApi:BaseUrl"),
+            context);
+        var rejected = provider.ResolveConfigurationEntry(
+            new ConfigurationEntryReference("configuration:host-dev", "ConnectionStrings:Default"),
+            context);
+
+        Assert.True(resolved.IsResolved);
+        Assert.Equal("https://api.example.test", resolved.Value);
+        Assert.False(rejected.IsResolved);
+        Assert.Contains("is not exposed", rejected.ErrorMessage);
+    }
+
+    [Fact]
+    public void TypedExecutableBuilder_CanUseHostConfigurationEntryReferences()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                var hostSettings = resources
+                    .AddHostConfigurationSource("configuration:host-dev", "Host Development Settings")
+                    .WithEntry("ExternalApi:BaseUrl");
+
+                resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        "API",
+                        executablePath: "dotnet")
+                    .WithAppSetting("ExternalApi:BaseUrl", hostSettings.Entry("ExternalApi:BaseUrl"));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(
+            store.GetDeclarations(),
+            declaration => declaration.ResourceId == "application:api");
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.Equal(["configuration:host-dev"], declaration.DependsOn);
+        var setting = Assert.Single(application.AppSettings);
+        Assert.Equal("ExternalApi:BaseUrl", setting.Name);
+        Assert.Equal("configuration:host-dev", setting.ConfigurationEntry?.StoreResourceId);
+        Assert.Equal("ExternalApi:BaseUrl", setting.ConfigurationEntry?.EntryName);
     }
 
     [Fact]

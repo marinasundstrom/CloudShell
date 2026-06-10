@@ -30,6 +30,8 @@ public sealed class ConfigurationProviderOptions
     public IList<ConfigurationStoreDefinition> InitialStores { get; } = [];
 
     internal IList<DeclaredConfigurationStore> DeclaredStores { get; } = [];
+
+    internal IList<DeclaredHostConfigurationSource> DeclaredHostConfigurationSources { get; } = [];
 }
 
 internal sealed class DeclaredConfigurationStore(ConfigurationStoreDefinition definition)
@@ -39,4 +41,9 @@ internal sealed class DeclaredConfigurationStore(ConfigurationStoreDefinition de
     public bool Persist { get; set; }
 
     public bool OverwritePersistedState { get; set; }
+}
+
+internal sealed class DeclaredHostConfigurationSource(HostConfigurationSourceDefinition definition)
+{
+    public HostConfigurationSourceDefinition Definition { get; set; } = definition;
 }

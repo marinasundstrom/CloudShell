@@ -150,6 +150,10 @@ The MVP should prove:
   configuration-entry references for non-secret settings, and secret-reference
   placeholders for vault-backed values while secret storage remains provider
   owned.
+- Host applications can explicitly expose selected `IConfiguration` entries
+  through host-configuration source resources for development scenarios. These
+  sources resolve through the same configuration-entry reference path as
+  configuration stores and do not expose the entire host configuration surface.
 
 ## Completed recently
 
@@ -274,6 +278,8 @@ The MVP should prove:
   application builder APIs for literal/reference-backed app settings and
   environment variables, configuration-store entry reference helpers, and
   runtime resolution for non-secret configuration entries.
+- Added programmatic host-configuration source resources that expose selected
+  host `IConfiguration` keys through configuration-entry references.
 
 ## Active stabilization areas
 

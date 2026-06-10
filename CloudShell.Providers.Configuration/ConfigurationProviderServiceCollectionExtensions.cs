@@ -64,6 +64,29 @@ public static class ConfigurationProviderServiceCollectionExtensions
         return new ConfigurationStoreResourceBuilder(resource, declared);
     }
 
+    public static IHostConfigurationSourceResourceBuilder AddHostConfigurationSource(
+        this IResourceDeclarationBuilder builder,
+        string id,
+        string name,
+        IReadOnlyList<string>? entries = null)
+    {
+        var definition = new HostConfigurationSourceDefinition(
+            id,
+            name,
+            entries);
+        var declared = new DeclaredHostConfigurationSource(definition);
+        var options = builder.Services.GetOrAddConfigurationProviderOptions();
+
+        options.DeclaredHostConfigurationSources.Add(declared);
+
+        var resource = builder.Declare(
+            HostConfigurationSourceProvider.ProviderId,
+            id,
+            resourceClass: ResourceClass.Configuration);
+
+        return new HostConfigurationSourceResourceBuilder(resource, declared);
+    }
+
     private static ConfigurationProviderOptions GetOrAddConfigurationProviderOptions(
         this IServiceCollection services)
     {
@@ -82,6 +105,176 @@ public static class ConfigurationProviderServiceCollectionExtensions
         services.AddSingleton(options);
         return options;
     }
+}
+
+public interface IHostConfigurationSourceResourceBuilder : IResourceBuilder
+{
+    IHostConfigurationSourceResourceBuilder WithEntries(IReadOnlyList<string> entries);
+
+    IHostConfigurationSourceResourceBuilder WithEntry(string name);
+
+    ConfigurationEntryReference Entry(
+        string name,
+        string? version = null);
+
+    new IHostConfigurationSourceResourceBuilder DependsOn(string resourceId);
+
+    new IHostConfigurationSourceResourceBuilder DependsOn(IResourceBuilder resource);
+
+    new IHostConfigurationSourceResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IHostConfigurationSourceResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
+
+    new IHostConfigurationSourceResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IHostConfigurationSourceResourceBuilder WithParent(string? parentResourceId);
+
+    new IHostConfigurationSourceResourceBuilder WithParent(IResourceBuilder resource);
+
+    new IHostConfigurationSourceResourceBuilder WithReference(string resourceId);
+
+    new IHostConfigurationSourceResourceBuilder WithReference(IResourceBuilder resource);
+
+    new IHostConfigurationSourceResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+
+    new IHostConfigurationSourceResourceBuilder Persist(bool overwrite = false);
+}
+
+internal sealed class HostConfigurationSourceResourceBuilder(
+    IResourceBuilder inner,
+    DeclaredHostConfigurationSource declared) : IHostConfigurationSourceResourceBuilder
+{
+    public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
+
+    public string ResourceId => inner.ResourceId;
+
+    public IHostConfigurationSourceResourceBuilder WithEntries(IReadOnlyList<string> entries)
+    {
+        declared.Definition = declared.Definition with { Entries = entries };
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder WithEntry(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        declared.Definition = declared.Definition with
+        {
+            Entries = declared.Definition.Entries
+                .Append(name)
+                .ToArray()
+        };
+        return this;
+    }
+
+    public ConfigurationEntryReference Entry(
+        string name,
+        string? version = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return new ConfigurationEntryReference(
+            ResourceId,
+            name.Trim(),
+            string.IsNullOrWhiteSpace(version) ? null : version.Trim());
+    }
+
+    public IHostConfigurationSourceResourceBuilder WithResourceGroup(string? resourceGroupId)
+    {
+        inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder WithParent(IResourceBuilder resource)
+    {
+        inner.WithParent(resource);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder DependsOn(string resourceId)
+    {
+        inner.DependsOn(resourceId);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder DependsOn(IResourceBuilder resource)
+    {
+        inner.DependsOn(resource);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    {
+        inner.DependsOn(resourceIds);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources)
+    {
+        inner.DependsOn(resources);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder WithReference(string resourceId)
+    {
+        inner.WithReference(resourceId);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder WithReference(IResourceBuilder resource)
+    {
+        inner.WithReference(resource);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder WithReferences(IEnumerable<string> resourceIds)
+    {
+        inner.WithReferences(resourceIds);
+        return this;
+    }
+
+    public IHostConfigurationSourceResourceBuilder Persist(bool overwrite = false)
+    {
+        inner.Persist(overwrite);
+        return this;
+    }
+
+    IResourceBuilder IResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
+        WithResourceGroup(resourceGroupId);
+
+    IResourceBuilder IResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    IResourceBuilder IResourceBuilder.WithParent(IResourceBuilder resource) =>
+        WithParent(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(string resourceId) =>
+        DependsOn(resourceId);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IResourceBuilder resource) =>
+        DependsOn(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+        DependsOn(resourceIds);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<IResourceBuilder> resources) =>
+        DependsOn(resources);
+
+    IResourceBuilder IResourceBuilder.WithReference(string resourceId) =>
+        WithReference(resourceId);
+
+    IResourceBuilder IResourceBuilder.WithReference(IResourceBuilder resource) =>
+        WithReference(resource);
+
+    IResourceBuilder IResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
+        WithReferences(resourceIds);
+
+    IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
+        Persist(overwrite);
 }
 
 public interface IConfigurationStoreResourceBuilder : IResourceBuilder

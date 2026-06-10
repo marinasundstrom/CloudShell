@@ -14,9 +14,9 @@ verification baseline.
   implementation, redaction/export coverage, and Resource Manager UI for
   assigning literal app settings, configuration-entry references, and
   vault-backed secret references.
-- Add a separate host-configuration source provider for development scenarios
-  where the CloudShell host explicitly exposes selected `IConfiguration`
-  entries to resources through configuration-entry references.
+- Add a sample with a programmatically declared web app that consumes
+  environment variables assigned from configuration-entry references and
+  vault-backed secret references.
 - Harden macOS host-provided virtual networking by exercising real local proxy
   mappings end to end, improving action capability reasons, and deciding how
   reconciled mappings should be persisted or stopped.

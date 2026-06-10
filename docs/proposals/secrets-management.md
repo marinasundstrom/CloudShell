@@ -172,6 +172,29 @@ start time. A container provider can create platform-native secret references
 or pass the value through a protected runtime channel when no better native
 mechanism exists.
 
+### Consumption paths
+
+CloudShell should support two complementary consumption paths:
+
+- Resource assignment: the host or Resource Manager assigns literal values,
+  configuration-entry references, or secret references to resource environment
+  variables. CloudShell resolves the references at start/deploy time and passes
+  the materialized value through the resource execution boundary.
+- In-process configuration: the application uses a CloudShell client provider,
+  such as `CloudShell.Configuration`, to load settings and secrets into the
+  application's `IConfiguration` at runtime.
+
+Resource assignment is useful when the target application expects environment
+variables or when the provider can map references to a native platform
+setting/secret feature. In-process configuration is useful when the application
+opts into CloudShell-aware configuration loading and wants settings to flow
+through the standard .NET configuration stack.
+
+Both paths should use the same reference concepts and redaction rules. The
+resource-assignment path must not require the application to reference the
+CloudShell client library. The in-process path must not require every setting
+or secret to be copied into the resource's environment.
+
 ### Vault resources
 
 A local or provider-backed vault resource exposes secret references and lookup

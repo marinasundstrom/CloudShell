@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -21,13 +22,18 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
         builder.Services.AddLocalProcessRunner();
         builder.Services.TryAddSingleton<ConfigurationProviderOptions>();
         builder.Services.TryAddSingleton<ConfigurationStore>();
+        builder.Services.TryAddSingleton<IConfiguration>(
+            _ => new ConfigurationBuilder().Build());
         builder.Services.AddSingleton<IResourceEnvironmentVariableProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
         builder.Services.AddSingleton<IConfigurationEntryReferenceResolver>(
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
+        builder.Services.AddSingleton<IConfigurationEntryReferenceResolver>(
+            serviceProvider => serviceProvider.GetRequiredService<HostConfigurationSourceProvider>());
 
         builder
             .AddResourceProvider<ConfigurationResourceProvider>()
+            .AddResourceProvider<HostConfigurationSourceProvider>()
             .AddLogProvider<ConfigurationResourceProvider>()
             .AddResourceType<Pages.RegisterConfigurationStore>(
                 "configuration.store",
