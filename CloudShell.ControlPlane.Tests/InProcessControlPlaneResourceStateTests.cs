@@ -562,6 +562,47 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task DefaultOrchestrator_ExecutesOrchestratorServiceInstancesForReplicas()
+    {
+        var resource = CreateResource("application:api", ResourceState.Stopped);
+        var provider = new TestOrchestratorServiceProcedureProvider();
+        var resourceManager = new TestResourceManagerStore(
+            [resource],
+            [provider],
+            [],
+            new Dictionary<string, ResourceClass>());
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    provider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var orchestrator = new DefaultResourceOrchestrator();
+
+        var result = await orchestrator.ExecuteActionAsync(
+            new ResourceOrchestrationContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                resourceManager,
+                registrations),
+            ResourceAction.Run);
+
+        Assert.Equal("Started application:api.", result.Message);
+        Assert.Equal(["run:api"], provider.PreparedActions);
+        Assert.Equal(
+            [
+                "run:api-replica-1:1/3",
+                "run:api-replica-2:2/3",
+                "run:api-replica-3:3/3"
+            ],
+            provider.InstanceActions);
+    }
+
+    [Fact]
     public async Task CreateResourceAsync_RejectsResourceClassMismatch()
     {
         var provider = new TestResourceCreationProvider();
@@ -790,6 +831,57 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
+        }
+    }
+
+    private sealed class TestOrchestratorServiceProcedureProvider :
+        IResourceProvider,
+        IResourceOrchestratorServiceProcedureProvider
+    {
+        public string Id => "test.orchestrator-service";
+
+        public string DisplayName => "Test orchestrator service";
+
+        public List<string> PreparedActions { get; } = [];
+
+        public List<string> InstanceActions { get; } = [];
+
+        public IReadOnlyList<Resource> GetResources() => [];
+
+        public bool CanExecuteOrchestratorService(
+            Resource resource,
+            ResourceAction action) =>
+            action.Kind is ResourceActionKind.Run or ResourceActionKind.Stop or ResourceActionKind.Restart;
+
+        public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ResourceOrchestratorService(
+                context.Resource.Id,
+                "api",
+                new ResourceWorkloadConfiguration(
+                    ResourceWorkloadKind.ContainerImage,
+                    "API",
+                    Image: "example/api:latest",
+                    Replicas: 3)));
+
+        public Task PrepareOrchestratorServiceAsync(
+            ResourceOrchestratorServiceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            PreparedActions.Add($"{action.Kind.ToString().ToLowerInvariant()}:{context.Service.Name}");
+            return Task.CompletedTask;
+        }
+
+        public Task ExecuteOrchestratorServiceInstanceAsync(
+            ResourceOrchestratorServiceInstanceContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            InstanceActions.Add(
+                $"{action.Kind.ToString().ToLowerInvariant()}:{context.Instance.Name}:{context.Instance.ReplicaOrdinal}/{context.Instance.ReplicaCount}");
+            return Task.CompletedTask;
         }
     }
 

@@ -49,6 +49,13 @@ public sealed class PlatformResourceProviderLoadBalancerTests
                     new LoadBalancerRouteMatch("app.local", "/"),
                     new LoadBalancerRouteTarget("application:web", "http")),
                 new LoadBalancerRoute(
+                    "api",
+                    "API",
+                    LoadBalancerRouteKind.Http,
+                    "web",
+                    new LoadBalancerRouteMatch("api.local", "/v1"),
+                    new LoadBalancerRouteTarget("application:api", Port: 5000)),
+                new LoadBalancerRoute(
                     "postgres",
                     "Postgres",
                     LoadBalancerRouteKind.Tcp,
@@ -73,6 +80,14 @@ public sealed class PlatformResourceProviderLoadBalancerTests
                     "Web",
                     [ResourceEndpoint.Http("http", "web.internal", 8080)]),
                 CreateResource(
+                    "application:api",
+                    "API",
+                    [],
+                    new Dictionary<string, string>
+                    {
+                        [ResourceAttributeNames.ContainerReplicas] = "3"
+                    }),
+                CreateResource(
                     "application:postgres",
                     "Postgres",
                     [ResourceEndpoint.Tcp("postgres", "postgres.internal", 5432)])
@@ -90,9 +105,13 @@ public sealed class PlatformResourceProviderLoadBalancerTests
                 action.Id == PlatformResourceProvider.ApplyLoadBalancerConfigurationActionId));
 
         var config = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "load-balancer-public.dynamic.yml"));
-        Assert.Contains("Applied Traefik configuration for 2 route(s)", result.Message);
+        Assert.Contains("Applied Traefik configuration for 3 route(s)", result.Message);
         Assert.Contains("Host(`app.local`) && PathPrefix(`/`)", config);
         Assert.Contains("url: \"http://web.internal:8080\"", config);
+        Assert.Contains("Host(`api.local`) && PathPrefix(`/v1`)", config);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-1:5000\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-2:5000\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-3:5000\"", config);
         Assert.Contains("rule: \"HostSNI(`*`)\"", config);
         Assert.Contains("address: \"postgres.internal:5432\"", config);
     }
@@ -100,7 +119,8 @@ public sealed class PlatformResourceProviderLoadBalancerTests
     private static Resource CreateResource(
         string id,
         string name,
-        IReadOnlyList<ResourceEndpoint> endpoints) =>
+        IReadOnlyList<ResourceEndpoint> endpoints,
+        IReadOnlyDictionary<string, string>? attributes = null) =>
         new(
             id,
             name,
@@ -111,7 +131,8 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             endpoints,
             "test",
             DateTimeOffset.UtcNow,
-            []);
+            [],
+            Attributes: attributes);
 
     private static string CreateTempDirectory()
     {

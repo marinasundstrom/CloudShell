@@ -12,6 +12,7 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
     public bool CanExecute(
         ResourceOrchestrationContext context,
         ResourceAction action) =>
+        GetServiceProcedureProvider(context, action) is not null ||
         GetProcedureProvider(context) is not null;
 
     public Task<ResourceProcedureResult> ExecuteActionAsync(
@@ -19,18 +20,22 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
         ResourceAction action,
         CancellationToken cancellationToken = default)
     {
+        var serviceProvider = GetServiceProcedureProvider(context, action);
+        if (serviceProvider is not null)
+        {
+            return ExecuteOrchestratorServiceActionAsync(
+                serviceProvider,
+                context,
+                action,
+                cancellationToken);
+        }
+
         var provider = GetProcedureProvider(context)
             ?? throw new ControlPlaneException(
                 ControlPlaneError.ResourceActionUnsupported(context.Resource.Name));
 
         return provider.ExecuteActionAsync(
-            new ResourceProcedureContext(
-                context.Resource,
-                context.Registration,
-                context.ResourceGroup?.Id,
-                context.Registrations,
-                context.ResourceManager,
-                context.PreferredContainerEngineId),
+            CreateProcedureContext(context),
             action,
             cancellationToken);
     }
@@ -47,15 +52,82 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
                 ControlPlaneError.ResourceDeleteUnsupported(context.Resource.Name));
 
         return provider.DeleteAsync(
-            new ResourceProcedureContext(
-                context.Resource,
-                context.Registration,
-                context.ResourceGroup?.Id,
-                context.Registrations,
-                context.ResourceManager,
-                context.PreferredContainerEngineId),
+            CreateProcedureContext(context),
             cancellationToken);
     }
+
+    private static async Task<ResourceProcedureResult> ExecuteOrchestratorServiceActionAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceOrchestrationContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        var resourceContext = CreateProcedureContext(context);
+        var service = await provider.CreateOrchestratorServiceAsync(
+            resourceContext,
+            cancellationToken);
+
+        if (action.Kind == ResourceActionKind.Restart)
+        {
+            await ExecuteOrchestratorServiceActionCoreAsync(
+                provider,
+                resourceContext,
+                service,
+                action with { Kind = ResourceActionKind.Stop },
+                cancellationToken);
+            await ExecuteOrchestratorServiceActionCoreAsync(
+                provider,
+                resourceContext,
+                service,
+                action with { Kind = ResourceActionKind.Run },
+                cancellationToken);
+            return ResourceProcedureResult.Completed($"Restarted {context.Resource.Name}.");
+        }
+
+        await ExecuteOrchestratorServiceActionCoreAsync(
+            provider,
+            resourceContext,
+            service,
+            action,
+            cancellationToken);
+        return action.Kind switch
+        {
+            ResourceActionKind.Run => ResourceProcedureResult.Completed($"Started {context.Resource.Name}."),
+            ResourceActionKind.Stop => ResourceProcedureResult.Completed($"Stopped {context.Resource.Name}."),
+            _ => ResourceProcedureResult.Completed($"Executed {action.DisplayName} for {context.Resource.Name}.")
+        };
+    }
+
+    private static async Task ExecuteOrchestratorServiceActionCoreAsync(
+        IResourceOrchestratorServiceProcedureProvider provider,
+        ResourceProcedureContext resourceContext,
+        ResourceOrchestratorService service,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        await provider.PrepareOrchestratorServiceAsync(
+            new ResourceOrchestratorServiceProcedureContext(resourceContext, service),
+            action,
+            cancellationToken);
+
+        foreach (var instance in ResourceOrchestratorServiceInstances.CreateDefaultInstances(service))
+        {
+            await provider.ExecuteOrchestratorServiceInstanceAsync(
+                new ResourceOrchestratorServiceInstanceContext(resourceContext, service, instance),
+                action,
+                cancellationToken);
+        }
+    }
+
+    private static ResourceProcedureContext CreateProcedureContext(
+        ResourceOrchestrationContext context) =>
+        new(
+            context.Resource,
+            context.Registration,
+            context.ResourceGroup?.Id,
+            context.Registrations,
+            context.ResourceManager,
+            context.PreferredContainerEngineId);
 
     private static IResourceProcedureProvider? GetProcedureProvider(
         ResourceOrchestrationContext context)
@@ -83,6 +155,26 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
         return context.ResourceManager.Providers.FirstOrDefault(provider =>
             string.Equals(provider.Id, context.Registration.ProviderId, StringComparison.OrdinalIgnoreCase))
             as IResourceProcedureProvider;
+    }
+
+    private static IResourceOrchestratorServiceProcedureProvider? GetServiceProcedureProvider(
+        ResourceOrchestrationContext context,
+        ResourceAction action)
+    {
+        if (context.Registration is not null)
+        {
+            return context.ResourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, context.Registration.ProviderId, StringComparison.OrdinalIgnoreCase) &&
+                provider is IResourceOrchestratorServiceProcedureProvider serviceProvider &&
+                serviceProvider.CanExecuteOrchestratorService(context.Resource, action))
+                as IResourceOrchestratorServiceProcedureProvider;
+        }
+
+        return context.ResourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, context.Resource.Provider, StringComparison.OrdinalIgnoreCase) &&
+            provider is IResourceOrchestratorServiceProcedureProvider serviceProvider &&
+            serviceProvider.CanExecuteOrchestratorService(context.Resource, action))
+            as IResourceOrchestratorServiceProcedureProvider;
     }
 
 }

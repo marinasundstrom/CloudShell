@@ -40,9 +40,13 @@ verification baseline.
   observed runtime instances, scaling events, and provider state reporting.
 - Harden `ResourceOrchestratorService` runtime mapping for replicated
   container apps, including Kubernetes Service/Deployment mapping,
-  backend-pool behavior, provider-observed replica health, traffic weights,
-  and generated diagnostics, while keeping those runtime artifacts
+  provider-observed replica health, traffic weights, generated diagnostics, and
+  richer dynamic backend-pool behavior while keeping runtime artifacts
   implementation details below the container app resource.
+- Decide how Docker-discovered container resources should expose grouping
+  metadata for runtime containers, including manually assigned groups and
+  Docker Compose project/service labels, when those containers are shown as
+  sub-items under a Docker host.
 - Complete the `cloudshell.service` resource story for outward exposure,
   including its relationship to load balancers, service discovery, gateways,
   and Kubernetes-style service projection without making it the internal

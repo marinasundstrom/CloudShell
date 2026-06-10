@@ -120,6 +120,13 @@ the same desired count to `deploy.replicas`; future orchestrators should map it
 to their native service and replica abstractions without changing the
 CloudShell API shape.
 
+Load balancers and `cloudshell.service` resources should target the stable
+container app or another stable Resource Manager artifact. For the default
+container convention, a port-based load-balancer route to a replicated
+container app can expand to the convention-named replica backends. The replica
+containers themselves still remain runtime artifacts, not separate Resource
+Manager resources.
+
 ## Image Deployment Procedure
 
 The proposed deployment flow for CloudShell-hosted dev environments is:

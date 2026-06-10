@@ -32,6 +32,7 @@ public sealed partial class ApplicationResourceProvider(
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
+    IResourceOrchestratorServiceProcedureProvider,
     IResourceEnvironmentVariableConfigurationProvider,
     IDisposable
 {
@@ -233,6 +234,90 @@ public sealed partial class ApplicationResourceProvider(
     public bool CanConfigureEnvironmentVariables(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
+
+    public bool CanExecuteOrchestratorService(
+        Resource resource,
+        ResourceAction action) =>
+        ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
+        store.GetApplication(resource.Id) is not null &&
+        action.Kind is ResourceActionKind.Run or ResourceActionKind.Stop or ResourceActionKind.Restart;
+
+    public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var application = store.GetApplication(context.Resource.Id)
+            ?? throw new InvalidOperationException(
+                $"Container app resource '{context.Resource.Id}' is not configured.");
+        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
+        {
+            throw new InvalidOperationException(
+                $"Resource '{context.Resource.Id}' is not a container app.");
+        }
+
+        return Task.FromResult(CreateDefaultContainerOrchestratorService(application));
+    }
+
+    public async Task PrepareOrchestratorServiceAsync(
+        ResourceOrchestratorServiceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        if (action.Kind != ResourceActionKind.Run)
+        {
+            return;
+        }
+
+        var application = GetContainerApplication(context.ResourceContext.Resource.Id);
+        var engine = await ResolveRequiredContainerEngineAsync(
+            application,
+            context.ResourceContext.ResourceManager,
+            context.ResourceContext.PreferredContainerEngineId,
+            cancellationToken);
+        var processLog = GetProcessLog(application.Id);
+
+        await LoginToContainerRegistryAsync(
+            engine,
+            GetEffectiveContainerRegistry(application),
+            application.ContainerRegistryCredentials,
+            processLog,
+            cancellationToken);
+    }
+
+    public async Task ExecuteOrchestratorServiceInstanceAsync(
+        ResourceOrchestratorServiceInstanceContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        var application = GetContainerApplication(context.ResourceContext.Resource.Id);
+        switch (action.Kind)
+        {
+            case ResourceActionKind.Run:
+                await StartContainerApplicationInstanceAsync(
+                    application,
+                    context.ResourceContext.Resource.DependsOn,
+                    context.ResourceContext.ResourceGroupId,
+                    context.ResourceContext.Registrations,
+                    context.ResourceContext.ResourceManager,
+                    context.ResourceContext.PreferredContainerEngineId,
+                    context.Service,
+                    context.Instance,
+                    cancellationToken);
+                return;
+            case ResourceActionKind.Stop:
+                await StopContainerApplicationInstanceAsync(
+                    application,
+                    context.ResourceContext.ResourceManager,
+                    context.ResourceContext.PreferredContainerEngineId,
+                    context.Instance,
+                    cancellationToken);
+                return;
+            default:
+                throw new NotSupportedException(
+                    $"Container app services do not support action '{action.DisplayName}'.");
+        }
+    }
 
     public IReadOnlyList<EnvironmentVariableAssignment> GetConfiguredEnvironmentVariables(string resourceId) =>
         store.GetApplication(resourceId)?.EnvironmentVariables ?? [];
@@ -977,140 +1062,161 @@ public sealed partial class ApplicationResourceProvider(
         string? preferredContainerEngineId,
         CancellationToken cancellationToken)
     {
+        var service = CreateDefaultContainerOrchestratorService(definition);
+        await PrepareOrchestratorServiceAsync(
+            new ResourceOrchestratorServiceProcedureContext(
+                new ResourceProcedureContext(
+                    CreateResource(definition),
+                    null,
+                    resourceGroupId,
+                    registrations,
+                    resourceManager,
+                    preferredContainerEngineId),
+                service),
+            ResourceAction.Run,
+            cancellationToken);
+        foreach (var instance in CreateDefaultContainerServiceInstances(service))
+        {
+            await StartContainerApplicationInstanceAsync(
+                definition,
+                dependsOn,
+                resourceGroupId,
+                registrations,
+                resourceManager,
+                preferredContainerEngineId,
+                service,
+                instance,
+                cancellationToken);
+        }
+    }
+
+    private async Task StartContainerApplicationInstanceAsync(
+        ApplicationResourceDefinition definition,
+        IReadOnlyList<string> dependsOn,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        IResourceManagerStore? resourceManager,
+        string? preferredContainerEngineId,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(definition.ContainerImage))
         {
             throw new InvalidOperationException(
                 $"Container resource '{definition.Name}' cannot be started by the default orchestrator because it does not specify a container image.");
         }
 
-        var engine = await ResolveContainerEngineAsync(
-            definition.ContainerEngineId,
-            preferredContainerEngineId,
+        var engine = await ResolveRequiredContainerEngineAsync(
+            definition,
             resourceManager,
-            cancellationToken)
-            ?? throw new InvalidOperationException(
-                $"Resource '{definition.Name}' is container-backed but no default container engine is registered. Use UseDocker(), UseContainerEngine(...), or set WithContainerEngine(...).");
+            preferredContainerEngineId,
+            cancellationToken);
         var logPath = GetLogPath(definition.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
         var processLog = new ApplicationProcessLog(logPath);
-        var service = CreateDefaultContainerOrchestratorService(definition);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
-            for (var replica = 1; replica <= service.Replicas; replica++)
+            await RunContainerEngineCommandAsync(
+                engine,
+                ["rm", "-f", instance.Name],
+                processLog,
+                cancellationToken);
+        }
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = GetContainerEngineExecutable(engine),
+            WorkingDirectory = Environment.CurrentDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        ConfigureContainerEngineEnvironment(startInfo, engine);
+        startInfo.ArgumentList.Add("run");
+        startInfo.ArgumentList.Add("--name");
+        startInfo.ArgumentList.Add(instance.Name);
+        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+        {
+            startInfo.ArgumentList.Add("--rm");
+        }
+
+        if (instance.ReplicaOrdinal == 1)
+        {
+            foreach (var port in service.ServicePorts)
             {
-                await RunContainerEngineCommandAsync(
-                    engine,
-                    ["rm", "-f", GetContainerName(service, replica)],
-                    processLog,
-                    cancellationToken);
+                var hostPort = ResolveLocalPort(definition.Id, port);
+                startInfo.ArgumentList.Add("-p");
+                startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeProtocol(port.Protocol)}");
             }
         }
 
-        await LoginToContainerRegistryAsync(
-            engine,
-            GetEffectiveContainerRegistry(definition),
-            definition.ContainerRegistryCredentials,
-            processLog,
-            cancellationToken);
-
-        var replicas = service.Replicas;
-        for (var replica = 1; replica <= replicas; replica++)
+        foreach (var variable in await ResolveApplicationEnvironmentVariablesAsync(
+                     definition,
+                     dependsOn,
+                     resourceGroupId,
+                     registrations,
+                     includeAspNetCoreProjectVariables: false,
+                     cancellationToken))
         {
-            var containerName = GetContainerName(service, replica);
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = GetContainerEngineExecutable(engine),
-                WorkingDirectory = Environment.CurrentDirectory,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-
-            ConfigureContainerEngineEnvironment(startInfo, engine);
-            startInfo.ArgumentList.Add("run");
-            startInfo.ArgumentList.Add("--name");
-            startInfo.ArgumentList.Add(containerName);
-            if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
-            {
-                startInfo.ArgumentList.Add("--rm");
-            }
-
-            if (replica == 1)
-            {
-                foreach (var port in service.ServicePorts)
-                {
-                    var hostPort = ResolveLocalPort(definition.Id, port);
-                    startInfo.ArgumentList.Add("-p");
-                    startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeProtocol(port.Protocol)}");
-                }
-            }
-
-            foreach (var variable in await ResolveApplicationEnvironmentVariablesAsync(
-                         definition,
-                         dependsOn,
-                         resourceGroupId,
-                         registrations,
-                         includeAspNetCoreProjectVariables: false,
-                         cancellationToken))
-            {
-                startInfo.ArgumentList.Add("-e");
-                startInfo.ArgumentList.Add($"{variable.Name}={variable.Value}");
-            }
-
             startInfo.ArgumentList.Add("-e");
-            startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
-            startInfo.ArgumentList.Add("-e");
-            startInfo.ArgumentList.Add($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}");
-            startInfo.ArgumentList.Add(CreateRegistryImageReference(
-                GetEffectiveContainerRegistry(definition),
-                definition.ContainerImage));
+            startInfo.ArgumentList.Add($"{variable.Name}={variable.Value}");
+        }
 
-            var process = new Process
-            {
-                StartInfo = startInfo,
-                EnableRaisingEvents = true
-            };
-            process.OutputDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stdout");
-            process.ErrorDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stderr", "Error");
-            process.Exited += (_, _) =>
-            {
-                processLog.Append(
-                    $"Container replica '{containerName}' exited with code {process.ExitCode}.",
-                    "process",
-                    process.ExitCode == 0 ? "Information" : "Error");
-                runtimeStates.Save(new ApplicationRuntimeState(
-                    definition.Id,
-                    process.Id,
-                    null,
-                    DateTimeOffset.UtcNow,
-                    process.ExitCode,
-                    logPath));
-            };
+        startInfo.ArgumentList.Add("-e");
+        startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
+        startInfo.ArgumentList.Add("-e");
+        startInfo.ArgumentList.Add($"CLOUDSHELL_REPLICA_ORDINAL={instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}");
+        startInfo.ArgumentList.Add(CreateRegistryImageReference(
+            GetEffectiveContainerRegistry(definition),
+            definition.ContainerImage));
 
-            cancellationToken.ThrowIfCancellationRequested();
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            var startedAt = TryGetStartTime(process);
+        var process = new Process
+        {
+            StartInfo = startInfo,
+            EnableRaisingEvents = true
+        };
+        process.OutputDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stdout");
+        process.ErrorDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stderr", "Error");
+        process.Exited += (_, _) =>
+        {
+            processLog.Append(
+                $"Container replica '{instance.Name}' exited with code {process.ExitCode}.",
+                "process",
+                process.ExitCode == 0 ? "Information" : "Error");
             runtimeStates.Save(new ApplicationRuntimeState(
                 definition.Id,
                 process.Id,
-                startedAt,
+                null,
                 DateTimeOffset.UtcNow,
-                LogPath: logPath));
+                process.ExitCode,
+                logPath));
+        };
 
-            processLog.Append(
-                $"Started container image '{definition.ContainerImage}' as '{containerName}' replica {replica.ToString(CultureInfo.InvariantCulture)} of {replicas.ToString(CultureInfo.InvariantCulture)} using {engine.Name} with {definition.Lifetime} lifetime.",
-                "process",
-                "Information");
+        cancellationToken.ThrowIfCancellationRequested();
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
 
-            _processes[definition.Id] = new ApplicationProcessState(
-                process,
-                processLog,
-                definition.Lifetime,
-                logPath);
-        }
+        var startedAt = TryGetStartTime(process);
+        runtimeStates.Save(new ApplicationRuntimeState(
+            definition.Id,
+            process.Id,
+            startedAt,
+            DateTimeOffset.UtcNow,
+            LogPath: logPath));
+
+        processLog.Append(
+            $"Started container image '{definition.ContainerImage}' as '{instance.Name}' replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} of {instance.ReplicaCount.ToString(CultureInfo.InvariantCulture)} using {engine.Name} with {definition.Lifetime} lifetime.",
+            "process",
+            "Information");
+
+        _processes[definition.Id] = new ApplicationProcessState(
+            process,
+            processLog,
+            definition.Lifetime,
+            logPath);
     }
 
     private static bool IsSameResourceGroup(
@@ -1248,22 +1354,67 @@ public sealed partial class ApplicationResourceProvider(
         CancellationToken cancellationToken)
     {
         var service = CreateDefaultContainerOrchestratorService(definition);
-        for (var replica = 1; replica <= service.Replicas; replica++)
+        foreach (var instance in CreateDefaultContainerServiceInstances(service))
         {
-            var containerName = GetContainerName(service, replica);
+            await StopContainerApplicationInstanceAsync(
+                definition,
+                engine,
+                log,
+                instance,
+                cancellationToken);
+        }
+    }
+
+    private async Task StopContainerApplicationInstanceAsync(
+        ApplicationResourceDefinition definition,
+        IResourceManagerStore? resourceManager,
+        string? preferredContainerEngineId,
+        ResourceOrchestratorServiceInstance instance,
+        CancellationToken cancellationToken)
+    {
+        if (resourceManager is null)
+        {
+            throw new InvalidOperationException(
+                $"Container resource '{definition.Name}' requires resource manager context to resolve a container engine.");
+        }
+
+        var engine = await ResolveContainerEngineAsync(
+            definition.ContainerEngineId,
+            preferredContainerEngineId,
+            resourceManager,
+            cancellationToken);
+        if (engine is null)
+        {
+            return;
+        }
+
+        await StopContainerApplicationInstanceAsync(
+            definition,
+            engine,
+            GetProcessLog(definition.Id),
+            instance,
+            cancellationToken);
+    }
+
+    private async Task StopContainerApplicationInstanceAsync(
+        ApplicationResourceDefinition definition,
+        ContainerEngineResourceDefinition engine,
+        ApplicationProcessLog log,
+        ResourceOrchestratorServiceInstance instance,
+        CancellationToken cancellationToken)
+    {
+        await RunContainerEngineCommandAsync(
+            engine,
+            ["stop", instance.Name],
+            log,
+            cancellationToken);
+        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+        {
             await RunContainerEngineCommandAsync(
                 engine,
-                ["stop", containerName],
+                ["rm", "-f", instance.Name],
                 log,
                 cancellationToken);
-            if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
-            {
-                await RunContainerEngineCommandAsync(
-                    engine,
-                    ["rm", "-f", containerName],
-                    log,
-                    cancellationToken);
-            }
         }
     }
 
@@ -2097,6 +2248,45 @@ public sealed partial class ApplicationResourceProvider(
             GetContainerServiceName(application.Id),
             CreateWorkloadConfiguration(application));
 
+    private ApplicationResourceDefinition GetContainerApplication(string resourceId)
+    {
+        var application = store.GetApplication(resourceId)
+            ?? throw new InvalidOperationException(
+                $"Container app resource '{resourceId}' is not configured.");
+        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
+        {
+            throw new InvalidOperationException(
+                $"Resource '{resourceId}' is not a container app.");
+        }
+
+        return application;
+    }
+
+    private static IEnumerable<ResourceOrchestratorServiceInstance> CreateDefaultContainerServiceInstances(
+        ResourceOrchestratorService service) =>
+        ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);
+
+    private async Task<ContainerEngineResourceDefinition> ResolveRequiredContainerEngineAsync(
+        ApplicationResourceDefinition definition,
+        IResourceManagerStore? resourceManager,
+        string? preferredContainerEngineId,
+        CancellationToken cancellationToken)
+    {
+        if (resourceManager is null)
+        {
+            throw new InvalidOperationException(
+                $"Container resource '{definition.Name}' requires resource manager context to resolve a container engine.");
+        }
+
+        return await ResolveContainerEngineAsync(
+            definition.ContainerEngineId,
+            preferredContainerEngineId,
+            resourceManager,
+            cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"Resource '{definition.Name}' is container-backed but no default container engine is registered. Use UseDocker(), UseContainerEngine(...), or set WithContainerEngine(...).");
+    }
+
     private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
         string? containerEngineId,
         string? preferredContainerEngineId,
@@ -2287,24 +2477,22 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private static string GetContainerName(ResourceOrchestratorService service, int replica = 1) =>
-        service.Replicas <= 1
-            ? service.Name
-            : $"{service.Name}-replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
+        ResourceOrchestratorServiceInstances.CreateDefaultInstanceName(
+            service.Name,
+            replica,
+            service.Replicas);
 
     private static string GetContainerName(string resourceId, int replica = 1, int replicas = 1)
     {
         var serviceName = GetContainerServiceName(resourceId);
-        return replicas <= 1
-            ? serviceName
-            : $"{serviceName}-replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
+        return ResourceOrchestratorServiceInstances.CreateDefaultInstanceName(
+            serviceName,
+            replica,
+            replicas);
     }
 
-    private static string GetContainerServiceName(string resourceId)
-    {
-        return "cloudshell-" + SlugPattern()
-            .Replace(resourceId.Trim().ToLowerInvariant(), "-")
-            .Trim('-');
-    }
+    private static string GetContainerServiceName(string resourceId) =>
+        ResourceOrchestratorServiceInstances.CreateDefaultServiceName(resourceId);
 
     private static string GetContainerEngineExecutable(ContainerEngineResourceDefinition engine) =>
         engine.Kind == ContainerEngineKind.Podman ? "podman" : "docker";

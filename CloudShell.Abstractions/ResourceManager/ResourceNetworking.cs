@@ -158,10 +158,20 @@ public sealed record LoadBalancerRouteTarget(
     string? EndpointName = null,
     int? Port = null);
 
+public sealed record LoadBalancerBackendTarget(
+    string Host,
+    int Port,
+    string Protocol = "tcp",
+    int Weight = 100);
+
 public sealed record LoadBalancerRouteResolution(
     LoadBalancerRoute Route,
     Resource TargetResource,
-    ResourceEndpoint? TargetEndpoint);
+    ResourceEndpoint? TargetEndpoint,
+    IReadOnlyList<LoadBalancerBackendTarget>? Backends = null)
+{
+    public IReadOnlyList<LoadBalancerBackendTarget> ResolvedBackends => Backends ?? [];
+}
 
 public sealed record LoadBalancerProviderContext(
     Resource LoadBalancerResource,

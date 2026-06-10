@@ -59,7 +59,18 @@ public static class TraefikDynamicConfigurationWriter
             builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
             builder.AppendLine("      loadBalancer:");
             builder.AppendLine("        servers:");
-            builder.AppendLine(CultureInfo.InvariantCulture, $"          - url: {Quote(CreateHttpTarget(resolution))}");
+            var backends = resolution.ResolvedBackends;
+            if (backends.Count > 0)
+            {
+                foreach (var backend in backends)
+                {
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - url: {Quote(CreateHttpTarget(backend))}");
+                }
+            }
+            else
+            {
+                builder.AppendLine(CultureInfo.InvariantCulture, $"          - url: {Quote(CreateHttpTarget(resolution))}");
+            }
         }
     }
 
@@ -86,7 +97,18 @@ public static class TraefikDynamicConfigurationWriter
             builder.AppendLine(CultureInfo.InvariantCulture, $"    {routeId}:");
             builder.AppendLine("      loadBalancer:");
             builder.AppendLine("        servers:");
-            builder.AppendLine(CultureInfo.InvariantCulture, $"          - address: {Quote(CreateTcpTarget(resolution))}");
+            var backends = resolution.ResolvedBackends;
+            if (backends.Count > 0)
+            {
+                foreach (var backend in backends)
+                {
+                    builder.AppendLine(CultureInfo.InvariantCulture, $"          - address: {Quote(CreateTcpTarget(backend))}");
+                }
+            }
+            else
+            {
+                builder.AppendLine(CultureInfo.InvariantCulture, $"          - address: {Quote(CreateTcpTarget(resolution))}");
+            }
         }
     }
 
@@ -124,6 +146,14 @@ public static class TraefikDynamicConfigurationWriter
         return $"http://{CreateTargetHost(resolution.TargetResource)}:{port.ToString(CultureInfo.InvariantCulture)}";
     }
 
+    private static string CreateHttpTarget(LoadBalancerBackendTarget backend)
+    {
+        var scheme = string.Equals(backend.Protocol, "https", StringComparison.OrdinalIgnoreCase)
+            ? "https"
+            : "http";
+        return $"{scheme}://{backend.Host}:{backend.Port.ToString(CultureInfo.InvariantCulture)}";
+    }
+
     private static string CreateTcpTarget(LoadBalancerRouteResolution resolution)
     {
         if (resolution.TargetEndpoint is not null &&
@@ -136,6 +166,9 @@ public static class TraefikDynamicConfigurationWriter
         var port = ResolveTargetPort(resolution);
         return $"{CreateTargetHost(resolution.TargetResource)}:{port.ToString(CultureInfo.InvariantCulture)}";
     }
+
+    private static string CreateTcpTarget(LoadBalancerBackendTarget backend) =>
+        $"{backend.Host}:{backend.Port.ToString(CultureInfo.InvariantCulture)}";
 
     private static int ResolveTargetPort(LoadBalancerRouteResolution resolution)
     {

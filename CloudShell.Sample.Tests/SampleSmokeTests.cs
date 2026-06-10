@@ -240,13 +240,17 @@ public sealed class SampleSmokeTests
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
         var loadBalancer = Assert.Single(resourcesDocument.RootElement.EnumerateArray(), resource =>
             resource.GetProperty("id").GetString() == "load-balancer:public");
+        var api = Assert.Single(resourcesDocument.RootElement.EnumerateArray(), resource =>
+            resource.GetProperty("id").GetString() == "application:api");
         var attributes = loadBalancer.GetProperty("attributes");
+        var apiAttributes = api.GetProperty("attributes");
 
         Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
         Assert.Equal("traefik", attributes.GetProperty("loadBalancer.provider").GetString());
         Assert.Equal("docker:sample-host", attributes.GetProperty("loadBalancer.hostResourceId").GetString());
         Assert.Equal("3", attributes.GetProperty("loadBalancer.routes").GetString());
         Assert.Equal(3, loadBalancer.GetProperty("loadBalancerRoutes").GetArrayLength());
+        Assert.Equal("3", apiAttributes.GetProperty("container.replicas").GetString());
 
         var applyAction = loadBalancer
             .GetProperty("resourceActions")
@@ -264,6 +268,9 @@ public sealed class SampleSmokeTests
         var config = await File.ReadAllTextAsync(configPath);
         Assert.Contains("Host(`app.local`)", config);
         Assert.Contains("Host(`api.local`) && PathPrefix(`/v1`)", config);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-1:5000\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-2:5000\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-3:5000\"", config);
         Assert.Contains("HostSNI(`*`)", config);
         Assert.Contains("address: \"localhost:55432\"", config);
     }

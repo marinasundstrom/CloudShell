@@ -62,6 +62,7 @@ cloudShell.Resources(resources =>
             port: 5081,
             protocol: "http",
             exposure: ResourceExposureScope.Local)
+        .WithReplicas(3)
         .WithContainerEngine(dockerHost)
         .WithAutoStart(false)
         .Persist(overwrite: true);
@@ -90,7 +91,7 @@ cloudShell.Resources(resources =>
         .ExposeTcp(5432, "postgres");
 
     lb.MapHost("app.local", webApp, endpoint: "http");
-    lb.MapPath("api.local", "/v1", apiService, endpoint: "http");
+    lb.MapPath("api.local", "/v1", apiService, port: 5000);
     lb.MapTcp(5432, postgres, endpoint: "postgres");
 });
 

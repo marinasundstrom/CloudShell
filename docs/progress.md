@@ -201,6 +201,10 @@ The MVP should prove:
   networks, instead of treating workload configuration as the service directly.
   The existing `cloudshell.service` resource remains a separate platform
   exposure resource for stable endpoints over one or more targets.
+- The default orchestrator now owns replica instance fan-out for container app
+  services, and load-balancer route resolution can expand a port-based route to
+  a replicated container app into convention-named backend targets for Traefik
+  file-provider output.
 
 ## Completed recently
 

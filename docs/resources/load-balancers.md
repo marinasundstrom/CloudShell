@@ -22,8 +22,11 @@ A load balancer has:
 - routes that map host/path/TCP rules to stable resource targets
 
 Routes target resources and their projected endpoints. A route can also specify
-a raw target port as an authoring convenience, but endpoint references are the
-preferred stable contract.
+a raw target port as an authoring convenience. Endpoint references remain the
+preferred stable contract for single-instance targets; a port-based route to a
+replicated container app lets the load-balancer provider expand the stable app
+target into replica backends using the selected orchestrator's runtime naming
+convention.
 
 When a provider materializes a container app through Docker Compose,
 Kubernetes, or another runtime, the orchestrator-specific service or backend is
@@ -41,7 +44,8 @@ var webApp = resources
 
 var apiService = resources
     .AddContainerApplication("application:api", "API Service", "cloudshell/mock-api:1.0.0")
-    .WithEndpoint("http", targetPort: 5000, port: 5081, protocol: "http");
+    .WithEndpoint("http", targetPort: 5000, port: 5081, protocol: "http")
+    .WithReplicas(3);
 
 var postgres = resources
     .AddContainerApplication("application:postgres", "Postgres", "cloudshell/mock-postgres:1.0.0")
@@ -56,7 +60,7 @@ var lb = resources
     .ExposeTcp(5432, "postgres");
 
 lb.MapHost("app.local", webApp, endpoint: "http");
-lb.MapPath("api.local", "/v1", apiService, endpoint: "http");
+lb.MapPath("api.local", "/v1", apiService, port: 5000);
 lb.MapTcp(5432, postgres, endpoint: "postgres");
 ```
 
@@ -150,9 +154,10 @@ to the load-balancer lifecycle.
 ## Sample
 
 The `samples/LoadBalancer` project declares a selected container host, mock
-web/API/TCP container app targets, and a Traefik-backed public load balancer.
-Its smoke test invokes the advertised apply action and verifies the generated
-Traefik dynamic configuration file.
+web/API/TCP container app targets, a three-replica API container app, and a
+Traefik-backed public load balancer. Its smoke test invokes the advertised
+apply action and verifies the generated Traefik dynamic configuration file,
+including the expanded API replica backends.
 
 Run it with:
 
@@ -170,5 +175,5 @@ file-provider output. It does not yet provide:
 - structured validation diagnostics before applying routes
 - provider-managed Traefik container lifecycle
 - TLS certificate resources or certificate binding
-- weighted backend pools, traffic splitting, or provider-observed replica
-  health
+- weighted backend pools, traffic splitting, provider-observed replica health,
+  or dynamic backend membership beyond the current desired replica count

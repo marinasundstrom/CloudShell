@@ -545,8 +545,45 @@ public sealed class PlatformResourceProvider(
                 $"Load balancer resource '{loadBalancerResourceId}' route '{route.Id}' must specify a target endpoint or port.");
         }
 
-        return new LoadBalancerRouteResolution(route, targetResource, targetEndpoint);
+        return new LoadBalancerRouteResolution(
+            route,
+            targetResource,
+            targetEndpoint,
+            ResolveLoadBalancerBackends(route, targetResource, targetEndpoint));
     }
+
+    private static IReadOnlyList<LoadBalancerBackendTarget> ResolveLoadBalancerBackends(
+        LoadBalancerRoute route,
+        Resource targetResource,
+        ResourceEndpoint? targetEndpoint)
+    {
+        var replicas = ResolveContainerReplicaCount(targetResource);
+        if (replicas <= 1 || route.Target.Port is not { } port)
+        {
+            return [];
+        }
+
+        var protocol = string.IsNullOrWhiteSpace(targetEndpoint?.Protocol)
+            ? route.Kind == LoadBalancerRouteKind.Http ? "http" : "tcp"
+            : targetEndpoint.Protocol;
+        var serviceName = ResourceOrchestratorServiceInstances.CreateDefaultServiceName(targetResource.Id);
+        return Enumerable
+            .Range(1, replicas)
+            .Select(replica => new LoadBalancerBackendTarget(
+                ResourceOrchestratorServiceInstances.CreateDefaultInstanceName(
+                    serviceName,
+                    replica,
+                    replicas),
+                port,
+                protocol))
+            .ToArray();
+    }
+
+    private static int ResolveContainerReplicaCount(Resource resource) =>
+        resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.ContainerReplicas, out var replicas) &&
+        int.TryParse(replicas, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? Math.Max(1, parsed)
+            : 1;
 
     private static ResourceEndpoint? ResolveLoadBalancerTargetEndpoint(
         string loadBalancerResourceId,
