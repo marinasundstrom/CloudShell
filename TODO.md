@@ -22,9 +22,9 @@ verification baseline.
   compatibility adapters for existing container-engine contracts, and a shared
   default/explicit host resolver before adding provider-owned runtime
   containers.
-- For Traefik container mode, model implementation containers as provider-owned
-  runtime state or child resources tied to the load balancer lifecycle on a
-  selected host resource, not as user-authored container app resources.
+- Continue Traefik container mode beyond apply-time startup by modeling the
+  implementation container as provider-owned runtime state or a child resource
+  tied to load balancer stop/delete lifecycle on the selected host resource.
 - Continue the remote Docker hosts proposal beyond the first host-model slice:
   persist provider-owned UI host configuration, wire supported credential
   transports into Docker client creation, and add remote container action

@@ -2784,6 +2784,24 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(expected, method.Invoke(null, [resourceId, replica, replicas]));
     }
 
+    [Theory]
+    [InlineData("http", "tcp")]
+    [InlineData("https", "tcp")]
+    [InlineData("tcp", "tcp")]
+    [InlineData("udp", "udp")]
+    [InlineData("bogus", "tcp")]
+    public void ContainerApplicationPublishProtocol_MapsApplicationProtocolsToDockerTransports(
+        string protocol,
+        string expected)
+    {
+        var method = typeof(ApplicationResourceProvider).GetMethod(
+            "NormalizeContainerPublishProtocol",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.NotNull(method);
+        Assert.Equal(expected, method.Invoke(null, [protocol]));
+    }
+
     [Fact]
     public void ContainerApplicationProvider_CreatesDefaultContainerOrchestratorService()
     {

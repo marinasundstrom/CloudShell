@@ -39,17 +39,19 @@ target to their own service, backend, or endpoint model.
 var dockerHost = resources.AddDocker("docker:sample-host", "Sample Container Host");
 
 var webApp = resources
-    .AddContainerApplication("application:web", "Web App", "cloudshell/mock-web:1.0.0")
-    .WithEndpoint("http", targetPort: 8080, port: 5080, protocol: "http");
+    .AddContainerApplication("application:web", "Web App", "nginx:1.27-alpine")
+    .WithEndpoint("http", targetPort: 80, port: 5080, protocol: "http");
 
 var apiService = resources
-    .AddContainerApplication("application:api", "API Service", "cloudshell/mock-api:1.0.0")
-    .WithEndpoint("http", targetPort: 5000, port: 5081, protocol: "http")
+    .AddContainerApplication("application:api", "API Service", "traefik/whoami:v1.10")
+    .WithEndpoint("http", targetPort: 80, port: 5081, protocol: "http")
     .WithReplicas(3);
 
 var postgres = resources
-    .AddContainerApplication("application:postgres", "Postgres", "cloudshell/mock-postgres:1.0.0")
-    .WithEndpoint("postgres", targetPort: 5432, port: 55432, protocol: "tcp");
+    .AddContainerApplication("application:postgres", "Postgres", "postgres:16-alpine")
+    .WithEndpoint("postgres", targetPort: 5432, port: 55432, protocol: "tcp")
+    .WithEnvironment("POSTGRES_PASSWORD", "cloudshell")
+    .WithEnvironment("POSTGRES_DB", "cloudshell");
 
 var lb = resources
     .AddLoadBalancer("public")
@@ -59,9 +61,9 @@ var lb = resources
     .ExposeHttps(443)
     .ExposeTcp(5432, "postgres");
 
-lb.MapHost("app.local", webApp, endpoint: "http");
-lb.MapPath("api.local", "/v1", apiService, port: 5000);
-lb.MapTcp(5432, postgres, endpoint: "postgres");
+lb.MapHost("app.local", webApp, port: 80);
+lb.MapPath("api.local", "/v1", apiService, port: 80);
+lb.MapTcp(5432, postgres, targetPort: 5432);
 ```
 
 `AddLoadBalancer("public")` normalizes to `load-balancer:public`.
@@ -129,8 +131,12 @@ generic Resource Manager action model.
 
 ## Traefik Provider
 
-`CloudShell.Providers.Traefik` currently supports file-provider mode. Applying
-the load balancer writes Traefik dynamic configuration from CloudShell routes.
+`CloudShell.Providers.Traefik` supports file-provider mode and optional
+provider-owned Docker runtime mode. Applying the load balancer writes Traefik
+dynamic configuration from CloudShell routes. When runtime container management
+is enabled, the provider also starts a Traefik container on the selected Docker
+host and attaches it to the same default Docker network used by the default
+container-app runner.
 The provider supports:
 
 - HTTP routers using `Host(...)` and `PathPrefix(...)`
@@ -144,20 +150,24 @@ Configure the output directory when registering the provider:
 cloudShell.AddTraefikProvider(options =>
 {
     options.DynamicConfigurationDirectory = "Data/traefik";
+    options.ManageRuntimeContainer = true;
 });
 ```
 
-The provider does not yet start or manage a Traefik process/container. Container
-mode should use the selected host and create provider-owned runtime state tied
-to the load-balancer lifecycle.
+For Docker-backed container apps, prefer port-based routes when Traefik is
+running as a container. The provider can then route to convention-named
+container app instances on the shared Docker network instead of host-published
+`localhost` ports.
 
 ## Sample
 
-The `samples/LoadBalancer` project declares a selected container host, mock
-web/API/TCP container app targets, a three-replica API container app, and a
-Traefik-backed public load balancer. Its smoke test invokes the advertised
-apply action and verifies the generated Traefik dynamic configuration file,
-including the expanded API replica backends.
+The `samples/LoadBalancer` project declares a selected container host, real
+public container images for web/API/Postgres targets, a three-replica API
+container app, and a Traefik-backed public load balancer. Running the sample
+normally enables Traefik runtime container management. Its smoke test disables
+runtime container startup and verifies the generated Traefik dynamic
+configuration file, including Docker-network backends for the web app, API
+replicas, and Postgres.
 
 Run it with:
 
@@ -165,15 +175,25 @@ Run it with:
 dotnet run --project samples/LoadBalancer/CloudShell.LoadBalancer.csproj
 ```
 
+Start the target container apps from Resource Manager, then run **Apply load
+balancer configuration** on the public load balancer. The HTTP routes match
+configured host names:
+
+```bash
+curl --resolve app.local:80:127.0.0.1 http://app.local/
+curl --resolve api.local:80:127.0.0.1 http://api.local/v1/get
+```
+
 ## Current Limits
 
-The first implementation focuses on the stable resource contract and Traefik
-file-provider output. It does not yet provide:
+The current implementation focuses on the stable resource contract, Traefik
+file-provider output, and Docker runtime startup for the sample path. It does
+not yet provide:
 
 - provider configuration preview in the UI
 - editing multiple load-balancer routes after creation
 - structured validation diagnostics before applying routes
-- provider-managed Traefik container lifecycle
+- full provider-managed stop/delete lifecycle for the Traefik runtime container
 - TLS certificate resources or certificate binding
 - weighted backend pools, traffic splitting, provider-observed replica health,
   or dynamic backend membership beyond the current desired replica count

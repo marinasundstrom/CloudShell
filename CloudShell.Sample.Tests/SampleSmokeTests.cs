@@ -232,7 +232,8 @@ public sealed class SampleSmokeTests
 
         using var host = await SampleProcess.StartAsync(
             "samples/LoadBalancer/CloudShell.LoadBalancer.csproj",
-            await GetFreePortAsync());
+            await GetFreePortAsync(),
+            [("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME", "true")]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -242,15 +243,20 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "load-balancer:public");
         var api = Assert.Single(resourcesDocument.RootElement.EnumerateArray(), resource =>
             resource.GetProperty("id").GetString() == "application:api");
+        var postgres = Assert.Single(resourcesDocument.RootElement.EnumerateArray(), resource =>
+            resource.GetProperty("id").GetString() == "application:postgres");
         var attributes = loadBalancer.GetProperty("attributes");
         var apiAttributes = api.GetProperty("attributes");
+        var postgresAttributes = postgres.GetProperty("attributes");
 
         Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
         Assert.Equal("traefik", attributes.GetProperty("loadBalancer.provider").GetString());
         Assert.Equal("docker:sample-host", attributes.GetProperty("loadBalancer.hostResourceId").GetString());
         Assert.Equal("3", attributes.GetProperty("loadBalancer.routes").GetString());
         Assert.Equal(3, loadBalancer.GetProperty("loadBalancerRoutes").GetArrayLength());
+        Assert.Equal("traefik/whoami:v1.10", apiAttributes.GetProperty("container.image").GetString());
         Assert.Equal("3", apiAttributes.GetProperty("container.replicas").GetString());
+        Assert.Equal("postgres:16-alpine", postgresAttributes.GetProperty("container.image").GetString());
 
         var applyAction = loadBalancer
             .GetProperty("resourceActions")
@@ -268,11 +274,12 @@ public sealed class SampleSmokeTests
         var config = await File.ReadAllTextAsync(configPath);
         Assert.Contains("Host(`app.local`)", config);
         Assert.Contains("Host(`api.local`) && PathPrefix(`/v1`)", config);
-        Assert.Contains("url: \"http://cloudshell-application-api-replica-1:5000\"", config);
-        Assert.Contains("url: \"http://cloudshell-application-api-replica-2:5000\"", config);
-        Assert.Contains("url: \"http://cloudshell-application-api-replica-3:5000\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-web:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-1:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-2:80\"", config);
+        Assert.Contains("url: \"http://cloudshell-application-api-replica-3:80\"", config);
         Assert.Contains("HostSNI(`*`)", config);
-        Assert.Contains("address: \"localhost:55432\"", config);
+        Assert.Contains("address: \"cloudshell-application-postgres:5432\"", config);
     }
 
     private static async Task<int> GetFreePortAsync()

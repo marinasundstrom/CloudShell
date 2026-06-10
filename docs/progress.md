@@ -205,6 +205,11 @@ The MVP should prove:
   services, and load-balancer route resolution can expand a port-based route to
   a replicated container app into convention-named backend targets for Traefik
   file-provider output.
+- The default Docker-backed container app runner now places app instances on a
+  shared user-defined Docker network so convention-named replica containers can
+  be resolved by provider-owned runtime infrastructure such as Traefik. The
+  Traefik provider can optionally start a provider-owned runtime container on
+  the selected Docker host when applying load-balancer configuration.
 
 ## Completed recently
 

@@ -557,12 +557,13 @@ public sealed class PlatformResourceProvider(
         Resource targetResource,
         ResourceEndpoint? targetEndpoint)
     {
-        var replicas = ResolveContainerReplicaCount(targetResource);
-        if (replicas <= 1 || route.Target.Port is not { } port)
+        if (!targetResource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerReplicas) ||
+            route.Target.Port is not { } port)
         {
             return [];
         }
 
+        var replicas = ResolveContainerReplicaCount(targetResource);
         var protocol = string.IsNullOrWhiteSpace(targetEndpoint?.Protocol)
             ? route.Kind == LoadBalancerRouteKind.Http ? "http" : "tcp"
             : targetEndpoint.Protocol;

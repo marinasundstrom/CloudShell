@@ -28,6 +28,10 @@ cloudShell
     .AddTraefikProvider(options =>
     {
         options.DynamicConfigurationDirectory = dynamicConfigurationDirectory;
+        options.ManageRuntimeContainer = !string.Equals(
+            Environment.GetEnvironmentVariable("CLOUDSHELL_LOADBALANCER_SKIP_TRAEFIK_RUNTIME"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
     });
 
 cloudShell.Resources(resources =>
@@ -40,10 +44,10 @@ cloudShell.Resources(resources =>
         .AddContainerApplication(
             "application:web",
             "Web App",
-            "cloudshell/mock-web:1.0.0")
+            "nginx:1.27-alpine")
         .WithEndpoint(
             "http",
-            targetPort: 8080,
+            targetPort: 80,
             port: 5080,
             protocol: "http",
             exposure: ResourceExposureScope.Local)
@@ -55,10 +59,10 @@ cloudShell.Resources(resources =>
         .AddContainerApplication(
             "application:api",
             "API Service",
-            "cloudshell/mock-api:1.0.0")
+            "traefik/whoami:v1.10")
         .WithEndpoint(
             "http",
-            targetPort: 5000,
+            targetPort: 80,
             port: 5081,
             protocol: "http",
             exposure: ResourceExposureScope.Local)
@@ -71,13 +75,15 @@ cloudShell.Resources(resources =>
         .AddContainerApplication(
             "application:postgres",
             "Postgres Replica Set",
-            "cloudshell/mock-postgres:1.0.0")
+            "postgres:16-alpine")
         .WithEndpoint(
             "postgres",
             targetPort: 5432,
             port: 55432,
             protocol: "tcp",
             exposure: ResourceExposureScope.Local)
+        .WithEnvironment("POSTGRES_PASSWORD", "cloudshell")
+        .WithEnvironment("POSTGRES_DB", "cloudshell")
         .WithContainerEngine(dockerHost)
         .WithAutoStart(false)
         .Persist(overwrite: true);
@@ -90,9 +96,9 @@ cloudShell.Resources(resources =>
         .ExposeHttps(443)
         .ExposeTcp(5432, "postgres");
 
-    lb.MapHost("app.local", webApp, endpoint: "http");
-    lb.MapPath("api.local", "/v1", apiService, port: 5000);
-    lb.MapTcp(5432, postgres, endpoint: "postgres");
+    lb.MapHost("app.local", webApp, port: 80);
+    lb.MapPath("api.local", "/v1", apiService, port: 80);
+    lb.MapTcp(5432, postgres, targetPort: 5432);
 });
 
 var app = builder.Build();

@@ -37,6 +37,7 @@ public sealed partial class ApplicationResourceProvider(
     IDisposable
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
+    private const string DefaultContainerNetworkName = "cloudshell";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
 
     private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
@@ -283,6 +284,17 @@ public sealed partial class ApplicationResourceProvider(
             application.ContainerRegistryCredentials,
             processLog,
             cancellationToken);
+
+        foreach (var network in context.Service.ServiceNetworks
+                     .Where(network => !string.IsNullOrWhiteSpace(network))
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            await EnsureContainerNetworkAsync(
+                engine,
+                network,
+                processLog,
+                cancellationToken);
+        }
     }
 
     public async Task ExecuteOrchestratorServiceInstanceAsync(
@@ -1142,13 +1154,20 @@ public sealed partial class ApplicationResourceProvider(
             startInfo.ArgumentList.Add("--rm");
         }
 
+        var network = service.ServiceNetworks.FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate));
+        if (!string.IsNullOrWhiteSpace(network))
+        {
+            startInfo.ArgumentList.Add("--network");
+            startInfo.ArgumentList.Add(network);
+        }
+
         if (instance.ReplicaOrdinal == 1)
         {
             foreach (var port in service.ServicePorts)
             {
                 var hostPort = ResolveLocalPort(definition.Id, port);
                 startInfo.ArgumentList.Add("-p");
-                startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeProtocol(port.Protocol)}");
+                startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeContainerPublishProtocol(port.Protocol)}");
             }
         }
 
@@ -1418,7 +1437,20 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    private static async Task RunContainerEngineCommandAsync(
+    private static async Task EnsureContainerNetworkAsync(
+        ContainerEngineResourceDefinition engine,
+        string network,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken)
+    {
+        await RunContainerEngineCommandAsync(
+            engine,
+            ["network", "create", network],
+            log,
+            cancellationToken);
+    }
+
+    private static async Task<int> RunContainerEngineCommandAsync(
         ContainerEngineResourceDefinition engine,
         IReadOnlyList<string> arguments,
         ApplicationProcessLog log,
@@ -1442,7 +1474,7 @@ public sealed partial class ApplicationResourceProvider(
             using var process = Process.Start(startInfo);
             if (process is null)
             {
-                return;
+                return -1;
             }
 
             var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
@@ -1456,14 +1488,18 @@ public sealed partial class ApplicationResourceProvider(
             }
 
             if (!string.IsNullOrWhiteSpace(error) &&
-                !error.Contains("No such container", StringComparison.OrdinalIgnoreCase))
+                !error.Contains("No such container", StringComparison.OrdinalIgnoreCase) &&
+                !error.Contains("already exists", StringComparison.OrdinalIgnoreCase))
             {
                 log.Append(error.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
             }
+
+            return process.ExitCode;
         }
         catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
         {
             log.Append(exception.Message, "process", "Warning");
+            return -1;
         }
     }
 
@@ -2246,7 +2282,8 @@ public sealed partial class ApplicationResourceProvider(
         new(
             application.Id,
             GetContainerServiceName(application.Id),
-            CreateWorkloadConfiguration(application));
+            CreateWorkloadConfiguration(application),
+            Networks: [DefaultContainerNetworkName]);
 
     private ApplicationResourceDefinition GetContainerApplication(string resourceId)
     {
@@ -2517,6 +2554,15 @@ public sealed partial class ApplicationResourceProvider(
 
     private static string NormalizeProtocol(string? protocol) =>
         string.IsNullOrWhiteSpace(protocol) ? "tcp" : protocol.Trim().ToLowerInvariant();
+
+    private static string NormalizeContainerPublishProtocol(string? protocol) =>
+        NormalizeProtocol(protocol) switch
+        {
+            "http" or "https" => "tcp",
+            "udp" => "udp",
+            "sctp" => "sctp",
+            _ => "tcp"
+        };
 
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
         !string.IsNullOrWhiteSpace(application.ContainerImage) ||
