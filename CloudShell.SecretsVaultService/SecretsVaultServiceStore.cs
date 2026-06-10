@@ -1,13 +1,13 @@
+using CloudShell.Providers.Configuration;
+using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using CloudShell.Providers.Configuration;
-using Microsoft.Extensions.Options;
 
-namespace CloudShell.ConfigurationService;
+namespace CloudShell.SecretsVaultService;
 
-public sealed class ConfigurationServiceStore(
-    IOptions<ConfigurationServiceOptions> options,
+public sealed class SecretsVaultServiceStore(
+    IOptions<SecretsVaultServiceOptions> options,
     IHostEnvironment environment)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
@@ -20,7 +20,7 @@ public sealed class ConfigurationServiceStore(
         ? null
         : options.Value.ResourceId.Trim();
 
-    public ConfigurationStoreDefinition? GetStore(string resourceId)
+    public SecretsVaultDefinition? GetVault(string resourceId)
     {
         if (string.IsNullOrWhiteSpace(resourceId) ||
             (_resourceId is not null &&
@@ -29,25 +29,25 @@ public sealed class ConfigurationServiceStore(
             return null;
         }
 
-        return LoadDefinitions().FirstOrDefault(store =>
-            string.Equals(store.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+        return LoadDefinitions().FirstOrDefault(vault =>
+            string.Equals(vault.Id, resourceId, StringComparison.OrdinalIgnoreCase));
     }
 
-    public bool IsAuthorized(ConfigurationStoreDefinition store, string? token)
+    public bool IsAuthorized(SecretsVaultDefinition vault, string? token)
     {
-        if (string.IsNullOrWhiteSpace(store.AccessToken) ||
+        if (string.IsNullOrWhiteSpace(vault.AccessToken) ||
             string.IsNullOrWhiteSpace(token))
         {
             return false;
         }
 
-        var expected = Encoding.UTF8.GetBytes(store.AccessToken);
+        var expected = Encoding.UTF8.GetBytes(vault.AccessToken);
         var actual = Encoding.UTF8.GetBytes(token);
         return expected.Length == actual.Length &&
             CryptographicOperations.FixedTimeEquals(expected, actual);
     }
 
-    private IReadOnlyList<ConfigurationStoreDefinition> LoadDefinitions()
+    private IReadOnlyList<SecretsVaultDefinition> LoadDefinitions()
     {
         if (!File.Exists(_definitionsPath))
         {
@@ -55,7 +55,7 @@ public sealed class ConfigurationServiceStore(
         }
 
         using var stream = File.OpenRead(_definitionsPath);
-        return JsonSerializer.Deserialize<List<ConfigurationStoreDefinition>>(stream, SerializerOptions) ?? [];
+        return JsonSerializer.Deserialize<List<SecretsVaultDefinition>>(stream, SerializerOptions) ?? [];
     }
 
     private static string ResolvePath(string path, string contentRootPath) =>

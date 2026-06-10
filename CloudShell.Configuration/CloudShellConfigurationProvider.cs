@@ -12,11 +12,11 @@ internal sealed class CloudShellConfigurationProvider(
 
     public override void Load()
     {
-        var service = ResolveConfigurationService(options);
+        var service = ResolveConfigurationStoreService(options);
         if (service is null)
         {
             SetMetadata("Status", "unavailable");
-            SetMetadata("Detail", "No CloudShell configuration service endpoint/token pair was configured or injected.");
+            SetMetadata("Detail", "No CloudShell configuration store service endpoint/token pair was configured or injected.");
             return;
         }
 
@@ -35,7 +35,7 @@ internal sealed class CloudShellConfigurationProvider(
             if (!response.IsSuccessStatusCode)
             {
                 SetMetadata("Status", "unavailable");
-                SetMetadata("Detail", $"CloudShell configuration service returned {(int)response.StatusCode}.");
+                SetMetadata("Detail", $"CloudShell configuration store service returned {(int)response.StatusCode}.");
                 return;
             }
 
@@ -70,13 +70,13 @@ internal sealed class CloudShellConfigurationProvider(
     private void SetMetadata(string name, string value) =>
         Data[$"{options.MetadataPrefix}:{name}"] = value;
 
-    private static CloudShellConfigurationService? ResolveConfigurationService(
+    private static CloudShellConfigurationStoreService? ResolveConfigurationStoreService(
         CloudShellConfigurationOptions options)
     {
         if (!string.IsNullOrWhiteSpace(options.Endpoint) &&
             !string.IsNullOrWhiteSpace(options.Token))
         {
-            return new CloudShellConfigurationService(options.Endpoint, options.Token);
+            return new CloudShellConfigurationStoreService(options.Endpoint, options.Token);
         }
 
         var variables = Environment.GetEnvironmentVariables()
@@ -103,7 +103,7 @@ internal sealed class CloudShellConfigurationProvider(
                 continue;
             }
 
-            return new CloudShellConfigurationService(endpoint, token);
+            return new CloudShellConfigurationStoreService(endpoint, token);
         }
 
         return null;

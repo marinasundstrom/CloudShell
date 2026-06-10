@@ -124,4 +124,5 @@ provider continues to store executable application definitions in
 `CloudShell.Host/Data/application-resources.json`.
 
 The configuration provider stores configuration service definitions in
-`CloudShell.Host/Data/configuration-stores.json`.
+`CloudShell.Host/Data/configuration-stores.json`. Secrets Vault definitions are
+stored separately in `CloudShell.Host/Data/secrets-vaults.json`.

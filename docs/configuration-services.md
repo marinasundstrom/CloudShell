@@ -60,7 +60,7 @@ configuration-service-configuration-example
 The current runtime implementation starts:
 
 ```bash
-dotnet run --project CloudShell.ConfigurationService/CloudShell.ConfigurationService.csproj --no-launch-profile --urls http://localhost:5138
+dotnet run --project CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj --no-launch-profile --urls http://localhost:5138
 ```
 
 The actual URL is stored on the configuration store definition. If the user does
@@ -85,8 +85,9 @@ ServiceProcessIdPrefix
 ```
 
 The service process receives the provider-owned store file path and its own
-configuration resource ID through `CloudShell:ConfigurationService:DefinitionsPath`
-and `CloudShell:ConfigurationService:ResourceId`. That resource ID filter is
+configuration resource ID through
+`CloudShell:ConfigurationStoreService:DefinitionsPath` and
+`CloudShell:ConfigurationStoreService:ResourceId`. That resource ID filter is
 what keeps each process scoped to one configuration service instance.
 
 Configuration services expose their own resource log in the Logs view. The log

@@ -596,9 +596,11 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public void TypedSecretsVaultBuilder_DeclaresResourceAndCreatesSecretReferences()
     {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var services = new ServiceCollection();
         SecretReference? reference = null;
 
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
         services
             .AddControlPlane()
             .AddConfigurationProvider()
@@ -631,8 +633,10 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public async Task SecretsVaultProvider_ResolvesSecretsFromMultipleVaults()
     {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var services = new ServiceCollection();
 
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
         services
             .AddControlPlane()
             .AddConfigurationProvider()
@@ -671,8 +675,10 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public async Task SecretsVaultProvider_ExportsSecretNamesWithoutValues()
     {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var services = new ServiceCollection();
 
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
         services
             .AddControlPlane()
             .AddConfigurationProvider()
@@ -709,8 +715,10 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public async Task SecretsVaultProvider_ManagesUiCreatedVaults()
     {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var services = new ServiceCollection();
 
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
         services
             .AddControlPlane()
             .AddConfigurationProvider();

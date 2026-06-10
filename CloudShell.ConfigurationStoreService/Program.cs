@@ -1,18 +1,18 @@
-using CloudShell.ConfigurationService;
+using CloudShell.ConfigurationStoreService;
 using CloudShell.Providers.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<ConfigurationServiceOptions>(
-    builder.Configuration.GetSection(ConfigurationServiceOptions.SectionName));
-builder.Services.AddSingleton<ConfigurationServiceStore>();
+builder.Services.Configure<ConfigurationStoreServiceOptions>(
+    builder.Configuration.GetSection(ConfigurationStoreServiceOptions.SectionName));
+builder.Services.AddSingleton<ConfigurationStoreServiceStore>();
 
 var app = builder.Build();
 
 app.MapGet("/healthz", () => Results.Ok(new
 {
     status = "Healthy",
-    service = "CloudShell Configuration Service"
+    service = "CloudShell Configuration Store Service"
 }))
 .AllowAnonymous();
 
@@ -21,19 +21,19 @@ var api = app
     .WithTags("Configuration");
 
 api.MapGet("/entries", ListEntriesByQuery)
-    .WithName("CloudShellConfigurationService_ListEntriesByResourceId")
+    .WithName("CloudShellConfigurationStoreService_ListEntriesByResourceId")
     .AllowAnonymous();
 
 api.MapGet("/entries/{name}", GetEntryByQuery)
-    .WithName("CloudShellConfigurationService_GetEntryByResourceId")
+    .WithName("CloudShellConfigurationStoreService_GetEntryByResourceId")
     .AllowAnonymous();
 
 api.MapGet("/stores/{storeId}/entries", ListEntries)
-    .WithName("CloudShellConfigurationService_ListEntries")
+    .WithName("CloudShellConfigurationStoreService_ListEntries")
     .AllowAnonymous();
 
 api.MapGet("/stores/{storeId}/entries/{name}", GetEntry)
-    .WithName("CloudShellConfigurationService_GetEntry")
+    .WithName("CloudShellConfigurationStoreService_GetEntry")
     .AllowAnonymous();
 
 app.Run();
@@ -41,20 +41,20 @@ app.Run();
 static IResult ListEntriesByQuery(
     string resourceId,
     HttpRequest request,
-    ConfigurationServiceStore store) =>
+    ConfigurationStoreServiceStore store) =>
     ListEntries(resourceId, request, store);
 
 static IResult GetEntryByQuery(
     string resourceId,
     string name,
     HttpRequest request,
-    ConfigurationServiceStore store) =>
+    ConfigurationStoreServiceStore store) =>
     GetEntry(resourceId, name, request, store);
 
 static IResult ListEntries(
     string storeId,
     HttpRequest request,
-    ConfigurationServiceStore store)
+    ConfigurationStoreServiceStore store)
 {
     var configurationStore = store.GetStore(storeId);
     if (string.IsNullOrWhiteSpace(GetAccessToken(request)))
@@ -75,7 +75,7 @@ static IResult GetEntry(
     string storeId,
     string name,
     HttpRequest request,
-    ConfigurationServiceStore store)
+    ConfigurationStoreServiceStore store)
 {
     var configurationStore = store.GetStore(storeId);
     if (string.IsNullOrWhiteSpace(GetAccessToken(request)))

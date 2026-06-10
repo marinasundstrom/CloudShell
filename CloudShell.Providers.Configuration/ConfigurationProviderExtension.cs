@@ -22,6 +22,7 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
         builder.Services.AddLocalProcessRunner();
         builder.Services.TryAddSingleton<ConfigurationProviderOptions>();
         builder.Services.TryAddSingleton<ConfigurationStore>();
+        builder.Services.TryAddSingleton<SecretsVaultStore>();
         builder.Services.TryAddSingleton<IConfiguration>(
             _ => new ConfigurationBuilder().Build());
         builder.Services.AddSingleton<IResourceEnvironmentVariableProvider>(
@@ -38,6 +39,7 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
             .AddResourceProvider<HostConfigurationSourceProvider>()
             .AddResourceProvider<SecretsVaultProvider>()
             .AddLogProvider<ConfigurationResourceProvider>()
+            .AddLogProvider<SecretsVaultProvider>()
             .AddResourceType<Pages.RegisterConfigurationStore>(
                 "configuration.store",
                 "Configuration service",

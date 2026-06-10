@@ -1,12 +1,20 @@
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Providers.Applications;
+using Microsoft.Extensions.Hosting;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace CloudShell.Providers.Configuration;
 
-public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions options) :
+public sealed partial class SecretsVaultProvider(
+    SecretsVaultStore store,
+    ConfigurationProviderOptions options,
+    IHostEnvironment environment,
+    LocalProcessRunner processes) :
     IResourceProvider,
+    ILogProvider,
     IResourceProcedureProvider,
     ISecretReferenceResolver,
     IProgrammaticResourceDeclarationProvider,
@@ -23,21 +31,63 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
 
     public string DisplayName => "Secrets Vault";
 
-    public SecretsVaultDefinition? GetVault(string id) =>
-        options.DeclaredSecretsVaults
-            .Select(vault => Normalize(vault.Definition))
-            .FirstOrDefault(vault => string.Equals(vault.Id, id, StringComparison.OrdinalIgnoreCase));
+    public SecretsVaultDefinition? GetVault(string id) => store.GetVault(id);
 
-    public IReadOnlyList<SecretsVaultDefinition> GetVaults() =>
-        options.DeclaredSecretsVaults
-            .Select(vault => Normalize(vault.Definition))
-            .ToArray();
+    public IReadOnlyList<SecretsVaultDefinition> GetVaults() => store.GetVaults();
 
     public IReadOnlyList<Resource> GetResources() =>
-        options.DeclaredSecretsVaults
-            .Select(vault => Normalize(vault.Definition))
+        store.GetVaults()
             .Select(CreateResource)
             .ToArray();
+
+    public IReadOnlyList<LogDescriptor> GetLogs() => store
+        .GetVaults()
+        .Select(vault => new LogDescriptor(
+            GetLogId(vault.Id),
+            "Secrets Vault service logs",
+            DisplayName,
+            vault.Name,
+            LogSourceKind.Resource,
+            ResourceId: vault.Id,
+            SupportsStreaming: true,
+            Description: "Secrets Vault service stdout, stderr, and lifecycle events."))
+        .ToArray();
+
+    public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
+        string logId,
+        int maxEntries = 200,
+        DateTimeOffset? before = null,
+        CancellationToken cancellationToken = default)
+    {
+        var resourceId = GetResourceIdFromLogId(logId);
+        return resourceId is null || store.GetVault(resourceId) is null
+            ? Task.FromResult<IReadOnlyList<LogEntry>>([])
+            : processes.ReadLogAsync(
+                GetServiceResourceId(resourceId),
+                maxEntries,
+                before,
+                cancellationToken);
+    }
+
+    public async IAsyncEnumerable<LogEntry> StreamLogAsync(
+        string logId,
+        int initialEntries = 50,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var resourceId = GetResourceIdFromLogId(logId);
+        if (resourceId is null || store.GetVault(resourceId) is null)
+        {
+            yield break;
+        }
+
+        await foreach (var entry in processes.StreamLogAsync(
+                           GetServiceResourceId(resourceId),
+                           initialEntries,
+                           cancellationToken))
+        {
+            yield return entry;
+        }
+    }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
@@ -61,14 +111,11 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
             ?? throw new InvalidOperationException(
                 $"Secrets Vault declaration '{declaration.ResourceId}' was not found.");
 
-        vault.Definition = Normalize(vault.Definition);
-
-        await registrations.RegisterAsync(
-            Id,
-            vault.Definition.Id,
-            NormalizeGroupId(declaration.ResourceGroupId),
-            [],
-            cancellationToken: cancellationToken);
+        await SetupVaultAsync(
+            vault.Definition,
+            declaration.ResourceGroupId,
+            registrations,
+            cancellationToken);
     }
 
     public async Task SetupVaultAsync(
@@ -77,13 +124,12 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default)
     {
-        var normalized = Normalize(
+        var normalized = EnsureServiceEndpoint(Normalize(
             string.IsNullOrWhiteSpace(definition.Id)
                 ? definition with { Id = CreateUniqueId(definition.Name) }
-                : definition);
+                : definition));
 
-        RemoveVault(normalized.Id);
-        options.DeclaredSecretsVaults.Add(new DeclaredSecretsVault(normalized));
+        store.Save(normalized);
 
         await registrations.RegisterAsync(
             Id,
@@ -100,14 +146,18 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
         CancellationToken cancellationToken = default)
     {
         var normalized = Normalize(definition);
-        var existing = options.DeclaredSecretsVaults.FirstOrDefault(vault =>
-            string.Equals(Normalize(vault.Definition).Id, normalized.Id, StringComparison.OrdinalIgnoreCase));
+        var existing = store.GetVault(normalized.Id);
         if (existing is null)
         {
             throw new InvalidOperationException($"Secrets Vault '{normalized.Id}' is not configured.");
         }
 
-        existing.Definition = normalized;
+        store.Save(EnsureServiceEndpoint(normalized with
+        {
+            AccessToken = normalized.AccessToken ?? existing.AccessToken,
+            Endpoint = normalized.Endpoint ?? existing.Endpoint,
+            HealthChecks = normalized.HealthChecks.Count == 0 ? existing.HealthChecks : normalized.HealthChecks
+        }));
 
         await registrations.AssignToGroupAsync(
             normalized.Id,
@@ -120,9 +170,48 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
-        RemoveVault(context.Resource.Id);
+        if (store.GetVault(context.Resource.Id) is not null)
+        {
+            var stopAction = context.Resource.ResourceActions.FirstOrDefault(action =>
+                action.Kind == ResourceActionKind.Stop);
+            if (stopAction is not null)
+            {
+                await ExecuteActionAsync(context, stopAction, cancellationToken);
+            }
+        }
+
+        processes.Remove(GetServiceResourceId(context.Resource.Id));
+        store.Remove(context.Resource.Id);
         await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
         return ResourceProcedureResult.Completed("Secrets Vault removed.");
+    }
+
+    public async Task<ResourceProcedureResult> ExecuteActionAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        var vault = store.GetVault(context.Resource.Id)
+            ?? throw new InvalidOperationException($"Secrets Vault '{context.Resource.Id}' is not configured.");
+        var process = CreateServiceProcessDefinition(vault);
+        switch (action.Kind)
+        {
+            case ResourceActionKind.Run:
+                await processes.StartAsync(process, cancellationToken);
+                break;
+            case ResourceActionKind.Stop:
+                await processes.StopAsync(process, cancellationToken: cancellationToken);
+                break;
+            case ResourceActionKind.Restart:
+                await processes.StopAsync(process, cancellationToken: cancellationToken);
+                await processes.StartAsync(process, cancellationToken);
+                break;
+            default:
+                throw new NotSupportedException(
+                    $"Secrets Vault resources do not support action '{action.DisplayName}'.");
+        }
+
+        return ResourceProcedureResult.Completed(CreateActionMessage(action, context.Resource.Name));
     }
 
     public ValueTask<ResourceSettingResolutionResult> ResolveSecretAsync(
@@ -130,10 +219,7 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
         ResourceSettingResolutionContext context,
         CancellationToken cancellationToken = default)
     {
-        var vault = options.DeclaredSecretsVaults
-            .Select(vault => Normalize(vault.Definition))
-            .FirstOrDefault(vault =>
-                string.Equals(vault.Id, reference.VaultResourceId, StringComparison.OrdinalIgnoreCase));
+        var vault = store.GetVault(reference.VaultResourceId);
         if (vault is null)
         {
             return ValueTask.FromResult(ResourceSettingResolutionResult.Failed(
@@ -160,18 +246,14 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
 
     public bool CanExport(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, ResourceType, StringComparison.OrdinalIgnoreCase) &&
-        options.DeclaredSecretsVaults
-            .Select(vault => Normalize(vault.Definition))
-            .Any(vault => string.Equals(vault.Id, resource.Id, StringComparison.OrdinalIgnoreCase));
+        store.GetVault(resource.Id) is not null;
 
     public Task<ResourceTemplateDefinition> ExportAsync(
         Resource resource,
         ResourceTemplateExportContext context,
         CancellationToken cancellationToken = default)
     {
-        var vault = options.DeclaredSecretsVaults
-            .Select(vault => Normalize(vault.Definition))
-            .FirstOrDefault(vault => string.Equals(vault.Id, resource.Id, StringComparison.OrdinalIgnoreCase))
+        var vault = store.GetVault(resource.Id)
             ?? throw new InvalidOperationException($"Secrets Vault '{resource.Id}' is not configured.");
 
         var configuration = new SecretsVaultTemplateConfiguration(
@@ -211,19 +293,14 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
         var resourceId = string.IsNullOrWhiteSpace(template.ResourceId)
             ? CreateId(template.Name)
             : template.ResourceId.Trim();
-        var vault = new DeclaredSecretsVault(new SecretsVaultDefinition(
-            resourceId,
-            template.Name,
-            configuration.Secrets));
-
-        options.DeclaredSecretsVaults.Add(vault);
-
-        await context.Registrations.RegisterAsync(
-            Id,
-            resourceId,
-            NormalizeGroupId(context.ResourceGroupId),
-            [],
-            cancellationToken: cancellationToken);
+        await SetupVaultAsync(
+            new SecretsVaultDefinition(
+                resourceId,
+                template.Name,
+                configuration.Secrets),
+            context.ResourceGroupId,
+            context.Registrations,
+            cancellationToken);
 
         return new ResourceTemplateImportResult(
             resourceId,
@@ -237,16 +314,19 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
             "Secrets Vault",
             DisplayName,
             "provider-owned",
-            ResourceState.Running,
-            [],
+            GetState(vault),
+            [ResourceEndpoint.FromAddress("secrets", GetSecretsEndpoint(vault.Id), "http")],
             $"{vault.Secrets.Count} secrets",
             DateTimeOffset.UtcNow,
             [],
             TypeId: ResourceType,
+            Actions: CreateActions(vault),
+            HealthChecks: vault.HealthChecks,
             ResourceClass: ResourceClass.SecretsVault,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["secretsVault.secrets"] = vault.Secrets.Count.ToString(CultureInfo.InvariantCulture)
+                ["secretsVault.secrets"] = vault.Secrets.Count.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.EndpointCount] = "1"
             });
 
     private static SecretsVaultDefinition Normalize(SecretsVaultDefinition vault)
@@ -261,6 +341,9 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
             Name = string.IsNullOrWhiteSpace(vault.Name)
                 ? id
                 : vault.Name.Trim(),
+            AccessToken = string.IsNullOrWhiteSpace(vault.AccessToken) ? null : vault.AccessToken,
+            Endpoint = string.IsNullOrWhiteSpace(vault.Endpoint) ? null : vault.Endpoint.TrimEnd('/'),
+            HealthChecks = NormalizeHealthChecks(vault.HealthChecks),
             Secrets = vault.Secrets
                 .Where(secret => !string.IsNullOrWhiteSpace(secret.Name))
                 .Select(secret => secret with
@@ -273,7 +356,7 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
         };
     }
 
-    private static string CreateId(string name)
+    public static string CreateId(string name)
     {
         var slug = SlugPattern()
             .Replace(name.Trim().ToLowerInvariant(), "-")
@@ -301,18 +384,141 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
         return $"{candidate}-{suffix}";
     }
 
-    private void RemoveVault(string resourceId)
-    {
-        var existing = options.DeclaredSecretsVaults.FirstOrDefault(vault =>
-            string.Equals(Normalize(vault.Definition).Id, resourceId, StringComparison.OrdinalIgnoreCase));
-        if (existing is not null)
+    private SecretsVaultDefinition EnsureServiceEndpoint(SecretsVaultDefinition definition) =>
+        string.IsNullOrWhiteSpace(definition.Endpoint)
+            ? definition with { Endpoint = CreateUniqueServiceEndpoint(definition.Id) }
+            : definition;
+
+    private ResourceState GetState(SecretsVaultDefinition vault) =>
+        processes.IsRunning(CreateServiceProcessDefinition(vault))
+            ? ResourceState.Running
+            : ResourceState.Stopped;
+
+    private IReadOnlyList<ResourceAction> CreateActions(SecretsVaultDefinition vault) =>
+        GetState(vault) == ResourceState.Running
+            ? [ResourceAction.Stop, ResourceAction.Restart]
+            : [ResourceAction.Run];
+
+    private static string CreateActionMessage(ResourceAction action, string resourceName) =>
+        action.Kind switch
         {
-            options.DeclaredSecretsVaults.Remove(existing);
-        }
+            ResourceActionKind.Run => $"Started {resourceName}.",
+            ResourceActionKind.Stop => $"Stopped {resourceName}.",
+            ResourceActionKind.Restart => $"Restarted {resourceName}.",
+            _ => $"{action.DisplayName} requested for {resourceName}."
+        };
+
+    private LocalProcessDefinition CreateServiceProcessDefinition(SecretsVaultDefinition definition)
+    {
+        var endpoint = GetServiceBaseUrl(definition);
+        return new LocalProcessDefinition(
+            GetServiceResourceId(definition.Id),
+            options.ServiceExecutablePath,
+            CreateServiceArguments(endpoint),
+            options.SecretsServiceWorkingDirectory ?? options.ServiceWorkingDirectory,
+            [
+                new("ASPNETCORE_ENVIRONMENT", environment.EnvironmentName),
+                new("CloudShell__SecretsVaultService__DefinitionsPath", ResolveDefinitionsPath()),
+                new("CloudShell__SecretsVaultService__ResourceId", definition.Id)
+            ],
+            LocalProcessLifetime.Detached);
     }
+
+    private string CreateServiceArguments(string endpoint)
+    {
+        var project = string.IsNullOrWhiteSpace(options.SecretsServiceProjectPath)
+            ? "CloudShell.SecretsVaultService/CloudShell.SecretsVaultService.csproj"
+            : options.SecretsServiceProjectPath;
+
+        return $"run --project {QuoteCommandArgument(project)} --no-launch-profile --urls {QuoteCommandArgument(endpoint)}";
+    }
+
+    private string CreateUniqueServiceEndpoint(string resourceId)
+    {
+        var port = CreateServicePort(resourceId);
+        var usedEndpoints = store.GetVaults()
+            .Select(GetServiceBaseUrl)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var endpoint = CreateServiceEndpoint(port);
+        while (usedEndpoints.Contains(endpoint))
+        {
+            endpoint = CreateServiceEndpoint(++port);
+        }
+
+        return endpoint;
+    }
+
+    private string GetServiceBaseUrl(SecretsVaultDefinition definition) =>
+        string.IsNullOrWhiteSpace(definition.Endpoint)
+            ? CreateServiceEndpoint(CreateServicePort(definition.Id))
+            : definition.Endpoint.TrimEnd('/');
+
+    private string CreateServiceEndpoint(int port) =>
+        $"{options.ServiceUrlScheme.TrimEnd(':')}://{options.ServiceHost.Trim()}:{port}";
+
+    private int CreateServicePort(string resourceId)
+    {
+        uint hash = 0;
+        foreach (var character in resourceId)
+        {
+            hash = unchecked((hash * 31) + char.ToUpperInvariant(character));
+        }
+
+        return options.SecretsServiceBasePort + (int)(hash % 1000);
+    }
+
+    private string GetServiceResourceId(string resourceId)
+        => ConfigurationResourceProvider.CreateServiceResourceId(resourceId, options.SecretsServiceProcessIdPrefix);
+
+    private string ResolveDefinitionsPath() =>
+        Path.IsPathRooted(options.SecretsVaultDefinitionsPath)
+            ? options.SecretsVaultDefinitionsPath
+            : Path.GetFullPath(options.SecretsVaultDefinitionsPath, environment.ContentRootPath);
+
+    private string GetSecretsEndpoint(string resourceId)
+    {
+        var vault = store.GetVault(resourceId);
+        var endpoint = vault is null
+            ? options.PublicBaseUrl.TrimEnd('/')
+            : GetServiceBaseUrl(vault);
+
+        return $"{endpoint}/api/secrets/vaults/{Uri.EscapeDataString(resourceId)}/secrets";
+    }
+
+    private static string QuoteCommandArgument(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return "\"\"";
+        }
+
+        return value.Any(char.IsWhiteSpace)
+            ? $"\"{value.Replace("\"", "\\\"", StringComparison.Ordinal)}\""
+            : value;
+    }
+
+    private static IReadOnlyList<ResourceHealthCheck> NormalizeHealthChecks(
+        IReadOnlyList<ResourceHealthCheck> healthChecks) =>
+        healthChecks
+            .Where(check => !string.IsNullOrWhiteSpace(check.Path))
+            .Select(check => check with
+            {
+                Path = check.Path.Trim(),
+                EndpointName = string.IsNullOrWhiteSpace(check.EndpointName) ? null : check.EndpointName.Trim(),
+                Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
+            })
+            .ToArray();
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId;
+
+    private static string GetLogId(string resourceId) => $"{resourceId}:secrets-vault-service-logs";
+
+    private static string? GetResourceIdFromLogId(string logId) =>
+        logId.EndsWith(":secrets-vault-service-logs", StringComparison.OrdinalIgnoreCase)
+            ? logId[..^":secrets-vault-service-logs".Length]
+            : null;
 
     private sealed record SecretsVaultTemplateConfiguration(
         IReadOnlyList<SecretsVaultSecret> Secrets);

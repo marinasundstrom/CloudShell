@@ -444,8 +444,8 @@ public sealed partial class ConfigurationResourceProvider :
             options.ServiceWorkingDirectory,
             [
                 new("ASPNETCORE_ENVIRONMENT", environment.EnvironmentName),
-                new("CloudShell__ConfigurationService__DefinitionsPath", ResolveDefinitionsPath()),
-                new("CloudShell__ConfigurationService__ResourceId", definition.Id)
+                new("CloudShell__ConfigurationStoreService__DefinitionsPath", ResolveDefinitionsPath()),
+                new("CloudShell__ConfigurationStoreService__ResourceId", definition.Id)
             ],
             LocalProcessLifetime.Detached);
     }
@@ -458,7 +458,7 @@ public sealed partial class ConfigurationResourceProvider :
     private string CreateServiceArguments(string endpoint)
     {
         var project = string.IsNullOrWhiteSpace(options.ServiceProjectPath)
-            ? "CloudShell.ConfigurationService/CloudShell.ConfigurationService.csproj"
+            ? "CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj"
             : options.ServiceProjectPath;
 
         return $"run --project {QuoteCommandArgument(project)} --no-launch-profile --urls {QuoteCommandArgument(endpoint)}";

@@ -16,8 +16,14 @@ var builder = WebApplication.CreateBuilder(args);
 var configurationStoreDefinitionsPath = Path.GetFullPath(
     "Data/configuration-stores.json",
     builder.Environment.ContentRootPath);
-var configurationServiceProjectPath = Path.GetFullPath(
-    "../CloudShell.ConfigurationService/CloudShell.ConfigurationService.csproj",
+var secretsVaultDefinitionsPath = Path.GetFullPath(
+    "Data/secrets-vaults.json",
+    builder.Environment.ContentRootPath);
+var configurationStoreServiceProjectPath = Path.GetFullPath(
+    "../CloudShell.ConfigurationStoreService/CloudShell.ConfigurationStoreService.csproj",
+    builder.Environment.ContentRootPath);
+var secretsVaultServiceProjectPath = Path.GetFullPath(
+    "../CloudShell.SecretsVaultService/CloudShell.SecretsVaultService.csproj",
     builder.Environment.ContentRootPath);
 var repositoryRootPath = Path.GetFullPath("..", builder.Environment.ContentRootPath);
 
@@ -31,8 +37,11 @@ cloudShell
     .AddConfigurationProvider(options =>
     {
         options.DefinitionsPath = configurationStoreDefinitionsPath;
-        options.ServiceProjectPath = configurationServiceProjectPath;
+        options.SecretsVaultDefinitionsPath = secretsVaultDefinitionsPath;
+        options.ServiceProjectPath = configurationStoreServiceProjectPath;
+        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
         options.ServiceWorkingDirectory = repositoryRootPath;
+        options.SecretsServiceWorkingDirectory = repositoryRootPath;
     })
     .AddApplicationProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged)
     .AddDockerProvider(activationPolicy: CloudShellExtensionActivationPolicy.UserManaged);

@@ -164,6 +164,9 @@ The MVP should prove:
 - Added a Settings and Secrets sample for the resource-assignment path: a
   programmatically declared Web API resource receives environment variables
   from configuration-entry and Secrets Vault references.
+- Split the provider-owned runtime service names around product boundaries:
+  `CloudShell.ConfigurationStoreService` serves configuration-store entries,
+  and `CloudShell.SecretsVaultService` serves Secrets Vault secrets.
 
 ## Completed recently
 

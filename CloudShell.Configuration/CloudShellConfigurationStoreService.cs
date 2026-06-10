@@ -1,5 +1,5 @@
 namespace CloudShell.Configuration;
 
-internal sealed record CloudShellConfigurationService(
+internal sealed record CloudShellConfigurationStoreService(
     string Endpoint,
     string Token);
