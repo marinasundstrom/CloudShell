@@ -17,6 +17,9 @@ verification baseline.
 - Add a sample with a programmatically declared web app that consumes
   environment variables assigned from configuration-entry references and
   vault-backed secret references.
+- Add a separate secrets client/provider for applications that load secrets
+  in-process instead of receiving them through resource-assigned environment
+  variables.
 - Harden macOS host-provided virtual networking by exercising real local proxy
   mappings end to end, improving action capability reasons, and deciding how
   reconciled mappings should be persisted or stopped.

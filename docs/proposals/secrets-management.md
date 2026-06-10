@@ -180,9 +180,11 @@ CloudShell should support two complementary consumption paths:
   configuration-entry references, or secret references to resource environment
   variables. CloudShell resolves the references at start/deploy time and passes
   the materialized value through the resource execution boundary.
-- In-process configuration: the application uses a CloudShell client provider,
-  such as `CloudShell.Configuration`, to load settings and secrets into the
-  application's `IConfiguration` at runtime.
+- In-process configuration: the application uses CloudShell client providers
+  to load values at runtime. Non-secret settings can use
+  `CloudShell.Configuration`; secrets should use a separate secrets client so
+  secret-specific authentication, diagnostics, redaction, caching, and rotation
+  behavior do not get hidden inside the settings client.
 
 Resource assignment is useful when the target application expects environment
 variables or when the provider can map references to a native platform
@@ -193,7 +195,9 @@ through the standard .NET configuration stack.
 Both paths should use the same reference concepts and redaction rules. The
 resource-assignment path must not require the application to reference the
 CloudShell client library. The in-process path must not require every setting
-or secret to be copied into the resource's environment.
+or secret to be copied into the resource's environment. The settings client and
+secrets client should remain separate even if an application composes both into
+its final runtime configuration.
 
 ### Vault resources
 
@@ -326,6 +330,7 @@ non-secret values and vault-backed references for secrets.
   configuration-entry or vault-backed secret references.
 - Decide how secret references should be versioned, rotated, and refreshed for
   already-running resources.
+- Add a separate secrets client/provider for in-process secret loading.
 - Add safe export behavior so templates use placeholders or references instead
   of secret material.
 - Add runtime resolution, redaction, and failure diagnostics for secret
