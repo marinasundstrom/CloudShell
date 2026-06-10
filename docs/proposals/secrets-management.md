@@ -27,6 +27,8 @@ This blocks scenarios such as:
 - passing a database password into an application resource
 - assigning an application setting from a secret reference in the UI
 - assigning an application setting from a configuration-store entry
+- passing selected host `IConfiguration` values, such as development
+  `appsettings.json` values, into resources
 - resolving a secret from a local or provider-backed vault
 - exporting resource templates without leaking secret material
 
@@ -38,6 +40,9 @@ This blocks scenarios such as:
   provider-owned secret values.
 - Let app settings use literal values or non-secret configuration-entry
   references.
+- Support a separate host-configuration source provider for development
+  scenarios where the CloudShell host explicitly passes selected
+  `IConfiguration` values into resources.
 - Support a local vault provider as the first implementation target while
   keeping Vault as a separate resource capability.
 - Let users assign secret references in Resource Manager UI, similar to Azure
@@ -95,6 +100,31 @@ resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
 Configuration-entry references are for non-secret settings. If an existing
 configuration store entry is marked secret, new authoring surfaces should guide
 the user to move it to a vault secret and bind a `SecretReference` instead.
+
+### Host configuration sources
+
+Development hosts should be able to expose selected values from the host
+application's `IConfiguration`, such as `appsettings.Development.json` or user
+secrets, through a separate provider. This should be an explicit opt-in source,
+not a default bridge that exposes all host configuration to every resource.
+
+For example:
+
+```csharp
+var hostSettings = resources.AddHostConfigurationSource("configuration:host-dev")
+    .WithEntry("ExternalApi:BaseUrl")
+    .WithEntry("FeatureFlags:UseMockPayments");
+
+resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
+    .WithAppSetting("ExternalApi:BaseUrl", hostSettings.Entry("ExternalApi:BaseUrl"));
+```
+
+The host-configuration provider should use the same
+`ConfigurationEntryReference` and resolver path as configuration service
+entries. It should only resolve entries that the host explicitly exposes.
+Secrets from host user-secrets or environment variables should still be modeled
+as vault-backed secret references unless the host provider deliberately
+declares a development-only secret source with redaction and export safeguards.
 
 ### Secret references
 
@@ -265,6 +295,8 @@ non-secret values and vault-backed references for secrets.
   local vault management UI.
 - Define the resolver contract, diagnostics, and required/optional reference
   behavior.
+- Add a separate host-configuration source provider for explicit development
+  pass-through from host `IConfiguration`.
 - Add application settings as separate provider-owned configuration for
   application resources.
 - Add Resource Manager UI support for assigning literal app settings and

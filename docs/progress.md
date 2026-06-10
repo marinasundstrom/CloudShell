@@ -145,6 +145,11 @@ The MVP should prove:
   including ownership, projection, API/client mapping, provider boundaries, UI
   responsibilities, end-to-end resource type implementation, and verification
   expectations.
+- Settings and secrets are being split into explicit reference-backed resource
+  configuration. Application resources now have app-setting metadata,
+  configuration-entry references for non-secret settings, and secret-reference
+  placeholders for vault-backed values while secret storage remains provider
+  owned.
 
 ## Completed recently
 
@@ -264,6 +269,11 @@ The MVP should prove:
 - Added a macOS host networking provider resource, endpoint-mapping
   provisioner contract, Resource Manager UI readiness/provider display, and a
   Host Virtual Network sample.
+- Added the first settings/reference implementation slice: public
+  `AppSetting`, `ConfigurationEntryReference`, and `SecretReference` contracts,
+  application builder APIs for literal/reference-backed app settings and
+  environment variables, configuration-store entry reference helpers, and
+  runtime resolution for non-secret configuration entries.
 
 ## Active stabilization areas
 

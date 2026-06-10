@@ -15,6 +15,7 @@ public sealed partial class ConfigurationResourceProvider :
     IResourceProcedureProvider,
     IResourceTemplateProvider,
     IResourceEnvironmentVariableProvider,
+    IConfigurationEntryReferenceResolver,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider
 {
@@ -256,6 +257,34 @@ public sealed partial class ConfigurationResourceProvider :
                 new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Id)}_TOKEN", configurationStore.AccessToken ?? string.Empty)
             ]
             : [];
+
+    public ResourceSettingResolutionResult ResolveConfigurationEntry(
+        ConfigurationEntryReference reference,
+        ResourceSettingResolutionContext context)
+    {
+        var configurationStore = store.GetStore(reference.StoreResourceId);
+        if (configurationStore is null)
+        {
+            return ResourceSettingResolutionResult.Failed(
+                $"Configuration store '{reference.StoreResourceId}' was not found.");
+        }
+
+        var entry = configurationStore.Entries.FirstOrDefault(entry =>
+            string.Equals(entry.Name, reference.EntryName, StringComparison.OrdinalIgnoreCase));
+        if (entry is null)
+        {
+            return ResourceSettingResolutionResult.Failed(
+                $"Configuration entry '{reference.EntryName}' was not found in '{reference.StoreResourceId}'.");
+        }
+
+        if (entry.IsSecret)
+        {
+            return ResourceSettingResolutionResult.Failed(
+                $"Configuration entry '{reference.EntryName}' is secret and must be referenced through a vault secret.");
+        }
+
+        return ResourceSettingResolutionResult.Resolved(entry.Value);
+    }
 
     public bool CanExport(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "configuration.store", StringComparison.OrdinalIgnoreCase) &&

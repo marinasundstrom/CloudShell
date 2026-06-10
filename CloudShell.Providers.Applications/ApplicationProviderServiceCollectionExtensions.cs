@@ -474,6 +474,79 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    public IExecutableResourceBuilder WithEnvironment(
+        string name,
+        ConfigurationEntryReference configurationEntry)
+    {
+        ArgumentNullException.ThrowIfNull(configurationEntry);
+        declared.Definition = declared.Definition with
+        {
+            EnvironmentVariables = declared.Definition.EnvironmentVariables
+                .Append(EnvironmentVariableAssignment.FromConfiguration(name, configurationEntry))
+                .ToArray()
+        };
+        inner.DependsOn(configurationEntry.StoreResourceId);
+        return this;
+    }
+
+    public IExecutableResourceBuilder WithEnvironment(
+        string name,
+        SecretReference secret)
+    {
+        ArgumentNullException.ThrowIfNull(secret);
+        declared.Definition = declared.Definition with
+        {
+            EnvironmentVariables = declared.Definition.EnvironmentVariables
+                .Append(EnvironmentVariableAssignment.FromSecret(name, secret))
+                .ToArray()
+        };
+        inner.DependsOn(secret.VaultResourceId);
+        return this;
+    }
+
+    public IExecutableResourceBuilder WithAppSetting(
+        string name,
+        string value)
+    {
+        declared.Definition = declared.Definition with
+        {
+            AppSettings = declared.Definition.AppSettings
+                .Append(AppSetting.Literal(name, value))
+                .ToArray()
+        };
+        return this;
+    }
+
+    public IExecutableResourceBuilder WithAppSetting(
+        string name,
+        ConfigurationEntryReference configurationEntry)
+    {
+        ArgumentNullException.ThrowIfNull(configurationEntry);
+        declared.Definition = declared.Definition with
+        {
+            AppSettings = declared.Definition.AppSettings
+                .Append(AppSetting.FromConfiguration(name, configurationEntry))
+                .ToArray()
+        };
+        inner.DependsOn(configurationEntry.StoreResourceId);
+        return this;
+    }
+
+    public IExecutableResourceBuilder WithAppSetting(
+        string name,
+        SecretReference secret)
+    {
+        ArgumentNullException.ThrowIfNull(secret);
+        declared.Definition = declared.Definition with
+        {
+            AppSettings = declared.Definition.AppSettings
+                .Append(AppSetting.FromSecret(name, secret))
+                .ToArray()
+        };
+        inner.DependsOn(secret.VaultResourceId);
+        return this;
+    }
+
     public IProjectResourceBuilder WithApplicationArguments(string? arguments)
     {
         declared.Definition = declared.Definition with
@@ -855,6 +928,46 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    IProjectResourceBuilder IProjectResourceBuilder.WithEnvironment(
+        string name,
+        ConfigurationEntryReference configurationEntry)
+    {
+        WithEnvironment(name, configurationEntry);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithEnvironment(
+        string name,
+        SecretReference secret)
+    {
+        WithEnvironment(name, secret);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithAppSetting(
+        string name,
+        string value)
+    {
+        WithAppSetting(name, value);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithAppSetting(
+        string name,
+        ConfigurationEntryReference configurationEntry)
+    {
+        WithAppSetting(name, configurationEntry);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithAppSetting(
+        string name,
+        SecretReference secret)
+    {
+        WithAppSetting(name, secret);
+        return this;
+    }
+
     IProjectResourceBuilder IProjectResourceBuilder.WithLifetime(ResourceLifetime lifetime)
     {
         declared.Definition = declared.Definition with
@@ -1050,6 +1163,46 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string value)
     {
         WithEnvironment(name, value);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithEnvironment(
+        string name,
+        ConfigurationEntryReference configurationEntry)
+    {
+        WithEnvironment(name, configurationEntry);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithEnvironment(
+        string name,
+        SecretReference secret)
+    {
+        WithEnvironment(name, secret);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithAppSetting(
+        string name,
+        string value)
+    {
+        WithAppSetting(name, value);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithAppSetting(
+        string name,
+        ConfigurationEntryReference configurationEntry)
+    {
+        WithAppSetting(name, configurationEntry);
+        return this;
+    }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithAppSetting(
+        string name,
+        SecretReference secret)
+    {
+        WithAppSetting(name, secret);
         return this;
     }
 

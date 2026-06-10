@@ -29,6 +29,7 @@ public sealed record ResourceWorkloadConfiguration(
     string? Dockerfile = null,
     string? ContainerEngineId = null,
     int Replicas = 1,
+    IReadOnlyList<AppSetting>? AppSettings = null,
     IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null,
     IReadOnlyList<ServicePort>? Ports = null,
     ResourceLifetime Lifetime = ResourceLifetime.ControlPlaneScoped,
@@ -36,6 +37,9 @@ public sealed record ResourceWorkloadConfiguration(
 {
     public IReadOnlyList<EnvironmentVariableAssignment> WorkloadEnvironmentVariables =>
         EnvironmentVariables ?? [];
+
+    public IReadOnlyList<AppSetting> WorkloadAppSettings =>
+        AppSettings ?? [];
 
     public IReadOnlyList<ServicePort> WorkloadPorts => Ports ?? [];
 
@@ -94,6 +98,26 @@ public interface IExecutableResourceBuilder :
     IExecutableResourceBuilder WithEnvironment(
         string name,
         string value);
+
+    IExecutableResourceBuilder WithEnvironment(
+        string name,
+        ConfigurationEntryReference configurationEntry);
+
+    IExecutableResourceBuilder WithEnvironment(
+        string name,
+        SecretReference secret);
+
+    IExecutableResourceBuilder WithAppSetting(
+        string name,
+        string value);
+
+    IExecutableResourceBuilder WithAppSetting(
+        string name,
+        ConfigurationEntryReference configurationEntry);
+
+    IExecutableResourceBuilder WithAppSetting(
+        string name,
+        SecretReference secret);
 
     new IExecutableResourceBuilder WithLifetime(ResourceLifetime lifetime);
 
@@ -172,6 +196,26 @@ public interface IProjectResourceBuilder :
     IProjectResourceBuilder WithEnvironment(
         string name,
         string value);
+
+    IProjectResourceBuilder WithEnvironment(
+        string name,
+        ConfigurationEntryReference configurationEntry);
+
+    IProjectResourceBuilder WithEnvironment(
+        string name,
+        SecretReference secret);
+
+    IProjectResourceBuilder WithAppSetting(
+        string name,
+        string value);
+
+    IProjectResourceBuilder WithAppSetting(
+        string name,
+        ConfigurationEntryReference configurationEntry);
+
+    IProjectResourceBuilder WithAppSetting(
+        string name,
+        SecretReference secret);
 
     IProjectResourceBuilder WithApplicationArguments(string? arguments);
 
@@ -284,6 +328,26 @@ public interface IContainerResourceBuilder :
     IContainerResourceBuilder WithEnvironment(
         string name,
         string value);
+
+    IContainerResourceBuilder WithEnvironment(
+        string name,
+        ConfigurationEntryReference configurationEntry);
+
+    IContainerResourceBuilder WithEnvironment(
+        string name,
+        SecretReference secret);
+
+    IContainerResourceBuilder WithAppSetting(
+        string name,
+        string value);
+
+    IContainerResourceBuilder WithAppSetting(
+        string name,
+        ConfigurationEntryReference configurationEntry);
+
+    IContainerResourceBuilder WithAppSetting(
+        string name,
+        SecretReference secret);
 
     IContainerResourceBuilder WithReplicas(int replicas);
 

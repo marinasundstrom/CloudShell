@@ -9,6 +9,14 @@ verification baseline.
 
 ## Resource Management
 
+- Continue settings and secrets integration by adding a first local vault
+  resource/provider, `vault.Secret(...)` builder helpers, secret resolver
+  implementation, redaction/export coverage, and Resource Manager UI for
+  assigning literal app settings, configuration-entry references, and
+  vault-backed secret references.
+- Add a separate host-configuration source provider for development scenarios
+  where the CloudShell host explicitly exposes selected `IConfiguration`
+  entries to resources through configuration-entry references.
 - Harden macOS host-provided virtual networking by exercising real local proxy
   mappings end to end, improving action capability reasons, and deciding how
   reconciled mappings should be persisted or stopped.

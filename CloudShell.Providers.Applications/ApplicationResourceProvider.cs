@@ -20,6 +20,8 @@ public sealed partial class ApplicationResourceProvider(
     IHostEnvironment environment,
     IServiceProvider serviceProvider,
     IEnumerable<IResourceEnvironmentVariableProvider> environmentVariableProviders,
+    IEnumerable<IConfigurationEntryReferenceResolver> configurationEntryResolvers,
+    IEnumerable<ISecretReferenceResolver> secretResolvers,
     IResourceEventSink? resourceEvents = null) :
     IResourceProvider,
     ILogProvider,
@@ -322,6 +324,7 @@ public sealed partial class ApplicationResourceProvider(
             application.Lifetime,
             application.References,
             application.UseServiceDiscovery,
+            application.AppSettings,
             GetEffectiveObservability(application),
             application.ContainerImage,
             IsContainerBacked(application) ? GetEffectiveContainerRegistry(application) : null,
@@ -374,6 +377,7 @@ public sealed partial class ApplicationResourceProvider(
             workingDirectory: configuration.WorkingDirectory,
             endpoint: configuration.Endpoint,
             environmentVariables: configuration.EnvironmentVariables,
+            appSettings: configuration.AppSettings,
             lifetime: configuration.Lifetime,
             dependsOn: context.DependsOn,
             references: configuration.References,
@@ -537,30 +541,28 @@ public sealed partial class ApplicationResourceProvider(
         await localProcesses.StartAsync(
             CreateLocalProcessDefinition(
                 definition,
-                ResolveLocalProcessEnvironmentVariables(
+                await ResolveLocalProcessEnvironmentVariablesAsync(
                     definition,
                     dependsOn,
                     resourceGroupId,
-                    registrations)),
+                    registrations,
+                    cancellationToken)),
             cancellationToken);
     }
 
-    private IReadOnlyList<EnvironmentVariableAssignment> ResolveLocalProcessEnvironmentVariables(
+    private Task<IReadOnlyList<EnvironmentVariableAssignment>> ResolveLocalProcessEnvironmentVariablesAsync(
         ApplicationResourceDefinition definition,
         IReadOnlyList<string> dependsOn,
         string? resourceGroupId,
-        IResourceRegistrationStore registrations) =>
-        ResolveDependencyEnvironmentVariables(definition, dependsOn)
-            .Concat(definition.UseServiceDiscovery
-                ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, registrations)
-                : [])
-            .Concat(ResolveObservabilityEnvironmentVariables(definition))
-            .Concat(ResolveAspNetCoreProjectEnvironmentVariables(definition))
-            .Concat(definition.EnvironmentVariables)
-            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
-            .ToArray();
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken) =>
+        ResolveApplicationEnvironmentVariablesAsync(
+            definition,
+            dependsOn,
+            resourceGroupId,
+            registrations,
+            includeAspNetCoreProjectVariables: true,
+            cancellationToken);
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveAspNetCoreProjectEnvironmentVariables(
         ApplicationResourceDefinition definition)
@@ -699,6 +701,144 @@ public sealed partial class ApplicationResourceProvider(
             .Select(group => group.Last())
             .ToArray();
 
+    private async Task<IReadOnlyList<EnvironmentVariableAssignment>> ResolveApplicationEnvironmentVariablesAsync(
+        ApplicationResourceDefinition definition,
+        IReadOnlyList<string> dependsOn,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        bool includeAspNetCoreProjectVariables,
+        CancellationToken cancellationToken)
+    {
+        var configuredVariables = await ResolveConfiguredEnvironmentVariablesAsync(
+            definition,
+            resourceGroupId,
+            cancellationToken);
+
+        return ResolveDependencyEnvironmentVariables(definition, dependsOn)
+            .Concat(definition.UseServiceDiscovery
+                ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, registrations)
+                : [])
+            .Concat(ResolveObservabilityEnvironmentVariables(definition))
+            .Concat(includeAspNetCoreProjectVariables
+                ? ResolveAspNetCoreProjectEnvironmentVariables(definition)
+                : [])
+            .Concat(configuredVariables)
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<EnvironmentVariableAssignment>> ResolveConfiguredEnvironmentVariablesAsync(
+        ApplicationResourceDefinition definition,
+        string? resourceGroupId,
+        CancellationToken cancellationToken)
+    {
+        var context = new ResourceSettingResolutionContext(
+            definition.Id,
+            resourceGroupId,
+            "run");
+        var variables = new List<EnvironmentVariableAssignment>();
+
+        foreach (var setting in definition.AppSettings)
+        {
+            var value = await ResolveSettingValueAsync(
+                setting.Name,
+                setting.Value,
+                setting.ConfigurationEntry,
+                setting.Secret,
+                context,
+                cancellationToken);
+            variables.Add(new EnvironmentVariableAssignment(setting.Name, value));
+        }
+
+        foreach (var variable in definition.EnvironmentVariables)
+        {
+            var value = await ResolveSettingValueAsync(
+                variable.Name,
+                variable.Value,
+                variable.ConfigurationEntry,
+                variable.Secret,
+                context,
+                cancellationToken);
+            variables.Add(new EnvironmentVariableAssignment(variable.Name, value));
+        }
+
+        return variables;
+    }
+
+    private async Task<string> ResolveSettingValueAsync(
+        string name,
+        string? literalValue,
+        ConfigurationEntryReference? configurationEntry,
+        SecretReference? secret,
+        ResourceSettingResolutionContext context,
+        CancellationToken cancellationToken)
+    {
+        if (configurationEntry is not null)
+        {
+            return ResolveConfigurationEntryValue(configurationEntry, context);
+        }
+
+        if (secret is not null)
+        {
+            return await ResolveSecretValueAsync(secret, context, cancellationToken);
+        }
+
+        return literalValue ?? string.Empty;
+    }
+
+    private string ResolveConfigurationEntryValue(
+        ConfigurationEntryReference reference,
+        ResourceSettingResolutionContext context)
+    {
+        var errors = new List<string>();
+        foreach (var resolver in configurationEntryResolvers)
+        {
+            var result = resolver.ResolveConfigurationEntry(reference, context);
+            if (result.IsResolved)
+            {
+                return result.Value ?? string.Empty;
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+            {
+                errors.Add(result.ErrorMessage);
+            }
+        }
+
+        var message = errors.Count == 0
+            ? $"No configuration provider can resolve entry '{reference.EntryName}' from '{reference.StoreResourceId}'."
+            : string.Join(" ", errors);
+        throw new InvalidOperationException(message);
+    }
+
+    private async Task<string> ResolveSecretValueAsync(
+        SecretReference reference,
+        ResourceSettingResolutionContext context,
+        CancellationToken cancellationToken)
+    {
+        var errors = new List<string>();
+        foreach (var resolver in secretResolvers)
+        {
+            var result = await resolver.ResolveSecretAsync(reference, context, cancellationToken);
+            if (result.IsResolved)
+            {
+                return result.Value ?? string.Empty;
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+            {
+                errors.Add(result.ErrorMessage);
+            }
+        }
+
+        var message = errors.Count == 0
+            ? $"No vault provider can resolve secret '{reference.SecretName}' from '{reference.VaultResourceId}'."
+            : string.Join(" ", errors);
+        throw new InvalidOperationException(message);
+    }
+
     private async Task StartContainerApplicationAsync(
         ApplicationResourceDefinition definition,
         IReadOnlyList<string> dependsOn,
@@ -765,15 +905,13 @@ public sealed partial class ApplicationResourceProvider(
             startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeProtocol(port.Protocol)}");
         }
 
-        foreach (var variable in ResolveDependencyEnvironmentVariables(definition, dependsOn)
-                     .Concat(definition.UseServiceDiscovery
-                         ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, registrations)
-                         : [])
-                     .Concat(ResolveObservabilityEnvironmentVariables(definition))
-                     .Concat(definition.EnvironmentVariables)
-                     .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-                     .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
-                     .Select(group => group.Last()))
+        foreach (var variable in await ResolveApplicationEnvironmentVariablesAsync(
+                     definition,
+                     dependsOn,
+                     resourceGroupId,
+                     registrations,
+                     includeAspNetCoreProjectVariables: false,
+                     cancellationToken))
         {
             startInfo.ArgumentList.Add("-e");
             startInfo.ArgumentList.Add($"{variable.Name}={variable.Value}");
@@ -1437,12 +1575,63 @@ public sealed partial class ApplicationResourceProvider(
             EndpointPorts = NormalizeEndpointPorts(definition.EndpointPorts, resourceType, definition.Endpoint),
             HealthChecks = NormalizeHealthChecks(definition.HealthChecks),
             Observability = NormalizeObservability(definition.Observability),
-            EnvironmentVariables = definition.EnvironmentVariables
-                .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-                .Select(variable => variable with { Name = variable.Name.Trim() })
-                .ToArray()
+            AppSettings = NormalizeAppSettings(definition.AppSettings),
+            EnvironmentVariables = NormalizeEnvironmentVariables(definition.EnvironmentVariables)
         };
     }
+
+    private static IReadOnlyList<AppSetting> NormalizeAppSettings(
+        IReadOnlyList<AppSetting> appSettings) =>
+        appSettings
+            .Where(setting => !string.IsNullOrWhiteSpace(setting.Name))
+            .Select(setting => setting with
+            {
+                Name = setting.Name.Trim(),
+                ConfigurationEntry = NormalizeConfigurationEntryReference(setting.ConfigurationEntry),
+                Secret = NormalizeSecretReference(setting.Secret)
+            })
+            .Where(setting => setting.Value is not null ||
+                setting.ConfigurationEntry is not null ||
+                setting.Secret is not null)
+            .ToArray();
+
+    private static IReadOnlyList<EnvironmentVariableAssignment> NormalizeEnvironmentVariables(
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables) =>
+        environmentVariables
+            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+            .Select(variable => variable with
+            {
+                Name = variable.Name.Trim(),
+                ConfigurationEntry = NormalizeConfigurationEntryReference(variable.ConfigurationEntry),
+                Secret = NormalizeSecretReference(variable.Secret)
+            })
+            .Where(variable => variable.ConfigurationEntry is null || variable.Secret is null)
+            .ToArray();
+
+    private static ConfigurationEntryReference? NormalizeConfigurationEntryReference(
+        ConfigurationEntryReference? reference) =>
+        reference is null ||
+        string.IsNullOrWhiteSpace(reference.StoreResourceId) ||
+        string.IsNullOrWhiteSpace(reference.EntryName)
+            ? null
+            : reference with
+            {
+                StoreResourceId = reference.StoreResourceId.Trim(),
+                EntryName = reference.EntryName.Trim(),
+                Version = NormalizeNullable(reference.Version)
+            };
+
+    private static SecretReference? NormalizeSecretReference(SecretReference? reference) =>
+        reference is null ||
+        string.IsNullOrWhiteSpace(reference.VaultResourceId) ||
+        string.IsNullOrWhiteSpace(reference.SecretName)
+            ? null
+            : reference with
+            {
+                VaultResourceId = reference.VaultResourceId.Trim(),
+                SecretName = reference.SecretName.Trim(),
+                Version = NormalizeNullable(reference.Version)
+            };
 
     private static bool ResolveAspNetCoreHotReload(ApplicationResourceDefinition definition)
     {
@@ -1667,6 +1856,7 @@ public sealed partial class ApplicationResourceProvider(
                 ProjectArguments: application.ProjectArguments,
                 AspNetCoreHotReload: application.AspNetCoreHotReload,
                 Replicas: Math.Max(1, application.Replicas),
+                AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
@@ -1682,6 +1872,7 @@ public sealed partial class ApplicationResourceProvider(
                 Registry: GetEffectiveContainerRegistry(application),
                 ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
+                AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
@@ -1698,6 +1889,7 @@ public sealed partial class ApplicationResourceProvider(
                 Registry: GetEffectiveContainerRegistry(application),
                 ContainerEngineId: application.ContainerEngineId,
                 Replicas: Math.Max(1, application.Replicas),
+                AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
@@ -1711,6 +1903,7 @@ public sealed partial class ApplicationResourceProvider(
             Arguments: application.Arguments,
             WorkingDirectory: application.WorkingDirectory,
             Replicas: Math.Max(1, application.Replicas),
+            AppSettings: application.AppSettings,
             EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
             Lifetime: ToResourceLifetime(application.Lifetime),
             Observability: GetEffectiveObservability(application));
@@ -2227,6 +2420,7 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationLifetime Lifetime,
         IReadOnlyList<string>? References = null,
         bool UseServiceDiscovery = false,
+        IReadOnlyList<AppSetting>? AppSettings = null,
         ResourceObservability? Observability = null,
         string? ContainerImage = null,
         string? ContainerRegistry = null,

@@ -93,6 +93,10 @@ public interface IConfigurationStoreResourceBuilder : IResourceBuilder
         string value,
         bool isSecret = false);
 
+    ConfigurationEntryReference Entry(
+        string name,
+        string? version = null);
+
     IConfigurationStoreResourceBuilder WithAccessToken(string? accessToken);
 
     new IConfigurationStoreResourceBuilder DependsOn(string resourceId);
@@ -144,6 +148,17 @@ internal sealed class ConfigurationStoreResourceBuilder(
                 .ToArray()
         };
         return this;
+    }
+
+    public ConfigurationEntryReference Entry(
+        string name,
+        string? version = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return new ConfigurationEntryReference(
+            ResourceId,
+            name.Trim(),
+            string.IsNullOrWhiteSpace(version) ? null : version.Trim());
     }
 
     public IConfigurationStoreResourceBuilder WithAccessToken(string? accessToken)

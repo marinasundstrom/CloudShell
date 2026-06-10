@@ -23,6 +23,8 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<ConfigurationStore>();
         builder.Services.AddSingleton<IResourceEnvironmentVariableProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
+        builder.Services.AddSingleton<IConfigurationEntryReferenceResolver>(
+            serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
 
         builder
             .AddResourceProvider<ConfigurationResourceProvider>()

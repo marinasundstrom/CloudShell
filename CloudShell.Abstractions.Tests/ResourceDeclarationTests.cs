@@ -536,6 +536,28 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedConfigurationStoreBuilder_CreatesEntryReferences()
+    {
+        var services = new ServiceCollection();
+        ConfigurationEntryReference? reference = null;
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var settings = resources
+                    .AddConfigurationStore("configuration:app", "App Settings");
+
+                reference = settings.Entry("Database:Name");
+            });
+
+        Assert.NotNull(reference);
+        Assert.Equal("configuration:app", reference.StoreResourceId);
+        Assert.Equal("Database:Name", reference.EntryName);
+        Assert.Null(reference.Version);
+    }
+
+    [Fact]
     public async Task ConfigurationProvider_ExposesStoreLogs()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -563,6 +585,45 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(LogSourceKind.Resource, log.SourceKind);
         Assert.True(log.SupportsStreaming);
         Assert.Empty(entries);
+    }
+
+    [Fact]
+    public void ConfigurationProvider_ResolvesOnlyNonSecretConfigurationEntries()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider(options =>
+            {
+                options.DefinitionsPath = "configuration-stores.json";
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        serviceProvider.GetRequiredService<ConfigurationStore>().Save(
+            new ConfigurationStoreDefinition(
+                "configuration:app",
+                "App Settings",
+                [
+                    new("Database:Name", "appdb"),
+                    new("Database:Password", "secret", IsSecret: true)
+                ]));
+        var resolver = serviceProvider.GetRequiredService<IConfigurationEntryReferenceResolver>();
+        var context = new ResourceSettingResolutionContext("application:api", "group-1", "run");
+
+        var resolved = resolver.ResolveConfigurationEntry(
+            new ConfigurationEntryReference("configuration:app", "Database:Name"),
+            context);
+        var rejected = resolver.ResolveConfigurationEntry(
+            new ConfigurationEntryReference("configuration:app", "Database:Password"),
+            context);
+
+        Assert.True(resolved.IsResolved);
+        Assert.Equal("appdb", resolved.Value);
+        Assert.False(rejected.IsResolved);
+        Assert.Contains("must be referenced through a vault secret", rejected.ErrorMessage);
     }
 
     [Fact]
@@ -609,6 +670,57 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(["postgres-main"], declaration.DependsOn);
         Assert.Equal(["configuration:settings"], application.References);
         Assert.True(application.UseServiceDiscovery);
+    }
+
+    [Fact]
+    public void TypedExecutableBuilder_StoresAppSettingsAndReferenceBackedEnvironmentVariables()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var settings = resources
+                    .AddConfigurationStore("configuration:app", "App Settings");
+
+                resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        "API",
+                        executablePath: "dotnet")
+                    .WithAppSetting("Database:Host", settings.Entry("Database:Host"))
+                    .WithEnvironment(
+                        "DB_PASSWORD",
+                        new SecretReference("vault:local", "db-password"));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(
+            store.GetDeclarations(),
+            declaration => declaration.ResourceId == "application:api");
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.Equal(["configuration:app", "vault:local"], declaration.DependsOn);
+        var appSetting = Assert.Single(application.AppSettings);
+        Assert.Equal("Database:Host", appSetting.Name);
+        Assert.Equal("configuration:app", appSetting.ConfigurationEntry?.StoreResourceId);
+        Assert.Equal("Database:Host", appSetting.ConfigurationEntry?.EntryName);
+        var environment = Assert.Single(application.EnvironmentVariables);
+        Assert.Equal("DB_PASSWORD", environment.Name);
+        Assert.Equal("vault:local", environment.Secret?.VaultResourceId);
+        Assert.Equal("db-password", environment.Secret?.SecretName);
     }
 
     [Fact]

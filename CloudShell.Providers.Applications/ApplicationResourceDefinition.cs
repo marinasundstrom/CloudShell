@@ -30,7 +30,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         bool aspNetCoreHotReload = true,
         string? containerRevision = null,
         string? containerRegistry = null,
-        ContainerRegistryCredentials? containerRegistryCredentials = null)
+        ContainerRegistryCredentials? containerRegistryCredentials = null,
+        IReadOnlyList<AppSetting>? appSettings = null)
     {
         Id = id;
         Name = name;
@@ -38,6 +39,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         Arguments = arguments;
         WorkingDirectory = workingDirectory;
         Endpoint = endpoint;
+        AppSettings = appSettings ?? [];
         EnvironmentVariables = environmentVariables ?? [];
         Lifetime = lifetime;
         DependsOn = dependsOn ?? [];
@@ -73,6 +75,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public string? WorkingDirectory { get; init; }
 
     public string? Endpoint { get; init; }
+
+    public IReadOnlyList<AppSetting> AppSettings { get; init; }
 
     public IReadOnlyList<EnvironmentVariableAssignment> EnvironmentVariables { get; init; }
 
