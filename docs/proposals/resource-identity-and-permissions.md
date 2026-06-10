@@ -42,6 +42,8 @@ That makes it difficult to model scenarios such as:
 - Do not replace the existing user authentication model.
 - Do not make the development identity server part of the CloudShell domain
   model or a required production dependency.
+- Do not require authentication to be enabled just to declare, inspect, or test
+  resource identity shape in local development.
 - Do not require every provider to implement all identity modes immediately.
 
 ## Proposed Model
@@ -76,6 +78,18 @@ Other standards-compliant providers such as Keycloak, Auth0, and Okta should
 remain replaceable options without changing CloudShell's resource identity
 model.
 
+When CloudShell authentication is disabled for isolated local development,
+resource identity declarations should still be accepted and projected. Runtime
+authorization is bypassed in that mode, but the declared identity shape remains
+valuable because applications, providers, templates, and Resource Manager can
+exercise the same identity metadata they will use later with a real provider.
+
+Local development should support a mock or development identity provider. That
+provider can issue deterministic subjects, scopes, and claims or simply project
+the declared binding without acquiring tokens. This lets a team start an app
+locally, verify the intended identity contract, and gradually wire the same
+resource to Microsoft Entra ID or another provider before publishing.
+
 ### Resource identity bindings
 
 Resources should be able to declare which identity provider they rely on:
@@ -90,6 +104,13 @@ public sealed record ResourceIdentityBinding(
 
 This gives providers a stable contract for identity selection, workload identity,
 scopes, and provider-specific metadata.
+
+The first projection slice adds `ResourceIdentityProviderDefinition` and
+`ResourceIdentityBinding` public contracts. A resource can project an optional
+identity binding with provider ID, subject, scopes, and non-secret claim
+metadata. The Control Plane API and remote client map that binding through
+`ResourceResponse.identity`. Default provider selection, inheritance, and
+provider-backed token behavior remain separate implementation work.
 
 ### Resource permissions
 
@@ -122,22 +143,35 @@ while the model moves toward resource operation permissions.
 
 ```csharp
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
-    .WithIdentity("managed")
+    .WithIdentity("identity:dev")
     .WithIdentity(identity =>
     {
+        identity.Subject = "application:api";
         identity.Scopes.Add("db.read");
+        identity.Claims["appRole"] = "Api";
     });
 ```
 
+Programmatic identity declarations should work before the production identity
+provider exists. A local declaration can bind to `identity:dev` or another
+mock provider first, then switch the provider ID and provider-specific scopes
+or claims when the app is wired to Microsoft Entra ID.
+
 ## Remaining tasks
 
-- Define the resource identity-provider contract and default selection rules.
+- Define default resource identity-provider selection rules.
 - Add the reference development identity server hosting path and OIDC/OAuth
   configuration.
+- Add a mock/development identity-provider mode that works when CloudShell
+  authentication is disabled for local development and still projects the
+  declared identity binding.
 - Add Microsoft Entra ID (Azure AD) provider configuration and compatibility
   tests for tokens, claim mapping, groups or app roles, and service-principal
   automation.
 - Decide how resource identity should inherit from a resource group or parent
   resource.
 - Add resource-level permission names and policy evaluation rules.
+- Add authoring APIs for resource identity bindings.
+- Add programmatic identity declaration helpers that can target a mock provider
+  first and later switch to Microsoft Entra ID or another production provider.
 - Wire the identity contract into at least one provider-backed workload type.

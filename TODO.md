@@ -24,18 +24,25 @@ Work the current proposals in this order:
 
 ## Now: Resource Identity and Permissions
 
-- Define the resource identity-provider contract and default selection rules,
-  including inheritance from resource groups or parent resources where the
-  first model needs it.
+- Define default resource identity-provider selection rules, including
+  inheritance from resource groups or parent resources where the first model
+  needs it. Public identity provider and binding projection contracts are now
+  available on resources and the Control Plane API.
 - Add a replaceable development identity-provider path by hosting a separate
   reference identity server instance that speaks standard OIDC and OAuth 2.0.
   Treat it as development infrastructure, not as the CloudShell identity domain
   model, so teams can replace it with another standards-compliant provider.
+- Add a mock/development identity-provider mode for authentication-disabled
+  local development so resources can declare and project identity bindings
+  before a real provider is wired up.
 - Make the same identity-provider contract work with Microsoft Entra ID
   (Azure AD), including issuer/audience validation, claim mapping, groups or
   app roles, and client-credentials/service-principal flows for automation.
-- Define resource identity bindings for workload, service, and provider-owned
-  scenarios, including subject, scopes, and provider-specific claim metadata.
+- Add authoring APIs for resource identity bindings in workload, service, and
+  provider-owned scenarios.
+- Add programmatic identity declaration helpers that can start against a mock
+  provider and later switch to Microsoft Entra ID or another production
+  provider before publishing.
 - Define the resource permission foundation: permission assignments,
   permission inheritance boundaries, token claim mapping, workload identity
   lifecycle, and provider or orchestrator identities. Standard resource action

@@ -21,7 +21,8 @@ public sealed record Resource(
     IReadOnlyDictionary<string, string>? Attributes = null,
     IReadOnlyList<ResourceCapability>? Capabilities = null,
     IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null,
-    IReadOnlyList<LoadBalancerRoute>? LoadBalancerRoutes = null)
+    IReadOnlyList<LoadBalancerRoute>? LoadBalancerRoutes = null,
+    ResourceIdentityBinding? Identity = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -59,6 +60,8 @@ public sealed record Resource(
 
     public IReadOnlyList<LoadBalancerRoute> ResourceLoadBalancerRoutes =>
         LoadBalancerRoutes ?? [];
+
+    public ResourceIdentityBinding? IdentityBinding => Identity;
 
     public bool HasCapability(string capabilityId) =>
         ResourceCapabilities.Any(capability =>

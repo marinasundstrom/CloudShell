@@ -44,6 +44,38 @@ public sealed class ResourceActionTests
     }
 
     [Fact]
+    public void Resource_ExposesProjectedIdentityBinding()
+    {
+        var identity = new ResourceIdentityBinding(
+            "identity:entra",
+            "application:api",
+            ["api://cloudshell-control-plane/.default"],
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["appRole"] = "Api"
+            });
+        var resource = CreateResource() with { Identity = identity };
+        var binding = resource.IdentityBinding;
+
+        Assert.NotNull(binding);
+        Assert.Same(identity, binding);
+        Assert.Equal("identity:entra", binding.ProviderId);
+        Assert.Equal(["api://cloudshell-control-plane/.default"], binding.IdentityScopes);
+        Assert.Equal("Api", binding.IdentityClaims["appRole"]);
+    }
+
+    [Fact]
+    public void ResourceIdentityProviderDefinition_NormalizesEmptySettings()
+    {
+        var provider = new ResourceIdentityProviderDefinition(
+            "identity:dev",
+            "Development identity",
+            ResourceIdentityProviderKind.Oidc);
+
+        Assert.Empty(provider.ProviderSettings);
+    }
+
+    [Fact]
     public void ResourceOperationCapabilities_ProvidesCaseInsensitiveActionLookup()
     {
         var capabilities = new ResourceOperationCapabilities(

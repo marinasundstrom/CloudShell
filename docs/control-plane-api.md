@@ -169,9 +169,11 @@ the domain managers, not the generated client.
 The OpenAPI document must describe the domain-shaped resource projection. The
 `GET /api/control-plane/v1/resources` response schema references
 `ResourceResponse`, and `ResourceResponse` includes `resourceClass`,
-`attributes`, and `resourceActions`. `resourceActions` is a dictionary keyed by
-action ID whose values include method and href affordances. Creation requests
-include `startAfterCreate` as an explicit lifecycle option.
+`attributes`, `identity`, and `resourceActions`. `identity` is an optional
+resource identity binding with provider ID, subject, scopes, and non-secret
+claim metadata. `resourceActions` is a dictionary keyed by action ID whose
+values include required permission, method, and href affordances. Creation
+requests include `startAfterCreate` as an explicit lifecycle option.
 
 The `CloudShell.ControlPlane.Client` package provides the default remote adapter
 for the current API shape. A generated OpenAPI client can replace its internal

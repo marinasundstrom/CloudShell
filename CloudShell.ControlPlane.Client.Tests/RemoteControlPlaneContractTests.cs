@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using System.Text.Json;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Observability;
@@ -131,6 +132,25 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Contains("removed", result.Message, StringComparison.OrdinalIgnoreCase);
 
         Assert.Null(await controlPlane.GetResourceAsync("network:contract"));
+    }
+
+    [Fact]
+    public async Task RemoteControlPlane_MapsResourceIdentityAndActionPermissions()
+    {
+        await using var app = await CreateAppAsync(includeLifecycleResource: true);
+        var controlPlane = CreateClient(app);
+
+        var resource = await controlPlane.GetResourceAsync(ContractLifecycleResourceProvider.ResourceId);
+
+        Assert.NotNull(resource);
+        Assert.NotNull(resource.IdentityBinding);
+        Assert.Equal("identity:dev", resource.IdentityBinding.ProviderId);
+        Assert.Equal("contract-lifecycle", resource.IdentityBinding.Subject);
+        Assert.Equal(["api://cloudshell-control-plane/.default"], resource.IdentityBinding.IdentityScopes);
+        Assert.Equal("ContractLifecycle", resource.IdentityBinding.IdentityClaims["appRole"]);
+        Assert.Equal(
+            CloudShellPermissions.Resources.Actions.Lifecycle,
+            ResourceActionPermissions.GetRequiredPermission(resource.StopAction!));
     }
 
     [Fact]
@@ -272,10 +292,20 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(JsonValueKind.Object, actions.ValueKind);
         Assert.Equal(ResourceActionIds.Stop, stop.GetProperty("id").GetString());
         Assert.Equal("Stop", stop.GetProperty("displayName").GetString());
+        Assert.Equal(
+            CloudShellPermissions.Resources.Actions.Lifecycle,
+            stop.GetProperty("requiredPermission").GetString());
         Assert.Equal("POST", stop.GetProperty("method").GetString());
         Assert.Equal(
             "/api/control-plane/v1/resources/contract%3Alifecycle/actions/stop",
             stop.GetProperty("href").GetString());
+        var identity = resource.GetProperty("identity");
+        Assert.Equal("identity:dev", identity.GetProperty("providerId").GetString());
+        Assert.Equal("contract-lifecycle", identity.GetProperty("subject").GetString());
+        Assert.Equal(
+            "api://cloudshell-control-plane/.default",
+            Assert.Single(identity.GetProperty("scopes").EnumerateArray()).GetString());
+        Assert.Equal("ContractLifecycle", identity.GetProperty("claims").GetProperty("appRole").GetString());
     }
 
     [Fact]
@@ -295,6 +325,7 @@ public sealed class RemoteControlPlaneContractTests
 
         var resourceProperties = resourceSchema.GetProperty("properties");
         Assert.True(resourceProperties.TryGetProperty("resourceClass", out _));
+        Assert.True(resourceProperties.TryGetProperty("identity", out _));
         Assert.True(resourceProperties.TryGetProperty("attributes", out var attributes));
         Assert.Equal("object", attributes.GetProperty("type").GetString());
         Assert.Equal(
@@ -774,6 +805,14 @@ public sealed class RemoteControlPlaneContractTests
                 [],
                 TypeId: "contract.lifecycle",
                 ResourceClass: ResourceClass.Executable,
+                Identity: new ResourceIdentityBinding(
+                    "identity:dev",
+                    "contract-lifecycle",
+                    ["api://cloudshell-control-plane/.default"],
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["appRole"] = "ContractLifecycle"
+                    }),
                 Actions:
                 [
                     ResourceAction.Stop,

@@ -54,6 +54,11 @@ must work with Microsoft Entra ID (Azure AD) and allow teams to replace the
 development server with Keycloak, Auth0, Okta, or another standards-compliant
 provider later.
 
+Isolated local development should also allow authentication to be disabled
+while resources still declare and project mock identity bindings
+programmatically, so apps can start locally and later switch those bindings to
+Microsoft Entra ID or another production provider before publishing.
+
 This phase should also establish the audit hooks required to explain allow and
 deny decisions. Full policy engines, wildcard permissions, and advanced
 inheritance can wait, but the first model must be strong enough to secure

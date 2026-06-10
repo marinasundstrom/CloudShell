@@ -401,3 +401,11 @@ For isolated development only, set `Authentication:Enabled` to `false`.
 Authorization services then allow all operations and no authentication
 fallback policy is installed. This also makes the Control Plane API
 unauthenticated, so do not use this setting for shared or production hosts.
+
+Resource identity declarations should still be usable when authentication is
+disabled. In that mode CloudShell does not enforce token-based authorization,
+but resources can still project identity bindings for local testing,
+templates, provider wiring, and UI inspection. A mock or development identity
+provider can project deterministic subjects, scopes, and claims before the
+same resource is later wired to Microsoft Entra ID or another production
+provider.

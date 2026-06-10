@@ -88,6 +88,15 @@ The MVP should prove:
   Custom actions can declare narrower Azure-style operation permissions and
   otherwise use `CloudShell.Resources/resources/actions/execute/action`.
   `resources.manage` remains a compatibility superset for resource actions.
+- Resources can project an optional resource identity binding with provider ID,
+  subject, scopes, and non-secret claim metadata. The Control Plane API and
+  remote client expose this as `ResourceResponse.identity`; provider selection,
+  inheritance, token issuance, and provider-backed workload behavior remain
+  future resource identity work.
+- Authentication-disabled local development should still allow resources to
+  declare and project identity bindings. A mock/development identity provider
+  should let teams exercise identity metadata locally before switching the same
+  resource to Microsoft Entra ID or another production provider.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.

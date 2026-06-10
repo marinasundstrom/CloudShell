@@ -28,6 +28,7 @@ public sealed record ResourceResponse(
     IReadOnlyList<ResourceCapabilityResponse> Capabilities,
     IReadOnlyList<ResourceEndpointMappingResponse> EndpointMappings,
     IReadOnlyList<LoadBalancerRouteResponse> LoadBalancerRoutes,
+    ResourceIdentityBindingResponse? Identity,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 public sealed record ResourceEndpointResponse(
@@ -76,11 +77,18 @@ public sealed record ResourceActionResponse(
     string DisplayName,
     ResourceActionKind Kind,
     string? Description,
+    string RequiredPermission,
     ResourceActionDisplayStyle DisplayStyle,
     ResourceActionIcon Icon,
     bool RequiresConfirmation,
     string Method,
     string Href);
+
+public sealed record ResourceIdentityBindingResponse(
+    string ProviderId,
+    string? Subject,
+    IReadOnlyList<string> Scopes,
+    IReadOnlyDictionary<string, string> Claims);
 
 public sealed record ResourceGroupResponse(
     string Id,
@@ -203,6 +211,7 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.ResourceCapabilities.Select(ToResponse).ToArray(),
             resource.ResourceEndpointMappings.Select(ToResponse).ToArray(),
             resource.ResourceLoadBalancerRoutes.Select(ToResponse).ToArray(),
+            resource.IdentityBinding?.ToResponse(),
             CreateResourceActionDictionary(resource));
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
@@ -248,12 +257,21 @@ internal static class CloudShellControlPlaneDtoMapper
             action.DisplayName,
             action.Kind,
             action.Description,
+            ResourceActionPermissions.GetRequiredPermission(action),
             presentation.DisplayStyle,
             presentation.Icon,
             action.RequiresConfirmation,
             "POST",
             $"{CloudShellControlPlaneApiDefaults.RoutePrefix}/resources/{Uri.EscapeDataString(resourceId)}/actions/{Uri.EscapeDataString(action.Id)}");
     }
+
+    public static ResourceIdentityBindingResponse ToResponse(
+        this ResourceIdentityBinding identity) =>
+        new(
+            identity.ProviderId,
+            identity.Subject,
+            identity.IdentityScopes,
+            identity.IdentityClaims);
 
     private static IReadOnlyDictionary<string, ResourceActionResponse> CreateResourceActionDictionary(
         Resource resource) =>

@@ -552,6 +552,7 @@ file sealed record ResourceResponse(
     IReadOnlyList<ResourceCapabilityResponse>? Capabilities,
     IReadOnlyList<ResourceEndpointMappingResponse>? EndpointMappings,
     IReadOnlyList<LoadBalancerRouteResponse>? LoadBalancerRoutes,
+    ResourceIdentityBindingResponse? Identity,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
 
 file sealed record ResourceEndpointResponse(
@@ -600,11 +601,18 @@ file sealed record ResourceActionResponse(
     string DisplayName,
     ResourceActionKind Kind,
     string? Description,
+    string? RequiredPermission,
     ResourceActionDisplayStyle DisplayStyle,
     ResourceActionIcon Icon,
     bool RequiresConfirmation,
     string? Method,
     string? Href);
+
+file sealed record ResourceIdentityBindingResponse(
+    string ProviderId,
+    string? Subject,
+    IReadOnlyList<string>? Scopes,
+    IReadOnlyDictionary<string, string>? Claims);
 
 file sealed record ResourceGroupResponse(
     string Id,
@@ -726,7 +734,8 @@ file static class RemoteControlPlaneMapper
                 .ToArray(),
             LoadBalancerRoutes: response.GetLoadBalancerRouteResponses()
                 .Select(route => route.ToLoadBalancerRoute())
-                .ToArray());
+                .ToArray(),
+            Identity: response.Identity?.ToResourceIdentityBinding());
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
         new(
@@ -780,7 +789,16 @@ file static class RemoteControlPlaneMapper
             new ResourceActionPresentation(
                 response.DisplayStyle,
                 response.Icon,
-                response.RequiresConfirmation));
+                response.RequiresConfirmation),
+            response.RequiredPermission);
+
+    public static ResourceIdentityBinding ToResourceIdentityBinding(
+        this ResourceIdentityBindingResponse response) =>
+        new(
+            response.ProviderId,
+            response.Subject,
+            response.Scopes,
+            response.Claims);
 
     private static IReadOnlyCollection<ResourceActionResponse> GetResourceActionResponses(
         this ResourceResponse response) =>
