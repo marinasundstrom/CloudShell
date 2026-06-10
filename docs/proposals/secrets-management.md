@@ -4,26 +4,44 @@
 
 Proposed.
 
-This proposal covers secret storage, secret references, and vault-style
-resource integration. It intentionally leaves resource identity rules to the
-separate identity-and-permissions proposal.
+This proposal covers configuration references, secret references, and
+vault-style resource integration. CloudShell should provide the resource model,
+resolver contracts, UI wiring, redaction, and template behavior needed to pass
+settings and secrets safely. Configuration providers own configuration-entry
+storage. Vault providers own secret storage, retrieval, versioning, and
+rotation behavior.
+
+This proposal intentionally leaves resource identity rules to the separate
+identity-and-permissions proposal.
 
 ## Problem
 
 CloudShell currently has no first-class resource model for secret references.
-Providers must either embed secrets in configuration or invent ad-hoc wiring,
-which makes secret handling hard to validate, secure, and export safely.
+Configuration services can mark entries as secret, but settings and secrets
+are still represented by the same configuration entry shape. Providers must
+either embed secrets in configuration or invent ad-hoc wiring, which makes
+secret handling hard to validate, secure, and export safely.
 
 This blocks scenarios such as:
 
 - passing a database password into an application resource
+- assigning an application setting from a secret reference in the UI
+- assigning an application setting from a configuration-store entry
 - resolving a secret from a local or provider-backed vault
 - exporting resource templates without leaking secret material
 
 ## Goals
 
 - Introduce a secret-reference abstraction for resources.
-- Support a local vault-style resource as the first implementation target.
+- Keep app settings separate from secrets. App settings are non-secret
+  configuration values; secret references are non-secret pointers to
+  provider-owned secret values.
+- Let app settings use literal values or non-secret configuration-entry
+  references.
+- Support a local vault provider as the first implementation target while
+  keeping Vault as a separate resource capability.
+- Let users assign secret references in Resource Manager UI, similar to Azure
+  application settings and Key Vault reference flows.
 - Keep secret values out of the public resource model and out of exported
   templates by default.
 - Allow providers to resolve secret references at runtime without exposing the
@@ -32,15 +50,55 @@ This blocks scenarios such as:
 ## Non-Goals
 
 - Do not define resource identity or permissions here.
-- Do not introduce a full enterprise secret-management platform in the first
-  version.
+- Do not make CloudShell itself the vault or introduce a full enterprise
+  secret-management platform in the first version.
 - Do not expose raw secret values through standard resource attributes.
+- Do not require all resource providers to support secret references
+  immediately.
 
 ## Proposed Model
 
+### App settings
+
+App settings are resource configuration values that are safe to project,
+inspect, and export. They can be literal values or references to non-secret
+configuration-store entries. They should remain separate from secrets even when
+a provider eventually materializes both settings and secrets as environment
+variables.
+
+```csharp
+public sealed record AppSetting(
+    string Name,
+    AppSettingValue Value);
+
+public abstract record AppSettingValue;
+
+public sealed record LiteralAppSettingValue(string Value) : AppSettingValue;
+
+public sealed record ConfigurationEntryReference(
+    string StoreResourceId,
+    string EntryName,
+    string? Version = null) : AppSettingValue;
+```
+
+Application-style resources should be able to declare settings separately from
+environment variables:
+
+```csharp
+var settings = resources.AddConfigurationStore("configuration:app", "App Settings");
+
+resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
+    .WithAppSetting("Database:Host", "postgres")
+    .WithAppSetting("Database:Name", settings.Entry("database-name"));
+```
+
+Configuration-entry references are for non-secret settings. If an existing
+configuration store entry is marked secret, new authoring surfaces should guide
+the user to move it to a vault secret and bind a `SecretReference` instead.
+
 ### Secret references
 
-A secret reference should be a non-secret pointer to provider-owned data:
+A secret reference is a non-secret pointer to provider-owned secret data:
 
 ```csharp
 public sealed record SecretReference(
@@ -49,21 +107,46 @@ public sealed record SecretReference(
     string? Version = null);
 ```
 
-### Vault-style resources
+Secret references may be stored in provider-owned resource configuration,
+projected in templates, and shown in UI as references. They must not be
+resolved into secret values for resource projection, generated details, API
+responses, logs, or template export.
 
-A local or provider-backed vault resource should expose secret lookups:
+### Secret-backed settings and environment variables
+
+Resources should be able to bind an app setting from a configuration entry and
+bind a setting or environment variable to a secret reference without embedding
+the referenced value:
+
+```csharp
+public sealed record SecretBackedSetting(
+    string Name,
+    SecretReference Secret);
+```
+
+For application resources, the first-class authoring surface should support
+both non-secret settings and secret-backed environment variables:
 
 ```csharp
 var vault = resources.AddVault("vault");
+var settings = resources.AddConfigurationStore("configuration:app", "App Settings");
 
-var api = resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
+resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
+    .WithAppSetting("Database:Host", settings.Entry("database-host"))
     .WithEnvironment("DB_PASSWORD", vault.Secret("db-password"));
 ```
 
-The vault resource is the stable abstraction; the provider owns the actual
-secret store implementation.
+The provider owns how the target platform receives those values. A local
+process provider can inject the resolved secret as an environment variable at
+start time. A container provider can create platform-native secret references
+or pass the value through a protected runtime channel when no better native
+mechanism exists.
 
-## Proposed Fluent API
+### Vault resources
+
+A local or provider-backed vault resource exposes secret references and lookup
+capability. The vault resource is the stable CloudShell abstraction; the vault
+provider owns the actual secret store implementation.
 
 ```csharp
 var vault = resources.AddVault("vault");
@@ -72,10 +155,122 @@ resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
     .WithEnvironment("DB_PASSWORD", vault.Secret("db-password"));
 ```
 
+The initial local vault implementation can be extracted from the existing
+configuration service's secret-entry behavior, but it should become a separate
+provider-owned vault resource model rather than another configuration entry
+flag. Configuration services should continue to provide non-secret settings.
+
+### Runtime resolution
+
+CloudShell should define a provider integration point for resolving secret
+references at runtime:
+
+```csharp
+public interface ISecretReferenceResolver
+{
+    ValueTask<SecretReferenceResolutionResult> ResolveSecretAsync(
+        SecretReference secret,
+        SecretResolutionContext context,
+        CancellationToken cancellationToken = default);
+}
+```
+
+The resolution context should include the target resource ID, resource group,
+operation, and any future resource identity information. Resolvers return a
+short-lived resolved value or a diagnostic. Missing required references should
+block start/deploy operations with a clear resource procedure result.
+Optional references can be omitted when the provider explicitly supports that.
+
+Resolved values should stay inside the execution boundary. They should not be
+written to persistent provider configuration unless the target platform's
+native secret store requires it.
+
+### Resource Manager UI
+
+Resource Manager should let users assign literal values, configuration-entry
+references, and secret references anywhere an application resource supports app
+settings or environment variables.
+
+The UI should provide an Azure-like editing flow:
+
+- choose whether a setting value is a literal value, a configuration entry, or
+  a secret reference
+- for configuration entries, select a configuration store resource and entry
+  name, with optional version if the provider supports versions
+- select a vault resource visible to the current resource group or enter a
+  provider-supported vault resource ID
+- select or type the secret name
+- optionally select or type a version
+- show the saved value as a reference such as
+  `@CloudShell.Configuration(storeResourceId=configuration:app; entryName=database-host)`
+  or
+  `@CloudShell.Secret(vaultResourceId=vault; secretName=db-password)`
+- never display resolved secret values
+- show diagnostics when the selected vault cannot resolve the reference
+
+The UI should not require users to paste secret values into application
+settings when a vault reference is available. For the local vault provider, a
+separate vault management view can create or rotate the secret value, while the
+application settings UI only binds to the reference.
+
+## Proposed Fluent API
+
+```csharp
+var vault = resources.AddVault("vault");
+var settings = resources.AddConfigurationStore("configuration:app", "App Settings");
+
+resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
+    .WithAppSetting("Database:Host", settings.Entry("database-host"))
+    .WithEnvironment("DB_PASSWORD", vault.Secret("db-password"));
+```
+
+The `settings.Entry(...)` helper creates a `ConfigurationEntryReference`; it
+does not copy the entry value into the application resource definition. The
+`vault.Secret(...)` helper creates a `SecretReference`; it does not resolve the
+secret value. Passing either reference to an app-setting or environment API
+records a reference that the provider resolves at runtime.
+
+## Template and Export Behavior
+
+Application resources should export literal app settings, configuration-entry
+references, and secret references, but never resolved secret values. Local
+vault resources should export secret names and placeholders, not secret
+material. External vault resources should export only non-secret locator
+metadata needed to rebind the reference.
+
+Imported templates should preserve references when the referenced vault
+resource exists in the template or target environment. When a required
+reference cannot be rebound, import should return diagnostics instead of
+silently creating a resource that cannot start.
+
+## Migration from Configuration Services
+
+Configuration services currently represent settings and secrets as entries
+with an `IsSecret` flag. The implementation should split that responsibility:
+
+- configuration services remain the source for non-secret app settings and can
+  be referenced by entry name
+- local vault resources own secret values and expose secret references
+- applications can depend on configuration services for settings and on vault
+  resources for secret resolution
+
+Existing secret entries in configuration stores can be migrated to local vault
+resources or kept behind compatibility behavior until the vault resource type
+is available. New authoring surfaces should guide users toward app settings for
+non-secret values and vault-backed references for secrets.
+
 ## Remaining tasks
 
-- Define the first vault-resource contract and provider-owned storage model.
-- Decide how secret references should be versioned or rotated.
+- Define the first vault-resource contract, provider-owned storage model, and
+  local vault management UI.
+- Define the resolver contract, diagnostics, and required/optional reference
+  behavior.
+- Add application settings as separate provider-owned configuration for
+  application resources.
+- Add Resource Manager UI support for assigning literal app settings and
+  configuration-entry or vault-backed secret references.
+- Decide how secret references should be versioned, rotated, and refreshed for
+  already-running resources.
 - Add safe export behavior so templates use placeholders or references instead
   of secret material.
 - Add runtime resolution, redaction, and failure diagnostics for secret
