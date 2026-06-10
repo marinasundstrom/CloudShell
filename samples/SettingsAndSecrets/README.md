@@ -10,3 +10,7 @@ environment variables from references:
 
 The application resource stores references, not copied values. CloudShell
 resolves those references when the resource is started.
+
+```bash
+dotnet run --project samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj -- --urls http://localhost:5011
+```
