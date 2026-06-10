@@ -21,7 +21,8 @@ Both CloudShell and Aspire help users:
 - Make local development easier by reducing repeated environment setup.
 - Give developers a single place to see the pieces that make up an app.
 - Support container-backed services and project-backed applications.
-- Make common app topology easier to understand for new contributors.
+
+- Encourage developers to think in terms of resources and relationships rather than individual tools and configuration files.
 
 In short, both products reduce the friction of getting a distributed
 application running and understandable.
@@ -42,6 +43,9 @@ CloudShell adds value when the team needs more than app composition:
 | "I want networking to become a managed resource." | Network resources, endpoint assignment, endpoint mappings, and provider-backed networking capabilities. |
 | "I want deployment workflows to be represented as resource operations." | Container app resources with image update and revision-oriented deployment APIs. |
 | "I want the same model available through code, UI, and API." | Programmatic declarations, Resource Manager UI, and a domain-shaped Control Plane API over the same resource model. |
+| "I want to learn infrastructure concepts without immediately adopting a public cloud." | Cloud-style resource abstractions for networking, storage, identity, deployment, and operations that can be explored locally or on self-hosted environments. |
+| "I want to experiment without worrying about cloud costs." | A self-hosted resource platform that can run on a developer workstation, lab environment, or team-owned infrastructure. |
+| "I want infrastructure concepts to feel familiar when I later move to Azure or another cloud." | Resource-oriented concepts that intentionally align with common cloud patterns such as networks, endpoints, storage, identities, permissions, and managed services. |
 
 CloudShell is therefore not just an app launcher. It is a resource shell and
 Control Plane that can use Aspire-like declarations as one entry point.
@@ -60,15 +64,31 @@ infrastructure model on day one.
    resources without setting up separate infrastructure. Build pipelines can
    integrate with the Control Plane to update running resources.
 3. Add infrastructure when it starts to matter. When the team wants more
-   control over hosting, networking, registries, deployment targets, or
-   provider configuration, those pieces can be added to the resource model and
-   managed through CloudShell.
+   control over hosting, networking, registries, storage, identities,
+   permissions, deployment targets, or provider configuration, those pieces
+   can be added to the resource model and managed through CloudShell.
 4. Run it as an environment platform. The same shell can grow into a full
    on-premise Control Plane for team-owned infrastructure, provider-backed
    operations, and environment-specific resource management.
 
+
 The user can therefore begin with a simple distributed application and expand
 the model only when the environment needs more explicit control.
+
+## Familiar cloud concepts
+
+CloudShell intentionally uses resource-oriented concepts that are common across
+modern cloud platforms. Applications, networks, endpoints, storage, identities,
+permissions, deployments, and operational actions are represented as resources
+rather than provider-specific implementation details.
+
+This makes CloudShell useful both as a development platform and as a learning
+environment. Developers can explore cloud-style architecture using local or
+self-hosted infrastructure before adopting public cloud services.
+
+The goal is not to replace cloud platforms. The goal is to make cloud
+architecture more approachable by exposing familiar concepts through a
+consistent resource model.
 
 ## Positioning
 
@@ -83,8 +103,10 @@ The practical product position is:
 
 - Aspire is great at making application composition approachable.
 - CloudShell should preserve that approachable resource declaration model.
-- CloudShell adds the management layer around those resources: shell,
-  providers, operations, persistence, API, and environment control.
+- CloudShell extends the model beyond application composition into resource
+  management, operations, networking, deployment, and environment control.
+- CloudShell provides a path from local development to self-hosted and
+  cloud-connected environments without requiring a different mental model.
 
 That lets CloudShell start with familiar local-development value while leaving
 room for capabilities that do not naturally belong in a single app host.
