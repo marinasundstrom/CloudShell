@@ -4,7 +4,27 @@
 
 Partially implemented.
 
+The host model, remote endpoint concepts, and provider-owned configuration path
+are in place, but the remaining work is concentrated in the registration UI,
+provider persistence, and full validation coverage.
+
 ## Problem
+
+This proposal covers the user-managed Docker host resource model: how a Docker
+host is registered, projected, validated, and operated as a resource in the
+shell.
+
+It overlaps with the internal runtime abstraction in
+[Container Host Abstraction Proposal](container-host-abstraction.md), but the
+concerns are different:
+
+- this proposal is about user-visible Docker host resources, host registration,
+  credential handling, and host discovery
+- the other proposal is about the internal default/runtime host contract used
+  by providers when a resource depends on container-backed infrastructure
+
+That separation keeps the UI and ownership model distinct from the internal
+provider runtime integration path.
 
 The Docker provider currently models Docker Engine as the local container host.
 That works for local development, but CloudShell also needs to register Docker
@@ -284,6 +304,37 @@ Add focused coverage for:
 - containers discovered from a remote host are parented under that host
 - actions on remote-host containers dispatch through that host's Docker client
 - missing provider-owned configuration projects the host as unavailable
+
+## Remaining tasks
+
+- Finish the UI and registration flow for remote Docker hosts, including
+  credential selection, connection testing, and provider-owned persistence.
+- Complete duplicate-host validation across local and remote registrations in
+  every registration path, not only the provider-backed path.
+- Add migration and compatibility coverage for existing `docker.engine`
+  registrations and ensure the new `docker.host` projection is stable in the
+  UI and API.
+- Verify remote-host container actions and diagnostics end to end on real
+  remote Docker endpoints, including credential redaction and failure reporting.
+
+## Relationship to the container host abstraction proposal
+
+The remote Docker hosts proposal should remain the concrete, user-managed view
+of Docker hosts. The internal host abstraction proposal defines the provider
+runtime contract that lets Control Plane components create, inspect, probe, and
+manage container-backed infrastructure even when the host is not surfaced as a
+normal user resource.
+
+In practice:
+
+- use this proposal for registration, projection, UI, persistence, and host
+  identity rules
+- use [Container Host Abstraction Proposal](container-host-abstraction.md) for
+  provider-owned runtime resolution, default-host access, and internal runtime
+  operations
+
+The two proposals should evolve together, but they should not be merged into a
+single design artifact.
 
 ## Open Questions
 

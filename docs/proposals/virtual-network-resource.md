@@ -2,7 +2,11 @@
 
 ## Status
 
-Proposed.
+In progress.
+
+The core virtual-network resource model and host-local networking path are now
+part of the foundation, but the provider-backed routing, backend-pool, and
+clustered-scenario pieces are still incomplete.
 
 ## Problem
 
@@ -390,6 +394,17 @@ only introduce a richer ingress editor once routing fields become standardized.
     gateway, DNS, policy, or load-balancer capability.
 11. Add load-balanced backend targets after host-provided virtual networking is
     working.
+
+## Remaining tasks
+
+- Finish provider-backed endpoint mapping materialization for real host
+  networking services, not just logical local networking.
+- Complete the backend-pool and load-balancer integration path so virtual
+  networks can express stable clustered routing behavior.
+- Add host-readiness diagnostics and warnings for missing networking
+  capabilities, especially when the current host cannot materialize a mapping.
+- Extend UI and API validation coverage for provider selection, conflict
+  reporting, and reconcile action outcomes.
 
 ## Open Questions
 

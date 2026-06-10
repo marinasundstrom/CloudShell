@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+In progress.
 
 ## Problem
 
@@ -362,3 +362,12 @@ mappings.
    and owns implementation containers as child/runtime resources.
 9. Add a sample with a web app, API service, PostgreSQL-style TCP target, and a
    public Traefik load balancer.
+
+## Remaining tasks
+
+- Finish the provider-resource selection path so `UseProvider(...)` and host
+  resolution behave consistently across declared and UI-created resources.
+- Complete Traefik file-config and container-mode apply behavior, including
+  diagnostics for missing hosts, invalid routes, and provider capability gaps.
+- Add end-to-end validation for TLS, route conflicts, and backend target
+  resolution before the design is considered production-ready.

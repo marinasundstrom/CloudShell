@@ -106,7 +106,55 @@ References:
 - [Resource templates](resource-templates.md)
 - [Progress](progress.md)
 
-### 5. Container Application Environments
+### 5. Resource Identity and Permissions
+
+Goal: define the next resource-level identity and policy contract for CloudShell.
+
+Resources need a provider-neutral way to express identity bindings and resource permissions without relying only on current user-session claims. This proposal covers identity providers, resource identity bindings, and permission evaluation for resource-scoped scenarios.
+
+References:
+
+- [Resource Identity and Permissions Proposal](proposals/resource-identity-and-permissions.md)
+- [Authentication and authorization](authentication-and-authorization.md)
+- [Programmatic resources](programmatic-resources.md)
+
+### 6. Secrets Management
+
+Goal: define a secure secret-reference model for resource declarations.
+
+CloudShell should support vault-style resources and secret references that keep sensitive values provider-owned while allowing applications and providers to consume them safely. This proposal covers secret references, vault-style resources, and secret export behavior.
+
+References:
+
+- [Secrets Management Proposal](proposals/secrets-management.md)
+- [Resource templates](resource-templates.md)
+- [Programmatic resources](programmatic-resources.md)
+
+### 7. Container Host Abstraction
+
+Goal: define the stable internal container-host runtime contract for
+provider-owned dependent infrastructure.
+
+Resources and providers need a default, internal way to create, probe, and
+manage containers or independent services across different host runtimes,
+with the default container host as the primary integration point. This proposal
+covers default host resolution, provider-owned runtime operations, and the
+remote Control Plane client/API path for service-backed runtime integration.
+
+A concrete internal host resource may still be introduced later for
+provider-owned operations, but the design should not depend on that being a
+user-visible resource in the main inventory. The hidden-resource option should
+remain available when the system needs a stable concrete host identity for
+runtime management.
+
+References:
+
+- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
+- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
+- [Remote Docker Hosts Proposal](proposals/remote-docker-hosts.md)
+- [Domain model](domain-model.md)
+
+### 8. Container Application Environments
 
 Goal: evaluate whether container apps need an explicit isolation boundary.
 

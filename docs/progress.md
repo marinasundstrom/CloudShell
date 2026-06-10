@@ -22,6 +22,15 @@ The MVP should prove:
   permissions, and provider capability differences.
 - Samples demonstrate the intended hosting and resource declaration patterns.
 
+## Proposal status snapshot
+
+- Load balancer resource proposal: In progress
+- Remote Docker hosts proposal: Partially implemented
+- Virtual network resource proposal: In progress
+- Resource identity and permissions proposal: Proposed
+- Secrets management proposal: Proposed
+- Container host abstraction proposal: Proposed
+
 ## Recent decisions
 
 - The WebUI is the shell surface; the Control Plane is a separately deployable
