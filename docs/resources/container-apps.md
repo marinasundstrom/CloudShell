@@ -77,6 +77,41 @@ running app after the update. The shell calls the same domain
 `UpdateResourceImageAsync` operation used by remote clients, then refreshes the
 projected container image and revision.
 
+## Replicas
+
+Container apps project their desired replica count through the
+`container.replicas` attribute. The current MVP supports updating that explicit
+count; autoscaling policy, traffic splitting, and replica health are future
+resource-model work.
+
+Update the replica count through the Container Apps API:
+
+```http
+PUT /api/container-apps/v1/{containerAppId}/replicas
+Authorization: Bearer <control-plane-access-token>
+Content-Type: application/json
+
+{
+  "replicas": 3,
+  "restartIfRunning": true,
+  "triggeredBy": "load-balancer"
+}
+```
+
+The API targets the stable container app resource. Everything below that
+resource is provider-owned implementation detail: a default local container
+group, a Docker Compose service, a Kubernetes Service or Deployment, or another
+runtime-specific management shape. The provider configures that implementation
+with the app's current image or revision and desired replica count, then
+creates, updates, inspects, or replaces individual runtime containers as needed.
+
+Runtime replica containers are not Resource Manager targets. When multiple
+local containers are materialized, they are named by convention from the parent
+container app, for example with a `-replica-{n}` suffix. Docker Compose maps
+the same desired count to `deploy.replicas`; future orchestrators should map it
+to their native service and replica abstractions without changing the
+CloudShell API shape.
+
 ## Image Deployment Procedure
 
 The proposed deployment flow for CloudShell-hosted dev environments is:

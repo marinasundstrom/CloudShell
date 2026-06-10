@@ -537,6 +537,7 @@ Commands in the public domain abstraction are intent-shaped:
 - `SetResourceDependenciesCommand`
 - `ExecuteResourceActionCommand`
 - `UpdateResourceImageCommand`
+- `UpdateResourceReplicasCommand`
 
 The HTTP API maps these commands to routes and request DTOs. Consumers should
 prefer the manager abstraction unless they are implementing or generating an
@@ -548,6 +549,11 @@ target provider-specific runtime children such as Docker containers. In the HTTP
 projection this is exposed through the Container Apps API, for example creating
 a revision for a container app, rather than as a resource-type-specific route
 under the core Resource Manager `/resources` endpoints.
+
+`UpdateResourceReplicasCommand` targets the same stable container app resource
+and updates the explicit desired replica count. Runtime containers created for
+replicas remain provider-owned implementation instances, not API targets for
+deployment automation.
 
 The intended build-server deployment procedure is to push an immutable image tag
 to a registry, then call the authenticated Container Apps revision endpoint with

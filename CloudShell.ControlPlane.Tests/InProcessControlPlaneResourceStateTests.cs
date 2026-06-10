@@ -304,6 +304,77 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task UpdateResourceReplicasAsync_RejectsInvalidReplicaCount()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.UpdateResourceReplicasAsync(new UpdateResourceReplicasCommand("target", 0)));
+
+        Assert.Equal(ControlPlaneErrorCodes.InvalidRequest, exception.Error.Code);
+        Assert.Equal("Replicas must be greater than or equal to 1.", exception.Message);
+    }
+
+    [Fact]
+    public async Task UpdateResourceReplicasAsync_RejectsUnknownResource()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.UpdateResourceReplicasAsync(new UpdateResourceReplicasCommand("missing", 2)));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceNotRegistered, exception.Error.Code);
+    }
+
+    [Fact]
+    public async Task UpdateResourceReplicasAsync_RejectsUnsupportedProvider()
+    {
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            new TestReadOnlyResourceProvider());
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.UpdateResourceReplicasAsync(new UpdateResourceReplicasCommand("target", 2)));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceReplicasUpdateUnsupported, exception.Error.Code);
+        Assert.Equal("Resource 'target' does not support replica updates.", exception.Message);
+    }
+
+    [Fact]
+    public async Task UpdateResourceReplicasAsync_RejectsDeniedManagePermission()
+    {
+        var provider = new TestReplicaUpdateResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            authorization: new DenyAuthorizationService());
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.UpdateResourceReplicasAsync(new UpdateResourceReplicasCommand("target", 2)));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Empty(provider.UpdatedReplicas);
+    }
+
+    [Fact]
+    public async Task UpdateResourceReplicasAsync_DispatchesToReplicaUpdateProvider()
+    {
+        var provider = new TestReplicaUpdateResourceProvider();
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)], provider);
+
+        var result = await controlPlane.UpdateResourceReplicasAsync(
+            new UpdateResourceReplicasCommand(
+                "target",
+                3,
+                RestartIfRunning: false,
+                TriggeredBy: "load-balancer"));
+
+        Assert.Equal("Updated target.", result.Message);
+        Assert.Equal(["target:3:False:load-balancer"], provider.UpdatedReplicas);
+    }
+
+
+    [Fact]
     public async Task RegisterResourceAsync_RejectsUnknownProvider()
     {
         var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
@@ -645,6 +716,30 @@ public sealed class InProcessControlPlaneResourceStateTests
             CancellationToken cancellationToken = default)
         {
             UpdatedImages.Add($"{context.Resource.Id}:{image}:{restartIfRunning}:{triggeredBy}");
+            return Task.FromResult(ResourceProcedureResult.Completed($"Updated {context.Resource.Id}."));
+        }
+    }
+
+    private sealed class TestReplicaUpdateResourceProvider : IResourceProvider, IResourceReplicaUpdateProvider
+    {
+        public string Id => "test";
+
+        public string DisplayName => "Test";
+
+        public List<string> UpdatedReplicas { get; } = [];
+
+        public IReadOnlyList<Resource> GetResources() => [];
+
+        public bool CanUpdateReplicas(Resource resource) => true;
+
+        public Task<ResourceProcedureResult> UpdateReplicasAsync(
+            ResourceProcedureContext context,
+            int replicas,
+            bool restartIfRunning,
+            string? triggeredBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            UpdatedReplicas.Add($"{context.Resource.Id}:{replicas}:{restartIfRunning}:{triggeredBy}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Updated {context.Resource.Id}."));
         }
     }

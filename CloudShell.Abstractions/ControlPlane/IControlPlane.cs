@@ -83,6 +83,10 @@ public interface IResourceManager
     Task<ResourceProcedureResult> UpdateResourceImageAsync(
         UpdateResourceImageCommand command,
         CancellationToken cancellationToken = default);
+
+    Task<ResourceProcedureResult> UpdateResourceReplicasAsync(
+        UpdateResourceReplicasCommand command,
+        CancellationToken cancellationToken = default);
 }
 
 public interface IResourceTemplateManager
@@ -154,7 +158,8 @@ public enum ResourceChangeKind
     ResourceDependenciesChanged,
     ResourceDeleted,
     ResourceActionExecuted,
-    ResourceImageUpdated
+    ResourceImageUpdated,
+    ResourceReplicasUpdated
 }
 
 public sealed record LogQuery(
@@ -213,6 +218,12 @@ public sealed record ExecuteResourceActionCommand(
 public sealed record UpdateResourceImageCommand(
     string ResourceId,
     string Image,
+    bool RestartIfRunning = true,
+    string? TriggeredBy = null);
+
+public sealed record UpdateResourceReplicasCommand(
+    string ResourceId,
+    int Replicas,
     bool RestartIfRunning = true,
     string? TriggeredBy = null);
 

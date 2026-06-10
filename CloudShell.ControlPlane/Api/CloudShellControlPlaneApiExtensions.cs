@@ -157,6 +157,13 @@ public static class CloudShellControlPlaneApiExtensions
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
 
+        api.MapPut("/{containerAppId}/replicas", UpdateContainerAppReplicas)
+            .WithName("CloudShellContainerApps_UpdateReplicas")
+            .Accepts<UpdateResourceReplicasRequest>("application/json")
+            .Produces<ResourceProcedureResponse>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
+
         return api;
     }
 
@@ -412,6 +419,40 @@ public static class CloudShellControlPlaneApiExtensions
                 new UpdateResourceImageCommand(
                     containerAppId,
                     RequireValue(request.Image, nameof(request.Image)),
+                    request.RestartIfRunning,
+                    NormalizeOptional(request.TriggeredBy)),
+                cancellationToken);
+
+            return Results.Ok(ToResponse(result));
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> UpdateContainerAppReplicas(
+        string containerAppId,
+        UpdateResourceReplicasRequest request,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        if (await resourceManager.GetResourceAsync(containerAppId, cancellationToken) is null)
+        {
+            var error = ControlPlaneError.ResourceNotRegistered(containerAppId);
+            return Problem(
+                StatusCodes.Status404NotFound,
+                "Container app not found",
+                error.Message,
+                error.Code);
+        }
+
+        try
+        {
+            var result = await resourceManager.UpdateResourceReplicasAsync(
+                new UpdateResourceReplicasCommand(
+                    containerAppId,
+                    RequireReplicas(request.Replicas),
                     request.RestartIfRunning,
                     NormalizeOptional(request.TriggeredBy)),
                 cancellationToken);
@@ -824,6 +865,16 @@ public static class CloudShellControlPlaneApiExtensions
         }
 
         return configuration;
+    }
+
+    private static int RequireReplicas(int replicas)
+    {
+        if (replicas < 1)
+        {
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest("Replicas must be greater than or equal to 1."));
+        }
+
+        return replicas;
     }
 
     private static IReadOnlyList<string> NormalizeRequiredIds(

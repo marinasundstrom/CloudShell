@@ -382,6 +382,58 @@ public sealed class InProcessControlPlane(
         return result;
     }
 
+    public async Task<ResourceProcedureResult> UpdateResourceReplicasAsync(
+        UpdateResourceReplicasCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
+        if (command.Replicas < 1)
+        {
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest("Replicas must be greater than or equal to 1."));
+        }
+
+        var resource = resourceManager.GetResource(resourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(resourceId));
+
+        var group = resourceManager.GetGroupForResource(resource.Id);
+        if (!authorization.CanAccessResource(
+                resource.Id,
+                group?.Id,
+                CloudShellPermissions.Resources.Manage))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                resource.Id,
+                CloudShellPermissions.Resources.Manage);
+        }
+
+        var provider = GetReplicaUpdateProvider(resource);
+        if (provider is null || !provider.CanUpdateReplicas(resource))
+        {
+            throw new ControlPlaneException(ControlPlaneError.ResourceReplicasUpdateUnsupported(resource.Name));
+        }
+
+        var result = await provider.UpdateReplicasAsync(
+            CreateProcedureContext(resource),
+            command.Replicas,
+            command.RestartIfRunning,
+            command.TriggeredBy,
+            cancellationToken);
+
+        resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            "replicas.update",
+            $"Updated replicas to '{command.Replicas}'. Restart if running: {command.RestartIfRunning.ToString().ToLowerInvariant()}.",
+            DateTimeOffset.UtcNow,
+            command.TriggeredBy));
+
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceReplicasUpdated,
+            resource.Id,
+            AffectedResourceIds: [resource.Id]));
+
+        return result;
+    }
+
     public Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(
         string resourceGroupId,
         CancellationToken cancellationToken = default) =>
@@ -576,6 +628,21 @@ public sealed class InProcessControlPlane(
         return resourceManager.Providers.FirstOrDefault(provider =>
             string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
             as IResourceImageUpdateProvider;
+    }
+
+    private IResourceReplicaUpdateProvider? GetReplicaUpdateProvider(Resource resource)
+    {
+        var registration = GetRegistrationForResourceOrAncestor(resource);
+        if (registration is not null)
+        {
+            return resourceManager.Providers.FirstOrDefault(provider =>
+                string.Equals(provider.Id, registration.ProviderId, StringComparison.OrdinalIgnoreCase))
+                as IResourceReplicaUpdateProvider;
+        }
+
+        return resourceManager.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.DisplayName, resource.Provider, StringComparison.OrdinalIgnoreCase))
+            as IResourceReplicaUpdateProvider;
     }
 
     private ResourceProcedureContext CreateProcedureContext(Resource resource)

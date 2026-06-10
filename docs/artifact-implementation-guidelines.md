@@ -591,8 +591,8 @@ Verification:
 
 Commands such as `CreateResourceCommand`, `RegisterResourceCommand`,
 `AssignResourceGroupCommand`, `SetResourceDependenciesCommand`,
-`ExecuteResourceActionCommand`, and `UpdateResourceImageCommand` are
-intent-shaped public artifacts.
+`ExecuteResourceActionCommand`, `UpdateResourceImageCommand`, and
+`UpdateResourceReplicasCommand` are intent-shaped public artifacts.
 
 Implementation:
 

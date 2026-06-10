@@ -105,6 +105,39 @@ public static class ResourceManagerClientExtensions
             cancellationToken);
     }
 
+    public static Task<ResourceProcedureResult> UpdateResourceReplicasAsync(
+        this IResourceManager resourceManager,
+        string resourceId,
+        int replicas,
+        bool restartIfRunning = true,
+        string? triggeredBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resourceManager);
+
+        return resourceManager.UpdateResourceReplicasAsync(
+            new UpdateResourceReplicasCommand(resourceId, replicas, restartIfRunning, triggeredBy),
+            cancellationToken);
+    }
+
+    public static Task<ResourceProcedureResult> UpdateResourceReplicasAsync(
+        this IResourceManager resourceManager,
+        Resource resource,
+        int replicas,
+        bool restartIfRunning = true,
+        string? triggeredBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+
+        return resourceManager.UpdateResourceReplicasAsync(
+            resource.Id,
+            replicas,
+            restartIfRunning,
+            triggeredBy,
+            cancellationToken);
+    }
+
     public static Task<ResourceProcedureResult> RunResourceAsync(
         this IResourceManager resourceManager,
         string resourceId,

@@ -27,6 +27,7 @@ public sealed partial class ApplicationResourceProvider(
     ILogProvider,
     IResourceProcedureProvider,
     IResourceImageUpdateProvider,
+    IResourceReplicaUpdateProvider,
     IResourceTemplateProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
@@ -225,6 +226,10 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
 
+    public bool CanUpdateReplicas(Resource resource) =>
+        ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
+        store.GetApplication(resource.Id) is not null;
+
     public bool CanConfigureEnvironmentVariables(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
@@ -343,6 +348,88 @@ public sealed partial class ApplicationResourceProvider(
                 "The container app is running. Restart it to use the new image.")
             : ResourceProcedureResult.Completed(
                 $"Updated {application.Name} to image '{normalizedImage}'.");
+    }
+
+    public async Task<ResourceProcedureResult> UpdateReplicasAsync(
+        ResourceProcedureContext context,
+        int replicas,
+        bool restartIfRunning,
+        string? triggeredBy = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (replicas < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(replicas), replicas, "Replicas must be greater than or equal to 1.");
+        }
+
+        var application = store.GetApplication(context.Resource.Id)
+            ?? throw new InvalidOperationException(
+                $"Container app resource '{context.Resource.Id}' is not configured.");
+        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
+        {
+            throw new InvalidOperationException(
+                $"Resource '{context.Resource.Id}' is not a container app.");
+        }
+
+        if (application.Replicas == replicas)
+        {
+            return ResourceProcedureResult.Completed(
+                $"Container app '{application.Name}' already uses {replicas} replica{Pluralize(replicas)}.");
+        }
+
+        var wasRunning = IsRunning(application.Id);
+        var updated = NormalizeDefinition(application with
+        {
+            Replicas = replicas
+        });
+
+        if (restartIfRunning && wasRunning)
+        {
+            await StopApplicationAsync(
+                application.Id,
+                force: true,
+                context.ResourceManager,
+                context.PreferredContainerEngineId,
+                cancellationToken);
+        }
+
+        store.Save(updated);
+
+        resourceEvents?.Append(new ResourceEvent(
+            application.Id,
+            "containerApp.replicasChanged",
+            $"Changed container app replicas from '{application.Replicas}' to '{updated.Replicas}'.",
+            DateTimeOffset.UtcNow,
+            triggeredBy));
+
+        if (restartIfRunning && wasRunning)
+        {
+            await StartApplicationAsync(
+                application.Id,
+                context.Resource.DependsOn,
+                context.ResourceGroupId,
+                context.Registrations,
+                context.ResourceManager,
+                context.PreferredContainerEngineId,
+                cancellationToken);
+            resourceEvents?.Append(new ResourceEvent(
+                application.Id,
+                "containerApp.restarted",
+                $"Restarted container app with {updated.Replicas} replica{Pluralize(updated.Replicas)}.",
+                DateTimeOffset.UtcNow,
+                triggeredBy));
+
+            return ResourceProcedureResult.Completed(
+                $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)} and restarted it.");
+        }
+
+        return wasRunning
+            ? ResourceProcedureResult.CompletedWithRestartRequired(
+                $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.",
+                application.Id,
+                "The container app is running. Restart it to apply the replica count.")
+            : ResourceProcedureResult.Completed(
+                $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
     }
 
     public bool CanExport(Resource resource) =>
@@ -908,11 +995,14 @@ public sealed partial class ApplicationResourceProvider(
         var processLog = new ApplicationProcessLog(logPath);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
-            await RunContainerEngineCommandAsync(
-                engine,
-                ["rm", "-f", GetContainerName(definition.Id)],
-                processLog,
-                cancellationToken);
+            for (var replica = 1; replica <= Math.Max(1, definition.Replicas); replica++)
+            {
+                await RunContainerEngineCommandAsync(
+                    engine,
+                    ["rm", "-f", GetContainerName(definition.Id, replica, definition.Replicas)],
+                    processLog,
+                    cancellationToken);
+            }
         }
 
         await LoginToContainerRegistryAsync(
@@ -922,94 +1012,104 @@ public sealed partial class ApplicationResourceProvider(
             processLog,
             cancellationToken);
 
-        var startInfo = new ProcessStartInfo
+        var replicas = Math.Max(1, definition.Replicas);
+        for (var replica = 1; replica <= replicas; replica++)
         {
-            FileName = GetContainerEngineExecutable(engine),
-            WorkingDirectory = Environment.CurrentDirectory,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
+            var containerName = GetContainerName(definition.Id, replica, replicas);
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = GetContainerEngineExecutable(engine),
+                WorkingDirectory = Environment.CurrentDirectory,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
 
-        ConfigureContainerEngineEnvironment(startInfo, engine);
-        startInfo.ArgumentList.Add("run");
-        startInfo.ArgumentList.Add("--name");
-        startInfo.ArgumentList.Add(GetContainerName(definition.Id));
-        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
-        {
-            startInfo.ArgumentList.Add("--rm");
-        }
+            ConfigureContainerEngineEnvironment(startInfo, engine);
+            startInfo.ArgumentList.Add("run");
+            startInfo.ArgumentList.Add("--name");
+            startInfo.ArgumentList.Add(containerName);
+            if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+            {
+                startInfo.ArgumentList.Add("--rm");
+            }
 
-        foreach (var port in definition.EndpointPorts)
-        {
-            var hostPort = ResolveLocalPort(definition.Id, port);
-            startInfo.ArgumentList.Add("-p");
-            startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeProtocol(port.Protocol)}");
-        }
+            if (replica == 1)
+            {
+                foreach (var port in definition.EndpointPorts)
+                {
+                    var hostPort = ResolveLocalPort(definition.Id, port);
+                    startInfo.ArgumentList.Add("-p");
+                    startInfo.ArgumentList.Add($"{hostPort}:{port.TargetPort}/{NormalizeProtocol(port.Protocol)}");
+                }
+            }
 
-        foreach (var variable in await ResolveApplicationEnvironmentVariablesAsync(
-                     definition,
-                     dependsOn,
-                     resourceGroupId,
-                     registrations,
-                     includeAspNetCoreProjectVariables: false,
-                     cancellationToken))
-        {
+            foreach (var variable in await ResolveApplicationEnvironmentVariablesAsync(
+                         definition,
+                         dependsOn,
+                         resourceGroupId,
+                         registrations,
+                         includeAspNetCoreProjectVariables: false,
+                         cancellationToken))
+            {
+                startInfo.ArgumentList.Add("-e");
+                startInfo.ArgumentList.Add($"{variable.Name}={variable.Value}");
+            }
+
             startInfo.ArgumentList.Add("-e");
-            startInfo.ArgumentList.Add($"{variable.Name}={variable.Value}");
-        }
+            startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
+            startInfo.ArgumentList.Add("-e");
+            startInfo.ArgumentList.Add($"CLOUDSHELL_REPLICA_ORDINAL={replica.ToString(CultureInfo.InvariantCulture)}");
+            startInfo.ArgumentList.Add(CreateRegistryImageReference(
+                GetEffectiveContainerRegistry(definition),
+                definition.ContainerImage));
 
-        startInfo.ArgumentList.Add("-e");
-        startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
-        startInfo.ArgumentList.Add(CreateRegistryImageReference(
-            GetEffectiveContainerRegistry(definition),
-            definition.ContainerImage));
+            var process = new Process
+            {
+                StartInfo = startInfo,
+                EnableRaisingEvents = true
+            };
+            process.OutputDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stdout");
+            process.ErrorDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stderr", "Error");
+            process.Exited += (_, _) =>
+            {
+                processLog.Append(
+                    $"Container replica '{containerName}' exited with code {process.ExitCode}.",
+                    "process",
+                    process.ExitCode == 0 ? "Information" : "Error");
+                runtimeStates.Save(new ApplicationRuntimeState(
+                    definition.Id,
+                    process.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    process.ExitCode,
+                    logPath));
+            };
 
-        var process = new Process
-        {
-            StartInfo = startInfo,
-            EnableRaisingEvents = true
-        };
-        process.OutputDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stdout");
-        process.ErrorDataReceived += (_, args) => processLog.Append(args.Data ?? string.Empty, "stderr", "Error");
-        process.Exited += (_, _) =>
-        {
-            processLog.Append(
-                $"Container process exited with code {process.ExitCode}.",
-                "process",
-                process.ExitCode == 0 ? "Information" : "Error");
+            cancellationToken.ThrowIfCancellationRequested();
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            var startedAt = TryGetStartTime(process);
             runtimeStates.Save(new ApplicationRuntimeState(
                 definition.Id,
                 process.Id,
-                null,
+                startedAt,
                 DateTimeOffset.UtcNow,
-                process.ExitCode,
-                logPath));
-        };
+                LogPath: logPath));
 
-        cancellationToken.ThrowIfCancellationRequested();
-        process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+            processLog.Append(
+                $"Started container image '{definition.ContainerImage}' as '{containerName}' replica {replica.ToString(CultureInfo.InvariantCulture)} of {replicas.ToString(CultureInfo.InvariantCulture)} using {engine.Name} with {definition.Lifetime} lifetime.",
+                "process",
+                "Information");
 
-        var startedAt = TryGetStartTime(process);
-        runtimeStates.Save(new ApplicationRuntimeState(
-            definition.Id,
-            process.Id,
-            startedAt,
-            DateTimeOffset.UtcNow,
-            LogPath: logPath));
-
-        processLog.Append(
-            $"Started container image '{definition.ContainerImage}' as '{GetContainerName(definition.Id)}' using {engine.Name} with {definition.Lifetime} lifetime.",
-            "process",
-            "Information");
-
-        _processes[definition.Id] = new ApplicationProcessState(
-            process,
-            processLog,
-            definition.Lifetime,
-            logPath);
+            _processes[definition.Id] = new ApplicationProcessState(
+                process,
+                processLog,
+                definition.Lifetime,
+                logPath);
+        }
     }
 
     private static bool IsSameResourceGroup(
@@ -1146,19 +1246,22 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationProcessLog log,
         CancellationToken cancellationToken)
     {
-        var containerName = GetContainerName(definition.Id);
-        await RunContainerEngineCommandAsync(
-            engine,
-            ["stop", containerName],
-            log,
-            cancellationToken);
-        if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+        for (var replica = 1; replica <= Math.Max(1, definition.Replicas); replica++)
         {
+            var containerName = GetContainerName(definition.Id, replica, definition.Replicas);
             await RunContainerEngineCommandAsync(
                 engine,
-                ["rm", "-f", containerName],
+                ["stop", containerName],
                 log,
                 cancellationToken);
+            if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
+            {
+                await RunContainerEngineCommandAsync(
+                    engine,
+                    ["rm", "-f", containerName],
+                    log,
+                    cancellationToken);
+            }
         }
     }
 
@@ -1323,6 +1426,9 @@ public sealed partial class ApplicationResourceProvider(
             attributes[name] = value.Trim();
         }
     }
+
+    private static string Pluralize(int count) =>
+        count == 1 ? string.Empty : "s";
 
     private static ResourceClass GetResourceClass(ApplicationResourceDefinition application) =>
         application.ResourceType switch
@@ -2171,10 +2277,15 @@ public sealed partial class ApplicationResourceProvider(
         return hash;
     }
 
-    private static string GetContainerName(string resourceId) =>
-        "cloudshell-" + SlugPattern()
+    private static string GetContainerName(string resourceId, int replica = 1, int replicas = 1)
+    {
+        var parentName = "cloudshell-" + SlugPattern()
             .Replace(resourceId.Trim().ToLowerInvariant(), "-")
             .Trim('-');
+        return replicas <= 1
+            ? parentName
+            : $"{parentName}-replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
+    }
 
     private static string GetContainerEngineExecutable(ContainerEngineResourceDefinition engine) =>
         engine.Kind == ContainerEngineKind.Podman ? "podman" : "docker";

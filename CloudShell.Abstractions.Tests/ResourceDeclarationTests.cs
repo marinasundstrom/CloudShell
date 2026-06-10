@@ -2571,7 +2571,7 @@ public sealed class ResourceDeclarationTests
                     .AddContainer(
                         "sql",
                         "mcr.microsoft.com/mssql/server:2022-latest",
-                        replicas: 1)
+                        replicas: 3)
                     .WithImage("example/sql-server:dev")
                     .WithRegistry("https://registry.example.com")
                     .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
@@ -2612,6 +2612,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceWorkloadKind.ContainerImage, workload?.Kind);
         Assert.Equal("example/sql-server:dev", workload?.Image);
         Assert.Equal("https://registry.example.com", workload?.Registry);
+        Assert.Equal(3, workload?.Replicas);
+        Assert.Equal("3", resource.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
         Assert.Equal("registry-user", provider.GetApplication("application:sql")?.ContainerRegistryCredentials?.Username);
         Assert.Equal(
             "REGISTRY_PASSWORD",
@@ -2673,6 +2675,24 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(expected, method.Invoke(null, [registry, image]));
     }
 
+    [Theory]
+    [InlineData("application:api", 1, 1, "cloudshell-application-api")]
+    [InlineData("application:api", 1, 3, "cloudshell-application-api-replica-1")]
+    [InlineData("application:api", 3, 3, "cloudshell-application-api-replica-3")]
+    public void ContainerApplicationReplicaContainerName_UsesParentAppConvention(
+        string resourceId,
+        int replica,
+        int replicas,
+        string expected)
+    {
+        var method = typeof(ApplicationResourceProvider).GetMethod(
+            "GetContainerName",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+        Assert.NotNull(method);
+        Assert.Equal(expected, method.Invoke(null, [resourceId, replica, replicas]));
+    }
+
     [Fact]
     public async Task ContainerApplicationProvider_UpdatesTopLevelContainerAppImage()
     {
@@ -2717,6 +2737,46 @@ public sealed class ResourceDeclarationTests
         Assert.NotEqual(originalRevision, updated.ContainerRevision);
         Assert.Equal("Updated api to image 'example/api:20260608'.", result.Message);
     }
+
+    [Fact]
+    public async Task ContainerApplicationProvider_UpdatesTopLevelContainerAppReplicas()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer("api", "example/api:latest")
+                    .WithContainerEngine("docker");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarationStore = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var registrations = new DeclarationRegistrationStore(declarationStore);
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+
+        var result = await provider.UpdateReplicasAsync(
+            new ResourceProcedureContext(resource, registrations.GetRegistration(resource.Id), null, registrations),
+            3,
+            restartIfRunning: false);
+
+        var updated = provider.GetApplication("application:api");
+        var projected = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+
+        Assert.NotNull(updated);
+        Assert.Equal(3, updated.Replicas);
+        Assert.Equal("3", projected.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
+        Assert.Equal("Updated api to 3 replicas.", result.Message);
+    }
+
 
     private sealed class ParentMetadataExtension : ICloudShellExtension
     {

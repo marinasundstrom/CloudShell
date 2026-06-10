@@ -183,6 +183,18 @@ The MVP should prove:
   providers resolve explicit or default container hosts through a shared
   resolver, keep provider-owned runtime state behind provider contracts, and
   migrate existing container-engine APIs through compatibility adapters.
+- Container app replicas can now be updated as an explicit desired count
+  through the domain manager and `PUT /api/container-apps/v1/{containerAppId}/replicas`.
+  This is not autoscaling: richer replica health, placement, traffic splitting,
+  and backend-pool behavior remain future design work. Provider-owned runtime
+  containers should be named by convention from the parent container app when
+  replicas are materialized.
+- Orchestrator-specific services, backends, deployments, and runtime
+  containers are implementation details below the stable container app
+  resource. The app exposes image/revision and replica desired state; providers
+  map that state to Docker Compose, Kubernetes, the default local runner, or
+  another runtime without exposing those implementation objects as Resource
+  Manager targets.
 
 ## Completed recently
 

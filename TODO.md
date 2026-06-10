@@ -30,14 +30,19 @@ verification baseline.
   transports into Docker client creation, and add remote container action
   integration coverage against a testable Docker endpoint.
 - Design provider-owned replication projection for resources that can implement
-  replicas, keeping stable resources separate from runtime instances.
+  replicas, keeping stable resources separate from runtime instances and using
+  parent-derived naming conventions for materialized runtime containers.
 - Design container app revision history as commits of container app
   configuration changes, including image, registry, trigger, and runtime
   rollout metadata.
-- Design container app replicas and scaling before expanding the current
-  numeric field, including whether scaling implies load balancing, routing,
-  service endpoints, observed runtime instances, scaling events, and provider
-  state reporting.
+- Design container app scaling beyond the current explicit replica-count API,
+  including whether scaling implies load balancing, routing, service endpoints,
+  observed runtime instances, scaling events, and provider state reporting.
+- Harden provider-owned runtime mapping for replicated container apps,
+  including Docker Compose service naming, Kubernetes Service/Deployment
+  mapping, backend-pool behavior, provider-observed replica health, traffic
+  weights, and generated diagnostics, while keeping those runtime artifacts
+  implementation details below the container app resource.
 - Evaluate whether `ResourceDefinition` and `Deployment` should become
   first-class concepts for desired configuration, applied runtime state,
   revision history, and rollouts.

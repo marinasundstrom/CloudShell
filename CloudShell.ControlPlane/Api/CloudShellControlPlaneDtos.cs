@@ -127,6 +127,11 @@ public sealed record UpdateResourceImageRequest(
     bool RestartIfRunning = true,
     string? TriggeredBy = null);
 
+public sealed record UpdateResourceReplicasRequest(
+    int Replicas,
+    bool RestartIfRunning = true,
+    string? TriggeredBy = null);
+
 public sealed record ResourceOperationCapabilitiesRequest(IReadOnlyList<string> ResourceIds);
 
 public sealed record ResourceOperationCapabilitiesResponse(

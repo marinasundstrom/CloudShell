@@ -285,6 +285,25 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
         return result;
     }
 
+    public async Task<ResourceProcedureResult> UpdateResourceReplicasAsync(
+        UpdateResourceReplicasCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PutAsJsonAsync(
+            BuildUri(ContainerAppsRoutePrefix, $"{Escape(command.ResourceId)}/replicas"),
+            new UpdateResourceReplicasRequest(command.Replicas, command.RestartIfRunning, command.TriggeredBy),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        var result = (await ReadRequiredAsync<ResourceProcedureResponse>(response, cancellationToken))
+            .ToProcedureResult();
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceReplicasUpdated,
+            command.ResourceId,
+            AffectedResourceIds: [command.ResourceId]));
+        return result;
+    }
+
     private void NotifyResourcesChanged(ResourceChangeNotification notification) =>
         ResourcesChanged?.Invoke(this, notification);
 
@@ -629,6 +648,11 @@ file sealed record SetResourceDependenciesRequest(IReadOnlyList<string> DependsO
 
 file sealed record UpdateResourceImageRequest(
     string Image,
+    bool RestartIfRunning = true,
+    string? TriggeredBy = null);
+
+file sealed record UpdateResourceReplicasRequest(
+    int Replicas,
     bool RestartIfRunning = true,
     string? TriggeredBy = null);
 

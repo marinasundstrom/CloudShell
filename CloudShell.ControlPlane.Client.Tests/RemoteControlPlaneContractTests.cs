@@ -226,6 +226,31 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_UpdatesResourceReplicas()
+    {
+        await using var app = await CreateAppAsync(includeImageResource: true);
+        var controlPlane = CreateClient(app);
+
+        var result = await controlPlane.UpdateResourceReplicasAsync(
+            ContractImageResourceProvider.ResourceId,
+            3,
+            restartIfRunning: false,
+            triggeredBy: "load-balancer");
+        var eventLogs = await controlPlane.ListLogsAsync(
+            new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
+        var eventLog = Assert.Single(eventLogs, log => log.Name == "Resource events");
+        var events = await controlPlane.ReadLogAsync(eventLog.Id);
+
+        Assert.Equal("Updated contract:container-app to 3 replicas.", result.Message);
+        var provider = app.Services.GetRequiredService<ContractImageResourceProvider>();
+        Assert.Equal(["3:False:load-balancer"], provider.UpdatedReplicas);
+        Assert.Contains(events, entry =>
+            entry.Source == "event" &&
+            entry.Message.Contains("replicas.update", StringComparison.Ordinal) &&
+            entry.Message.Contains("load-balancer", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_ExposesResourceActionsAsHypermediaAffordances()
     {
         await using var app = await CreateAppAsync(includeLifecycleResource: true);
@@ -299,6 +324,7 @@ public sealed class RemoteControlPlaneContractTests
         var paths = root.GetProperty("paths");
         Assert.False(paths.TryGetProperty("/api/control-plane/v1/resources/{resourceId}/image", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/revisions", out _));
+        Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/replicas", out _));
 
         var createResource = schemas.GetProperty(nameof(CreateResourceRequest));
         Assert.Equal(
@@ -756,7 +782,7 @@ public sealed class RemoteControlPlaneContractTests
         ];
     }
 
-    private sealed class ContractImageResourceProvider : IResourceProvider, IResourceImageUpdateProvider
+    private sealed class ContractImageResourceProvider : IResourceProvider, IResourceImageUpdateProvider, IResourceReplicaUpdateProvider
     {
         public const string ProviderId = "contract.container-app";
         public const string ResourceId = "contract:container-app";
@@ -766,6 +792,8 @@ public sealed class RemoteControlPlaneContractTests
         public string DisplayName => "Contract Container App";
 
         public List<string> UpdatedImages { get; } = [];
+
+        public List<string> UpdatedReplicas { get; } = [];
 
         public IReadOnlyList<Resource> GetResources() =>
         [
@@ -785,7 +813,8 @@ public sealed class RemoteControlPlaneContractTests
                 Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     [ResourceAttributeNames.WorkloadKind] = ResourceWorkloadKind.ContainerImage.ToString(),
-                    [ResourceAttributeNames.ContainerImage] = "example/api:latest"
+                    [ResourceAttributeNames.ContainerImage] = "example/api:latest",
+                    [ResourceAttributeNames.ContainerReplicas] = "1"
                 })
         ];
 
@@ -802,6 +831,21 @@ public sealed class RemoteControlPlaneContractTests
             UpdatedImages.Add($"{image}:{restartIfRunning}:{triggeredBy}");
             return Task.FromResult(ResourceProcedureResult.Completed(
                 $"Updated {context.Resource.Id} to {image}."));
+        }
+
+        public bool CanUpdateReplicas(Resource resource) =>
+            string.Equals(resource.Id, ResourceId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceProcedureResult> UpdateReplicasAsync(
+            ResourceProcedureContext context,
+            int replicas,
+            bool restartIfRunning,
+            string? triggeredBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            UpdatedReplicas.Add($"{replicas}:{restartIfRunning}:{triggeredBy}");
+            return Task.FromResult(ResourceProcedureResult.Completed(
+                $"Updated {context.Resource.Id} to {replicas} replicas."));
         }
     }
 }

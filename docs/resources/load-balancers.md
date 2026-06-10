@@ -25,6 +25,13 @@ Routes target resources and their projected endpoints. A route can also specify
 a raw target port as an authoring convenience, but endpoint references are the
 preferred stable contract.
 
+When a provider materializes a container app through Docker Compose,
+Kubernetes, or another runtime, the orchestrator-specific service or backend is
+implementation detail of the container app. It is not a separate CloudShell
+resource target. CloudShell routes should continue to target the stable
+container app or another stable Resource Manager artifact; providers map that
+target to their own service, backend, or endpoint model.
+
 ```csharp
 var dockerHost = resources.AddDocker("docker:sample-host", "Sample Container Host");
 
@@ -163,4 +170,5 @@ file-provider output. It does not yet provide:
 - structured validation diagnostics before applying routes
 - provider-managed Traefik container lifecycle
 - TLS certificate resources or certificate binding
-- weighted backend pools, traffic splitting, or replica-aware routing
+- weighted backend pools, traffic splitting, or provider-observed replica
+  health

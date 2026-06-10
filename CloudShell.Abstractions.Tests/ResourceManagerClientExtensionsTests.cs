@@ -94,6 +94,28 @@ public sealed class ResourceManagerClientExtensionsTests
     }
 
     [Fact]
+    public async Task UpdateResourceReplicasAsync_ResourceOverload_MapsToCommand()
+    {
+        var resourceManager = new RecordingResourceManager();
+        var resource = CreateResource();
+
+        await resourceManager.UpdateResourceReplicasAsync(
+            resource,
+            3,
+            restartIfRunning: false,
+            triggeredBy: "load-balancer");
+
+        Assert.Equal(
+            new UpdateResourceReplicasCommand(
+                "sample:resource",
+                3,
+                RestartIfRunning: false,
+                TriggeredBy: "load-balancer"),
+            resourceManager.LastReplicasCommand);
+    }
+
+
+    [Fact]
     public async Task GetResourceOperationCapabilitiesAsync_SingularOverload_ReturnsMatchingCapabilities()
     {
         var resourceManager = new RecordingResourceManager();
@@ -154,6 +176,8 @@ public sealed class ResourceManagerClientExtensionsTests
         public ExecuteResourceActionCommand? LastCommand { get; private set; }
 
         public UpdateResourceImageCommand? LastImageCommand { get; private set; }
+
+        public UpdateResourceReplicasCommand? LastReplicasCommand { get; private set; }
 
         public IReadOnlyList<string> LastCapabilityRequest { get; private set; } = [];
 
@@ -260,6 +284,14 @@ public sealed class ResourceManagerClientExtensionsTests
         {
             LastImageCommand = command;
             return Task.FromResult(ResourceProcedureResult.Completed(command.Image));
+        }
+
+        public Task<ResourceProcedureResult> UpdateResourceReplicasAsync(
+            UpdateResourceReplicasCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            LastReplicasCommand = command;
+            return Task.FromResult(ResourceProcedureResult.Completed(command.Replicas.ToString()));
         }
     }
 }
