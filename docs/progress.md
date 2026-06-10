@@ -24,12 +24,48 @@ The MVP should prove:
 
 ## Proposal status snapshot
 
-- Load balancer resource proposal: In progress
-- Remote Docker hosts proposal: Partially implemented
-- Virtual network resource proposal: In progress
-- Resource identity and permissions proposal: Proposed
-- Secrets management proposal: Proposed
+- Platform foundations proposal: In progress
+- Identity and permissions proposal: In progress; current implementation focus
+- Resource identity and permissions proposal: Proposed resource-level slice
+- Secrets management proposal: In progress
 - Container host abstraction proposal: Proposed
+- Remote Docker hosts proposal: Partially implemented
+- Load balancer resource proposal: In progress
+- Virtual network resource proposal: In progress
+- Runtime-managed resource proposal: In progress design
+- Deployments and revisions proposal: In progress design
+
+## Current proposal order
+
+1. Define identity and permissions first: stable identities, permission
+   assignments, resource-scoped permissions, workload identity lifecycle,
+   provider/orchestrator identities, token claim mapping, action authorization,
+   and authorization diagnostics.
+2. Align configuration and secrets access with identity: Resource Manager
+   assignment UI, in-process secrets client, and secret-read authorization.
+3. Persist and filter resource events, then define audit event schemas for
+   actions, host/runtime operations, deployments, authorization, and secret
+   access.
+4. Implement the shared container host abstraction: host descriptors,
+   compatibility adapters, default/explicit host resolver, and host-resolution
+   diagnostics.
+5. Complete remote Docker hosts as the first concrete user-managed container
+   host: UI registration, provider-owned persistence, credentials,
+   duplicate-host validation, and remote action coverage.
+6. Add provider-owned runtime lifecycle support for implementation containers
+   and helper services, starting with Traefik container mode and app-owned
+   ingress cleanup.
+7. Harden virtual networking, load balancing, and replicated app ingress with
+   provider selection, host-readiness warnings, route conflicts, endpoint
+   conflict diagnostics, configuration preview, and backend resolution.
+8. Decide runtime-managed resource ownership, visibility, cleanup, diagnostics,
+   and authorization before broadening replica and implementation-resource
+   projection.
+9. Introduce richer deployment and revision concepts only after runtime
+   ownership and traceability boundaries are clear.
+10. Revisit advanced app and environment concepts such as autoscaling, backend
+   pools, traffic splitting, `cloudshell.service`, and container application
+   environments after the lower-level foundations stabilize.
 
 ## Recent decisions
 

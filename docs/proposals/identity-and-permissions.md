@@ -4,6 +4,11 @@
 
 In progress.
 
+This is the current first implementation focus. The initial slice should
+establish the platform identity and permission model needed by resource
+actions, workload identities, provider/orchestrator operations,
+service-to-service access, secret access authorization, and audit events.
+
 CloudShell currently supports resources, actions, capabilities, providers, orchestrators, and runtime-managed resources. However, there is no platform-wide model for identity, authentication, authorization, or permission assignment.
 
 As CloudShell evolves into a self-hostable platform capable of managing applications, infrastructure, and operational resources, a consistent identity and permission model becomes a foundational requirement.

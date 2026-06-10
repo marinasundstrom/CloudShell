@@ -17,6 +17,8 @@ Read these first:
 - `docs/artifact-implementation-guidelines.md`
 - `docs/progress.md`
 - `TODO.md`
+- relevant files under `docs/proposals/` when the change touches an active or
+  proposed feature area
 
 Then inspect the relevant implementation and tests before editing.
 
@@ -45,7 +47,10 @@ Then inspect the relevant implementation and tests before editing.
 6. Add focused tests at the owning layer. Add contract tests when an API shape
    or remote adapter changes.
 7. Update docs when a feature changes system concepts, hosting guidance, API
-   shape, or MVP progress.
+   shape, proposal status, or MVP progress. Keep `docs/roadmap.md`,
+   `docs/progress.md`, `TODO.md`, and the relevant `docs/proposals/` files in
+   sync so proposal status, remaining tasks, and current priorities do not
+   drift.
 8. Update `TODO.md` when the feature changes the current task queue.
 9. Run the relevant narrow tests first, then the verification baseline from
    `docs/progress.md` for cross-boundary changes.
@@ -53,4 +58,5 @@ Then inspect the relevant implementation and tests before editing.
 ## Output expectations
 
 Keep changes scoped. Mention any intentionally deferred behavior in
-`docs/progress.md` and `TODO.md` instead of leaving it implicit.
+the relevant proposal, `docs/progress.md`, and `TODO.md` instead of leaving it
+implicit.

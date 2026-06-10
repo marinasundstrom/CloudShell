@@ -24,150 +24,210 @@ Useful references:
 
 ## Near-Term Roadmap
 
-### 1. Host-Provided Virtual Networking
+The next work should follow the product focus first, then proposal
+dependencies. Identity and permissions are now the first focus because every
+later on-premise control-plane feature needs a consistent answer for who is
+acting, what they can do, how workloads authenticate to platform services, and
+how those decisions are audited.
 
-Goal: make virtual networking work when the host can provide it.
+Several first slices are already in place: virtual-network resources, macOS
+host-networking, load-balancer resources, Traefik file-provider output,
+Docker host projection, Secrets Vault resources, app-owned container ingress,
+and explicit container-app replica counts. The remaining roadmap turns those
+slices into coherent security, host, networking, and deployment foundations.
 
-CloudShell should model host, logical, and virtual networks as resources. The
-default host network remains available when no network has been created. A
-virtual network can start in logical-only mode, but when a host networking
-service is activated, CloudShell should configure virtual-network endpoint
-mappings through that provider.
+### 1. Identity and Permissions
 
-The first provider targets macOS and materializes mappings as local TCP
-proxies. This is the next priority because it turns CloudShell from a local app
-graph into an environment control plane that can manage on-premise networking.
+Goal: define the platform identity and authorization foundation first.
+
+Start with the broad identity-and-permissions proposal, using the resource
+identity proposal as the first concrete resource-level slice. The initial work
+should define identities, permission assignments, resource-scoped permission
+names, workload identity lifecycle, provider and orchestrator identities, token
+claim mapping, and action authorization diagnostics.
+
+This phase should also establish the audit hooks required to explain allow and
+deny decisions. Full policy engines, wildcard permissions, and advanced
+inheritance can wait, but the first model must be strong enough to secure
+resource actions, secret access, provider operations, and future deployment
+inspection.
 
 References:
 
-- [Networking](networking.md)
-- [Virtual Network Resource Proposal](proposals/virtual-network-resource.md)
-- [Domain model: Endpoint and networking](domain-model.md#endpoint-and-networking)
-- [Programmatic resources: networks and services](programmatic-resources.md)
+- [Identity and Permissions Proposal](proposals/identity-and-permissions.md)
+- [Resource Identity and Permissions Proposal](proposals/resource-identity-and-permissions.md)
+- [Authentication and authorization](authentication-and-authorization.md)
+- [Platform Foundations Proposal](proposals/platform-foundations.md)
 
-### 2. Load Balancing
+### 2. Configuration and Secrets Access
 
-Goal: expose stable endpoints over logical backend targets.
+Goal: align secret consumption and in-process configuration with the identity
+foundation.
 
-After host-provided virtual networking works, CloudShell should add
-load-balancing support. Public or network endpoints should map to a stable
-service or backend pool, not directly to every runtime replica.
+The existing Secrets Vault and resource-assignment path can continue, but
+in-process secret loading and service-to-service secret access should use the
+identity and permission model from the first phase. A resource should not gain
+secret read access solely because it references a secret.
 
-Load-balancing behavior should be provider-owned at first, with CloudShell
-standardizing only the common resource capabilities and target relationships
-needed for validation, display, and orchestration.
+References:
 
-The first proposed provider target is Traefik. The CloudShell abstraction
-should expose HTTP, HTTPS, and TCP entrypoints, route host/path/TCP rules to
-stable resource endpoints, and keep generated provider configuration behind
-provider contracts.
+- [Secrets Management Proposal](proposals/secrets-management.md)
+- [Identity and Permissions Proposal](proposals/identity-and-permissions.md)
+- [Resource templates](resource-templates.md)
+- [Programmatic resources](programmatic-resources.md)
+
+### 3. Traceability and Audit
+
+Goal: make resource changes, deployment triggers, authorization decisions, and
+reconciliation outcomes explainable over time.
+
+Resource events already define the platform traceability stream. The next
+slice is persistence, filtering, event schemas, and audit linkage for resource
+actions, image deployments, host/runtime operations, secret access, and
+authorization decisions.
+
+References:
+
+- [Platform Foundations Proposal](proposals/platform-foundations.md)
+- [Identity and Permissions Proposal](proposals/identity-and-permissions.md)
+- [Container apps](resources/container-apps.md#logs-and-events)
+
+### 4. Container Host Abstraction
+
+Goal: establish the shared host resolver and runtime contract before adding
+more provider-owned infrastructure.
+
+This unblocks multiple in-progress proposals. Load balancers, app ingress,
+remote Docker hosts, and future runtime-managed resources all need the same
+answer to "which host should materialize this?" and "how does provider-owned
+runtime state get created, probed, stopped, and cleaned up?"
+
+The first slice should add host descriptors, compatibility adapters for the
+existing container-engine contracts, a shared explicit/default host resolver,
+and diagnostics for missing or unsuitable hosts. Provider-owned runtime
+containers should come after the resolver is in place.
+
+References:
+
+- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
+- [Remote Docker Hosts Proposal](proposals/remote-docker-hosts.md)
+- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
+- [Container apps](resources/container-apps.md)
+
+### 5. Remote Docker Host Completion
+
+Goal: complete the concrete user-managed Docker host story on top of the
+host-first model.
+
+Docker is the first concrete container host provider. The remaining work is
+not a new platform abstraction; it is registration, credential handling,
+provider-owned persistence, duplicate-host validation, and end-to-end action
+coverage for local and remote Docker hosts.
+
+This should follow the shared host resolver so UI-created and declared Docker
+hosts participate in the same placement and diagnostics model used by
+container apps and provider-owned infrastructure.
+
+References:
+
+- [Remote Docker Hosts Proposal](proposals/remote-docker-hosts.md)
+- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
+- [Domain model](domain-model.md)
+
+### 6. Provider-Owned Runtime Lifecycle
+
+Goal: make implementation containers and helper services lifecycle-managed
+without turning them into user-authored resources.
+
+Once hosts can be resolved consistently, add the owner-scoped runtime contract
+for provider-owned infrastructure. Traefik container mode is the first concrete
+consumer: the load-balancer resource remains the stable user-facing resource,
+while the Traefik implementation container is provider-owned runtime state or
+an optional diagnostic child.
+
+This phase should also tighten stop/delete cleanup and runtime status
+projection for app-owned ingress infrastructure.
 
 References:
 
 - [Load balancers](resources/load-balancers.md)
 - [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
-- [Virtual Network Resource Proposal: Clustering and Load Balancing](proposals/virtual-network-resource.md#clustering-and-load-balancing)
-- [Application resources](resources/application-resources.md)
+- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
 - [Container apps](resources/container-apps.md)
 
-### 3. Provider-Owned Replication
+### 7. Network and Routing Hardening
 
-Goal: support replicas where the provider can implement them.
+Goal: harden virtual networking, load balancing, and replicated app ingress
+against real host and provider behavior.
 
-Replicas should be runtime instances behind a stable resource, service, or
-backend pool. They may be projected as child resources for inspection, logs,
-health, and operations, but consumers should not depend on replica IDs as the
-stable deployment or routing contract.
+The core model is now established: network resources own endpoint requests and
+mappings; load balancers own provider-neutral routes; replicated container
+apps own normal app ingress. The next step is validation and diagnostics:
+host-readiness warnings, provider selection, route and endpoint conflict
+reporting, configuration preview, backend resolution, and richer action
+capability reasons.
 
-This keeps the user-facing model stable while allowing container, process,
-cluster, or host providers to implement replication differently.
+Backend pools, health-aware target selection, TLS binding, and traffic
+splitting should wait until the current routing and host-readiness paths are
+reliable.
 
 References:
 
-- [Domain model: Resource](domain-model.md#resource)
-- [Container apps](resources/container-apps.md)
 - [Virtual Network Resource Proposal](proposals/virtual-network-resource.md)
+- [Networking](networking.md)
+- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
+- [Load balancers](resources/load-balancers.md)
 
-### 4. Deployment Concepts
+### 8. Runtime-Managed Resources
 
-Goal: decide whether CloudShell needs first-class deployment concepts.
+Goal: decide and implement how provider-created runtime artifacts are owned,
+visible, cleaned up, and inspected.
 
-`ResourceDefinition` and `Deployment` may become useful when CloudShell needs
-to distinguish desired configuration from applied runtime state, versioned
-rollouts, revision history, and deployment events. They should not be
-introduced just to make virtual networking work.
-
-For now, provider-owned configuration, projected resources, resource events,
-and container app revisions cover the immediate need.
+This should follow host/runtime lifecycle work. The first decision is whether
+replicas, implementation containers, endpoint registrations, backend
+registrations, images, and revisions are normal runtime-managed resources,
+provider-owned state, or a mix of both. The immediate requirement is ownership
+and diagnostics without cluttering normal Resource Manager views.
 
 References:
 
-- [Container apps](resources/container-apps.md)
-- [Persistence](persistence.md)
-- [Resource templates](resource-templates.md)
+- [Runtime-Managed Resource Proposal](proposals/runtime-managed-resource.md)
+- [Deployments and Revisions Proposal](proposals/deployments-and-revisions.md)
+- [Domain model: Resource](domain-model.md#resource)
+
+### 9. Deployment and Revision Model
+
+Goal: add first-class rollout history only after ownership, traceability, and
+runtime inspection boundaries are clear.
+
+Container apps already project a current app-owned revision for image updates.
+A richer deployment model should answer versioned configuration, rollout
+history, rollback, failure handling, retention, and orchestrator-specific
+runtime state. Do not introduce `Deployment` just to support host selection,
+networking, or basic replica count updates.
+
+References:
+
+- [Deployments and Revisions Proposal](proposals/deployments-and-revisions.md)
+- [Runtime-Managed Resource Proposal](proposals/runtime-managed-resource.md)
+- [Container apps](resources/container-apps.md#revisions)
 - [Progress](progress.md)
 
-### 5. Resource Identity and Permissions
+### 10. Advanced App and Environment Concepts
 
-Goal: define the next resource-level identity and policy contract for CloudShell.
+Goal: evaluate higher-level isolation, scaling, service exposure, and
+environment boundaries after the lower-level foundations are stable.
 
-Resources need a provider-neutral way to express identity bindings and resource permissions without relying only on current user-session claims. This proposal covers identity providers, resource identity bindings, and permission evaluation for resource-scoped scenarios.
-
-References:
-
-- [Resource Identity and Permissions Proposal](proposals/resource-identity-and-permissions.md)
-- [Authentication and authorization](authentication-and-authorization.md)
-- [Programmatic resources](programmatic-resources.md)
-
-### 6. Secrets Management
-
-Goal: define a secure secret-reference model for resource declarations.
-
-CloudShell should support vault-style resources and secret references that keep sensitive values provider-owned while allowing applications and providers to consume them safely. This proposal covers secret references, vault-style resources, and secret export behavior.
-
-References:
-
-- [Secrets Management Proposal](proposals/secrets-management.md)
-- [Resource templates](resource-templates.md)
-- [Programmatic resources](programmatic-resources.md)
-
-### 7. Container Host Abstraction
-
-Goal: define the stable internal container-host runtime contract for
-provider-owned dependent infrastructure.
-
-Resources and providers need a default, internal way to create, probe, and
-manage containers or independent services across different host runtimes,
-with the default container host as the primary integration point. This proposal
-covers default host resolution, provider-owned runtime operations, and the
-remote Control Plane client/API path for service-backed runtime integration.
-
-A concrete internal host resource may still be introduced later for
-provider-owned operations, but the design should not depend on that being a
-user-visible resource in the main inventory. The hidden-resource option should
-remain available when the system needs a stable concrete host identity for
-runtime management.
-
-References:
-
-- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
-- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
-- [Remote Docker Hosts Proposal](proposals/remote-docker-hosts.md)
-- [Domain model](domain-model.md)
-
-### 8. Container Application Environments
-
-Goal: evaluate whether container apps need an explicit isolation boundary.
-
-A container application environment may become the right model for container
-app isolation, shared networking, host configuration, and runtime policy. That
-decision should come after host-provided virtual networking and load balancing
-are working, because those features will clarify the real isolation boundary.
+This is where container application environments, autoscaling, traffic
+splitting, `cloudshell.service`, backend pools, Kubernetes-style service
+projection, and richer multi-host policy belong. These concepts depend on the
+host, routing, identity, runtime ownership, and deployment decisions above.
 
 References:
 
 - [Container apps](resources/container-apps.md)
 - [Virtual Network Resource Proposal](proposals/virtual-network-resource.md)
+- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
 - [Hosting model](hosting-model.md)
 
 ## Tracking Work

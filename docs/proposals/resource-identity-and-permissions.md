@@ -4,6 +4,11 @@
 
 Proposed.
 
+This proposal is the first concrete resource-level slice of the broader
+[Identity and Permissions Proposal](identity-and-permissions.md). It should be
+worked with that platform foundation rather than as a separate late-stage
+feature.
+
 This proposal covers resource-to-resource identity and permission handling.
 It intentionally does not define secret storage or secret references.
 

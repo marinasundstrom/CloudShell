@@ -2,7 +2,13 @@
 
 ## Status
 
-Proposed.
+In progress.
+
+The first built-in Secrets Vault slice, resource-assignment path, template
+export behavior, and Resource Manager vault UI are in place. Remaining work is
+focused on broader assignment UI coverage, in-process secret loading, rotation
+semantics, and alignment with the identity and permissions foundation for
+service-to-service access.
 
 This proposal covers configuration references, secret references, and
 Secrets Vault integration. CloudShell should provide the resource model,

@@ -7,6 +7,7 @@ In progress.
 CloudShell already provides a resource model, Resource Manager, orchestration abstractions, runtime-managed resources, deployments, revisions, networking abstractions, and runtime execution capabilities.
 
 Several foundational platform capabilities remain undefined or only partially specified.
+Identity and permissions are the current first foundation focus.
 
 This proposal identifies the platform areas that should be treated as foundational and prioritized before introducing more advanced platform features.
 
@@ -131,6 +132,10 @@ Future proposals are expected for:
 * Usage Monitoring and Metrics
 * Resource Reconciliation
 
+The current foundation order starts with identity and permissions, then uses
+that model to secure secret access and audit decisions before broadening into
+host/runtime ownership, runtime-managed resources, and deployments.
+
 ## Implementation Plan
 
 1. Identify platform foundation areas.
@@ -141,14 +146,13 @@ Future proposals are expected for:
 
 ## Remaining Tasks
 
-* Determine proposal order.
 * Identify cross-cutting dependencies.
 * Define common terminology.
 * Define shared platform services.
 
 ## Open Questions
 
-* Which foundation should be implemented first?
+* After identity and permissions, which foundation should be implemented next?
 * Which areas require Resource Manager support?
 * Which areas belong to providers versus platform services?
 * Which capabilities should be mandatory for providers?
