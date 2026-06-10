@@ -158,6 +158,9 @@ The MVP should prove:
   programmatic resources, `vault.Secret(...)` reference helpers, a
   secrets-provider resolver implementation, multiple vault support, and
   template export that preserves secret names without exporting secret values.
+- Added Resource Manager UI for creating, inspecting, updating, and deleting
+  built-in Secrets Vault resources. Existing secret values are masked in the
+  UI and preserved unless replaced.
 
 ## Completed recently
 
@@ -286,6 +289,8 @@ The MVP should prove:
   host `IConfiguration` keys through configuration-entry references.
 - Added built-in Secrets Vault programmatic resources and provider-backed
   secret reference resolution.
+- Added built-in Secrets Vault Resource Manager UI for provider-owned vault
+  management.
 
 ## Active stabilization areas
 

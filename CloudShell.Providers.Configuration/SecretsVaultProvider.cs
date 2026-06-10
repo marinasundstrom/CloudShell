@@ -7,6 +7,7 @@ namespace CloudShell.Providers.Configuration;
 
 public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions options) :
     IResourceProvider,
+    IResourceProcedureProvider,
     ISecretReferenceResolver,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
@@ -21,6 +22,16 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
     public string Id => ProviderId;
 
     public string DisplayName => "Secrets Vault";
+
+    public SecretsVaultDefinition? GetVault(string id) =>
+        options.DeclaredSecretsVaults
+            .Select(vault => Normalize(vault.Definition))
+            .FirstOrDefault(vault => string.Equals(vault.Id, id, StringComparison.OrdinalIgnoreCase));
+
+    public IReadOnlyList<SecretsVaultDefinition> GetVaults() =>
+        options.DeclaredSecretsVaults
+            .Select(vault => Normalize(vault.Definition))
+            .ToArray();
 
     public IReadOnlyList<Resource> GetResources() =>
         options.DeclaredSecretsVaults
@@ -58,6 +69,60 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
             NormalizeGroupId(declaration.ResourceGroupId),
             [],
             cancellationToken: cancellationToken);
+    }
+
+    public async Task SetupVaultAsync(
+        SecretsVaultDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = Normalize(
+            string.IsNullOrWhiteSpace(definition.Id)
+                ? definition with { Id = CreateUniqueId(definition.Name) }
+                : definition);
+
+        RemoveVault(normalized.Id);
+        options.DeclaredSecretsVaults.Add(new DeclaredSecretsVault(normalized));
+
+        await registrations.RegisterAsync(
+            Id,
+            normalized.Id,
+            NormalizeGroupId(resourceGroupId),
+            [],
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task UpdateVaultAsync(
+        SecretsVaultDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = Normalize(definition);
+        var existing = options.DeclaredSecretsVaults.FirstOrDefault(vault =>
+            string.Equals(Normalize(vault.Definition).Id, normalized.Id, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            throw new InvalidOperationException($"Secrets Vault '{normalized.Id}' is not configured.");
+        }
+
+        existing.Definition = normalized;
+
+        await registrations.AssignToGroupAsync(
+            normalized.Id,
+            NormalizeGroupId(resourceGroupId),
+            [],
+            cancellationToken: cancellationToken);
+    }
+
+    public async Task<ResourceProcedureResult> DeleteAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken = default)
+    {
+        RemoveVault(context.Resource.Id);
+        await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
+        return ResourceProcedureResult.Completed("Secrets Vault removed.");
     }
 
     public ValueTask<ResourceSettingResolutionResult> ResolveSecretAsync(
@@ -217,6 +282,33 @@ public sealed partial class SecretsVaultProvider(ConfigurationProviderOptions op
         return string.IsNullOrWhiteSpace(slug)
             ? $"secrets-vault:{Guid.NewGuid():N}"
             : $"secrets-vault:{slug}";
+    }
+
+    private string CreateUniqueId(string name)
+    {
+        var candidate = CreateId(name);
+        if (GetVault(candidate) is null)
+        {
+            return candidate;
+        }
+
+        var suffix = 2;
+        while (GetVault($"{candidate}-{suffix}") is not null)
+        {
+            suffix++;
+        }
+
+        return $"{candidate}-{suffix}";
+    }
+
+    private void RemoveVault(string resourceId)
+    {
+        var existing = options.DeclaredSecretsVaults.FirstOrDefault(vault =>
+            string.Equals(Normalize(vault.Definition).Id, resourceId, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+        {
+            options.DeclaredSecretsVaults.Remove(existing);
+        }
     }
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>

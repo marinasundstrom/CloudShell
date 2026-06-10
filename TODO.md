@@ -10,8 +10,8 @@ verification baseline.
 ## Resource Management
 
 - Continue settings and secrets integration by adding Resource Manager UI for
-  built-in Secrets Vault resources and assignment of literal app settings,
-  configuration-entry references, and vault-backed secret references.
+  assigning literal app settings, configuration-entry references, and
+  vault-backed secret references to application resources.
 - Add a sample with a programmatically declared web app that consumes
   environment variables assigned from configuration-entry references and
   vault-backed secret references.

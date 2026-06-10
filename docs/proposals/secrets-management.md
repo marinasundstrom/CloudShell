@@ -322,9 +322,6 @@ app settings for non-secret values and vault-backed references for secrets.
 
 ## Remaining tasks
 
-- Add Resource Manager UI for managing built-in Secrets Vault resources and
-  assigning secret references to application settings and environment
-  variables.
 - Add Resource Manager UI support for assigning literal app settings and
   configuration-entry or vault-backed secret references.
 - Decide how secret references should be versioned, rotated, and refreshed for

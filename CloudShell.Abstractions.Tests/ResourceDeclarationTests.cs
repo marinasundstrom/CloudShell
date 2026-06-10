@@ -707,6 +707,57 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task SecretsVaultProvider_ManagesUiCreatedVaults()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        var registrations = new MutableResourceRegistrationStore();
+
+        await provider.SetupVaultAsync(
+            new SecretsVaultDefinition(
+                "secrets-vault:ui",
+                "UI Vault",
+                [new("token", "initial")]),
+            "group-a",
+            registrations);
+
+        await provider.UpdateVaultAsync(
+            new SecretsVaultDefinition(
+                "secrets-vault:ui",
+                "Updated UI Vault",
+                [new("token", "rotated", "v2")]),
+            "group-b",
+            registrations);
+
+        var vault = provider.GetVault("secrets-vault:ui");
+        var registration = registrations.GetRegistration("secrets-vault:ui");
+        var resource = Assert.Single(provider.GetResources());
+        await provider.DeleteAsync(
+            new ResourceProcedureContext(
+                resource,
+                registration,
+                registration?.ResourceGroupId,
+                registrations));
+
+        Assert.NotNull(vault);
+        Assert.Equal("Updated UI Vault", vault.Name);
+        var secret = Assert.Single(vault.Secrets);
+        Assert.Equal("token", secret.Name);
+        Assert.Equal("rotated", secret.Value);
+        Assert.Equal("v2", secret.Version);
+        Assert.NotNull(registration);
+        Assert.Equal("group-b", registration.ResourceGroupId);
+        Assert.Null(provider.GetVault("secrets-vault:ui"));
+        Assert.Null(registrations.GetRegistration("secrets-vault:ui"));
+    }
+
+    [Fact]
     public async Task ConfigurationProvider_ExposesStoreLogs()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
