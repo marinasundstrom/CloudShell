@@ -41,6 +41,36 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task SettingsAndSecretsSample_ProjectsReferenceBackedEnvironmentResources()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
+            await GetFreePortAsync());
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var apiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var document = JsonDocument.Parse(apiJson);
+        var resources = document.RootElement.EnumerateArray().ToArray();
+        var settings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration:sample-app");
+        var secrets = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets-vault:sample-app");
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:settings-secrets-api");
+        var dependsOn = api
+            .GetProperty("dependsOn")
+            .EnumerateArray()
+            .Select(item => item.GetString())
+            .ToArray();
+
+        Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
+        Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
+        Assert.Contains("configuration:sample-app", dependsOn);
+        Assert.Contains("secrets-vault:sample-app", dependsOn);
+    }
+
+    [Fact]
     public async Task SplitHostingSample_RendersUiThroughRemoteControlPlane()
     {
         var controlPlanePort = await GetFreePortAsync();

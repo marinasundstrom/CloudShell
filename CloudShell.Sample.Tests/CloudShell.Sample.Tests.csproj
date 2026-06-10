@@ -24,6 +24,7 @@
     <ProjectReference Include="..\samples\HostVirtualNetwork\CloudShell.HostVirtualNetwork.csproj" />
     <ProjectReference Include="..\samples\LoadBalancer\CloudShell.LoadBalancer.csproj" />
     <ProjectReference Include="..\samples\ProjectReference\Host\CloudShell.ProjectReferenceHost.csproj" />
+    <ProjectReference Include="..\samples\SettingsAndSecrets\CloudShell.SettingsAndSecrets.csproj" />
     <ProjectReference Include="..\samples\SplitHosting\ControlPlane\CloudShell.SplitHosting.ControlPlane.csproj" />
     <ProjectReference Include="..\samples\SplitHosting\UI\CloudShell.SplitHosting.UI.csproj" />
   </ItemGroup>

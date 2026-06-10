@@ -327,6 +327,3 @@ app settings for non-secret values and vault-backed references for secrets.
 - Decide how secret references should be versioned, rotated, and refreshed for
   already-running resources.
 - Add a separate secrets client/provider for in-process secret loading.
-- Add a sample with a programmatically declared web app that consumes
-  configuration-entry references and Secrets Vault references through
-  environment-variable assignments.

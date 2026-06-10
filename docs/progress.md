@@ -161,6 +161,9 @@ The MVP should prove:
 - Added Resource Manager UI for creating, inspecting, updating, and deleting
   built-in Secrets Vault resources. Existing secret values are masked in the
   UI and preserved unless replaced.
+- Added a Settings and Secrets sample for the resource-assignment path: a
+  programmatically declared Web API resource receives environment variables
+  from configuration-entry and Secrets Vault references.
 
 ## Completed recently
 
@@ -291,6 +294,9 @@ The MVP should prove:
   secret reference resolution.
 - Added built-in Secrets Vault Resource Manager UI for provider-owned vault
   management.
+- Added a Settings and Secrets sample that demonstrates assigning
+  configuration-entry and Secrets Vault references to a Web API resource's
+  environment variables.
 
 ## Active stabilization areas
 
