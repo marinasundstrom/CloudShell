@@ -18,6 +18,10 @@ verification baseline.
 - Continue load balancer support beyond the first Traefik file-config provider
   by adding provider validation diagnostics, configuration preview, and richer
   host/runtime capability checks.
+- Implement the container host abstraction design by adding host descriptors,
+  compatibility adapters for existing container-engine contracts, and a shared
+  default/explicit host resolver before adding provider-owned runtime
+  containers.
 - For Traefik container mode, model implementation containers as provider-owned
   runtime state or child resources tied to the load balancer lifecycle on a
   selected host resource, not as user-authored container app resources.

@@ -179,6 +179,10 @@ The MVP should prove:
   `AddSecretsProvider()` path, while `AddConfigurationProvider()` keeps
   compatibility by registering both configuration stores and Secrets Vault
   support unless the Secrets provider is already registered.
+- The container host abstraction should be host-first and descriptor-driven:
+  providers resolve explicit or default container hosts through a shared
+  resolver, keep provider-owned runtime state behind provider contracts, and
+  migrate existing container-engine APIs through compatibility adapters.
 
 ## Completed recently
 

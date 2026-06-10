@@ -4,229 +4,458 @@
 
 Proposed.
 
-This proposal defines the internal runtime abstraction CloudShell should use
-when a resource depends on container-backed or host-backed infrastructure, even
-when that host is not explicitly added to the user-visible resource graph.
+This proposal defines how CloudShell should select and use container-capable
+hosts for provider-owned runtime infrastructure. It is the bridge between the
+user-visible host resource model, such as `docker.host`, and provider-owned
+runtime work, such as starting a Traefik implementation container for a load
+balancer resource.
 
 ## Problem
 
-This proposal is intentionally about the internal runtime contract that allows
-resources and providers to depend on container-backed infrastructure, even when
-that infrastructure is not a user-managed resource in the shell.
+CloudShell now has three related concepts that must stay distinct:
 
-It overlaps with [Remote Docker Hosts Proposal](remote-docker-hosts.md), but
-it addresses a different concern:
+- a stable user-facing resource, such as a container app or load balancer
+- a host resource or configured host, such as a Docker host where runtime work
+  can be materialized
+- provider-owned runtime state, such as an implementation container, helper
+  process, or scheduler deployment created on behalf of the stable resource
 
-- the remote Docker hosts proposal defines the public, user-managed Docker host
-  resource model
-- this proposal defines the internal default host abstraction that providers
-  rely on for runtime operations, probing, and dependent service integration
+The current code still uses older "container engine" names in several internal
+contracts. That naming worked for local Docker-only orchestration, but it is too
+narrow for the resource model CloudShell is moving toward:
 
-The two proposals should be read together, but they should stay separate to keep
-UI ownership and provider runtime contracts clear.
+- A host is the placement/control boundary CloudShell can target.
+- A runtime is the implementation family available through that host, such as
+  Docker, Podman, containerd, Kubernetes, systemd, or a vendor appliance API.
+- An engine is product-specific wording and should only remain in compatibility
+  APIs until they are migrated.
 
-Today the resource model distinguishes between:
+The missing design piece is a consistent host-resolution and provider-owned
+runtime contract. Providers need to ask "where can I materialize this
+implementation?" without hard-coding Docker, requiring a user-visible host in
+every local-development scenario, or bypassing the resource model with ad hoc
+local wiring.
 
-- a user-managed Docker or container host resource, and
-- a provider-owned runtime implementation that needs to create, inspect, or
-  manage containers or independent services on behalf of a stable resource.
+## Relationship to Remote Docker Hosts
 
-That split is useful for UI and ownership, but it leaves a missing piece: the
-Control Plane still needs a stable internal container-host abstraction for
-provider-owned runtime work.
+The [Remote Docker Hosts Proposal](remote-docker-hosts.md) owns the concrete
+Docker host resource model:
 
-This matters for scenarios such as:
+- `docker.host` registration and projection
+- provider-owned Docker connection configuration
+- credentials and endpoint normalization
+- Docker container discovery and Docker-specific actions
+- group-scoped duplicate host validation
 
-- a load balancer provider creating its own Traefik runtime container
-- a resource that depends on a Docker-backed helper service, even when the
-  host itself is not modeled as a user-added resource
-- a provider that launches an independent service and wants the Control Plane
-  to interact with it through the normal remote client/API path instead of
-  direct local-only wiring
+This proposal owns the generic placement and runtime integration model:
+
+- how a resource selects a host
+- how a provider resolves an implicit or explicit host into a usable descriptor
+- how provider-owned runtime state is created, tracked, probed, logged, and
+  removed without becoming the stable user resource
+- how current `container engine` APIs migrate to host-oriented names
+
+The proposals should remain separate. Docker is the first concrete host
+provider, not the platform abstraction.
 
 ## Goals
 
-- Introduce a stable internal container-host abstraction for provider-owned
-  runtime infrastructure.
-- Make the default container host the primary runtime target, while keeping
-  the abstraction capable of working across different host runtimes.
-- Allow resources to access the default container or Docker host without
-  requiring the host to be added as a user-managed resource.
-- Support create, start, stop, remove, probe, inspect, and log operations for
-  runtime containers or dependent services.
-- Keep the abstraction provider-owned internally, while allowing resources to
-  consume it through the existing domain/resource model.
-- Use the remote Control Plane client/API path for independent services and
-  resource-backed runtime operations whenever that is the preferred integration
-  model.
+- Model runtime placement as host selection, not as direct engine selection.
+- Keep user-managed Docker hosts and provider-owned runtime state separate.
+- Let local development work with an implicit default host from `UseDocker()`
+  or equivalent provider defaults.
+- Let on-premise and multi-host environments select explicit host resources.
+- Reuse the existing resource/orchestration descriptor path instead of
+  inventing a parallel Web API concept.
+- Provide a narrow provider-owned runtime contract for implementation
+  containers or helper services.
+- Preserve compatibility with existing `IContainerEngineProvider`,
+  `ContainerEngineResourceDefinition`, and `ContainerEngineId` names while
+  giving the migration target a better shape.
 
 ## Non-Goals
 
-- Do not replace the existing user-managed Docker host resource model.
-- Do not require every provider to implement all runtime modes immediately.
-- Do not standardize every container runtime capability in the first version.
-- Do not make the internal host abstraction a public UI concept.
+- Do not make every host provider implement Docker-compatible operations.
+- Do not require every default host to appear as a normal resource in Resource
+  Manager.
+- Do not make runtime containers the stable deployment target for user-facing
+  resources.
+- Do not store provider-owned host credentials or runtime state in platform
+  registration state.
+- Do not standardize Kubernetes, systemd, or scheduler-specific details in the
+  first version.
 
-## Proposed Design
+## Design Principles
 
-### 1. Internal host runtime contract
+### Stable Resources Own User Intent
 
-CloudShell should introduce an internal contract for container-backed runtime
-infrastructure, for example:
+The stable resource remains the user-facing object. A load balancer resource
+owns route configuration and lifecycle actions. A container app resource owns
+image update and revision semantics. Provider-owned runtime containers,
+processes, or deployments are implementation state unless a provider
+deliberately projects them as child resources for inspection.
+
+### Hosts Are Placement Boundaries
+
+A host is a resource or configured runtime/control boundary that CloudShell can
+target. It may be a `docker.host` resource, an implicit local Docker host from
+`UseDocker()`, a Podman host, a Kubernetes cluster, a systemd machine, or a
+vendor appliance API.
+
+The selected host is a stable reference in provider-owned configuration when a
+resource needs explicit placement. Existing fields named `ContainerEngineId`
+should migrate toward `ContainerHostId` or `HostResourceId`.
+
+### Runtime State Is Provider-Owned
+
+Provider-owned runtime state should be stored by the provider that creates it.
+Platform registration remains responsible for resource identity, group
+assignment, dependencies, parentage, and authorization boundaries. Runtime
+details such as container IDs, generated config paths, transient health, and
+host credentials stay behind provider contracts.
+
+### Descriptors Are the Cross-Provider Contract
+
+CloudShell already has `ResourceOrchestrationDescriptor` for provider-owned
+descriptions. The host abstraction should build on that path:
+
+- host providers describe a host through a host descriptor
+- orchestrators and resource providers resolve explicit or default hosts from
+  descriptors
+- resource APIs continue to expose the uniform `Resource` projection, not
+  provider-specific host internals
+
+## Proposed Model
+
+### Host Resource Projection
+
+Concrete host providers project resources when the host should be visible or
+manageable:
+
+- Docker projects `docker.host` resources.
+- Future Podman, Kubernetes, or systemd providers can project their own host
+  resource types.
+- The projected resource uses `ResourceClass.Infrastructure`.
+- Non-secret attributes describe durable facts such as runtime family,
+  registry, endpoint kind, or safe endpoint display.
+- Credentials and transport details remain provider-owned.
+
+Recommended future capability identifiers:
+
+- `runtime.containerHost`: resource can host container-backed runtime work.
+- `runtime.containerImage`: host can run image-based workloads.
+- `runtime.containerBuild`: host can build images from local context.
+- `runtime.hostProcess`: host can run process-backed helper services.
+- `runtime.logs`: host can provide provider-owned runtime logs.
+
+These should be added to `ResourceCapabilityIds` only when implementation work
+needs them. Until then, providers can resolve host descriptors through
+orchestration descriptors.
+
+### Host Descriptor
+
+Add a host-oriented descriptor shape alongside the current engine descriptor:
+
+```csharp
+public static class ContainerHostResourceTypes
+{
+    public const string ContainerHost = "cloudshell.container-host";
+}
+
+public enum ContainerHostKind
+{
+    Docker,
+    Podman,
+    DockerCompatible,
+    Kubernetes,
+    Process,
+    Custom
+}
+
+public sealed record ContainerHostDescriptor(
+    string Id,
+    string Name,
+    ContainerHostKind Kind,
+    string Endpoint,
+    bool IsDefault = false,
+    string Registry = ContainerRegistryDefaults.Default,
+    ContainerRegistryCredentials? RegistryCredentials = null,
+    IReadOnlyDictionary<string, string>? Metadata = null);
+```
+
+This descriptor is not a new platform resource type by itself. It is the
+provider-owned configuration payload returned by a resource descriptor, just as
+`ContainerEngineResourceDefinition` is today.
+
+Compatibility rule:
+
+- Existing `ContainerEngineResourceDefinition` and
+  `ContainerEngineResourceTypes.ContainerEngine` remain supported.
+- New code should prefer host names and emit `ContainerHostDescriptor` when the
+  consuming path supports it.
+- Resolvers should read both descriptor versions during migration.
+
+### Host Provider
+
+The provider registration path should move from `IContainerEngineProvider` to a
+host-oriented provider:
+
+```csharp
+public interface IContainerHostProvider
+{
+    ContainerHostDescriptor GetDefaultHost();
+}
+```
+
+This is the equivalent of the current `IContainerEngineProvider`: it supplies a
+configured default host without requiring a user-managed host resource. The
+first implementation can wrap the existing Docker default.
+
+Compatibility rule:
+
+- `IContainerEngineProvider` stays as a compatibility adapter.
+- The default host resolver should read both `IContainerHostProvider` and
+  `IContainerEngineProvider` until call sites migrate.
+
+### Host Resolution
+
+Introduce one resolver service for runtime placement:
+
+```csharp
+public interface IContainerHostResolver
+{
+    Task<ContainerHostResolutionResult> ResolveAsync(
+        ContainerHostResolutionRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record ContainerHostResolutionRequest(
+    string TargetResourceId,
+    string? ResourceGroupId,
+    string? ExplicitHostResourceId = null,
+    string? PreferredHostId = null,
+    string? RequiredCapability = null);
+
+public sealed record ContainerHostResolutionResult(
+    ContainerHostDescriptor? Host,
+    string? ErrorMessage = null)
+{
+    public bool IsResolved => Host is not null && ErrorMessage is null;
+}
+```
+
+Resolution order:
+
+1. Explicit host resource ID from provider-owned resource configuration.
+2. Preferred host ID from orchestration context or host/provider options.
+3. Group-scoped default host selection when that exists.
+4. Default host from `IContainerHostProvider`.
+5. Compatibility default from `IContainerEngineProvider`.
+6. Default host resource descriptor discovered from registered resources.
+
+The resolver returns diagnostics instead of throwing for expected missing-host
+or unsupported-capability states. Orchestrators can convert those diagnostics
+into resource action capability reasons, logs, or failed procedure results.
+
+### Provider-Owned Runtime Contract
+
+Providers that need to materialize implementation containers should use a
+narrow owner-scoped runtime contract. This contract is about provider-owned
+runtime state, not arbitrary container management:
 
 ```csharp
 public interface IContainerHostRuntime
 {
-    Task<ContainerHostCapabilities> GetCapabilitiesAsync(CancellationToken ct);
-    Task<ContainerHandle> CreateContainerAsync(ContainerSpec spec, CancellationToken ct);
-    Task StartAsync(ContainerHandle id, CancellationToken ct);
-    Task StopAsync(ContainerHandle id, CancellationToken ct);
-    Task RemoveAsync(ContainerHandle id, CancellationToken ct);
-    Task<ContainerStatus> ProbeAsync(ContainerHandle id, CancellationToken ct);
-    Task<IReadOnlyList<ContainerSnapshot>> ListAsync(CancellationToken ct);
+    bool CanUse(ContainerHostDescriptor host);
+
+    Task<ProviderRuntimeHandle> EnsureAsync(
+        ContainerHostDescriptor host,
+        ProviderRuntimeSpec spec,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceProcedureResult> StartAsync(
+        ProviderRuntimeHandle handle,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceProcedureResult> StopAsync(
+        ProviderRuntimeHandle handle,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceProcedureResult> RemoveAsync(
+        ProviderRuntimeHandle handle,
+        CancellationToken cancellationToken = default);
+
+    Task<ProviderRuntimeStatus> ProbeAsync(
+        ProviderRuntimeHandle handle,
+        CancellationToken cancellationToken = default);
 }
+
+public sealed record ProviderRuntimeSpec(
+    string OwnerResourceId,
+    string Name,
+    string Image,
+    IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null,
+    IReadOnlyList<ServicePort>? Ports = null,
+    IReadOnlyDictionary<string, string>? Labels = null);
+
+public sealed record ProviderRuntimeHandle(
+    string OwnerResourceId,
+    string HostId,
+    string RuntimeId,
+    string ProviderId);
+
+public sealed record ProviderRuntimeStatus(
+    ResourceState State,
+    string? Message = null,
+    DateTimeOffset? CheckedAt = null);
 ```
 
-This interface is internal to the Control Plane/provider boundary. It is not the
-same thing as the user-managed `docker.host` resource projected to Resource
-Manager.
+Important constraints:
 
-### 2. Default host resolution
+- Every runtime operation is owner-scoped.
+- Providers must label or otherwise track runtime objects with the owning
+  resource ID.
+- Runtime handles are provider-owned state and may be projected as resource
+  attributes only when safe and non-secret.
+- The contract should start with `Ensure`, `Start`, `Stop`, `Remove`, and
+  `Probe`. Log streaming can be added once a provider needs it.
 
-The Control Plane should be able to resolve a default host in this order:
+This avoids a general-purpose Docker API in CloudShell while giving providers a
+shared shape for provider-owned infrastructure.
 
-1. An explicitly selected host resource when one is available.
-2. A configured preferred container host from provider/runtime settings.
-3. A provider-default runtime host for the current environment.
+### Child Resource Projection
 
-This allows a resource to depend on a container host even when the host was not
-added as a resource for user management.
+Provider-owned runtime objects can be projected as child resources when useful,
+but that is optional:
 
-### 3. Resource-backed runtime operations
+- A Traefik implementation container can be hidden provider-owned state.
+- A Docker provider may project discovered containers as `docker.container`
+  children for inspection.
+- If projected, the child resource should name its owner or parent and should
+  not become the stable deployment target for user actions such as app image
+  updates.
 
-A resource should be able to ask the Control Plane or provider to:
+Default UI behavior should keep the stable resource primary and show runtime
+children as diagnostics/implementation detail.
 
-- create or start an implementation container for the resource
-- inspect runtime state and health
-- attach logs, diagnostics, or probe results
-- stop or remove provider-owned runtime state when the resource is deleted or
-  stopped
+### Remote Client/API Boundary
 
-The stable resource remains the user-facing abstraction. The container or
-service is implementation detail unless the user explicitly wants to manage it
-as a workload.
+Host resolution and runtime operations happen in the Control Plane. UI and
+remote clients should continue to use domain operations such as resource
+actions, resource updates, logs, and templates.
 
-This matches the existing load-balancer direction: the load balancer resource
-owns the stable lifecycle and routing contract, while the provider owns the
-runtime container or process behind it.
+Independent services created by providers should integrate with CloudShell
+through the normal domain-shaped Control Plane API when they need to report
+status, emit diagnostics, or participate in resource operations. They should
+not introduce a second out-of-band local management API for the shell.
 
-### 4. Remote client/API integration for independent services
+## Concrete Migration Plan
 
-When a resource launches an independent service, the preferred integration path
-should be through the existing remote Control Plane client/API model.
+### Phase 1: Names and Compatibility
 
-That means:
+- Add host-oriented names:
+  - `ContainerHostDescriptor`
+  - `ContainerHostResourceTypes.ContainerHost`
+  - `IContainerHostProvider`
+  - `IContainerHostResolver`
+- Keep the existing engine names as compatibility types.
+- Add adapters between `ContainerEngineResourceDefinition` and
+  `ContainerHostDescriptor`.
+- Update docs and UI copy to say "container host" except where Docker Engine is
+  the product being discussed.
 
-- providers use the client API boundary rather than internal-only local calls
-- control-plane operations for lifecycle, diagnostics, and resource updates
-  remain remote and domain-shaped
-- provider-owned services can still be launched locally or in a container, but
-  the Control Plane-facing interaction should flow through the established Web
-  API/client path
+### Phase 2: Resolver
 
-This keeps provider logic aligned with the same operational model used for
-other resources and avoids a second, parallel way of talking to the runtime.
+- Implement `IContainerHostResolver` over:
+  - explicit resource descriptor lookup
+  - `IContainerHostProvider`
+  - compatibility `IContainerEngineProvider`
+  - registered default host resources
+- Update Docker Compose orchestration to call the resolver instead of resolving
+  engine IDs directly.
+- Preserve `ContainerEngineId` on workload configuration as an obsolete
+  compatibility property and add `ContainerHostId` or `HostResourceId`.
 
-### 5. Relationship to resource resources
+### Phase 3: Provider-Owned Runtime
 
-The user-managed Docker host resource remains the UI-owned way to:
+- Add `IContainerHostRuntime` for owner-scoped runtime objects.
+- Implement Docker runtime support first.
+- Use it for one provider-owned scenario, such as Traefik container mode for
+  load balancers.
+- Store runtime handles in provider-owned state.
+- Project runtime logs/status through the stable parent resource first; add
+  optional child resources only when the provider needs detailed inspection.
 
-- select which host a user wants to operate
-- manage host credentials and provider configuration
-- display discovered child containers and host details
+### Phase 4: Multi-Host Policy
 
-The internal abstraction is the runtime integration point for provider-owned
-infrastructure and dependencies. The two are related, but not the same thing.
+- Add group-scoped default host selection if local/global defaults are not
+  sufficient.
+- Add host-readiness diagnostics and action capability reasons for:
+  - no host available
+  - host unavailable
+  - required runtime capability missing
+  - credentials unavailable
+  - unsupported image/build mode
 
-One important design option is to treat the default container host as an
-internal resource record anyway, even if it is hidden from the main resource
-list by default. In that model, the host still has a stable resource identity
-for provider-owned operations, reuse of the same action surface, and lifecycle
-coordination, but it is not presented as a normal user-managed host in the
-primary inventory UI. This remains the primary concrete runtime identity for
-host-backed infrastructure, while dynamic child containers can continue to be
-listed separately when the provider chooses to project them.
+## Example Flows
 
-This would let providers use the same resource action model for host-backed
-runtime infrastructure while keeping the default host out of the main user
-management workflow. The proposal should keep that option open as an
-implementation detail, not require it up front.
+### Container App with Default Host
 
-## Proposed Flow
+1. The app has no explicit host selection.
+2. The orchestrator asks `IContainerHostResolver` for a container-image host.
+3. The resolver returns the default Docker host from `UseDocker()`.
+4. The Docker Compose orchestrator materializes the app using that host.
+5. The app remains the stable resource for image updates and lifecycle actions.
 
-1. A resource declares a dependency or provider-owned runtime need.
-2. The Control Plane resolves the default or preferred host through the internal
-   runtime abstraction.
-3. The provider uses that abstraction to create, inspect, or manage the
-   dependent container or service.
-4. The resource and provider interact through the remote client/API path when
-   the service is independent or needs Control Plane coordination.
-5. The stable resource continues to expose lifecycle, logs, diagnostics, and
-   actions through the normal resource model.
+### Load Balancer with Explicit Host
 
-## Examples
+1. The load balancer definition stores `HostResourceId = "docker:build-01"`.
+2. The load-balancer provider resolves that resource to a host descriptor.
+3. The provider uses `IContainerHostRuntime` to ensure a Traefik runtime
+   container owned by the load-balancer resource.
+4. The load balancer exposes apply/restart/logs through its own resource
+   actions and logs.
+5. The Traefik container can remain hidden or be projected as a child
+   diagnostic resource.
 
-### Load balancer-style runtime container
+### Local Development without a Host Resource
 
-A load balancer provider can use the internal host runtime to create a Traefik
-container on the selected host without requiring that host to be a user-managed
-resource in the shell.
+1. `UseDocker()` registers a default host provider from the local Docker
+   endpoint.
+2. No `docker.host` resource needs to be registered in the user's group.
+3. Container-backed resources still resolve a default host descriptor.
+4. If the Docker provider is enabled, it may also project a visible
+   `docker.host` resource; that projection is not required for runtime
+   placement.
 
-### Independent service launched by a resource
+## Decisions
 
-A provider launches a service that should persist or report back to the Control
-Plane. The provider should use the normal client/API boundary for resource
-status updates, action invocation, and diagnostics, rather than bypassing the
-resource model with ad-hoc local calls.
+- The abstraction should be host-first, not engine-first.
+- Default host resolution should be a reusable service, not duplicated inside
+  each orchestrator.
+- The first implementation should adapt existing container-engine contracts
+  instead of breaking them.
+- Provider-owned runtime containers are implementation state tied to a stable
+  resource.
+- A hidden default host resource is optional; the required identity is the host
+  descriptor, not a platform registration.
+- Expected host-resolution failures should return diagnostics/action
+  capability reasons, not unhandled exceptions.
 
-## Remaining tasks
+## Remaining Tasks
 
-- Define the internal host runtime interface and its provider implementations.
-- Decide how the default host is resolved when no user-managed host resource
-  exists.
-- Ensure provider-owned runtime containers remain distinct from user-managed
-  Docker host resources.
-- Wire the remote client/API path into provider runtime operations for
-  independent services.
-- Add tests for host resolution, runtime probing, and provider-owned resource
-  lifecycle behavior.
-
-## Relationship to the remote Docker hosts proposal
-
-The default host abstraction should reuse the same host and runtime concepts
-introduced in the Docker host proposal, but it should not depend on the host
-being surfaced as a normal user resource. The primary target is the default
-container host, with other host runtimes supported as future implementations.
-
-This means:
-
-- the Docker host proposal remains the place for registration, projection,
-  credential handling, and uniqueness rules
-- this proposal remains the place for default-host resolution, provider-owned
-  runtime operations, and internal lifecycle integration
-
-If the default host is eventually modeled as an internal resource record, that
-should be treated as an implementation detail of this proposal, not as a reason
-for merging the two designs.
-
-## Open Questions
-
-- Should the internal abstraction support only Docker-compatible hosts initially,
-  or should it be generic enough for Podman, containerd, and scheduler-backed
-  runtimes?
-- Should the default host resolution be global, per resource group, or
-  provider-specific?
-- How should runtime failure and host-readiness diagnostics be surfaced to the
-  UI and API?
-- Should the abstraction expose a reusable “probe” contract for health checks,
-  readiness, and dependency startup validation?
+- Add host-oriented descriptor and provider contracts with compatibility
+  adapters for existing engine contracts.
+- Implement `IContainerHostResolver` and migrate Docker Compose host
+  resolution to it.
+- Add a provider-owned Docker runtime implementation for owner-scoped
+  implementation containers.
+- Update application/container builder APIs to prefer host naming while keeping
+  existing engine methods as compatibility aliases.
+- Add host capability projection when a concrete workflow needs capability
+  validation.
+- Add tests for explicit host selection, configured default host selection,
+  registered default host descriptors, missing host diagnostics, and
+  provider-owned runtime cleanup.
+- Update load-balancer container mode to use the runtime contract instead of
+  modeling implementation containers as user-authored container apps.
