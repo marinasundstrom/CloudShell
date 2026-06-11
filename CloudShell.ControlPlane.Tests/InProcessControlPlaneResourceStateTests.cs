@@ -226,6 +226,51 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(["target:apply"], provider.ExecutedActions);
     }
 
+    [Fact]
+    public async Task ExecuteResourceActionAsync_AllowsActingResourceIdentityWithGrant()
+    {
+        var provider = new TestResourceProvider();
+        var identity = ResourceIdentityReference.ForResource("caller", "caller-service");
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            authorization: new DenyAuthorizationService(),
+            permissionGrants:
+            [
+                new ResourcePermissionGrant(
+                    identity,
+                    "target",
+                    CloudShellPermissions.Resources.Actions.Lifecycle)
+            ]);
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Stop,
+                ActingIdentity: identity));
+
+        Assert.Equal(["target:stop"], provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_DoesNotFallBackToUserPermissionForActingResourceIdentity()
+    {
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    "target",
+                    ResourceActionIds.Stop,
+                    ActingIdentity: ResourceIdentityReference.ForResource("caller", "caller-service"))));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Empty(provider.ExecutedActions);
+    }
+
     [Theory]
     [InlineData(ResourceState.Starting, ResourceActionIds.Restart)]
     [InlineData(ResourceState.Paused, ResourceActionIds.Stop)]
@@ -735,7 +780,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IResourceProvider? provider = null,
         IReadOnlyList<ResourceGroup>? groups = null,
         ICloudShellAuthorizationService? authorization = null,
-        IReadOnlyDictionary<string, ResourceClass>? resourceTypeClasses = null)
+        IReadOnlyDictionary<string, ResourceClass>? resourceTypeClasses = null,
+        IReadOnlyList<ResourcePermissionGrant>? permissionGrants = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
@@ -752,6 +798,11 @@ public sealed class InProcessControlPlaneResourceStateTests
             resourceTypeClasses ?? new Dictionary<string, ResourceClass>());
         var resourceGroups = new TestResourceGroupStore(groups ?? []);
         var declarations = new ResourceDeclarationStore();
+        foreach (var grant in permissionGrants ?? [])
+        {
+            declarations.AddPermissionGrant(grant);
+        }
+
         var templates = new ResourceTemplateService(resourceManager, resourceGroups, registrations);
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],

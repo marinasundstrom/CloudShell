@@ -51,9 +51,10 @@ Work the current proposals in this order:
   lifecycle, and provider or orchestrator identities. Standard resource action
   permissions now use Azure-style operation names with `resources.manage` as a
   compatibility superset. Programmatic declarations can now record permission
-  grants and expose list/evaluate operations through the Control Plane API;
-  next connect those grants to Resource Manager enforcement, mock-principal
-  tests, token claims, and authority registration.
+  grants, expose list/evaluate operations through the Control Plane API, and
+  enforce grants for resource actions that carry an explicit acting resource
+  identity. Next connect those grants to mock-principal tests, token claims,
+  provider-backed identity proof, and authority registration.
 - Continue assigning and documenting specific Azure-style operation permissions
   per resource type or class. Load-balancer apply and network endpoint
   reconciliation now use documented network operation permissions instead of
@@ -71,7 +72,10 @@ Work the current proposals in this order:
   into management for resource identity bindings and permission grants after
   the backend model and evaluation path stabilize.
 - Add managed identity provider behavior for registering or provisioning
-  resource identities and grants with the backing authority.
+  resource identities and grants with the backing authority. A built-in ASP.NET
+  Core Identity-backed authority may be a useful reference or development
+  provisioner, but the resource model must stay provider-neutral so teams can
+  move the same declarations to Microsoft Entra ID or another provider.
 
 ## Next: Host Abstractions
 

@@ -172,8 +172,12 @@ POST /api/control-plane/v1/resource-permission-grants/evaluate
 ```
 
 Grant evaluation answers whether the declared model contains a matching grant.
-It is not yet enforced by Resource Manager, issued as token claims, or
-registered with an external identity authority.
+Resource action execution can also carry an explicit acting resource identity;
+when it does, Resource Manager evaluates declared grants for that identity
+instead of falling back to the current user's resource permissions. This is a
+model-level enforcement path for programmatic identities and tests. Grants are
+not yet issued as token claims, proven by bearer tokens, or registered with an
+external identity authority.
 
 The generated Resource Manager detail view displays the identity binding when a
 resource has one. Editing identity bindings and permission grants in the
@@ -182,6 +186,11 @@ CloudShell UI is future work.
 Managed identity behavior is also future work. A managed identity provider
 should be able to resolve a resource identity binding and, where supported,
 register or provision that identity and its grants with the backing authority.
+That backing authority can be a built-in ASP.NET Core Identity-backed
+development or team authority, but CloudShell resources should not depend on
+ASP.NET Core Identity types. The stable contract remains the provider-neutral
+resource identity binding and permission grant model so the same declarations
+can later be reconciled with Microsoft Entra ID or another provider.
 
 ## Operation Permissions
 
@@ -215,6 +224,12 @@ token-based user authorization at the Control Plane boundary. Resource identity
 metadata can still be projected and diagnosed. This allows local hosts,
 templates, providers, and Resource Manager UI surfaces to exercise the intended
 identity shape before a production identity provider is configured.
+
+Programmatic identity grants can still be evaluated in this mode. Passing an
+explicit acting resource identity to a resource action checks the declared
+grant model even when no token authority is configured. This is useful for
+early permission-boundary tests, but it is not a substitute for provider-backed
+identity proof.
 
 Development identity providers should stay replaceable infrastructure. A local
 provider can model deterministic subjects, scopes, and claims, while the same

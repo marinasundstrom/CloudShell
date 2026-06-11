@@ -385,6 +385,8 @@ public static class CloudShellControlPlaneApiExtensions
         bool? startDependencies,
         bool? ignoreDependentWarning,
         string? triggeredBy,
+        string? actingIdentityResourceId,
+        string? actingIdentityName,
         IResourceManager resourceManager,
         CancellationToken cancellationToken)
     {
@@ -419,7 +421,8 @@ public static class CloudShellControlPlaneApiExtensions
                     actionId,
                     startDependencies.GetValueOrDefault(),
                     ignoreDependentWarning.GetValueOrDefault(),
-                    NormalizeOptional(triggeredBy)),
+                    NormalizeOptional(triggeredBy),
+                    CreateActingIdentity(actingIdentityResourceId, actingIdentityName)),
                 cancellationToken);
 
             return Results.Ok(ToResponse(result));
@@ -907,6 +910,15 @@ public static class CloudShellControlPlaneApiExtensions
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static ResourceIdentityReference? CreateActingIdentity(
+        string? resourceId,
+        string? name) =>
+        string.IsNullOrWhiteSpace(resourceId) && string.IsNullOrWhiteSpace(name)
+            ? null
+            : ResourceIdentityReference.ForResource(
+                RequireValue(resourceId, "actingIdentityResourceId"),
+                name);
 
     private static JsonElement RequireConfiguration(JsonElement configuration)
     {

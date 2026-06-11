@@ -12,19 +12,22 @@ public sealed class ResourceManagerClientExtensionsTests
     {
         var resourceManager = new RecordingResourceManager();
         var resource = CreateResource();
+        var identity = ResourceIdentityReference.ForResource("sample:caller", "caller-service");
 
         await resourceManager.ExecuteResourceActionAsync(
             resource,
             ResourceAction.Restart,
             startDependencies: true,
-            ignoreDependentWarning: true);
+            ignoreDependentWarning: true,
+            actingIdentity: identity);
 
         Assert.Equal(
             new ExecuteResourceActionCommand(
                 "sample:resource",
                 ResourceActionIds.Restart,
                 StartDependencies: true,
-                IgnoreDependentWarning: true),
+                IgnoreDependentWarning: true,
+                ActingIdentity: identity),
             resourceManager.LastCommand);
     }
 

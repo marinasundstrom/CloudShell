@@ -221,8 +221,12 @@ Microsoft Entra ID or another production authority.
 The first grant authoring surface stores declarations such as
 `target.Allow(source.Identity, permission)` in the programmatic declaration
 store. The declaration model can evaluate those grants with
-`ResourcePermissionGrantEvaluator`, but Resource Manager does not yet enforce
-them, issue them as token claims, or register them with an external authority.
+`ResourcePermissionGrantEvaluator`. Resource action execution now accepts an
+explicit acting resource identity and, when supplied, evaluates the declared
+grant model instead of falling back to the current user's resource permissions.
+This is the first model-level enforcement path for programmatic identities, but
+CloudShell does not yet prove that identity with a token, issue grants as token
+claims, or register them with an external authority.
 
 The CloudShell UI should later expose identity management for resources,
 including editing identity bindings and managing grants. The first UI step is
@@ -234,6 +238,14 @@ Managed identity should be modeled as provider behavior over the same binding.
 A managed identity provider can eventually register or provision the resource
 identity, map grants to authority-specific assignments or app roles, and keep
 the CloudShell resource model provider-neutral.
+
+A built-in ASP.NET Core Identity-backed authority can be useful as a reference,
+development, or team-owned provisioner for resource identities. It should not
+become the CloudShell identity domain model. Resource declarations should bind
+to provider-neutral identity metadata and grants, and the provisioner should
+translate that model into its backing store. Moving to Microsoft Entra ID or
+another provider should replace or reconcile the provisioner without changing
+the resource model.
 
 Supporting one or more identities on a resource programmatically is likely
 worth adding before the provider-backed token lifecycle is complete. That
@@ -298,9 +310,9 @@ permission-assignment support.
 - Add resource-level permission names and policy evaluation rules.
 - Decide whether to expand the initial single-identity authoring API to
   multiple identities per resource.
-- Connect declared permission grants to Resource Manager authorization
-  enforcement, mock identity tests, token claims, and provider or authority
-  registration.
+- Extend declared permission grants beyond model-level resource action
+  execution into mock identity tests, token claims, provider-backed identity
+  proof, and provider or authority registration.
 - Add Resource Manager UI workflows for managing resource identity bindings and
   permission grants.
 - Add managed identity provider behavior for registering or provisioning

@@ -229,7 +229,8 @@ public sealed record ExecuteResourceActionCommand(
     string ActionId,
     bool StartDependencies = false,
     bool IgnoreDependentWarning = false,
-    string? TriggeredBy = null);
+    string? TriggeredBy = null,
+    ResourceIdentityReference? ActingIdentity = null);
 
 public sealed record UpdateResourceImageCommand(
     string ResourceId,

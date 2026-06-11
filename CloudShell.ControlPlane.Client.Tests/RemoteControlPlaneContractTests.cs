@@ -163,6 +163,28 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ExecutesResourceActionWithActingIdentityGrant()
+    {
+        await using var app = await CreateAppAsync(includeMappedNetwork: true);
+        var controlPlane = CreateClient(app);
+
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "network:contract",
+                PlatformResourceProvider.ReconcileEndpointMappingsActionId,
+                ActingIdentity: ResourceIdentityReference.ForResource("network:contract", "network-service")));
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    "network:contract",
+                    PlatformResourceProvider.ReconcileEndpointMappingsActionId,
+                    ActingIdentity: ResourceIdentityReference.ForResource("network:contract", "other-service"))));
+
+        Assert.Equal("Reconciled 1 endpoint mapping(s).", result.Message);
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_MapsResourceIdentityAndActionPermissions()
     {
         await using var app = await CreateAppAsync(includeLifecycleResource: true);

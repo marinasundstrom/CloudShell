@@ -185,8 +185,13 @@ POST /api/control-plane/v1/resource-permission-grants/evaluate
 ```
 
 These endpoints list declared grants and evaluate whether the declared model
-contains a matching grant. They do not yet enforce resource-to-resource access
-for runtime calls or register grants with an external identity authority.
+contains a matching grant. Resource action execution can also include
+`actingIdentityResourceId` and optional `actingIdentityName` query values; when
+present, the Control Plane evaluates declared grants for that resource identity
+instead of using the current user's resource permissions. This is model-level
+enforcement for declared resource identities. The API does not yet prove the
+acting identity with a token or register grants with an external identity
+authority.
 
 The `CloudShell.ControlPlane.Client` package provides the default remote adapter
 for the current API shape. A generated OpenAPI client can replace its internal

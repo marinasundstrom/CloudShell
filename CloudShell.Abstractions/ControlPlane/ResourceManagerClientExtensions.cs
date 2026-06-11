@@ -37,7 +37,8 @@ public static class ResourceManagerClientExtensions
         bool startDependencies = false,
         bool ignoreDependentWarning = false,
         string? triggeredBy = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ResourceIdentityReference? actingIdentity = null)
     {
         ArgumentNullException.ThrowIfNull(resourceManager);
 
@@ -47,7 +48,8 @@ public static class ResourceManagerClientExtensions
                 actionId,
                 startDependencies,
                 ignoreDependentWarning,
-                triggeredBy),
+                triggeredBy,
+                actingIdentity),
             cancellationToken);
     }
 
@@ -58,7 +60,8 @@ public static class ResourceManagerClientExtensions
         bool startDependencies = false,
         bool ignoreDependentWarning = false,
         string? triggeredBy = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ResourceIdentityReference? actingIdentity = null)
     {
         ArgumentNullException.ThrowIfNull(resource);
         ArgumentNullException.ThrowIfNull(action);
@@ -69,7 +72,8 @@ public static class ResourceManagerClientExtensions
             startDependencies,
             ignoreDependentWarning,
             triggeredBy,
-            cancellationToken);
+            cancellationToken,
+            actingIdentity);
     }
 
     public static Task<ResourceProcedureResult> UpdateResourceImageAsync(

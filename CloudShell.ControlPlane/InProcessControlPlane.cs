@@ -298,7 +298,7 @@ public sealed class InProcessControlPlane(
 
         var group = resourceManager.GetGroupForResource(resource.Id);
         var actionPermission = ResourceActionPermissions.GetRequiredPermission(action);
-        if (!CanAccessResource(resource.Id, group?.Id, actionPermission))
+        if (!CanAccessResource(resource.Id, group?.Id, actionPermission, command.ActingIdentity))
         {
             throw ControlPlaneAccessDeniedException.ForResource(
                 resource.Id,
@@ -330,7 +330,7 @@ public sealed class InProcessControlPlane(
             resource,
             action,
             command.StartDependencies,
-            authorization,
+            CreateAuthorizationService(command.ActingIdentity),
             cancellationToken);
 
         resourceEvents?.Append(new ResourceEvent(
@@ -591,10 +591,34 @@ public sealed class InProcessControlPlane(
     private bool CanAccessResource(
         string resourceId,
         string? resourceGroupId,
-        string permission) =>
-        authorization.CanAccessResource(resourceId, resourceGroupId, permission) ||
-        !string.Equals(permission, CloudShellPermissions.Resources.Manage, StringComparison.OrdinalIgnoreCase) &&
-        authorization.CanAccessResource(resourceId, resourceGroupId, CloudShellPermissions.Resources.Manage);
+        string permission,
+        ResourceIdentityReference? actingIdentity = null)
+    {
+        if (actingIdentity is null)
+        {
+            return authorization.CanAccessResource(resourceId, resourceGroupId, permission) ||
+                !string.Equals(permission, CloudShellPermissions.Resources.Manage, StringComparison.OrdinalIgnoreCase) &&
+                authorization.CanAccessResource(resourceId, resourceGroupId, CloudShellPermissions.Resources.Manage);
+        }
+
+        return ResourceIdentityCanAccessResource(actingIdentity, resourceId, permission);
+    }
+
+    private bool ResourceIdentityCanAccessResource(
+        ResourceIdentityReference identity,
+        string resourceId,
+        string permission)
+    {
+        var evaluator = declarations.CreatePermissionGrantEvaluator();
+        return evaluator.Evaluate(identity, resourceId, permission).IsAllowed ||
+            !string.Equals(permission, CloudShellPermissions.Resources.Manage, StringComparison.OrdinalIgnoreCase) &&
+            evaluator.Evaluate(identity, resourceId, CloudShellPermissions.Resources.Manage).IsAllowed;
+    }
+
+    private ICloudShellAuthorizationService CreateAuthorizationService(ResourceIdentityReference? actingIdentity) =>
+        actingIdentity is null
+            ? authorization
+            : new ResourcePermissionGrantAuthorizationService(this, actingIdentity);
 
     private static string FormatPermissionRequirement(string permission) =>
         string.Equals(permission, CloudShellPermissions.Resources.Manage, StringComparison.OrdinalIgnoreCase)
@@ -985,5 +1009,19 @@ public sealed class InProcessControlPlane(
         }
 
         return filtered.ToArray();
+    }
+
+    private sealed class ResourcePermissionGrantAuthorizationService(
+        InProcessControlPlane controlPlane,
+        ResourceIdentityReference identity) : ICloudShellAuthorizationService
+    {
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => false;
+
+        public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => false;
+
+        public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) =>
+            controlPlane.ResourceIdentityCanAccessResource(identity, resourceId, permission);
     }
 }
