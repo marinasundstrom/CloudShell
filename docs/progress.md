@@ -137,12 +137,16 @@ The MVP should prove:
   resolved identity provider. The built-in development provider can provision
   an in-memory client-credentials client for a resource identity and project
   declared grants as token claims. The Settings and Secrets sample demonstrates
-  a Web API identity with read access to a Secrets Vault target resource while
-  preserving secret-reference-backed environment variables. Mock-principal
-  tests, provider-resource authorization, provider-backed identity proof,
-  concrete external authority registration, identity management UI, multiple
-  identities, and provider-backed managed identity lifecycle remain future
-  resource identity work.
+  a Web API identity with read access to Configuration Store and Secrets Vault
+  target resources while preserving reference-backed environment variables.
+  Configuration and Secrets providers now require matching grants when an
+  identity-bound resource resolves configuration entries or secrets. The
+  resource owns the identity and permission requirements; the managed
+  process/container/service handles safe runtime transfer of the resolved
+  values. Mock-principal tests, provider-resource authorization,
+  provider-backed identity proof, concrete external authority registration,
+  identity management UI, multiple identities, and provider-backed managed
+  identity lifecycle remain future resource identity work.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.

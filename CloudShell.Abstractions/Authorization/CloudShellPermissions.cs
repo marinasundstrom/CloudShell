@@ -21,6 +21,12 @@ public static class LoadBalancerResourceOperationPermissions
         "CloudShell.Network/loadBalancers/applyConfiguration/action";
 }
 
+public static class ConfigurationStoreResourceOperationPermissions
+{
+    public const string ReadEntries =
+        "CloudShell.Configuration/stores/entries/read/action";
+}
+
 public static class SecretsVaultResourceOperationPermissions
 {
     public const string ReadSecrets =
@@ -74,6 +80,15 @@ public static class CloudShellPermissions
         {
             public const string Read =
                 SecretsVaultResourceOperationPermissions.ReadSecrets;
+        }
+    }
+
+    public static class Configuration
+    {
+        public static class Actions
+        {
+            public const string Read =
+                ConfigurationStoreResourceOperationPermissions.ReadEntries;
         }
     }
 }

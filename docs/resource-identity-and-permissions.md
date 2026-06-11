@@ -198,6 +198,15 @@ when it does, Resource Manager evaluates declared grants for that identity
 instead of falling back to the current user's resource permissions. This is a
 model-level enforcement path for programmatic identities and tests.
 
+The CloudShell resource owns its identity, capabilities, and resource-level
+permission requirements. The managed workload behind that resource, such as a
+process, container, configuration service, or Secrets Vault service, is
+responsible for using the information passed by its provider. Providers should
+transfer identity and secret material through safe runtime mechanisms such as
+environment variables, mounted configuration, token endpoints, or platform
+managed identity facilities without storing raw credentials in the resource
+model.
+
 `ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
 provider to provision one resource identity and its matching permission grants.
 The first built-in provider implementation is development-oriented: it
@@ -254,6 +263,7 @@ members remain compatibility aliases.
 | --- | --- | --- |
 | Any resource with standard lifecycle actions | `run`, `stop`, `pause`, `restart` | `CommonResourceOperationPermissions.LifecycleAction` |
 | Any resource with a custom action and no narrower declared operation | custom action execution | `CommonResourceOperationPermissions.ExecuteCustomAction` |
+| `configuration.store` and `ResourceClass.Configuration` | configuration entry read | `ConfigurationStoreResourceOperationPermissions.ReadEntries` |
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
 | `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
 | `secrets.vault` and `ResourceClass.SecretsVault` | secret value read | `SecretsVaultResourceOperationPermissions.ReadSecrets` |

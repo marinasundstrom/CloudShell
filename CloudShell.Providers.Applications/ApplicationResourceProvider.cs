@@ -22,6 +22,7 @@ public sealed partial class ApplicationResourceProvider(
     IEnumerable<IResourceEnvironmentVariableProvider> environmentVariableProviders,
     IEnumerable<IConfigurationEntryReferenceResolver> configurationEntryResolvers,
     IEnumerable<ISecretReferenceResolver> secretResolvers,
+    ResourceDeclarationStore declarations,
     IResourceEventSink? resourceEvents = null) :
     IResourceProvider,
     ILogProvider,
@@ -973,7 +974,8 @@ public sealed partial class ApplicationResourceProvider(
         var context = new ResourceSettingResolutionContext(
             definition.Id,
             resourceGroupId,
-            "run");
+            "run",
+            ResolveIdentity(definition.Id));
         var variables = new List<EnvironmentVariableAssignment>();
 
         foreach (var setting in definition.AppSettings)
@@ -1073,6 +1075,14 @@ public sealed partial class ApplicationResourceProvider(
             ? $"No vault provider can resolve secret '{reference.SecretName}' from '{reference.VaultResourceId}'."
             : string.Join(" ", errors);
         throw new InvalidOperationException(message);
+    }
+
+    private ResourceIdentityReference? ResolveIdentity(string resourceId)
+    {
+        var declaration = declarations.GetDeclaration(resourceId);
+        return declaration?.IdentityBinding is null
+            ? null
+            : ResourceIdentityReference.ForResource(resourceId, declaration.IdentityBinding.Name);
     }
 
     private async Task StartContainerApplicationAsync(

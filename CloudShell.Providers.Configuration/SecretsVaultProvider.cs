@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
@@ -12,7 +13,8 @@ public sealed partial class SecretsVaultProvider(
     SecretsVaultStore store,
     ConfigurationProviderOptions options,
     IHostEnvironment environment,
-    LocalProcessRunner processes) :
+    LocalProcessRunner processes,
+    ResourceDeclarationStore declarations) :
     IResourceProvider,
     ILogProvider,
     IResourceProcedureProvider,
@@ -226,6 +228,19 @@ public sealed partial class SecretsVaultProvider(
                 $"Secrets Vault '{reference.VaultResourceId}' was not found."));
         }
 
+        if (context.Identity is { } identity &&
+            !declarations
+                .CreatePermissionGrantEvaluator()
+                .Evaluate(
+                    identity,
+                    vault.Id,
+                    SecretsVaultResourceOperationPermissions.ReadSecrets)
+                .IsAllowed)
+        {
+            return ValueTask.FromResult(ResourceSettingResolutionResult.Failed(
+                $"Identity '{FormatIdentity(identity)}' is not allowed to read secrets from Secrets Vault '{reference.VaultResourceId}'."));
+        }
+
         var candidates = vault.Secrets
             .Where(secret => string.Equals(secret.Name, reference.SecretName, StringComparison.OrdinalIgnoreCase))
             .Where(secret => string.IsNullOrWhiteSpace(reference.Version) ||
@@ -243,6 +258,11 @@ public sealed partial class SecretsVaultProvider(
 
         return ValueTask.FromResult(ResourceSettingResolutionResult.Resolved(resolved.Value));
     }
+
+    private static string FormatIdentity(ResourceIdentityReference identity) =>
+        string.IsNullOrWhiteSpace(identity.Name)
+            ? identity.ResourceId
+            : $"{identity.ResourceId}/{identity.Name}";
 
     public bool CanExport(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, ResourceType, StringComparison.OrdinalIgnoreCase) &&

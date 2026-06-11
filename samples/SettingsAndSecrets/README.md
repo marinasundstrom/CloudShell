@@ -12,10 +12,13 @@ The application resource stores references, not copied values. CloudShell
 resolves those references when the resource is started.
 
 The sample also declares a built-in development identity provider. The Web API
-resource has a `settings-secrets-api` identity, and the Secrets Vault grants
-that identity `SecretsVaultResourceOperationPermissions.ReadSecrets`. In this
-first flow the Web API identity is provisioned and the vault is the protected
-target resource; the vault does not need its own identity.
+resource has a `settings-secrets-api` identity. The configuration store grants
+that identity `ConfigurationStoreResourceOperationPermissions.ReadEntries`, and
+the Secrets Vault grants it
+`SecretsVaultResourceOperationPermissions.ReadSecrets`. In this first flow the
+Web API identity is provisioned, while the configuration store and vault are
+protected target resources; they do not need their own identities unless they
+later call another resource or provider.
 
 Open the Web API resource details and use **Provision identity**, or call:
 

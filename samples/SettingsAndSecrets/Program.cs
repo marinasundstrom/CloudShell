@@ -79,6 +79,7 @@ cloudShell.Resources(resources =>
         .WithAutoStart(false);
 
     secrets.Allow(api.Identity, SecretsVaultResourceOperationPermissions.ReadSecrets);
+    settings.Allow(api.Identity, ConfigurationStoreResourceOperationPermissions.ReadEntries);
 });
 
 var app = builder.Build();

@@ -926,6 +926,51 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task SecretsVaultProvider_RequiresGrantForIdentityBoundSecretResolution()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                var api = resources
+                    .Declare("applications", "application:api")
+                    .WithIdentity("identity:development", name: "api-service");
+                resources
+                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .WithSecret("token", "secret-token")
+                    .Allow(api.Identity, SecretsVaultResourceOperationPermissions.ReadSecrets);
+                resources
+                    .AddSecretsVault("secrets-vault:other", "Other Secrets")
+                    .WithSecret("token", "other-token");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        var context = new ResourceSettingResolutionContext(
+            "application:api",
+            "group-1",
+            "run",
+            ResourceIdentityReference.ForResource("application:api", "api-service"));
+
+        var allowed = await provider.ResolveSecretAsync(
+            new SecretReference("secrets-vault:app", "token"),
+            context);
+        var denied = await provider.ResolveSecretAsync(
+            new SecretReference("secrets-vault:other", "token"),
+            context);
+
+        Assert.True(allowed.IsResolved);
+        Assert.Equal("secret-token", allowed.Value);
+        Assert.False(denied.IsResolved);
+        Assert.Contains("is not allowed to read secrets", denied.ErrorMessage);
+    }
+
+    [Fact]
     public async Task SecretsVaultProvider_ExportsSecretNamesWithoutValues()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -1085,6 +1130,51 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("appdb", resolved.Value);
         Assert.False(rejected.IsResolved);
         Assert.Contains("must be referenced through a vault secret", rejected.ErrorMessage);
+    }
+
+    [Fact]
+    public void ConfigurationProvider_RequiresGrantForIdentityBoundEntryResolution()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                var api = resources
+                    .Declare("applications", "application:api")
+                    .WithIdentity("identity:development", name: "api-service");
+                resources
+                    .AddConfigurationStore("configuration:app", "App Settings")
+                    .WithEntry("Message", "hello")
+                    .Allow(api.Identity, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+                resources
+                    .AddConfigurationStore("configuration:other", "Other Settings")
+                    .WithEntry("Message", "other");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var resolver = serviceProvider.GetRequiredService<ConfigurationResourceProvider>();
+        var context = new ResourceSettingResolutionContext(
+            "application:api",
+            "group-1",
+            "run",
+            ResourceIdentityReference.ForResource("application:api", "api-service"));
+
+        var allowed = resolver.ResolveConfigurationEntry(
+            new ConfigurationEntryReference("configuration:app", "Message"),
+            context);
+        var denied = resolver.ResolveConfigurationEntry(
+            new ConfigurationEntryReference("configuration:other", "Message"),
+            context);
+
+        Assert.True(allowed.IsResolved);
+        Assert.Equal("hello", allowed.Value);
+        Assert.False(denied.IsResolved);
+        Assert.Contains("is not allowed to read configuration entries", denied.ErrorMessage);
     }
 
     [Fact]

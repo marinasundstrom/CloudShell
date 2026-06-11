@@ -60,8 +60,10 @@ Work the current proposals in this order:
   by resolved provider. The built-in development provider can provision an
   in-memory client-credentials client for a resource identity and project
   grants into token claims; the Settings and Secrets sample demonstrates a
-  Web API identity with read access to a Secrets Vault target resource. Next
-  connect those grants to mock-principal tests, provider-resource
+  Web API identity with read access to Configuration Store and Secrets Vault
+  target resources. Configuration and Secrets providers now require matching
+  grants when an identity-bound resource resolves configuration entries or
+  secrets. Next connect those grants to mock-principal tests, provider-resource
   authorization, provider-backed identity proof, and concrete authority
   registration.
 - Continue assigning and documenting specific Azure-style operation permissions

@@ -76,11 +76,17 @@ public sealed class SampleSmokeTests
         var grantsJson = await host.GetStringAsync(
             "/api/control-plane/v1/resource-permission-grants?identityResourceId=application%3Asettings-secrets-api&identityName=settings-secrets-api");
         using var grantsDocument = JsonDocument.Parse(grantsJson);
-        var grant = Assert.Single(grantsDocument.RootElement.EnumerateArray());
-        Assert.Equal("secrets-vault:sample-app", grant.GetProperty("targetResourceId").GetString());
-        Assert.Equal(
-            SecretsVaultResourceOperationPermissions.ReadSecrets,
-            grant.GetProperty("permission").GetString());
+        var grants = grantsDocument.RootElement.EnumerateArray().ToArray();
+        Assert.Contains(
+            grants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "secrets-vault:sample-app" &&
+                grant.GetProperty("permission").GetString() == SecretsVaultResourceOperationPermissions.ReadSecrets);
+        Assert.Contains(
+            grants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "configuration:sample-app" &&
+                grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
 
         var provisioning = await host.SendAsync(
             HttpMethod.Post,

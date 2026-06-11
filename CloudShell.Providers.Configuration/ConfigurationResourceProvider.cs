@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
@@ -24,17 +25,20 @@ public sealed partial class ConfigurationResourceProvider :
     private readonly ConfigurationProviderOptions options;
     private readonly IHostEnvironment environment;
     private readonly LocalProcessRunner processes;
+    private readonly ResourceDeclarationStore declarations;
 
     public ConfigurationResourceProvider(
         ConfigurationStore store,
         ConfigurationProviderOptions options,
         IHostEnvironment environment,
-        LocalProcessRunner processes)
+        LocalProcessRunner processes,
+        ResourceDeclarationStore declarations)
     {
         this.store = store;
         this.options = options;
         this.environment = environment;
         this.processes = processes;
+        this.declarations = declarations;
     }
 
     public string Id => "configuration";
@@ -269,6 +273,19 @@ public sealed partial class ConfigurationResourceProvider :
                 $"Configuration store '{reference.StoreResourceId}' was not found.");
         }
 
+        if (context.Identity is { } identity &&
+            !declarations
+                .CreatePermissionGrantEvaluator()
+                .Evaluate(
+                    identity,
+                    configurationStore.Id,
+                    ConfigurationStoreResourceOperationPermissions.ReadEntries)
+                .IsAllowed)
+        {
+            return ResourceSettingResolutionResult.Failed(
+                $"Identity '{FormatIdentity(identity)}' is not allowed to read configuration entries from '{reference.StoreResourceId}'.");
+        }
+
         var entry = configurationStore.Entries.FirstOrDefault(entry =>
             string.Equals(entry.Name, reference.EntryName, StringComparison.OrdinalIgnoreCase));
         if (entry is null)
@@ -285,6 +302,11 @@ public sealed partial class ConfigurationResourceProvider :
 
         return ResourceSettingResolutionResult.Resolved(entry.Value);
     }
+
+    private static string FormatIdentity(ResourceIdentityReference identity) =>
+        string.IsNullOrWhiteSpace(identity.Name)
+            ? identity.ResourceId
+            : $"{identity.ResourceId}/{identity.Name}";
 
     public bool CanExport(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "configuration.store", StringComparison.OrdinalIgnoreCase) &&
