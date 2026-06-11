@@ -177,20 +177,21 @@ Current resource-type and resource-class operation permissions:
 The existing `resources.manage` permission remains a compatibility superset
 while the model moves toward resource operation permissions.
 
-## Proposed authoring direction
+## Initial authoring surface
 
 ```csharp
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
-    .WithIdentity("identity:dev")
     .WithIdentity(identity =>
     {
+        identity.Name = "api-service";
+        identity.Provider = "identity:dev";
         identity.Subject = "application:api";
         identity.Scopes.Add("db.read");
         identity.Claims["appRole"] = "Api";
     });
 
 resources.AddContainerApplication("worker", "ghcr.io/example/worker:latest")
-    .RequiresIdentity();
+    .RequireIdentity(name: "worker-service");
 ```
 
 Programmatic identity declarations are not limited to local or unauthenticated
@@ -199,6 +200,17 @@ a mock provider, or state only that the resource requires an identity whose
 provider-specific details are resolved later. The mock-provider path is a
 convenience for local development before wiring the same app to Microsoft Entra
 ID or another production provider.
+
+The first implemented surface supports one optional identity binding per
+resource. That identity is stored on the programmatic declaration, projected
+through `Resource.IdentityBinding`, and exposed through the Control Plane API
+and remote client. This gives CloudShell a concrete model-building test case
+without requiring a working token issuer or provider-backed identity lifecycle.
+
+Mock identity support should later cover declared user or workload principals,
+not only resource metadata. That would let local tests exercise permission
+boundaries between resources before the same declarations are backed by
+Microsoft Entra ID or another production authority.
 
 Supporting one or more identities on a resource programmatically is likely
 worth adding before the provider-backed token lifecycle is complete. That
@@ -252,15 +264,17 @@ permission-assignment support.
 - Add the reference development identity server hosting path and OIDC/OAuth
   configuration.
 - Add a mock/development identity-provider mode that works when CloudShell
-  authentication is disabled for local development and still projects the
-  declared identity binding.
+  authentication is disabled for local development, still projects the declared
+  identity binding, and can simulate user or workload principals for
+  permission-boundary tests.
 - Add Microsoft Entra ID (Azure AD) provider configuration and compatibility
   tests for tokens, claim mapping, groups or app roles, and service-principal
   automation.
 - Decide how resource identity should inherit from a resource group or parent
   resource.
 - Add resource-level permission names and policy evaluation rules.
-- Add authoring APIs for one or more resource identities.
+- Decide whether to expand the initial single-identity authoring API to
+  multiple identities per resource.
 - Add authoring APIs for permission grants between resource identities and
   target resources.
 - Wire the identity contract into at least one provider-backed workload type.

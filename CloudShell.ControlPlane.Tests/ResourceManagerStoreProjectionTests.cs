@@ -83,6 +83,70 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_AppliesDeclarationIdentity()
+    {
+        var resource = CreateResource("declared", "Declared");
+        var declarations = new ResourceDeclarationStore();
+        declarations.Declare(new TestCloudShellBuilder(), "test", "declared");
+        declarations.SetIdentity(
+            "declared",
+            new ResourceIdentityBinding(
+                "development",
+                "application:api",
+                ["database.read"],
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["resource"] = "api"
+                },
+                Name: "api-service"));
+        var store = CreateStore(
+            [resource],
+            registrations: [CreateRegistration("declared")],
+            declarations: declarations,
+            identityProviders: new ResourceIdentityProviderCatalog(
+                [new("development", "Development identity", ResourceIdentityProviderKind.BuiltIn)]));
+
+        var projected = Assert.Single(store.GetResources());
+        var diagnostics = store.GetResourceModelDiagnostics();
+
+        Assert.NotNull(projected.IdentityBinding);
+        Assert.Equal("api-service", projected.IdentityBinding.Name);
+        Assert.Equal("development", projected.IdentityBinding.ProviderId);
+        Assert.Equal("application:api", projected.IdentityBinding.Subject);
+        Assert.Equal(["database.read"], projected.IdentityBinding.IdentityScopes);
+        Assert.Equal("api", projected.IdentityBinding.IdentityClaims["resource"]);
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void GetResourceModelDiagnostics_ReportsDeclarationIdentityWithoutProvider()
+    {
+        var resource = CreateResource("declared", "Declared");
+        var declarations = new ResourceDeclarationStore();
+        declarations.Declare(new TestCloudShellBuilder(), "test", "declared");
+        declarations.SetIdentity(
+            "declared",
+            ResourceIdentityBinding.RequireIdentity(["database.read"]) with
+            {
+                Name = "api-service"
+            });
+        var store = CreateStore(
+            [resource],
+            registrations: [CreateRegistration("declared")],
+            declarations: declarations);
+
+        var projected = Assert.Single(store.GetResources());
+        var diagnostic = Assert.Single(store.GetResourceModelDiagnostics());
+
+        Assert.NotNull(projected.IdentityBinding);
+        Assert.Equal(ResourceIdentityBindingKind.Required, projected.IdentityBinding.Kind);
+        Assert.Equal("api-service", projected.IdentityBinding.Name);
+        Assert.Equal(ResourceModelValidation.ResourceIdentityProviderUnresolvedCode, diagnostic.Code);
+        Assert.Equal("declared", diagnostic.ResourceId);
+        Assert.Contains("No default resource identity provider", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GetAvailableResources_NormalizesKnownResourceTypeClassMismatch()
     {
         var resource = CreateResource(

@@ -86,7 +86,8 @@ public sealed record ResourceIdentityBinding(
     string? Subject = null,
     IReadOnlyList<string>? Scopes = null,
     IReadOnlyDictionary<string, string>? Claims = null,
-    ResourceIdentityBindingKind Kind = ResourceIdentityBindingKind.Provider);
+    ResourceIdentityBindingKind Kind = ResourceIdentityBindingKind.Provider,
+    string? Name = null);
 ```
 
 `Provider` means the resource names a concrete provider. `Required` means the
@@ -104,6 +105,7 @@ The Control Plane API projects identity metadata on `ResourceResponse.identity`.
 | Field | Meaning |
 | --- | --- |
 | `kind` | `Provider` or `Required`. |
+| `name` | Stable CloudShell identity name, when declared. |
 | `providerId` | Provider ID when the binding names a concrete provider. |
 | `subject` | Provider-specific subject or workload name, when known. |
 | `scopes` | Requested scopes or provider-specific permission hints. |
@@ -111,6 +113,41 @@ The Control Plane API projects identity metadata on `ResourceResponse.identity`.
 
 The remote Control Plane client maps this response back to
 `Resource.IdentityBinding`.
+
+## Programmatic Declarations
+
+Programmatic resource declarations can attach identity intent before a real
+identity provider exists. The initial authoring model supports one optional
+identity binding per resource:
+
+```csharp
+var api = resources
+    .AddAspNetCoreProject("application:api", "API", "../Api/Api.csproj")
+    .WithIdentity(identity =>
+    {
+        identity.Name = "api-service";
+        identity.Provider = "development";
+        identity.Subject = "application:api";
+        identity.Scopes.Add("database.read");
+        identity.Claims.Add("resource", "api");
+    });
+
+resources
+    .AddContainer("worker", "ghcr.io/example/worker:latest")
+    .RequireIdentity(["queue.read"], name: "worker-service");
+```
+
+`WithIdentity(...)` declares a concrete provider binding. `RequireIdentity(...)`
+declares that the resource must have an identity even when the provider is not
+known yet. Resource Manager projects the declaration through
+`Resource.IdentityBinding`; if the provider cannot be resolved, it reports a
+`resourceIdentityProviderUnresolved` diagnostic instead of rejecting the
+resource.
+
+Future mock identity support should go beyond projecting metadata. It should
+let local tests declare user or workload principals and exercise permission
+boundaries between resources before the same model is connected to Microsoft
+Entra ID or another production authority.
 
 ## Operation Permissions
 

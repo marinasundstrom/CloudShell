@@ -239,7 +239,8 @@ public sealed class ResourceManagerStore(
         if (!declarationsById.TryGetValue(resource.Id, out var declaration) ||
             (string.IsNullOrWhiteSpace(declaration.ParentResourceId) &&
              declaration.ResourceClassOverride is null &&
-             declaration.ResourceAttributes.Count == 0))
+             declaration.ResourceAttributes.Count == 0 &&
+             declaration.IdentityBinding is null))
         {
             return resource;
         }
@@ -252,7 +253,8 @@ public sealed class ResourceManagerStore(
                 ? resource.ParentResourceId
                 : declaration.ParentResourceId,
             ResourceClass = resourceClass,
-            Attributes = MergeAttributes(resource.ResourceAttributes, declaration.ResourceAttributes)
+            Attributes = MergeAttributes(resource.ResourceAttributes, declaration.ResourceAttributes),
+            Identity = declaration.IdentityBinding ?? resource.IdentityBinding
         };
     }
 

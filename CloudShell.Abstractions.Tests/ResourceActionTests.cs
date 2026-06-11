@@ -53,7 +53,8 @@ public sealed class ResourceActionTests
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["appRole"] = "Api"
-            });
+            },
+            Name: "api-service");
         var resource = CreateResource() with { Identity = identity };
         var binding = resource.IdentityBinding;
 
@@ -61,6 +62,7 @@ public sealed class ResourceActionTests
         Assert.Same(identity, binding);
         Assert.Equal(ResourceIdentityBindingKind.Provider, binding.Kind);
         Assert.True(binding.HasResolvedProvider);
+        Assert.Equal("api-service", binding.Name);
         Assert.Equal("identity:entra", binding.ProviderId);
         Assert.Equal(["api://cloudshell-control-plane/.default"], binding.IdentityScopes);
         Assert.Equal("Api", binding.IdentityClaims["appRole"]);

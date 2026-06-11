@@ -145,6 +145,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.NotNull(resource);
         Assert.NotNull(resource.IdentityBinding);
         Assert.Equal(ResourceIdentityBindingKind.Provider, resource.IdentityBinding.Kind);
+        Assert.Equal("contract-lifecycle-service", resource.IdentityBinding.Name);
         Assert.Equal("identity:dev", resource.IdentityBinding.ProviderId);
         Assert.Equal("contract-lifecycle", resource.IdentityBinding.Subject);
         Assert.Equal(["api://cloudshell-control-plane/.default"], resource.IdentityBinding.IdentityScopes);
@@ -319,6 +320,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(
             (int)ResourceIdentityBindingKind.Provider,
             identity.GetProperty("kind").GetInt32());
+        Assert.Equal("contract-lifecycle-service", identity.GetProperty("name").GetString());
         Assert.Equal("identity:dev", identity.GetProperty("providerId").GetString());
         Assert.Equal("contract-lifecycle", identity.GetProperty("subject").GetString());
         Assert.Equal(
@@ -832,7 +834,8 @@ public sealed class RemoteControlPlaneContractTests
                     new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["appRole"] = "ContractLifecycle"
-                    }),
+                    },
+                    Name: "contract-lifecycle-service"),
                 Actions:
                 [
                     ResourceAction.Stop,

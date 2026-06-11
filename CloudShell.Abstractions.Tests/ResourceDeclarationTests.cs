@@ -135,6 +135,69 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ResourceIdentityExtensions_RecordProgrammaticIdentity()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .Declare("applications", "application:api")
+                    .WithIdentity(identity =>
+                    {
+                        identity.Name = "api-service";
+                        identity.Provider = "development";
+                        identity.Subject = "application:api";
+                        identity.Scopes.Add("database.read");
+                        identity.Claims.Add("resource", "api");
+                    });
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations());
+        var identity = declaration.IdentityBinding;
+
+        Assert.NotNull(identity);
+        Assert.Equal(ResourceIdentityBindingKind.Provider, identity.Kind);
+        Assert.Equal("api-service", identity.Name);
+        Assert.Equal("development", identity.ProviderId);
+        Assert.Equal("application:api", identity.Subject);
+        Assert.Equal(["database.read"], identity.IdentityScopes);
+        Assert.Equal("api", identity.IdentityClaims["resource"]);
+    }
+
+    [Fact]
+    public void ResourceIdentityExtensions_CanDeclareIdentityRequirementWithoutProvider()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .Declare("applications", "application:api")
+                    .RequireIdentity(["database.read"], name: "api-service");
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations());
+        var identity = declaration.IdentityBinding;
+
+        Assert.NotNull(identity);
+        Assert.Equal(ResourceIdentityBindingKind.Required, identity.Kind);
+        Assert.Equal("api-service", identity.Name);
+        Assert.Null(identity.ProviderId);
+        Assert.Equal(["database.read"], identity.IdentityScopes);
+    }
+
+    [Fact]
     public void ResourceManagerStore_AppliesDeclarationParentMetadata()
     {
         var services = new ServiceCollection();

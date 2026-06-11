@@ -86,6 +86,7 @@ public sealed record ResourceActionResponse(
 
 public sealed record ResourceIdentityBindingResponse(
     ResourceIdentityBindingKind Kind,
+    string? Name,
     string? ProviderId,
     string? Subject,
     IReadOnlyList<string> Scopes,
@@ -270,6 +271,7 @@ internal static class CloudShellControlPlaneDtoMapper
         this ResourceIdentityBinding identity) =>
         new(
             identity.Kind,
+            identity.Name,
             identity.ProviderId,
             identity.Subject,
             identity.IdentityScopes,

@@ -167,7 +167,8 @@ public sealed record ResourceIdentityBinding(
     string? Subject = null,
     IReadOnlyList<string>? Scopes = null,
     IReadOnlyDictionary<string, string>? Claims = null,
-    ResourceIdentityBindingKind Kind = ResourceIdentityBindingKind.Provider)
+    ResourceIdentityBindingKind Kind = ResourceIdentityBindingKind.Provider,
+    string? Name = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyClaims =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

@@ -21,12 +21,15 @@ public sealed record ResourceDeclaration(
     bool? AutoStartOverride = null,
     bool? DependencyAutoStartOverride = null,
     ResourceClass? ResourceClassOverride = null,
-    IReadOnlyDictionary<string, string>? Attributes = null)
+    IReadOnlyDictionary<string, string>? Attributes = null,
+    ResourceIdentityBinding? Identity = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyDictionary<string, string> ResourceAttributes => Attributes ?? EmptyAttributes;
+
+    public ResourceIdentityBinding? IdentityBinding => Identity;
 }
 
 public interface IResourceBuilder
@@ -74,7 +77,8 @@ public interface IResourceDeclarationBuilder
         bool overwritePersistedState = false,
         ResourceClass? resourceClass = null,
         IReadOnlyDictionary<string, string>? attributes = null,
-        Action<ResourceDeclaration>? onChanged = null);
+        Action<ResourceDeclaration>? onChanged = null,
+        ResourceIdentityBinding? identity = null);
 }
 
 public interface IResourceGraphBuilder : IResourceDeclarationBuilder
@@ -223,6 +227,74 @@ public static class ResourceDeclarationBuilderExtensions
         return builder;
     }
 
+    public static TBuilder WithIdentity<TBuilder>(
+        this TBuilder builder,
+        string providerId,
+        string? subject = null,
+        IReadOnlyList<string>? scopes = null,
+        IReadOnlyDictionary<string, string>? claims = null,
+        string? name = null)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .SetIdentity(
+                builder.ResourceId,
+                new ResourceIdentityBinding(
+                    providerId,
+                    subject,
+                    scopes,
+                    claims,
+                    Name: name));
+        return builder;
+    }
+
+    public static TBuilder WithIdentity<TBuilder>(
+        this TBuilder builder,
+        ResourceIdentityBinding identity)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(identity);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .SetIdentity(builder.ResourceId, identity);
+        return builder;
+    }
+
+    public static TBuilder WithIdentity<TBuilder>(
+        this TBuilder builder,
+        Action<ResourceIdentityDeclarationBuilder> configure)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var identity = new ResourceIdentityDeclarationBuilder();
+        configure(identity);
+        return builder.WithIdentity(identity.Build());
+    }
+
+    public static TBuilder RequireIdentity<TBuilder>(
+        this TBuilder builder,
+        IReadOnlyList<string>? scopes = null,
+        IReadOnlyDictionary<string, string>? claims = null,
+        string? name = null)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.WithIdentity(
+            ResourceIdentityBinding.RequireIdentity(scopes, claims) with
+            {
+                Name = NormalizeOptional(name)
+            });
+    }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     private static ResourceDeclarationStore GetOrAddDeclarationStore(IServiceCollection services)
     {
         var declarations = services
@@ -260,7 +332,8 @@ internal sealed class ResourceGraphBuilder(
         bool overwritePersistedState = false,
         ResourceClass? resourceClass = null,
         IReadOnlyDictionary<string, string>? attributes = null,
-        Action<ResourceDeclaration>? onChanged = null) =>
+        Action<ResourceDeclaration>? onChanged = null,
+        ResourceIdentityBinding? identity = null) =>
         declarations.Declare(
             CloudShellBuilder,
             providerId,
@@ -272,7 +345,59 @@ internal sealed class ResourceGraphBuilder(
             overwritePersistedState,
             resourceClass,
             attributes,
-            onChanged);
+            onChanged,
+            identity);
+}
+
+public sealed class ResourceIdentityDeclarationBuilder
+{
+    public string? Name { get; set; }
+
+    public string? Provider
+    {
+        get => ProviderId;
+        set => ProviderId = value;
+    }
+
+    public string? ProviderId { get; set; }
+
+    public string? Subject { get; set; }
+
+    public List<string> Scopes { get; } = [];
+
+    public Dictionary<string, string> Claims { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public ResourceIdentityBinding Build()
+    {
+        var providerId = NormalizeOptional(ProviderId);
+        var name = NormalizeOptional(Name);
+        var subject = NormalizeOptional(Subject);
+        var scopes = Scopes
+            .Where(scope => !string.IsNullOrWhiteSpace(scope))
+            .Select(scope => scope.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var claims = Claims
+            .Where(claim => !string.IsNullOrWhiteSpace(claim.Key) &&
+                            !string.IsNullOrWhiteSpace(claim.Value))
+            .ToDictionary(
+                claim => claim.Key.Trim(),
+                claim => claim.Value.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+
+        return providerId is null
+            ? ResourceIdentityBinding.RequireIdentity(scopes, claims) with { Name = name, Subject = subject }
+            : new ResourceIdentityBinding(
+                providerId,
+                subject,
+                scopes,
+                claims,
+                Name: name);
+    }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
 public sealed class ResourceDeclarationStore
@@ -318,7 +443,8 @@ public sealed class ResourceDeclarationStore
         bool overwritePersistedState = false,
         ResourceClass? resourceClass = null,
         IReadOnlyDictionary<string, string>? attributes = null,
-        Action<ResourceDeclaration>? onChanged = null)
+        Action<ResourceDeclaration>? onChanged = null,
+        ResourceIdentityBinding? identity = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
@@ -341,7 +467,8 @@ public sealed class ResourceDeclarationStore
                 resourceClass ?? existing?.ResourceClassOverride,
                 attributes is null
                     ? existing?.ResourceAttributes
-                    : MergeAttributes(existing?.ResourceAttributes, attributes));
+                    : MergeAttributes(existing?.ResourceAttributes, attributes),
+                identity ?? existing?.IdentityBinding);
 
             declaration = existing is not null
                 ? normalized with { DeclaredAt = existing.DeclaredAt }
@@ -490,6 +617,14 @@ public sealed class ResourceDeclarationStore
         });
     }
 
+    public void SetIdentity(string resourceId, ResourceIdentityBinding? identity)
+    {
+        Update(resourceId, declaration => declaration with
+        {
+            Identity = identity
+        });
+    }
+
     public bool ShouldAutoStart(string resourceId)
     {
         lock (_gate)
@@ -551,7 +686,8 @@ public sealed class ResourceDeclarationStore
         bool? autoStartOverride = null,
         bool? dependencyAutoStartOverride = null,
         ResourceClass? resourceClass = null,
-        IReadOnlyDictionary<string, string>? attributes = null) =>
+        IReadOnlyDictionary<string, string>? attributes = null,
+        ResourceIdentityBinding? identity = null) =>
         new(
             providerId.Trim(),
             resourceId.Trim(),
@@ -564,13 +700,17 @@ public sealed class ResourceDeclarationStore
             autoStartOverride,
             dependencyAutoStartOverride,
             resourceClass,
-            NormalizeAttributes(attributes));
+            NormalizeAttributes(attributes),
+            identity);
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId.Trim();
 
     private static string? NormalizeResourceId(string? resourceId) =>
         string.IsNullOrWhiteSpace(resourceId) ? null : resourceId.Trim();
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static IReadOnlyList<string> NormalizeDependencies(IReadOnlyList<string> dependsOn) =>
         dependsOn

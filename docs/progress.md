@@ -93,9 +93,9 @@ The MVP should prove:
   `CloudShell.Network/networks/reconcileEndpointMappings/action`, and
   load-balancer configuration apply now uses
   `CloudShell.Network/loadBalancers/applyConfiguration/action`.
-- Resources can project an optional resource identity binding with kind,
-  provider ID when resolved, subject, scopes, and non-secret claim metadata.
-  The Control Plane API and remote client expose this as
+- Resources can project an optional resource identity binding with kind, stable
+  name, provider ID when resolved, subject, scopes, and non-secret claim
+  metadata. The Control Plane API and remote client expose this as
   `ResourceResponse.identity`.
 - Resource identity provider selection now has a catalog abstraction. Concrete
   provider bindings resolve by provider ID; required-but-unresolved bindings
@@ -109,13 +109,15 @@ The MVP should prove:
   documentation for resource identity and permissions. The matching proposal
   remains the tracker for open design, decisions, and remaining implementation
   work.
-- Programmatic resource declarations should support identity intent as a normal
-  authoring concern, including concrete provider bindings and declarations
-  that a resource will have an identity whose provider-specific details are
-  resolved later. Authentication-disabled local development can use a
+- Programmatic resource declarations support one optional identity binding per
+  resource. Builders can declare a concrete provider binding with
+  `WithIdentity(...)` or declare only identity intent with `RequireIdentity(...)`;
+  Resource Manager projects the binding and reports unresolved providers
+  through diagnostics. Authentication-disabled local development can use a
   mock/development provider, but that is only one development path before
   switching the same resource to Microsoft Entra ID or another production
-  provider.
+  provider. Multiple identities, permission grants, and provider-backed token
+  lifecycle remain future resource identity work.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.
