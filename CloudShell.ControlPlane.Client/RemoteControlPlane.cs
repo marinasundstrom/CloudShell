@@ -160,6 +160,38 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
                 StringComparer.OrdinalIgnoreCase);
     }
 
+    public async Task<IReadOnlyList<ResourcePermissionGrant>> ListResourcePermissionGrantsAsync(
+        ResourcePermissionGrantQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<ResourcePermissionGrantResponse>>(
+            "resource-permission-grants",
+            cancellationToken,
+            ("identityResourceId", query?.IdentityResourceId),
+            ("identityName", query?.IdentityName),
+            ("targetResourceId", query?.TargetResourceId),
+            ("permission", query?.Permission)))
+        .Select(response => response.ToResourcePermissionGrant())
+        .ToArray();
+
+    public async Task<ResourcePermissionEvaluation> EvaluateResourcePermissionGrantAsync(
+        ResourceIdentityReference identity,
+        string targetResourceId,
+        string permission,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri("resource-permission-grants/evaluate"),
+            new ResourcePermissionEvaluationRequest(
+                identity.ToResponse(),
+                targetResourceId,
+                permission),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await ReadRequiredAsync<ResourcePermissionEvaluationResponse>(response, cancellationToken))
+            .ToResourcePermissionEvaluation();
+    }
+
     public async Task RegisterResourceAsync(
         RegisterResourceCommand command,
         CancellationToken cancellationToken = default)
@@ -616,6 +648,27 @@ file sealed record ResourceIdentityBindingResponse(
     IReadOnlyList<string>? Scopes,
     IReadOnlyDictionary<string, string>? Claims);
 
+file sealed record ResourceIdentityReferenceResponse(
+    string ResourceId,
+    string? Name);
+
+file sealed record ResourcePermissionGrantResponse(
+    ResourceIdentityReferenceResponse Identity,
+    string TargetResourceId,
+    string Permission);
+
+file sealed record ResourcePermissionEvaluationRequest(
+    ResourceIdentityReferenceResponse Identity,
+    string TargetResourceId,
+    string Permission);
+
+file sealed record ResourcePermissionEvaluationResponse(
+    ResourceIdentityReferenceResponse Identity,
+    string TargetResourceId,
+    string Permission,
+    bool IsAllowed,
+    ResourcePermissionGrantResponse? Grant);
+
 file sealed record ResourceGroupResponse(
     string Id,
     string Name,
@@ -803,6 +856,30 @@ file static class RemoteControlPlaneMapper
             response.Claims,
             response.Kind,
             response.Name);
+
+    public static ResourceIdentityReferenceResponse ToResponse(
+        this ResourceIdentityReference identity) =>
+        new(identity.ResourceId, identity.Name);
+
+    public static ResourceIdentityReference ToResourceIdentityReference(
+        this ResourceIdentityReferenceResponse response) =>
+        new(response.ResourceId, response.Name);
+
+    public static ResourcePermissionGrant ToResourcePermissionGrant(
+        this ResourcePermissionGrantResponse response) =>
+        new(
+            response.Identity.ToResourceIdentityReference(),
+            response.TargetResourceId,
+            response.Permission);
+
+    public static ResourcePermissionEvaluation ToResourcePermissionEvaluation(
+        this ResourcePermissionEvaluationResponse response) =>
+        new(
+            response.Identity.ToResourceIdentityReference(),
+            response.TargetResourceId,
+            response.Permission,
+            response.IsAllowed,
+            response.Grant?.ToResourcePermissionGrant());
 
     private static IReadOnlyCollection<ResourceActionResponse> GetResourceActionResponses(
         this ResourceResponse response) =>

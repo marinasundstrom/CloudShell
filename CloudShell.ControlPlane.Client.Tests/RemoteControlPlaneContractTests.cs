@@ -135,6 +135,34 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_ListsAndEvaluatesResourcePermissionGrants()
+    {
+        await using var app = await CreateAppAsync();
+        var controlPlane = CreateClient(app);
+
+        var grants = await controlPlane.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(TargetResourceId: "network:contract"));
+        var allowed = await controlPlane.EvaluateResourcePermissionGrantAsync(
+            ResourceIdentityReference.ForResource("network:contract", "network-service"),
+            "network:contract",
+            NetworkResourceOperationPermissions.ReconcileEndpointMappings);
+        var denied = await controlPlane.EvaluateResourcePermissionGrantAsync(
+            ResourceIdentityReference.ForResource("network:contract", "network-service"),
+            "network:contract",
+            LoadBalancerResourceOperationPermissions.ApplyConfiguration);
+
+        var grant = Assert.Single(grants);
+        Assert.Equal("network:contract", grant.Identity.ResourceId);
+        Assert.Equal("network-service", grant.Identity.Name);
+        Assert.Equal("network:contract", grant.TargetResourceId);
+        Assert.Equal(NetworkResourceOperationPermissions.ReconcileEndpointMappings, grant.Permission);
+        Assert.True(allowed.IsAllowed);
+        Assert.NotNull(allowed.Grant);
+        Assert.False(denied.IsAllowed);
+        Assert.Null(denied.Grant);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_MapsResourceIdentityAndActionPermissions()
     {
         await using var app = await CreateAppAsync(includeLifecycleResource: true);
@@ -377,6 +405,10 @@ public sealed class RemoteControlPlaneContractTests
         Assert.False(paths.TryGetProperty("/api/control-plane/v1/resources/{resourceId}/image", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/revisions", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/replicas", out _));
+        Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants", out _));
+        Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/evaluate", out _));
+        Assert.True(schemas.TryGetProperty(nameof(ResourcePermissionGrantResponse), out _));
+        Assert.True(schemas.TryGetProperty(nameof(ResourcePermissionEvaluationResponse), out _));
 
         var createResource = schemas.GetProperty(nameof(CreateResourceRequest));
         Assert.Equal(
@@ -679,7 +711,11 @@ public sealed class RemoteControlPlaneContractTests
         {
             var network = resources
                 .AddNetwork("network:contract", "Contract Network", isDefault: true)
-                .Persist();
+                .Persist()
+                .WithIdentity("development", name: "network-service");
+            network.Allow(
+                network.Identity,
+                NetworkResourceOperationPermissions.ReconcileEndpointMappings);
             if (includeMappedNetwork)
             {
                 var api = resources.Declare(

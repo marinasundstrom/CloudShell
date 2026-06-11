@@ -50,8 +50,9 @@ Work the current proposals in this order:
   permission inheritance boundaries, token claim mapping, workload identity
   lifecycle, and provider or orchestrator identities. Standard resource action
   permissions now use Azure-style operation names with `resources.manage` as a
-  compatibility superset. Programmatic declarations can now record model-only
-  permission grants; next connect those grants to evaluation, mock-principal
+  compatibility superset. Programmatic declarations can now record permission
+  grants and expose list/evaluate operations through the Control Plane API;
+  next connect those grants to Resource Manager enforcement, mock-principal
   tests, token claims, and authority registration.
 - Continue assigning and documenting specific Azure-style operation permissions
   per resource type or class. Load-balancer apply and network endpoint
@@ -66,9 +67,11 @@ Work the current proposals in this order:
   model is validated against a concrete resource path.
 - Add authorization diagnostics and capability reasons for denied or
   unavailable actions without leaking provider-specific internals.
-- Add Resource Manager UI workflows for viewing and managing resource identity
-  bindings and permission grants after the backend model and evaluation path
-  stabilize.
+- Expand Resource Manager UI workflows from read-only identity binding display
+  into management for resource identity bindings and permission grants after
+  the backend model and evaluation path stabilize.
+- Add managed identity provider behavior for registering or provisioning
+  resource identities and grants with the backing authority.
 
 ## Next: Host Abstractions
 

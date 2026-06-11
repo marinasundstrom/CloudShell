@@ -225,9 +225,15 @@ store. The declaration model can evaluate those grants with
 them, issue them as token claims, or register them with an external authority.
 
 The CloudShell UI should later expose identity management for resources,
-including editing identity bindings and managing grants. That UI should operate
-against the same resource identity model rather than creating a separate
-permission system.
+including editing identity bindings and managing grants. The first UI step is
+read-only display of a resource's identity binding in the generated Resource
+Manager detail view. Later management UI should operate against the same
+resource identity model rather than creating a separate permission system.
+
+Managed identity should be modeled as provider behavior over the same binding.
+A managed identity provider can eventually register or provision the resource
+identity, map grants to authority-specific assignments or app roles, and keep
+the CloudShell resource model provider-neutral.
 
 Supporting one or more identities on a resource programmatically is likely
 worth adding before the provider-backed token lifecycle is complete. That
@@ -295,6 +301,8 @@ permission-assignment support.
 - Connect declared permission grants to Resource Manager authorization
   enforcement, mock identity tests, token claims, and provider or authority
   registration.
-- Add Resource Manager UI workflows for viewing and managing resource identity
-  bindings and permission grants.
+- Add Resource Manager UI workflows for managing resource identity bindings and
+  permission grants.
+- Add managed identity provider behavior for registering or provisioning
+  resource identities and grants with the backing authority.
 - Wire the identity contract into at least one provider-backed workload type.

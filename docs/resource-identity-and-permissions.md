@@ -163,13 +163,25 @@ database.Allow(api.Identity, "Database/databases/readWrite/action");
 ```
 
 These grants can be evaluated against the declaration model with
-`ResourcePermissionGrantEvaluator`. They are not yet enforced by Resource
-Manager, issued as token claims, or registered with an external identity
-authority.
+`ResourcePermissionGrantEvaluator`, and the Control Plane exposes read/evaluate
+operations through `IResourceManager` and the HTTP API:
 
-CloudShell UI support for viewing and managing resource identity bindings and
-permission grants is future work. The current implementation establishes the
-backend model that the UI can later edit.
+```text
+GET /api/control-plane/v1/resource-permission-grants
+POST /api/control-plane/v1/resource-permission-grants/evaluate
+```
+
+Grant evaluation answers whether the declared model contains a matching grant.
+It is not yet enforced by Resource Manager, issued as token claims, or
+registered with an external identity authority.
+
+The generated Resource Manager detail view displays the identity binding when a
+resource has one. Editing identity bindings and permission grants in the
+CloudShell UI is future work.
+
+Managed identity behavior is also future work. A managed identity provider
+should be able to resolve a resource identity binding and, where supported,
+register or provision that identity and its grants with the backing authority.
 
 ## Operation Permissions
 

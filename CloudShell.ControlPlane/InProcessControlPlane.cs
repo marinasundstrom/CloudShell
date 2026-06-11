@@ -12,6 +12,7 @@ public sealed class InProcessControlPlane(
     IResourceManagerStore resourceManager,
     IResourceGroupStore resourceGroups,
     IResourceRegistrationStore registrations,
+    ResourceDeclarationStore declarations,
     ResourceOrchestrationService orchestration,
     ResourceTemplateService templates,
     ILogStore logs,
@@ -154,6 +155,26 @@ public sealed class InProcessControlPlane(
                 StringComparer.OrdinalIgnoreCase);
 
         return Task.FromResult<IReadOnlyDictionary<string, ResourceOperationCapabilities>>(capabilities);
+    }
+
+    public Task<IReadOnlyList<ResourcePermissionGrant>> ListResourcePermissionGrantsAsync(
+        ResourcePermissionGrantQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ApplyQuery(declarations.GetPermissionGrants(), query));
+    }
+
+    public Task<ResourcePermissionEvaluation> EvaluateResourcePermissionGrantAsync(
+        ResourceIdentityReference identity,
+        string targetResourceId,
+        string permission,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(declarations
+            .CreatePermissionGrantEvaluator()
+            .Evaluate(identity, targetResourceId, permission));
     }
 
     public async Task RegisterResourceAsync(
@@ -894,6 +915,43 @@ public sealed class InProcessControlPlane(
         if (query.ResourceClass is not null)
         {
             filtered = filtered.Where(resource => resource.ResourceClass == query.ResourceClass);
+        }
+
+        return filtered.ToArray();
+    }
+
+    private static IReadOnlyList<ResourcePermissionGrant> ApplyQuery(
+        IReadOnlyList<ResourcePermissionGrant> grants,
+        ResourcePermissionGrantQuery? query)
+    {
+        if (query is null)
+        {
+            return grants;
+        }
+
+        var filtered = grants.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(query.IdentityResourceId))
+        {
+            filtered = filtered.Where(grant =>
+                string.Equals(grant.Identity.ResourceId, query.IdentityResourceId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.IdentityName))
+        {
+            filtered = filtered.Where(grant =>
+                string.Equals(grant.Identity.Name, query.IdentityName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.TargetResourceId))
+        {
+            filtered = filtered.Where(grant =>
+                string.Equals(grant.TargetResourceId, query.TargetResourceId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Permission))
+        {
+            filtered = filtered.Where(grant =>
+                string.Equals(grant.Permission, query.Permission, StringComparison.OrdinalIgnoreCase));
         }
 
         return filtered.ToArray();

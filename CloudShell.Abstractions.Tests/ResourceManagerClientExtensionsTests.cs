@@ -245,6 +245,22 @@ public sealed class ResourceManagerClientExtensionsTests
                         StringComparer.OrdinalIgnoreCase));
         }
 
+        public Task<IReadOnlyList<ResourcePermissionGrant>> ListResourcePermissionGrantsAsync(
+            ResourcePermissionGrantQuery? query = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResourcePermissionGrant>>([]);
+
+        public Task<ResourcePermissionEvaluation> EvaluateResourcePermissionGrantAsync(
+            ResourceIdentityReference identity,
+            string targetResourceId,
+            string permission,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ResourcePermissionEvaluation(
+                identity,
+                targetResourceId,
+                permission,
+                IsAllowed: false));
+
         public Task RegisterResourceAsync(
             RegisterResourceCommand command,
             CancellationToken cancellationToken = default) =>

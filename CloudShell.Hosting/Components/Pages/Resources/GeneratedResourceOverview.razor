@@ -41,6 +41,50 @@
         </dl>
     </section>
 
+    @if (Resource.IdentityBinding is { } identity)
+    {
+        <section class="generated-section">
+            <h3>@L["Resource identity"]</h3>
+            <dl class="detail-list">
+                <dt>@L["Name"]</dt>
+                <dd>@FormatIdentityName(identity)</dd>
+                <dt>@L["Kind"]</dt>
+                <dd>@identity.Kind</dd>
+                <dt>@L["Provider"]</dt>
+                <dd>@FormatIdentityProvider(identity)</dd>
+                <dt>@L["Subject"]</dt>
+                <dd>@FormatIdentitySubject(identity)</dd>
+                @if (identity.IdentityScopes.Count > 0)
+                {
+                    <dt>@L["Scopes"]</dt>
+                    <dd>
+                        <div class="dependency-list">
+                            @foreach (var scope in identity.IdentityScopes.Order(StringComparer.OrdinalIgnoreCase))
+                            {
+                                <span class="generated-pill-link">@scope</span>
+                            }
+                        </div>
+                    </dd>
+                }
+                @if (identity.IdentityClaims.Count > 0)
+                {
+                    <dt>@L["Claims"]</dt>
+                    <dd>
+                        <div class="generated-list">
+                            @foreach (var claim in identity.IdentityClaims.OrderBy(claim => claim.Key, StringComparer.OrdinalIgnoreCase))
+                            {
+                                <div>
+                                    <strong>@claim.Key</strong>
+                                    <span>@claim.Value</span>
+                                </div>
+                            }
+                        </div>
+                    </dd>
+                }
+            </dl>
+        </section>
+    }
+
     @if (Resource.Endpoints.Count > 0)
     {
         <section class="generated-section">
@@ -382,6 +426,21 @@
     }
 
     private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
+
+    private string FormatIdentityName(ResourceIdentityBinding identity) =>
+        string.IsNullOrWhiteSpace(identity.Name)
+            ? L["Default identity"].Value
+            : identity.Name;
+
+    private string FormatIdentityProvider(ResourceIdentityBinding identity) =>
+        string.IsNullOrWhiteSpace(identity.ProviderId)
+            ? L["Default provider"].Value
+            : identity.ProviderId;
+
+    private string FormatIdentitySubject(ResourceIdentityBinding identity) =>
+        string.IsNullOrWhiteSpace(identity.Subject)
+            ? L["Not assigned"].Value
+            : identity.Subject;
 
     private bool CanExecuteAction(ResourceAction action) =>
         Capabilities.CanExecuteAction(action.Id);

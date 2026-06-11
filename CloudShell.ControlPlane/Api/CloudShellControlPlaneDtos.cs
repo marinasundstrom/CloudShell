@@ -92,6 +92,27 @@ public sealed record ResourceIdentityBindingResponse(
     IReadOnlyList<string> Scopes,
     IReadOnlyDictionary<string, string> Claims);
 
+public sealed record ResourceIdentityReferenceResponse(
+    string ResourceId,
+    string? Name);
+
+public sealed record ResourcePermissionGrantResponse(
+    ResourceIdentityReferenceResponse Identity,
+    string TargetResourceId,
+    string Permission);
+
+public sealed record ResourcePermissionEvaluationRequest(
+    ResourceIdentityReferenceResponse Identity,
+    string TargetResourceId,
+    string Permission);
+
+public sealed record ResourcePermissionEvaluationResponse(
+    ResourceIdentityReferenceResponse Identity,
+    string TargetResourceId,
+    string Permission,
+    bool IsAllowed,
+    ResourcePermissionGrantResponse? Grant);
+
 public sealed record ResourceGroupResponse(
     string Id,
     string Name,
@@ -276,6 +297,30 @@ internal static class CloudShellControlPlaneDtoMapper
             identity.Subject,
             identity.IdentityScopes,
             identity.IdentityClaims);
+
+    public static ResourceIdentityReferenceResponse ToResponse(
+        this ResourceIdentityReference identity) =>
+        new(identity.ResourceId, identity.Name);
+
+    public static ResourcePermissionGrantResponse ToResponse(
+        this ResourcePermissionGrant grant) =>
+        new(
+            grant.Identity.ToResponse(),
+            grant.TargetResourceId,
+            grant.Permission);
+
+    public static ResourcePermissionEvaluationResponse ToResponse(
+        this ResourcePermissionEvaluation evaluation) =>
+        new(
+            evaluation.Identity.ToResponse(),
+            evaluation.TargetResourceId,
+            evaluation.Permission,
+            evaluation.IsAllowed,
+            evaluation.Grant?.ToResponse());
+
+    public static ResourceIdentityReference ToResourceIdentityReference(
+        this ResourceIdentityReferenceResponse response) =>
+        new(response.ResourceId, response.Name);
 
     private static IReadOnlyDictionary<string, ResourceActionResponse> CreateResourceActionDictionary(
         Resource resource) =>

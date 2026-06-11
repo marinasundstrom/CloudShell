@@ -123,10 +123,12 @@ The MVP should prove:
   provider.
 - Programmatic declarations can record permission grants with
   `target.Allow(source.Identity, permission)` and evaluate those grants through
-  `ResourcePermissionGrantEvaluator`. Resource Manager enforcement,
-  mock-principal tests, token-claim projection, authority registration,
-  multiple identities, and provider-backed token lifecycle remain future
-  resource identity work.
+  `ResourcePermissionGrantEvaluator` and the Control Plane API. The generated
+  Resource Manager overview displays resource identity bindings when present.
+  Resource Manager enforcement, mock-principal tests, token-claim projection,
+  authority registration, identity management UI, multiple identities, and
+  provider-backed managed identity lifecycle remain future resource identity
+  work.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.

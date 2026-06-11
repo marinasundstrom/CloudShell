@@ -176,6 +176,18 @@ action ID whose values include required permission, method, and href
 affordances. Creation requests include `startAfterCreate` as an explicit
 lifecycle option.
 
+Resource permission grants are exposed through the same domain-shaped Control
+Plane API:
+
+```text
+GET /api/control-plane/v1/resource-permission-grants
+POST /api/control-plane/v1/resource-permission-grants/evaluate
+```
+
+These endpoints list declared grants and evaluate whether the declared model
+contains a matching grant. They do not yet enforce resource-to-resource access
+for runtime calls or register grants with an external identity authority.
+
 The `CloudShell.ControlPlane.Client` package provides the default remote adapter
 for the current API shape. A generated OpenAPI client can replace its internal
 HTTP calls later without changing shell integrations.

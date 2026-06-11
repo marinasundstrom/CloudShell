@@ -56,6 +56,16 @@ public interface IResourceManager
         IReadOnlyList<string> resourceIds,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ResourcePermissionGrant>> ListResourcePermissionGrantsAsync(
+        ResourcePermissionGrantQuery? query = null,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourcePermissionEvaluation> EvaluateResourcePermissionGrantAsync(
+        ResourceIdentityReference identity,
+        string targetResourceId,
+        string permission,
+        CancellationToken cancellationToken = default);
+
     Task RegisterResourceAsync(
         RegisterResourceCommand command,
         CancellationToken cancellationToken = default);
@@ -138,6 +148,12 @@ public sealed record ResourceQuery(
     string? ResourceType = null,
     bool? IsRegistered = null,
     ResourceClass? ResourceClass = null);
+
+public sealed record ResourcePermissionGrantQuery(
+    string? IdentityResourceId = null,
+    string? IdentityName = null,
+    string? TargetResourceId = null,
+    string? Permission = null);
 
 public sealed record ResourceChangeNotification(
     ResourceChangeKind Kind,

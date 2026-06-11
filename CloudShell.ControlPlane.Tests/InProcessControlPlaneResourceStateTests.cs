@@ -751,6 +751,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             groups ?? [],
             resourceTypeClasses ?? new Dictionary<string, ResourceClass>());
         var resourceGroups = new TestResourceGroupStore(groups ?? []);
+        var declarations = new ResourceDeclarationStore();
         var templates = new ResourceTemplateService(resourceManager, resourceGroups, registrations);
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
@@ -758,13 +759,14 @@ public sealed class InProcessControlPlaneResourceStateTests
             [],
             resourceManager,
             registrations,
-            new ResourceDeclarationStore(),
+            declarations,
             CreateSelectionStore());
 
         return new InProcessControlPlane(
             resourceManager,
             resourceGroups,
             registrations,
+            declarations,
             orchestration,
             templates,
             new EmptyLogStore(),

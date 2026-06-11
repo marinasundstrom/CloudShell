@@ -59,6 +59,16 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resources/capabilities", GetResourceOperationCapabilities)
             .WithName("CloudShellControlPlane_GetResourceOperationCapabilities");
 
+        api.MapGet("/resource-permission-grants", ListResourcePermissionGrants)
+            .WithName("CloudShellControlPlane_ListResourcePermissionGrants")
+            .Produces<ResourcePermissionGrantResponse[]>(StatusCodes.Status200OK);
+
+        api.MapPost("/resource-permission-grants/evaluate", EvaluateResourcePermissionGrant)
+            .WithName("CloudShellControlPlane_EvaluateResourcePermissionGrant")
+            .Accepts<ResourcePermissionEvaluationRequest>("application/json")
+            .Produces<ResourcePermissionEvaluationResponse>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
+
         api.MapGet("/resources/{resourceId}", GetResource)
             .WithName("CloudShellControlPlane_GetResource")
             .Produces<ResourceResponse>(StatusCodes.Status200OK)
@@ -262,6 +272,47 @@ public static class CloudShellControlPlaneApiExtensions
             return Results.Ok(capabilities.Values.Select(capability => capability.ToResponse()).ToArray());
         }
         catch (Exception exception) when (exception is ControlPlaneException or ArgumentException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ListResourcePermissionGrants(
+        string? identityResourceId,
+        string? identityName,
+        string? targetResourceId,
+        string? permission,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        var grants = await resourceManager.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(
+                identityResourceId,
+                identityName,
+                targetResourceId,
+                permission),
+            cancellationToken);
+
+        return Results.Ok(grants.Select(grant => grant.ToResponse()).ToArray());
+    }
+
+    private static async Task<IResult> EvaluateResourcePermissionGrant(
+        ResourcePermissionEvaluationRequest request,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            ArgumentNullException.ThrowIfNull(request.Identity);
+            var evaluation = await resourceManager.EvaluateResourcePermissionGrantAsync(
+                request.Identity.ToResourceIdentityReference(),
+                RequireValue(request.TargetResourceId, nameof(request.TargetResourceId)),
+                RequireValue(request.Permission, nameof(request.Permission)),
+                cancellationToken);
+
+            return Results.Ok(evaluation.ToResponse());
+        }
+        catch (Exception exception) when (exception is ArgumentException or ArgumentNullException)
         {
             return ToProblem(exception);
         }
