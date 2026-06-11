@@ -56,6 +56,7 @@ cloudShell.Resources(resources =>
         .AddConfigurationStore(
             "configuration:sample-app",
             "Sample App Settings")
+        .WithIdentity(identityProvider)
         .WithEntries(
         [
             new("Sample:Message", "Hello from a configuration entry"),
@@ -64,6 +65,7 @@ cloudShell.Resources(resources =>
 
     var secrets = resources
         .AddSecretsVault("secrets-vault:sample-app", "Sample App Secrets")
+        .WithIdentity(identityProvider)
         .WithSecret("sample-api-key", "local-development-api-key");
 
     var api = resources
