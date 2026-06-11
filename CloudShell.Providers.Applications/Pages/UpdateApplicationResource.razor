@@ -153,25 +153,6 @@ else
                 </div>
             }
 
-            <div class="environment-editor">
-                <div class="environment-header">
-                    <strong>Environment variables</strong>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
-                        Add variable
-                    </FluentButton>
-                </div>
-
-                @foreach (var variable in EnvironmentVariables)
-                {
-                    <div class="environment-row">
-                        <FluentTextField AriaLabel="Environment variable name" @bind-Value="variable.Name" />
-                        <FluentTextField AriaLabel="Environment variable value" @bind-Value="variable.Value" />
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
-                            Remove
-                        </FluentButton>
-                    </div>
-                }
-            </div>
         </div>
     </div>
 }
@@ -203,7 +184,6 @@ else
     private string? ContainerDockerfile { get; set; }
     private int Replicas { get; set; } = 1;
     private string SelectedGroupId { get; set; } = string.Empty;
-    private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<string> ReferenceIds { get; set; } = [];
@@ -286,14 +266,6 @@ else
                     SelectedDependencyIds.Add(dependency);
                 }
             }
-
-            EnvironmentVariables.Clear();
-            EnvironmentVariables.AddRange(Application.EnvironmentVariables
-                .Select(variable => new EnvironmentVariableInput(variable.Name, variable.Value)));
-            if (EnvironmentVariables.Count == 0)
-            {
-                EnvironmentVariables.Add(new());
-            }
         }
 
         if (Configuration is not null &&
@@ -301,17 +273,6 @@ else
         {
             Configuration.SetApplyHandler(ApplyAsync);
             RegisteredConfiguration = Configuration;
-        }
-    }
-
-    private void AddEnvironmentVariable() => EnvironmentVariables.Add(new());
-
-    private void RemoveEnvironmentVariable(EnvironmentVariableInput variable)
-    {
-        EnvironmentVariables.Remove(variable);
-        if (EnvironmentVariables.Count == 0)
-        {
-            EnvironmentVariables.Add(new());
         }
     }
 
@@ -339,7 +300,7 @@ else
             CanConfigureProcessSettings ? Arguments : Application.Arguments,
             CanConfigureProcessSettings ? WorkingDirectory : Application.WorkingDirectory,
             CanConfigureEndpoint && !IsAspNetCoreProject ? Endpoint : Application.Endpoint,
-            BuildEnvironmentVariables(),
+            Application.EnvironmentVariables,
             CanConfigureLifetime ? ParseLifetime() : Application.Lifetime,
             BuildDependencies(),
             ReferenceIds,
@@ -416,12 +377,6 @@ else
         ResourceObservability? updated) =>
         (existing ?? ResourceObservability.Default).HasAnySignal ==
         (updated ?? ResourceObservability.Default).HasAnySignal;
-
-    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
-        EnvironmentVariables
-            .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
-            .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
-            .ToArray();
 
     private static IReadOnlyList<ServicePort> BuildEndpointPorts(
         string resourceType,
