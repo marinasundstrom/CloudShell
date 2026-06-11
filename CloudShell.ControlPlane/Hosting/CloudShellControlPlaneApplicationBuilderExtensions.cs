@@ -18,6 +18,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace CloudShell.ControlPlane.Hosting;
 
@@ -33,11 +34,17 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddCloudShellControlPlaneOpenApi();
         builder.Services.Configure<ResourceManagerOptions>(
             builder.Configuration.GetSection(ResourceManagerOptions.SectionName));
+        builder.Services.Configure<ResourceIdentityOptions>(
+            builder.Configuration.GetSection(ResourceIdentityOptions.SectionName));
 
         ConfigurePersistence(builder);
         builder.Services.AddCloudShellAuthentication(builder.Configuration);
 
         var controlPlane = builder.Services.AddControlPlane();
+        builder.Services.AddSingleton(serviceProvider =>
+            serviceProvider.GetRequiredService<IOptions<ResourceIdentityOptions>>()
+                .Value
+                .ToCatalog());
 
         builder.Services.AddScoped<IResourceGroupStore, AuthorizedResourceGroupStore>();
         builder.Services.AddScoped<IResourceRegistrationStore, AuthorizedResourceRegistrationStore>();

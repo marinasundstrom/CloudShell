@@ -8,6 +8,7 @@ public sealed class ResourceManagerStore(
     IResourceGroupStore resourceGroups,
     IResourceRegistrationStore registrations,
     ResourceDeclarationStore declarations,
+    ResourceIdentityProviderCatalog identityProviders,
     CloudShellExtensionRegistry extensionRegistry,
     ICloudShellExtensionActivationStore activationStore) : IResourceManagerStore
 {
@@ -40,6 +41,7 @@ public sealed class ResourceManagerStore(
                 StringComparer.OrdinalIgnoreCase);
         var projected = available
             .Select(resource => ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics))
+            .Select(resource => AddIdentityProviderDiagnostic(resource, diagnostics))
             .ToArray();
         var registrationsById = registrations.GetRegistrations()
             .ToDictionary(
@@ -94,7 +96,8 @@ public sealed class ResourceManagerStore(
 
         foreach (var resource in available)
         {
-            _ = ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics);
+            var projected = ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics);
+            _ = AddIdentityProviderDiagnostic(projected, diagnostics);
         }
 
         return diagnostics.ToArray();
@@ -202,6 +205,29 @@ public sealed class ResourceManagerStore(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray()
         };
+    }
+
+    private Resource AddIdentityProviderDiagnostic(
+        Resource resource,
+        List<ResourceModelDiagnostic> diagnostics)
+    {
+        if (resource.IdentityBinding is not { } identity)
+        {
+            return resource;
+        }
+
+        var resolution = identityProviders.Resolve(identity);
+        if (!resolution.IsResolved)
+        {
+            diagnostics.Add(ResourceModelValidation.CreateResourceIdentityProviderUnresolved(
+                resource.Id,
+                resource.EffectiveTypeId,
+                resource.ResourceClass,
+                resolution.Reason ?? "No reason was provided.",
+                "identity binding"));
+        }
+
+        return resource;
     }
 
     private static Resource ApplyDeclarationMetadata(

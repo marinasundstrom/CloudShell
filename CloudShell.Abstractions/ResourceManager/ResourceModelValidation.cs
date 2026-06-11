@@ -24,6 +24,7 @@ public sealed record ResourceModelValidationResult(
 public static class ResourceModelValidation
 {
     public const string ResourceClassMismatchCode = "resourceClassMismatch";
+    public const string ResourceIdentityProviderUnresolvedCode = "resourceIdentityProviderUnresolved";
 
     public static ResourceModelValidationResult ResolveResourceClass(
         string resourceId,
@@ -83,5 +84,20 @@ public static class ResourceModelValidation
             resourceType,
             expectedResourceClass,
             actualResourceClass,
+            source);
+
+    public static ResourceModelDiagnostic CreateResourceIdentityProviderUnresolved(
+        string resourceId,
+        string resourceType,
+        ResourceClass resourceClass,
+        string reason,
+        string source) =>
+        new(
+            ResourceIdentityProviderUnresolvedCode,
+            $"Resource '{resourceId}' identity provider could not be resolved. {reason}",
+            resourceId,
+            resourceType,
+            resourceClass,
+            resourceClass,
             source);
 }

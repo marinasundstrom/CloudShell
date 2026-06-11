@@ -423,3 +423,26 @@ bindings for local testing, templates, provider wiring, and UI inspection. A
 mock or development identity provider can project deterministic subjects,
 scopes, and claims before the same resource is later wired to Microsoft Entra
 ID or another production provider.
+
+Resource identity providers can be registered in host configuration. A
+`Required` identity binding resolves to `DefaultProviderId`; when exactly one
+provider is registered, that provider is the implicit default.
+
+```json
+{
+  "ResourceIdentity": {
+    "DefaultProviderId": "identity:entra",
+    "Providers": [
+      {
+        "Id": "identity:entra",
+        "Name": "Microsoft Entra ID",
+        "Kind": "Oidc",
+        "Settings": {
+          "Authority": "https://login.microsoftonline.com/{tenantId}/v2.0",
+          "Audience": "api://cloudshell-control-plane"
+        }
+      }
+    ]
+  }
+}
+```

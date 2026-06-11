@@ -1,5 +1,34 @@
 namespace CloudShell.Abstractions.ResourceManager;
 
+public sealed class ResourceIdentityOptions
+{
+    public const string SectionName = "ResourceIdentity";
+
+    public string? DefaultProviderId { get; set; }
+
+    public List<ResourceIdentityProviderOptions> Providers { get; set; } = [];
+
+    public ResourceIdentityProviderCatalog ToCatalog() =>
+        new(
+            Providers.Select(provider => provider.ToDefinition()),
+            DefaultProviderId);
+}
+
+public sealed class ResourceIdentityProviderOptions
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public ResourceIdentityProviderKind Kind { get; set; } = ResourceIdentityProviderKind.Oidc;
+
+    public Dictionary<string, string> Settings { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public ResourceIdentityProviderDefinition ToDefinition() =>
+        new(Id, Name, Kind, Settings);
+}
+
 public sealed record ResourceIdentityProviderDefinition(
     string Id,
     string Name,

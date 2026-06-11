@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.Abstractions.Tests;
 
@@ -53,6 +55,22 @@ public sealed class BuiltInAuthorityHttpTests
     }
 
     [Fact]
+    public async Task ControlPlaneHost_ConfiguresResourceIdentityProviderCatalog()
+    {
+        await using var app = await CreateAppAsync();
+        var catalog = app.Services.GetRequiredService<ResourceIdentityProviderCatalog>();
+
+        Assert.Equal("identity:entra", catalog.DefaultProviderId);
+        var resolution = catalog.Resolve(ResourceIdentityBinding.RequireIdentity(["api.read"]));
+        Assert.True(resolution.IsResolved);
+        Assert.Equal("identity:entra", resolution.Provider?.Id);
+        Assert.Equal(ResourceIdentityProviderKind.Oidc, resolution.Provider?.Kind);
+        Assert.Equal(
+            "https://login.microsoftonline.com/common/v2.0",
+            resolution.Provider?.ProviderSettings["authority"]);
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_RejectsTamperedBearerToken()
     {
         await using var app = await CreateAppAsync();
@@ -94,6 +112,15 @@ public sealed class BuiltInAuthorityHttpTests
                 "ControlPlane.Access",
             ["Authentication:BuiltInAuthority:Clients:cloudshell-test:Roles:0"] =
                 "CloudShell.Administrator",
+            ["ResourceIdentity:DefaultProviderId"] = "identity:entra",
+            ["ResourceIdentity:Providers:0:Id"] = "identity:dev",
+            ["ResourceIdentity:Providers:0:Name"] = "Development identity",
+            ["ResourceIdentity:Providers:0:Kind"] = "Oidc",
+            ["ResourceIdentity:Providers:1:Id"] = "identity:entra",
+            ["ResourceIdentity:Providers:1:Name"] = "Microsoft Entra ID",
+            ["ResourceIdentity:Providers:1:Kind"] = "Oidc",
+            ["ResourceIdentity:Providers:1:Settings:authority"] =
+                "https://login.microsoftonline.com/common/v2.0",
             ["Persistence:Provider"] = "Sqlite",
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-test.db",
             ["Persistence:IdentityConnectionString"] = "Data Source=Data/identity-test.db"

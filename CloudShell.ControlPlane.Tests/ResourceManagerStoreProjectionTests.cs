@@ -134,6 +134,50 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResourceModelDiagnostics_ReportsUnregisteredIdentityProvider()
+    {
+        var resource = CreateResource(
+            "identity",
+            "Identity",
+            identity: new ResourceIdentityBinding("identity:missing"));
+        var store = CreateStore(
+            [resource],
+            identityProviders: new ResourceIdentityProviderCatalog(
+                [new("identity:dev", "Development identity", ResourceIdentityProviderKind.Oidc)]));
+
+        var diagnostic = Assert.Single(store.GetResourceModelDiagnostics());
+
+        Assert.Equal(ResourceModelValidation.ResourceIdentityProviderUnresolvedCode, diagnostic.Code);
+        Assert.Equal("identity", diagnostic.ResourceId);
+        Assert.Equal("test.resource", diagnostic.ResourceType);
+        Assert.Equal(ResourceClass.Generic, diagnostic.ExpectedResourceClass);
+        Assert.Equal(ResourceClass.Generic, diagnostic.ActualResourceClass);
+        Assert.Equal("identity binding", diagnostic.Source);
+        Assert.Contains("identity:missing", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GetResourceModelDiagnostics_ReportsMissingDefaultIdentityProvider()
+    {
+        var resource = CreateResource(
+            "identity",
+            "Identity",
+            identity: ResourceIdentityBinding.RequireIdentity());
+        var store = CreateStore(
+            [resource],
+            identityProviders: new ResourceIdentityProviderCatalog(
+                [
+                    new("identity:dev", "Development identity", ResourceIdentityProviderKind.Oidc),
+                    new("identity:entra", "Microsoft Entra ID", ResourceIdentityProviderKind.Oidc)
+                ]));
+
+        var diagnostic = Assert.Single(store.GetResourceModelDiagnostics());
+
+        Assert.Equal(ResourceModelValidation.ResourceIdentityProviderUnresolvedCode, diagnostic.Code);
+        Assert.Contains("No default resource identity provider", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GetGroupForResource_InheritsGroupFromRegisteredParent()
     {
         var group = new ResourceGroup("group-one", "Group One", "Test group", []);
@@ -169,7 +213,8 @@ public sealed class ResourceManagerStoreProjectionTests
         IReadOnlyList<ResourceGroup>? groups = null,
         IReadOnlyList<ResourceRegistration>? registrations = null,
         ResourceDeclarationStore? declarations = null,
-        CloudShellExtensionRegistry? extensionRegistry = null)
+        CloudShellExtensionRegistry? extensionRegistry = null,
+        ResourceIdentityProviderCatalog? identityProviders = null)
     {
         var groupStore = new TestResourceGroupStore(groups ?? []);
         var registrationStore = new TestResourceRegistrationStore(registrations ?? []);
@@ -178,6 +223,7 @@ public sealed class ResourceManagerStoreProjectionTests
             groupStore,
             registrationStore,
             declarations ?? new ResourceDeclarationStore(),
+            identityProviders ?? new ResourceIdentityProviderCatalog(),
             extensionRegistry ?? new CloudShellExtensionRegistry(),
             new InMemoryCloudShellExtensionActivationStore());
     }
@@ -199,7 +245,8 @@ public sealed class ResourceManagerStoreProjectionTests
         string name,
         string? parentResourceId = null,
         ResourceClass resourceClass = ResourceClass.Generic,
-        IReadOnlyDictionary<string, string>? attributes = null) =>
+        IReadOnlyDictionary<string, string>? attributes = null,
+        ResourceIdentityBinding? identity = null) =>
         new(
             id,
             name,
@@ -214,7 +261,8 @@ public sealed class ResourceManagerStoreProjectionTests
             ParentResourceId: parentResourceId,
             TypeId: "test.resource",
             ResourceClass: resourceClass,
-            Attributes: attributes);
+            Attributes: attributes,
+            Identity: identity);
 
     private static ResourceRegistration CreateRegistration(
         string resourceId,

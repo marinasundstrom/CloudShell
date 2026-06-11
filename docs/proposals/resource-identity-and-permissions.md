@@ -130,8 +130,11 @@ The first provider-selection slice adds `ResourceIdentityProviderCatalog`.
 Concrete `Provider` bindings resolve by provider ID. `Required` bindings
 resolve to the configured default provider; when exactly one provider is
 registered, that provider is the default. Multiple providers require an
-explicit default. Resource-group or parent-resource inheritance and
-provider-backed token behavior remain separate implementation work.
+explicit default. Control Plane hosts can register providers and the default
+through `ResourceIdentity` configuration. Resources with identity bindings that
+cannot be resolved to a registered provider produce resource model diagnostics.
+Resource-group or parent-resource inheritance and provider-backed token
+behavior remain separate implementation work.
 
 ### Resource permissions
 

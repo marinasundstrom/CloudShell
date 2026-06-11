@@ -100,9 +100,11 @@ The MVP should prove:
 - Resource identity provider selection now has a catalog abstraction. Concrete
   provider bindings resolve by provider ID; required-but-unresolved bindings
   resolve to the configured default provider, with a single registered provider
-  used as the implicit default. Resource-group or parent-resource inheritance,
-  token issuance, and provider-backed workload behavior remain future resource
-  identity work.
+  used as the implicit default. Control Plane hosts can register providers and
+  the default through `ResourceIdentity` configuration. Unresolved identity
+  providers are reported through resource model diagnostics. Resource-group or
+  parent-resource inheritance, token issuance, and provider-backed workload
+  behavior remain future resource identity work.
 - Programmatic resource declarations should support identity intent as a normal
   authoring concern, including concrete provider bindings and declarations
   that a resource will have an identity whose provider-specific details are

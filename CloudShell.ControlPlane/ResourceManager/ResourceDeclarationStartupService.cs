@@ -26,6 +26,7 @@ public sealed class ResourceDeclarationStartupService(
     EfCoreResourceStore persistedResources,
     ResourceDeclarationStore declarations,
     ResourceOrchestratorSelectionStore selectionStore,
+    ResourceIdentityProviderCatalog identityProviders,
     CloudShellExtensionRegistry extensionRegistry,
     ICloudShellExtensionActivationStore activationStore)
 {
@@ -38,6 +39,7 @@ public sealed class ResourceDeclarationStartupService(
             persistedResources,
             registrations,
             declarations,
+            identityProviders,
             extensionRegistry,
             activationStore);
         var orchestration = new ResourceOrchestrationService(
