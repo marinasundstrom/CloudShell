@@ -162,6 +162,27 @@ public enum ResourceIdentityBindingKind
     Required
 }
 
+public sealed record ResourceIdentityReference(
+    string ResourceId,
+    string? Name = null)
+{
+    public string ResourceId { get; init; } = RequireResourceId(ResourceId);
+
+    public static ResourceIdentityReference ForResource(
+        string resourceId,
+        string? name = null) =>
+        new(resourceId, NormalizeOptional(name));
+
+    private static string RequireResourceId(string resourceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        return resourceId.Trim();
+    }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
+
 public sealed record ResourceIdentityBinding(
     string? ProviderId,
     string? Subject = null,

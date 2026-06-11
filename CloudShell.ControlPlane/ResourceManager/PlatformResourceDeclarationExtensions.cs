@@ -411,6 +411,8 @@ internal sealed class NetworkResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
+    public ResourceIdentityReference Identity => inner.Identity;
+
     public INetworkResourceBuilder AsDefault(bool isDefault = true)
     {
         declared.Definition = declared.Definition with { IsDefault = isDefault };
@@ -639,6 +641,8 @@ internal sealed class ServiceResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
+    public ResourceIdentityReference Identity => inner.Identity;
+
     public IServiceResourceBuilder Targets(IResourceBuilder resource, int weight = 100)
     {
         ArgumentNullException.ThrowIfNull(resource);
@@ -849,6 +853,8 @@ internal sealed class LoadBalancerResourceBuilder(
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
 
     public string ResourceId => inner.ResourceId;
+
+    public ResourceIdentityReference Identity => inner.Identity;
 
     public ILoadBalancerResourceBuilder UseProvider(string provider)
     {

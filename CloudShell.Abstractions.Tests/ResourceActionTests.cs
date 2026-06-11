@@ -244,16 +244,16 @@ public sealed class ResourceActionTests
     public void ResourceActionPermissions_MapStandardActionsToLifecyclePermission()
     {
         Assert.Equal(
-            CloudShellPermissions.Resources.Actions.Lifecycle,
+            CommonResourceOperationPermissions.LifecycleAction,
             ResourceActionPermissions.GetRequiredPermission(ResourceAction.Run));
         Assert.Equal(
-            CloudShellPermissions.Resources.Actions.Lifecycle,
+            CommonResourceOperationPermissions.LifecycleAction,
             ResourceActionPermissions.GetRequiredPermission(ResourceAction.Stop));
         Assert.Equal(
-            CloudShellPermissions.Resources.Actions.Lifecycle,
+            CommonResourceOperationPermissions.LifecycleAction,
             ResourceActionPermissions.GetRequiredPermission(ResourceAction.Pause));
         Assert.Equal(
-            CloudShellPermissions.Resources.Actions.Lifecycle,
+            CommonResourceOperationPermissions.LifecycleAction,
             ResourceActionPermissions.GetRequiredPermission(ResourceAction.Restart));
     }
 
@@ -263,7 +263,7 @@ public sealed class ResourceActionTests
         var action = new ResourceAction("applyLoadBalancerConfiguration", "Apply");
 
         Assert.Equal(
-            CloudShellPermissions.Resources.Actions.Execute,
+            CommonResourceOperationPermissions.ExecuteCustomAction,
             ResourceActionPermissions.GetRequiredPermission(action));
     }
 
@@ -273,11 +273,28 @@ public sealed class ResourceActionTests
         var action = new ResourceAction(
             "applyLoadBalancerConfiguration",
             "Apply",
-            RequiredPermission: CloudShellPermissions.Network.Actions.ApplyLoadBalancerConfiguration);
+            RequiredPermission: LoadBalancerResourceOperationPermissions.ApplyConfiguration);
 
         Assert.Equal(
-            CloudShellPermissions.Network.Actions.ApplyLoadBalancerConfiguration,
+            LoadBalancerResourceOperationPermissions.ApplyConfiguration,
             ResourceActionPermissions.GetRequiredPermission(action));
+    }
+
+    [Fact]
+    public void CloudShellPermissions_KeepCompatibilityAliasesForResourceOperationPermissions()
+    {
+        Assert.Equal(
+            CommonResourceOperationPermissions.LifecycleAction,
+            CloudShellPermissions.Resources.Actions.Lifecycle);
+        Assert.Equal(
+            CommonResourceOperationPermissions.ExecuteCustomAction,
+            CloudShellPermissions.Resources.Actions.Execute);
+        Assert.Equal(
+            NetworkResourceOperationPermissions.ReconcileEndpointMappings,
+            CloudShellPermissions.Network.Actions.ReconcileEndpointMappings);
+        Assert.Equal(
+            LoadBalancerResourceOperationPermissions.ApplyConfiguration,
+            CloudShellPermissions.Network.Actions.ApplyLoadBalancerConfiguration);
     }
 
     private static Resource CreateResource(IReadOnlyList<ResourceAction>? actions = null) =>

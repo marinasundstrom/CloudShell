@@ -93,6 +93,10 @@ The MVP should prove:
   `CloudShell.Network/networks/reconcileEndpointMappings/action`, and
   load-balancer configuration apply now uses
   `CloudShell.Network/loadBalancers/applyConfiguration/action`.
+  Common operation constants live in `CommonResourceOperationPermissions`;
+  resource-type-specific operation constants live in dedicated classes such as
+  `NetworkResourceOperationPermissions` and
+  `LoadBalancerResourceOperationPermissions`.
 - Resources can project an optional resource identity binding with kind, stable
   name, provider ID when resolved, subject, scopes, and non-secret claim
   metadata. The Control Plane API and remote client expose this as
@@ -116,8 +120,11 @@ The MVP should prove:
   through diagnostics. Authentication-disabled local development can use a
   mock/development provider, but that is only one development path before
   switching the same resource to Microsoft Entra ID or another production
-  provider. Multiple identities, permission grants, and provider-backed token
-  lifecycle remain future resource identity work.
+  provider.
+- Programmatic declarations can record model-only permission grants with
+  `target.Allow(source.Identity, permission)`. Grant evaluation, mock-principal
+  tests, token-claim projection, authority registration, multiple identities,
+  and provider-backed token lifecycle remain future resource identity work.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.

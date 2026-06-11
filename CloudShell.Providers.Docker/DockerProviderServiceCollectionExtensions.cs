@@ -367,6 +367,8 @@ internal sealed class DockerResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
+    public ResourceIdentityReference Identity => inner.Identity;
+
     public IDockerResourceBuilder UseLocalHost()
     {
         declared.Definition = declared.Definition with
@@ -673,6 +675,8 @@ internal sealed class DockerContainerResourceBuilder(
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
 
     public string ResourceId => inner.ResourceId;
+
+    public ResourceIdentityReference Identity => inner.Identity;
 
     public IDockerContainerResourceBuilder WithImage(string image)
     {

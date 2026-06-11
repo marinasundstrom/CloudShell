@@ -1,5 +1,26 @@
 namespace CloudShell.Abstractions.Authorization;
 
+public static class CommonResourceOperationPermissions
+{
+    public const string LifecycleAction =
+        "CloudShell.Resources/resources/lifecycle/action";
+
+    public const string ExecuteCustomAction =
+        "CloudShell.Resources/resources/actions/execute/action";
+}
+
+public static class NetworkResourceOperationPermissions
+{
+    public const string ReconcileEndpointMappings =
+        "CloudShell.Network/networks/reconcileEndpointMappings/action";
+}
+
+public static class LoadBalancerResourceOperationPermissions
+{
+    public const string ApplyConfiguration =
+        "CloudShell.Network/loadBalancers/applyConfiguration/action";
+}
+
 public static class CloudShellPermissions
 {
     public const string All = "*";
@@ -25,8 +46,8 @@ public static class CloudShellPermissions
 
         public static class Actions
         {
-            public const string Lifecycle = "CloudShell.Resources/resources/lifecycle/action";
-            public const string Execute = "CloudShell.Resources/resources/actions/execute/action";
+            public const string Lifecycle = CommonResourceOperationPermissions.LifecycleAction;
+            public const string Execute = CommonResourceOperationPermissions.ExecuteCustomAction;
         }
     }
 
@@ -35,9 +56,9 @@ public static class CloudShellPermissions
         public static class Actions
         {
             public const string ReconcileEndpointMappings =
-                "CloudShell.Network/networks/reconcileEndpointMappings/action";
+                NetworkResourceOperationPermissions.ReconcileEndpointMappings;
             public const string ApplyLoadBalancerConfiguration =
-                "CloudShell.Network/loadBalancers/applyConfiguration/action";
+                LoadBalancerResourceOperationPermissions.ApplyConfiguration;
         }
     }
 }

@@ -198,6 +198,62 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ResourcePermissionGrantExtensions_RecordIdentityPermissionGrant()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var api = resources
+                    .Declare("applications", "application:api")
+                    .WithIdentity("development", name: "api-service");
+
+                resources
+                    .Declare("configuration", "configuration:database")
+                    .Allow(api.Identity, "Database/databases/readWrite/action")
+                    .Allow(api.Identity, "Database/databases/readWrite/action");
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var grant = Assert.Single(store.GetPermissionGrants());
+
+        Assert.Equal("application:api", grant.Identity.ResourceId);
+        Assert.Equal("api-service", grant.Identity.Name);
+        Assert.Equal("configuration:database", grant.TargetResourceId);
+        Assert.Equal("Database/databases/readWrite/action", grant.Permission);
+    }
+
+    [Fact]
+    public void ResourcePermissionGrantExtensions_CanGrantToResourceBuilderIdentity()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var api = resources.Declare("applications", "application:api");
+
+                resources
+                    .Declare("configuration", "configuration:database")
+                    .Allow(api, "Database/databases/read/action");
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var grant = Assert.Single(store.GetPermissionGrants());
+
+        Assert.Equal("application:api", grant.Identity.ResourceId);
+        Assert.Equal("configuration:database", grant.TargetResourceId);
+        Assert.Equal("Database/databases/read/action", grant.Permission);
+    }
+
+    [Fact]
     public void ResourceManagerStore_AppliesDeclarationParentMetadata()
     {
         var services = new ServiceCollection();

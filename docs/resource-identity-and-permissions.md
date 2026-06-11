@@ -149,18 +149,42 @@ let local tests declare user or workload principals and exercise permission
 boundaries between resources before the same model is connected to Microsoft
 Entra ID or another production authority.
 
+Programmatic declarations can also record permission grants from one resource
+identity to another resource:
+
+```csharp
+var api = resources
+    .AddAspNetCoreProject("application:api", "API", "../Api/Api.csproj")
+    .WithIdentity("development", name: "api-service");
+
+var database = resources.Declare("database", "database:app");
+
+database.Allow(api.Identity, "Database/databases/readWrite/action");
+```
+
+These grants are model declarations only in the current implementation. They
+are not yet evaluated by Resource Manager, issued as token claims, or registered
+with an external identity authority.
+
 ## Operation Permissions
 
 Resource actions use Azure RBAC-style operation names. Resource Manager checks
 the required operation permission before executing an action. `resources.manage`
 currently remains a compatibility superset for resource actions.
 
+Permission constants are grouped by scope. Cross-resource operation permissions
+live in `CommonResourceOperationPermissions`. Resource-type-specific operation
+permissions live in one class per resource type, such as
+`NetworkResourceOperationPermissions` or
+`LoadBalancerResourceOperationPermissions`. Older `CloudShellPermissions`
+members remain compatibility aliases.
+
 | Resource type or class | Action | Permission |
 | --- | --- | --- |
-| Any resource with standard lifecycle actions | `run`, `stop`, `pause`, `restart` | `CloudShell.Resources/resources/lifecycle/action` |
-| Any resource with a custom action and no narrower declared operation | custom action execution | `CloudShell.Resources/resources/actions/execute/action` |
-| `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `CloudShell.Network/networks/reconcileEndpointMappings/action` |
-| `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `CloudShell.Network/loadBalancers/applyConfiguration/action` |
+| Any resource with standard lifecycle actions | `run`, `stop`, `pause`, `restart` | `CommonResourceOperationPermissions.LifecycleAction` |
+| Any resource with a custom action and no narrower declared operation | custom action execution | `CommonResourceOperationPermissions.ExecuteCustomAction` |
+| `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
+| `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
 
 When adding a new resource action, document the operation permission in this
 catalog. Prefer a resource-type-specific operation for meaningful provider or

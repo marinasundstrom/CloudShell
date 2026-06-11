@@ -355,6 +355,8 @@ internal sealed class ExecutableApplicationResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
+    public ResourceIdentityReference Identity => inner.Identity;
+
     public IExecutableResourceBuilder WithCommand(
         string executablePath,
         string? arguments = null,

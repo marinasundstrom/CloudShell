@@ -38,6 +38,8 @@ public interface IResourceBuilder
 
     string ResourceId { get; }
 
+    ResourceIdentityReference Identity { get; }
+
     IResourceBuilder WithResourceGroup(string? resourceGroupId);
 
     IResourceBuilder WithParent(string? parentResourceId);
@@ -93,6 +95,22 @@ public interface IProgrammaticResourceDeclarationProvider
         ResourceDeclaration declaration,
         IResourceRegistrationStore registrations,
         CancellationToken cancellationToken = default);
+}
+
+public sealed record ResourcePermissionGrant(
+    ResourceIdentityReference Identity,
+    string TargetResourceId,
+    string Permission)
+{
+    public string TargetResourceId { get; init; } = RequireValue(TargetResourceId);
+
+    public string Permission { get; init; } = RequireValue(Permission);
+
+    private static string RequireValue(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        return value.Trim();
+    }
 }
 
 public static class ResourceDeclarationBuilderExtensions
@@ -292,6 +310,33 @@ public static class ResourceDeclarationBuilderExtensions
             });
     }
 
+    public static TBuilder Allow<TBuilder>(
+        this TBuilder builder,
+        ResourceIdentityReference identity,
+        string permission)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(identity);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .AddPermissionGrant(new ResourcePermissionGrant(
+                identity,
+                builder.ResourceId,
+                permission));
+        return builder;
+    }
+
+    public static TBuilder Allow<TBuilder>(
+        this TBuilder builder,
+        IResourceBuilder resource,
+        string permission)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(resource);
+        return builder.Allow(resource.Identity, permission);
+    }
+
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
@@ -407,6 +452,7 @@ public sealed class ResourceDeclarationStore
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<Action<ResourceDeclaration>>> _changeHandlers =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<ResourcePermissionGrant> _permissionGrants = [];
     private bool _defaultAutoStart = true;
     private bool _defaultDependencyAutoStart = true;
 
@@ -507,6 +553,19 @@ public sealed class ResourceDeclarationStore
         lock (_gate)
         {
             return _declarations.GetValueOrDefault(resourceId);
+        }
+    }
+
+    public IReadOnlyList<ResourcePermissionGrant> GetPermissionGrants()
+    {
+        lock (_gate)
+        {
+            return _permissionGrants
+                .OrderBy(grant => grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(grant => grant.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(grant => grant.Identity.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
         }
     }
 
@@ -623,6 +682,25 @@ public sealed class ResourceDeclarationStore
         {
             Identity = identity
         });
+    }
+
+    public void AddPermissionGrant(ResourcePermissionGrant grant)
+    {
+        ArgumentNullException.ThrowIfNull(grant);
+
+        lock (_gate)
+        {
+            if (_permissionGrants.Any(existing =>
+                    string.Equals(existing.TargetResourceId, grant.TargetResourceId, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(existing.Permission, grant.Permission, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(existing.Identity.ResourceId, grant.Identity.ResourceId, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(existing.Identity.Name, grant.Identity.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            _permissionGrants.Add(grant);
+        }
     }
 
     public bool ShouldAutoStart(string resourceId)
@@ -772,6 +850,11 @@ internal sealed class ResourceBuilder(
     public ICloudShellBuilder CloudShellBuilder { get; } = cloudShellBuilder;
 
     public string ResourceId { get; } = resourceId;
+
+    public ResourceIdentityReference Identity =>
+        ResourceIdentityReference.ForResource(
+            ResourceId,
+            declarations.GetDeclaration(ResourceId)?.IdentityBinding?.Name);
 
     public IResourceBuilder WithResourceGroup(string? resourceGroupId)
     {

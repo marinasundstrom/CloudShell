@@ -50,11 +50,15 @@ Work the current proposals in this order:
   permission inheritance boundaries, token claim mapping, workload identity
   lifecycle, and provider or orchestrator identities. Standard resource action
   permissions now use Azure-style operation names with `resources.manage` as a
-  compatibility superset.
+  compatibility superset. Programmatic declarations can now record model-only
+  permission grants; next connect those grants to evaluation, mock-principal
+  tests, token claims, and authority registration.
 - Continue assigning and documenting specific Azure-style operation permissions
   per resource type or class. Load-balancer apply and network endpoint
   reconciliation now use documented network operation permissions instead of
-  the generic custom-action execute permission.
+  the generic custom-action execute permission. Add new operation constants to
+  `CommonResourceOperationPermissions` for cross-resource behavior or to a
+  dedicated resource-type permission class for resource-specific behavior.
 - Continue resource action authorization beyond lifecycle actions so Resource
   Manager evaluates permissions before configuration updates, deployment
   operations, logs, diagnostics, and provider actions.

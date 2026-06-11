@@ -223,6 +223,8 @@ internal sealed class SecretsVaultResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
+    public ResourceIdentityReference Identity => inner.Identity;
+
     public ISecretsVaultResourceBuilder WithSecrets(IReadOnlyList<SecretsVaultSecret> secrets)
     {
         declared.Definition = declared.Definition with { Secrets = secrets };
@@ -395,6 +397,8 @@ internal sealed class HostConfigurationSourceResourceBuilder(
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
 
     public string ResourceId => inner.ResourceId;
+
+    public ResourceIdentityReference Identity => inner.Identity;
 
     public IHostConfigurationSourceResourceBuilder WithEntries(IReadOnlyList<string> entries)
     {
@@ -570,6 +574,8 @@ internal sealed class ConfigurationStoreResourceBuilder(
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
 
     public string ResourceId => inner.ResourceId;
+
+    public ResourceIdentityReference Identity => inner.Identity;
 
     public IConfigurationStoreResourceBuilder WithEntries(IReadOnlyList<ConfigurationEntry> entries)
     {

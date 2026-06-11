@@ -39,13 +39,13 @@ public sealed class PlatformResourceProvider(
         ReconcileEndpointMappingsActionId,
         "Reconcile endpoint mappings",
         Description: "Validate and apply endpoint mappings for the network resource.",
-        RequiredPermission: CloudShellPermissions.Network.Actions.ReconcileEndpointMappings);
+        RequiredPermission: NetworkResourceOperationPermissions.ReconcileEndpointMappings);
 
     private static readonly ResourceAction ApplyLoadBalancerConfigurationAction = new(
         ApplyLoadBalancerConfigurationActionId,
         "Apply load balancer configuration",
         Description: "Validate and materialize load balancer routes for the selected provider.",
-        RequiredPermission: CloudShellPermissions.Network.Actions.ApplyLoadBalancerConfiguration);
+        RequiredPermission: LoadBalancerResourceOperationPermissions.ApplyConfiguration);
 
     public string Id => ProviderId;
 

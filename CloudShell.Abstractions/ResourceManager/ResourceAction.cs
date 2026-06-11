@@ -73,8 +73,8 @@ public static class ResourceActionPermissions
             ResourceActionKind.Run or
             ResourceActionKind.Stop or
             ResourceActionKind.Pause or
-            ResourceActionKind.Restart => CloudShellPermissions.Resources.Actions.Lifecycle,
-            _ => CloudShellPermissions.Resources.Actions.Execute
+            ResourceActionKind.Restart => CommonResourceOperationPermissions.LifecycleAction,
+            _ => CommonResourceOperationPermissions.ExecuteCustomAction
         };
 }
 

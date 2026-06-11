@@ -167,12 +167,18 @@ operation permissions:
 
 Current resource-type and resource-class operation permissions:
 
+Permission constants should follow the same structure as the resource model:
+common cross-resource permissions live in `CommonResourceOperationPermissions`,
+and resource-type-specific permissions live in a dedicated class per resource
+type. The current compatibility aliases under `CloudShellPermissions` can stay,
+but new resource operation permissions should use the explicit catalog classes.
+
 | Resource type or class | Action | Permission |
 | --- | --- | --- |
-| Any resource with standard lifecycle actions | `run`, `stop`, `pause`, `restart` | `CloudShell.Resources/resources/lifecycle/action` |
-| Any resource with a custom action and no narrower declared operation | custom action execution | `CloudShell.Resources/resources/actions/execute/action` |
-| `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `CloudShell.Network/networks/reconcileEndpointMappings/action` |
-| `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `CloudShell.Network/loadBalancers/applyConfiguration/action` |
+| Any resource with standard lifecycle actions | `run`, `stop`, `pause`, `restart` | `CommonResourceOperationPermissions.LifecycleAction` |
+| Any resource with a custom action and no narrower declared operation | custom action execution | `CommonResourceOperationPermissions.ExecuteCustomAction` |
+| `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
+| `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
 
 The existing `resources.manage` permission remains a compatibility superset
 while the model moves toward resource operation permissions.
@@ -211,6 +217,12 @@ Mock identity support should later cover declared user or workload principals,
 not only resource metadata. That would let local tests exercise permission
 boundaries between resources before the same declarations are backed by
 Microsoft Entra ID or another production authority.
+
+The first grant authoring surface stores declarations such as
+`target.Allow(source.Identity, permission)` in the programmatic declaration
+store. This is intentionally model-only for now: the grants are not yet
+evaluated by Resource Manager, issued as token claims, or registered with an
+external authority.
 
 Supporting one or more identities on a resource programmatically is likely
 worth adding before the provider-backed token lifecycle is complete. That
@@ -275,6 +287,6 @@ permission-assignment support.
 - Add resource-level permission names and policy evaluation rules.
 - Decide whether to expand the initial single-identity authoring API to
   multiple identities per resource.
-- Add authoring APIs for permission grants between resource identities and
-  target resources.
+- Connect declared permission grants to authorization evaluation, mock identity
+  tests, token claims, and provider or authority registration.
 - Wire the identity contract into at least one provider-backed workload type.
