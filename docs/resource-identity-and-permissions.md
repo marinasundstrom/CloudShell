@@ -220,10 +220,12 @@ unless it later needs to call another resource or provider. External authority
 registration, durable client storage, and bearer token proof against
 provider-backed workloads remain future work.
 
-The generated Resource Manager detail view displays the identity binding when a
-resource has one, lists declared permission grants, and exposes a provisioning
-command for resources with identity bindings. Editing identity bindings and
-permission grants in the CloudShell UI is future work.
+The generated Resource Manager overview displays basic identity binding
+metadata when a resource has one. Resource identity actions are isolated in a
+separate generated Identity tab that appears only for resources with identity
+enabled; that tab lists declared permission grants and exposes the provisioning
+command. Editing identity bindings and permission grants in the CloudShell UI
+is future work.
 
 Managed identity behavior is also future work. A managed identity provider
 should be able to resolve a resource identity binding and, where supported,

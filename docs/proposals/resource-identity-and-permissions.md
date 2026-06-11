@@ -36,9 +36,10 @@ can improve this area iteratively alongside other proposals.
 4. Microsoft Entra ID compatibility: map the same identity and grant model to
    Entra app registrations, service principals, app roles or groups, token
    validation, and automation flows.
-5. UI management: move beyond read-only identity/grant display and the
-   provision command into guided identity binding, grant editing, diagnostics,
-   and provider-resource management.
+5. UI management: keep overview identity details read-only, isolate identity
+   actions in an Identity tab for identity-enabled resources, and then expand
+   that tab into guided identity binding, grant editing, diagnostics, and
+   provider-resource management.
 
 ## Problem
 
@@ -465,8 +466,8 @@ permission-assignment support.
 - Extend declared permission grants beyond model-level resource action
   execution into mock identity tests, token claims, provider-backed identity
   proof, and provider or authority registration.
-- Add Resource Manager UI workflows beyond the current read-only identity and
-  grant display plus provision command, including guided management for
+- Add Resource Manager UI workflows beyond the current read-only overview
+  identity summary and generated Identity tab, including guided management for
   resource identity bindings and permission grants.
 - Add concrete managed identity provider behavior for registering or
   provisioning resource identities and grants with the backing authority.

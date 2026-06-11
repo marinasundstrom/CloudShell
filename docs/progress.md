@@ -130,9 +130,10 @@ The MVP should prove:
   execution can carry an explicit acting resource identity; Resource Manager
   evaluates declared grants for that identity and does not fall back to the
   current user's permissions in that path. The generated Resource Manager
-  overview displays resource identity bindings and declared grants when
-  present and can trigger identity provisioning for a bound resource. A
-  provider-neutral `IResourceIdentityProvisioner` contract and Control Plane
+  overview displays basic identity binding metadata when present, while a
+  separate generated Identity tab appears for identity-enabled resources and
+  contains declared grants plus the provisioning command. A provider-neutral
+  `IResourceIdentityProvisioner` contract and Control Plane
   provisioning planner can group declared identities and matching grants by
   resolved identity provider. The built-in development provider can provision
   an in-memory client-credentials client for a resource identity and project

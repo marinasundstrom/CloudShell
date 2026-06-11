@@ -79,9 +79,10 @@ Work the current proposals in this order:
   model is validated against a concrete resource path.
 - Add authorization diagnostics and capability reasons for denied or
   unavailable actions without leaking provider-specific internals.
-- Expand Resource Manager UI workflows from read-only identity/grant display
-  and the provision command into management for resource identity bindings and
-  permission grants after the backend model and evaluation path stabilize.
+- Expand Resource Manager UI workflows from the read-only overview identity
+  summary and generated Identity tab into management for resource identity
+  bindings and permission grants after the backend model and evaluation path
+  stabilize.
 - Add concrete managed identity provider behavior for registering or
   provisioning resource identities and grants with the backing authority. A
   built-in ASP.NET Core Identity-backed authority may be a useful reference or

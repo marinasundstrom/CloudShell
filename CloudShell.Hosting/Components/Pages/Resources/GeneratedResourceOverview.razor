@@ -82,46 +82,6 @@
                     </dd>
                 }
             </dl>
-            <div class="generated-row-actions">
-                <FluentButton Appearance="Appearance.Neutral"
-                              Disabled="@ProvisioningIdentity"
-                              OnClick="ProvisionIdentity">
-                    @GetProvisionIdentityButtonLabel()
-                </FluentButton>
-            </div>
-        </section>
-    }
-
-    @if (HasPermissionGrants)
-    {
-        <section class="generated-section">
-            <h3>@L["Permission grants"]</h3>
-            @if (OutboundPermissionGrants.Count > 0)
-            {
-                <div class="generated-list">
-                    @foreach (var grant in OutboundPermissionGrants)
-                    {
-                        <div>
-                            <strong>@L["Can access"]</strong>
-                            <span>@ResourceLink(grant.TargetResourceId)</span>
-                            <small>@grant.Permission</small>
-                        </div>
-                    }
-                </div>
-            }
-            @if (InboundPermissionGrants.Count > 0)
-            {
-                <div class="generated-list">
-                    @foreach (var grant in InboundPermissionGrants)
-                    {
-                        <div>
-                            <strong>@FormatIdentityReference(grant.Identity)</strong>
-                            <span>@L["Can access this resource"]</span>
-                            <small>@grant.Permission</small>
-                        </div>
-                    }
-                </div>
-            }
         </section>
     }
 
@@ -443,33 +403,23 @@
     private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
-    private IReadOnlyList<ResourcePermissionGrant> InboundPermissionGrants { get; set; } = [];
-    private IReadOnlyList<ResourcePermissionGrant> OutboundPermissionGrants { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
     private ResourceOperationCapabilities Capabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
     private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private string? ProcedureMessage { get; set; }
-    private bool ProvisioningIdentity { get; set; }
 
     private bool IsNetworkResource => Resource.ResourceClass == ResourceClass.Network ||
         Resource.HasCapability(ResourceCapabilityIds.NetworkingProvider);
 
     private bool IsLoadBalancerResource => HasLoadBalancerShape(Resource);
 
-    private bool HasPermissionGrants =>
-        InboundPermissionGrants.Count > 0 ||
-        OutboundPermissionGrants.Count > 0;
-
     protected override async Task OnParametersSetAsync()
     {
         ChildResources = await ResourceManager.ListResourceChildrenAsync(Resource.Id);
         Logs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: Resource.Id));
         Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
-        InboundPermissionGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
-            new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id));
-        OutboundPermissionGrants = await LoadOutboundPermissionGrantsAsync();
         InboundNetworkMappings = await LoadInboundNetworkMappingsAsync();
         InboundLoadBalancerRoutes = await LoadInboundLoadBalancerRoutesAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
@@ -491,62 +441,6 @@
         string.IsNullOrWhiteSpace(identity.Subject)
             ? L["Not assigned"].Value
             : identity.Subject;
-
-    private string FormatIdentityReference(ResourceIdentityReference identity)
-    {
-        var label = FindRelatedResource(identity.ResourceId)?.Name ?? identity.ResourceId;
-        if (string.IsNullOrWhiteSpace(identity.Name))
-        {
-            return label;
-        }
-
-        return $"{label} / {identity.Name}";
-    }
-
-    private async Task<IReadOnlyList<ResourcePermissionGrant>> LoadOutboundPermissionGrantsAsync()
-    {
-        if (Resource.IdentityBinding is not { } identity)
-        {
-            return [];
-        }
-
-        return await ResourceManager.ListResourcePermissionGrantsAsync(
-            new ResourcePermissionGrantQuery(
-                IdentityResourceId: Resource.Id,
-                IdentityName: identity.Name));
-    }
-
-    private string GetProvisionIdentityButtonLabel() =>
-        ProvisioningIdentity
-            ? L["Provisioning"].Value
-            : L["Provision identity"].Value;
-
-    private async Task ProvisionIdentity()
-    {
-        if (ProvisioningIdentity || Resource.IdentityBinding is null)
-        {
-            return;
-        }
-
-        ProvisioningIdentity = true;
-        ProcedureMessage = null;
-        try
-        {
-            var result = await ResourceManager.ProvisionResourceIdentityAsync(Resource.Id);
-            var diagnostic = result.ProvisioningDiagnostics.FirstOrDefault();
-            ProcedureMessage = diagnostic is null
-                ? L["Provisioned identity with provider {0}.", result.ProviderId].Value
-                : diagnostic.Message;
-        }
-        catch (Exception exception)
-        {
-            ProcedureMessage = exception.Message;
-        }
-        finally
-        {
-            ProvisioningIdentity = false;
-        }
-    }
 
     private bool CanExecuteAction(ResourceAction action) =>
         Capabilities.CanExecuteAction(action.Id);
@@ -807,8 +701,6 @@
             .Concat(InboundNetworkMappings.SelectMany(mapping => GetMappingResourceIds(mapping.Mapping)))
             .Concat(Resource.ResourceLoadBalancerRoutes.Select(route => route.Target.ResourceId))
             .Concat(InboundLoadBalancerRoutes.Select(route => route.Route.Target.ResourceId))
-            .Concat(InboundPermissionGrants.Select(grant => grant.Identity.ResourceId))
-            .Concat(OutboundPermissionGrants.Select(grant => grant.TargetResourceId))
             .Concat(GetMappingProviderIds())
             .Append(GetLoadBalancerHostResourceId(Resource))
             .Append(Resource.ParentResourceId)

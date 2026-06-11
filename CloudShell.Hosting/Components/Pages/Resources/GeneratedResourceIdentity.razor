@@ -1,0 +1,274 @@
+@using CloudShell.Abstractions.ControlPlane
+@using CloudShell.Abstractions.ResourceManager
+@inject IResourceManager ResourceManager
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
+    {
+        <div class="procedure-message">@ProcedureMessage</div>
+    }
+
+    @if (Resource is null)
+    {
+        <div class="empty-state">
+            <strong>@L["Resource not found"]</strong>
+            <span>@L["The resource may have been removed or is no longer visible."]</span>
+        </div>
+    }
+    else
+    {
+        <section class="generated-section">
+            <h3>@L["Resource identity"]</h3>
+            @if (Resource.IdentityBinding is { } identity)
+            {
+                <dl class="detail-list">
+                    <dt>@L["Name"]</dt>
+                    <dd>@FormatIdentityName(identity)</dd>
+                    <dt>@L["Kind"]</dt>
+                    <dd>@identity.Kind</dd>
+                    <dt>@L["Provider"]</dt>
+                    <dd>@FormatIdentityProvider(identity)</dd>
+                    <dt>@L["Subject"]</dt>
+                    <dd>@FormatIdentitySubject(identity)</dd>
+                    @if (identity.IdentityScopes.Count > 0)
+                    {
+                        <dt>@L["Scopes"]</dt>
+                        <dd>
+                            <div class="dependency-list">
+                                @foreach (var scope in identity.IdentityScopes.Order(StringComparer.OrdinalIgnoreCase))
+                                {
+                                    <span class="generated-pill-link">@scope</span>
+                                }
+                            </div>
+                        </dd>
+                    }
+                    @if (identity.IdentityClaims.Count > 0)
+                    {
+                        <dt>@L["Claims"]</dt>
+                        <dd>
+                            <div class="generated-list">
+                                @foreach (var claim in identity.IdentityClaims.OrderBy(claim => claim.Key, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    <div>
+                                        <strong>@claim.Key</strong>
+                                        <span>@claim.Value</span>
+                                    </div>
+                                }
+                            </div>
+                        </dd>
+                    }
+                </dl>
+                <div class="generated-row-actions">
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@ProvisioningIdentity"
+                                  OnClick="ProvisionIdentity">
+                        @GetProvisionIdentityButtonLabel()
+                    </FluentButton>
+                </div>
+            }
+            else
+            {
+                <dl class="detail-list">
+                    <dt>@L["Binding"]</dt>
+                    <dd>@L["None"]</dd>
+                </dl>
+            }
+        </section>
+
+        @if (HasPermissionGrants)
+        {
+            <section class="generated-section">
+                <h3>@L["Permission grants"]</h3>
+                @if (OutboundPermissionGrants.Count > 0)
+                {
+                    <div class="generated-list">
+                        @foreach (var grant in OutboundPermissionGrants)
+                        {
+                            <div>
+                                <strong>@L["Can access"]</strong>
+                                <span>@ResourceLink(grant.TargetResourceId)</span>
+                                <small>@grant.Permission</small>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (InboundPermissionGrants.Count > 0)
+                {
+                    <div class="generated-list">
+                        @foreach (var grant in InboundPermissionGrants)
+                        {
+                            <div>
+                                <strong>@FormatIdentityReference(grant.Identity)</strong>
+                                <span>@L["Can access this resource"]</span>
+                                <small>@grant.Permission</small>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string ResourceId { get; set; } = string.Empty;
+
+    private Resource? Resource { get; set; }
+    private IReadOnlyList<ResourcePermissionGrant> InboundPermissionGrants { get; set; } = [];
+    private IReadOnlyList<ResourcePermissionGrant> OutboundPermissionGrants { get; set; } = [];
+    private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+    private string? ProcedureMessage { get; set; }
+    private bool ProvisioningIdentity { get; set; }
+
+    private bool HasPermissionGrants =>
+        InboundPermissionGrants.Count > 0 ||
+        OutboundPermissionGrants.Count > 0;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        if (Resource is null)
+        {
+            InboundPermissionGrants = [];
+            OutboundPermissionGrants = [];
+            RelatedResources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+            return;
+        }
+
+        InboundPermissionGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id));
+        OutboundPermissionGrants = await LoadOutboundPermissionGrantsAsync();
+        RelatedResources = await LoadRelatedResourcesAsync();
+    }
+
+    private string FormatIdentityName(ResourceIdentityBinding identity) =>
+        string.IsNullOrWhiteSpace(identity.Name)
+            ? L["Default identity"].Value
+            : identity.Name;
+
+    private string FormatIdentityProvider(ResourceIdentityBinding identity) =>
+        string.IsNullOrWhiteSpace(identity.ProviderId)
+            ? L["Default provider"].Value
+            : identity.ProviderId;
+
+    private string FormatIdentitySubject(ResourceIdentityBinding identity) =>
+        string.IsNullOrWhiteSpace(identity.Subject)
+            ? L["Not assigned"].Value
+            : identity.Subject;
+
+    private string FormatIdentityReference(ResourceIdentityReference identity)
+    {
+        var label = FindRelatedResource(identity.ResourceId)?.Name ?? identity.ResourceId;
+        if (string.IsNullOrWhiteSpace(identity.Name))
+        {
+            return label;
+        }
+
+        return $"{label} / {identity.Name}";
+    }
+
+    private async Task<IReadOnlyList<ResourcePermissionGrant>> LoadOutboundPermissionGrantsAsync()
+    {
+        if (Resource?.IdentityBinding is not { } identity)
+        {
+            return [];
+        }
+
+        return await ResourceManager.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(
+                IdentityResourceId: Resource.Id,
+                IdentityName: identity.Name));
+    }
+
+    private async Task<IReadOnlyDictionary<string, Resource>> LoadRelatedResourcesAsync()
+    {
+        var ids = InboundPermissionGrants
+            .Select(grant => grant.Identity.ResourceId)
+            .Concat(OutboundPermissionGrants.Select(grant => grant.TargetResourceId))
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var resources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in ids)
+        {
+            var resource = string.Equals(Resource?.Id, id, StringComparison.OrdinalIgnoreCase)
+                ? Resource
+                : await ResourceManager.GetResourceAsync(id);
+            if (resource is not null)
+            {
+                resources[resource.Id] = resource;
+            }
+        }
+
+        return resources;
+    }
+
+    private Resource? FindRelatedResource(string resourceId)
+    {
+        if (Resource is not null &&
+            string.Equals(Resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return Resource;
+        }
+
+        return RelatedResources.GetValueOrDefault(resourceId);
+    }
+
+    private RenderFragment ResourceLink(string resourceId) => builder =>
+    {
+        var resource = FindRelatedResource(resourceId);
+        var label = resource?.Name ?? resourceId;
+        builder.OpenElement(0, "a");
+        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
+        builder.AddContent(3, label);
+        if (resource is not null)
+        {
+            builder.OpenElement(4, "small");
+            builder.AddContent(5, resource.EffectiveTypeId);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+
+    private string GetProvisionIdentityButtonLabel() =>
+        ProvisioningIdentity
+            ? L["Provisioning"].Value
+            : L["Provision identity"].Value;
+
+    private async Task ProvisionIdentity()
+    {
+        if (ProvisioningIdentity || Resource?.IdentityBinding is null)
+        {
+            return;
+        }
+
+        ProvisioningIdentity = true;
+        ProcedureMessage = null;
+        try
+        {
+            var result = await ResourceManager.ProvisionResourceIdentityAsync(Resource.Id);
+            var diagnostic = result.ProvisioningDiagnostics.FirstOrDefault();
+            ProcedureMessage = diagnostic is null
+                ? L["Provisioned identity with provider {0}.", result.ProviderId].Value
+                : diagnostic.Message;
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            ProvisioningIdentity = false;
+        }
+    }
+
+    private static string BuildResourceRoute(string resourceId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=identity";
+}
