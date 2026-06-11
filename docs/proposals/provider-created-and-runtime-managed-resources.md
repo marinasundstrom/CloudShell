@@ -54,6 +54,7 @@ preserving a clean user-facing model.
 ## Goals
 
 * Model provider-created and runtime-created entities as ordinary resources.
+* Provide guidance for deciding when an entity should be represented as a resource.
 * Distinguish resource source, management responsibility, lifecycle ownership,
   and visibility as separate qualities.
 * Distinguish user-authored resources from provider-created, orchestrator-created,
@@ -79,6 +80,7 @@ preserving a clean user-facing model.
   default.
 * Do not standardize every provider-created or runtime-created resource type in
   the first version.
+* Do not require providers to model every implementation detail as a resource.
 * Do not require all providers to project their internal implementation state.
 * Do not expose provider-owned secrets or implementation details as projected
   resource attributes.
@@ -188,6 +190,56 @@ Potential provider-created and runtime-created resource types include:
 * traffic-split entries
 
 The exact set should remain extensible and provider-owned where appropriate.
+
+## Resource Registration Guidance
+
+Not every provider-managed or runtime-managed implementation detail should be
+represented as a resource.
+
+The purpose of the resource model is to track meaningful resources and their
+relationships, not to expose every internal object maintained by a provider.
+
+Providers, orchestrators, and runtime controllers should register a separate
+resource when one or more of the following conditions apply:
+
+* the entity has an independent lifecycle
+* the entity can be created, updated, or deleted independently
+* the entity participates in ownership or dependency relationships
+* the entity exposes useful diagnostics or operational state
+* the entity exposes capabilities or actions
+* the entity may require authorization or auditing
+* the entity is useful for inspection, troubleshooting, or traceability
+* the entity may be referenced by other resources
+
+Providers are not required to register implementation details that do not
+provide meaningful value through the resource model.
+
+Examples that are often good candidates for resources:
+
+* deployment revisions
+* container images
+* replicas
+* endpoint registrations
+* backend registrations
+* mounted volumes
+* generated certificates
+
+Examples that may remain provider-owned implementation state:
+
+* temporary reconciliation operations
+* internal caches
+* protocol-specific connection objects
+* transient retry state
+* provider-specific optimization data
+
+CloudShell should not require providers to model every implementation detail as
+resources. A provider may maintain internal state outside the Resource Manager
+when that state does not benefit from resource tracking, ownership, diagnostics,
+or lifecycle management.
+
+The decision to register a resource should be based on whether representing the
+entity in the resource graph provides meaningful value to operators, providers,
+or other resources.
 
 ## Visibility Model
 
