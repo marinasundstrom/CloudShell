@@ -132,15 +132,19 @@ The initial implementation may keep provider definitions configuration-backed,
 but the resource model should support identity-provider registration through the
 same programmatic authoring surface used for other resources.
 
-CloudShell should also support a default identity provider that can be declared
-outside the resource graph and used implicitly by resources that require
-identity. This allows simple applications to opt into identity without first
-creating an identity provider resource.
+CloudShell should also support a default identity provider that is supplied by
+the host, environment, or project configuration without being explicitly
+authored as a resource. The provider still participates in the effective
+resource graph as the ambient authority used to resolve identity requirements,
+but simple applications should not have to declare an identity provider
+resource before opting into identity.
 
-A default identity provider represents the ambient identity authority for a host,
-environment, or project. An identity provider resource represents an explicit
-shared authority, connection, or provisioning endpoint used by one or more
-resource identities in the resource graph.
+A default identity provider represents the ambient identity authority for a
+host, environment, or project. It may be projected into the effective graph by
+CloudShell even when it was not explicitly declared by the application. An
+identity provider resource represents an explicitly authored shared authority,
+connection, or provisioning endpoint used by one or more resource identities in
+the resource graph.
 
 Examples include:
 
@@ -174,6 +178,44 @@ role mapping, and client-credentials/service-principal flows for automation.
 Other standards-compliant providers such as Keycloak, Auth0, and Okta should
 remain replaceable options without changing CloudShell's resource identity
 model.
+
+### Built-in identity provider and provisioning endpoints
+
+The built-in identity provider should be treated as a minimal CloudShell-owned
+authority implementation, not as the CloudShell identity domain model itself.
+It exists to support local development, self-hosted installations, tests,
+samples, and simple team environments where an external authority has not yet
+been configured.
+
+The built-in provider can be backed by ASP.NET Core Identity or a similar
+store. It should store the concrete provider-side state needed to authenticate
+CloudShell users and applications, including principal records, non-secret
+claim metadata, declared grants, and provider-managed credential references.
+Since CloudShell needs to represent both human users and application or
+workload identities, the provider should distinguish user principals from
+application principals rather than treating applications as ordinary users.
+
+The built-in provider should expose a small token-based endpoint surface that
+is close enough to OpenID Connect and OAuth-style usage for CloudShell
+components and resource applications to authenticate against it. That surface
+can include provisioning endpoints used by Resource Manager or provider
+implementations to register application identities, reconcile grants, and
+project declared resource access into token-shaped authorization evidence.
+
+This built-in endpoint surface is intentionally shallow. It should not imply
+that CloudShell is implementing a complete OAuth authorization server,
+complete OpenID Connect provider, IdentityServer replacement, Microsoft Entra
+ID replacement, or general-purpose identity platform. The built-in provider is
+a development and self-hosting convenience that materializes the CloudShell
+resource identity and access model into a usable local authority.
+
+Compliance and interoperability should be tested separately against
+IdentityServer or another real OIDC provider. Those tests should verify that
+CloudShell's provider abstraction can map resource identity bindings and
+access grants to standards-compliant issuer metadata, token validation,
+audiences, claims, scopes, client credentials, app roles, groups, or other
+provider-native concepts without making those protocol details part of the
+resource-domain model.
 
 Programmatic resource declarations should be able to express identity intent as
 part of normal resource authoring. A resource may bind to a concrete provider
@@ -474,7 +516,6 @@ The same declarations later help deployment automation because CloudShell can
 register identities and permission grants with the selected authority instead
 of discovering that intent from provider-specific configuration.
 
-Open authoring questions:
 
 - Whether `api.Identity` is a single default identity or a collection with a
   default identity selected by name.
@@ -486,9 +527,13 @@ Open authoring questions:
 - Whether access grants such as `Allow(...)` live on target resources,
   resource groups, provider-specific builders, or a shared access builder.
 - Whether identity providers should remain configuration-backed, become
-  first-class resources, or support both models.
+  first-class resources, or support both explicit resources and projected
+  default providers in the effective graph.
 - How default identity providers should be declared and overridden by resource
   groups, parent resources, or explicit provider resources.
+- Whether local development should default to the built-in identity provider
+  when a resource requires identity but no explicit identity provider has been
+  declared, and how that fallback should be disabled or overridden.
 - Whether grants should support a distinction between requested access and
   effective access.
 - Whether resources should reference provider objects directly instead of
@@ -506,14 +551,21 @@ uniform resource model. Capabilities can still advertise provider behavior such
 as managed identity provisioning, token issuance, protected API support, or
 permission-assignment support.
 
-## Remaining tasks
 
 - Define default resource identity-provider selection inheritance from resource
   groups or parent resources.
-- Define how a default identity provider is declared without adding an identity
-  provider resource to the graph.
-- Add the reference development identity server hosting path and OIDC/OAuth
-  configuration.
+- Define how a default identity provider is supplied by host, environment, or
+  project configuration and projected into the effective graph without being
+  explicitly authored as an identity-provider resource.
+- Decide whether the local development environment should automatically use
+  the built-in identity provider as the default when no explicit identity
+  provider is declared.
+- Add the built-in identity provider hosting path, provisioning endpoints, and
+  shallow token-based authority surface for local development and self-hosted
+  scenarios.
+- Add IdentityServer or real OIDC compliance tests that verify the provider
+  abstraction can map CloudShell identity bindings and access grants to
+  standards-compliant authority behavior.
 - Add a mock/development identity-provider mode that works when CloudShell
   authentication is disabled for local development, still projects the declared
   identity binding, and can simulate user or workload principals for
