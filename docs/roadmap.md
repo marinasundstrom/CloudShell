@@ -74,6 +74,7 @@ inspection.
 References:
 
 - [Identity and Permissions Proposal](proposals/identity-and-permissions.md)
+- [Resource identity and permissions](resource-identity-and-permissions.md)
 - [Resource Identity and Permissions Proposal](proposals/resource-identity-and-permissions.md)
 - [Authentication and authorization](authentication-and-authorization.md)
 - [Platform Foundations Proposal](proposals/platform-foundations.md)

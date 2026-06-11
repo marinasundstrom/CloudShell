@@ -38,6 +38,10 @@ Direction:
   credential stores.
 - Runtime API enforcement by the service or container that owns each API.
 
+See [Resource identity and permissions](resource-identity-and-permissions.md)
+for resource identity providers, projected identity bindings, resource
+operation permissions, and the current resource operation catalog.
+
 ## Authentication modes
 
 Set `Authentication:Mode` to one of the following values.

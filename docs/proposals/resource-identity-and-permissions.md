@@ -12,6 +12,11 @@ feature.
 This proposal covers resource-to-resource identity and permission handling.
 It intentionally does not define secret storage or secret references.
 
+The current feature documentation lives in
+[Resource identity and permissions](../resource-identity-and-permissions.md).
+Keep this proposal focused on in-flight design, open questions, and remaining
+implementation work.
+
 ## Problem
 
 CloudShell already has a user/session authentication and authorization model,
@@ -172,7 +177,7 @@ Current resource-type and resource-class operation permissions:
 The existing `resources.manage` permission remains a compatibility superset
 while the model moves toward resource operation permissions.
 
-## Proposed Fluent API
+## Proposed authoring direction
 
 ```csharp
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
@@ -195,9 +200,46 @@ provider-specific details are resolved later. The mock-provider path is a
 convenience for local development before wiring the same app to Microsoft Entra
 ID or another production provider.
 
+Supporting one or more identities on a resource programmatically is likely
+worth adding before the provider-backed token lifecycle is complete. That
+authoring surface should be able to declare identity metadata and then use the
+declared identity in permission grants:
+
+```csharp
+var api = app.AddProject("api")
+    .WithIdentity(identity =>
+    {
+        identity.Name = "api-service";
+        identity.Provider = "development";
+        identity.Claims.Add("resource", "api");
+    });
+
+database.Allow(api.Identity, DatabaseActions.ReadWrite);
+secretStore.Allow(api.Identity, SecretActions.Read);
+```
+
+Open authoring questions:
+
+- Whether `api.Identity` is a single default identity or a collection with a
+  default identity selected by name.
+- Whether `.WithIdentity(...)` creates an identity immediately or declares
+  intent that a provider resolves later.
+- Whether permission grants such as `Allow(...)` live on target resources,
+  resource groups, provider-specific builders, or a shared permission builder.
+- How provider-specific actions such as `DatabaseActions.ReadWrite` map to the
+  CloudShell operation-permission catalog and token claims.
+
+Identity should be innate resource metadata, not only a `ResourceCapability`.
+A resource can have identity intent even before a provider supports token
+issuance, and consumers should be able to inspect that intent through the
+uniform resource model. Capabilities can still advertise provider behavior such
+as managed identity provisioning, token issuance, protected API support, or
+permission-assignment support.
+
 ## Remaining tasks
 
-- Define default resource identity-provider selection rules.
+- Define default resource identity-provider selection inheritance from resource
+  groups or parent resources.
 - Add the reference development identity server hosting path and OIDC/OAuth
   configuration.
 - Add a mock/development identity-provider mode that works when CloudShell
@@ -209,7 +251,7 @@ ID or another production provider.
 - Decide how resource identity should inherit from a resource group or parent
   resource.
 - Add resource-level permission names and policy evaluation rules.
-- Add authoring APIs for resource identity bindings.
-- Add programmatic identity declaration helpers for concrete provider bindings,
-  identity-required declarations, and optional mock-provider development flows.
+- Add authoring APIs for one or more resource identities.
+- Add authoring APIs for permission grants between resource identities and
+  target resources.
 - Wire the identity contract into at least one provider-backed workload type.

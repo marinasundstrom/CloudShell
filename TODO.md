@@ -24,6 +24,8 @@ Work the current proposals in this order:
 
 ## Now: Resource Identity and Permissions
 
+- Keep `docs/resource-identity-and-permissions.md` as the current-state
+  feature documentation and the matching proposal as the open-work tracker.
 - Extend default resource identity-provider selection beyond the new provider
   catalog, including inheritance from resource groups or parent resources where
   the first model needs it. Public identity provider and binding projection

@@ -105,6 +105,10 @@ The MVP should prove:
   providers are reported through resource model diagnostics. Resource-group or
   parent-resource inheritance, token issuance, and provider-backed workload
   behavior remain future resource identity work.
+- `docs/resource-identity-and-permissions.md` is the current-state feature
+  documentation for resource identity and permissions. The matching proposal
+  remains the tracker for open design, decisions, and remaining implementation
+  work.
 - Programmatic resource declarations should support identity intent as a normal
   authoring concern, including concrete provider bindings and declarations
   that a resource will have an identity whose provider-specific details are
