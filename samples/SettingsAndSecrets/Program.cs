@@ -1,5 +1,7 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
@@ -39,6 +41,17 @@ cloudShell
 
 cloudShell.Resources(resources =>
 {
+    var identityProvider = resources.AddIdentityProvider(
+        "identity:development",
+        "Development identity",
+        ResourceIdentityProviderKind.BuiltIn,
+        new Dictionary<string, string>
+        {
+            [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
+                "local-development-settings-secrets-api-secret"
+        },
+        useAsDefault: true);
+
     var settings = resources
         .AddConfigurationStore(
             "configuration:sample-app",
@@ -53,16 +66,19 @@ cloudShell.Resources(resources =>
         .AddSecretsVault("secrets-vault:sample-app", "Sample App Secrets")
         .WithSecret("sample-api-key", "local-development-api-key");
 
-    resources
+    var api = resources
         .AddAspNetCoreProject(
             "application:settings-secrets-api",
             "Settings and Secrets API",
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
             endpoint: "http://localhost:5227")
+        .WithIdentity(identityProvider, name: "settings-secrets-api")
         .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
         .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))
         .WithEnvironment("SAMPLE_API_KEY", secrets.Secret("sample-api-key"))
         .WithAutoStart(false);
+
+    secrets.Allow(api.Identity, SecretsVaultResourceOperationPermissions.ReadSecrets);
 });
 
 var app = builder.Build();

@@ -804,6 +804,10 @@ public sealed class InProcessControlPlaneResourceStateTests
         }
 
         var templates = new ResourceTemplateService(resourceManager, resourceGroups, registrations);
+        var identityProvisioning = new ResourceIdentityProvisioningService(
+            declarations,
+            new ResourceIdentityProviderCatalog(),
+            []);
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
             [],
@@ -819,6 +823,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             registrations,
             declarations,
             orchestration,
+            identityProvisioning,
             templates,
             new EmptyLogStore(),
             new EmptyTraceStore(),

@@ -45,6 +45,7 @@ public static class BuiltInAuthorityEndpointExtensions
             IServiceProvider services,
             IOptions<CloudShellAuthenticationOptions> configuredOptions,
             BuiltInAuthorityTokenService authority,
+            BuiltInResourceIdentityRegistry resourceIdentityClients,
             CancellationToken cancellationToken) =>
         {
             var form = await request.ReadFormAsync(cancellationToken);
@@ -59,7 +60,8 @@ public static class BuiltInAuthorityEndpointExtensions
                 "client_credentials" => IssueClientCredentialsToken(
                     form,
                     configuredOptions.Value,
-                    authority),
+                    authority,
+                    resourceIdentityClients),
                 _ => InvalidGrant("Unsupported grant_type.")
             };
         })
@@ -172,10 +174,11 @@ public static class BuiltInAuthorityEndpointExtensions
     private static IResult IssueClientCredentialsToken(
         IFormCollection form,
         CloudShellAuthenticationOptions options,
-        BuiltInAuthorityTokenService authority)
+        BuiltInAuthorityTokenService authority,
+        BuiltInResourceIdentityRegistry resourceIdentityClients)
     {
         var clientId = form["client_id"].ToString();
-        if (!TryGetValidClient(form, options, out var clientIdValue, out var client))
+        if (!TryGetValidClient(form, options, resourceIdentityClients, out var clientIdValue, out var client))
         {
             return InvalidClient();
         }
@@ -210,19 +213,33 @@ public static class BuiltInAuthorityEndpointExtensions
             return true;
         }
 
-        return TryGetValidClient(form, options, out _, out _);
+        return TryGetValidClient(form, options, null, out _, out _);
     }
 
     private static bool TryGetValidClient(
         IFormCollection form,
         CloudShellAuthenticationOptions options,
+        BuiltInResourceIdentityRegistry? resourceIdentityClients,
         out string clientId,
         out BuiltInAuthorityClientOptions client)
     {
         clientId = form["client_id"].ToString();
         client = new BuiltInAuthorityClientOptions();
-        if (string.IsNullOrWhiteSpace(clientId) ||
-            !options.BuiltInAuthority.Clients.TryGetValue(clientId, out var configuredClient) ||
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            return false;
+        }
+
+        var hasClient = options.BuiltInAuthority.Clients.TryGetValue(
+            clientId,
+            out var configuredClient);
+        if (!hasClient && resourceIdentityClients is not null)
+        {
+            hasClient = resourceIdentityClients.TryGetClient(clientId, out configuredClient!);
+        }
+
+        if (!hasClient ||
+            configuredClient is null ||
             string.IsNullOrWhiteSpace(configuredClient.Secret))
         {
             return false;

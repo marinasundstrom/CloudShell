@@ -189,19 +189,32 @@ operations through `IResourceManager` and the HTTP API:
 ```text
 GET /api/control-plane/v1/resource-permission-grants
 POST /api/control-plane/v1/resource-permission-grants/evaluate
+POST /api/control-plane/v1/resources/{resourceId}/identity/provision
 ```
 
 Grant evaluation answers whether the declared model contains a matching grant.
 Resource action execution can also carry an explicit acting resource identity;
 when it does, Resource Manager evaluates declared grants for that identity
 instead of falling back to the current user's resource permissions. This is a
-model-level enforcement path for programmatic identities and tests. Grants are
-not yet issued as token claims, proven by bearer tokens, or registered with an
-external identity authority.
+model-level enforcement path for programmatic identities and tests.
+
+`ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
+provider to provision one resource identity and its matching permission grants.
+The first built-in provider implementation is development-oriented: it
+registers an in-memory client-credentials client with the built-in authority
+and projects declared grants as `cloudshell.permission` and
+`cloudshell.resource` token claims. This makes the basic flow demonstrable,
+including a Web API identity receiving read access to a Secrets Vault-shaped
+resource. In that flow the Web API owns the provisioned identity and the vault
+is the protected target resource; the vault does not need its own identity
+unless it later needs to call another resource or provider. External authority
+registration, durable client storage, and bearer token proof against
+provider-backed workloads remain future work.
 
 The generated Resource Manager detail view displays the identity binding when a
-resource has one. Editing identity bindings and permission grants in the
-CloudShell UI is future work.
+resource has one, lists declared permission grants, and exposes a provisioning
+command for resources with identity bindings. Editing identity bindings and
+permission grants in the CloudShell UI is future work.
 
 Managed identity behavior is also future work. A managed identity provider
 should be able to resolve a resource identity binding and, where supported,
@@ -212,12 +225,17 @@ ASP.NET Core Identity types. The stable contract remains the provider-neutral
 resource identity binding and permission grant model so the same declarations
 can later be reconciled with Microsoft Entra ID or another provider.
 
+Full identity provisioning should treat identity providers as resources with
+their own identities and permissions. The current MVP authorizes provisioning
+through `resources.manage` on the target resource. A later slice should require
+permission to provision or manage identities on the selected identity-provider
+resource as well.
+
 Provisioning starts from the provider-neutral `IResourceIdentityProvisioner`
 contract. The Control Plane can build provisioning requests from declared
 resource identities and matching permission grants, grouped by resolved
 resource identity provider. A concrete provisioner translates that request into
-its backing authority. No concrete ASP.NET Core Identity or Microsoft Entra ID
-provisioner is wired yet.
+its backing authority.
 
 ## Operation Permissions
 
@@ -238,6 +256,7 @@ members remain compatibility aliases.
 | Any resource with a custom action and no narrower declared operation | custom action execution | `CommonResourceOperationPermissions.ExecuteCustomAction` |
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
 | `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
+| `secrets.vault` and `ResourceClass.SecretsVault` | secret value read | `SecretsVaultResourceOperationPermissions.ReadSecrets` |
 
 When adding a new resource action, document the operation permission in this
 catalog. Prefer a resource-type-specific operation for meaningful provider or

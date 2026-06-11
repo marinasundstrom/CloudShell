@@ -14,6 +14,7 @@ public sealed class InProcessControlPlane(
     IResourceRegistrationStore registrations,
     ResourceDeclarationStore declarations,
     ResourceOrchestrationService orchestration,
+    ResourceIdentityProvisioningService resourceIdentityProvisioning,
     ResourceTemplateService templates,
     ILogStore logs,
     ITraceStore traces,
@@ -175,6 +176,29 @@ public sealed class InProcessControlPlane(
         return Task.FromResult(declarations
             .CreatePermissionGrantEvaluator()
             .Evaluate(identity, targetResourceId, permission));
+    }
+
+    public async Task<ResourceIdentityProvisioningResult> ProvisionResourceIdentityAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        resourceId = RequireValue(resourceId, nameof(resourceId));
+        var resource = resourceManager.GetResource(resourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(resourceId));
+        var group = resourceManager.GetGroupForResource(resourceId);
+        if (!authorization.CanAccessResource(
+                resourceId,
+                group?.Id,
+                CloudShellPermissions.Resources.Manage))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                resourceId,
+                CloudShellPermissions.Resources.Manage);
+        }
+
+        return await resourceIdentityProvisioning.ProvisionResourceAsync(
+            resource.Id,
+            cancellationToken);
     }
 
     public async Task RegisterResourceAsync(

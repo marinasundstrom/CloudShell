@@ -66,6 +66,10 @@ public interface IResourceManager
         string permission,
         CancellationToken cancellationToken = default);
 
+    Task<ResourceIdentityProvisioningResult> ProvisionResourceIdentityAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+
     Task RegisterResourceAsync(
         RegisterResourceCommand command,
         CancellationToken cancellationToken = default);

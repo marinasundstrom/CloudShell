@@ -11,6 +11,18 @@ environment variables from references:
 The application resource stores references, not copied values. CloudShell
 resolves those references when the resource is started.
 
+The sample also declares a built-in development identity provider. The Web API
+resource has a `settings-secrets-api` identity, and the Secrets Vault grants
+that identity `SecretsVaultResourceOperationPermissions.ReadSecrets`. In this
+first flow the Web API identity is provisioned and the vault is the protected
+target resource; the vault does not need its own identity.
+
+Open the Web API resource details and use **Provision identity**, or call:
+
+```bash
+curl -X POST http://localhost:5011/api/control-plane/v1/resources/application%3Asettings-secrets-api/identity/provision
+```
+
 ```bash
 dotnet run --project samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj -- --urls http://localhost:5011
 ```

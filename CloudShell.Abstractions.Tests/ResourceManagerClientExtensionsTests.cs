@@ -264,6 +264,11 @@ public sealed class ResourceManagerClientExtensionsTests
                 permission,
                 IsAllowed: false));
 
+        public Task<ResourceIdentityProvisioningResult> ProvisionResourceIdentityAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ResourceIdentityProvisioningResult("test"));
+
         public Task RegisterResourceAsync(
             RegisterResourceCommand command,
             CancellationToken cancellationToken = default) =>

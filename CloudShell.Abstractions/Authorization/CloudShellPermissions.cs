@@ -21,6 +21,12 @@ public static class LoadBalancerResourceOperationPermissions
         "CloudShell.Network/loadBalancers/applyConfiguration/action";
 }
 
+public static class SecretsVaultResourceOperationPermissions
+{
+    public const string ReadSecrets =
+        "CloudShell.Secrets/vaults/secrets/read/action";
+}
+
 public static class CloudShellPermissions
 {
     public const string All = "*";
@@ -59,6 +65,15 @@ public static class CloudShellPermissions
                 NetworkResourceOperationPermissions.ReconcileEndpointMappings;
             public const string ApplyLoadBalancerConfiguration =
                 LoadBalancerResourceOperationPermissions.ApplyConfiguration;
+        }
+    }
+
+    public static class Secrets
+    {
+        public static class Actions
+        {
+            public const string Read =
+                SecretsVaultResourceOperationPermissions.ReadSecrets;
         }
     }
 }

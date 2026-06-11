@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -71,6 +74,63 @@ public sealed class BuiltInAuthorityHttpTests
     }
 
     [Fact]
+    public async Task ResourceIdentityProvisioning_CreatesBuiltInClientForDeclaredIdentity()
+    {
+        await using var app = await CreateAppAsync(resources =>
+        {
+            var identityProvider = resources.AddIdentityProvider(
+                "identity:development",
+                "Development identity",
+                ResourceIdentityProviderKind.BuiltIn,
+                new Dictionary<string, string>
+                {
+                    [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
+                        "local-development-resource-secret"
+                },
+                useAsDefault: true);
+            var api = resources
+                .Declare(ResourceIdentityFlowProvider.ProviderId, ResourceIdentityFlowProvider.ApiResourceId)
+                .WithIdentity(identityProvider, name: "web-api");
+            var vault = resources.Declare(
+                ResourceIdentityFlowProvider.ProviderId,
+                ResourceIdentityFlowProvider.VaultResourceId,
+                resourceClass: ResourceClass.SecretsVault);
+            vault.Allow(api.Identity, SecretsVaultResourceOperationPermissions.ReadSecrets);
+        });
+        var client = app.GetTestClient();
+        var adminToken = await GetTokenAsync(client);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/api/identity/provision");
+        request.Headers.Authorization = new("Bearer", adminToken);
+        var provisioningResponse = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, provisioningResponse.StatusCode);
+        using var provisioningDocument = JsonDocument.Parse(
+            await provisioningResponse.Content.ReadAsStringAsync());
+        var provisioning = provisioningDocument.RootElement;
+        Assert.Equal(
+            "identity:development",
+            provisioning.GetProperty("providerId").GetString());
+        Assert.Equal(
+            (int)ResourceIdentityProvisioningDiagnosticSeverity.Information,
+            provisioning.GetProperty("diagnostics")[0].GetProperty("severity").GetInt32());
+
+        var token = await GetTokenAsync(
+            client,
+            "api/web-api",
+            "local-development-resource-secret");
+        var payload = ReadTokenPayload(token);
+        Assert.Equal(
+            SecretsVaultResourceOperationPermissions.ReadSecrets,
+            payload.GetProperty(CloudShellAuthenticationOptions.PermissionClaimType).GetString());
+        Assert.Equal(
+            "secrets-vault:app",
+            payload.GetProperty(CloudShellAuthenticationOptions.ResourceClaimType).GetString());
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_RejectsTamperedBearerToken()
     {
         await using var app = await CreateAppAsync();
@@ -87,7 +147,8 @@ public sealed class BuiltInAuthorityHttpTests
         Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
     }
 
-    private static async Task<WebApplication> CreateAppAsync()
+    private static async Task<WebApplication> CreateAppAsync(
+        Action<IResourceGraphBuilder>? configureResources = null)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -126,7 +187,12 @@ public sealed class BuiltInAuthorityHttpTests
             ["Persistence:IdentityConnectionString"] = "Data Source=Data/identity-test.db"
         });
 
-        builder.AddCloudShellControlPlane();
+        var controlPlane = builder.AddCloudShellControlPlane();
+        builder.Services.AddSingleton<IResourceProvider, ResourceIdentityFlowProvider>();
+        controlPlane.Resources(resources =>
+        {
+            configureResources?.Invoke(resources);
+        });
         var app = builder.Build();
         await app.UseCloudShellControlPlaneAsync();
         app.MapCloudShellControlPlane();
@@ -134,24 +200,38 @@ public sealed class BuiltInAuthorityHttpTests
         return app;
     }
 
-    private static async Task<HttpResponseMessage> RequestTokenAsync(HttpClient client) =>
+    private static async Task<HttpResponseMessage> RequestTokenAsync(
+        HttpClient client,
+        string clientId = "cloudshell-test",
+        string clientSecret = "local-development-client-secret") =>
         await client.PostAsync(
             "/api/auth/v1/token",
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["grant_type"] = "client_credentials",
-                ["client_id"] = "cloudshell-test",
-                ["client_secret"] = "local-development-client-secret",
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
                 ["scope"] = "ControlPlane.Access"
             }));
 
-    private static async Task<string> GetTokenAsync(HttpClient client)
+    private static async Task<string> GetTokenAsync(
+        HttpClient client,
+        string clientId = "cloudshell-test",
+        string clientSecret = "local-development-client-secret")
     {
-        var response = await RequestTokenAsync(client);
+        var response = await RequestTokenAsync(client, clientId, clientSecret);
         response.EnsureSuccessStatusCode();
         var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
         return token?.AccessToken ??
             throw new InvalidOperationException("The token endpoint returned no access token.");
+    }
+
+    private static JsonElement ReadTokenPayload(string token)
+    {
+        var payload = token.Split('.')[1].Replace('-', '+').Replace('_', '/');
+        payload = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
+        using var document = JsonDocument.Parse(Convert.FromBase64String(payload));
+        return document.RootElement.Clone();
     }
 
     private sealed record TokenResponse(
@@ -159,4 +239,43 @@ public sealed class BuiltInAuthorityHttpTests
         [property: JsonPropertyName("token_type")] string TokenType,
         [property: JsonPropertyName("expires_in")] int ExpiresIn,
         [property: JsonPropertyName("scope")] string? Scope);
+
+    private sealed class ResourceIdentityFlowProvider : IResourceProvider
+    {
+        public const string ProviderId = "identity-flow";
+        public const string ApiResourceId = "api";
+        public const string VaultResourceId = "secrets-vault:app";
+
+        public string Id => ProviderId;
+
+        public string DisplayName => "Identity Flow";
+
+        public IReadOnlyList<Resource> GetResources() =>
+        [
+            new(
+                ApiResourceId,
+                "Web API",
+                "Application",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                ResourceClass: ResourceClass.Service),
+            new(
+                VaultResourceId,
+                "App Secrets",
+                "Secrets Vault",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                ResourceClass: ResourceClass.SecretsVault)
+        ];
+    }
 }

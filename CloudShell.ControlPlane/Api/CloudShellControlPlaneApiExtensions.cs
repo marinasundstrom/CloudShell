@@ -87,6 +87,13 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resources/{resourceId}/actions/{actionId}", ExecuteResourceAction)
             .WithName("CloudShellControlPlane_ExecuteResourceAction");
 
+        api.MapPost("/resources/{resourceId}/identity/provision", ProvisionResourceIdentity)
+            .WithName("CloudShellControlPlane_ProvisionResourceIdentity")
+            .Produces<ResourceIdentityProvisioningResponse>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
+
         api.MapGet("/resource-groups", ListResourceGroups)
             .WithName("CloudShellControlPlane_ListResourceGroups");
 
@@ -313,6 +320,24 @@ public static class CloudShellControlPlaneApiExtensions
             return Results.Ok(evaluation.ToResponse());
         }
         catch (Exception exception) when (exception is ArgumentException or ArgumentNullException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> ProvisionResourceIdentity(
+        string resourceId,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await resourceManager.ProvisionResourceIdentityAsync(
+                resourceId,
+                cancellationToken);
+            return Results.Ok(result.ToResponse());
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or UnauthorizedAccessException)
         {
             return ToProblem(exception);
         }

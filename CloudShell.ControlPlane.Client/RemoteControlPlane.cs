@@ -192,6 +192,19 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
             .ToResourcePermissionEvaluation();
     }
 
+    public async Task<ResourceIdentityProvisioningResult> ProvisionResourceIdentityAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync(
+            BuildUri($"resources/{Escape(resourceId)}/identity/provision"),
+            null,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await ReadRequiredAsync<ResourceIdentityProvisioningResponse>(response, cancellationToken))
+            .ToResourceIdentityProvisioningResult();
+    }
+
     public async Task RegisterResourceAsync(
         RegisterResourceCommand command,
         CancellationToken cancellationToken = default)
@@ -671,6 +684,16 @@ file sealed record ResourcePermissionEvaluationResponse(
     bool IsAllowed,
     ResourcePermissionGrantResponse? Grant);
 
+file sealed record ResourceIdentityProvisioningDiagnosticResponse(
+    ResourceIdentityProvisioningDiagnosticSeverity Severity,
+    string Message,
+    ResourceIdentityReferenceResponse? Identity,
+    string? ProviderId);
+
+file sealed record ResourceIdentityProvisioningResponse(
+    string ProviderId,
+    IReadOnlyList<ResourceIdentityProvisioningDiagnosticResponse>? Diagnostics);
+
 file sealed record ResourceGroupResponse(
     string Id,
     string Name,
@@ -882,6 +905,22 @@ file static class RemoteControlPlaneMapper
             response.Permission,
             response.IsAllowed,
             response.Grant?.ToResourcePermissionGrant());
+
+    public static ResourceIdentityProvisioningResult ToResourceIdentityProvisioningResult(
+        this ResourceIdentityProvisioningResponse response) =>
+        new(
+            response.ProviderId,
+            response.Diagnostics?
+                .Select(diagnostic => diagnostic.ToResourceIdentityProvisioningDiagnostic())
+                .ToArray());
+
+    public static ResourceIdentityProvisioningDiagnostic ToResourceIdentityProvisioningDiagnostic(
+        this ResourceIdentityProvisioningDiagnosticResponse response) =>
+        new(
+            response.Severity,
+            response.Message,
+            response.Identity?.ToResourceIdentityReference(),
+            response.ProviderId);
 
     private static IReadOnlyCollection<ResourceActionResponse> GetResourceActionResponses(
         this ResourceResponse response) =>

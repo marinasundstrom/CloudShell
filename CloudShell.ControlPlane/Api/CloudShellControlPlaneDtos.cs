@@ -113,6 +113,16 @@ public sealed record ResourcePermissionEvaluationResponse(
     bool IsAllowed,
     ResourcePermissionGrantResponse? Grant);
 
+public sealed record ResourceIdentityProvisioningDiagnosticResponse(
+    ResourceIdentityProvisioningDiagnosticSeverity Severity,
+    string Message,
+    ResourceIdentityReferenceResponse? Identity,
+    string? ProviderId);
+
+public sealed record ResourceIdentityProvisioningResponse(
+    string ProviderId,
+    IReadOnlyList<ResourceIdentityProvisioningDiagnosticResponse> Diagnostics);
+
 public sealed record ResourceGroupResponse(
     string Id,
     string Name,
@@ -317,6 +327,22 @@ internal static class CloudShellControlPlaneDtoMapper
             evaluation.Permission,
             evaluation.IsAllowed,
             evaluation.Grant?.ToResponse());
+
+    public static ResourceIdentityProvisioningResponse ToResponse(
+        this ResourceIdentityProvisioningResult result) =>
+        new(
+            result.ProviderId,
+            result.ProvisioningDiagnostics
+                .Select(diagnostic => diagnostic.ToResponse())
+                .ToArray());
+
+    public static ResourceIdentityProvisioningDiagnosticResponse ToResponse(
+        this ResourceIdentityProvisioningDiagnostic diagnostic) =>
+        new(
+            diagnostic.Severity,
+            diagnostic.Message,
+            diagnostic.Identity?.ToResponse(),
+            diagnostic.ProviderId);
 
     public static ResourceIdentityReference ToResourceIdentityReference(
         this ResourceIdentityReferenceResponse response) =>

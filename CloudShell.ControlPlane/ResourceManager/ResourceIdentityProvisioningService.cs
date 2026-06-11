@@ -13,14 +13,21 @@ public sealed class ResourceIdentityProvisioningService(
 {
     private readonly IReadOnlyList<IResourceIdentityProvisioner> provisioners = provisioners.ToArray();
 
-    public ResourceIdentityProvisioningPlan CreatePlan()
+    public ResourceIdentityProvisioningPlan CreatePlan(string? resourceId = null)
     {
+        resourceId = NormalizeOptional(resourceId);
         var identities = new List<ResolvedIdentity>();
         var diagnostics = new List<ResourceIdentityProvisioningDiagnostic>();
         var effectiveProviders = declarations.CreateIdentityProviderCatalog(identityProviders);
 
         foreach (var declaration in declarations.GetDeclarations())
         {
+            if (resourceId is not null &&
+                !string.Equals(declaration.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             if (declaration.IdentityBinding is not { } binding)
             {
                 continue;
@@ -88,6 +95,50 @@ public sealed class ResourceIdentityProvisioningService(
         return plan with { Diagnostics = diagnostics };
     }
 
+    public async Task<ResourceIdentityProvisioningResult> ProvisionResourceAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        var plan = CreatePlan(resourceId);
+        var diagnostics = plan.Diagnostics.ToList();
+        if (plan.Requests.Count == 0)
+        {
+            if (diagnostics.Count == 0)
+            {
+                diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
+                    ResourceIdentityProvisioningDiagnosticSeverity.Warning,
+                    $"Resource '{resourceId}' does not declare a resource identity.",
+                    ResourceIdentityReference.ForResource(resourceId)));
+            }
+
+            return new ResourceIdentityProvisioningResult(
+                string.Empty,
+                diagnostics);
+        }
+
+        var request = plan.Requests.Single();
+        var provisioner = provisioners.FirstOrDefault(provisioner =>
+            provisioner.CanProvision(request.Provider));
+        if (provisioner is null)
+        {
+            diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
+                ResourceIdentityProvisioningDiagnosticSeverity.Warning,
+                $"No resource identity provisioner is registered for provider '{request.Provider.Id}'.",
+                ProviderId: request.Provider.Id));
+            return new ResourceIdentityProvisioningResult(
+                request.Provider.Id,
+                diagnostics);
+        }
+
+        var result = await provisioner.ProvisionAsync(request, cancellationToken);
+        diagnostics.AddRange(result.ProvisioningDiagnostics);
+        return new ResourceIdentityProvisioningResult(
+            request.Provider.Id,
+            diagnostics);
+    }
+
     private IReadOnlyList<ResourcePermissionGrant> GetPermissionGrants(
         IReadOnlyList<ResourceIdentityProvisioningEntry> identities)
     {
@@ -104,6 +155,9 @@ public sealed class ResourceIdentityProvisioningService(
         string.Equals(left.ResourceId, right.ResourceId, StringComparison.OrdinalIgnoreCase) &&
         (string.IsNullOrWhiteSpace(right.Name) ||
          string.Equals(left.Name, right.Name, StringComparison.OrdinalIgnoreCase));
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private sealed record ResolvedIdentity(
         ResourceIdentityReference Identity,

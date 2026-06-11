@@ -57,8 +57,12 @@ Work the current proposals in this order:
   enforce grants for resource actions that carry an explicit acting resource
   identity. A provider-neutral resource identity provisioner contract and
   Control Plane provisioning planner now group declared identities and grants
-  by resolved provider. Next connect those grants to mock-principal tests,
-  token claims, provider-backed identity proof, and concrete authority
+  by resolved provider. The built-in development provider can provision an
+  in-memory client-credentials client for a resource identity and project
+  grants into token claims; the Settings and Secrets sample demonstrates a
+  Web API identity with read access to a Secrets Vault target resource. Next
+  connect those grants to mock-principal tests, provider-resource
+  authorization, provider-backed identity proof, and concrete authority
   registration.
 - Continue assigning and documenting specific Azure-style operation permissions
   per resource type or class. Load-balancer apply and network endpoint
@@ -73,15 +77,18 @@ Work the current proposals in this order:
   model is validated against a concrete resource path.
 - Add authorization diagnostics and capability reasons for denied or
   unavailable actions without leaking provider-specific internals.
-- Expand Resource Manager UI workflows from read-only identity binding display
-  into management for resource identity bindings and permission grants after
-  the backend model and evaluation path stabilize.
+- Expand Resource Manager UI workflows from read-only identity/grant display
+  and the provision command into management for resource identity bindings and
+  permission grants after the backend model and evaluation path stabilize.
 - Add concrete managed identity provider behavior for registering or
   provisioning resource identities and grants with the backing authority. A
   built-in ASP.NET Core Identity-backed authority may be a useful reference or
   development provisioner, but the resource model must stay provider-neutral so
   teams can move the same declarations to Microsoft Entra ID or another
   provider.
+- Model identity providers as protected resources and require permission to
+  provision or manage identities on the selected identity-provider resource in
+  addition to permission on the target resource.
 
 ## Next: Host Abstractions
 

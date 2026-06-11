@@ -17,6 +17,29 @@ The current feature documentation lives in
 Keep this proposal focused on in-flight design, open questions, and remaining
 implementation work.
 
+## Milestones
+
+Proposals should be sliced into independently useful milestones so CloudShell
+can improve this area iteratively alongside other proposals.
+
+1. Basic development flow and sample: declare a built-in identity provider,
+   bind a Web API resource identity, grant that identity read access to a
+   Secrets Vault target resource, provision the Web API identity, and verify
+   the environment-variable secret-reference path still works.
+2. Provider-resource authorization: model identity providers as protected
+   resources with their own identities and provision/manage permissions, then
+   require access to both the target resource and the selected provider
+   resource before provisioning identities.
+3. Managed identity and authority reconciliation: make providers register or
+   reconcile identities and grants with their backing authority instead of only
+   recording CloudShell declarations.
+4. Microsoft Entra ID compatibility: map the same identity and grant model to
+   Entra app registrations, service principals, app roles or groups, token
+   validation, and automation flows.
+5. UI management: move beyond read-only identity/grant display and the
+   provision command into guided identity binding, grant editing, diagnostics,
+   and provider-resource management.
+
 ## Problem
 
 CloudShell already has a user/session authentication and authorization model,
@@ -226,6 +249,7 @@ but new resource operation permissions should use the explicit catalog classes.
 | Any resource with a custom action and no narrower declared operation | custom action execution | `CommonResourceOperationPermissions.ExecuteCustomAction` |
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
 | `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
+| `secrets.vault` and `ResourceClass.SecretsVault` | secret value read | `SecretsVaultResourceOperationPermissions.ReadSecrets` |
 
 The existing `resources.manage` permission remains a compatibility superset
 while the model moves toward resource operation permissions.
@@ -440,11 +464,14 @@ permission-assignment support.
 - Extend declared permission grants beyond model-level resource action
   execution into mock identity tests, token claims, provider-backed identity
   proof, and provider or authority registration.
-- Add Resource Manager UI workflows for managing resource identity bindings and
-  permission grants.
+- Add Resource Manager UI workflows beyond the current read-only identity and
+  grant display plus provision command, including guided management for
+  resource identity bindings and permission grants.
 - Add concrete managed identity provider behavior for registering or
   provisioning resource identities and grants with the backing authority.
 - Define identity-provider resource registration and lifecycle.
+- Require permission to provision or manage identities on the selected
+  identity-provider resource, in addition to permission on the target resource.
 - Define how provider resources expose shared authority configuration.
 - Define default identity parameter resolution from provider resources and the
   resource graph.

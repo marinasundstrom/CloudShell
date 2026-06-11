@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Sample.Tests;
@@ -63,11 +64,31 @@ public sealed class SampleSmokeTests
             .EnumerateArray()
             .Select(item => item.GetString())
             .ToArray();
+        var identity = api.GetProperty("identity");
 
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
         Assert.Contains("configuration:sample-app", dependsOn);
         Assert.Contains("secrets-vault:sample-app", dependsOn);
+        Assert.Equal("identity:development", identity.GetProperty("providerId").GetString());
+        Assert.Equal("settings-secrets-api", identity.GetProperty("name").GetString());
+
+        var grantsJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resource-permission-grants?identityResourceId=application%3Asettings-secrets-api&identityName=settings-secrets-api");
+        using var grantsDocument = JsonDocument.Parse(grantsJson);
+        var grant = Assert.Single(grantsDocument.RootElement.EnumerateArray());
+        Assert.Equal("secrets-vault:sample-app", grant.GetProperty("targetResourceId").GetString());
+        Assert.Equal(
+            SecretsVaultResourceOperationPermissions.ReadSecrets,
+            grant.GetProperty("permission").GetString());
+
+        var provisioning = await host.SendAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/application%3Asettings-secrets-api/identity/provision");
+        using var provisioningDocument = JsonDocument.Parse(provisioning);
+        Assert.Equal(
+            "identity:development",
+            provisioningDocument.RootElement.GetProperty("providerId").GetString());
     }
 
     [Fact]
