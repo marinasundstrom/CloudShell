@@ -14,11 +14,48 @@ The broader platform direction is described by the
 proposal focuses specifically on the resource-domain model for identity and
 access.
 
+
 This proposal covers how CloudShell represents identity, principal kinds,
 identity-provider bindings, and access relationships between resources. It
 intentionally does not define secret storage, vault resources, secret
 references, authentication protocols, OAuth flows, OIDC configuration, token
 issuance, client credentials, or provider-specific authority behavior.
+
+## Clarifications
+
+CloudShell uses OAuth and OpenID Connect style authentication for Control Plane
+Web APIs and platform-provided services. That protocol surface belongs to the
+platform authentication and provider implementation architecture, not to the
+resource-domain model defined by this proposal.
+
+Each identity provider or authority owns how it stores identities, grants,
+credentials, claims, roles, scopes, and provider-native access assignments. The
+built-in identity provider may store users, application principals, grants, and
+claim metadata in the Control Plane-backed identity store while exposing
+authentication and token endpoints that are compatible with the OAuth/OIDC
+usage expected by CloudShell components. Other providers, such as IdentityServer,
+Microsoft Entra ID, Keycloak, Auth0, or Okta, may store and materialize the same
+concepts differently while still satisfying the provider contract.
+
+Resource identity and access rules are modeled separately in the CloudShell
+domain. Resource identity bindings and resource access grants describe resource
+intent and resource-to-resource access relationships. Scopes and claims may be
+projected from those declarations, or mapped back onto those declarations during
+authorization, but they are not the domain model itself and should not make the
+resource graph depend on OAuth or OIDC terminology.
+
+At runtime, CloudShell uses ASP.NET Core authentication. The configured
+authentication handlers, including OIDC handlers, map incoming tokens onto the
+normal .NET authentication primitives such as `ClaimsPrincipal`, `IIdentity`,
+and claims. Resource Manager can then authorize requests by mapping the
+authenticated principal and its claims to CloudShell resource identities,
+resource access grants, resource operation names, and provider-specific policy
+decisions.
+
+These clarifications are included here to keep the proposal boundaries clear.
+The detailed authentication protocol, token validation, ASP.NET Core
+authentication configuration, and provider endpoint behavior should be defined
+in a separate authentication/provider architecture document.
 
 The normative feature documentation lives in
 [Resource identity and permissions](../resource-identity-and-permissions.md).
