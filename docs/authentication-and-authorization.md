@@ -31,6 +31,12 @@ Direction:
 - Resource identity and permissions should work with Microsoft Entra ID
   (Azure AD) through standard OIDC/OAuth validation while also supporting a
   separate development identity server instance for local testing.
+- Resource identity provisioning uses the provider-neutral
+  `IResourceIdentityProvisioner` contract. A built-in ASP.NET Core
+  Identity-backed authority can implement that contract as a reference or
+  development provisioner, but resources should continue to bind to CloudShell
+  identity metadata and grants so the same model can move to Microsoft Entra ID
+  or another provider.
 - Protected API resource metadata for services that expose their own direct
   APIs.
 - Optional provider-specific provisioning against systems such as Microsoft

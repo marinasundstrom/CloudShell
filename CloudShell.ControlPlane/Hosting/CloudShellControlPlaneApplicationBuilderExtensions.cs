@@ -59,6 +59,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
         builder.Services.AddScoped<ResourceDeclarationStartupService>();
+        builder.Services.AddScoped<ResourceIdentityProvisioningService>();
         builder.Services.TryAddSingleton(new PlatformResourceOptions());
         builder.Services.TryAddSingleton<IHostLocalNetworkEnvironment, HostLocalNetworkEnvironment>();
         builder.Services.TryAddSingleton<PlatformResourceStore>();

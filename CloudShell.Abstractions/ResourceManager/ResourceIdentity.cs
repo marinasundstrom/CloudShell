@@ -41,6 +41,47 @@ public sealed record ResourceIdentityProviderDefinition(
     public IReadOnlyDictionary<string, string> ProviderSettings => Settings ?? EmptySettings;
 }
 
+public interface IResourceIdentityProvisioner
+{
+    string ProviderId { get; }
+
+    bool CanProvision(ResourceIdentityProviderDefinition provider);
+
+    Task<ResourceIdentityProvisioningResult> ProvisionAsync(
+        ResourceIdentityProvisioningRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record ResourceIdentityProvisioningRequest(
+    ResourceIdentityProviderDefinition Provider,
+    IReadOnlyList<ResourceIdentityProvisioningEntry> Identities,
+    IReadOnlyList<ResourcePermissionGrant> PermissionGrants);
+
+public sealed record ResourceIdentityProvisioningEntry(
+    ResourceIdentityReference Identity,
+    ResourceIdentityBinding Binding);
+
+public sealed record ResourceIdentityProvisioningResult(
+    string ProviderId,
+    IReadOnlyList<ResourceIdentityProvisioningDiagnostic>? Diagnostics = null)
+{
+    public IReadOnlyList<ResourceIdentityProvisioningDiagnostic> ProvisioningDiagnostics =>
+        Diagnostics ?? [];
+}
+
+public sealed record ResourceIdentityProvisioningDiagnostic(
+    ResourceIdentityProvisioningDiagnosticSeverity Severity,
+    string Message,
+    ResourceIdentityReference? Identity = null,
+    string? ProviderId = null);
+
+public enum ResourceIdentityProvisioningDiagnosticSeverity
+{
+    Information,
+    Warning,
+    Error
+}
+
 public sealed class ResourceIdentityProviderCatalog
 {
     private readonly IReadOnlyDictionary<string, ResourceIdentityProviderDefinition> providersById;

@@ -127,10 +127,13 @@ The MVP should prove:
   execution can carry an explicit acting resource identity; Resource Manager
   evaluates declared grants for that identity and does not fall back to the
   current user's permissions in that path. The generated Resource Manager
-  overview displays resource identity bindings when present. Mock-principal
-  tests, token-claim projection, provider-backed identity proof, authority
-  registration, identity management UI, multiple identities, and provider-backed
-  managed identity lifecycle remain future resource identity work.
+  overview displays resource identity bindings when present. A provider-neutral
+  `IResourceIdentityProvisioner` contract and Control Plane provisioning
+  planner can group declared identities and matching grants by resolved
+  identity provider. Mock-principal tests, token-claim projection,
+  provider-backed identity proof, concrete authority registration, identity
+  management UI, multiple identities, and provider-backed managed identity
+  lifecycle remain future resource identity work.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.

@@ -247,6 +247,14 @@ translate that model into its backing store. Moving to Microsoft Entra ID or
 another provider should replace or reconcile the provisioner without changing
 the resource model.
 
+The first provisioning slice adds the provider-neutral
+`IResourceIdentityProvisioner` contract and a Control Plane provisioning
+planner. The planner resolves declared identity bindings to configured
+resource identity providers, groups identities by provider, and includes grants
+where the provisioned identity is the caller. Concrete provisioners for the
+built-in authority, Microsoft Entra ID, or another system remain separate
+provider implementations.
+
 Supporting one or more identities on a resource programmatically is likely
 worth adding before the provider-backed token lifecycle is complete. That
 authoring surface should be able to declare identity metadata and then use the
@@ -315,6 +323,6 @@ permission-assignment support.
   proof, and provider or authority registration.
 - Add Resource Manager UI workflows for managing resource identity bindings and
   permission grants.
-- Add managed identity provider behavior for registering or provisioning
-  resource identities and grants with the backing authority.
+- Add concrete managed identity provider behavior for registering or
+  provisioning resource identities and grants with the backing authority.
 - Wire the identity contract into at least one provider-backed workload type.

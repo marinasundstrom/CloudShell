@@ -53,8 +53,11 @@ Work the current proposals in this order:
   compatibility superset. Programmatic declarations can now record permission
   grants, expose list/evaluate operations through the Control Plane API, and
   enforce grants for resource actions that carry an explicit acting resource
-  identity. Next connect those grants to mock-principal tests, token claims,
-  provider-backed identity proof, and authority registration.
+  identity. A provider-neutral resource identity provisioner contract and
+  Control Plane provisioning planner now group declared identities and grants
+  by resolved provider. Next connect those grants to mock-principal tests,
+  token claims, provider-backed identity proof, and concrete authority
+  registration.
 - Continue assigning and documenting specific Azure-style operation permissions
   per resource type or class. Load-balancer apply and network endpoint
   reconciliation now use documented network operation permissions instead of
@@ -71,11 +74,12 @@ Work the current proposals in this order:
 - Expand Resource Manager UI workflows from read-only identity binding display
   into management for resource identity bindings and permission grants after
   the backend model and evaluation path stabilize.
-- Add managed identity provider behavior for registering or provisioning
-  resource identities and grants with the backing authority. A built-in ASP.NET
-  Core Identity-backed authority may be a useful reference or development
-  provisioner, but the resource model must stay provider-neutral so teams can
-  move the same declarations to Microsoft Entra ID or another provider.
+- Add concrete managed identity provider behavior for registering or
+  provisioning resource identities and grants with the backing authority. A
+  built-in ASP.NET Core Identity-backed authority may be a useful reference or
+  development provisioner, but the resource model must stay provider-neutral so
+  teams can move the same declarations to Microsoft Entra ID or another
+  provider.
 
 ## Next: Host Abstractions
 

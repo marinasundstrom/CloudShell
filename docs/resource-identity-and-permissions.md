@@ -192,6 +192,13 @@ ASP.NET Core Identity types. The stable contract remains the provider-neutral
 resource identity binding and permission grant model so the same declarations
 can later be reconciled with Microsoft Entra ID or another provider.
 
+Provisioning starts from the provider-neutral `IResourceIdentityProvisioner`
+contract. The Control Plane can build provisioning requests from declared
+resource identities and matching permission grants, grouped by resolved
+resource identity provider. A concrete provisioner translates that request into
+its backing authority. No concrete ASP.NET Core Identity or Microsoft Entra ID
+provisioner is wired yet.
+
 ## Operation Permissions
 
 Resource actions use Azure RBAC-style operation names. Resource Manager checks
