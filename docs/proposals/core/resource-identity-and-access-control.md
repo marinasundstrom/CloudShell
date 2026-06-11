@@ -1,21 +1,30 @@
-# Resource Identity and Permissions Proposal
+# Resource Identity and Access Control Proposal
 
 ## Status
 
-Current implementation focus.
+Current implementation working document.
 
-This proposal is the first concrete resource-level slice of the broader
-[Identity and Permissions Proposal](identity-and-permissions.md). It should be
-worked with that platform foundation rather than as a separate late-stage
-feature.
+This proposal is the running design and implementation working document for
+resource identity and access. It collects design reasoning, implementation
+notes, open questions, provider-mapping ideas, and future work while the
+feature evolves.
 
-This proposal covers resource-to-resource identity and permission handling.
-It intentionally does not define secret storage or secret references.
+The broader platform direction is described by the
+[Identity and Permissions Proposal](identity-and-permissions.md), but this
+proposal focuses specifically on the resource-domain model for identity and
+access.
 
-The current feature documentation lives in
+This proposal covers how CloudShell represents identity, principal kinds,
+identity-provider bindings, and access relationships between resources. It
+intentionally does not define secret storage, vault resources, secret
+references, authentication protocols, OAuth flows, OIDC configuration, token
+issuance, client credentials, or provider-specific authority behavior.
+
+The normative feature documentation lives in
 [Resource identity and permissions](../resource-identity-and-permissions.md).
-Keep this proposal focused on in-flight design, open questions, and remaining
-implementation work.
+That document describes the supported behavior and public model. This proposal
+should remain a collection point for design intent, implementation status,
+provider-mapping ideas, unresolved questions, and future slices.
 
 ## Milestones
 
@@ -23,13 +32,12 @@ Proposals should be sliced into independently useful milestones so CloudShell
 can improve this area iteratively alongside other proposals.
 
 1. Basic development flow and sample: declare a built-in identity provider,
-   bind a Web API resource identity, grant that identity read access to a
-   Secrets Vault target resource, provision the Web API identity, and verify
-   the environment-variable secret-reference path still works. Current status:
-   implemented for the Settings and Secrets sample, including built-in
-   client-credentials provisioning, scoped resource-permission token claims,
-   configuration/secret reference grants, and HTTP API verification that read
-   access does not imply lifecycle action or identity-management permission.
+   bind a Web API resource identity, grant that identity access to another
+   resource, provision the Web API identity, and verify the model-level access
+   boundary. Current status: implemented for the Settings and Secrets sample,
+   including built-in identity provisioning, scoped resource-operation access
+   claims, resource access grants, and HTTP API verification that read access
+   does not imply lifecycle action or identity-management access.
 2. Provider-resource authorization: model identity providers as protected
    resources with their own identities and provision/manage permissions, then
    require access to both the target resource and the selected provider
@@ -47,37 +55,70 @@ can improve this area iteratively alongside other proposals.
 
 ## Problem
 
-CloudShell already has a user/session authentication and authorization model,
-but it does not yet define how resources should authenticate to one another,
-or how resource-level permissions should be evaluated.
+CloudShell already has a user/session authentication model, but it does not
+yet define identity and access as part of the resource domain model.
+Resources can be authored, projected, managed, and inspected, but there is no
+provider-neutral way to declare that a resource has an identity, what kind of
+principal that identity represents, or which identity provider is expected to
+resolve it.
 
 That makes it difficult to model scenarios such as:
 
-- an API resource that uses a workload identity or managed identity
-- a provider that needs a stable identity binding for service-to-service access
-- resource-scoped authorization that is independent from the current user session
+- an API resource that needs an application or workload identity
+- a provider that needs a stable provider-owned identity
+- a resource graph that needs to expose identity intent before any provider has
+  projected that identity into provider-specific authentication concepts
+- access rules that determine which principal may read a resource or perform
+  resource actions
 
 ## Goals
 
-- Introduce a resource identity-provider contract for resources and resource groups.
+- Model identity as provider-neutral resource metadata.
+- Introduce a resource identity-provider contract for resources and resource
+  groups.
 - Let Resource Manager select or inherit a default identity provider.
-- Provide a separate development identity server instance that implements
-  standard OIDC and OAuth 2.0 flows for local development and testing.
-- Support Microsoft Entra ID (Azure AD) as a required external provider target
-  through the same OIDC/OAuth contract.
-- Support resource identity bindings for workload, service, and provider-owned
-  scenarios.
-- Extend the existing authorization model with resource-level permission concepts.
+- Distinguish user identities from application, service, provider,
+  automation, and workload identities as CloudShell domain concepts.
+- Treat principal kind as CloudShell identity-domain metadata that can be
+  projected into provider-specific concepts, rather than as an OAuth or OIDC
+  primitive.
+- Support resource identity bindings for application, workload, service, and
+  provider-owned scenarios.
+- Model access as relationships between source principals, target resources,
+  and operations.
+- Leave authentication, token acquisition, token validation, and
+  protocol-specific authorization behavior to concrete identity-provider
+  implementations.
 
 ## Non-Goals
 
-- Do not define secret storage, vaults, or secret references here.
+- Do not define application secret storage, vaults, or secret references here.
+- Do not define authentication flows, token acquisition, token validation,
+  authorization protocols, client credentials, provider-owned secrets, or
+  claim-mapping rules here.
 - Do not replace the existing user authentication model.
+- Do not make CloudShell a general-purpose identity provider, authorization
+  server, or identity authority platform.
+- Do not require the built-in ASP.NET Core Identity-backed provider to support
+  the full surface area of OAuth, OpenID Connect, IdentityServer, Microsoft
+  Entra ID, or another production authority.
 - Do not make the development identity server part of the CloudShell domain
   model or a required production dependency.
 - Do not require authentication to be enabled just to declare, inspect, or test
   resource identity shape in local development.
 - Do not require every provider to implement all identity modes immediately.
+
+### Secret terminology
+
+This proposal may use configuration stores or secrets vaults as examples of
+resources that can be protected by access rules. Those examples refer to
+application data resources in the CloudShell resource graph.
+
+They are not the same thing as provider-owned credentials used by an identity
+provider or authorization flow, such as OAuth client secrets, signing keys,
+token credentials, certificates, or other authority-specific secret material.
+Provider-owned credentials belong to concrete identity-provider
+implementations and are outside this resource-domain proposal.
 
 ## Proposed Model
 
@@ -177,8 +218,16 @@ Examples include:
 
 - identity name
 - subject
-- scopes
-- claims
+- required principal kind
+- provider selection or provider resolution intent
+
+Scopes and claims may appear in the projected model as abstract identity
+evidence or provider output, but they should not be treated as the primary
+authoring model for resource access. In the normal case, CloudShell access
+grants should describe which resource identity may perform which operations on
+which target resource, and the selected identity provider should materialize
+that intent into provider-specific scopes, claims, app roles, groups, RBAC
+assignments, or token shape.
 
 Provider configuration should remain shared and live on the identity provider.
 A resource should reference a provider rather than duplicate provider
@@ -216,19 +265,19 @@ and provisioning plans resolve against the combined configured and declared
 provider catalog. First-class identity-provider resources and provider resource
 references remain proposal work.
 
-### Resource permissions
+### Resource access rules
 
-Resource permissions should extend the existing resource-group and resource
-authorization model:
+Resource access rules should define which source principal may perform which
+operation on which target resource. Permission names are the operation catalog
+used to evaluate those access rules:
 
-- `resource.identity.read`
-- `resource.identity.manage`
-- provider-specific permission names
-- Azure RBAC-style resource action operations such as
+-- `resource.identity.read`
+-- `resource.identity.manage`
+-- provider-specific permission names
+-- Azure RBAC-style resource action operations such as
   `CloudShell.Resources/resources/lifecycle/action`
 
-The evaluation model should be able to reason about resource identity and
-resource scope instead of relying only on user session claims.
+The access evaluation model should be able to reason about CloudShell principal kind, resource identity, target resource, and operation instead of relying only on user session claims.
 
 The first implementation slice maps standard CloudShell resource actions to
 operation permissions:
@@ -255,7 +304,7 @@ but new resource operation permissions should use the explicit catalog classes.
 | `configuration.store` and `ResourceClass.Configuration` | configuration entry read | `ConfigurationStoreResourceOperationPermissions.ReadEntries` |
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
 | `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
-| `secrets.vault` and `ResourceClass.SecretsVault` | secret value read | `SecretsVaultResourceOperationPermissions.ReadSecrets` |
+| `secrets.vault` and `ResourceClass.SecretsVault` | application secret value read | `SecretsVaultResourceOperationPermissions.ReadSecrets` |
 
 The existing `resources.manage` permission remains a compatibility superset
 while the model moves toward resource operation permissions.
@@ -311,7 +360,8 @@ Examples of provider- or graph-derived values include:
 - provider-specific registration metadata
 
 Manual identity configuration should remain available for cases where the
-author knows the exact provider-specific shape required:
+author knows the stable identity intent that should override provider or graph
+defaults:
 
 ```csharp
 var api = resources
@@ -320,22 +370,30 @@ var api = resources
     {
         identity.Name = "api-service";
         identity.Subject = "application:api";
-        identity.Scopes.Add("db.read");
-        identity.Claims["appRole"] = "Api";
     });
 ```
 
+Scopes and claims should usually be derived from resource access grants rather
+than authored directly on the resource identity binding. For example, an
+access grant from the API identity to a database read operation may be
+projected by one provider as an OAuth scope, by another as an app role or
+group assignment, and by another as an RBAC role assignment. The CloudShell
+model should preserve the abstract access relationship and let the provider
+decide how that relationship is materialized.
+
 The important distinction is that manual configuration should be an override,
 not the normal shape of the model. Most resources should be able to say that
-they use or require identity, and let the selected provider resolve the concrete
-identity parameters.
+they use or require identity, declare access through `Allow(...)` grants, and
+let the selected provider resolve the concrete identity parameters and emitted
+authorization evidence.
 
 Programmatic identity declarations are not limited to local or unauthenticated
 development. A declaration can bind to a production identity provider, point at
 a mock provider, or state only that the resource requires an identity whose
 provider-specific details are resolved later. The mock-provider path is a
 convenience for local development before wiring the same app to Microsoft Entra
-ID or another production provider.
+ID or another production provider. Provider-specific credentials used for that
+wiring are provider implementation details, not resource-graph secrets.
 
 The first implemented surface supports one optional identity binding per
 resource. That identity is stored on the programmatic declaration, projected
@@ -348,7 +406,7 @@ not only resource metadata. That would let local tests exercise permission
 boundaries between resources before the same declarations are backed by
 Microsoft Entra ID or another production authority.
 
-The first grant authoring surface stores permission grants between declared
+The first grant authoring surface stores access grants between declared
 resource identities and target resources.
 
 Examples:
@@ -361,12 +419,12 @@ queue.Allow(worker.Identity, QueueActions.Consume);
 
 A grant connects:
 
-- a source identity
+- a source principal or resource identity
 - a target resource
-- one or more operations
+- one or more allowed operations
 
 The declaration model can evaluate those grants with
-`ResourcePermissionGrantEvaluator`.
+`ResourceAccessGrantEvaluator`.
 
 Managed identity should be modeled as provider behavior over the same binding.
 A managed identity provider can eventually register or provision the resource
@@ -425,8 +483,8 @@ Open authoring questions:
   initial constraint until a concrete provider requires more.
 - Whether `.WithIdentity(...)` creates an identity immediately or declares
   intent that a provider resolves later.
-- Whether permission grants such as `Allow(...)` live on target resources,
-  resource groups, provider-specific builders, or a shared permission builder.
+- Whether access grants such as `Allow(...)` live on target resources,
+  resource groups, provider-specific builders, or a shared access builder.
 - Whether identity providers should remain configuration-backed, become
   first-class resources, or support both models.
 - How default identity providers should be declared and overridden by resource
@@ -435,8 +493,9 @@ Open authoring questions:
   effective access.
 - Whether resources should reference provider objects directly instead of
   provider IDs in the programmatic authoring model.
-- Which identity binding parameters should be provider-derived by default, and
-  which should require explicit author input.
+- Which identity binding parameters should be provider-derived by default, which
+  should require explicit author input, and which projected scopes or claims
+  should be derived from declared access grants.
 - How provider-specific actions such as `DatabaseActions.ReadWrite` map to the
   CloudShell operation-permission catalog and token claims.
 
@@ -459,19 +518,19 @@ permission-assignment support.
   authentication is disabled for local development, still projects the declared
   identity binding, and can simulate user or workload principals for
   permission-boundary tests.
-- Add Microsoft Entra ID (Azure AD) provider configuration and compatibility
-  tests for tokens, claim mapping, groups or app roles, and service-principal
-  automation.
+- Add Microsoft Entra ID (Azure AD) provider mapping notes and compatibility
+  tests for provider-native concepts such as token shape, claim mapping,
+  groups or app roles, and service-principal automation, without making those
+  protocol details part of the CloudShell resource identity domain model.
 - Decide how resource identity should inherit from a resource group or parent
   resource.
-- Add resource-level permission names and policy evaluation rules.
+- Add resource-level operation names and resource access evaluation rules.
 - Decide whether to expand the initial single-identity authoring API to
   multiple identities per resource.
-- Extend declared permission grants beyond model-level resource action
-  execution into mock identity tests, provider-backed identity proof, and
-  provider or authority registration. Built-in resource identity tokens now
-  carry scoped resource-permission claims and API tests cover the basic
-  permission-boundary flow.
+- Extend declared access grants beyond model-level resource action execution
+  into mock identity tests, provider-backed identity projection, and provider
+  registration. Current built-in-provider tests can use token-shaped evidence,
+  but the protocol details should remain provider implementation behavior.
 - Add Resource Manager UI workflows beyond the current read-only overview
   identity summary and generated Identity tab, including guided management for
   resource identity bindings and permission grants.
