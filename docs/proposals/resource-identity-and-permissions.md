@@ -25,7 +25,11 @@ can improve this area iteratively alongside other proposals.
 1. Basic development flow and sample: declare a built-in identity provider,
    bind a Web API resource identity, grant that identity read access to a
    Secrets Vault target resource, provision the Web API identity, and verify
-   the environment-variable secret-reference path still works.
+   the environment-variable secret-reference path still works. Current status:
+   implemented for the Settings and Secrets sample, including built-in
+   client-credentials provisioning, scoped resource-permission token claims,
+   configuration/secret reference grants, and HTTP API verification that read
+   access does not imply lifecycle action or identity-management permission.
 2. Provider-resource authorization: model identity providers as protected
    resources with their own identities and provision/manage permissions, then
    require access to both the target resource and the selected provider
@@ -464,8 +468,10 @@ permission-assignment support.
 - Decide whether to expand the initial single-identity authoring API to
   multiple identities per resource.
 - Extend declared permission grants beyond model-level resource action
-  execution into mock identity tests, token claims, provider-backed identity
-  proof, and provider or authority registration.
+  execution into mock identity tests, provider-backed identity proof, and
+  provider or authority registration. Built-in resource identity tokens now
+  carry scoped resource-permission claims and API tests cover the basic
+  permission-boundary flow.
 - Add Resource Manager UI workflows beyond the current read-only overview
   identity summary and generated Identity tab, including guided management for
   resource identity bindings and permission grants.

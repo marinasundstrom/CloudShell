@@ -137,9 +137,13 @@ The MVP should prove:
   provisioning planner can group declared identities and matching grants by
   resolved identity provider. The built-in development provider can provision
   an in-memory client-credentials client for a resource identity and project
-  declared grants as token claims. The Settings and Secrets sample demonstrates
-  a Web API identity with read access to Configuration Store and Secrets Vault
-  target resources while preserving reference-backed environment variables.
+  declared grants as scoped resource-permission token claims, with compatibility
+  permission/resource claims for older callers. The Settings and Secrets sample
+  demonstrates a Web API identity with read access to Configuration Store and
+  Secrets Vault target resources while preserving reference-backed environment
+  variables. HTTP tests now verify that provisioned built-in resource identity
+  tokens respect read, lifecycle action, and identity-management permission
+  boundaries through the Control Plane API.
   Configuration and Secrets providers now require matching grants when an
   identity-bound resource resolves configuration entries or secrets. The
   resource owns the identity and permission requirements; the managed

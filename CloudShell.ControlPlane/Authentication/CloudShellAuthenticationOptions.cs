@@ -9,6 +9,8 @@ public sealed class CloudShellAuthenticationOptions
     public const string PermissionClaimType = "cloudshell.permission";
     public const string ResourceGroupClaimType = "cloudshell.resource-group";
     public const string ResourceClaimType = "cloudshell.resource";
+    public const string ResourcePermissionClaimType = "cloudshell.resource-permission";
+    public const char ResourcePermissionClaimSeparator = '\u001f';
     public const string UngroupedScope = "__ungrouped";
 
     public bool Enabled { get; set; } = true;
@@ -89,6 +91,15 @@ public sealed class BuiltInAuthorityClientOptions
     public string[] ResourceGroups { get; set; } = [];
 
     public string[] Resources { get; set; } = [];
+
+    public BuiltInAuthorityResourcePermissionOptions[] ResourcePermissions { get; set; } = [];
+}
+
+public sealed class BuiltInAuthorityResourcePermissionOptions
+{
+    public string ResourceId { get; set; } = string.Empty;
+
+    public string Permission { get; set; } = string.Empty;
 }
 
 public sealed class OpenIdConnectProviderOptions

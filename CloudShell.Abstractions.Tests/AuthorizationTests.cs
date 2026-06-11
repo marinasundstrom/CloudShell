@@ -144,6 +144,47 @@ public sealed class AuthorizationTests
     }
 
     [Fact]
+    public void ResourcePermissionClaims_DoNotCombinePermissionsAcrossResources()
+    {
+        var authorization = CreateAuthorization(
+            new CloudShellAuthenticationOptions(),
+            new Claim(
+                CloudShellAuthenticationOptions.PermissionClaimType,
+                CloudShellPermissions.Resources.Actions.Lifecycle),
+            new Claim(
+                CloudShellAuthenticationOptions.PermissionClaimType,
+                CloudShellPermissions.Resources.Read),
+            new Claim(
+                CloudShellAuthenticationOptions.ResourceClaimType,
+                "service:allowed"),
+            new Claim(
+                CloudShellAuthenticationOptions.ResourceClaimType,
+                "service:denied"),
+            CreateResourcePermissionClaim(
+                "service:allowed",
+                CloudShellPermissions.Resources.Actions.Lifecycle),
+            CreateResourcePermissionClaim(
+                "service:allowed",
+                CloudShellPermissions.Resources.Read),
+            CreateResourcePermissionClaim(
+                "service:denied",
+                CloudShellPermissions.Resources.Read));
+
+        Assert.True(authorization.CanAccessResource(
+            "service:allowed",
+            null,
+            CloudShellPermissions.Resources.Actions.Lifecycle));
+        Assert.True(authorization.CanAccessResource(
+            "service:denied",
+            null,
+            CloudShellPermissions.Resources.Read));
+        Assert.False(authorization.CanAccessResource(
+            "service:denied",
+            null,
+            CloudShellPermissions.Resources.Actions.Lifecycle));
+    }
+
+    [Fact]
     public void DefaultRoles_OnlyAdministratorCanConfigureShell()
     {
         var administrator = CreateAuthorization(
@@ -202,4 +243,14 @@ public sealed class AuthorizationTests
             accessor,
             Options.Create(options));
     }
+
+    private static Claim CreateResourcePermissionClaim(
+        string resourceId,
+        string permission) =>
+        new(
+            CloudShellAuthenticationOptions.ResourcePermissionClaimType,
+            string.Concat(
+                resourceId,
+                CloudShellAuthenticationOptions.ResourcePermissionClaimSeparator,
+                permission));
 }

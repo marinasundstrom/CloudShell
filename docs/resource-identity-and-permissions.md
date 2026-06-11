@@ -211,14 +211,23 @@ model.
 provider to provision one resource identity and its matching permission grants.
 The first built-in provider implementation is development-oriented: it
 registers an in-memory client-credentials client with the built-in authority
-and projects declared grants as `cloudshell.permission` and
-`cloudshell.resource` token claims. This makes the basic flow demonstrable,
-including a Web API identity receiving read access to a Secrets Vault-shaped
-resource. In that flow the Web API owns the provisioned identity and the vault
-is the protected target resource; the vault does not need its own identity
-unless it later needs to call another resource or provider. External authority
-registration, durable client storage, and bearer token proof against
+and projects declared grants as scoped resource-permission token claims. The
+token also carries compatibility `cloudshell.permission` and
+`cloudshell.resource` claims, but authorization prefers the scoped
+`cloudshell.resource-permission` claim so a permission granted on one resource
+cannot combine with a different resource claim. This makes the basic flow
+demonstrable, including a Web API identity receiving read access to a Secrets
+Vault-shaped resource. In that flow the Web API owns the provisioned identity
+and the vault is the protected target resource; the vault does not need its own
+identity unless it later needs to call another resource or provider. External
+authority registration, durable client storage, and bearer token proof against
 provider-backed workloads remain future work.
+
+The built-in provider MVP is verified at the Control Plane API boundary. A
+provisioned resource identity token can call an action on a resource only when
+the token has the matching scoped operation permission for that target. A read
+grant lets the API resolve the target resource, but it does not imply action
+execution or identity-management permission.
 
 The generated Resource Manager overview displays basic identity binding
 metadata when a resource has one. Resource identity actions are isolated in a

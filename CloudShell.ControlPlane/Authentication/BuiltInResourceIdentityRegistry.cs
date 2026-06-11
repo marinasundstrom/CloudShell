@@ -40,6 +40,16 @@ public sealed class BuiltInResourceIdentityRegistry
             Resources = matchingGrants
                 .Select(grant => grant.TargetResourceId)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            ResourcePermissions = matchingGrants
+                .GroupBy(
+                    grant => $"{grant.TargetResourceId}\0{grant.Permission}",
+                    StringComparer.OrdinalIgnoreCase)
+                .Select(group => new BuiltInAuthorityResourcePermissionOptions
+                {
+                    ResourceId = group.First().TargetResourceId,
+                    Permission = group.First().Permission
+                })
                 .ToArray()
         };
 

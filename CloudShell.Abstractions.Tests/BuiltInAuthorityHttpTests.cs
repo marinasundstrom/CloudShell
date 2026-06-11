@@ -6,6 +6,7 @@ using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
+using CloudShell.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
@@ -131,6 +132,73 @@ public sealed class BuiltInAuthorityHttpTests
     }
 
     [Fact]
+    public async Task ProvisionedResourceIdentityToken_RespectsResourceActionGrantsThroughApi()
+    {
+        await using var app = await CreateAppAsync(resources =>
+        {
+            var identityProvider = resources.AddIdentityProvider(
+                "identity:development",
+                "Development identity",
+                ResourceIdentityProviderKind.BuiltIn,
+                new Dictionary<string, string>
+                {
+                    [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
+                        "local-development-resource-secret"
+                },
+                useAsDefault: true);
+            var api = resources
+                .Declare(ResourceIdentityFlowProvider.ProviderId, ResourceIdentityFlowProvider.ApiResourceId)
+                .WithIdentity(identityProvider, name: "web-api");
+            var allowed = resources.Declare(
+                ResourceIdentityFlowProvider.ProviderId,
+                ResourceIdentityFlowProvider.AllowedActionResourceId);
+            var denied = resources.Declare(
+                ResourceIdentityFlowProvider.ProviderId,
+                ResourceIdentityFlowProvider.DeniedActionResourceId);
+            api.Allow(api.Identity, CloudShellPermissions.Resources.Read);
+            allowed.Allow(api.Identity, CloudShellPermissions.Resources.Read);
+            allowed.Allow(api.Identity, CommonResourceOperationPermissions.LifecycleAction);
+            denied.Allow(api.Identity, CloudShellPermissions.Resources.Read);
+        });
+        await RegisterIdentityFlowResourcesAsync(
+            app,
+            ResourceIdentityFlowProvider.ApiResourceId,
+            ResourceIdentityFlowProvider.AllowedActionResourceId,
+            ResourceIdentityFlowProvider.DeniedActionResourceId);
+        var client = app.GetTestClient();
+        var adminToken = await GetTokenAsync(client);
+        await SendWithBearerAsync(
+            client,
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/api/identity/provision",
+            adminToken,
+            HttpStatusCode.OK);
+        var resourceToken = await GetTokenAsync(
+            client,
+            "api/web-api",
+            "local-development-resource-secret");
+
+        await SendWithBearerAsync(
+            client,
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(ResourceIdentityFlowProvider.AllowedActionResourceId)}/actions/{ResourceActionIds.Run}",
+            resourceToken,
+            HttpStatusCode.OK);
+        await SendWithBearerAsync(
+            client,
+            HttpMethod.Post,
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(ResourceIdentityFlowProvider.DeniedActionResourceId)}/actions/{ResourceActionIds.Run}",
+            resourceToken,
+            HttpStatusCode.Forbidden);
+        await SendWithBearerAsync(
+            client,
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/api/identity/provision",
+            resourceToken,
+            HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_RejectsTamperedBearerToken()
     {
         await using var app = await CreateAppAsync();
@@ -226,6 +294,32 @@ public sealed class BuiltInAuthorityHttpTests
             throw new InvalidOperationException("The token endpoint returned no access token.");
     }
 
+    private static async Task RegisterIdentityFlowResourcesAsync(
+        WebApplication app,
+        params string[] resourceIds)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var registrations = scope.ServiceProvider.GetRequiredService<EfCoreResourceStore>();
+        foreach (var resourceId in resourceIds)
+        {
+            await registrations.RegisterAsync(ResourceIdentityFlowProvider.ProviderId, resourceId);
+        }
+    }
+
+    private static async Task<HttpResponseMessage> SendWithBearerAsync(
+        HttpClient client,
+        HttpMethod method,
+        string requestUri,
+        string accessToken,
+        HttpStatusCode expectedStatusCode)
+    {
+        using var request = new HttpRequestMessage(method, requestUri);
+        request.Headers.Authorization = new("Bearer", accessToken);
+        var response = await client.SendAsync(request);
+        Assert.Equal(expectedStatusCode, response.StatusCode);
+        return response;
+    }
+
     private static JsonElement ReadTokenPayload(string token)
     {
         var payload = token.Split('.')[1].Replace('-', '+').Replace('_', '/');
@@ -240,11 +334,13 @@ public sealed class BuiltInAuthorityHttpTests
         [property: JsonPropertyName("expires_in")] int ExpiresIn,
         [property: JsonPropertyName("scope")] string? Scope);
 
-    private sealed class ResourceIdentityFlowProvider : IResourceProvider
+    private sealed class ResourceIdentityFlowProvider : IResourceProvider, IResourceProcedureProvider
     {
         public const string ProviderId = "identity-flow";
         public const string ApiResourceId = "api";
         public const string VaultResourceId = "secrets-vault:app";
+        public const string AllowedActionResourceId = "service:allowed";
+        public const string DeniedActionResourceId = "service:denied";
 
         public string Id => ProviderId;
 
@@ -275,7 +371,45 @@ public sealed class BuiltInAuthorityHttpTests
                 "1.0",
                 DateTimeOffset.UtcNow,
                 [],
-                ResourceClass: ResourceClass.SecretsVault)
+                ResourceClass: ResourceClass.SecretsVault),
+            new(
+                AllowedActionResourceId,
+                "Allowed Worker",
+                "Service",
+                DisplayName,
+                "local",
+                ResourceState.Stopped,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                Actions: [ResourceAction.Run],
+                ResourceClass: ResourceClass.Service),
+            new(
+                DeniedActionResourceId,
+                "Denied Worker",
+                "Service",
+                DisplayName,
+                "local",
+                ResourceState.Stopped,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                Actions: [ResourceAction.Run],
+                ResourceClass: ResourceClass.Service)
         ];
+
+        public Task<ResourceProcedureResult> DeleteAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ResourceProcedureResult.Completed($"Deleted {context.Resource.Id}."));
+
+        public Task<ResourceProcedureResult> ExecuteActionAsync(
+            ResourceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ResourceProcedureResult.Completed(
+                $"Executed {action.Id} for {context.Resource.Id}."));
     }
 }

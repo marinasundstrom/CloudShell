@@ -47,6 +47,10 @@ selection, resource identity bindings, resource-scoped permission names,
 permission assignments, workload identity lifecycle, token claim mapping, and
 action authorization diagnostics.
 
+The built-in development authority should preserve resource-permission
+pairing in token claims so a permission granted on one resource cannot combine
+with a different resource claim during API authorization.
+
 The first provider-selection contract should stay small: concrete identity
 bindings resolve by provider ID, required-but-unresolved bindings resolve to a
 default provider, and richer inheritance can follow when resource groups and

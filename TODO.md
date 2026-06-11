@@ -59,13 +59,15 @@ Work the current proposals in this order:
   Control Plane provisioning planner now group declared identities and grants
   by resolved provider. The built-in development provider can provision an
   in-memory client-credentials client for a resource identity and project
-  grants into token claims; the Settings and Secrets sample demonstrates a
-  Web API identity with read access to Configuration Store and Secrets Vault
-  target resources. Configuration and Secrets providers now require matching
-  grants when an identity-bound resource resolves configuration entries or
-  secrets. Next connect those grants to mock-principal tests, provider-resource
-  authorization, provider-backed identity proof, and concrete authority
-  registration.
+  grants into scoped resource-permission token claims; the Settings and Secrets
+  sample demonstrates a Web API identity with read access to Configuration Store
+  and Secrets Vault target resources. Configuration and Secrets providers now
+  require matching grants when an identity-bound resource resolves configuration
+  entries or secrets, and HTTP tests verify that built-in resource identity
+  tokens respect read, lifecycle action, and identity-management permission
+  boundaries through the Control Plane API. Next connect those grants to
+  mock-principal tests, provider-resource authorization, provider-backed
+  identity proof, and concrete authority registration.
 - Continue assigning and documenting specific Azure-style operation permissions
   per resource type or class. Load-balancer apply and network endpoint
   reconciliation now use documented network operation permissions instead of
