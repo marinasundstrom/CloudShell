@@ -242,6 +242,27 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResourceModelDiagnostics_UsesProgrammaticIdentityProviderDefault()
+    {
+        var resource = CreateResource(
+            "identity",
+            "Identity",
+            identity: ResourceIdentityBinding.RequireIdentity());
+        var declarations = new ResourceDeclarationStore();
+        declarations.AddIdentityProvider(
+            new ResourceIdentityProviderDefinition(
+                "identity:dev",
+                "Development identity",
+                ResourceIdentityProviderKind.BuiltIn),
+            useAsDefault: true);
+        var store = CreateStore(
+            [resource],
+            declarations: declarations);
+
+        Assert.Empty(store.GetResourceModelDiagnostics());
+    }
+
+    [Fact]
     public void GetGroupForResource_InheritsGroupFromRegisteredParent()
     {
         var group = new ResourceGroup("group-one", "Group One", "Test group", []);

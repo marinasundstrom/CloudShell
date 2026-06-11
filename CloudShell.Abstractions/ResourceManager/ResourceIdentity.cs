@@ -129,6 +129,26 @@ public sealed class ResourceIdentityProviderCatalog
             ? null
             : providersById.GetValueOrDefault(providerId.Trim());
 
+    public ResourceIdentityProviderCatalog Merge(
+        IEnumerable<ResourceIdentityProviderDefinition>? providers,
+        string? defaultProviderId = null)
+    {
+        var merged = Providers.ToDictionary(
+            provider => provider.Id,
+            StringComparer.OrdinalIgnoreCase);
+        foreach (var provider in providers ?? [])
+        {
+            ArgumentNullException.ThrowIfNull(provider);
+            merged[provider.Id] = provider;
+        }
+
+        return new ResourceIdentityProviderCatalog(
+            merged.Values,
+            string.IsNullOrWhiteSpace(defaultProviderId)
+                ? DefaultProviderId
+                : defaultProviderId.Trim());
+    }
+
     public ResourceIdentityProviderResolution Resolve(ResourceIdentityBinding binding)
     {
         ArgumentNullException.ThrowIfNull(binding);

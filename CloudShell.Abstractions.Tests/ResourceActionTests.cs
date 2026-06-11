@@ -186,6 +186,23 @@ public sealed class ResourceActionTests
     }
 
     [Fact]
+    public void ResourceIdentityProviderCatalog_MergesProgrammaticProvidersAndDefault()
+    {
+        var catalog = new ResourceIdentityProviderCatalog(
+            [new("identity:configured", "Configured", ResourceIdentityProviderKind.Oidc)]);
+        var merged = catalog.Merge(
+            [new("identity:dev", "Development identity", ResourceIdentityProviderKind.BuiltIn)],
+            "identity:dev");
+
+        Assert.Equal("identity:dev", merged.DefaultProviderId);
+        Assert.NotNull(merged.GetProvider("identity:configured"));
+        Assert.NotNull(merged.GetProvider("identity:dev"));
+        Assert.Equal(
+            "identity:dev",
+            merged.Resolve(ResourceIdentityBinding.RequireIdentity()).Provider?.Id);
+    }
+
+    [Fact]
     public void ResourceOperationCapabilities_ProvidesCaseInsensitiveActionLookup()
     {
         var capabilities = new ResourceOperationCapabilities(

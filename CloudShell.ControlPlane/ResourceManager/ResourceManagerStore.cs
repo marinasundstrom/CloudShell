@@ -216,7 +216,9 @@ public sealed class ResourceManagerStore(
             return resource;
         }
 
-        var resolution = identityProviders.Resolve(identity);
+        var resolution = declarations
+            .CreateIdentityProviderCatalog(identityProviders)
+            .Resolve(identity);
         if (!resolution.IsResolved)
         {
             diagnostics.Add(ResourceModelValidation.CreateResourceIdentityProviderUnresolved(

@@ -22,6 +22,12 @@ public sealed class ResourceIdentityProvisioningServiceTests
             "test",
             "worker",
             identity: ResourceIdentityBinding.RequireIdentity(["queue.read"]) with { Name = "worker-service" });
+        declarations.AddIdentityProvider(
+            new ResourceIdentityProviderDefinition(
+                "identity:dev",
+                "Development",
+                ResourceIdentityProviderKind.BuiltIn),
+            useAsDefault: true);
         declarations.Declare(builder, "test", "database");
         declarations.AddPermissionGrant(new ResourcePermissionGrant(
             ResourceIdentityReference.ForResource("api", "api-service"),
@@ -38,8 +44,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
 
         var service = new ResourceIdentityProvisioningService(
             declarations,
-            new ResourceIdentityProviderCatalog(
-                [new("identity:dev", "Development", ResourceIdentityProviderKind.BuiltIn)]),
+            new ResourceIdentityProviderCatalog(),
             []);
 
         var plan = service.CreatePlan();

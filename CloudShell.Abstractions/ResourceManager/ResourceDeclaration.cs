@@ -167,6 +167,32 @@ public sealed class ResourcePermissionGrantEvaluator(
 
 public static class ResourceDeclarationBuilderExtensions
 {
+    public static IResourceGraphBuilder UseDefaultIdentityProvider(
+        this IResourceGraphBuilder builder,
+        string providerId)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.Services)
+            .UseDefaultIdentityProvider(providerId);
+        return builder;
+    }
+
+    public static ResourceIdentityProviderDefinition AddIdentityProvider(
+        this IResourceGraphBuilder builder,
+        string id,
+        string name,
+        ResourceIdentityProviderKind kind = ResourceIdentityProviderKind.Oidc,
+        IReadOnlyDictionary<string, string>? settings = null,
+        bool useAsDefault = false)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        var provider = new ResourceIdentityProviderDefinition(id, name, kind, settings);
+        return GetOrAddDeclarationStore(builder.Services)
+            .AddIdentityProvider(provider, useAsDefault);
+    }
+
     public static IControlPlaneBuilder Resources(
         this IControlPlaneBuilder builder,
         Action<IResourceGraphBuilder> configure)
@@ -295,6 +321,48 @@ public static class ResourceDeclarationBuilderExtensions
         GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
             .SetAttributes(builder.ResourceId, attributes);
         return builder;
+    }
+
+    public static TBuilder WithIdentity<TBuilder>(
+        this TBuilder builder,
+        ResourceIdentityProviderDefinition provider,
+        string? subject = null,
+        IReadOnlyList<string>? scopes = null,
+        IReadOnlyDictionary<string, string>? claims = null,
+        string? name = null)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+
+        return builder.WithIdentity(
+            provider.Id,
+            subject,
+            scopes,
+            claims,
+            name);
+    }
+
+    public static TBuilder WithIdentity<TBuilder>(
+        this TBuilder builder,
+        ResourceIdentityProviderDefinition provider,
+        Action<ResourceIdentityDeclarationBuilder> configure)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(provider);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var identity = new ResourceIdentityDeclarationBuilder
+        {
+            ProviderId = provider.Id
+        };
+        configure(identity);
+        if (string.IsNullOrWhiteSpace(identity.ProviderId))
+        {
+            identity.ProviderId = provider.Id;
+        }
+
+        return builder.WithIdentity(identity.Build());
     }
 
     public static TBuilder WithIdentity<TBuilder>(
@@ -504,7 +572,10 @@ public sealed class ResourceDeclarationStore
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<Action<ResourceDeclaration>>> _changeHandlers =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ResourceIdentityProviderDefinition> _identityProviders =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ResourcePermissionGrant> _permissionGrants = [];
+    private string? _defaultIdentityProviderId;
     private bool _defaultAutoStart = true;
     private bool _defaultDependencyAutoStart = true;
 
@@ -527,6 +598,64 @@ public sealed class ResourceDeclarationStore
             {
                 return _defaultDependencyAutoStart;
             }
+        }
+    }
+
+    public string? DefaultIdentityProviderId
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _defaultIdentityProviderId;
+            }
+        }
+    }
+
+    public ResourceIdentityProviderDefinition AddIdentityProvider(
+        ResourceIdentityProviderDefinition provider,
+        bool useAsDefault = false)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        var normalized = new ResourceIdentityProviderCatalog([provider]).Providers.Single();
+        lock (_gate)
+        {
+            _identityProviders[normalized.Id] = normalized;
+            if (useAsDefault)
+            {
+                _defaultIdentityProviderId = normalized.Id;
+            }
+        }
+
+        return normalized;
+    }
+
+    public void UseDefaultIdentityProvider(string providerId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerId);
+        lock (_gate)
+        {
+            _defaultIdentityProviderId = providerId.Trim();
+        }
+    }
+
+    public IReadOnlyList<ResourceIdentityProviderDefinition> GetIdentityProviders()
+    {
+        lock (_gate)
+        {
+            return _identityProviders.Values
+                .OrderBy(provider => provider.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+    }
+
+    public ResourceIdentityProviderCatalog CreateIdentityProviderCatalog(
+        ResourceIdentityProviderCatalog configuredProviders)
+    {
+        ArgumentNullException.ThrowIfNull(configuredProviders);
+        lock (_gate)
+        {
+            return configuredProviders.Merge(_identityProviders.Values, _defaultIdentityProviderId);
         }
     }
 

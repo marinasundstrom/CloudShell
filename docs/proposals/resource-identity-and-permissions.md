@@ -57,6 +57,29 @@ That makes it difficult to model scenarios such as:
 
 CloudShell should introduce a small identity-provider abstraction for resources:
 
+Identity providers should eventually be representable as first-class resources.
+
+The initial implementation may keep provider definitions configuration-backed,
+but the resource model should support identity-provider registration through the
+same programmatic authoring surface used for other resources.
+
+CloudShell should also support a default identity provider that can be declared
+outside the resource graph and used implicitly by resources that require
+identity. This allows simple applications to opt into identity without first
+creating an identity provider resource.
+
+A default identity provider represents the ambient identity authority for a host,
+environment, or project. An identity provider resource represents an explicit
+shared authority, connection, or provisioning endpoint used by one or more
+resource identities in the resource graph.
+
+Examples include:
+
+- Development Identity Provider
+- IdentityServer Provider
+- Microsoft Entra ID Provider
+- Keycloak Provider
+
 ```csharp
 public sealed record ResourceIdentityProviderDefinition(
     string Id,
@@ -120,6 +143,19 @@ public sealed record ResourceIdentityBinding(
     ResourceIdentityBindingKind Kind = ResourceIdentityBindingKind.Provider);
 ```
 
+Identity bindings should describe resource-specific identity intent.
+
+Examples include:
+
+- identity name
+- subject
+- scopes
+- claims
+
+Provider configuration should remain shared and live on the identity provider.
+A resource should reference a provider rather than duplicate provider
+connection details.
+
 This gives providers a stable contract for identity selection, workload identity,
 scopes, and provider-specific metadata. `Provider` means the binding names a
 resolved identity provider. `Required` means the resource declares identity
@@ -132,14 +168,25 @@ non-secret claim metadata. The Control Plane API and remote client map that
 binding through `ResourceResponse.identity`.
 
 The first provider-selection slice adds `ResourceIdentityProviderCatalog`.
-Concrete `Provider` bindings resolve by provider ID. `Required` bindings
-resolve to the configured default provider; when exactly one provider is
-registered, that provider is the default. Multiple providers require an
-explicit default. Control Plane hosts can register providers and the default
-through `ResourceIdentity` configuration. Resources with identity bindings that
-cannot be resolved to a registered provider produce resource model diagnostics.
-Resource-group or parent-resource inheritance and provider-backed token
-behavior remain separate implementation work.
+Concrete `Provider` bindings resolve by provider ID or provider resource
+reference. `Required` bindings resolve to the configured default provider; when
+exactly one provider is registered, that provider is the implicit default. A
+host may also declare a default identity provider without adding an identity
+provider resource to the graph. Multiple configured providers require an
+explicit default for implicit `Required` bindings. Control Plane hosts can
+register providers and the default through `ResourceIdentity` configuration.
+Resources with identity bindings that cannot be resolved to a registered or
+default provider produce resource model diagnostics. Resource-group or
+parent-resource inheritance and provider-backed token behavior remain separate
+implementation work.
+
+The current implementation supports configuration-backed provider definitions
+and programmatic provider definitions through `resources.AddIdentityProvider(...)`.
+Programmatic declarations can select a default with
+`resources.UseDefaultIdentityProvider(...)`, and Resource Manager diagnostics
+and provisioning plans resolve against the combined configured and declared
+provider catalog. First-class identity-provider resources and provider resource
+references remain proposal work.
 
 ### Resource permissions
 
@@ -185,20 +232,73 @@ while the model moves toward resource operation permissions.
 
 ## Initial authoring surface
 
+The simplest authoring path should allow a host or application to declare a
+default identity provider and let resources use it implicitly:
+
 ```csharp
-resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
-    .WithIdentity(identity =>
+resources.AddIdentityProvider(
+    "identity:dev",
+    "Development Identity",
+    ResourceIdentityProviderKind.BuiltIn,
+    useAsDefault: true);
+
+var api = resources
+    .AddContainerApplication("api", "ghcr.io/example/api:latest")
+    .RequireIdentity();
+```
+
+For resource graphs that need an explicit provider resource, the provider can be
+registered and referenced directly:
+
+```csharp
+var identityProvider = resources
+    .AddIdentityProvider("identity:dev")
+    .WithOidc();
+
+var api = resources
+    .AddContainerApplication("api", "ghcr.io/example/api:latest")
+    .WithIdentity(identityProvider);
+
+var worker = resources
+    .AddContainerApplication("worker", "ghcr.io/example/worker:latest")
+    .RequireIdentity();
+```
+
+The default authoring path should avoid requiring callers to manually duplicate
+provider-specific parameters on each resource. When a resource uses the default
+identity provider or references an identity provider resource, CloudShell should
+be able to resolve reasonable identity binding defaults from the selected
+provider, the resource graph, and the resource declaration.
+
+Examples of provider- or graph-derived values include:
+
+- identity name
+- subject
+- audience
+- scopes
+- claims
+- issuer or authority reference
+- provider-specific registration metadata
+
+Manual identity configuration should remain available for cases where the
+author knows the exact provider-specific shape required:
+
+```csharp
+var api = resources
+    .AddContainerApplication("api", "ghcr.io/example/api:latest")
+    .WithIdentity(identityProvider, identity =>
     {
         identity.Name = "api-service";
-        identity.Provider = "identity:dev";
         identity.Subject = "application:api";
         identity.Scopes.Add("db.read");
         identity.Claims["appRole"] = "Api";
     });
-
-resources.AddContainerApplication("worker", "ghcr.io/example/worker:latest")
-    .RequireIdentity(name: "worker-service");
 ```
+
+The important distinction is that manual configuration should be an override,
+not the normal shape of the model. Most resources should be able to say that
+they use or require identity, and let the selected provider resolve the concrete
+identity parameters.
 
 Programmatic identity declarations are not limited to local or unauthenticated
 development. A declaration can bind to a production identity provider, point at
@@ -218,21 +318,25 @@ not only resource metadata. That would let local tests exercise permission
 boundaries between resources before the same declarations are backed by
 Microsoft Entra ID or another production authority.
 
-The first grant authoring surface stores declarations such as
-`target.Allow(source.Identity, permission)` in the programmatic declaration
-store. The declaration model can evaluate those grants with
-`ResourcePermissionGrantEvaluator`. Resource action execution now accepts an
-explicit acting resource identity and, when supplied, evaluates the declared
-grant model instead of falling back to the current user's resource permissions.
-This is the first model-level enforcement path for programmatic identities, but
-CloudShell does not yet prove that identity with a token, issue grants as token
-claims, or register them with an external authority.
+The first grant authoring surface stores permission grants between declared
+resource identities and target resources.
 
-The CloudShell UI should later expose identity management for resources,
-including editing identity bindings and managing grants. The first UI step is
-read-only display of a resource's identity binding in the generated Resource
-Manager detail view. Later management UI should operate against the same
-resource identity model rather than creating a separate permission system.
+Examples:
+
+```csharp
+secretStore.Allow(api.Identity, SecretActions.Read);
+database.Allow(api.Identity, DatabaseActions.ReadWrite);
+queue.Allow(worker.Identity, QueueActions.Consume);
+```
+
+A grant connects:
+
+- a source identity
+- a target resource
+- one or more operations
+
+The declaration model can evaluate those grants with
+`ResourcePermissionGrantEvaluator`.
 
 Managed identity should be modeled as provider behavior over the same binding.
 A managed identity provider can eventually register or provision the resource
@@ -261,17 +365,20 @@ authoring surface should be able to declare identity metadata and then use the
 declared identity in permission grants:
 
 ```csharp
+var identityProvider = app.AddIdentityProvider("identity:development")
+    .WithOidc();
+
 var api = app.AddProject("api")
-    .WithIdentity(identity =>
-    {
-        identity.Name = "api-service";
-        identity.Provider = "development";
-        identity.Claims.Add("resource", "api");
-    });
+    .WithIdentity(identityProvider);
 
 database.Allow(api.Identity, DatabaseActions.ReadWrite);
 secretStore.Allow(api.Identity, SecretActions.Read);
 ```
+
+Provider-specific identity details can still be supplied explicitly when needed,
+but the resource model should first try to resolve identity parameters from the
+default identity provider or explicit identity provider resource, resource name,
+resource kind, declared grants, and other graph metadata.
 
 Declaring identities programmatically helps while building the model, whether
 the identity is backed by a live provider or by a mock/development provider.
@@ -290,6 +397,16 @@ Open authoring questions:
   intent that a provider resolves later.
 - Whether permission grants such as `Allow(...)` live on target resources,
   resource groups, provider-specific builders, or a shared permission builder.
+- Whether identity providers should remain configuration-backed, become
+  first-class resources, or support both models.
+- How default identity providers should be declared and overridden by resource
+  groups, parent resources, or explicit provider resources.
+- Whether grants should support a distinction between requested access and
+  effective access.
+- Whether resources should reference provider objects directly instead of
+  provider IDs in the programmatic authoring model.
+- Which identity binding parameters should be provider-derived by default, and
+  which should require explicit author input.
 - How provider-specific actions such as `DatabaseActions.ReadWrite` map to the
   CloudShell operation-permission catalog and token claims.
 
@@ -304,6 +421,8 @@ permission-assignment support.
 
 - Define default resource identity-provider selection inheritance from resource
   groups or parent resources.
+- Define how a default identity provider is declared without adding an identity
+  provider resource to the graph.
 - Add the reference development identity server hosting path and OIDC/OAuth
   configuration.
 - Add a mock/development identity-provider mode that works when CloudShell
@@ -325,4 +444,10 @@ permission-assignment support.
   permission grants.
 - Add concrete managed identity provider behavior for registering or
   provisioning resource identities and grants with the backing authority.
+- Define identity-provider resource registration and lifecycle.
+- Define how provider resources expose shared authority configuration.
+- Define default identity parameter resolution from provider resources and the
+  resource graph.
+- Define provider-backed reconciliation of identities and grants.
+- Define grant provisioning against external authorities.
 - Wire the identity contract into at least one provider-backed workload type.

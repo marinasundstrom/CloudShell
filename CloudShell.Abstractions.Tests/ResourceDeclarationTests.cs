@@ -2031,6 +2031,49 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void Resources_RegisterProgrammaticIdentityProviderAndDefault()
+    {
+        var services = new ServiceCollection();
+        ResourceIdentityProviderDefinition? provider = null;
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                provider = resources.AddIdentityProvider(
+                    "identity:dev",
+                    "Development Identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    useAsDefault: true);
+
+                resources
+                    .Declare("applications", "application:api")
+                    .WithIdentity(provider);
+
+                resources
+                    .Declare("applications", "application:worker")
+                    .RequireIdentity(name: "worker-service");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var catalog = declarations.CreateIdentityProviderCatalog(new ResourceIdentityProviderCatalog());
+
+        Assert.NotNull(provider);
+        Assert.Equal("identity:dev", declarations.DefaultIdentityProviderId);
+        Assert.Equal("identity:dev", catalog.DefaultProviderId);
+        Assert.Equal("identity:dev", catalog.GetProvider("identity:dev")?.Id);
+
+        var api = declarations.GetDeclaration("application:api");
+        var worker = declarations.GetDeclaration("application:worker");
+        Assert.NotNull(api);
+        Assert.NotNull(worker);
+        Assert.Equal("identity:dev", api.IdentityBinding?.ProviderId);
+        Assert.Equal("worker-service", worker.IdentityBinding?.Name);
+        Assert.Equal("identity:dev", catalog.Resolve(worker.IdentityBinding!).Provider?.Id);
+    }
+
+    [Fact]
     public void PlatformResources_DeclareNetworkEndpointRequestsAndMappings()
     {
         var services = new ServiceCollection();

@@ -59,16 +59,36 @@ Supported provider kinds:
 ## Provider Selection
 
 Resource identity bindings resolve through `ResourceIdentityProviderCatalog`.
+Providers can come from `ResourceIdentity` host configuration or from
+programmatic resource declarations.
 
 | Binding kind | Selection rule |
 | --- | --- |
 | `Provider` | Resolve by `ProviderId`. |
-| `Required` | Resolve to `ResourceIdentity:DefaultProviderId`. If exactly one provider is configured, that provider is the implicit default. |
+| `Required` | Resolve to the configured or programmatically declared default provider. If exactly one provider is available, that provider is the implicit default. |
 
-When multiple providers are configured, set `DefaultProviderId` explicitly for
-`Required` identity bindings. If a binding cannot resolve to a configured
+When multiple providers are available, set a default explicitly for `Required`
+identity bindings. Hosts can use `ResourceIdentity:DefaultProviderId`;
+programmatic declarations can call `resources.UseDefaultIdentityProvider(...)`.
+If a binding cannot resolve to a configured or programmatically registered
 provider, Resource Manager reports a `resourceIdentityProviderUnresolved`
 resource model diagnostic.
+
+```csharp
+resources.AddIdentityProvider(
+    "identity:dev",
+    "Development Identity",
+    ResourceIdentityProviderKind.BuiltIn,
+    useAsDefault: true);
+
+var api = resources
+    .Declare("applications", "application:api")
+    .RequireIdentity();
+```
+
+`resources.AddIdentityProvider(...)` registers provider metadata with the
+declaration model; it is not yet a first-class identity-provider resource with
+its own lifecycle.
 
 ## Identity Bindings
 

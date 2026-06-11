@@ -17,6 +17,7 @@ public sealed class ResourceIdentityProvisioningService(
     {
         var identities = new List<ResolvedIdentity>();
         var diagnostics = new List<ResourceIdentityProvisioningDiagnostic>();
+        var effectiveProviders = declarations.CreateIdentityProviderCatalog(identityProviders);
 
         foreach (var declaration in declarations.GetDeclarations())
         {
@@ -26,7 +27,7 @@ public sealed class ResourceIdentityProvisioningService(
             }
 
             var identity = ResourceIdentityReference.ForResource(declaration.ResourceId, binding.Name);
-            var resolution = identityProviders.Resolve(binding);
+            var resolution = effectiveProviders.Resolve(binding);
             if (resolution.Provider is null)
             {
                 diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
