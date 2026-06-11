@@ -218,10 +218,19 @@ database.Allow(api.Identity, DatabaseActions.ReadWrite);
 secretStore.Allow(api.Identity, SecretActions.Read);
 ```
 
+Declaring identities programmatically helps while building the model, whether
+the identity is backed by a live provider or by a mock/development provider.
+The same declarations later help deployment automation because CloudShell can
+register identities and permission grants with the selected authority instead
+of discovering that intent from provider-specific configuration.
+
 Open authoring questions:
 
 - Whether `api.Identity` is a single default identity or a collection with a
   default identity selected by name.
+- Whether multiple identities per resource are worth supporting in the first
+  authoring model, or whether a single default identity should remain the
+  initial constraint until a concrete provider requires more.
 - Whether `.WithIdentity(...)` creates an identity immediately or declares
   intent that a provider resolves later.
 - Whether permission grants such as `Allow(...)` live on target resources,
