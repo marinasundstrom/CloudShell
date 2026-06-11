@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -111,6 +112,57 @@ public sealed record ResourcePermissionGrant(
         ArgumentException.ThrowIfNullOrWhiteSpace(value);
         return value.Trim();
     }
+}
+
+public sealed record ResourcePermissionEvaluation(
+    ResourceIdentityReference Identity,
+    string TargetResourceId,
+    string Permission,
+    bool IsAllowed,
+    ResourcePermissionGrant? Grant = null);
+
+public sealed class ResourcePermissionGrantEvaluator(
+    IEnumerable<ResourcePermissionGrant> grants)
+{
+    private readonly IReadOnlyList<ResourcePermissionGrant> grants = grants.ToArray();
+
+    public ResourcePermissionEvaluation Evaluate(
+        ResourceIdentityReference identity,
+        string targetResourceId,
+        string permission)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetResourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(permission);
+
+        var normalizedTargetResourceId = targetResourceId.Trim();
+        var normalizedPermission = permission.Trim();
+        var grant = grants.FirstOrDefault(grant =>
+            MatchesIdentity(grant.Identity, identity) &&
+            Matches(grant.TargetResourceId, normalizedTargetResourceId) &&
+            MatchesPermission(grant.Permission, normalizedPermission));
+
+        return new ResourcePermissionEvaluation(
+            identity,
+            normalizedTargetResourceId,
+            normalizedPermission,
+            grant is not null,
+            grant);
+    }
+
+    private static bool MatchesIdentity(
+        ResourceIdentityReference grantIdentity,
+        ResourceIdentityReference requestedIdentity) =>
+        Matches(grantIdentity.ResourceId, requestedIdentity.ResourceId) &&
+        (string.IsNullOrWhiteSpace(grantIdentity.Name) ||
+         Matches(grantIdentity.Name, requestedIdentity.Name));
+
+    private static bool MatchesPermission(string grantPermission, string requestedPermission) =>
+        Matches(grantPermission, requestedPermission) ||
+        Matches(grantPermission, CloudShellPermissions.All);
+
+    private static bool Matches(string? left, string? right) =>
+        string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
 }
 
 public static class ResourceDeclarationBuilderExtensions
@@ -568,6 +620,9 @@ public sealed class ResourceDeclarationStore
                 .ToArray();
         }
     }
+
+    public ResourcePermissionGrantEvaluator CreatePermissionGrantEvaluator() =>
+        new(GetPermissionGrants());
 
     public void Remove(string resourceId)
     {

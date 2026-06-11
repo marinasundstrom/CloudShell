@@ -254,6 +254,76 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ResourcePermissionGrantEvaluator_EvaluatesDeclaredGrants()
+    {
+        var evaluator = new ResourcePermissionGrantEvaluator(
+            [
+                new(
+                    ResourceIdentityReference.ForResource("application:api", "api-service"),
+                    "configuration:database",
+                    "Database/databases/read/action")
+            ]);
+
+        var allowed = evaluator.Evaluate(
+            ResourceIdentityReference.ForResource("application:api", "api-service"),
+            "configuration:database",
+            "Database/databases/read/action");
+        var deniedPermission = evaluator.Evaluate(
+            ResourceIdentityReference.ForResource("application:api", "api-service"),
+            "configuration:database",
+            "Database/databases/write/action");
+        var deniedIdentity = evaluator.Evaluate(
+            ResourceIdentityReference.ForResource("application:api", "worker-service"),
+            "configuration:database",
+            "Database/databases/read/action");
+
+        Assert.True(allowed.IsAllowed);
+        Assert.NotNull(allowed.Grant);
+        Assert.False(deniedPermission.IsAllowed);
+        Assert.Null(deniedPermission.Grant);
+        Assert.False(deniedIdentity.IsAllowed);
+        Assert.Null(deniedIdentity.Grant);
+    }
+
+    [Fact]
+    public void ResourcePermissionGrantEvaluator_SupportsWildcardPermission()
+    {
+        var evaluator = new ResourcePermissionGrantEvaluator(
+            [
+                new(
+                    ResourceIdentityReference.ForResource("application:api"),
+                    "configuration:database",
+                    CloudShellPermissions.All)
+            ]);
+
+        var allowed = evaluator.Evaluate(
+            ResourceIdentityReference.ForResource("application:api"),
+            "configuration:database",
+            "Database/databases/read/action");
+
+        Assert.True(allowed.IsAllowed);
+    }
+
+    [Fact]
+    public void ResourceDeclarationStore_CreatesPermissionGrantEvaluator()
+    {
+        var store = new ResourceDeclarationStore();
+        store.AddPermissionGrant(new ResourcePermissionGrant(
+            ResourceIdentityReference.ForResource("application:api"),
+            "configuration:database",
+            "Database/databases/read/action"));
+
+        var evaluation = store
+            .CreatePermissionGrantEvaluator()
+            .Evaluate(
+                ResourceIdentityReference.ForResource("application:api"),
+                "configuration:database",
+                "Database/databases/read/action");
+
+        Assert.True(evaluation.IsAllowed);
+    }
+
+    [Fact]
     public void ResourceManagerStore_AppliesDeclarationParentMetadata()
     {
         var services = new ServiceCollection();

@@ -162,9 +162,14 @@ var database = resources.Declare("database", "database:app");
 database.Allow(api.Identity, "Database/databases/readWrite/action");
 ```
 
-These grants are model declarations only in the current implementation. They
-are not yet evaluated by Resource Manager, issued as token claims, or registered
-with an external identity authority.
+These grants can be evaluated against the declaration model with
+`ResourcePermissionGrantEvaluator`. They are not yet enforced by Resource
+Manager, issued as token claims, or registered with an external identity
+authority.
+
+CloudShell UI support for viewing and managing resource identity bindings and
+permission grants is future work. The current implementation establishes the
+backend model that the UI can later edit.
 
 ## Operation Permissions
 

@@ -121,10 +121,12 @@ The MVP should prove:
   mock/development provider, but that is only one development path before
   switching the same resource to Microsoft Entra ID or another production
   provider.
-- Programmatic declarations can record model-only permission grants with
-  `target.Allow(source.Identity, permission)`. Grant evaluation, mock-principal
-  tests, token-claim projection, authority registration, multiple identities,
-  and provider-backed token lifecycle remain future resource identity work.
+- Programmatic declarations can record permission grants with
+  `target.Allow(source.Identity, permission)` and evaluate those grants through
+  `ResourcePermissionGrantEvaluator`. Resource Manager enforcement,
+  mock-principal tests, token-claim projection, authority registration,
+  multiple identities, and provider-backed token lifecycle remain future
+  resource identity work.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.

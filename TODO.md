@@ -66,6 +66,9 @@ Work the current proposals in this order:
   model is validated against a concrete resource path.
 - Add authorization diagnostics and capability reasons for denied or
   unavailable actions without leaking provider-specific internals.
+- Add Resource Manager UI workflows for viewing and managing resource identity
+  bindings and permission grants after the backend model and evaluation path
+  stabilize.
 
 ## Next: Host Abstractions
 

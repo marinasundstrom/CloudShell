@@ -220,9 +220,14 @@ Microsoft Entra ID or another production authority.
 
 The first grant authoring surface stores declarations such as
 `target.Allow(source.Identity, permission)` in the programmatic declaration
-store. This is intentionally model-only for now: the grants are not yet
-evaluated by Resource Manager, issued as token claims, or registered with an
-external authority.
+store. The declaration model can evaluate those grants with
+`ResourcePermissionGrantEvaluator`, but Resource Manager does not yet enforce
+them, issue them as token claims, or register them with an external authority.
+
+The CloudShell UI should later expose identity management for resources,
+including editing identity bindings and managing grants. That UI should operate
+against the same resource identity model rather than creating a separate
+permission system.
 
 Supporting one or more identities on a resource programmatically is likely
 worth adding before the provider-backed token lifecycle is complete. That
@@ -287,6 +292,9 @@ permission-assignment support.
 - Add resource-level permission names and policy evaluation rules.
 - Decide whether to expand the initial single-identity authoring API to
   multiple identities per resource.
-- Connect declared permission grants to authorization evaluation, mock identity
-  tests, token claims, and provider or authority registration.
+- Connect declared permission grants to Resource Manager authorization
+  enforcement, mock identity tests, token claims, and provider or authority
+  registration.
+- Add Resource Manager UI workflows for viewing and managing resource identity
+  bindings and permission grants.
 - Wire the identity contract into at least one provider-backed workload type.
