@@ -37,6 +37,25 @@ usage expected by CloudShell components. Other providers, such as IdentityServer
 Microsoft Entra ID, Keycloak, Auth0, or Okta, may store and materialize the same
 concepts differently while still satisfying the provider contract.
 
+CloudShell should preserve a domain-level distinction between user identities
+and application identities without owning every provider-specific detail of
+how those identities are stored. User identities represent human actors.
+Application identities represent applications, workloads, services,
+automation, providers, or other non-human actors that need to authenticate
+independently. Providers may model those concepts differently, but CloudShell
+should not collapse applications into ordinary users. This distinction matters
+because provider-owned credential material such as client secrets,
+
+certificates, federated credentials, or signed assertions usually belongs to
+application identities rather than user identities.
+
+This distinction is also important for authorization. Resource-to-resource
+access is typically performed by application identities, while interactive
+operations are typically performed by user identities. CloudShell access
+evaluation should be able to distinguish whether a request originates from a
+human actor or from an application, workload, service, automation, or other
+non-human principal.
+
 Resource identity and access rules are modeled separately in the CloudShell
 domain. Resource identity bindings and resource access grants describe resource
 intent and resource-to-resource access relationships. Scopes and claims may be
@@ -52,10 +71,79 @@ authenticated principal and its claims to CloudShell resource identities,
 resource access grants, resource operation names, and provider-specific policy
 decisions.
 
+
 These clarifications are included here to keep the proposal boundaries clear.
 The detailed authentication protocol, token validation, ASP.NET Core
 authentication configuration, and provider endpoint behavior should be defined
 in a separate authentication/provider architecture document.
+
+## Resource identity flow
+
+CloudShell should prefer identity-based token acquisition for platform services
+such as configuration stores and secrets vaults. Secret-based authentication can
+remain supported for external integrations, bootstrap scenarios, and providers
+that require client credentials, but CloudShell-managed platform services
+should normally be accessed through resource identities and access grants.
+
+The intended flow is:
+
+1. A resource declares or receives an identity binding.
+2. The selected identity provider materializes that identity for the current
+   environment.
+3. The runtime exposes a credential acquisition mechanism to the resource.
+4. The resource requests a token for the target platform service.
+5. The target service validates the token and maps the authenticated principal
+   to CloudShell resource identity bindings, access grants, and operation
+   rules.
+
+Azure provides a useful comparison. `DefaultAzureCredential` is not the Azure
+resource identity itself. It is a credential resolution chain that discovers
+the best available credential source for the current environment. In Azure,
+that may be a managed identity assigned to an App Service, Container App,
+Function, VM, or another workload. In local development it may instead resolve
+to the signed-in developer identity from Azure CLI, Visual Studio, Azure
+Developer CLI, or another supported local credential source.
+
+For example, an Azure-hosted resource can request a token for another service
+without directly handling a client secret:
+
+```csharp
+var credential = new DefaultAzureCredential();
+
+var token = await credential.GetTokenAsync(
+    new TokenRequestContext(["api://target-api/.default"]));
+```
+
+Secret-based client credentials remain useful for external applications,
+integrations, automation, and authority implementations that require an
+explicit application secret:
+
+```csharp
+var credential = new ClientSecretCredential(
+    tenantId,
+    clientId,
+    clientSecret);
+
+var token = await credential.GetTokenAsync(
+    new TokenRequestContext(["api://target-api/.default"]));
+```
+
+CloudShell should make the same conceptual distinction. A resource identity
+binding describes the identity assigned to a resource. A credential acquisition
+mechanism obtains authentication evidence for that identity in the current
+environment. Resource access grants describe what that identity may do. Whether
+a materialized resource identity uses a client secret, certificate, federated
+credential, managed identity endpoint, signed assertion, or no explicit secret
+at all is a decision delegated to the selected identity provider. The
+authentication secret or credential material, when one exists, belongs to the
+provider implementation and should not be confused with application secrets
+stored in a CloudShell secrets vault.
+
+This distinction matters for the configuration store and secrets vault. Those
+services should usually be accessed by requesting a token for the resource
+identity and authorizing that identity through CloudShell access grants. Direct
+secret-based authentication can remain available, but it should not be the
+preferred path for platform-managed resource-to-resource access.
 
 The normative feature documentation lives in
 [Resource identity and permissions](../resource-identity-and-permissions.md).
@@ -114,8 +202,8 @@ That makes it difficult to model scenarios such as:
 - Introduce a resource identity-provider contract for resources and resource
   groups.
 - Let Resource Manager select or inherit a default identity provider.
-- Distinguish user identities from application, service, provider,
-  automation, and workload identities as CloudShell domain concepts.
+- Distinguish user identities from application identities, including service,
+  provider, automation, and workload identities, as CloudShell domain concepts.
 - Treat principal kind as CloudShell identity-domain metadata that can be
   projected into provider-specific concepts, rather than as an OAuth or OIDC
   primitive.
@@ -131,8 +219,9 @@ That makes it difficult to model scenarios such as:
 
 - Do not define application secret storage, vaults, or secret references here.
 - Do not define authentication flows, token acquisition, token validation,
-  authorization protocols, client credentials, provider-owned secrets, or
-  claim-mapping rules here.
+  authorization protocols, client credentials, provider-owned secrets,
+  whether a materialized identity requires a client secret, or claim-mapping
+  rules here.
 - Do not replace the existing user authentication model.
 - Do not make CloudShell a general-purpose identity provider, authorization
   server, or identity authority platform.
@@ -231,6 +320,10 @@ claim metadata, declared grants, and provider-managed credential references.
 Since CloudShell needs to represent both human users and application or
 workload identities, the provider should distinguish user principals from
 application principals rather than treating applications as ordinary users.
+Application principals are the natural place for provider-owned credential
+material such as client secrets, certificates, federated credentials, or signed
+assertions when the selected provider requires that kind of authentication
+mechanism.
 
 The built-in provider should expose a small token-based endpoint surface that
 is close enough to OpenID Connect and OAuth-style usage for CloudShell
@@ -575,9 +668,12 @@ of discovering that intent from provider-specific configuration.
   effective access.
 - Whether resources should reference provider objects directly instead of
   provider IDs in the programmatic authoring model.
-- Which identity binding parameters should be provider-derived by default, which
-  should require explicit author input, and which projected scopes or claims
-  should be derived from declared access grants.
+  - Which identity binding parameters should be provider-derived by default, which
+    should require explicit author input, and which projected scopes or claims
+    should be derived from declared access grants.
+  - Which parts of the user-identity versus application-identity distinction
+    belong in the CloudShell domain model, and which parts should remain
+    provider-owned storage and credential behavior.
 - How provider-specific actions such as `DatabaseActions.ReadWrite` map to the
   CloudShell operation-permission catalog and token claims.
 
