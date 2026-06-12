@@ -13,6 +13,14 @@ CloudShell currently supports resources, actions, capabilities, providers, orche
 
 As CloudShell evolves into a self-hostable platform capable of managing applications, infrastructure, and operational resources, a consistent identity and permission model becomes a foundational requirement.
 
+## Purpose
+
+The identity and permission model provides a provider-neutral foundation for authentication and authorization across CloudShell.
+
+The model should allow applications and infrastructure resources to move between local development, self-hosted deployments, CloudShell-managed environments, and external cloud platforms while preserving identity and access intent.
+
+This aligns CloudShell with common cloud identity concepts while avoiding coupling to a specific provider implementation.
+
 ## Problem
 
 CloudShell resources expose actions and capabilities that may affect system state.
@@ -86,13 +94,18 @@ Authorization answers:
 
 > What are you allowed to do?
 
-CloudShell identities may include:
+CloudShell identities may represent either human or non-human principals.
 
-* user identities
-* workload identities
-* service identities
-* provider identities
-* orchestrator identities
+Human principals include:
+
+* users
+
+Non-human principals include:
+
+* workloads
+* services
+* providers
+* orchestrators
 
 Examples:
 
@@ -118,6 +131,8 @@ Container Provider
 
 Every identity should have a stable identifier that can participate in permission assignments, auditing, and diagnostics.
 
+An identity represents a principal within CloudShell. Authentication mechanisms, credentials, access tokens, client secrets, certificates, and other provider-specific artifacts are separate concerns used to prove that identity. CloudShell models identities and authorization relationships rather than credential storage or token issuance.
+
 ## Permission Model
 
 Permissions should be assigned against resources and actions.
@@ -125,7 +140,7 @@ Permissions should be assigned against resources and actions.
 Conceptually:
 
 ```text
-Identity
+Principal
     ↓
 Permission
     ↓
@@ -201,7 +216,7 @@ Suggested model:
 ```csharp
 public sealed class PermissionAssignment
 {
-    public string IdentityId { get; init; }
+    public string PrincipalId { get; init; }
     public string ResourceId { get; init; }
     public string Action { get; init; }
 }
@@ -219,7 +234,7 @@ The initial model should remain simple.
 
 ## Workload Identity
 
-Resources may need identities.
+Resources may be assigned identities that participate in the same authorization model as users and services.
 
 Examples:
 
@@ -296,6 +311,27 @@ Examples:
 * Auth0
 * Okta
 
+## Responsibility Boundaries
+
+CloudShell owns:
+
+* identity abstractions
+* permission assignments
+* authorization evaluation
+* resource access relationships
+* audit records
+
+Identity providers own:
+
+* authentication protocols
+* credential storage
+* access token issuance
+* client secrets
+* certificates
+* provider-specific role and claim models
+
+CloudShell should remain independent of provider-specific authorization constructs such as scopes, app roles, groups, or RBAC assignments.
+
 ## IdentityServer Development Strategy
 
 During development, CloudShell should host a separate IdentityServer-compatible
@@ -364,7 +400,7 @@ Example:
 ```text
 Request
     ↓
-Identity
+Principal
     ↓
 Permission Evaluation
     ↓
