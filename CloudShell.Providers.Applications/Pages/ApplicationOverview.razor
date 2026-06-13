@@ -98,7 +98,25 @@ else
     }
 
     <section class="blade-section">
-        <h3>Environment</h3>
+        <h3>App settings</h3>
+        @if (Application.AppSettings.Count == 0)
+        {
+            <p class="muted">No app settings are configured.</p>
+        }
+        else
+        {
+            <dl class="detail-list">
+                @foreach (var setting in Application.AppSettings)
+                {
+                    <dt>@setting.Name</dt>
+                    <dd>@ResourceSettingDisplay.Format(setting)</dd>
+                }
+            </dl>
+        }
+    </section>
+
+    <section class="blade-section">
+        <h3>Environment variables</h3>
         @if (Application.EnvironmentVariables.Count == 0)
         {
             <p class="muted">No environment variables are configured.</p>
@@ -109,7 +127,7 @@ else
                 @foreach (var variable in Application.EnvironmentVariables)
                 {
                     <dt>@variable.Name</dt>
-                    <dd>@variable.Value</dd>
+                    <dd>@ResourceSettingDisplay.Format(variable)</dd>
                 }
             </dl>
         }

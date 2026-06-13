@@ -141,6 +141,8 @@ listed here before pulling in broader proposal work.
   configuration-entry references, and vault-backed secret references on
   resources that advertise environment-variable support.
 - Show saved references and diagnostics without displaying resolved secret
+  values. Application overview now renders app-setting and environment-variable
+  references with canonical CloudShell reference strings instead of resolved
   values.
 - Verify assignment flows against identity-backed configuration and secret
   read authorization.

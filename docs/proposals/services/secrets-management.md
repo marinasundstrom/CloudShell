@@ -330,6 +330,9 @@ app settings for non-secret values and vault-backed references for secrets.
 
 - Add Resource Manager UI support for assigning literal app settings and
   configuration-entry or vault-backed secret references.
+- Application overview now displays configured app settings and environment
+  variables with canonical CloudShell reference strings, without resolving or
+  displaying secret values.
 - Decide how secret references should be versioned, rotated, and refreshed for
   already-running resources.
 - Add a separate secrets client/provider for in-process secret loading.
