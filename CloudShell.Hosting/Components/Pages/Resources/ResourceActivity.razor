@@ -67,6 +67,16 @@
         }
         else
         {
+            <div class="resource-activity-groups" aria-label="@L["Activity groups"]">
+                @foreach (var group in GetEventGroups())
+                {
+                    <span class="resource-activity-group @group.CssClass">
+                        <strong>@group.DisplayName</strong>
+                        <span>@group.Count</span>
+                    </span>
+                }
+            </div>
+
             <div class="resource-activity-list">
                 @foreach (var resourceEvent in Events)
                 {
@@ -80,9 +90,14 @@
                             <time datetime="@resourceEvent.Timestamp.ToString("O", CultureInfo.InvariantCulture)">
                                 @FormatTimestamp(resourceEvent.Timestamp)
                             </time>
-                            <span class="resource-activity-level @GetLevelClass(resourceEvent.Level)">
-                                @resourceEvent.Level
-                            </span>
+                            <div class="resource-activity-badges">
+                                <span class="resource-activity-group @ResourceEventDisplayNames.GetGroupClass(resourceEvent.EventType)">
+                                    @ResourceEventDisplayNames.GetGroupName(resourceEvent.EventType, L)
+                                </span>
+                                <span class="resource-activity-level @GetLevelClass(resourceEvent.Level)">
+                                    @resourceEvent.Level
+                                </span>
+                            </div>
                         </footer>
                     </article>
                 }
@@ -160,6 +175,22 @@
             ? L["No resource activity events match the current filters."].Value
             : L["No resource activity events have been recorded."].Value;
 
+    private IReadOnlyList<ResourceActivityGroup> GetEventGroups() =>
+        Events
+            .GroupBy(
+                resourceEvent => ResourceEventDisplayNames.GetGroupName(resourceEvent.EventType, L),
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group => new ResourceActivityGroup(
+                group.Key,
+                group.Count(),
+                group
+                    .Select(resourceEvent => ResourceEventDisplayNames.GetGroupOrder(resourceEvent.EventType))
+                    .Min(),
+                ResourceEventDisplayNames.GetGroupClass(group.First().EventType)))
+            .OrderBy(group => group.Order)
+            .ThenBy(group => group.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+
     private DateTimeOffset? GetSinceFilter()
     {
         var now = DateTimeOffset.UtcNow;
@@ -192,4 +223,10 @@
             : string.Equals(level, "Error", StringComparison.OrdinalIgnoreCase)
                 ? "error"
                 : "information";
+
+    private sealed record ResourceActivityGroup(
+        string DisplayName,
+        int Count,
+        int Order,
+        string CssClass);
 }

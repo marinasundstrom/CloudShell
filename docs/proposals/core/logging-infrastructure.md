@@ -219,8 +219,9 @@ base log or event entry a blob store.
 ## Remaining Tasks
 
 - Keep the current MVP resource event persistence/query slice small.
-- Add event-type grouping on top of `IResourceEventManager`; the Activity tab
-  already supports filtering by event type, actor, and time range.
+- Keep Activity-tab filtering and action/event grouping focused on
+  `IResourceEventManager`; broader event schema and audit decisions remain
+  separate.
 - Define initial event schemas for resource actions, image deployments,
   lifecycle operations, authorization denials, configuration reads, secret
   reads, and host/runtime reconciliation.

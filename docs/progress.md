@@ -280,9 +280,9 @@ expectations rather than duplicating the task queue.
   through the Control Plane persistence store and queryable by resource, event
   type, actor, and time range through the Control Plane API and remote client.
   Resource Manager now shows a generated Activity tab backed by
-  `IResourceEventManager`, with filters for event type, actor, and time range;
-  the generated Activity log remains a compatibility view adapter over that
-  stream for log consumers.
+  `IResourceEventManager`, with filters for event type, actor, and time range
+  plus action/event group summaries; the generated Activity log remains a
+  compatibility view adapter over that stream for log consumers.
   Broader structured logging, audit, diagnostics, metrics, traces, retention,
   and non-text payload decisions are tracked in
   `docs/proposals/core/logging-infrastructure.md`.

@@ -7,6 +7,10 @@ namespace CloudShell.Hosting.ResourceManager;
 
 internal static class ResourceEventDisplayNames
 {
+    private const string EventPrefix = "event.";
+    private const string LifecycleActionPrefix = "action.lifecycle.";
+    private const string LifecycleEventPrefix = "event.lifecycle.";
+
     public static string GetDisplayName(
         string eventType,
         IStringLocalizer<SharedResource> localizer)
@@ -74,6 +78,63 @@ internal static class ResourceEventDisplayNames
         return FormatCustomEventDisplayName(eventType);
     }
 
+    public static string GetGroupName(
+        string eventType,
+        IStringLocalizer<SharedResource> localizer) =>
+        GetGroupKey(eventType) switch
+        {
+            ResourceEventGroupKey.LifecycleAction => localizer["Lifecycle actions"].Value,
+            ResourceEventGroupKey.LifecycleEvent => localizer["Lifecycle events"].Value,
+            ResourceEventGroupKey.Action => localizer["Actions"].Value,
+            ResourceEventGroupKey.Event => localizer["Events"].Value,
+            _ => localizer["Activity"].Value
+        };
+
+    public static string GetGroupClass(string eventType) =>
+        GetGroupKey(eventType) switch
+        {
+            ResourceEventGroupKey.LifecycleAction => "lifecycle-action",
+            ResourceEventGroupKey.LifecycleEvent => "lifecycle-event",
+            ResourceEventGroupKey.Action => "action",
+            ResourceEventGroupKey.Event => "event",
+            _ => "activity"
+        };
+
+    public static int GetGroupOrder(string eventType) =>
+        GetGroupKey(eventType) switch
+        {
+            ResourceEventGroupKey.LifecycleAction => 0,
+            ResourceEventGroupKey.LifecycleEvent => 1,
+            ResourceEventGroupKey.Action => 2,
+            ResourceEventGroupKey.Event => 3,
+            _ => 4
+        };
+
+    private static ResourceEventGroupKey GetGroupKey(string eventType)
+    {
+        if (eventType.StartsWith(LifecycleActionPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResourceEventGroupKey.LifecycleAction;
+        }
+
+        if (eventType.StartsWith(LifecycleEventPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResourceEventGroupKey.LifecycleEvent;
+        }
+
+        if (eventType.StartsWith(ResourceEventTypes.Actions.Prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResourceEventGroupKey.Action;
+        }
+
+        if (eventType.StartsWith(EventPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResourceEventGroupKey.Event;
+        }
+
+        return ResourceEventGroupKey.Activity;
+    }
+
     private static string FormatCustomEventDisplayName(string eventType)
     {
         var value = eventType;
@@ -94,5 +155,14 @@ internal static class ResourceEventDisplayNames
 
         return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
             string.Join(' ', words));
+    }
+
+    private enum ResourceEventGroupKey
+    {
+        LifecycleAction,
+        LifecycleEvent,
+        Action,
+        Event,
+        Activity
     }
 }
