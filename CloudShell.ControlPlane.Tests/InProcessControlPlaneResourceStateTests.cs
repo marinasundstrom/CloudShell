@@ -822,7 +822,11 @@ public sealed class InProcessControlPlaneResourceStateTests
     public async Task UpdateResourceImageAsync_DispatchesToImageUpdateProvider()
     {
         var provider = new TestImageUpdateResourceProvider();
-        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)], provider);
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents);
 
         var result = await controlPlane.UpdateResourceImageAsync(
             new UpdateResourceImageCommand(
@@ -833,6 +837,11 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.Equal("Updated target.", result.Message);
         Assert.Equal(["target:example/api:20260608:False:build-server"], provider.UpdatedImages);
+        var resourceEvent = Assert.Single(resourceEvents.GetEvents(new ResourceEventQuery(
+            ResourceId: "target",
+            EventType: ResourceEventTypes.Events.Deployment.ImageUpdated,
+            TriggeredBy: "build-server")));
+        Assert.Contains("example/api:20260608", resourceEvent.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -892,7 +901,11 @@ public sealed class InProcessControlPlaneResourceStateTests
     public async Task UpdateResourceReplicasAsync_DispatchesToReplicaUpdateProvider()
     {
         var provider = new TestReplicaUpdateResourceProvider();
-        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)], provider);
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents);
 
         var result = await controlPlane.UpdateResourceReplicasAsync(
             new UpdateResourceReplicasCommand(
@@ -903,6 +916,11 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.Equal("Updated target.", result.Message);
         Assert.Equal(["target:3:False:load-balancer"], provider.UpdatedReplicas);
+        var resourceEvent = Assert.Single(resourceEvents.GetEvents(new ResourceEventQuery(
+            ResourceId: "target",
+            EventType: ResourceEventTypes.Events.Deployment.ReplicasUpdated,
+            TriggeredBy: "load-balancer")));
+        Assert.Contains("3", resourceEvent.Message, StringComparison.Ordinal);
     }
 
 
