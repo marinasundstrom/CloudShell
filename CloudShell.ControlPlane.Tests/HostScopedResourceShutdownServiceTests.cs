@@ -149,11 +149,17 @@ public sealed class HostScopedResourceShutdownServiceTests
 
     private sealed class TestHostEnvironment : IHostEnvironment
     {
+        public TestHostEnvironment()
+        {
+            Directory.CreateDirectory(ContentRootPath);
+        }
+
         public string EnvironmentName { get; set; } = Environments.Production;
 
         public string ApplicationName { get; set; } = "CloudShell.ControlPlane.Tests";
 
-        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public string ContentRootPath { get; set; } =
+            Path.Combine(Path.GetTempPath(), "cloudshell-tests", Guid.NewGuid().ToString("N"));
 
         public IFileProvider ContentRootFileProvider { get; set; } =
             new NullFileProvider();
