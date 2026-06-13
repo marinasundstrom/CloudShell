@@ -155,8 +155,9 @@ listed here before pulling in broader proposal work.
   and project as resource-action-unavailable API errors instead of generic
   operation failures.
 - Expose transient lifecycle state such as `Starting` while start/restart
-  operations are in progress, so Resource Manager does not jump directly from
-  stopped to running.
+  operations are in progress. Application resources now project a fresh
+  provider-owned starting observation and fall back to stopped when that
+  observation becomes stale.
 - Persist resource events and expose filtering by event type, actor, and time
   range.
 - Define audit event schemas for resource actions, host/runtime operations,

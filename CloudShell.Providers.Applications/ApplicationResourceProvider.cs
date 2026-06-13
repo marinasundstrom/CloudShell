@@ -40,6 +40,7 @@ public sealed partial class ApplicationResourceProvider(
     IDisposable
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
+    private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
     private const string DefaultContainerNetworkName = "cloudshell";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
 
@@ -809,27 +810,51 @@ public sealed partial class ApplicationResourceProvider(
                     $"Container resource '{definition.Name}' requires resource manager context to resolve a container host.");
             }
 
-            await StartContainerApplicationAsync(
-                definition,
-                dependsOn,
-                resourceGroupId,
-                registrations,
-                resourceManager,
-                preferredContainerHostId,
-                cancellationToken);
-            return;
-        }
-
-        await localProcesses.StartAsync(
-            CreateLocalProcessDefinition(
-                definition,
-                await ResolveLocalProcessEnvironmentVariablesAsync(
+            MarkStarting(definition.Id);
+            try
+            {
+                await StartContainerApplicationAsync(
                     definition,
                     dependsOn,
                     resourceGroupId,
                     registrations,
-                    cancellationToken)),
-            cancellationToken);
+                    resourceManager,
+                    preferredContainerHostId,
+                    cancellationToken);
+            }
+            catch
+            {
+                ClearStarting(definition);
+                throw;
+            }
+            return;
+        }
+
+        var localProcess = CreateLocalProcessDefinition(
+            definition,
+            await ResolveLocalProcessEnvironmentVariablesAsync(
+                definition,
+                dependsOn,
+                resourceGroupId,
+                registrations,
+                cancellationToken));
+        if (localProcesses.IsRunning(localProcess))
+        {
+            return;
+        }
+
+        MarkStarting(definition.Id);
+        try
+        {
+            await localProcesses.StartAsync(
+                localProcess,
+                cancellationToken);
+        }
+        catch
+        {
+            ClearStarting(definition);
+            throw;
+        }
     }
 
     private Task<IReadOnlyList<EnvironmentVariableAssignment>> ResolveLocalProcessEnvironmentVariablesAsync(
@@ -1989,15 +2014,55 @@ public sealed partial class ApplicationResourceProvider(
 
     private ResourceState GetState(string applicationId)
     {
+        var runtimeState = runtimeStates.Get(applicationId);
+        if (runtimeState?.State is ResourceState.Starting &&
+            DateTimeOffset.UtcNow - runtimeState.LastObservedAt <= StartingStateTimeout)
+        {
+            return ResourceState.Starting;
+        }
+
         return IsRunning(applicationId)
             ? ResourceState.Running
             : ResourceState.Stopped;
     }
 
     private static IReadOnlyList<ResourceAction> CreateActions(ResourceState state) =>
-        state == ResourceState.Running
+        state is ResourceState.Running or ResourceState.Starting
             ? [ResourceAction.Stop, ResourceAction.Restart]
             : [ResourceAction.Run];
+
+    private void MarkStarting(string applicationId)
+    {
+        var state = runtimeStates.Get(applicationId);
+        runtimeStates.Save(state is null
+            ? new ApplicationRuntimeState(
+                applicationId,
+                null,
+                null,
+                DateTimeOffset.UtcNow,
+                State: ResourceState.Starting)
+            : state with
+            {
+                LastObservedAt = DateTimeOffset.UtcNow,
+                State = ResourceState.Starting
+            });
+    }
+
+    private void ClearStarting(ApplicationResourceDefinition definition)
+    {
+        var state = runtimeStates.Get(definition.Id);
+        if (state?.State is not ResourceState.Starting ||
+            IsRunning(definition.Id))
+        {
+            return;
+        }
+
+        runtimeStates.Save(state with
+        {
+            LastObservedAt = DateTimeOffset.UtcNow,
+            State = ResourceState.Stopped
+        });
+    }
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ApplicationResourceDefinition application)
     {

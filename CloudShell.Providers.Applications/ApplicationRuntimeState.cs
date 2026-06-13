@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.ResourceManager;
+
 namespace CloudShell.Providers.Applications;
 
 public sealed record ApplicationRuntimeState(
@@ -6,4 +8,5 @@ public sealed record ApplicationRuntimeState(
     DateTimeOffset? LastKnownProcessStartedAt,
     DateTimeOffset LastObservedAt,
     int? LastExitCode = null,
-    string? LogPath = null);
+    string? LogPath = null,
+    ResourceState? State = null);

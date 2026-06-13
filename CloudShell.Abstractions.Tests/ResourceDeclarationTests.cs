@@ -1054,6 +1054,88 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ApplicationProvider_ProjectsFreshStartingRuntimeState()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddExecutableApplication(
+                    "application:api",
+                    "API",
+                    executablePath: "dotnet");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var runtimeStates = serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>();
+        runtimeStates.Save(new ApplicationRuntimeState(
+            "application:api",
+            null,
+            null,
+            DateTimeOffset.UtcNow,
+            State: ResourceState.Starting));
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+
+        Assert.Equal(ResourceState.Starting, resource.State);
+        Assert.True(resource.HasAction(ResourceActionIds.Stop));
+        Assert.True(resource.HasAction(ResourceActionIds.Restart));
+        Assert.False(resource.HasAction(ResourceActionIds.Run));
+    }
+
+    [Fact]
+    public void ApplicationProvider_IgnoresStaleStartingRuntimeState()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddExecutableApplication(
+                    "application:api",
+                    "API",
+                    executablePath: "dotnet");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var runtimeStates = serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>();
+        runtimeStates.Save(new ApplicationRuntimeState(
+            "application:api",
+            null,
+            null,
+            DateTimeOffset.UtcNow.Subtract(TimeSpan.FromMinutes(10)),
+            State: ResourceState.Starting));
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+
+        Assert.Equal(ResourceState.Stopped, resource.State);
+        Assert.True(resource.HasAction(ResourceActionIds.Run));
+        Assert.False(resource.HasAction(ResourceActionIds.Stop));
+        Assert.False(resource.HasAction(ResourceActionIds.Restart));
+    }
+
+    [Fact]
     public async Task SecretsVaultProvider_ExportsSecretNamesWithoutValues()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
