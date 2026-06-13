@@ -154,8 +154,10 @@ listed here before pulling in broader proposal work.
 - Treat Configuration Store and Secrets Vault endpoints as normal service
   endpoints: use the current explicit configuration or Aspire-like service
   discovery path now, and move toward network-level service discovery when
-  that resource capability lands. Do not special-case these endpoints as part
-  of the resource identity credential contract.
+  that resource capability lands. See [Service discovery](service-discovery.md)
+  for the current Microsoft service discovery package requirements. Do not
+  special-case these endpoints as part of the resource identity credential
+  contract.
 - Continue authorization diagnostics where they directly support MVP flows,
   especially configuration updates, secret reads, resource actions, logs, and
   diagnostics.

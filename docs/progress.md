@@ -87,7 +87,10 @@ expectations rather than duplicating the task queue.
   credential package. They accept the same resource credential without dragging
   in full Control Plane abstractions, own their service-specific
   `IConfiguration` integrations, and are dogfooded by the Settings and Secrets
-  sample.
+  sample. `docs/service-discovery.md` now documents the current
+  application-level service discovery model, including the
+  `Microsoft.Extensions.ServiceDiscovery` dependency required by applications
+  that resolve logical service URIs.
 - Public exposure and API stability are separate decisions. Public APIs that
   are not yet stable must be labeled as preview, experimental, or unstable,
   with clear ownership, expected change surface, and path to stability.

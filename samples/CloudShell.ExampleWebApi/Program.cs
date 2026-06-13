@@ -5,6 +5,11 @@ using CloudShell.Secrets.Client;
 var builder = CloudShellApplication.CreateBuilder(args);
 builder.Configuration.AddCloudShellConfigurationStore();
 builder.Configuration.AddCloudShellSecretsVault();
+builder.Services.AddServiceDiscovery();
+builder.Services.ConfigureHttpClientDefaults(http =>
+{
+    http.AddServiceDiscovery();
+});
 builder.Services.AddSingleton<CloudShellResourceCredential>(_ => new DefaultCloudShellResourceCredential());
 builder.Services.AddSingleton<CloudShellServiceClients>();
 

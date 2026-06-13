@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="10.4.0" />
     <ProjectReference Include="..\..\CloudShell.Client\CloudShell.Client.csproj" />
     <ProjectReference Include="..\..\CloudShell.Configuration.Client\CloudShell.Configuration.Client.csproj" />
     <ProjectReference Include="..\..\CloudShell.Secrets.Client\CloudShell.Secrets.Client.csproj" />

@@ -14,10 +14,12 @@ resolves those references when the resource is started.
 The Web API also references the Configuration Store and Secrets Vault as
 discoverable services. `WithReference(...)` records the endpoint relationship,
 and `WithServiceDiscovery()` projects those endpoints into the current
-application-level service discovery configuration. The service-specific SDK
-endpoint variables still exist for this first client integration, but the
-resource graph now shows the intended direction: discovery locates the service,
-while identity and grants authorize access to it.
+application-level service discovery configuration. The Web API enables
+`Microsoft.Extensions.ServiceDiscovery` so it can resolve logical service URIs
+from that configuration. The service-specific SDK endpoint variables still
+exist for this first client integration, but the resource graph now shows the
+intended direction: discovery locates the service, while identity and grants
+authorize access to it.
 
 The Web API also dogfoods the public-preview SDK clients and their
 service-specific Microsoft configuration integrations. It calls

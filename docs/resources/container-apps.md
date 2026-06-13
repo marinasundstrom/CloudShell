@@ -104,6 +104,10 @@ variables as local executable resources, so Docker Compose and future
 descriptor-driven orchestrators can pass those values into the workload
 container.
 
+See [Service discovery](../service-discovery.md) for the current Microsoft
+service discovery package requirements for applications that consume logical
+service URIs.
+
 Service discovery remains separate from resource identity. Use references and
 service discovery to locate a service endpoint, then use resource identity and
 grants when the container app needs authorized access to that service.

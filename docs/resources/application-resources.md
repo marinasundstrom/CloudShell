@@ -142,6 +142,10 @@ the separate opt-in for executable applications and container apps that maps
 those referenced resource endpoints into environment variables using the .NET
 configuration shape.
 
+See [Service discovery](../service-discovery.md) for the current Microsoft
+service discovery package requirements, generated configuration shape, and the
+line between application-level discovery and future network-level discovery.
+
 ASP.NET Core project resources enable that mapping automatically when
 `WithReference(...)` is used.
 

@@ -350,6 +350,10 @@ of compatibility with Aspire applications:
 services__<resource-name-or-id>__<endpoint-name-or-scheme>__0=<endpoint-address>
 ```
 
+See [Service discovery](service-discovery.md) for the current
+`Microsoft.Extensions.ServiceDiscovery` package requirements and the line
+between this application-level projection and future network-level discovery.
+
 Endpoint variables are emitted only for referenced resources registered in the
 same resource group as the application. Explicit application environment
 variables are applied after generated values, so they can override generated
