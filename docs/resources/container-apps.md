@@ -94,6 +94,20 @@ running app after the update. The shell calls the same domain
 `UpdateResourceImageAsync` operation used by remote clients, then refreshes the
 projected container image and revision.
 
+## Service Discovery
+
+Container apps can reference other resources with `WithReference(...)` and opt
+into the current application-level service discovery mapping with
+`WithServiceDiscovery()`. Descriptor-based orchestrators receive the same
+`services__<resource-name-or-id>__<endpoint-name-or-scheme>__0` environment
+variables as local executable resources, so Docker Compose and future
+descriptor-driven orchestrators can pass those values into the workload
+container.
+
+Service discovery remains separate from resource identity. Use references and
+service discovery to locate a service endpoint, then use resource identity and
+grants when the container app needs authorized access to that service.
+
 ## Replicas
 
 Container apps project their desired replica count through the
