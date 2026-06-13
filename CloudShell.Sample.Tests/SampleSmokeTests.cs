@@ -44,9 +44,11 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task SettingsAndSecretsSample_ProjectsReferenceBackedEnvironmentResources()
     {
+        var apiPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
             "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
-            await GetFreePortAsync());
+            await GetFreePortAsync(),
+            [("Samples__SettingsAndSecrets__ApiEndpoint", $"http://localhost:{apiPort}")]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 

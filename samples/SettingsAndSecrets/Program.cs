@@ -28,6 +28,8 @@ var identityAudience = builder.Configuration["Authentication:BuiltInAuthority:Au
 var identitySigningKeyPem = builder.Configuration["Authentication:BuiltInAuthority:SigningKeyPem"] ??
     CreateDevelopmentSigningKeyPem();
 var identityTokenEndpoint = $"{ResolveFirstUrl(builder.Configuration["urls"] ?? builder.Configuration["ASPNETCORE_URLS"] ?? "http://localhost:5047")}/api/auth/v1/token";
+var apiEndpoint = builder.Configuration["Samples:SettingsAndSecrets:ApiEndpoint"] ??
+    "http://localhost:5227";
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     ["Authentication:BuiltInAuthority:Enabled"] = "true",
@@ -97,7 +99,7 @@ cloudShell.Resources(resources =>
             "application:settings-secrets-api",
             "Settings and Secrets API",
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-            endpoint: "http://localhost:5227")
+            endpoint: apiEndpoint)
         .WithIdentity(identityProvider, name: "settings-secrets-api")
         .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
         .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))

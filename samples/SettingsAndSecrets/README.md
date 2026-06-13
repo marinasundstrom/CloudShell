@@ -38,6 +38,9 @@ Run the sample host:
 dotnet run --project samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj -- --urls http://localhost:5011
 ```
 
+The Web API resource listens on `http://localhost:5227` by default. Override
+`Samples:SettingsAndSecrets:ApiEndpoint` when that port is already in use.
+
 The Web API resource declaration calls `ProvisionIdentityOnStartup()`, so the
 built-in identity client is registered before the API resource is started. You
 can inspect provider-owned provisioning status with:
