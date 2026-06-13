@@ -1,7 +1,6 @@
 using System.Security.Claims;
-using CloudShell.Abstractions.Authorization;
 
-namespace CloudShell.Providers.Configuration;
+namespace CloudShell.Abstractions.Authorization;
 
 public static class ResourcePermissionClaimAuthorization
 {
@@ -16,6 +15,19 @@ public static class ResourcePermissionClaimAuthorization
                 CloudShellAuthorizationClaimTypes.ResourcePermission,
                 StringComparison.OrdinalIgnoreCase))
             .Any(claim => ResourcePermissionClaimMatches(claim.Value, resourceId, permission));
+
+    public static string CreateResourcePermissionClaimValue(
+        string resourceId,
+        string permission)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(permission);
+
+        return string.Join(
+            CloudShellAuthorizationClaimTypes.ResourcePermissionSeparator,
+            resourceId.Trim(),
+            permission.Trim());
+    }
 
     private static bool ResourcePermissionClaimMatches(
         string value,

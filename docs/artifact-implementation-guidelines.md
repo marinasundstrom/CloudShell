@@ -18,6 +18,11 @@ verification path.
 
 - Public artifacts live in `CloudShell.Abstractions` when shell integrations,
   extensions, samples, or remote clients need to consume them.
+- Internal capabilities can start behind built-in services while the model is
+  being proven. When the same capability benefits integrators or authored
+  services, graduate it only if the platform owns the integration contract and
+  is ready to maintain it as a public API. Otherwise keep it internal and avoid
+  exposing incidental implementation details.
 - Control Plane services own resource inventory, registration, grouping,
   lifecycle procedures, logs, templates, validation, authorization, and
   provider coordination.

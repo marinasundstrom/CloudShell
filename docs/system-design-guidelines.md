@@ -65,6 +65,15 @@ integration should use the same public abstractions available to authored
 resources and third-party providers. Any exception is an architectural
 shortcut and must be documented with the reason and intended replacement.
 
+It is acceptable to develop a capability internally first while the model is
+still uncertain. When that internal surface becomes generally useful for
+integrators, extension authors, or authored services, graduate it into a public
+abstraction only when the platform is the right owner of the integration
+contract and is ready to maintain it. Public APIs should represent platform
+commitments, not incidental implementation details. Once that ownership is
+clear, expose the contract with focused tests and documentation instead of
+leaving equivalent logic copied across built-in services.
+
 ## Resource model
 
 `Resource` is the projected domain artifact. It describes what exists now:

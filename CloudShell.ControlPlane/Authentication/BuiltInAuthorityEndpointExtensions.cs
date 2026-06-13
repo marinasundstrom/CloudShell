@@ -201,7 +201,9 @@ public static class BuiltInAuthorityEndpointExtensions
                 !string.IsNullOrWhiteSpace(grant.Permission))
             .Select(grant => new Claim(
                 CloudShellAuthenticationOptions.ResourcePermissionClaimType,
-                CreateResourcePermissionClaimValue(grant.ResourceId, grant.Permission))));
+                ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+                    grant.ResourceId,
+                    grant.Permission))));
 
         var scopes = GetRequestedScopes(form, client.Scopes);
         var token = authority.IssueToken(
@@ -210,14 +212,6 @@ public static class BuiltInAuthorityEndpointExtensions
             scopes);
         return TokenResponse(token, scopes);
     }
-
-    private static string CreateResourcePermissionClaimValue(
-        string resourceId,
-        string permission) =>
-        string.Concat(
-            resourceId,
-            CloudShellAuthenticationOptions.ResourcePermissionClaimSeparator,
-            permission);
 
     private static bool ValidateClientForUserGrant(
         IFormCollection form,

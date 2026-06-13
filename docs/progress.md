@@ -75,7 +75,11 @@ when status, milestone relevance, or remaining work changes.
   the same public integration points, identity model, service APIs, lifecycle
   contracts, diagnostics, and authorization surfaces that extension authors and
   third-party service authors use unless a documented transitional exception is
-  needed.
+  needed. Internal capabilities can graduate into public APIs when they become
+  generally useful for integrators and the platform owns the contract; the
+  resource-permission claim evaluator is now exposed through
+  `CloudShell.Abstractions` as a platform-owned authorization integration and
+  used by built-in services.
 - The WebUI is the shell surface; the Control Plane is a separately deployable
   service boundary.
 - Control Plane resource provider registration and CloudShell UI integration

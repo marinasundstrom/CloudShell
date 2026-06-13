@@ -221,6 +221,9 @@ acquisition, access-grant, and protected-service API contracts that extension
 authors use for their own Web APIs. A built-in resource type can own specialized
 provider configuration and runtime state, but it should not get a separate
 identity mechanism unless the exception and replacement path are documented.
+`ResourcePermissionClaimAuthorization` in `CloudShell.Abstractions` is the
+shared helper for protected services that need to evaluate scoped
+`cloudshell.resource-permission` claims.
 
 `ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
 provider to provision one resource identity and its matching permission grants.

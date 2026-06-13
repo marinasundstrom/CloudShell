@@ -109,30 +109,8 @@ public sealed class ClaimsCloudShellAuthorizationService(
                 StringComparison.OrdinalIgnoreCase));
 
     private bool HasResourcePermissionClaim(string resourceId, string permission) =>
-        User.Claims
-            .Where(claim => string.Equals(
-                claim.Type,
-                CloudShellAuthenticationOptions.ResourcePermissionClaimType,
-                StringComparison.OrdinalIgnoreCase))
-            .Any(claim => ResourcePermissionClaimMatches(claim.Value, resourceId, permission));
-
-    private static bool ResourcePermissionClaimMatches(
-        string value,
-        string resourceId,
-        string permission)
-    {
-        var separatorIndex = value.IndexOf(CloudShellAuthenticationOptions.ResourcePermissionClaimSeparator);
-        if (separatorIndex <= 0 || separatorIndex == value.Length - 1)
-        {
-            return false;
-        }
-
-        var claimResourceId = value[..separatorIndex];
-        var claimPermission = value[(separatorIndex + 1)..];
-        return
-            (string.Equals(claimResourceId, CloudShellPermissions.All, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(claimResourceId, resourceId, StringComparison.OrdinalIgnoreCase)) &&
-            (string.Equals(claimPermission, CloudShellPermissions.All, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(claimPermission, permission, StringComparison.OrdinalIgnoreCase));
-    }
+        ResourcePermissionClaimAuthorization.HasResourcePermission(
+            User,
+            resourceId,
+            permission);
 }

@@ -1,0 +1,73 @@
+using System.Security.Claims;
+using CloudShell.Abstractions.Authorization;
+
+namespace CloudShell.Abstractions.Tests;
+
+public sealed class ResourcePermissionClaimAuthorizationTests
+{
+    [Fact]
+    public void HasResourcePermission_MatchesScopedResourcePermissionClaim()
+    {
+        var user = CreateUser(ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+            "configuration:sample-app",
+            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+
+        Assert.True(ResourcePermissionClaimAuthorization.HasResourcePermission(
+            user,
+            "configuration:sample-app",
+            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+        Assert.False(ResourcePermissionClaimAuthorization.HasResourcePermission(
+            user,
+            "secrets-vault:sample-app",
+            SecretsVaultResourceOperationPermissions.ReadSecrets));
+    }
+
+    [Fact]
+    public void HasResourcePermission_MatchesWildcardResourceOrPermission()
+    {
+        var wildcardResource = CreateUser(ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+            CloudShellPermissions.All,
+            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+        var wildcardPermission = CreateUser(ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+            "configuration:sample-app",
+            CloudShellPermissions.All));
+
+        Assert.True(ResourcePermissionClaimAuthorization.HasResourcePermission(
+            wildcardResource,
+            "configuration:sample-app",
+            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+        Assert.True(ResourcePermissionClaimAuthorization.HasResourcePermission(
+            wildcardPermission,
+            "configuration:sample-app",
+            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+        Assert.False(ResourcePermissionClaimAuthorization.HasResourcePermission(
+            wildcardResource,
+            "configuration:sample-app",
+            SecretsVaultResourceOperationPermissions.ReadSecrets));
+    }
+
+    [Fact]
+    public void HasResourcePermission_RequiresAuthenticatedPrincipal()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(
+                    CloudShellAuthorizationClaimTypes.ResourcePermission,
+                    ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+                        "configuration:sample-app",
+                        ConfigurationStoreResourceOperationPermissions.ReadEntries))
+            ]));
+
+        Assert.False(ResourcePermissionClaimAuthorization.HasResourcePermission(
+            user,
+            "configuration:sample-app",
+            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+    }
+
+    private static ClaimsPrincipal CreateUser(string resourcePermissionClaim) =>
+        new(new ClaimsIdentity(
+            [
+                new Claim(CloudShellAuthorizationClaimTypes.ResourcePermission, resourcePermissionClaim)
+            ],
+            authenticationType: "Test"));
+}
