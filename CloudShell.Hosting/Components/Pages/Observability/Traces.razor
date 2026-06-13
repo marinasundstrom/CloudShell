@@ -36,40 +36,13 @@
     </div>
 </section>
 
-<section class="logs-workspace">
-    <aside class="log-source-list">
-        <div class="scope-heading">
-            <h2>@L["Trace sources"]</h2>
-            <span>@L["{0} resources", resources.Count]</span>
-        </div>
-
-        @foreach (var resource in resources)
-        {
-            <button class="log-source-item @(selected?.Id == resource.Id ? "active" : null)"
-                    @onclick="() => SelectResource(resource)">
-                <span>
-                    <strong>@resource.Name</strong>
-                    <small>@resource.Kind</small>
-                </span>
-                <em>@GetStateLabel(resource.State)</em>
-            </button>
-        }
-
-        @if (resources.Count == 0)
-        {
-            <div class="empty-state compact">
-                <strong>@L["No trace sources"]</strong>
-                <span>@L["No visible resources currently declare trace support."]</span>
-            </div>
-        }
-    </aside>
-
+<section class="trace-workspace">
     <div class="log-viewer panel">
         @if (selected is null)
         {
             <div class="empty-state">
                 <strong>@L["No resource selected"]</strong>
-                <span>@L["Select a trace-capable resource to inspect its telemetry configuration."]</span>
+                <span>@L["No visible resources currently declare trace support."]</span>
             </div>
         }
         else
@@ -83,6 +56,18 @@
                     <p>@selected.Kind / @selected.Provider / @GetStateLabel(selected.State)</p>
                 </div>
                 <div class="log-viewer-actions">
+                    <label class="trace-source-filter" for="trace-source-filter">
+                        <span>@L["Trace source"]</span>
+                        <FluentSelect TOption="Resource"
+                                      Id="trace-source-filter"
+                                      Class="trace-source-select"
+                                      Items="@resources"
+                                      OptionText="@(resource => resource.Name)"
+                                      OptionValue="@(resource => resource.Id)"
+                                      SelectedOption="@selected"
+                                      SelectedOptionChanged="SelectResource"
+                                      Appearance="Appearance.Neutral" />
+                    </label>
                     <FluentButton Appearance="Appearance.Neutral"
                                   OnClick="() => OpenResource(selected)">
                         @L["Open resource"]

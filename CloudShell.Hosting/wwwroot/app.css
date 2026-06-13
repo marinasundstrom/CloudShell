@@ -1761,6 +1761,12 @@ h3 {
     align-items: start;
 }
 
+.trace-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+}
+
 .log-source-list {
     display: grid;
     gap: .35rem;
@@ -1835,6 +1841,22 @@ h3 {
     justify-content: flex-end;
     gap: .55rem;
     flex-wrap: wrap;
+}
+
+.trace-source-filter {
+    display: grid;
+    grid-template-columns: auto minmax(14rem, 22rem);
+    align-items: center;
+    gap: .45rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.trace-source-select {
+    min-width: 14rem;
+    text-transform: none;
 }
 
 .log-wrap-toggle,
@@ -2045,7 +2067,7 @@ h3 {
 
 .trace-detail-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
     gap: .75rem;
     min-height: 0;
 }
@@ -2062,6 +2084,7 @@ h3 {
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr);
     min-height: 0;
+    overflow: hidden;
 }
 
 .trace-service-legend {
@@ -2109,10 +2132,10 @@ h3 {
 .trace-waterfall-header,
 .trace-span-row {
     display: grid;
-    grid-template-columns: minmax(14rem, 20rem) minmax(9rem, 13rem) minmax(18rem, 1fr) 4.5rem;
+    grid-template-columns: minmax(13rem, 19rem) minmax(8rem, 12rem) minmax(16rem, 1fr) 4.25rem;
     align-items: center;
     gap: .65rem;
-    min-width: 52rem;
+    min-width: 47rem;
 }
 
 .trace-waterfall-header {
@@ -2145,7 +2168,7 @@ h3 {
 
 .trace-waterfall-ticks {
     position: absolute;
-    inset: 0 5.2rem 0 calc(1.05rem + 20rem + 13rem + 1.3rem);
+    inset: 0 5rem 0 calc(1.05rem + 19rem + 12rem + 1.3rem);
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     pointer-events: none;
@@ -2285,6 +2308,30 @@ h3 {
 
 .trace-attributes .log-entry-metadata dd {
     overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+    .trace-detail-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .trace-span-details {
+        max-height: none;
+    }
+
+    .trace-source-filter {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+    }
+
+    .trace-waterfall-header,
+    .trace-span-row {
+        min-width: 42rem;
+    }
+
+    .trace-waterfall-ticks {
+        inset: 0 5rem 0 calc(1.05rem + 17rem + 10rem + 1.3rem);
+    }
 }
 
 .empty-state.compact {
