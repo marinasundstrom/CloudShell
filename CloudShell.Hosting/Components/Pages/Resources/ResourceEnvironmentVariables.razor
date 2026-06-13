@@ -1,5 +1,6 @@
 @inject IResourceManager ResourceManager
 @inject IResourceRegistrationStore Registrations
+@inject IEnumerable<IResourceAppSettingConfigurationProvider> AppSettingProviders
 @inject IEnumerable<IResourceEnvironmentVariableConfigurationProvider> EnvironmentVariableProviders
 @inject IStringLocalizer<SharedResource> L
 
@@ -10,15 +11,98 @@
         <span>@ErrorMessage</span>
     </div>
 }
-else if (Provider is null || Resource is null)
+else if ((AppSettingProvider is null && EnvironmentVariableProvider is null) || Resource is null)
 {
     <div class="empty-state">
-        <strong>@L["Environment variables unavailable"]</strong>
-        <span>@L["No provider is available to configure environment variables for this resource."]</span>
+        <strong>@L["Environment unavailable"]</strong>
+        <span>@L["No provider is available to configure app settings or environment variables for this resource."]</span>
     </div>
 }
 else
 {
+    @if (AppSettingProvider is not null)
+    {
+        <div class="environment-editor resource-environment-editor">
+            <div class="environment-header">
+                <strong>@L["App settings"]</strong>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="AddAppSetting">
+                    @L["Add setting"]
+                </FluentButton>
+            </div>
+
+            @if (AppSettings.Count == 0)
+            {
+                <p class="muted">@L["No app settings are configured."]</p>
+            }
+            else
+            {
+                @foreach (var setting in AppSettings)
+                {
+                    <div class="resource-environment-row" @key="setting">
+                        <FluentTextField AriaLabel="@L["App setting name"]"
+                                         Placeholder="ConnectionStrings:Default"
+                                         @bind-Value="setting.Name" />
+                        <select class="resource-environment-source"
+                                aria-label="@L["App setting source"]"
+                                @bind="setting.Source">
+                            <option value="@EnvironmentVariableSource.Literal">@L["Custom value"]</option>
+                            <option value="@EnvironmentVariableSource.Configuration">@L["Configuration entry"]</option>
+                            <option value="@EnvironmentVariableSource.Secret">@L["Secret"]</option>
+                        </select>
+
+                        @if (setting.Source == EnvironmentVariableSource.Literal)
+                        {
+                            <FluentTextField AriaLabel="@L["App setting value"]"
+                                             @bind-Value="setting.Value" />
+                        }
+                        else if (setting.Source == EnvironmentVariableSource.Configuration)
+                        {
+                            <select class="resource-environment-reference"
+                                    aria-label="@L["Configuration store"]"
+                                    @bind="setting.ReferenceResourceId">
+                                <option value="">@L["Select configuration store"]</option>
+                                @foreach (var store in ConfigurationStores)
+                                {
+                                    <option value="@store.Id">@store.Name</option>
+                                }
+                            </select>
+                            <FluentTextField AriaLabel="@L["Configuration entry name"]"
+                                             Placeholder="ConnectionStrings:Default"
+                                             @bind-Value="setting.ReferenceName" />
+                            <FluentTextField AriaLabel="@L["Configuration entry version"]"
+                                             Placeholder="@L["Version"]"
+                                             @bind-Value="setting.Version" />
+                        }
+                        else
+                        {
+                            <select class="resource-environment-reference"
+                                    aria-label="@L["Secrets vault"]"
+                                    @bind="setting.ReferenceResourceId">
+                                <option value="">@L["Select Secrets Vault"]</option>
+                                @foreach (var vault in SecretsVaults)
+                                {
+                                    <option value="@vault.Id">@vault.Name</option>
+                                }
+                            </select>
+                            <FluentTextField AriaLabel="@L["Secret name"]"
+                                             Placeholder="ApiKey"
+                                             @bind-Value="setting.ReferenceName" />
+                            <FluentTextField AriaLabel="@L["Secret version"]"
+                                             Placeholder="@L["Version"]"
+                                             @bind-Value="setting.Version" />
+                        }
+
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveAppSetting(setting)">
+                            @L["Remove"]
+                        </FluentButton>
+                    </div>
+                }
+            }
+        </div>
+    }
+
+    @if (EnvironmentVariableProvider is not null)
+    {
     <div class="environment-editor resource-environment-editor">
         <div class="environment-header">
             <strong>@L["Environment variables"]</strong>
@@ -96,6 +180,7 @@ else
             }
         }
     </div>
+    }
 }
 
 @code {
@@ -106,10 +191,12 @@ else
     public string? ResourceId { get; set; }
 
     private Resource? Resource { get; set; }
-    private IResourceEnvironmentVariableConfigurationProvider? Provider { get; set; }
+    private IResourceAppSettingConfigurationProvider? AppSettingProvider { get; set; }
+    private IResourceEnvironmentVariableConfigurationProvider? EnvironmentVariableProvider { get; set; }
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private string? LoadedResourceId { get; set; }
     private string? ErrorMessage { get; set; }
+    private List<AppSettingInput> AppSettings { get; } = [];
     private List<EnvironmentVariableInput> Variables { get; } = [];
     private IReadOnlyList<Resource> ConfigurationStores { get; set; } = [];
     private IReadOnlyList<Resource> SecretsVaults { get; set; } = [];
@@ -123,7 +210,7 @@ else
 
         if (Configuration is not null &&
             !ReferenceEquals(RegisteredConfiguration, Configuration) &&
-            Provider is not null)
+            (AppSettingProvider is not null || EnvironmentVariableProvider is not null))
         {
             RegisteredConfiguration = Configuration;
             Configuration.SetApplyHandler(ApplyAsync);
@@ -147,15 +234,27 @@ else
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        Provider = Resource is null
+        AppSettingProvider = Resource is null
+            ? null
+            : AppSettingProviders.FirstOrDefault(provider =>
+                provider.CanConfigureAppSettings(Resource));
+        EnvironmentVariableProvider = Resource is null
             ? null
             : EnvironmentVariableProviders.FirstOrDefault(provider =>
                 provider.CanConfigureEnvironmentVariables(Resource));
 
-        Variables.Clear();
-        if (Provider is not null && Resource is not null)
+        AppSettings.Clear();
+        if (AppSettingProvider is not null && Resource is not null)
         {
-            Variables.AddRange(Provider
+            AppSettings.AddRange(AppSettingProvider
+                .GetConfiguredAppSettings(Resource.Id)
+                .Select(AppSettingInput.FromSetting));
+        }
+
+        Variables.Clear();
+        if (EnvironmentVariableProvider is not null && Resource is not null)
+        {
+            Variables.AddRange(EnvironmentVariableProvider
                 .GetConfiguredEnvironmentVariables(Resource.Id)
                 .Select(EnvironmentVariableInput.FromAssignment));
         }
@@ -163,9 +262,16 @@ else
 
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
-        if (Provider is null || Resource is null)
+        if ((AppSettingProvider is null && EnvironmentVariableProvider is null) || Resource is null)
         {
-            return ResourceProcedureResult.Completed("No environment variable provider is available.");
+            return ResourceProcedureResult.Completed("No app setting or environment variable provider is available.");
+        }
+
+        var invalidSetting = AppSettings.FirstOrDefault(setting => !setting.IsValid());
+        if (invalidSetting is not null)
+        {
+            return ResourceProcedureResult.Completed(
+                $"App setting '{invalidSetting.DisplayName}' is incomplete.");
         }
 
         var invalidVariable = Variables.FirstOrDefault(variable => !variable.IsValid());
@@ -177,15 +283,36 @@ else
 
         var registration = await ResourceManager.GetResourceRegistrationAsync(Resource.Id, cancellationToken);
         var group = await ResourceManager.GetResourceGroupForResourceAsync(Resource.Id, cancellationToken);
-        return await Provider.UpdateEnvironmentVariablesAsync(
-            new ResourceProcedureContext(
-                Resource,
-                registration,
-                group?.Id,
-                Registrations),
-            BuildAssignments(),
-            cancellationToken);
+        var context = new ResourceProcedureContext(
+            Resource,
+            registration,
+            group?.Id,
+            Registrations);
+        var results = new List<ResourceProcedureResult>();
+        if (AppSettingProvider is not null)
+        {
+            results.Add(await AppSettingProvider.UpdateAppSettingsAsync(
+                context,
+                BuildAppSettings(),
+                cancellationToken));
+        }
+
+        if (EnvironmentVariableProvider is not null)
+        {
+            results.Add(await EnvironmentVariableProvider.UpdateEnvironmentVariablesAsync(
+                context,
+                BuildAssignments(),
+                cancellationToken));
+        }
+
+        return CombineResults(results);
     }
+
+    private IReadOnlyList<AppSetting> BuildAppSettings() =>
+        AppSettings
+            .Where(setting => !string.IsNullOrWhiteSpace(setting.Name))
+            .Select(setting => setting.ToSetting())
+            .ToArray();
 
     private IReadOnlyList<EnvironmentVariableAssignment> BuildAssignments() =>
         Variables
@@ -193,9 +320,32 @@ else
             .Select(variable => variable.ToAssignment())
             .ToArray();
 
+    private void AddAppSetting() => AppSettings.Add(new());
+
+    private void RemoveAppSetting(AppSettingInput setting) => AppSettings.Remove(setting);
+
     private void AddVariable() => Variables.Add(new());
 
     private void RemoveVariable(EnvironmentVariableInput variable) => Variables.Remove(variable);
+
+    private static ResourceProcedureResult CombineResults(IReadOnlyList<ResourceProcedureResult> results)
+    {
+        if (results.Count == 0)
+        {
+            return ResourceProcedureResult.Completed("No settings were updated.");
+        }
+
+        var message = string.Join(" ", results
+            .Select(result => result.Message)
+            .Where(message => !string.IsNullOrWhiteSpace(message)));
+        var restart = results.FirstOrDefault(result => result.RestartRequired);
+        return restart is null
+            ? ResourceProcedureResult.Completed(message)
+            : ResourceProcedureResult.CompletedWithRestartRequired(
+                message,
+                restart.RestartResourceId ?? string.Empty,
+                restart.RestartMessage);
+    }
 
     private static bool IsConfigurationStore(Resource resource) =>
         resource.ResourceClass == ResourceClass.Configuration &&
@@ -204,6 +354,88 @@ else
     private static bool IsSecretsVault(Resource resource) =>
         resource.ResourceClass == ResourceClass.SecretsVault ||
         string.Equals(resource.EffectiveTypeId, "secrets.vault", StringComparison.OrdinalIgnoreCase);
+
+    private sealed class AppSettingInput
+    {
+        public string? Name { get; set; }
+
+        public EnvironmentVariableSource Source { get; set; }
+
+        public string? Value { get; set; }
+
+        public string? ReferenceResourceId { get; set; }
+
+        public string? ReferenceName { get; set; }
+
+        public string? Version { get; set; }
+
+        public string DisplayName =>
+            string.IsNullOrWhiteSpace(Name) ? "(unnamed)" : Name.Trim();
+
+        public static AppSettingInput FromSetting(AppSetting setting)
+        {
+            if (setting.ConfigurationEntry is not null)
+            {
+                return new AppSettingInput
+                {
+                    Name = setting.Name,
+                    Source = EnvironmentVariableSource.Configuration,
+                    ReferenceResourceId = setting.ConfigurationEntry.StoreResourceId,
+                    ReferenceName = setting.ConfigurationEntry.EntryName,
+                    Version = setting.ConfigurationEntry.Version
+                };
+            }
+
+            if (setting.Secret is not null)
+            {
+                return new AppSettingInput
+                {
+                    Name = setting.Name,
+                    Source = EnvironmentVariableSource.Secret,
+                    ReferenceResourceId = setting.Secret.VaultResourceId,
+                    ReferenceName = setting.Secret.SecretName,
+                    Version = setting.Secret.Version
+                };
+            }
+
+            return new AppSettingInput
+            {
+                Name = setting.Name,
+                Source = EnvironmentVariableSource.Literal,
+                Value = setting.Value
+            };
+        }
+
+        public bool IsValid() =>
+            string.IsNullOrWhiteSpace(Name) ||
+            Source == EnvironmentVariableSource.Literal ||
+            (!string.IsNullOrWhiteSpace(ReferenceResourceId) &&
+             !string.IsNullOrWhiteSpace(ReferenceName));
+
+        public AppSetting ToSetting()
+        {
+            var name = Name?.Trim() ?? string.Empty;
+            return Source switch
+            {
+                EnvironmentVariableSource.Configuration => AppSetting.FromConfiguration(
+                    name,
+                    new ConfigurationEntryReference(
+                        ReferenceResourceId?.Trim() ?? string.Empty,
+                        ReferenceName?.Trim() ?? string.Empty,
+                        Normalize(Version))),
+                EnvironmentVariableSource.Secret => AppSetting.FromSecret(
+                    name,
+                    new SecretReference(
+                        ReferenceResourceId?.Trim() ?? string.Empty,
+                        ReferenceName?.Trim() ?? string.Empty,
+                        Normalize(Version))),
+                _ => AppSetting.Literal(name, Value ?? string.Empty)
+            };
+        }
+
+        private static string? Normalize(string? value) =>
+            string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
 
     private sealed class EnvironmentVariableInput
     {

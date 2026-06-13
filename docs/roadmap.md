@@ -139,7 +139,9 @@ listed here before pulling in broader proposal work.
 
 - Add Resource Manager UI support for assigning literal app settings,
   configuration-entry references, and vault-backed secret references on
-  resources that advertise environment-variable support.
+  resources that advertise environment-variable support. The generic
+  Environment tab now edits application app settings and environment variables
+  through provider-owned configuration hooks.
 - Show saved references and diagnostics without displaying resolved secret
   values. Application overview now renders app-setting and environment-variable
   references with canonical CloudShell reference strings instead of resolved

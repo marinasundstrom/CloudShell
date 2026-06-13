@@ -328,8 +328,9 @@ app settings for non-secret values and vault-backed references for secrets.
 
 ## Remaining tasks
 
-- Add Resource Manager UI support for assigning literal app settings and
-  configuration-entry or vault-backed secret references.
+- Resource Manager's generic Environment tab now assigns literal app settings,
+  environment variables, configuration-entry references, and vault-backed
+  secret references through provider-owned configuration hooks.
 - Application overview now displays configured app settings and environment
   variables with canonical CloudShell reference strings, without resolving or
   displaying secret values.
