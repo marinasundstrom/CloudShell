@@ -266,6 +266,9 @@ public sealed class SampleSmokeTests
         var activityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("sample:api")}/details?tab=activity");
         Assert.Contains("Activity", activityHtml);
+        Assert.Contains("Event type", activityHtml);
+        Assert.Contains("Triggered by", activityHtml);
+        Assert.Contains("Time range", activityHtml);
         Assert.Contains("action.lifecycle.stop", activityHtml);
         Assert.Contains("event.lifecycle.stopped", activityHtml);
         Assert.Contains("Stop completed", activityHtml);

@@ -280,9 +280,10 @@ expectations rather than duplicating the task queue.
   through the Control Plane persistence store and queryable by resource, event
   type, actor, and time range through the Control Plane API and remote client.
   Resource Manager now shows a generated Activity tab backed by
-  `IResourceEventManager`; the generated "Resource events" log remains a view
-  adapter over that stream. Broader structured logging, audit, diagnostics,
-  metrics, traces, retention, and non-text payload decisions are tracked in
+  `IResourceEventManager`, with filters for event type, actor, and time range;
+  the generated "Resource events" log remains a view adapter over that stream.
+  Broader structured logging, audit, diagnostics, metrics, traces, retention,
+  and non-text payload decisions are tracked in
   `docs/proposals/core/logging-infrastructure.md`.
 - Web samples carry `hostsettings.json` with `environment` set to
   `Development`, and load that host setting before creating the ASP.NET Core

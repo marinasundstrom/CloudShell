@@ -7,7 +7,7 @@
         <div class="resource-activity-header">
             <div>
                 <h3>@L["Activity"]</h3>
-                <span>@L["{0} events", Events.Count]</span>
+                <span>@GetEventCountLabel()</span>
             </div>
             <FluentButton Appearance="Appearance.Neutral"
                           Disabled="@IsLoading"
@@ -16,11 +16,53 @@
             </FluentButton>
         </div>
 
+        <div class="resource-activity-filters">
+            <div>
+                <label for="resource-activity-event-type">@L["Event type"]</label>
+                <FluentTextField Id="resource-activity-event-type"
+                                 @bind-Value="EventTypeFilter"
+                                 Placeholder="@L["Exact event type"]" />
+            </div>
+            <div>
+                <label for="resource-activity-triggered-by">@L["Triggered by"]</label>
+                <FluentTextField Id="resource-activity-triggered-by"
+                                 @bind-Value="TriggeredByFilter"
+                                 Placeholder="@L["Exact actor"]" />
+            </div>
+            <div>
+                <label for="resource-activity-time-range">@L["Time range"]</label>
+                <FluentSelect TOption="string"
+                              Id="resource-activity-time-range"
+                              @bind-Value="SelectedTimeRange"
+                              Appearance="Appearance.Neutral">
+                    <FluentOption TOption="string" Value="@TimeRangeAll">@L["All"]</FluentOption>
+                    <FluentOption TOption="string" Value="@TimeRangeOneHour">@L["Last hour"]</FluentOption>
+                    <FluentOption TOption="string" Value="@TimeRangeDay">@L["Last 24 hours"]</FluentOption>
+                    <FluentOption TOption="string" Value="@TimeRangeWeek">@L["Last 7 days"]</FluentOption>
+                </FluentSelect>
+            </div>
+            <div class="resource-activity-filter-actions">
+                <FluentButton Appearance="Appearance.Neutral"
+                              Disabled="@IsLoading"
+                              OnClick="ApplyFilters">
+                    @L["Apply"]
+                </FluentButton>
+                @if (HasActiveFilters)
+                {
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@IsLoading"
+                                  OnClick="ClearFilters">
+                        @L["Clear"]
+                    </FluentButton>
+                }
+            </div>
+        </div>
+
         @if (Events.Count == 0)
         {
             <div class="empty-state compact">
                 <strong>@L["No activity"]</strong>
-                <span>@L["No resource activity events have been recorded."]</span>
+                <span>@GetEmptyStateMessage()</span>
             </div>
         }
         else
@@ -55,10 +97,28 @@
 
     private IReadOnlyList<ResourceEvent> Events { get; set; } = [];
     private bool IsLoading { get; set; }
+    private string? EventTypeFilter { get; set; }
+    private string? TriggeredByFilter { get; set; }
+    private string SelectedTimeRange { get; set; } = TimeRangeAll;
+
+    private const string TimeRangeAll = "all";
+    private const string TimeRangeOneHour = "1h";
+    private const string TimeRangeDay = "24h";
+    private const string TimeRangeWeek = "7d";
 
     protected override Task OnParametersSetAsync() => LoadEventsAsync();
 
     private Task Refresh() => LoadEventsAsync();
+
+    private Task ApplyFilters() => LoadEventsAsync();
+
+    private async Task ClearFilters()
+    {
+        EventTypeFilter = null;
+        TriggeredByFilter = null;
+        SelectedTimeRange = TimeRangeAll;
+        await LoadEventsAsync();
+    }
 
     private async Task LoadEventsAsync()
     {
@@ -72,13 +132,48 @@
         try
         {
             Events = await ResourceEvents.ListResourceEventsAsync(
-                new ResourceEventQuery(ResourceId: ResourceId, MaxEvents: 100));
+                new ResourceEventQuery(
+                    ResourceId: ResourceId,
+                    EventType: NormalizeFilter(EventTypeFilter),
+                    TriggeredBy: NormalizeFilter(TriggeredByFilter),
+                    Since: GetSinceFilter(),
+                    MaxEvents: 100));
         }
         finally
         {
             IsLoading = false;
         }
     }
+
+    private bool HasActiveFilters =>
+        !string.IsNullOrWhiteSpace(EventTypeFilter) ||
+        !string.IsNullOrWhiteSpace(TriggeredByFilter) ||
+        !string.Equals(SelectedTimeRange, TimeRangeAll, StringComparison.Ordinal);
+
+    private string GetEventCountLabel() =>
+        HasActiveFilters
+            ? L["{0} matching events", Events.Count].Value
+            : L["{0} events", Events.Count].Value;
+
+    private string GetEmptyStateMessage() =>
+        HasActiveFilters
+            ? L["No resource activity events match the current filters."].Value
+            : L["No resource activity events have been recorded."].Value;
+
+    private DateTimeOffset? GetSinceFilter()
+    {
+        var now = DateTimeOffset.UtcNow;
+        return SelectedTimeRange switch
+        {
+            TimeRangeOneHour => now.AddHours(-1),
+            TimeRangeDay => now.AddDays(-1),
+            TimeRangeWeek => now.AddDays(-7),
+            _ => null
+        };
+    }
+
+    private static string? NormalizeFilter(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private string FormatTriggeredBy(ResourceEvent resourceEvent) =>
         string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy)
