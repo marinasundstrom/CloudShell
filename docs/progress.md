@@ -249,7 +249,9 @@ expectations rather than duplicating the task queue.
   proceeds. `IContainerHostResolver` is now available and the Control Plane
   container-workload validation path uses it for explicit host IDs, preferred
   hosts, configured default hosts, compatibility engine providers, and
-  registered default host descriptors.
+  registered default host descriptors. Docker Compose materialization requires
+  the shared resolver instead of keeping a separate provider-local host lookup
+  path.
 - Host-provided virtual networking starts with macOS. The built-in macOS host
   networking provider is an activated resource that can materialize virtual
   endpoint mappings as local TCP proxies for HTTP, HTTPS, and TCP endpoints.

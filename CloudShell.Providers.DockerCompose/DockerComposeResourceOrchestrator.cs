@@ -10,11 +10,9 @@ namespace CloudShell.Providers.DockerCompose;
 public sealed partial class DockerComposeResourceOrchestrator(
     DockerComposeOrchestratorOptions options,
     IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders,
-    IEnumerable<IContainerEngineProvider> containerEngineProviders) : IResourceOrchestrator
+    IContainerHostResolver containerHostResolver) : IResourceOrchestrator
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
-    private readonly IReadOnlyList<IContainerEngineProvider> containerEngineProviders =
-        containerEngineProviders.ToArray();
 
     public string Id => "docker-compose";
 
@@ -190,22 +188,24 @@ public sealed partial class DockerComposeResourceOrchestrator(
         var workload = await ResolveExecutionWorkloadAsync(context, cancellationToken)
             ?? throw new InvalidOperationException(
                 $"Docker Compose could not resolve a container workload for resource '{context.Resource.Name}'.");
-        var selectedEngineId = FirstNonEmpty(
+        var explicitHostId = FirstNonEmpty(
             workload.ContainerEngineId,
-            options.ContainerEngineId,
-            context.PreferredContainerEngineId);
-        if (!string.IsNullOrWhiteSpace(selectedEngineId))
+            options.ContainerEngineId);
+        var result = await containerHostResolver.ResolveAsync(
+            new ContainerHostResolutionRequest(
+                context.Resource.Id,
+                context.ResourceGroup?.Id,
+                explicitHostId,
+                context.PreferredContainerEngineId),
+            cancellationToken);
+        if (result.IsResolved)
         {
-            var selected = await ResolveContainerEngineAsync(selectedEngineId, context, cancellationToken)
-                ?? throw new InvalidOperationException(
-                    $"Container engine '{selectedEngineId}' is not registered.");
-            return selected.Endpoint;
+            return result.Host!.Endpoint;
         }
 
-        var defaultEngine = await ResolveDefaultContainerEngineAsync(context, cancellationToken)
-            ?? throw new InvalidOperationException(
-                $"Resource '{context.Resource.Name}' is container-backed but no default container engine is registered. Use UseDocker(), UseContainerEngine(...), or set WithContainerEngine(...).");
-        return defaultEngine.Endpoint;
+        throw new InvalidOperationException(
+            result.ErrorMessage ??
+            $"Resource '{context.Resource.Name}' is container-backed but no container host is registered. Use UseDocker() or select an explicit container host for the workload.");
     }
 
     private async Task EnsureGeneratedComposeFileAsync(
@@ -341,59 +341,6 @@ public sealed partial class DockerComposeResourceOrchestrator(
         return null;
     }
 
-    private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
-        string engineId,
-        ResourceOrchestrationContext context,
-        CancellationToken cancellationToken)
-    {
-        var engine = GetContainerEngines()
-            .FirstOrDefault(engine => string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase));
-        if (engine is not null)
-        {
-            return engine;
-        }
-
-        var resource = context.ResourceManager.GetResource(engineId);
-        if (resource is null)
-        {
-            return null;
-        }
-
-        var descriptor = await TryDescribeAsync(resource, context, cancellationToken);
-        return descriptor is null ? null : TryReadContainerEngine(descriptor);
-    }
-
-    private async Task<ContainerEngineResourceDefinition?> ResolveDefaultContainerEngineAsync(
-        ResourceOrchestrationContext context,
-        CancellationToken cancellationToken)
-    {
-        var engine = GetContainerEngines()
-            .Where(engine => engine.IsDefault)
-            .OrderBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault();
-        if (engine is not null)
-        {
-            return engine;
-        }
-
-        foreach (var resource in context.ResourceManager.GetResources())
-        {
-            var descriptor = await TryDescribeAsync(resource, context, cancellationToken);
-            if (descriptor is null)
-            {
-                continue;
-            }
-
-            engine = TryReadContainerEngine(descriptor);
-            if (engine?.IsDefault == true)
-            {
-                return engine;
-            }
-        }
-
-        return null;
-    }
-
     private static ResourceWorkloadConfiguration? TryReadWorkload(
         ResourceOrchestrationDescriptor descriptor)
     {
@@ -438,24 +385,6 @@ public sealed partial class DockerComposeResourceOrchestrator(
         try
         {
             return descriptor.Configuration.Deserialize<NetworkResourceDefinition>(SerializerOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    private static ContainerEngineResourceDefinition? TryReadContainerEngine(
-        ResourceOrchestrationDescriptor descriptor)
-    {
-        if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        try
-        {
-            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(SerializerOptions);
         }
         catch (JsonException)
         {
@@ -801,14 +730,6 @@ public sealed partial class DockerComposeResourceOrchestrator(
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
-
-    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngines() =>
-        containerEngineProviders
-            .Select(provider => provider.GetContainerEngine())
-            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
-            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
-            .ToArray();
 
     [GeneratedRegex("[^a-z0-9_.-]+")]
     private static partial Regex ComposeServiceNamePattern();

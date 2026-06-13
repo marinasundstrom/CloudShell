@@ -69,9 +69,9 @@ provider, not the platform abstraction.
   inventing a parallel Web API concept.
 - Provide a narrow provider-owned runtime contract for implementation
   containers or helper services.
-- Preserve compatibility with existing `IContainerEngineProvider`,
-  `ContainerEngineResourceDefinition`, and `ContainerEngineId` names while
-  giving the migration target a better shape.
+- Move current `IContainerEngineProvider`, `ContainerEngineResourceDefinition`,
+  and `ContainerEngineId` names to host-oriented names before release, while
+  keeping samples and built-in providers on the current API.
 
 ## Non-Goals
 
@@ -187,13 +187,11 @@ This descriptor is not a new platform resource type by itself. It is the
 provider-owned configuration payload returned by a resource descriptor, just as
 `ContainerEngineResourceDefinition` is today.
 
-Compatibility rule:
+Pre-release migration rule:
 
-- Existing `ContainerEngineResourceDefinition` and
-  `ContainerEngineResourceTypes.ContainerEngine` remain supported.
-- New code should prefer host names and emit `ContainerHostDescriptor` when the
-  consuming path supports it.
-- Resolvers should read both descriptor versions during migration.
+- New code should prefer host names and emit `ContainerHostDescriptor`.
+- Existing engine-named code should be renamed or removed when the consuming
+  path has moved to the host model.
 
 ### Host Provider
 
@@ -211,11 +209,10 @@ This is the equivalent of the current `IContainerEngineProvider`: it supplies a
 configured default host without requiring a user-managed host resource. The
 first implementation can wrap the existing Docker default.
 
-Compatibility rule:
+Pre-release migration rule:
 
-- `IContainerEngineProvider` stays as a compatibility adapter.
-- The default host resolver should read both `IContainerHostProvider` and
-  `IContainerEngineProvider` until call sites migrate.
+- `IContainerEngineProvider` remains only while call sites are being renamed.
+- The default host resolver should converge on `IContainerHostProvider`.
 
 ### Host Resolution
 
@@ -250,8 +247,7 @@ Resolution order:
 2. Preferred host ID from orchestration context or host/provider options.
 3. Group-scoped default host selection when that exists.
 4. Default host from `IContainerHostProvider`.
-5. Compatibility default from `IContainerEngineProvider`.
-6. Default host resource descriptor discovered from registered resources.
+5. Default host resource descriptor discovered from registered resources.
 
 The resolver returns diagnostics instead of throwing for expected missing-host
 or unsupported-capability states. Orchestrators can convert those diagnostics
@@ -351,16 +347,14 @@ not introduce a second out-of-band local management API for the shell.
 
 ## Concrete Migration Plan
 
-### Phase 1: Names and Compatibility
+### Phase 1: Host Names
 
 - Add host-oriented names:
   - `ContainerHostDescriptor`
   - `ContainerHostResourceTypes.ContainerHost`
   - `IContainerHostProvider`
   - `IContainerHostResolver`
-- Keep the existing engine names as compatibility types.
-- Add adapters between `ContainerEngineResourceDefinition` and
-  `ContainerHostDescriptor`.
+- Remove or rename existing engine names as call sites move to the host model.
 - Update docs and UI copy to say "container host" except where Docker Engine is
   the product being discussed.
 
@@ -369,12 +363,11 @@ not introduce a second out-of-band local management API for the shell.
 - Implement `IContainerHostResolver` over:
   - explicit resource descriptor lookup
   - `IContainerHostProvider`
-  - compatibility `IContainerEngineProvider`
   - registered default host resources
-- Update Docker Compose orchestration to call the resolver instead of resolving
-  engine IDs directly.
-- Preserve `ContainerEngineId` on workload configuration as an obsolete
-  compatibility property and add `ContainerHostId` or `HostResourceId`.
+- Docker Compose orchestration calls the resolver and does not keep a separate
+  provider-local host lookup path.
+- Replace `ContainerEngineId` on workload configuration with `ContainerHostId`
+  or `HostResourceId`.
 
 ### Phase 3: Provider-Owned Runtime
 
@@ -433,8 +426,8 @@ not introduce a second out-of-band local management API for the shell.
 - The abstraction should be host-first, not engine-first.
 - Default host resolution should be a reusable service, not duplicated inside
   each orchestrator.
-- The first implementation should adapt existing container-engine contracts
-  instead of breaking them.
+- Pre-release implementation should converge on host-oriented contracts instead
+  of keeping engine-named compatibility layers.
 - Provider-owned runtime containers are implementation state tied to a stable
   resource.
 - A hidden default host resource is optional; the required identity is the host
@@ -446,17 +439,16 @@ not introduce a second out-of-band local management API for the shell.
 
 - Migrate consuming code from the new host-oriented descriptor and provider
   contracts into the shared resolver. `ContainerHostDescriptor`,
-  `ContainerHostResourceTypes.ContainerHost`, `IContainerHostProvider`, and
-  compatibility adapters for existing engine contracts are in place.
-- Migrate Docker Compose host materialization to `IContainerHostResolver`.
-  The shared resolver is in place and Control Plane container workload
-  validation uses it for explicit host/resource descriptors, configured
-  default hosts, compatibility engine providers, and registered default host
-  descriptors.
+  `ContainerHostResourceTypes.ContainerHost`, and `IContainerHostProvider` are
+  in place.
+- Docker Compose host materialization uses `IContainerHostResolver` and no
+  longer keeps a separate provider-local engine lookup fallback.
+- Continue moving expected host-resolution failures into diagnostics/action
+  capability reasons instead of surfacing late orchestration exceptions.
 - Add a provider-owned Docker runtime implementation for owner-scoped
   implementation containers.
-- Update application/container builder APIs to prefer host naming while keeping
-  existing engine methods as compatibility aliases.
+- Rename application/container builder APIs, settings, UI copy, and samples
+  from engine naming to host naming.
 - Add host capability projection when a concrete workflow needs capability
   validation.
 - Add tests for explicit host selection, configured default host selection,

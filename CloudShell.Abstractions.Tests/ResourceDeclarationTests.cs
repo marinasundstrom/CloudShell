@@ -3086,7 +3086,12 @@ public sealed class ResourceDeclarationTests
                 ProjectName = "sample"
             },
             [],
-            []);
+            new TestContainerHostResolver(
+                new ContainerHostDescriptor(
+                    "docker",
+                    "Docker",
+                    ContainerHostKind.Docker,
+                    "unix:///var/run/docker.sock")));
         var render = typeof(DockerComposeResourceOrchestrator).GetMethod(
             "RenderComposeDocument",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
@@ -3144,6 +3149,61 @@ public sealed class ResourceDeclarationTests
         Assert.Contains("      - target: 5080", yaml);
         Assert.Contains("        published: 5080", yaml);
         Assert.Contains("      - \"/var/run/docker.sock:/var/run/docker.sock:ro\"", yaml);
+    }
+
+    [Fact]
+    public async Task DockerComposeOrchestrator_ResolvesDockerHostThroughContainerHostResolver()
+    {
+        var resource = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Test",
+            "local",
+            ResourceState.Stopped,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            []);
+        var workload = new ResourceWorkloadConfiguration(
+            ResourceWorkloadKind.ContainerImage,
+            "API",
+            Image: "example/api:dev",
+            ContainerEngineId: "docker:remote");
+        var resolver = new TestContainerHostResolver(
+            new ContainerHostDescriptor(
+                "docker:remote",
+                "Remote Docker",
+                ContainerHostKind.Docker,
+                "tcp://127.0.0.1:2375"));
+        var orchestrator = new DockerComposeResourceOrchestrator(
+            new DockerComposeOrchestratorOptions(),
+            [new TestDescriptorProvider(CreateDescriptor(resource.Id, ApplicationResourceTypes.ContainerApp, workload))],
+            resolver);
+        var method = typeof(DockerComposeResourceOrchestrator).GetMethod(
+            "ResolveDockerHostAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.NotNull(method);
+        var task = Assert.IsAssignableFrom<Task<string?>>(method.Invoke(
+            orchestrator,
+            [
+                new ResourceOrchestrationContext(
+                    resource,
+                    null,
+                    null,
+                    new StaticResourceManagerStore([resource]),
+                    new TestResourceRegistrationStore([]),
+                    "docker:preferred"),
+                CancellationToken.None
+            ]));
+        var dockerHost = await task;
+
+        Assert.Equal("tcp://127.0.0.1:2375", dockerHost);
+        Assert.NotNull(resolver.Request);
+        Assert.Equal("application:api", resolver.Request.TargetResourceId);
+        Assert.Equal("docker:remote", resolver.Request.ExplicitHostResourceId);
+        Assert.Equal("docker:preferred", resolver.Request.PreferredHostId);
     }
 
     [Theory]
@@ -3480,6 +3540,45 @@ public sealed class ResourceDeclarationTests
             DateTimeOffset.UtcNow,
             [],
             Capabilities: [new(ResourceCapabilityIds.NetworkingEndpointMapper)]);
+
+    private static ResourceOrchestrationDescriptor CreateDescriptor(
+        string resourceId,
+        string resourceType,
+        object configuration) =>
+        new(
+            resourceId,
+            resourceType,
+            [],
+            [],
+            [],
+            "1.0",
+            JsonSerializer.SerializeToElement(configuration, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+
+    private sealed class TestDescriptorProvider(ResourceOrchestrationDescriptor descriptor) :
+        IResourceOrchestrationDescriptorProvider
+    {
+        public bool CanDescribe(Resource resource) =>
+            string.Equals(resource.Id, descriptor.ResourceId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceOrchestrationDescriptor> DescribeAsync(
+            Resource resource,
+            ResourceOrchestrationDescriptorContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(descriptor);
+    }
+
+    private sealed class TestContainerHostResolver(ContainerHostDescriptor host) : IContainerHostResolver
+    {
+        public ContainerHostResolutionRequest? Request { get; private set; }
+
+        public Task<ContainerHostResolutionResult> ResolveAsync(
+            ContainerHostResolutionRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Request = request;
+            return Task.FromResult(new ContainerHostResolutionResult(host));
+        }
+    }
 
     private sealed class TestEndpointMappingProvisioner : IResourceEndpointMappingProvisioner
     {

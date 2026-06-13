@@ -122,7 +122,8 @@ listed here before pulling in broader proposal work.
   registered default host descriptors. This is in place for Control Plane
   container-workload validation.
 - Migrate Docker Compose materialization to the resolver while preserving
-  existing `ContainerEngineId` compatibility.
+  samples and declarations on the current host-selection model. Docker Compose
+  now requires the shared resolver instead of duplicating host lookup.
 - Return diagnostics and action capability reasons for missing hosts,
   unavailable hosts, missing credentials, and unsupported runtime
   capabilities.
