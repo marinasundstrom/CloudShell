@@ -72,12 +72,25 @@ public sealed class HostScopedResourceShutdownServiceTests
         {
             FailingResourceIds = { "api" }
         };
-        using var services = CreateServices(catalog, orchestrator, new InMemoryResourceEventStore());
+        var resourceEvents = new InMemoryResourceEventStore();
+        using var services = CreateServices(catalog, orchestrator, resourceEvents);
 
         await services.GetRequiredService<HostScopedResourceShutdownService>()
             .StopAsync(CancellationToken.None);
 
         Assert.Equal(["api", "worker"], orchestrator.ExecutedActions.Select(action => action.ResourceId));
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api")),
+            resourceEvent =>
+                resourceEvent.EventType == ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Stop) &&
+                resourceEvent.TriggeredBy == HostScopedResourceShutdownService.ShutdownTrigger &&
+                resourceEvent.Level == "Warning");
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api")),
+            resourceEvent =>
+                resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.StopFailed &&
+                resourceEvent.TriggeredBy == HostScopedResourceShutdownService.ShutdownTrigger &&
+                resourceEvent.Message.Contains("Cause: Host shutdown.", StringComparison.Ordinal));
     }
 
     private static ServiceProvider CreateServices(
