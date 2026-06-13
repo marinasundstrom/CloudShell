@@ -552,7 +552,7 @@ public sealed class ResourceDeclarationTests
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
             orchestration.ExecuteActionAsync(
                 target,
-                ResourceAction.Run,
+                ResourceAction.Start,
                 startDependencies: true,
                 new AllowAllAuthorizationService()));
 
@@ -605,7 +605,7 @@ public sealed class ResourceDeclarationTests
 
         await orchestration.ExecuteActionAsync(
             target,
-            ResourceAction.Run,
+            ResourceAction.Start,
             startDependencies: true,
             new AllowAllAuthorizationService());
 
@@ -651,7 +651,7 @@ public sealed class ResourceDeclarationTests
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
             orchestration.ExecuteActionAsync(
                 target,
-                ResourceAction.Run,
+                ResourceAction.Start,
                 startDependencies: true,
                 new AllowAllAuthorizationService()));
 
@@ -700,7 +700,7 @@ public sealed class ResourceDeclarationTests
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
             orchestration.ExecuteActionAsync(
                 target,
-                ResourceAction.Run,
+                ResourceAction.Start,
                 startDependencies: true,
                 new AllowAllAuthorizationService()));
 
@@ -1047,7 +1047,7 @@ public sealed class ResourceDeclarationTests
                     null,
                     registrations,
                     resourceManager),
-                ResourceAction.Run));
+                ResourceAction.Start));
 
         Assert.Equal("SAMPLE_API_KEY", exception.SettingName);
         Assert.Equal("secret", exception.ReferenceKind);
@@ -1102,7 +1102,7 @@ public sealed class ResourceDeclarationTests
                 null,
                 registrations,
                 resourceManager),
-            ResourceAction.Run);
+            ResourceAction.Start);
 
         Assert.Equal(
             "Setting 'SAMPLE_API_KEY' references Secrets Vault 'secrets-vault:missing', but that resource is not available.",
@@ -1167,7 +1167,7 @@ public sealed class ResourceDeclarationTests
                 null,
                 registrations,
                 resourceManager),
-            ResourceAction.Run);
+            ResourceAction.Start);
 
         Assert.NotNull(reason);
         Assert.Contains("Setting 'SAMPLE_API_KEY' references 'secrets-vault:app'", reason);
@@ -1367,7 +1367,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceState.Starting, resource.State);
         Assert.True(resource.HasAction(ResourceActionIds.Stop));
         Assert.True(resource.HasAction(ResourceActionIds.Restart));
-        Assert.False(resource.HasAction(ResourceActionIds.Run));
+        Assert.False(resource.HasAction(ResourceActionIds.Start));
     }
 
     [Fact]
@@ -1406,7 +1406,7 @@ public sealed class ResourceDeclarationTests
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
 
         Assert.Equal(ResourceState.Stopped, resource.State);
-        Assert.True(resource.HasAction(ResourceActionIds.Run));
+        Assert.True(resource.HasAction(ResourceActionIds.Start));
         Assert.False(resource.HasAction(ResourceActionIds.Stop));
         Assert.False(resource.HasAction(ResourceActionIds.Restart));
     }
@@ -4256,7 +4256,7 @@ public sealed class ResourceDeclarationTests
                     "1.0",
                     DateTimeOffset.UtcNow,
                     [],
-                    Actions: [ResourceAction.Run]))
+                    Actions: [ResourceAction.Start]))
                 .ToArray();
 
         public Task<ResourceProcedureResult> DeleteAsync(

@@ -214,7 +214,7 @@ public sealed partial class SecretsVaultProvider(
         var process = CreateServiceProcessDefinition(vault);
         switch (action.Kind)
         {
-            case ResourceActionKind.Run:
+            case ResourceActionKind.Start:
                 store.Save(vault);
                 await processes.StartAsync(process, cancellationToken);
                 await WaitForServiceReadyAsync(GetServiceBaseUrl(vault), cancellationToken);
@@ -436,12 +436,12 @@ public sealed partial class SecretsVaultProvider(
     private IReadOnlyList<ResourceAction> CreateActions(SecretsVaultDefinition vault) =>
         GetState(vault) == ResourceState.Running
             ? [ResourceAction.Stop, ResourceAction.Restart]
-            : [ResourceAction.Run];
+            : [ResourceAction.Start];
 
     private static string CreateActionMessage(ResourceAction action, string resourceName) =>
         action.Kind switch
         {
-            ResourceActionKind.Run => $"Started {resourceName}.",
+            ResourceActionKind.Start => $"Started {resourceName}.",
             ResourceActionKind.Stop => $"Stopped {resourceName}.",
             ResourceActionKind.Restart => $"Restarted {resourceName}.",
             _ => $"{action.DisplayName} requested for {resourceName}."

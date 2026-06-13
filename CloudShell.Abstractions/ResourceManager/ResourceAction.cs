@@ -4,7 +4,7 @@ namespace CloudShell.Abstractions.ResourceManager;
 
 public static class ResourceActionIds
 {
-    public const string Run = "run";
+    public const string Start = "start";
     public const string Stop = "stop";
     public const string Pause = "pause";
     public const string Restart = "restart";
@@ -23,11 +23,11 @@ public sealed record ResourceAction(
 
     public bool RequiresConfirmation => EffectivePresentation.RequiresConfirmation;
 
-    public static ResourceAction Run { get; } = new(
-        ResourceActionIds.Run,
-        "Run",
-        ResourceActionKind.Run,
-        Presentation: ResourceActionPresentation.ForKind(ResourceActionKind.Run));
+    public static ResourceAction Start { get; } = new(
+        ResourceActionIds.Start,
+        "Start",
+        ResourceActionKind.Start,
+        Presentation: ResourceActionPresentation.ForKind(ResourceActionKind.Start));
 
     public static ResourceAction Stop { get; } = new(
         ResourceActionIds.Stop,
@@ -54,7 +54,7 @@ public sealed record ResourceAction(
 public enum ResourceActionKind
 {
     Custom,
-    Run,
+    Start,
     Stop,
     Pause,
     Restart
@@ -70,7 +70,7 @@ public static class ResourceActionPermissions
     private static string GetDefaultRequiredPermission(ResourceAction action) =>
         action.Kind switch
         {
-            ResourceActionKind.Run or
+            ResourceActionKind.Start or
             ResourceActionKind.Stop or
             ResourceActionKind.Pause or
             ResourceActionKind.Restart => CommonResourceOperationPermissions.LifecycleAction,
@@ -85,9 +85,9 @@ public sealed record ResourceActionPresentation(
 {
     public static ResourceActionPresentation ForKind(ResourceActionKind kind) => kind switch
     {
-        ResourceActionKind.Run => new(
+        ResourceActionKind.Start => new(
             ResourceActionDisplayStyle.Inline,
-            ResourceActionIcon.Run),
+            ResourceActionIcon.Start),
         ResourceActionKind.Stop => new(
             ResourceActionDisplayStyle.Inline,
             ResourceActionIcon.Stop,
@@ -115,7 +115,7 @@ public enum ResourceActionDisplayStyle
 public enum ResourceActionIcon
 {
     Custom,
-    Run,
+    Start,
     Stop,
     Pause,
     Restart

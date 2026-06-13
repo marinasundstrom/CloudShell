@@ -7,7 +7,7 @@ configuration. Load balancers project as `cloudshell.loadBalancer` resources.
 For the normal single-application case, prefer container app ingress. A
 replicated container app with an HTTP or TCP endpoint owns its exposed app
 endpoint and the orchestrator starts or renders the app-specific ingress
-implementation during the app run/restart flow. No separate load-balancer
+implementation during the app start/restart flow. No separate load-balancer
 resource or manual apply action is required for that path.
 
 The resource is intentionally provider-neutral. The first provider is Traefik
@@ -180,7 +180,7 @@ Run it with:
 dotnet run --project samples/LoadBalancer/CloudShell.LoadBalancer.csproj
 ```
 
-Start the target container apps from Resource Manager, then run **Apply load
+Start the target container apps from Resource Manager, then invoke **Apply load
 balancer configuration** on the public load balancer. The HTTP routes match
 configured host names:
 

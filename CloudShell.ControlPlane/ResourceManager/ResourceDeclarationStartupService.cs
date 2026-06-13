@@ -84,7 +84,7 @@ public sealed class ResourceDeclarationStartupService(
             }
 
             var runAction = resource.ResourceActions.FirstOrDefault(action =>
-                action.Kind == ResourceActionKind.Run);
+                action.Kind == ResourceActionKind.Start);
             if (runAction is null)
             {
                 continue;

@@ -19,11 +19,11 @@ public sealed class ResourceActionTests
     [Fact]
     public void Resource_ExposesProviderDefinedActions()
     {
-        var resource = CreateResource([ResourceAction.Run, new ResourceAction("custom", "Custom")]);
+        var resource = CreateResource([ResourceAction.Start, new ResourceAction("custom", "Custom")]);
 
         Assert.Collection(
             resource.ResourceActions,
-            action => Assert.Equal(ResourceActionKind.Run, action.Kind),
+            action => Assert.Equal(ResourceActionKind.Start, action.Kind),
             action =>
             {
                 Assert.Equal("custom", action.Id);
@@ -39,7 +39,7 @@ public sealed class ResourceActionTests
         Assert.True(resource.HasAction(ResourceActionIds.Stop));
         Assert.True(resource.HasAction("STOP"));
         Assert.NotNull(resource.StopAction);
-        Assert.Null(resource.RunAction);
+        Assert.Null(resource.StartAction);
         Assert.Equal("custom", resource.GetAction("CUSTOM")?.Id);
     }
 
@@ -211,16 +211,16 @@ public sealed class ResourceActionTests
             true,
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                ResourceActionIds.Run,
+                ResourceActionIds.Start,
                 ResourceActionIds.Restart
             },
             [
-                new ResourceActionCapability(ResourceActionIds.Run, true),
+                new ResourceActionCapability(ResourceActionIds.Start, true),
                 new ResourceActionCapability(ResourceActionIds.Stop, false, "Cannot stop while stopped."),
                 new ResourceActionCapability(ResourceActionIds.Restart, true)
             ]);
 
-        Assert.True(capabilities.CanRun);
+        Assert.True(capabilities.CanStart);
         Assert.False(capabilities.CanStop);
         Assert.True(capabilities.CanExecuteAction("RESTART"));
         Assert.Equal("Cannot stop while stopped.", capabilities.GetActionUnavailableReason("STOP"));
@@ -237,11 +237,11 @@ public sealed class ResourceActionTests
     [Fact]
     public void StandardActions_MarkDisruptiveCommandsForConfirmation()
     {
-        Assert.Equal(ResourceActionIds.Run, ResourceAction.Run.Id);
+        Assert.Equal(ResourceActionIds.Start, ResourceAction.Start.Id);
         Assert.Equal(ResourceActionIds.Stop, ResourceAction.Stop.Id);
         Assert.Equal(ResourceActionIds.Pause, ResourceAction.Pause.Id);
         Assert.Equal(ResourceActionIds.Restart, ResourceAction.Restart.Id);
-        Assert.False(ResourceAction.Run.RequiresConfirmation);
+        Assert.False(ResourceAction.Start.RequiresConfirmation);
         Assert.True(ResourceAction.Stop.RequiresConfirmation);
         Assert.True(ResourceAction.Pause.RequiresConfirmation);
         Assert.True(ResourceAction.Restart.RequiresConfirmation);
@@ -250,7 +250,7 @@ public sealed class ResourceActionTests
     [Fact]
     public void StandardActions_DefinePresentationPolicySeparatelyFromActionKind()
     {
-        Assert.Equal(ResourceActionDisplayStyle.Inline, ResourceAction.Run.EffectivePresentation.DisplayStyle);
+        Assert.Equal(ResourceActionDisplayStyle.Inline, ResourceAction.Start.EffectivePresentation.DisplayStyle);
         Assert.Equal(ResourceActionDisplayStyle.Inline, ResourceAction.Stop.EffectivePresentation.DisplayStyle);
         Assert.Equal(ResourceActionDisplayStyle.Inline, ResourceAction.Pause.EffectivePresentation.DisplayStyle);
         Assert.Equal(ResourceActionDisplayStyle.Overflow, ResourceAction.Restart.EffectivePresentation.DisplayStyle);
@@ -262,7 +262,7 @@ public sealed class ResourceActionTests
     {
         Assert.Equal(
             CommonResourceOperationPermissions.LifecycleAction,
-            ResourceActionPermissions.GetRequiredPermission(ResourceAction.Run));
+            ResourceActionPermissions.GetRequiredPermission(ResourceAction.Start));
         Assert.Equal(
             CommonResourceOperationPermissions.LifecycleAction,
             ResourceActionPermissions.GetRequiredPermission(ResourceAction.Stop));

@@ -155,7 +155,7 @@
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         if (StartAfterCreate)
         {
-            await ResourceActions.RunResourceAsync(definition.Id, startDependencies: true);
+            await ResourceActions.StartResourceAsync(definition.Id, startDependencies: true);
         }
 
         Navigation.NavigateTo("/resources");

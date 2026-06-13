@@ -366,7 +366,7 @@ Available permissions are:
 - `CloudShell.Network/loadBalancers/applyConfiguration/action`
 
 Resource action permissions use Azure RBAC-style operation names. Standard
-lifecycle actions such as run, stop, pause, and restart map to
+lifecycle actions such as start, stop, pause, and restart map to
 `CloudShell.Resources/resources/lifecycle/action`. Custom resource actions can
 declare a specific operation permission, such as
 `CloudShell.Network/loadBalancers/applyConfiguration/action`; otherwise they use
@@ -378,7 +378,7 @@ current resource-type and resource-class operation catalog is:
 
 | Resource type or class | Action | Permission |
 | --- | --- | --- |
-| Any resource with standard lifecycle actions | `run`, `stop`, `pause`, `restart` | `CloudShell.Resources/resources/lifecycle/action` |
+| Any resource with standard lifecycle actions | `start`, `stop`, `pause`, `restart` | `CloudShell.Resources/resources/lifecycle/action` |
 | Any resource with a custom action and no narrower declared operation | custom action execution | `CloudShell.Resources/resources/actions/execute/action` |
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `CloudShell.Network/networks/reconcileEndpointMappings/action` |
 | `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `CloudShell.Network/loadBalancers/applyConfiguration/action` |

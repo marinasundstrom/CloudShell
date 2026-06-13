@@ -41,7 +41,7 @@ public sealed record Resource(
 
     public bool HasAction(string actionId) => GetAction(actionId) is not null;
 
-    public ResourceAction? RunAction => GetAction(ResourceActionIds.Run);
+    public ResourceAction? StartAction => GetAction(ResourceActionIds.Start);
 
     public ResourceAction? StopAction => GetAction(ResourceActionIds.Stop);
 

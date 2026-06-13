@@ -11,9 +11,9 @@ internal static class ResourceEventDisplayNames
         string eventType,
         IStringLocalizer<SharedResource> localizer)
     {
-        if (string.Equals(eventType, ResourceEventTypes.Actions.Lifecycle.Run, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(eventType, ResourceEventTypes.Actions.Lifecycle.Start, StringComparison.OrdinalIgnoreCase))
         {
-            return localizer["Run action"].Value;
+            return localizer["Start action"].Value;
         }
 
         if (string.Equals(eventType, ResourceEventTypes.Actions.Lifecycle.Stop, StringComparison.OrdinalIgnoreCase))

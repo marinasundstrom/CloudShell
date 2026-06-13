@@ -426,7 +426,7 @@ then graph default. UI-created resources do not use this startup path; create
 flows use an explicit start-after-create option whose initial value comes from
 provider policy.
 
-Dependency auto-start is a separate lifecycle policy. When a Run or Restart
+Dependency auto-start is a separate lifecycle policy. When a Start or Restart
 action is executed with dependency startup enabled, CloudShell may start stopped
 dependencies before starting the requested resource. Configure the graph default
 with `resources.WithDependencyAutoStart(...)`:

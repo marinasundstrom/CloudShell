@@ -1751,7 +1751,7 @@
 
     private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
     {
-        ResourceActionIcon.Run => "action-icon-run",
+        ResourceActionIcon.Start => "action-icon-start",
         ResourceActionIcon.Stop => "action-icon-stop",
         ResourceActionIcon.Pause => "action-icon-pause",
         ResourceActionIcon.Restart => "action-icon-restart",
@@ -1760,7 +1760,7 @@
 
     private string GetConfirmationMessage(Resource resource, ResourceAction action) =>
         action.Description ??
-        L["This will run the {0} action for {1}.", action.DisplayName, resource.Name].Value;
+        L["This will request the {0} action for {1}.", action.DisplayName, resource.Name].Value;
 
     private string GetDependencyConfirmationMessage(PendingResourceAction pending)
     {
@@ -1779,7 +1779,7 @@
     }
 
     private static bool ShouldStartDependencies(ResourceAction action) =>
-        action.Kind is ResourceActionKind.Run or ResourceActionKind.Restart;
+        action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
 
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart;

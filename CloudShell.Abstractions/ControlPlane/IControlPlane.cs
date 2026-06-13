@@ -302,7 +302,7 @@ public sealed record ResourceOperationCapabilities(
     public string? GetActionUnavailableReason(string actionId) =>
         GetActionCapability(actionId)?.Reason;
 
-    public bool CanRun => CanExecuteAction(ResourceActionIds.Run);
+    public bool CanStart => CanExecuteAction(ResourceActionIds.Start);
 
     public bool CanStop => CanExecuteAction(ResourceActionIds.Stop);
 

@@ -206,7 +206,7 @@ public sealed partial class ConfigurationResourceProvider :
         var process = CreateServiceProcessDefinition(configurationStore);
         switch (action.Kind)
         {
-            case ResourceActionKind.Run:
+            case ResourceActionKind.Start:
                 store.Save(configurationStore);
                 await processes.StartAsync(process, cancellationToken);
                 await WaitForServiceReadyAsync(GetServiceBaseUrl(configurationStore), cancellationToken);
@@ -433,12 +433,12 @@ public sealed partial class ConfigurationResourceProvider :
     private IReadOnlyList<ResourceAction> CreateActions(ConfigurationStoreDefinition configurationStore) =>
         GetState(configurationStore) == ResourceState.Running
             ? [ResourceAction.Stop, ResourceAction.Restart]
-            : [ResourceAction.Run];
+            : [ResourceAction.Start];
 
     private static string CreateActionMessage(ResourceAction action, string resourceName) =>
         action.Kind switch
         {
-            ResourceActionKind.Run => $"Started {resourceName}.",
+            ResourceActionKind.Start => $"Started {resourceName}.",
             ResourceActionKind.Stop => $"Stopped {resourceName}.",
             ResourceActionKind.Restart => $"Restarted {resourceName}.",
             _ => $"{action.DisplayName} requested for {resourceName}."

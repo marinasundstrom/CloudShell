@@ -117,7 +117,7 @@ public sealed class SampleSmokeTests
 
         await host.SendAsync(
             HttpMethod.Post,
-            "/api/control-plane/v1/resources/application%3Asettings-secrets-api/actions/run?startDependencies=true");
+            "/api/control-plane/v1/resources/application%3Asettings-secrets-api/actions/start?startDependencies=true");
 
         var startedApiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var startedDocument = JsonDocument.Parse(startedApiJson);
@@ -261,13 +261,13 @@ public sealed class SampleSmokeTests
         using var stoppedDocument = JsonDocument.Parse(stoppedJson);
         var stoppedResource = stoppedDocument.RootElement;
         Assert.Equal((int)ResourceState.Stopped, stoppedResource.GetProperty("state").GetInt32());
-        Assert.True(stoppedResource.GetProperty("resourceActions").TryGetProperty("run", out _));
+        Assert.True(stoppedResource.GetProperty("resourceActions").TryGetProperty("start", out _));
 
         var activityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("sample:api")}/details?tab=activity");
         Assert.Contains("Activity", activityHtml);
         Assert.Contains("action.lifecycle.stop", activityHtml);
-        Assert.Contains("lifecycle.stopped", activityHtml);
+        Assert.Contains("event.lifecycle.stopped", activityHtml);
         Assert.Contains("Stop completed", activityHtml);
     }
 

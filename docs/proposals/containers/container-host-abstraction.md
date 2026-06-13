@@ -439,7 +439,7 @@ not introduce a second out-of-band local management API for the shell.
   longer keeps a separate provider-local engine lookup fallback.
 - Missing explicit/default host resolution, unavailable host resources, and
   missing required host capabilities now feed resolver diagnostics. Missing
-  explicit/default hosts also feed Run/Restart action capability reasons and
+  explicit/default hosts also feed Start/Restart action capability reasons and
   execution uses the same domain unavailable-action error before provider
   dispatch. Container-image and container-build workloads now request matching
   host capabilities. Continue extending this diagnostics path to credential

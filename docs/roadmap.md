@@ -130,7 +130,7 @@ listed here before pulling in broader proposal work.
   samples and declarations on the current host-selection model. Docker Compose
   now requires the shared resolver instead of duplicating host lookup.
 - Return diagnostics and action capability reasons for host placement failures.
-  Missing explicit/default container hosts now disable affected Run/Restart
+  Missing explicit/default container hosts now disable affected Start/Restart
   actions before orchestration dispatch. The shared resolver also reports
   unavailable host resources and missing required host capabilities, with
   container-image and container-build capability IDs wired into container

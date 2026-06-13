@@ -36,7 +36,7 @@ certificates, federated credentials, and provider-native role or claim models.
 Resources can expose operations that affect system state or reveal protected
 data:
 
-- lifecycle actions such as run, stop, pause, and restart
+- lifecycle actions such as start, stop, pause, and restart
 - custom provider actions
 - configuration and secret reads
 - deployment, revision, and scale operations

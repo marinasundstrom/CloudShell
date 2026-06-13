@@ -75,7 +75,7 @@ configuration service is unavailable, the provider records unavailable status
 and the app continues running. The `/configuration` endpoint reports the
 provider status and currently loaded keys.
 
-After adding the resource through `/resources/add`, use the Run action to start
+After adding the resource through `/resources/add`, use the Start action to start
 it and open the `http://localhost:5127` endpoint from the resource details blade.
 
 See [Configuration services](../configuration-services.md).

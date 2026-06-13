@@ -385,7 +385,7 @@ A resource action is a domain operation on a resource.
 
 Standard lifecycle actions use `ResourceActionKind`:
 
-- `Run`
+- `Start`
 - `Stop`
 - `Pause`
 - `Restart`
@@ -437,7 +437,7 @@ keeps the consumer workflow explicit:
 3. Call `IResourceManager.ExecuteResourceActionAsync` to request execution.
 
 The public abstraction may provide manager extension methods for common
-lifecycle operations, such as run, stop, pause, and restart. These helpers
+lifecycle operations, such as start, stop, pause, and restart. These helpers
 should construct domain commands for `IResourceManager`; they should not move
 execution behavior onto `Resource`.
 
@@ -467,14 +467,36 @@ They are queryable activity records, not just text log lines.
 
 Standard resource actions and standard resource events are related but
 separate concepts. `ResourceActionIds` names standard operations such as
-`run`, `stop`, `pause`, and `restart`. `ResourceEventTypes` names standard
-activity facts such as `action.lifecycle.stop`, `lifecycle.stopping`, and
-`lifecycle.stopped`. Authors may still define custom resource actions and
+`start`, `stop`, `pause`, and `restart`. `ResourceEventTypes` names standard
+activity facts such as `action.lifecycle.stop`, `event.lifecycle.stopping`, and
+`event.lifecycle.stopped`. Authors may still define custom resource actions and
 custom resource event types. Custom action event types use
 `action.<custom-action-id>`, and authors may namespace their own action IDs,
 for example `action.database.backup`. Authors may also namespace their own
 event types, such as `database.backup.completed`; only the standard lifecycle
 action kinds receive Resource Manager lifecycle events automatically.
+
+### Action and Event Naming
+
+Action IDs name requested operations. Standard lifecycle actions use simple
+stable IDs: `start`, `stop`, `pause`, and `restart`. Custom actions may use
+namespaced IDs such as `database.backup` or
+`loadBalancer.applyConfiguration` when the namespace improves clarity.
+
+Action event types record that an action was requested. Standard lifecycle
+action event types use `action.lifecycle.*`, for example
+`action.lifecycle.start` and `action.lifecycle.stop`. Custom action event
+types use `action.<custom-action-id>`, preserving author namespaces.
+
+Event types describe facts that happened. Standard lifecycle events use
+`event.lifecycle.*`, for example `event.lifecycle.starting`,
+`event.lifecycle.started`, `event.lifecycle.stopping`, and
+`event.lifecycle.stopped`. Authors may define their own event namespaces, such
+as `database.backup.completed`.
+
+Display names are presentation metadata. The Activity UI can show friendly
+labels such as "Start action" or "Started" while preserving the stable event
+type as metadata.
 
 In code:
 

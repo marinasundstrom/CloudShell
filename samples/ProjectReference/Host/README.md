@@ -71,7 +71,7 @@ Open:
 http://localhost:5104/resources
 ```
 
-Run the `Project Reference API` resource, then run the
+Start the `Project Reference API` resource, then start the
 `Project Reference Frontend` resource. Open:
 
 ```text

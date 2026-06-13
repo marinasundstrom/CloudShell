@@ -79,7 +79,7 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
                 provider,
                 resourceContext,
                 service,
-                action with { Kind = ResourceActionKind.Run },
+                action with { Kind = ResourceActionKind.Start },
                 cancellationToken);
             return ResourceProcedureResult.Completed($"Restarted {context.Resource.Name}.");
         }
@@ -92,7 +92,7 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
             cancellationToken);
         return action.Kind switch
         {
-            ResourceActionKind.Run => ResourceProcedureResult.Completed($"Started {context.Resource.Name}."),
+            ResourceActionKind.Start => ResourceProcedureResult.Completed($"Started {context.Resource.Name}."),
             ResourceActionKind.Stop => ResourceProcedureResult.Completed($"Stopped {context.Resource.Name}."),
             _ => ResourceProcedureResult.Completed($"Executed {action.DisplayName} for {context.Resource.Name}.")
         };

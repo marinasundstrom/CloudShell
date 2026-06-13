@@ -11,7 +11,7 @@ public static class ResourceEventTypes
 
         public static class Lifecycle
         {
-            public const string Run = "action.lifecycle.run";
+            public const string Start = "action.lifecycle.start";
             public const string Stop = "action.lifecycle.stop";
             public const string Pause = "action.lifecycle.pause";
             public const string Restart = "action.lifecycle.restart";
@@ -20,7 +20,7 @@ public static class ResourceEventTypes
         public static string ForAction(string actionId) =>
             actionId.Trim().ToLowerInvariant() switch
             {
-                ResourceActionIds.Run => Lifecycle.Run,
+                ResourceActionIds.Start => Lifecycle.Start,
                 ResourceActionIds.Stop => Lifecycle.Stop,
                 ResourceActionIds.Pause => Lifecycle.Pause,
                 ResourceActionIds.Restart => Lifecycle.Restart,
@@ -35,18 +35,18 @@ public static class ResourceEventTypes
     {
         public static class Lifecycle
         {
-            public const string Starting = "lifecycle.starting";
-            public const string Started = "lifecycle.started";
-            public const string StartFailed = "lifecycle.start.failed";
-            public const string Stopping = "lifecycle.stopping";
-            public const string Stopped = "lifecycle.stopped";
-            public const string StopFailed = "lifecycle.stop.failed";
-            public const string Pausing = "lifecycle.pausing";
-            public const string Paused = "lifecycle.paused";
-            public const string PauseFailed = "lifecycle.pause.failed";
-            public const string Restarting = "lifecycle.restarting";
-            public const string Restarted = "lifecycle.restarted";
-            public const string RestartFailed = "lifecycle.restart.failed";
+            public const string Starting = "event.lifecycle.starting";
+            public const string Started = "event.lifecycle.started";
+            public const string StartFailed = "event.lifecycle.start.failed";
+            public const string Stopping = "event.lifecycle.stopping";
+            public const string Stopped = "event.lifecycle.stopped";
+            public const string StopFailed = "event.lifecycle.stop.failed";
+            public const string Pausing = "event.lifecycle.pausing";
+            public const string Paused = "event.lifecycle.paused";
+            public const string PauseFailed = "event.lifecycle.pause.failed";
+            public const string Restarting = "event.lifecycle.restarting";
+            public const string Restarted = "event.lifecycle.restarted";
+            public const string RestartFailed = "event.lifecycle.restart.failed";
         }
     }
 

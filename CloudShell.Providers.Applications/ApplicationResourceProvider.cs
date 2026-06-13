@@ -196,7 +196,7 @@ public sealed partial class ApplicationResourceProvider(
 
         switch (action.Kind)
         {
-            case ResourceActionKind.Run:
+            case ResourceActionKind.Start:
                 await StartApplicationAsync(
                     context.Resource.Id,
                     context.Resource.DependsOn,
@@ -255,7 +255,7 @@ public sealed partial class ApplicationResourceProvider(
     public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null &&
-        action.Kind is ResourceActionKind.Run or ResourceActionKind.Restart;
+        action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
 
     public Task<string?> GetActionUnavailableReasonAsync(
         ResourceProcedureContext context,
@@ -263,7 +263,7 @@ public sealed partial class ApplicationResourceProvider(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (action.Kind is not (ResourceActionKind.Run or ResourceActionKind.Restart))
+        if (action.Kind is not (ResourceActionKind.Start or ResourceActionKind.Restart))
         {
             return Task.FromResult<string?>(null);
         }
@@ -282,7 +282,7 @@ public sealed partial class ApplicationResourceProvider(
         ResourceAction action) =>
         ApplicationResourceTypes.IsContainerApp(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null &&
-        action.Kind is ResourceActionKind.Run or ResourceActionKind.Stop or ResourceActionKind.Restart;
+        action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop or ResourceActionKind.Restart;
 
     public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
         ResourceProcedureContext context,
@@ -306,7 +306,7 @@ public sealed partial class ApplicationResourceProvider(
         ResourceAction action,
         CancellationToken cancellationToken = default)
     {
-        if (action.Kind != ResourceActionKind.Run)
+        if (action.Kind != ResourceActionKind.Start)
         {
             return;
         }
@@ -356,7 +356,7 @@ public sealed partial class ApplicationResourceProvider(
         var application = GetContainerApplication(context.ResourceContext.Resource.Id);
         switch (action.Kind)
         {
-            case ResourceActionKind.Run:
+            case ResourceActionKind.Start:
                 await StartContainerApplicationInstanceAsync(
                     application,
                     context.ResourceContext.Resource.DependsOn,
@@ -1474,7 +1474,7 @@ public sealed partial class ApplicationResourceProvider(
                     resourceManager,
                     preferredContainerHostId),
                 service),
-            ResourceAction.Run,
+            ResourceAction.Start,
             cancellationToken);
         foreach (var instance in CreateDefaultContainerServiceInstances(service))
         {
@@ -2271,7 +2271,7 @@ public sealed partial class ApplicationResourceProvider(
     private static IReadOnlyList<ResourceAction> CreateActions(ResourceState state) =>
         state is ResourceState.Running or ResourceState.Starting
             ? [ResourceAction.Stop, ResourceAction.Restart]
-            : [ResourceAction.Run];
+            : [ResourceAction.Start];
 
     private void MarkStarting(string applicationId)
     {

@@ -11,7 +11,7 @@ dotnet run --project samples/LoadBalancer/CloudShell.LoadBalancer.csproj -- --ur
 ```
 
 Open `http://127.0.0.1:5011/resources`, start **Web App**, **API Service**,
-and **Postgres Replica Set**, then run **Apply load balancer configuration** on
+and **Postgres Replica Set**, then invoke **Apply load balancer configuration** on
 **Public Load Balancer**.
 
 For the normal container-app path, **API Service** exposes its own app endpoint

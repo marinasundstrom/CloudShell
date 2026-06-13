@@ -128,7 +128,7 @@ public sealed class InProcessControlPlane(
             await ExecuteResourceActionAsync(
                 new ExecuteResourceActionCommand(
                     resourceId,
-                    ResourceActionIds.Run,
+                    ResourceActionIds.Start,
                     StartDependencies: true),
                 cancellationToken);
         }
@@ -772,11 +772,11 @@ public sealed class InProcessControlPlane(
         ResourceAction action) =>
         action.Kind switch
         {
-            ResourceActionKind.Run when resource.State is not (
+            ResourceActionKind.Start when resource.State is not (
                 ResourceState.Stopped or
                 ResourceState.Paused or
                 ResourceState.Unknown) =>
-                $"Resource '{resource.Name}' cannot run while it is {FormatState(resource.State)}.",
+                $"Resource '{resource.Name}' cannot start while it is {FormatState(resource.State)}.",
             ResourceActionKind.Stop when resource.State is not (
                 ResourceState.Running or
                 ResourceState.Starting or

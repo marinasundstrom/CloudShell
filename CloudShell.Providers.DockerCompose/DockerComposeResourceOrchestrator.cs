@@ -23,7 +23,7 @@ public sealed partial class DockerComposeResourceOrchestrator(
         ResourceAction action) =>
         options.Enabled &&
         HasComposeConfiguration(context) &&
-        action.Kind is ResourceActionKind.Run or ResourceActionKind.Stop or ResourceActionKind.Restart;
+        action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop or ResourceActionKind.Restart;
 
     public async Task<ResourceProcedureResult> ExecuteActionAsync(
         ResourceOrchestrationContext context,
@@ -40,7 +40,7 @@ public sealed partial class DockerComposeResourceOrchestrator(
         var serviceName = await ResolveComposeServiceNameAsync(context, cancellationToken);
         IReadOnlyList<string> arguments = action.Kind switch
         {
-            ResourceActionKind.Run => ["compose", .. GetBaseArguments(), "up", "-d", serviceName],
+            ResourceActionKind.Start => ["compose", .. GetBaseArguments(), "up", "-d", serviceName],
             ResourceActionKind.Stop => ["compose", .. GetBaseArguments(), "stop", serviceName],
             ResourceActionKind.Restart => ["compose", .. GetBaseArguments(), "restart", serviceName],
             _ => throw new NotSupportedException(

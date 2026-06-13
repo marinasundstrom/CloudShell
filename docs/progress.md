@@ -216,10 +216,10 @@ expectations rather than duplicating the task queue.
   runtime resource IDs to deploy a new app image.
 - Resource-scoped events are the platform traceability stream for operations
   performed on resources, including who or what triggered the operation.
-  Standard lifecycle action events such as `action.lifecycle.run` and
+  Standard lifecycle action events such as `action.lifecycle.start` and
   `action.lifecycle.stop` are separate from resulting lifecycle events such as
-  `lifecycle.starting`, `lifecycle.started`, `lifecycle.stopping`, and
-  `lifecycle.stopped`. Both are recorded on the resource whose action or
+  `event.lifecycle.starting`, `event.lifecycle.started`, `event.lifecycle.stopping`, and
+  `event.lifecycle.stopped`. Both are recorded on the resource whose action or
   lifecycle changes, including dependencies that are auto-started because
   another resource was started. Authors may define custom namespaced actions
   and events; only standard lifecycle action kinds receive Resource Manager
@@ -381,7 +381,7 @@ expectations rather than duplicating the task queue.
 - Application resource templates preserve reference-backed app settings and
   environment variables by carrying configuration-entry references and Secrets
   Vault references without embedding secret values.
-- Application Run/Restart capabilities now preflight reference-backed app
+- Application Start/Restart capabilities now preflight reference-backed app
   settings and environment variables for missing configuration or Secrets
   Vault target resources and missing identity read grants before dispatching
   orchestration, without resolving or exposing referenced values.
@@ -393,7 +393,7 @@ expectations rather than duplicating the task queue.
   providers resolve explicit or default container hosts through a shared
   resolver, keep provider-owned runtime state behind provider contracts, use
   host-oriented public naming, and report missing explicit/default host
-  placement through Run/Restart action capability reasons before orchestration
+  placement through Start/Restart action capability reasons before orchestration
   dispatch. Host descriptors can advertise non-secret runtime capabilities, and
   the shared resolver now reports unavailable host resources and missing
   required host capabilities as diagnostics. Container-image and
@@ -428,7 +428,7 @@ expectations rather than duplicating the task queue.
   the selected Docker host when applying load-balancer configuration.
 - Replicated container apps now own app-specific ingress for the default path.
   The default Docker runner starts a provider-owned Traefik ingress container
-  automatically during app run/restart for replicated HTTP/TCP endpoints, and
+  automatically during app start/restart for replicated HTTP/TCP endpoints, and
   the Docker Compose generator renders a Traefik sidecar plus labels for
   replicated services with published HTTP/TCP ports. Explicit
   `cloudshell.loadBalancer` resources remain the higher-control gateway
@@ -567,7 +567,7 @@ expectations rather than duplicating the task queue.
   configuration-entry and Secrets Vault references to a Web API resource's
   environment variables and using a provisioned resource identity to read the
   backing services without service auth secrets.
-- Added provider-owned Run/Restart capability preflight for reference-backed
+- Added provider-owned Start/Restart capability preflight for reference-backed
   application settings so missing reference targets or missing identity read
   grants disable the action before orchestration dispatch.
 

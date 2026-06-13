@@ -36,7 +36,7 @@ CloudShell adds value when the team needs more than app composition:
 | "I want a place to manage resources, not just declare them." | A resource manager shell for registering, grouping, inspecting, and operating resources. |
 | "I want this to work beyond one developer's app host." | A Control Plane that can run separately from the WebUI and serve multiple shell clients. |
 | "I want providers to plug in their own systems." | An extension model where providers can contribute resource types, actions, logs, views, templates, and capabilities. |
-| "I want operational actions in the same place I inspect resources." | Resource actions such as run, stop, restart, image update, deployment, or provider-specific procedures. |
+| "I want operational actions in the same place I inspect resources." | Resource actions such as start, stop, restart, image update, deployment, or provider-specific procedures. |
 | "I want a UI for authored resources." | Generated resource details and provider-owned UI surfaces for richer workflows. |
 | "I want resource state to survive beyond process startup." | Platform-owned registrations, groups, dependencies, and settings that can be persisted. |
 | "I want local, team-owned, or on-prem platform tooling." | A self-hosted shell that can front local development, internal platforms, and environment-specific providers. |

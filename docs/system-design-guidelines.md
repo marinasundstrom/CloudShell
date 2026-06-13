@@ -100,7 +100,7 @@ filtering, and simple orchestration hints; they are not a provider configuration
 schema and should not carry structured payloads.
 
 Resource actions are domain operations on a resource. Standard lifecycle
-actions use `ResourceActionKind.Run`, `Stop`, `Pause`, and `Restart`. Custom
+actions use `ResourceActionKind.Start`, `Stop`, `Pause`, and `Restart`. Custom
 provider actions use stable IDs. Resource actions are not UI actions.
 Use canonical action IDs from the public abstraction for standard lifecycle
 actions. `Resource` may provide lookup helpers for those actions, but it
@@ -156,7 +156,7 @@ individual UI components.
 
 The current lifecycle policy is:
 
-- `Run`: executable for stopped, paused, or unknown resources.
+- `Start`: executable for stopped, paused, or unknown resources.
 - `Stop`: executable for running, starting, paused, or degraded resources.
 - `Pause`: executable for running or degraded resources.
 - `Restart`: executable for running, starting, or degraded resources.

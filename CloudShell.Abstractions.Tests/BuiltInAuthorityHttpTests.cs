@@ -181,13 +181,13 @@ public sealed class BuiltInAuthorityHttpTests
         await SendWithBearerAsync(
             client,
             HttpMethod.Post,
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(ResourceIdentityFlowProvider.AllowedActionResourceId)}/actions/{ResourceActionIds.Run}",
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(ResourceIdentityFlowProvider.AllowedActionResourceId)}/actions/{ResourceActionIds.Start}",
             resourceToken,
             HttpStatusCode.OK);
         await SendWithBearerAsync(
             client,
             HttpMethod.Post,
-            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(ResourceIdentityFlowProvider.DeniedActionResourceId)}/actions/{ResourceActionIds.Run}",
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(ResourceIdentityFlowProvider.DeniedActionResourceId)}/actions/{ResourceActionIds.Start}",
             resourceToken,
             HttpStatusCode.Forbidden);
         await SendWithBearerAsync(
@@ -383,7 +383,7 @@ public sealed class BuiltInAuthorityHttpTests
                 "1.0",
                 DateTimeOffset.UtcNow,
                 [],
-                Actions: [ResourceAction.Run],
+                Actions: [ResourceAction.Start],
                 ResourceClass: ResourceClass.Service),
             new(
                 DeniedActionResourceId,
@@ -396,7 +396,7 @@ public sealed class BuiltInAuthorityHttpTests
                 "1.0",
                 DateTimeOffset.UtcNow,
                 [],
-                Actions: [ResourceAction.Run],
+                Actions: [ResourceAction.Start],
                 ResourceClass: ResourceClass.Service)
         ];
 

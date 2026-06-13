@@ -21,10 +21,10 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             { ResourceState.Running, [ResourceActionIds.Stop, ResourceActionIds.Pause, ResourceActionIds.Restart] },
             { ResourceState.Starting, [ResourceActionIds.Stop, ResourceActionIds.Restart] },
-            { ResourceState.Paused, [ResourceActionIds.Run, ResourceActionIds.Stop] },
+            { ResourceState.Paused, [ResourceActionIds.Start, ResourceActionIds.Stop] },
             { ResourceState.Degraded, [ResourceActionIds.Stop, ResourceActionIds.Pause, ResourceActionIds.Restart] },
-            { ResourceState.Stopped, [ResourceActionIds.Run] },
-            { ResourceState.Unknown, [ResourceActionIds.Run] }
+            { ResourceState.Stopped, [ResourceActionIds.Start] },
+            { ResourceState.Unknown, [ResourceActionIds.Start] }
         };
 
     [Theory]
@@ -60,7 +60,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             ResourceState.Running,
             actions:
             [
-                ResourceAction.Run,
+                ResourceAction.Start,
                 ResourceAction.Stop,
                 ResourceAction.Pause,
                 ResourceAction.Restart,
@@ -111,11 +111,11 @@ public sealed class InProcessControlPlaneResourceStateTests
         var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync([resource.Id]);
 
         var capability = Assert.Single(capabilities).Value;
-        Assert.False(capability.CanExecuteAction(ResourceActionIds.Run));
+        Assert.False(capability.CanExecuteAction(ResourceActionIds.Start));
         Assert.Equal(
             "Container host 'docker:missing' is not registered.",
-            capability.GetActionUnavailableReason(ResourceActionIds.Run));
-        Assert.DoesNotContain(ResourceActionIds.Run, capability.ExecutableActionIds);
+            capability.GetActionUnavailableReason(ResourceActionIds.Start));
+        Assert.DoesNotContain(ResourceActionIds.Start, capability.ExecutableActionIds);
     }
 
     [Fact]
@@ -147,10 +147,10 @@ public sealed class InProcessControlPlaneResourceStateTests
         var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync([resource.Id]);
 
         var capability = Assert.Single(capabilities).Value;
-        Assert.False(capability.CanExecuteAction(ResourceActionIds.Run));
+        Assert.False(capability.CanExecuteAction(ResourceActionIds.Start));
         Assert.Equal(
             "Container host 'docker:local' does not advertise required capability 'container.build'.",
-            capability.GetActionUnavailableReason(ResourceActionIds.Run));
+            capability.GetActionUnavailableReason(ResourceActionIds.Start));
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var provider = new TestResourceProvider();
         var availability = new TestActionAvailabilityProvider(
             resource.Id,
-            ResourceActionIds.Run,
+            ResourceActionIds.Start,
             "Reference target missing.");
         var controlPlane = CreateControlPlane(
             [resource],
@@ -170,14 +170,14 @@ public sealed class InProcessControlPlaneResourceStateTests
         var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync([resource.Id]);
 
         var capability = Assert.Single(capabilities).Value;
-        Assert.False(capability.CanExecuteAction(ResourceActionIds.Run));
-        Assert.Equal(availability.Reason, capability.GetActionUnavailableReason(ResourceActionIds.Run));
-        Assert.DoesNotContain(ResourceActionIds.Run, capability.ExecutableActionIds);
+        Assert.False(capability.CanExecuteAction(ResourceActionIds.Start));
+        Assert.Equal(availability.Reason, capability.GetActionUnavailableReason(ResourceActionIds.Start));
+        Assert.DoesNotContain(ResourceActionIds.Start, capability.ExecutableActionIds);
         Assert.Empty(provider.ExecutedActions);
     }
 
     [Theory]
-    [InlineData(ResourceState.Running, ResourceActionIds.Run)]
+    [InlineData(ResourceState.Running, ResourceActionIds.Start)]
     [InlineData(ResourceState.Stopped, ResourceActionIds.Stop)]
     [InlineData(ResourceState.Paused, ResourceActionIds.Restart)]
     [InlineData(ResourceState.Unknown, ResourceActionIds.Pause)]
@@ -216,7 +216,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             ]);
 
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
-            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Run)));
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Start)));
 
         Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnavailable, exception.Error.Code);
         Assert.Equal("Container host 'docker:missing' is not registered.", exception.Message);
@@ -230,7 +230,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var resource = CreateResource("target", ResourceState.Stopped);
         var availability = new TestActionAvailabilityProvider(
             resource.Id,
-            ResourceActionIds.Run,
+            ResourceActionIds.Start,
             "Reference target missing.");
         var controlPlane = CreateControlPlane(
             [resource],
@@ -238,7 +238,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             actionAvailabilityProviders: [availability]);
 
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
-            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Run)));
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Start)));
 
         Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnavailable, exception.Error.Code);
         Assert.Equal(availability.Reason, exception.Message);
@@ -582,7 +582,7 @@ public sealed class InProcessControlPlaneResourceStateTests
     [Theory]
     [InlineData(ResourceState.Starting, ResourceActionIds.Restart)]
     [InlineData(ResourceState.Paused, ResourceActionIds.Stop)]
-    [InlineData(ResourceState.Unknown, ResourceActionIds.Run)]
+    [InlineData(ResourceState.Unknown, ResourceActionIds.Start)]
     public async Task ExecuteResourceActionAsync_AllowsStateValidActions(
         ResourceState state,
         string actionId)
@@ -658,15 +658,15 @@ public sealed class InProcessControlPlaneResourceStateTests
         await controlPlane.ExecuteResourceActionAsync(
             new ExecuteResourceActionCommand(
                 "api",
-                ResourceActionIds.Run,
+                ResourceActionIds.Start,
                 StartDependencies: true,
                 TriggeredBy: "operator"));
 
-        Assert.Equal(["vault:run", "api:run"], provider.ExecutedActions);
+        Assert.Equal(["vault:start", "api:start"], provider.ExecutedActions);
 
         var dependencyEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "vault"));
         Assert.Contains(dependencyEvents, resourceEvent =>
-            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Run) &&
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Start) &&
             resourceEvent.TriggeredBy == "operator" &&
             resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
         Assert.Contains(dependencyEvents, resourceEvent =>
@@ -676,12 +676,12 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Contains(dependencyEvents, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Started &&
             resourceEvent.TriggeredBy == "operator" &&
-            resourceEvent.Message.Contains("Executed run", StringComparison.Ordinal) &&
+            resourceEvent.Message.Contains("Executed start", StringComparison.Ordinal) &&
             resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
 
         var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
         Assert.Contains(rootEvents, resourceEvent =>
-            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Run) &&
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Start) &&
             resourceEvent.TriggeredBy == "operator");
         Assert.Contains(rootEvents, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Started &&
@@ -1090,7 +1090,7 @@ public sealed class InProcessControlPlaneResourceStateTests
                 StartAfterCreate: true));
 
         Assert.NotNull(provider.CreatedRequest);
-        Assert.Equal(["target:run"], provider.ExecutedActions);
+        Assert.Equal(["target:start"], provider.ExecutedActions);
     }
 
     [Fact]
@@ -1121,15 +1121,15 @@ public sealed class InProcessControlPlaneResourceStateTests
                 null,
                 resourceManager,
                 registrations),
-            ResourceAction.Run);
+            ResourceAction.Start);
 
         Assert.Equal("Started application:api.", result.Message);
-        Assert.Equal(["run:api"], provider.PreparedActions);
+        Assert.Equal(["start:api"], provider.PreparedActions);
         Assert.Equal(
             [
-                "run:api-replica-1:1/3",
-                "run:api-replica-2:2/3",
-                "run:api-replica-3:3/3"
+                "start:api-replica-1:1/3",
+                "start:api-replica-2:2/3",
+                "start:api-replica-3:3/3"
             ],
             provider.InstanceActions);
     }
@@ -1246,7 +1246,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             dependsOn ?? [],
             Actions: actions ??
             [
-                ResourceAction.Run,
+                ResourceAction.Start,
                 ResourceAction.Stop,
                 ResourceAction.Pause,
                 ResourceAction.Restart
@@ -1492,7 +1492,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         public bool CanExecuteOrchestratorService(
             Resource resource,
             ResourceAction action) =>
-            action.Kind is ResourceActionKind.Run or ResourceActionKind.Stop or ResourceActionKind.Restart;
+            action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop or ResourceActionKind.Restart;
 
         public Task<ResourceOrchestratorService> CreateOrchestratorServiceAsync(
             ResourceProcedureContext context,

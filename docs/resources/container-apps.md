@@ -142,7 +142,7 @@ CloudShell API shape.
 Container app endpoints are app-owned ingress by default. When a replicated
 container app exposes an HTTP or TCP endpoint, the default Docker runner starts
 provider-owned ingress infrastructure for that app as part of the normal
-run/restart lifecycle. The projected container app endpoint remains the URL or
+start/restart lifecycle. The projected container app endpoint remains the URL or
 address users call; they do not need to create a separate load-balancer
 resource or manually apply routing configuration for the common case.
 

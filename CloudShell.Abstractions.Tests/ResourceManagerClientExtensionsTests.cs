@@ -37,8 +37,8 @@ public sealed class ResourceManagerClientExtensionsTests
         var resourceManager = new RecordingResourceManager();
         var resource = CreateResource();
 
-        await resourceManager.RunResourceAsync("sample:resource", startDependencies: true);
-        Assert.Equal(ResourceActionIds.Run, resourceManager.LastCommand?.ActionId);
+        await resourceManager.StartResourceAsync("sample:resource", startDependencies: true);
+        Assert.Equal(ResourceActionIds.Start, resourceManager.LastCommand?.ActionId);
         Assert.True(resourceManager.LastCommand?.StartDependencies);
 
         await resourceManager.StopResourceAsync("sample:resource", ignoreDependentWarning: true);
@@ -56,8 +56,8 @@ public sealed class ResourceManagerClientExtensionsTests
         Assert.True(resourceManager.LastCommand?.StartDependencies);
         Assert.True(resourceManager.LastCommand?.IgnoreDependentWarning);
 
-        await resourceManager.RunResourceAsync(resource, startDependencies: true);
-        Assert.Equal(ResourceActionIds.Run, resourceManager.LastCommand?.ActionId);
+        await resourceManager.StartResourceAsync(resource, startDependencies: true);
+        Assert.Equal(ResourceActionIds.Start, resourceManager.LastCommand?.ActionId);
         Assert.Equal(resource.Id, resourceManager.LastCommand?.ResourceId);
         Assert.True(resourceManager.LastCommand?.StartDependencies);
 

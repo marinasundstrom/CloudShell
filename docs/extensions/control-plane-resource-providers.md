@@ -71,7 +71,7 @@ global naming collision.
 Resources can expose actions through `Resource.ResourceActions`. These actions
 belong to the resource instance, not only to the resource type, so providers
 can vary commands by state or capability. Use the standard `ResourceActionKind`
-values for Run, Stop, Pause, and Restart when a command controls lifecycle. Use
+values for Start, Stop, Pause, and Restart when a command controls lifecycle. Use
 `ResourceActionKind.Custom` with a stable action ID for provider-specific
 commands.
 
@@ -227,7 +227,7 @@ Docker discovery runs in a background service and publishes an in-memory
 resource snapshot. Provider connectivity never blocks shell page rendering.
 
 Docker container sub-resources expose actions from the resource API. Running
-containers expose Stop, Pause, and Restart. Stopped containers expose Run.
+containers expose Stop, Pause, and Restart. Stopped containers expose Start.
 Paused containers expose Resume, Stop, and Restart.
 
 Docker can also be declared programmatically in the resource graph. The

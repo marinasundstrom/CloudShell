@@ -671,7 +671,7 @@ public sealed class RemoteControlPlaneContractTests
         var client = app.GetTestClient();
 
         var response = await client.PostAsync(
-            "/api/control-plane/v1/resources/contract%3Aresolution-failure/actions/run",
+            "/api/control-plane/v1/resources/contract%3Aresolution-failure/actions/start",
             null);
 
         await AssertProblemAsync(
@@ -993,7 +993,7 @@ public sealed class RemoteControlPlaneContractTests
                 [],
                 TypeId: "application.executable",
                 ResourceClass: ResourceClass.Executable,
-                Actions: [ResourceAction.Run])
+                Actions: [ResourceAction.Start])
         ];
 
         public Task<ResourceProcedureResult> DeleteAsync(

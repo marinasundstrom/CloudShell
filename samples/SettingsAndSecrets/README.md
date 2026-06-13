@@ -49,7 +49,7 @@ can inspect provider-owned provisioning status with:
 curl http://localhost:5011/api/control-plane/v1/resources/application%3Asettings-secrets-api/identity/provisioning-status
 ```
 
-Then run the Web API resource and open `/configuration`. If the API was already
+Then start the Web API resource and open `/configuration`. If the API was already
 running before identity provisioning, `/configuration` retries configuration
 loading on the next request.
 

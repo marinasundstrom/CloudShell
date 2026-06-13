@@ -64,7 +64,7 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
     {
         var state = action.Kind switch
         {
-            ResourceActionKind.Run or ResourceActionKind.Restart => ResourceState.Running,
+            ResourceActionKind.Start or ResourceActionKind.Restart => ResourceState.Running,
             ResourceActionKind.Stop => ResourceState.Stopped,
             ResourceActionKind.Pause => ResourceState.Paused,
             _ => context.Resource.State
@@ -110,7 +110,7 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
     private static IReadOnlyList<ResourceAction> CreateActions(ResourceState state) =>
         state == ResourceState.Running
             ? [ResourceAction.Stop, ResourceAction.Restart]
-            : [ResourceAction.Run];
+            : [ResourceAction.Start];
 
     private bool IsDeleted(string id)
     {

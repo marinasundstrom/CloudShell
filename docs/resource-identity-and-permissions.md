@@ -339,7 +339,7 @@ members remain compatibility aliases.
 
 | Resource type or class | Action | Permission |
 | --- | --- | --- |
-| Any resource with standard lifecycle actions | `run`, `stop`, `pause`, `restart` | `CommonResourceOperationPermissions.LifecycleAction` |
+| Any resource with standard lifecycle actions | `start`, `stop`, `pause`, `restart` | `CommonResourceOperationPermissions.LifecycleAction` |
 | Any resource with a custom action and no narrower declared operation | custom action execution | `CommonResourceOperationPermissions.ExecuteCustomAction` |
 | `configuration.store` and `ResourceClass.Configuration` | configuration entry read | `ConfigurationStoreResourceOperationPermissions.ReadEntries` |
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |

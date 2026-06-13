@@ -457,7 +457,7 @@
 
         return action.Kind switch
         {
-            ResourceActionKind.Run => L["Run"].Value,
+            ResourceActionKind.Start => L["Start"].Value,
             ResourceActionKind.Stop => L["Stop"].Value,
             ResourceActionKind.Pause => L["Pause"].Value,
             ResourceActionKind.Restart => L["Restart"].Value,
@@ -485,7 +485,7 @@
             var confirmed = await JS.InvokeAsync<bool>(
                 "confirm",
                 action.Description ??
-                L["Run {0} for {1}?", action.DisplayName, Resource.Name].Value);
+                L["Start {0} for {1}?", action.DisplayName, Resource.Name].Value);
             if (!confirmed)
             {
                 return;

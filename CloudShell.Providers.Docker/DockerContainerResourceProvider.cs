@@ -390,7 +390,7 @@ public sealed partial class DockerContainerResourceProvider :
 
         switch (action.Kind)
         {
-            case ResourceActionKind.Run:
+            case ResourceActionKind.Start:
                 await client.Containers.StartContainerAsync(
                     containerId,
                     new ContainerStartParameters(),
@@ -1162,7 +1162,7 @@ public sealed partial class DockerContainerResourceProvider :
             ],
             "created" or "exited" or "dead" =>
             [
-                ResourceAction.Run
+                ResourceAction.Start
             ],
             "restarting" =>
             [

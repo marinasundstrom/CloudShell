@@ -91,7 +91,7 @@ public sealed class ResourceOrchestrationService(
         AppendResourceActionEvent(
             resource,
             GetActionEventType(action),
-            $"Requested resource action '{action.Id}'.{FormatCause(cause)}",
+            $"{GetActionRequestedMessage(action)}{FormatCause(cause)}",
             triggeredBy);
         AppendLifecycleEvent(
             resource,
@@ -117,7 +117,7 @@ public sealed class ResourceOrchestrationService(
             AppendResourceActionEvent(
                 resource,
                 ResourceEventTypes.Actions.ForFailedAction(action.Id),
-                $"Failed action '{action.Id}'.{FormatCause(cause)} Reason: {exception.Message}",
+                $"{GetActionFailedMessage(action)}{FormatCause(cause)} Reason: {exception.Message}",
                 triggeredBy,
                 "Warning");
             AppendLifecycleEvent(
@@ -207,14 +207,14 @@ public sealed class ResourceOrchestrationService(
                     cancellationToken);
 
                 var runAction = dependency.ResourceActions.FirstOrDefault(action =>
-                    action.Kind == ResourceActionKind.Run);
+                    action.Kind == ResourceActionKind.Start);
                 if (runAction is null)
                 {
                     throw CreateDependencyAutoStartException(
                         rootResource,
                         dependency,
                         dependencyPath,
-                        "dependency does not expose a Run action");
+                        "dependency does not expose a Start action");
                 }
 
                 var group = resourceManager.GetGroupForResource(dependency.Id);
@@ -301,7 +301,7 @@ public sealed class ResourceOrchestrationService(
     private static ResourceLifecycleEventTypes? GetLifecycleEventTypes(ResourceAction action) =>
         action.Kind switch
         {
-            ResourceActionKind.Run => new(
+            ResourceActionKind.Start => new(
                 ResourceEventTypes.Events.Lifecycle.Starting,
                 ResourceEventTypes.Events.Lifecycle.Started,
                 ResourceEventTypes.Events.Lifecycle.StartFailed),
@@ -323,7 +323,7 @@ public sealed class ResourceOrchestrationService(
     private static string? GetLifecycleStartingMessage(ResourceAction action) =>
         action.Kind switch
         {
-            ResourceActionKind.Run => "Resource is starting.",
+            ResourceActionKind.Start => "Resource is starting.",
             ResourceActionKind.Stop => "Resource is stopping.",
             ResourceActionKind.Pause => "Resource is pausing.",
             ResourceActionKind.Restart => "Resource is restarting.",
@@ -333,7 +333,7 @@ public sealed class ResourceOrchestrationService(
     private static string? GetLifecycleCompletedMessage(ResourceAction action) =>
         action.Kind switch
         {
-            ResourceActionKind.Run => "Resource started.",
+            ResourceActionKind.Start => "Resource started.",
             ResourceActionKind.Stop => "Resource stopped.",
             ResourceActionKind.Pause => "Resource paused.",
             ResourceActionKind.Restart => "Resource restarted.",
@@ -343,11 +343,31 @@ public sealed class ResourceOrchestrationService(
     private static string? GetLifecycleFailedMessage(ResourceAction action) =>
         action.Kind switch
         {
-            ResourceActionKind.Run => "Resource failed to start.",
+            ResourceActionKind.Start => "Resource failed to start.",
             ResourceActionKind.Stop => "Resource failed to stop.",
             ResourceActionKind.Pause => "Resource failed to pause.",
             ResourceActionKind.Restart => "Resource failed to restart.",
             _ => null
+        };
+
+    private static string GetActionRequestedMessage(ResourceAction action) =>
+        action.Kind switch
+        {
+            ResourceActionKind.Start => "Requested lifecycle start action.",
+            ResourceActionKind.Stop => "Requested lifecycle stop action.",
+            ResourceActionKind.Pause => "Requested lifecycle pause action.",
+            ResourceActionKind.Restart => "Requested lifecycle restart action.",
+            _ => $"Requested resource action '{action.Id}'."
+        };
+
+    private static string GetActionFailedMessage(ResourceAction action) =>
+        action.Kind switch
+        {
+            ResourceActionKind.Start => "Failed lifecycle start action.",
+            ResourceActionKind.Stop => "Failed lifecycle stop action.",
+            ResourceActionKind.Pause => "Failed lifecycle pause action.",
+            ResourceActionKind.Restart => "Failed lifecycle restart action.",
+            _ => $"Failed action '{action.Id}'."
         };
 
     private static string FormatCause(string? cause) =>
@@ -476,7 +496,7 @@ public sealed class ResourceOrchestrationService(
         ResourceAction action,
         CancellationToken cancellationToken)
     {
-        if (action.Kind is not (ResourceActionKind.Run or ResourceActionKind.Restart))
+        if (action.Kind is not (ResourceActionKind.Start or ResourceActionKind.Restart))
         {
             return null;
         }
@@ -678,5 +698,5 @@ public sealed class ResourceOrchestrationService(
     }
 
     private static bool ShouldStartDependencies(ResourceAction action) =>
-        action.Kind is ResourceActionKind.Run or ResourceActionKind.Restart;
+        action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
 }

@@ -142,18 +142,18 @@ public static class ResourceManagerClientExtensions
             cancellationToken);
     }
 
-    public static Task<ResourceProcedureResult> RunResourceAsync(
+    public static Task<ResourceProcedureResult> StartResourceAsync(
         this IResourceManager resourceManager,
         string resourceId,
         bool startDependencies = false,
         CancellationToken cancellationToken = default) =>
         resourceManager.ExecuteResourceActionAsync(
             resourceId,
-            ResourceActionIds.Run,
+            ResourceActionIds.Start,
             startDependencies,
             cancellationToken: cancellationToken);
 
-    public static Task<ResourceProcedureResult> RunResourceAsync(
+    public static Task<ResourceProcedureResult> StartResourceAsync(
         this IResourceManager resourceManager,
         Resource resource,
         bool startDependencies = false,
@@ -161,7 +161,7 @@ public static class ResourceManagerClientExtensions
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        return resourceManager.RunResourceAsync(
+        return resourceManager.StartResourceAsync(
             resource.Id,
             startDependencies,
             cancellationToken);

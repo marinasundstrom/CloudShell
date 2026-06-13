@@ -599,7 +599,7 @@
             var confirmed = await JS.InvokeAsync<bool>(
                 "confirm",
                 action.Description ??
-                L["Run {0} for {1}?", action.DisplayName, Resource.Name].Value);
+                L["Start {0} for {1}?", action.DisplayName, Resource.Name].Value);
             if (!confirmed)
             {
                 return;
@@ -655,7 +655,7 @@
 
     private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
     {
-        ResourceActionIcon.Run => "action-icon-run",
+        ResourceActionIcon.Start => "action-icon-start",
         ResourceActionIcon.Stop => "action-icon-stop",
         ResourceActionIcon.Pause => "action-icon-pause",
         ResourceActionIcon.Restart => "action-icon-restart",

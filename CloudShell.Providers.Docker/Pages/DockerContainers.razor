@@ -94,7 +94,7 @@ else
     {
         <div class="empty-state">
             <strong>No Docker containers discovered</strong>
-            <span>Start Docker and run a container, then refresh this resource.</span>
+            <span>Start Docker and create a container, then refresh this resource.</span>
         </div>
     }
     else
@@ -383,7 +383,7 @@ else
 
     private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
     {
-        ResourceActionIcon.Run => "action-icon-run",
+        ResourceActionIcon.Start => "action-icon-start",
         ResourceActionIcon.Stop => "action-icon-stop",
         ResourceActionIcon.Pause => "action-icon-pause",
         ResourceActionIcon.Restart => "action-icon-restart",
@@ -392,7 +392,7 @@ else
 
     private static string GetConfirmationMessage(Resource resource, ResourceAction action) =>
         action.Description ??
-        $"This will run the {action.DisplayName} action for {resource.Name}.";
+        $"This will request the {action.DisplayName} action for {resource.Name}.";
 
     private static string GetLogsActionLabel(int logCount) =>
         logCount == 1 ? "Logs" : $"Logs ({logCount})";
