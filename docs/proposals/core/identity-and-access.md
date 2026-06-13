@@ -266,6 +266,18 @@ identity binding describes the assigned identity, a credential mechanism proves
 that identity in the current environment, and access grants describe what that
 identity may do.
 
+CloudShell should provide a `DefaultAzureCredential`-style resource credential
+chain for authored services and built-in services. The right time to start is
+when more than one CloudShell service or sample needs to acquire resource
+identity tokens, or when a second credential source is needed. That point has
+arrived for the Settings and Secrets flow: the first public-preview
+`DefaultCloudShellResourceCredential` source reads the injected
+`CLOUDSHELL_IDENTITY_*` environment contract and uses client credentials
+against the configured token endpoint. Future sources should be added to the
+same chain for managed identity endpoints, federated workload identity,
+developer credentials, external provider plugins, or platform-specific
+credential brokers.
+
 Whether a materialized resource identity uses a client secret, certificate,
 federated credential, managed identity endpoint, signed assertion, or no
 explicit secret is delegated to the selected identity provider. Provider-owned

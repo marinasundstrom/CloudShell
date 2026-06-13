@@ -1,8 +1,12 @@
+using CloudShell.Abstractions.Authentication;
+
 namespace CloudShell.Configuration;
 
 public sealed class CloudShellConfigurationOptions
 {
     public string? Endpoint { get; set; }
+
+    public CloudShellResourceCredential? Credential { get; set; }
 
     public string? IdentityTokenEndpoint { get; set; }
 

@@ -105,6 +105,11 @@ public sealed class SampleSmokeTests
             Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, state.GetInt32());
         }
 
+        var credentialSampleOutput = await RunResourceIdentityCredentialSampleAsync(host);
+        Assert.Contains(
+            "CloudShell resource credential acquired a token.",
+            credentialSampleOutput);
+
         await host.SendAsync(
             HttpMethod.Post,
             "/api/control-plane/v1/resources/application%3Asettings-secrets-api/actions/run?startDependencies=true");
@@ -410,6 +415,52 @@ public sealed class SampleSmokeTests
     private static string GetPrimaryEndpointAddress(JsonElement resource) =>
         resource.GetProperty("primaryEndpoint").GetString() ??
         throw new InvalidOperationException("The resource did not include a primary endpoint.");
+
+    private static async Task<string> RunResourceIdentityCredentialSampleAsync(
+        SampleProcess host)
+    {
+        var root = SampleProcess.FindRepositoryRoot();
+        var startInfo = new ProcessStartInfo("dotnet")
+        {
+            WorkingDirectory = root,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        startInfo.ArgumentList.Add("run");
+        startInfo.ArgumentList.Add("--no-build");
+        startInfo.ArgumentList.Add("--project");
+        startInfo.ArgumentList.Add(Path.Combine(
+            root,
+            "samples/ResourceIdentityCredential/CloudShell.ResourceIdentityCredential.csproj"));
+        startInfo.ArgumentList.Add("--");
+        startInfo.ArgumentList.Add("ControlPlane.Access");
+        startInfo.Environment["CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT"] =
+            new Uri(host.BaseAddress, "/api/auth/v1/token").ToString();
+        startInfo.Environment["CLOUDSHELL_IDENTITY_CLIENT_ID"] =
+            "application:settings-secrets-api/settings-secrets-api";
+        startInfo.Environment["CLOUDSHELL_IDENTITY_CLIENT_SECRET"] =
+            "local-development-settings-secrets-api-secret";
+        startInfo.Environment["CLOUDSHELL_IDENTITY_SCOPE"] = "ControlPlane.Access";
+
+        using var process = Process.Start(startInfo) ??
+            throw new InvalidOperationException("Could not start resource identity credential sample.");
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await process.WaitForExitAsync(timeout.Token);
+        var output = await outputTask;
+        var error = await errorTask;
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"Resource identity credential sample exited with code {process.ExitCode}." +
+                $"{Environment.NewLine}{output}{Environment.NewLine}{error}");
+        }
+
+        return output;
+    }
 
     private sealed class SampleProcess : IDisposable
     {

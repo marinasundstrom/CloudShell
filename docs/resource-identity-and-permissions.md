@@ -225,6 +225,11 @@ identity mechanism unless the exception and replacement path are documented.
 shared helper for protected services that need to evaluate scoped
 `cloudshell.resource-permission` claims. It is a public preview API until the
 protected-service authentication surface is finalized for MVP.
+`DefaultCloudShellResourceCredential` is the matching public-preview credential
+chain for services that need to obtain authentication evidence for their own
+resource identity. Its first source reads the injected `CLOUDSHELL_IDENTITY_*`
+environment contract; later sources should extend the same chain instead of
+adding service-specific token acquisition code.
 
 `ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
 provider to provision one resource identity and its matching permission grants.

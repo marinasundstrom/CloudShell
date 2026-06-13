@@ -152,6 +152,10 @@ the provider-selected credential mechanism for the application resource
 identity. A production provider may use a managed identity endpoint,
 certificate, federated credential, workload identity, or another provider-owned
 mechanism instead.
+Applications should use `DefaultCloudShellResourceCredential` from
+`CloudShell.Abstractions` when they need to acquire their own resource identity
+token directly. `CloudShell.Configuration` uses that credential chain
+internally.
 
 Applications fetch settings from:
 

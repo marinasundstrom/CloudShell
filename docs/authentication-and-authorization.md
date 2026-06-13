@@ -24,7 +24,11 @@ Implemented today:
   credentials.
 - Remote Control Plane credentials for no-auth, static bearer tokens, and
   client-credentials tokens.
-- Configuration service runtime APIs protected by generated resource tokens.
+- Configuration Store and Secrets Vault runtime APIs protected by resource
+  identity bearer tokens and resource-permission claims.
+- A public-preview `DefaultCloudShellResourceCredential` chain for authored and
+  built-in services that need to acquire authentication evidence for their own
+  resource identity.
 
 Direction:
 
@@ -39,6 +43,9 @@ Direction:
   or another provider.
 - Protected API resource metadata for services that expose their own direct
   APIs.
+- Extend `DefaultCloudShellResourceCredential` with provider-backed sources
+  such as managed identity endpoints, federated workload identity, local
+  developer credentials, and external credential plugins.
 - Optional provider-specific provisioning against systems such as Microsoft
   Entra ID, API gateways, service meshes, mTLS, signed requests, or local
   credential stores.

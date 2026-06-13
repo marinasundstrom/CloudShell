@@ -1,9 +1,8 @@
+using CloudShell.Abstractions.Authentication;
 using Microsoft.Extensions.Configuration;
 using System.Collections;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace CloudShell.Configuration;
 
@@ -30,7 +29,7 @@ internal sealed class CloudShellConfigurationProvider(
             {
                 Timeout = options.Timeout
             };
-            var tokenResult = ResolveAccessToken(client, service);
+            var tokenResult = ResolveAccessToken(service);
             if (string.IsNullOrWhiteSpace(tokenResult.Token))
             {
                 SetMetadata("Status", "unavailable");
@@ -92,9 +91,7 @@ internal sealed class CloudShellConfigurationProvider(
         {
             return new CloudShellConfigurationStoreService(
                 options.Endpoint,
-                options.IdentityTokenEndpoint,
-                options.IdentityClientId,
-                options.IdentityClientSecret,
+                options.Credential ?? CreateExplicitCredential(options),
                 options.IdentityScope);
         }
 
@@ -129,49 +126,58 @@ internal sealed class CloudShellConfigurationProvider(
 
             return new CloudShellConfigurationStoreService(
                 endpoint,
-                identityTokenEndpoint,
-                identityClientId,
-                identityClientSecret,
+                new EnvironmentCloudShellResourceCredential(
+                    new EnvironmentCloudShellResourceCredentialOptions
+                    {
+                        TokenEndpoint = identityTokenEndpoint,
+                        ClientId = identityClientId,
+                        ClientSecret = identityClientSecret,
+                        Scope = identityScope,
+                        DefaultScope = options.IdentityScope
+                    }),
                 identityScope);
         }
 
         return null;
     }
 
+    private static CloudShellResourceCredential CreateExplicitCredential(
+        CloudShellConfigurationOptions options) =>
+        string.IsNullOrWhiteSpace(options.IdentityTokenEndpoint) &&
+        string.IsNullOrWhiteSpace(options.IdentityClientId) &&
+        string.IsNullOrWhiteSpace(options.IdentityClientSecret)
+            ? new DefaultCloudShellResourceCredential()
+            : new EnvironmentCloudShellResourceCredential(
+                new EnvironmentCloudShellResourceCredentialOptions
+                {
+                    TokenEndpoint = options.IdentityTokenEndpoint,
+                    ClientId = options.IdentityClientId,
+                    ClientSecret = options.IdentityClientSecret,
+                    Scope = options.IdentityScope,
+                    DefaultScope = options.IdentityScope
+                });
+
     private static AccessTokenResult ResolveAccessToken(
-        HttpClient client,
         CloudShellConfigurationStoreService service)
     {
-        if (!string.IsNullOrWhiteSpace(service.IdentityTokenEndpoint) &&
-            !string.IsNullOrWhiteSpace(service.IdentityClientId) &&
-            !string.IsNullOrWhiteSpace(service.IdentityClientSecret))
+        try
         {
-            using var response = client.PostAsync(
-                service.IdentityTokenEndpoint,
-                new FormUrlEncodedContent(new Dictionary<string, string>
-                {
-                    ["grant_type"] = "client_credentials",
-                    ["client_id"] = service.IdentityClientId,
-                    ["client_secret"] = service.IdentityClientSecret,
-                    ["scope"] = service.IdentityScope
-                })).GetAwaiter().GetResult();
-            if (!response.IsSuccessStatusCode)
-            {
-                var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                return AccessTokenResult.Failed(
-                    $"CloudShell identity token endpoint returned {(int)response.StatusCode}." +
-                    (string.IsNullOrWhiteSpace(body) ? string.Empty : $" {body}"));
-            }
-
-            var token = response.Content
-                .ReadFromJsonAsync<TokenResponse>(SerializerOptions)
+            var token = service.Credential
+                .GetTokenAsync(new CloudShellResourceTokenRequest([service.IdentityScope]))
                 .GetAwaiter()
                 .GetResult();
-            return string.IsNullOrWhiteSpace(token?.AccessToken)
-                ? AccessTokenResult.Failed("CloudShell identity token endpoint returned no access token.")
-                : AccessTokenResult.Succeeded(token.AccessToken);
+            return string.IsNullOrWhiteSpace(token.Token)
+                ? AccessTokenResult.Failed("CloudShell resource credential returned no access token.")
+                : AccessTokenResult.Succeeded(token.Token);
         }
-        return AccessTokenResult.Failed("No CloudShell identity credential was configured.");
+        catch (Exception exception) when (
+            exception is CloudShellCredentialUnavailableException or
+                CloudShellAuthenticationException or
+                HttpRequestException or
+                TaskCanceledException)
+        {
+            return AccessTokenResult.Failed(exception.Message);
+        }
     }
 
     private static string? GetOptionalVariable(
@@ -203,9 +209,6 @@ internal sealed class CloudShellConfigurationProvider(
 
         return new string(characters).Trim('_');
     }
-
-    private sealed record TokenResponse(
-        [property: JsonPropertyName("access_token")] string AccessToken);
 
     private sealed record AccessTokenResult(
         string? Token,
