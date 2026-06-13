@@ -231,6 +231,11 @@ resource identity. Its first source reads the injected `CLOUDSHELL_IDENTITY_*`
 environment contract; later sources should extend the same chain instead of
 adding service-specific token acquisition code.
 
+The workload resource provider owns projecting that credential acquisition
+mechanism into the process or container it starts. Authored resources should
+declare an identity binding such as `WithIdentity(...)` and grants; they should
+not normally declare `CLOUDSHELL_IDENTITY_*` variables manually.
+
 The Control Plane client supports the same SDK-style credential flow. Authored
 services can pass a `CloudShellResourceCredential` to `RemoteControlPlane` or
 to `AddRemoteControlPlane(...)` and use the domain-shaped `IControlPlane` or

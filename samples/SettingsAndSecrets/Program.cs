@@ -42,7 +42,10 @@ builder.AddCloudShell();
 cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
-    .AddApplicationProvider()
+    .AddApplicationProvider(options =>
+    {
+        options.ResourceIdentityTokenEndpoint = identityTokenEndpoint;
+    })
     .AddConfigurationProvider(options =>
     {
         options.ServiceProjectPath = configurationStoreServiceProjectPath;
@@ -96,10 +99,6 @@ cloudShell.Resources(resources =>
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
             endpoint: "http://localhost:5227")
         .WithIdentity(identityProvider, name: "settings-secrets-api")
-        .WithEnvironment("CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT", identityTokenEndpoint)
-        .WithEnvironment("CLOUDSHELL_IDENTITY_CLIENT_ID", "application:settings-secrets-api/settings-secrets-api")
-        .WithEnvironment("CLOUDSHELL_IDENTITY_CLIENT_SECRET", "local-development-settings-secrets-api-secret")
-        .WithEnvironment("CLOUDSHELL_IDENTITY_SCOPE", BuiltInResourceIdentityRegistry.DefaultScope)
         .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
         .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))
         .WithEnvironment("SAMPLE_API_KEY", secrets.Secret("sample-api-key"))

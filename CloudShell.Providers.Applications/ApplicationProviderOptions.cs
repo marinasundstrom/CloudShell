@@ -26,6 +26,10 @@ public sealed class ApplicationProviderOptions
 
     public string? OtlpHeaders { get; set; }
 
+    public string? ResourceIdentityTokenEndpoint { get; set; }
+
+    public string ResourceIdentityDefaultScope { get; set; } = "ControlPlane.Access";
+
     public IList<ApplicationResourceDefinition> InitialApplications { get; } = [];
 
     internal IList<DeclaredApplicationResource> DeclaredApplications { get; } = [];

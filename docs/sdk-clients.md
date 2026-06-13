@@ -73,8 +73,8 @@ sealed class CloudShellServiceClients(CloudShellResourceCredential credential)
 }
 ```
 
-The first credential source reads the environment contract injected by resource
-providers:
+The first credential source reads the environment contract injected by the
+resource provider that starts the workload process or container:
 
 ```text
 CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT

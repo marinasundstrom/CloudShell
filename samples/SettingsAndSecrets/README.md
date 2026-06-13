@@ -26,10 +26,11 @@ resource has a `settings-secrets-api` identity. The configuration store grants
 that identity `ConfigurationStoreResourceOperationPermissions.ReadEntries`, and
 the Secrets Vault grants it
 `SecretsVaultResourceOperationPermissions.ReadSecrets`. In this first flow the
-Web API identity is provisioned automatically when the Control Plane starts,
-while the configuration store and vault are protected target resources; they do
-not need their own identities unless they later call another resource or
-provider.
+Web API identity is provisioned automatically when the Control Plane starts.
+The application resource provider injects the `CLOUDSHELL_IDENTITY_*`
+credential acquisition environment when it starts the Web API resource. The
+configuration store and vault are protected target resources; they do not need
+their own identities unless they later call another resource or provider.
 
 Run the sample host:
 

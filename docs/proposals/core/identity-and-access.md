@@ -273,10 +273,12 @@ identity tokens, or when a second credential source is needed. That point has
 arrived for the Settings and Secrets flow: the first public-preview
 `DefaultCloudShellResourceCredential` source reads the injected
 `CLOUDSHELL_IDENTITY_*` environment contract and uses client credentials
-against the configured token endpoint. Future sources should be added to the
-same chain for managed identity endpoints, federated workload identity,
-developer credentials, external provider plugins, or platform-specific
-credential brokers.
+against the configured token endpoint. The workload resource provider is
+responsible for injecting that credential acquisition environment when it
+starts a process or container from a resource with an identity binding. Future
+sources should be added to the same chain for managed identity endpoints,
+federated workload identity, developer credentials, external provider plugins,
+or platform-specific credential brokers.
 
 CloudShell client SDKs should accept `CloudShellResourceCredential` objects in
 the same way Azure SDK clients accept credential objects. The Control Plane

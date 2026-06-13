@@ -151,7 +151,10 @@ Those identity variables are not configuration-store secrets. They represent
 the provider-selected credential mechanism for the application resource
 identity. A production provider may use a managed identity endpoint,
 certificate, federated credential, workload identity, or another provider-owned
-mechanism instead.
+mechanism instead. The workload resource provider is responsible for injecting
+the appropriate credential acquisition variables or endpoints when it starts
+the process or container; application declarations should normally only assign
+the identity with `WithIdentity(...)`.
 Applications should use `DefaultCloudShellResourceCredential` from
 `CloudShell.Client` when they need to acquire their own resource identity
 token directly. The service-specific SDK clients and their `IConfiguration`

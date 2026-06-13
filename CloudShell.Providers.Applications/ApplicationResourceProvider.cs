@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Client.Authentication;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
@@ -959,11 +960,83 @@ public sealed partial class ApplicationResourceProvider(
             .Concat(includeAspNetCoreProjectVariables
                 ? ResolveAspNetCoreProjectEnvironmentVariables(definition)
                 : [])
+            .Concat(ResolveResourceIdentityEnvironmentVariables(definition))
             .Concat(configuredVariables)
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
             .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToArray();
+    }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> ResolveResourceIdentityEnvironmentVariables(
+        ApplicationResourceDefinition definition)
+    {
+        var tokenEndpoint = options.ResourceIdentityTokenEndpoint;
+        if (string.IsNullOrWhiteSpace(tokenEndpoint))
+        {
+            return [];
+        }
+
+        var declaration = declarations.GetDeclaration(definition.Id);
+        if (declaration?.IdentityBinding is null)
+        {
+            return [];
+        }
+
+        var providerCatalog = declarations.CreateIdentityProviderCatalog(
+            new ResourceIdentityProviderCatalog());
+        var resolution = providerCatalog.Resolve(declaration.IdentityBinding);
+        if (resolution.Provider?.Kind != ResourceIdentityProviderKind.BuiltIn)
+        {
+            return [];
+        }
+
+        var identity = ResourceIdentityReference.ForResource(
+            definition.Id,
+            declaration.IdentityBinding.Name);
+        var clientId = CreateResourceIdentityClientId(identity);
+        var scope = declaration.IdentityBinding.IdentityScopes.Count == 0
+            ? string.IsNullOrWhiteSpace(options.ResourceIdentityDefaultScope)
+                ? "ControlPlane.Access"
+                : options.ResourceIdentityDefaultScope
+            : declaration.IdentityBinding.IdentityScopes[0];
+
+        return
+        [
+            new(
+                EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable,
+                tokenEndpoint),
+            new(
+                EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable,
+                clientId),
+            new(
+                EnvironmentCloudShellResourceCredential.ClientSecretEnvironmentVariable,
+                ResolveBuiltInResourceIdentityClientSecret(resolution.Provider, clientId)),
+            new(
+                EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable,
+                scope)
+        ];
+    }
+
+    private string ResolveBuiltInResourceIdentityClientSecret(
+        ResourceIdentityProviderDefinition provider,
+        string clientId) =>
+        provider.ProviderSettings.TryGetValue("clientSecret", out var configuredSecret) &&
+        !string.IsNullOrWhiteSpace(configuredSecret)
+            ? configuredSecret
+            : $"local-development-{SanitizeResourceIdentityClientId(clientId)}-secret";
+
+    private static string CreateResourceIdentityClientId(ResourceIdentityReference identity) =>
+        string.IsNullOrWhiteSpace(identity.Name)
+            ? identity.ResourceId
+            : $"{identity.ResourceId}/{identity.Name}";
+
+    private static string SanitizeResourceIdentityClientId(string value)
+    {
+        var characters = value
+            .Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-')
+            .ToArray();
+        return new string(characters).Trim('-');
     }
 
     private async Task<IReadOnlyList<EnvironmentVariableAssignment>> ResolveConfiguredEnvironmentVariablesAsync(
