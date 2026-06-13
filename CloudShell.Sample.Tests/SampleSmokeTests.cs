@@ -135,6 +135,16 @@ public sealed class SampleSmokeTests
             "CloudShell Control Plane client listed",
             credentialSampleOutput);
 
+        var apiDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:settings-secrets-api")}/details");
+        AssertResourceTabsInOrder(
+            apiDetailsHtml,
+            ">Overview<",
+            ">Configuration<",
+            ">Environment<",
+            ">Identity<",
+            ">Activity<");
+
         await host.SendAsync(
             HttpMethod.Post,
             "/api/control-plane/v1/resources/application%3Asettings-secrets-api/actions/start?startDependencies=true");
@@ -509,6 +519,32 @@ public sealed class SampleSmokeTests
         }
 
         return output;
+    }
+
+    private static void AssertResourceTabsInOrder(string html, params string[] expected)
+    {
+        const string tabListMarker = "aria-label=\"Resource views\"";
+        var tabListStart = html.IndexOf(tabListMarker, StringComparison.Ordinal);
+        Assert.True(tabListStart >= 0, "Expected to find the resource tab list.");
+
+        var tabListEnd = html.IndexOf("</div>", tabListStart, StringComparison.Ordinal);
+        Assert.True(tabListEnd > tabListStart, "Expected the resource tab list to have a closing element.");
+
+        AssertInOrder(html[tabListStart..tabListEnd], expected);
+    }
+
+    private static void AssertInOrder(string value, params string[] expected)
+    {
+        var previousIndex = -1;
+        foreach (var item in expected)
+        {
+            var index = value.IndexOf(item, StringComparison.Ordinal);
+            Assert.True(index >= 0, $"Expected to find '{item}'.");
+            Assert.True(
+                index > previousIndex,
+                $"Expected '{item}' to appear after the previous item.");
+            previousIndex = index;
+        }
     }
 
     private sealed class SampleProcess : IDisposable
