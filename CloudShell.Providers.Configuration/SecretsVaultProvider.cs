@@ -156,7 +156,6 @@ public sealed partial class SecretsVaultProvider(
 
         store.Save(EnsureServiceEndpoint(normalized with
         {
-            AccessToken = normalized.AccessToken ?? existing.AccessToken,
             Endpoint = normalized.Endpoint ?? existing.Endpoint,
             HealthChecks = normalized.HealthChecks.Count == 0 ? existing.HealthChecks : normalized.HealthChecks
         }));
@@ -199,14 +198,18 @@ public sealed partial class SecretsVaultProvider(
         switch (action.Kind)
         {
             case ResourceActionKind.Run:
+                store.Save(vault);
                 await processes.StartAsync(process, cancellationToken);
+                await WaitForServiceReadyAsync(GetServiceBaseUrl(vault), cancellationToken);
                 break;
             case ResourceActionKind.Stop:
                 await processes.StopAsync(process, cancellationToken: cancellationToken);
                 break;
             case ResourceActionKind.Restart:
+                store.Save(vault);
                 await processes.StopAsync(process, cancellationToken: cancellationToken);
                 await processes.StartAsync(process, cancellationToken);
+                await WaitForServiceReadyAsync(GetServiceBaseUrl(vault), cancellationToken);
                 break;
             default:
                 throw new NotSupportedException(
@@ -361,7 +364,6 @@ public sealed partial class SecretsVaultProvider(
             Name = string.IsNullOrWhiteSpace(vault.Name)
                 ? id
                 : vault.Name.Trim(),
-            AccessToken = string.IsNullOrWhiteSpace(vault.AccessToken) ? null : vault.AccessToken,
             Endpoint = string.IsNullOrWhiteSpace(vault.Endpoint) ? null : vault.Endpoint.TrimEnd('/'),
             HealthChecks = NormalizeHealthChecks(vault.HealthChecks),
             Secrets = vault.Secrets
@@ -436,12 +438,50 @@ public sealed partial class SecretsVaultProvider(
             options.ServiceExecutablePath,
             CreateServiceArguments(endpoint),
             options.SecretsServiceWorkingDirectory ?? options.ServiceWorkingDirectory,
-            [
-                new("ASPNETCORE_ENVIRONMENT", environment.EnvironmentName),
-                new("CloudShell__SecretsVaultService__DefinitionsPath", ResolveDefinitionsPath()),
-                new("CloudShell__SecretsVaultService__ResourceId", definition.Id)
-            ],
+            CreateServiceEnvironment(definition),
             LocalProcessLifetime.Detached);
+    }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> CreateServiceEnvironment(
+        SecretsVaultDefinition definition)
+    {
+        var environmentVariables = new List<EnvironmentVariableAssignment>
+        {
+            new("ASPNETCORE_ENVIRONMENT", environment.EnvironmentName),
+            new("CloudShell__SecretsVaultService__DefinitionsPath", ResolveDefinitionsPath()),
+            new("CloudShell__SecretsVaultService__ResourceId", definition.Id)
+        };
+
+        AddAuthenticationEnvironment(environmentVariables);
+        return environmentVariables;
+    }
+
+    private void AddAuthenticationEnvironment(List<EnvironmentVariableAssignment> environmentVariables)
+    {
+        environmentVariables.Add(new(
+            "Authentication__BuiltInAuthority__Enabled",
+            "true"));
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceAuthenticationIssuer))
+        {
+            environmentVariables.Add(new(
+                "Authentication__BuiltInAuthority__Issuer",
+                options.ServiceAuthenticationIssuer));
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceAuthenticationAudience))
+        {
+            environmentVariables.Add(new(
+                "Authentication__BuiltInAuthority__Audience",
+                options.ServiceAuthenticationAudience));
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceAuthenticationSigningKeyPem))
+        {
+            environmentVariables.Add(new(
+                "Authentication__BuiltInAuthority__SigningKeyPem",
+                options.ServiceAuthenticationSigningKeyPem));
+        }
     }
 
     private string CreateServiceArguments(string endpoint)
@@ -495,6 +535,43 @@ public sealed partial class SecretsVaultProvider(
         Path.IsPathRooted(options.SecretsVaultDefinitionsPath)
             ? options.SecretsVaultDefinitionsPath
             : Path.GetFullPath(options.SecretsVaultDefinitionsPath, environment.ContentRootPath);
+
+    private static async Task WaitForServiceReadyAsync(
+        string baseUrl,
+        CancellationToken cancellationToken)
+    {
+        using var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(2)
+        };
+        var healthUrl = $"{baseUrl.TrimEnd('/')}/healthz";
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+        Exception? lastException = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                using var response = await client.GetAsync(healthUrl, cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    return;
+                }
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                lastException = exception;
+            }
+
+            await Task.Delay(250, cancellationToken);
+        }
+
+        throw new TimeoutException(
+            $"Secrets Vault endpoint '{healthUrl}' did not become ready within 20 seconds.",
+            lastException);
+    }
 
     private string GetSecretsEndpoint(string resourceId)
     {

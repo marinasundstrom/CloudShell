@@ -9,6 +9,7 @@ using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
+using System.Security.Cryptography;
 
 var builder = WebApplication.CreateBuilder(args);
 var repositoryRootPath = Path.GetFullPath("../..", builder.Environment.ContentRootPath);
@@ -20,6 +21,20 @@ var secretsVaultServiceProjectPath = Path.Combine(
     repositoryRootPath,
     "CloudShell.SecretsVaultService",
     "CloudShell.SecretsVaultService.csproj");
+var identityIssuer = builder.Configuration["Authentication:BuiltInAuthority:Issuer"] ??
+    "http://localhost";
+var identityAudience = builder.Configuration["Authentication:BuiltInAuthority:Audience"] ??
+    "cloudshell-control-plane";
+var identitySigningKeyPem = builder.Configuration["Authentication:BuiltInAuthority:SigningKeyPem"] ??
+    CreateDevelopmentSigningKeyPem();
+var identityTokenEndpoint = $"{ResolveFirstUrl(builder.Configuration["urls"] ?? builder.Configuration["ASPNETCORE_URLS"] ?? "http://localhost:5047")}/api/auth/v1/token";
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Authentication:BuiltInAuthority:Enabled"] = "true",
+    ["Authentication:BuiltInAuthority:Issuer"] = identityIssuer,
+    ["Authentication:BuiltInAuthority:Audience"] = identityAudience,
+    ["Authentication:BuiltInAuthority:SigningKeyPem"] = identitySigningKeyPem
+});
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -32,11 +47,17 @@ cloudShell
     {
         options.ServiceProjectPath = configurationStoreServiceProjectPath;
         options.ServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceAuthenticationIssuer = identityIssuer;
+        options.ServiceAuthenticationAudience = identityAudience;
+        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
     })
     .AddSecretsProvider(options =>
     {
         options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
         options.SecretsServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceAuthenticationIssuer = identityIssuer;
+        options.ServiceAuthenticationAudience = identityAudience;
+        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
     });
 
 cloudShell.Resources(resources =>
@@ -75,6 +96,10 @@ cloudShell.Resources(resources =>
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
             endpoint: "http://localhost:5227")
         .WithIdentity(identityProvider, name: "settings-secrets-api")
+        .WithEnvironment("CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT", identityTokenEndpoint)
+        .WithEnvironment("CLOUDSHELL_IDENTITY_CLIENT_ID", "application:settings-secrets-api/settings-secrets-api")
+        .WithEnvironment("CLOUDSHELL_IDENTITY_CLIENT_SECRET", "local-development-settings-secrets-api-secret")
+        .WithEnvironment("CLOUDSHELL_IDENTITY_SCOPE", BuiltInResourceIdentityRegistry.DefaultScope)
         .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
         .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))
         .WithEnvironment("SAMPLE_API_KEY", secrets.Secret("sample-api-key"))
@@ -92,3 +117,16 @@ app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();
+
+static string CreateDevelopmentSigningKeyPem()
+{
+    using var rsa = RSA.Create(2048);
+    return rsa.ExportRSAPrivateKeyPem();
+}
+
+static string ResolveFirstUrl(string urls) =>
+    urls
+        .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .FirstOrDefault()
+        ?.TrimEnd('/') ??
+    "http://localhost:5047";

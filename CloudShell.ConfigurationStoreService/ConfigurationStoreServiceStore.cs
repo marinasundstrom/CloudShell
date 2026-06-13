@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using CloudShell.Providers.Configuration;
 using Microsoft.Extensions.Options;
@@ -31,20 +29,6 @@ public sealed class ConfigurationStoreServiceStore(
 
         return LoadDefinitions().FirstOrDefault(store =>
             string.Equals(store.Id, resourceId, StringComparison.OrdinalIgnoreCase));
-    }
-
-    public bool IsAuthorized(ConfigurationStoreDefinition store, string? token)
-    {
-        if (string.IsNullOrWhiteSpace(store.AccessToken) ||
-            string.IsNullOrWhiteSpace(token))
-        {
-            return false;
-        }
-
-        var expected = Encoding.UTF8.GetBytes(store.AccessToken);
-        var actual = Encoding.UTF8.GetBytes(token);
-        return expected.Length == actual.Length &&
-            CryptographicOperations.FixedTimeEquals(expected, actual);
     }
 
     private IReadOnlyList<ConfigurationStoreDefinition> LoadDefinitions()

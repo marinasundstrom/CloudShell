@@ -72,14 +72,12 @@ public static class ConfigurationProviderServiceCollectionExtensions
         this IResourceDeclarationBuilder builder,
         string id,
         string name,
-        IReadOnlyList<ConfigurationEntry>? entries = null,
-        string? accessToken = null)
+        IReadOnlyList<ConfigurationEntry>? entries = null)
     {
         var definition = new ConfigurationStoreDefinition(
             id,
             name,
-            entries,
-            accessToken);
+            entries);
         var declared = new DeclaredConfigurationStore(definition);
         var options = builder.Services.GetOrAddConfigurationProviderOptions();
 
@@ -542,8 +540,6 @@ public interface IConfigurationStoreResourceBuilder : IResourceBuilder
         string name,
         string? version = null);
 
-    IConfigurationStoreResourceBuilder WithAccessToken(string? accessToken);
-
     new IConfigurationStoreResourceBuilder DependsOn(string resourceId);
 
     new IConfigurationStoreResourceBuilder DependsOn(IResourceBuilder resource);
@@ -606,12 +602,6 @@ internal sealed class ConfigurationStoreResourceBuilder(
             ResourceId,
             name.Trim(),
             string.IsNullOrWhiteSpace(version) ? null : version.Trim());
-    }
-
-    public IConfigurationStoreResourceBuilder WithAccessToken(string? accessToken)
-    {
-        declared.Definition = declared.Definition with { AccessToken = accessToken };
-        return this;
     }
 
     public IConfigurationStoreResourceBuilder WithResourceGroup(string? resourceGroupId)

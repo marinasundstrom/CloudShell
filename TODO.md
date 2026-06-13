@@ -66,14 +66,18 @@ Work the current proposals in this order:
   sample demonstrates a Web API identity with read access to Configuration Store
   and Secrets Vault target resources. Configuration and Secrets providers now
   require matching grants when an identity-bound resource resolves configuration
-  entries or secrets, and HTTP tests verify that built-in resource identity
-  tokens respect read, lifecycle action, and identity-management permission
-  boundaries through the Control Plane API. Provider definitions can now name a
-  separate provisioning resource, and provisioning requires provisioning
-  permission on that resource in addition to target resource manage permission.
-  Next connect those grants to mock-principal tests, identity-provider resource
-  modeling, provider-backed identity proof, and concrete authority
-  registration.
+  entries or secrets. The Settings and Secrets sample now verifies the concrete
+  provider-backed flow: the Web API identity acquires a bearer token from the
+  built-in authority and uses scoped resource-permission claims to call
+  Configuration Store and Secrets Vault backing services without
+  configuration-store or vault-specific auth secrets. HTTP tests verify that
+  built-in resource identity tokens respect read, lifecycle action, and
+  identity-management permission boundaries through the Control Plane API.
+  Provider definitions can now name a separate provisioning resource, and
+  provisioning requires provisioning permission on that resource in addition to
+  target resource manage permission. Next connect those grants to
+  mock-principal tests, identity-provider resource modeling, durable provider
+  reconciliation, and concrete authority registration.
 - Continue assigning and documenting specific Azure-style operation permissions
   per resource type or class. Load-balancer apply and network endpoint
   reconciliation now use documented network operation permissions instead of
@@ -83,8 +87,6 @@ Work the current proposals in this order:
 - Continue resource action authorization beyond lifecycle actions so Resource
   Manager evaluates permissions before configuration updates, deployment
   operations, logs, diagnostics, and provider actions.
-- Wire the identity contract into one provider-backed workload type so the
-  model is validated against a concrete resource path.
 - Add authorization diagnostics and capability reasons for denied or
   unavailable actions without leaking provider-specific internals.
 - Expand Resource Manager UI workflows from the read-only overview identity

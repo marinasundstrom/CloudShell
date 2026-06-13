@@ -117,8 +117,8 @@ when status, milestone relevance, or remaining work changes.
   with `AddIdentityProvider(...)` and `UseDefaultIdentityProvider(...)`.
   Unresolved identity providers are reported through resource model diagnostics.
   First-class identity-provider resources, resource-group or parent-resource
-  inheritance, token issuance, and provider-backed workload behavior remain
-  future resource identity work.
+  inheritance, durable external authority registration, and provider-backed
+  managed identity lifecycle remain future resource identity work.
 - `docs/resource-identity-and-permissions.md` is the current-state feature
   documentation for resource identity and permissions.
   `docs/proposals/core/identity-and-access.md` is the consolidated proposal
@@ -148,10 +148,14 @@ when status, milestone relevance, or remaining work changes.
   permission/resource claims for older callers. The Settings and Secrets sample
   demonstrates a Web API identity with read access to Configuration Store and
   Secrets Vault target resources while preserving reference-backed environment
-  variables. HTTP tests now verify that provisioned built-in resource identity
-  tokens respect read, lifecycle action, and identity-management permission
-  boundaries through the Control Plane API. Provider definitions can now name a
-  separate provisioning resource, and provisioning requires
+  variables. The Web API acquires a bearer token from the built-in authority and
+  calls the provider-backed Configuration Store and Secrets Vault HTTP services
+  with scoped resource-permission claims instead of configuration-store or
+  vault-specific auth secrets. HTTP tests now verify that provisioned built-in
+  resource identity tokens respect read, lifecycle action, and
+  identity-management permission boundaries through the Control Plane API.
+  Provider definitions can now name a separate provisioning resource, and
+  provisioning requires
   `CloudShell.Identity/provisioningServices/identities/provision/action` or
   `resources.manage` on that provisioning resource in addition to
   `resources.manage` on the target resource.
@@ -160,9 +164,9 @@ when status, milestone relevance, or remaining work changes.
   resource owns the identity and permission requirements; the managed
   process/container/service handles safe runtime transfer of the resolved
   values. Mock-principal tests, identity-provider resource modeling,
-  provider-backed identity proof, concrete external authority registration,
-  identity management UI, multiple identities, and provider-backed managed
-  identity lifecycle remain future resource identity work.
+  durable concrete external authority registration, identity management UI,
+  multiple identities, and provider-backed managed identity lifecycle remain
+  future resource identity work.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.
@@ -283,7 +287,9 @@ when status, milestone relevance, or remaining work changes.
   UI and preserved unless replaced.
 - Added a Settings and Secrets sample for the resource-assignment path: a
   programmatically declared Web API resource receives environment variables
-  from configuration-entry and Secrets Vault references.
+  from configuration-entry and Secrets Vault references, provisions its
+  resource identity, and reads provider-backed Configuration Store and Secrets
+  Vault services with a bearer token from the built-in authority.
 - Split the provider-owned runtime service names around product boundaries:
   `CloudShell.ConfigurationStoreService` serves configuration-store entries,
   and `CloudShell.SecretsVaultService` serves Secrets Vault secrets.
@@ -469,7 +475,8 @@ when status, milestone relevance, or remaining work changes.
   management.
 - Added a Settings and Secrets sample that demonstrates assigning
   configuration-entry and Secrets Vault references to a Web API resource's
-  environment variables.
+  environment variables and using a provisioned resource identity to read the
+  backing services without service auth secrets.
 
 ## Active stabilization areas
 

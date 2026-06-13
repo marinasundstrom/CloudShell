@@ -1,7 +1,5 @@
 using CloudShell.Providers.Configuration;
 using Microsoft.Extensions.Options;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 
 namespace CloudShell.SecretsVaultService;
@@ -31,20 +29,6 @@ public sealed class SecretsVaultServiceStore(
 
         return LoadDefinitions().FirstOrDefault(vault =>
             string.Equals(vault.Id, resourceId, StringComparison.OrdinalIgnoreCase));
-    }
-
-    public bool IsAuthorized(SecretsVaultDefinition vault, string? token)
-    {
-        if (string.IsNullOrWhiteSpace(vault.AccessToken) ||
-            string.IsNullOrWhiteSpace(token))
-        {
-            return false;
-        }
-
-        var expected = Encoding.UTF8.GetBytes(vault.AccessToken);
-        var actual = Encoding.UTF8.GetBytes(token);
-        return expected.Length == actual.Length &&
-            CryptographicOperations.FixedTimeEquals(expected, actual);
     }
 
     private IReadOnlyList<SecretsVaultDefinition> LoadDefinitions()

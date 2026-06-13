@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.Authorization;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.Providers.Configuration;
 using CloudShell.SecretsVaultService;
 
@@ -5,7 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<SecretsVaultServiceOptions>(
     builder.Configuration.GetSection(SecretsVaultServiceOptions.SectionName));
+builder.Services.Configure<CloudShellAuthenticationOptions>(
+    builder.Configuration.GetSection(CloudShellAuthenticationOptions.SectionName));
 builder.Services.AddSingleton<SecretsVaultServiceStore>();
+builder.Services.AddSingleton<BuiltInAuthorityTokenService>();
 
 var app = builder.Build();
 
@@ -39,22 +44,24 @@ static IResult GetSecretByQuery(
     string name,
     string? version,
     HttpRequest request,
-    SecretsVaultServiceStore store) =>
-    GetSecret(resourceId, name, version, request, store);
+    SecretsVaultServiceStore store,
+    BuiltInAuthorityTokenService authority) =>
+    GetSecret(resourceId, name, version, request, store, authority);
 
 static IResult ListSecrets(
     string vaultId,
     HttpRequest request,
-    SecretsVaultServiceStore store)
+    SecretsVaultServiceStore store,
+    BuiltInAuthorityTokenService authority)
 {
     var vault = store.GetVault(vaultId);
-    if (string.IsNullOrWhiteSpace(GetAccessToken(request)))
+    if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
     {
         return Unauthorized();
     }
 
     if (vault is null ||
-        !store.IsAuthorized(vault, GetAccessToken(request)))
+        !IsAuthorized(vault, request, authority))
     {
         return NotFound();
     }
@@ -69,16 +76,17 @@ static IResult GetSecret(
     string name,
     string? version,
     HttpRequest request,
-    SecretsVaultServiceStore store)
+    SecretsVaultServiceStore store,
+    BuiltInAuthorityTokenService authority)
 {
     var vault = store.GetVault(vaultId);
-    if (string.IsNullOrWhiteSpace(GetAccessToken(request)))
+    if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
     {
         return Unauthorized();
     }
 
     if (vault is null ||
-        !store.IsAuthorized(vault, GetAccessToken(request)))
+        !IsAuthorized(vault, request, authority))
     {
         return NotFound();
     }
@@ -95,14 +103,20 @@ static IResult GetSecret(
         : Results.Ok(new SecretValueResponse(secret.Name, secret.Value, secret.Version));
 }
 
-static string? GetAccessToken(HttpRequest request)
+static bool IsAuthorized(
+    SecretsVaultDefinition vault,
+    HttpRequest request,
+    BuiltInAuthorityTokenService authority)
 {
-    var headerToken = request.Headers["X-CloudShell-Secrets-Token"].FirstOrDefault();
-    if (!string.IsNullOrWhiteSpace(headerToken))
-    {
-        return headerToken;
-    }
+    var token = GetBearerToken(request);
+    return ResourcePermissionClaimAuthorization.HasResourcePermission(
+            authority.ValidateToken(token ?? string.Empty),
+            vault.Id,
+            SecretsVaultResourceOperationPermissions.ReadSecrets);
+}
 
+static string? GetBearerToken(HttpRequest request)
+{
     var authorization = request.Headers.Authorization.FirstOrDefault();
     const string bearerPrefix = "Bearer ";
     return authorization?.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase) == true
@@ -112,7 +126,7 @@ static string? GetAccessToken(HttpRequest request)
 
 static IResult Unauthorized() =>
     Results.Problem(
-        "A Secrets Vault service token is required.",
+        "A Secrets Vault bearer token is required.",
         statusCode: StatusCodes.Status401Unauthorized,
         title: "Unauthorized");
 

@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using System.Collections;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CloudShell.Configuration;
 
@@ -16,7 +18,7 @@ internal sealed class CloudShellConfigurationProvider(
         if (service is null)
         {
             SetMetadata("Status", "unavailable");
-            SetMetadata("Detail", "No CloudShell configuration store service endpoint/token pair was configured or injected.");
+            SetMetadata("Detail", "No CloudShell configuration store service endpoint and identity credential were configured or injected.");
             return;
         }
 
@@ -28,8 +30,16 @@ internal sealed class CloudShellConfigurationProvider(
             {
                 Timeout = options.Timeout
             };
+            var token = ResolveAccessToken(client, service);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                SetMetadata("Status", "unavailable");
+                SetMetadata("Detail", "No CloudShell configuration access token could be acquired.");
+                return;
+            }
+
             using var request = new HttpRequestMessage(HttpMethod.Get, service.Endpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", service.Token);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             using var response = client.Send(request);
             if (!response.IsSuccessStatusCode)
@@ -73,10 +83,14 @@ internal sealed class CloudShellConfigurationProvider(
     private static CloudShellConfigurationStoreService? ResolveConfigurationStoreService(
         CloudShellConfigurationOptions options)
     {
-        if (!string.IsNullOrWhiteSpace(options.Endpoint) &&
-            !string.IsNullOrWhiteSpace(options.Token))
+        if (!string.IsNullOrWhiteSpace(options.Endpoint))
         {
-            return new CloudShellConfigurationStoreService(options.Endpoint, options.Token);
+            return new CloudShellConfigurationStoreService(
+                options.Endpoint,
+                options.IdentityTokenEndpoint,
+                options.IdentityClientId,
+                options.IdentityClientSecret,
+                options.IdentityScope);
         }
 
         var variables = Environment.GetEnvironmentVariables()
@@ -95,19 +109,67 @@ internal sealed class CloudShellConfigurationProvider(
             .OrderByDescending(item => MatchesServiceName(item.Key, "EXAMPLE_CONFIGURATION"))
             .ThenBy(item => item.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var tokenName = $"{name[..^"_ENDPOINT".Length]}_TOKEN";
+            var identityTokenEndpoint = GetOptionalVariable(variables, "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT");
+            var identityClientId = GetOptionalVariable(variables, "CLOUDSHELL_IDENTITY_CLIENT_ID");
+            var identityClientSecret = GetOptionalVariable(variables, "CLOUDSHELL_IDENTITY_CLIENT_SECRET");
+            var identityScope = GetOptionalVariable(variables, "CLOUDSHELL_IDENTITY_SCOPE") ??
+                options.IdentityScope;
             if (string.IsNullOrWhiteSpace(endpoint) ||
-                !variables.TryGetValue(tokenName, out var token) ||
-                string.IsNullOrWhiteSpace(token))
+                (string.IsNullOrWhiteSpace(identityTokenEndpoint) ||
+                 string.IsNullOrWhiteSpace(identityClientId) ||
+                 string.IsNullOrWhiteSpace(identityClientSecret)))
             {
                 continue;
             }
 
-            return new CloudShellConfigurationStoreService(endpoint, token);
+            return new CloudShellConfigurationStoreService(
+                endpoint,
+                identityTokenEndpoint,
+                identityClientId,
+                identityClientSecret,
+                identityScope);
         }
 
         return null;
     }
+
+    private static string? ResolveAccessToken(
+        HttpClient client,
+        CloudShellConfigurationStoreService service)
+    {
+        if (!string.IsNullOrWhiteSpace(service.IdentityTokenEndpoint) &&
+            !string.IsNullOrWhiteSpace(service.IdentityClientId) &&
+            !string.IsNullOrWhiteSpace(service.IdentityClientSecret))
+        {
+            using var response = client.PostAsync(
+                service.IdentityTokenEndpoint,
+                new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["grant_type"] = "client_credentials",
+                    ["client_id"] = service.IdentityClientId,
+                    ["client_secret"] = service.IdentityClientSecret,
+                    ["scope"] = service.IdentityScope
+                })).GetAwaiter().GetResult();
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var token = response.Content
+                .ReadFromJsonAsync<TokenResponse>(SerializerOptions)
+                .GetAwaiter()
+                .GetResult();
+            return token?.AccessToken;
+        }
+        return null;
+    }
+
+    private static string? GetOptionalVariable(
+        IReadOnlyDictionary<string, string> variables,
+        string name) =>
+        variables.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : null;
 
     private static bool MatchesServiceName(string environmentVariableName, string? serviceName)
     {
@@ -131,4 +193,7 @@ internal sealed class CloudShellConfigurationProvider(
 
         return new string(characters).Trim('_');
     }
+
+    private sealed record TokenResponse(
+        [property: JsonPropertyName("access_token")] string AccessToken);
 }

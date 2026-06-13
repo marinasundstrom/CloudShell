@@ -95,6 +95,69 @@ public sealed class SampleSmokeTests
         Assert.Equal(
             "identity:development",
             provisioningDocument.RootElement.GetProperty("providerId").GetString());
+
+        await host.SendAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/application%3Asettings-secrets-api/actions/run?startDependencies=true");
+
+        var startedApiJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var startedDocument = JsonDocument.Parse(startedApiJson);
+        var startedResources = startedDocument.RootElement.EnumerateArray().ToArray();
+        settings = Assert.Single(startedResources, resource =>
+            resource.GetProperty("id").GetString() == "configuration:sample-app");
+        secrets = Assert.Single(startedResources, resource =>
+            resource.GetProperty("id").GetString() == "secrets-vault:sample-app");
+        api = Assert.Single(startedResources, resource =>
+            resource.GetProperty("id").GetString() == "application:settings-secrets-api");
+
+        var resourceToken = await host.GetClientCredentialsTokenAsync(
+            "application:settings-secrets-api/settings-secrets-api",
+            "local-development-settings-secrets-api-secret",
+            "ControlPlane.Access");
+        var apiEndpoint = GetPrimaryEndpointAddress(api);
+        var settingsEndpoint = GetEndpointAddress(settings, "entries");
+        var secretsEndpoint = GetEndpointAddress(secrets, "secrets");
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{apiEndpoint.TrimEnd('/')}/configuration",
+            null,
+            StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(settingsEndpoint, resourceToken, StartupTimeout);
+        await host.WaitForAbsoluteHttpOkAsync(
+            $"{secretsEndpoint.TrimEnd('/')}/sample-api-key",
+            resourceToken,
+            StartupTimeout);
+
+        var settingsJson = await host.GetAbsoluteStringAsync(settingsEndpoint, resourceToken);
+        using var settingsDocument = JsonDocument.Parse(settingsJson);
+        Assert.Contains(
+            settingsDocument.RootElement.EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "Sample:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from a configuration entry");
+
+        var secretJson = await host.GetAbsoluteStringAsync(
+            $"{secretsEndpoint.TrimEnd('/')}/sample-api-key",
+            resourceToken);
+        using var secretDocument = JsonDocument.Parse(secretJson);
+        Assert.Equal(
+            "local-development-api-key",
+            secretDocument.RootElement.GetProperty("value").GetString());
+
+        var apiConfigurationJson = await host.GetAbsoluteStringAsync(
+            $"{apiEndpoint.TrimEnd('/')}/configuration");
+        using var apiConfigurationDocument = JsonDocument.Parse(apiConfigurationJson);
+        Assert.Equal(
+            "connected",
+            apiConfigurationDocument.RootElement.GetProperty("status").GetString());
+        var apiEntries = apiConfigurationDocument.RootElement
+            .GetProperty("entries")
+            .EnumerateArray()
+            .ToArray();
+        Assert.Contains(
+            apiEntries,
+            entry =>
+                entry.GetProperty("name").GetString() == "Sample:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from a configuration entry");
     }
 
     [Fact]
@@ -324,6 +387,21 @@ public sealed class SampleSmokeTests
         }
     }
 
+    private static string GetEndpointAddress(JsonElement resource, string endpointName)
+    {
+        var endpoint = resource
+            .GetProperty("endpoints")
+            .EnumerateArray()
+            .Single(endpoint =>
+                endpoint.GetProperty("name").GetString() == endpointName);
+        return endpoint.GetProperty("address").GetString() ??
+            throw new InvalidOperationException($"Endpoint '{endpointName}' did not include an address.");
+    }
+
+    private static string GetPrimaryEndpointAddress(JsonElement resource) =>
+        resource.GetProperty("primaryEndpoint").GetString() ??
+        throw new InvalidOperationException("The resource did not include a primary endpoint.");
+
     private sealed class SampleProcess : IDisposable
     {
         private readonly Process process;
@@ -423,6 +501,74 @@ public sealed class SampleSmokeTests
                 Timeout = TimeSpan.FromSeconds(10)
             };
             using var request = new HttpRequestMessage(HttpMethod.Get, path);
+            if (!string.IsNullOrWhiteSpace(bearerToken))
+            {
+                request.Headers.Authorization = new("Bearer", bearerToken);
+            }
+
+            using var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        public async Task WaitForAbsoluteHttpOkAsync(
+            string url,
+            string? bearerToken,
+            TimeSpan timeout)
+        {
+            using var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(3)
+            };
+            var deadline = DateTimeOffset.UtcNow.Add(timeout);
+            Exception? lastException = null;
+            string? lastStatus = null;
+
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                if (process.HasExited)
+                {
+                    throw new InvalidOperationException(
+                        $"Sample process exited with code {process.ExitCode} before '{url}' was ready.{Environment.NewLine}{GetOutput()}");
+                }
+
+                try
+                {
+                    using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                    if (!string.IsNullOrWhiteSpace(bearerToken))
+                    {
+                        request.Headers.Authorization = new("Bearer", bearerToken);
+                    }
+
+                    using var response = await client.SendAsync(request);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return;
+                    }
+
+                    lastStatus = $"{(int)response.StatusCode} {response.ReasonPhrase}: " +
+                        await response.Content.ReadAsStringAsync();
+                }
+                catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+                {
+                    lastException = exception;
+                }
+
+                await Task.Delay(250);
+            }
+
+            throw new TimeoutException(
+                $"Sample process did not return a successful response for '{url}' within {timeout}." +
+                $"{Environment.NewLine}{lastStatus ?? lastException?.Message}{Environment.NewLine}{GetOutput()}");
+        }
+
+        public async Task<string> GetAbsoluteStringAsync(string url, string? bearerToken = null)
+        {
+            using var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(10)
+            };
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
             if (!string.IsNullOrWhiteSpace(bearerToken))
             {
                 request.Headers.Authorization = new("Bearer", bearerToken);

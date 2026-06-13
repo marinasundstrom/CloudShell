@@ -1,5 +1,14 @@
 namespace CloudShell.Abstractions.Authorization;
 
+public static class CloudShellAuthorizationClaimTypes
+{
+    public const string Permission = "cloudshell.permission";
+    public const string ResourceGroup = "cloudshell.resource-group";
+    public const string Resource = "cloudshell.resource";
+    public const string ResourcePermission = "cloudshell.resource-permission";
+    public const char ResourcePermissionSeparator = '\u001f';
+}
+
 public static class CommonResourceOperationPermissions
 {
     public const string LifecycleAction =

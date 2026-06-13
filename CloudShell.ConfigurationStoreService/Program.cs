@@ -1,11 +1,16 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.ConfigurationStoreService;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.Providers.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<ConfigurationStoreServiceOptions>(
     builder.Configuration.GetSection(ConfigurationStoreServiceOptions.SectionName));
+builder.Services.Configure<CloudShellAuthenticationOptions>(
+    builder.Configuration.GetSection(CloudShellAuthenticationOptions.SectionName));
 builder.Services.AddSingleton<ConfigurationStoreServiceStore>();
+builder.Services.AddSingleton<BuiltInAuthorityTokenService>();
 
 var app = builder.Build();
 
@@ -41,29 +46,32 @@ app.Run();
 static IResult ListEntriesByQuery(
     string resourceId,
     HttpRequest request,
-    ConfigurationStoreServiceStore store) =>
-    ListEntries(resourceId, request, store);
+    ConfigurationStoreServiceStore store,
+    BuiltInAuthorityTokenService authority) =>
+    ListEntries(resourceId, request, store, authority);
 
 static IResult GetEntryByQuery(
     string resourceId,
     string name,
     HttpRequest request,
-    ConfigurationStoreServiceStore store) =>
-    GetEntry(resourceId, name, request, store);
+    ConfigurationStoreServiceStore store,
+    BuiltInAuthorityTokenService authority) =>
+    GetEntry(resourceId, name, request, store, authority);
 
 static IResult ListEntries(
     string storeId,
     HttpRequest request,
-    ConfigurationStoreServiceStore store)
+    ConfigurationStoreServiceStore store,
+    BuiltInAuthorityTokenService authority)
 {
     var configurationStore = store.GetStore(storeId);
-    if (string.IsNullOrWhiteSpace(GetAccessToken(request)))
+    if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
     {
         return Unauthorized();
     }
 
     if (configurationStore is null ||
-        !store.IsAuthorized(configurationStore, GetAccessToken(request)))
+        !IsAuthorized(configurationStore, request, authority))
     {
         return NotFound();
     }
@@ -75,16 +83,17 @@ static IResult GetEntry(
     string storeId,
     string name,
     HttpRequest request,
-    ConfigurationStoreServiceStore store)
+    ConfigurationStoreServiceStore store,
+    BuiltInAuthorityTokenService authority)
 {
     var configurationStore = store.GetStore(storeId);
-    if (string.IsNullOrWhiteSpace(GetAccessToken(request)))
+    if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
     {
         return Unauthorized();
     }
 
     if (configurationStore is null ||
-        !store.IsAuthorized(configurationStore, GetAccessToken(request)))
+        !IsAuthorized(configurationStore, request, authority))
     {
         return NotFound();
     }
@@ -100,14 +109,20 @@ static IResult GetEntry(
 static ConfigurationEntryResponse ToResponse(ConfigurationEntry entry) =>
     new(entry.Name, entry.Value, entry.IsSecret);
 
-static string? GetAccessToken(HttpRequest request)
+static bool IsAuthorized(
+    ConfigurationStoreDefinition configurationStore,
+    HttpRequest request,
+    BuiltInAuthorityTokenService authority)
 {
-    var headerToken = request.Headers["X-CloudShell-Configuration-Token"].FirstOrDefault();
-    if (!string.IsNullOrWhiteSpace(headerToken))
-    {
-        return headerToken;
-    }
+    var token = GetBearerToken(request);
+    return ResourcePermissionClaimAuthorization.HasResourcePermission(
+            authority.ValidateToken(token ?? string.Empty),
+            configurationStore.Id,
+            ConfigurationStoreResourceOperationPermissions.ReadEntries);
+}
 
+static string? GetBearerToken(HttpRequest request)
+{
     var authorization = request.Headers.Authorization.FirstOrDefault();
     const string bearerPrefix = "Bearer ";
     return authorization?.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase) == true
@@ -117,7 +132,7 @@ static string? GetAccessToken(HttpRequest request)
 
 static IResult Unauthorized() =>
     Results.Problem(
-        "A configuration service token is required.",
+        "A configuration bearer token is required.",
         statusCode: StatusCodes.Status401Unauthorized,
         title: "Unauthorized");
 

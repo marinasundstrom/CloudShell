@@ -4,7 +4,6 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.Hosting;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -208,14 +207,18 @@ public sealed partial class ConfigurationResourceProvider :
         switch (action.Kind)
         {
             case ResourceActionKind.Run:
+                store.Save(configurationStore);
                 await processes.StartAsync(process, cancellationToken);
+                await WaitForServiceReadyAsync(GetServiceBaseUrl(configurationStore), cancellationToken);
                 break;
             case ResourceActionKind.Stop:
                 await processes.StopAsync(process, cancellationToken: cancellationToken);
                 break;
             case ResourceActionKind.Restart:
+                store.Save(configurationStore);
                 await processes.StopAsync(process, cancellationToken: cancellationToken);
                 await processes.StartAsync(process, cancellationToken);
+                await WaitForServiceReadyAsync(GetServiceBaseUrl(configurationStore), cancellationToken);
                 break;
             default:
                 throw new NotSupportedException(
@@ -249,18 +252,21 @@ public sealed partial class ConfigurationResourceProvider :
         return ResourceProcedureResult.Completed("Configuration service removed.");
     }
 
-    public IReadOnlyList<EnvironmentVariableAssignment> GetEnvironmentVariables(string resourceId) =>
-        store.GetStore(resourceId) is { } configurationStore
-            ?
-            [
-                new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Name)}_STORE_ID", configurationStore.Id),
-                new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Name)}_ENDPOINT", GetEntriesEndpoint(configurationStore.Id)),
-                new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Name)}_TOKEN", configurationStore.AccessToken ?? string.Empty),
-                new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Id)}_STORE_ID", configurationStore.Id),
-                new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Id)}_ENDPOINT", GetEntriesEndpoint(configurationStore.Id)),
-                new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Id)}_TOKEN", configurationStore.AccessToken ?? string.Empty)
-            ]
-            : [];
+    public IReadOnlyList<EnvironmentVariableAssignment> GetEnvironmentVariables(string resourceId)
+    {
+        if (store.GetStore(resourceId) is not { } configurationStore)
+        {
+            return [];
+        }
+
+        return
+        [
+            new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Name)}_STORE_ID", configurationStore.Id),
+            new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Name)}_ENDPOINT", GetEntriesEndpoint(configurationStore.Id)),
+            new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Id)}_STORE_ID", configurationStore.Id),
+            new($"CLOUDSHELL_CONFIGURATION_{CreateEnvironmentName(configurationStore.Id)}_ENDPOINT", GetEntriesEndpoint(configurationStore.Id))
+        ];
+    }
 
     public ResourceSettingResolutionResult ResolveConfigurationEntry(
         ConfigurationEntryReference reference,
@@ -464,12 +470,50 @@ public sealed partial class ConfigurationResourceProvider :
             options.ServiceExecutablePath,
             CreateServiceArguments(endpoint),
             options.ServiceWorkingDirectory,
-            [
-                new("ASPNETCORE_ENVIRONMENT", environment.EnvironmentName),
-                new("CloudShell__ConfigurationStoreService__DefinitionsPath", ResolveDefinitionsPath()),
-                new("CloudShell__ConfigurationStoreService__ResourceId", definition.Id)
-            ],
+            CreateServiceEnvironment(definition),
             LocalProcessLifetime.Detached);
+    }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> CreateServiceEnvironment(
+        ConfigurationStoreDefinition definition)
+    {
+        var environmentVariables = new List<EnvironmentVariableAssignment>
+        {
+            new("ASPNETCORE_ENVIRONMENT", environment.EnvironmentName),
+            new("CloudShell__ConfigurationStoreService__DefinitionsPath", ResolveDefinitionsPath()),
+            new("CloudShell__ConfigurationStoreService__ResourceId", definition.Id)
+        };
+
+        AddAuthenticationEnvironment(environmentVariables);
+        return environmentVariables;
+    }
+
+    private void AddAuthenticationEnvironment(List<EnvironmentVariableAssignment> environmentVariables)
+    {
+        environmentVariables.Add(new(
+            "Authentication__BuiltInAuthority__Enabled",
+            "true"));
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceAuthenticationIssuer))
+        {
+            environmentVariables.Add(new(
+                "Authentication__BuiltInAuthority__Issuer",
+                options.ServiceAuthenticationIssuer));
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceAuthenticationAudience))
+        {
+            environmentVariables.Add(new(
+                "Authentication__BuiltInAuthority__Audience",
+                options.ServiceAuthenticationAudience));
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceAuthenticationSigningKeyPem))
+        {
+            environmentVariables.Add(new(
+                "Authentication__BuiltInAuthority__SigningKeyPem",
+                options.ServiceAuthenticationSigningKeyPem));
+        }
     }
 
     private ConfigurationStoreDefinition EnsureServiceEndpoint(ConfigurationStoreDefinition definition) =>
@@ -529,6 +573,43 @@ public sealed partial class ConfigurationResourceProvider :
             ? options.DefinitionsPath
             : Path.GetFullPath(options.DefinitionsPath, environment.ContentRootPath);
 
+    private static async Task WaitForServiceReadyAsync(
+        string baseUrl,
+        CancellationToken cancellationToken)
+    {
+        using var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(2)
+        };
+        var healthUrl = $"{baseUrl.TrimEnd('/')}/healthz";
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+        Exception? lastException = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                using var response = await client.GetAsync(healthUrl, cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    return;
+                }
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                lastException = exception;
+            }
+
+            await Task.Delay(250, cancellationToken);
+        }
+
+        throw new TimeoutException(
+            $"Configuration service endpoint '{healthUrl}' did not become ready within 20 seconds.",
+            lastException);
+    }
+
     private static string QuoteCommandArgument(string value)
     {
         if (string.IsNullOrEmpty(value))
@@ -581,9 +662,6 @@ public sealed partial class ConfigurationResourceProvider :
         {
             Id = id,
             Name = definition.Name.Trim(),
-            AccessToken = string.IsNullOrWhiteSpace(definition.AccessToken)
-                ? CreateAccessToken()
-                : definition.AccessToken,
             Endpoint = string.IsNullOrWhiteSpace(definition.Endpoint)
                 ? null
                 : definition.Endpoint.TrimEnd('/'),
@@ -616,20 +694,6 @@ public sealed partial class ConfigurationResourceProvider :
                 Name = string.IsNullOrWhiteSpace(check.Name) ? check.Type.ToString().ToLowerInvariant() : check.Name.Trim()
             })
             .ToArray();
-
-    public bool IsAuthorized(string resourceId, string? token)
-    {
-        var configurationStore = store.GetStore(resourceId);
-        if (configurationStore?.AccessToken is null ||
-            string.IsNullOrWhiteSpace(token))
-        {
-            return false;
-        }
-
-        return CryptographicOperations.FixedTimeEquals(
-            System.Text.Encoding.UTF8.GetBytes(configurationStore.AccessToken),
-            System.Text.Encoding.UTF8.GetBytes(token));
-    }
 
     private string GetEntriesEndpoint(string resourceId)
     {
@@ -664,9 +728,6 @@ public sealed partial class ConfigurationResourceProvider :
 
     [GeneratedRegex("[^A-Z0-9]+")]
     private static partial Regex EnvironmentNamePattern();
-
-    private static string CreateAccessToken() =>
-        Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
     private sealed record ConfigurationStoreTemplateConfiguration(
         string? Endpoint,

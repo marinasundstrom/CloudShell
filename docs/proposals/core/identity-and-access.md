@@ -128,6 +128,10 @@ Implemented today:
   configuration apply.
 - Configuration and Secrets providers requiring matching grants when an
   identity-bound resource resolves configuration entries or secrets.
+- Settings and Secrets sample proof that a provisioned Web API resource
+  identity can acquire a bearer token from the built-in authority and call
+  provider-backed Configuration Store and Secrets Vault HTTP services with
+  scoped resource-permission claims.
 - Resource Manager overview identity metadata and a generated Identity tab for
   identity-enabled resources.
 - HTTP tests proving built-in resource identity tokens respect read,
@@ -216,10 +220,11 @@ Identity binding metadata must stay non-secret.
 
 CloudShell-managed platform services such as configuration stores and secrets
 vaults should normally be accessed through resource identities and access
-grants. Secret-based authentication can remain available for external
-integrations, bootstrap scenarios, and providers that require explicit client
-credentials, but it should not be the preferred path for platform-managed
-resource-to-resource access.
+grants. Platform-managed resource-to-resource access should not use
+configuration-store or vault-specific auth secrets. Provider-owned credentials
+such as OAuth client secrets, certificates, federated credentials, or managed
+identity endpoints are authority evidence for the assigned resource identity,
+not application secrets from a CloudShell secrets vault.
 
 The intended flow is:
 
@@ -418,7 +423,8 @@ service-principal automation flows.
    Implemented for the Settings and Secrets sample: declare a built-in
    identity provider, bind a Web API resource identity, grant that identity
    access to configuration and secret resources, provision the Web API
-   identity, and verify read, lifecycle action, and identity-management
+   identity, call provider-backed configuration and secrets services with a
+   bearer token, and verify read, lifecycle action, and identity-management
    permission boundaries at the HTTP API.
 2. Provisioning-resource authorization.
    Implemented for provisioning hooks: a provider can name a provisioning
@@ -446,7 +452,6 @@ service-principal automation flows.
   provider when no explicit identity provider is declared.
 - Add mock-principal support for local permission-boundary tests when
   CloudShell authentication is disabled.
-- Add provider-backed identity proof for at least one workload type.
 - Add durable provider-backed provisioning for identities and grants.
 - Add Microsoft Entra ID provider mapping notes and compatibility tests.
 - Define identity-provider resources, provisioning-service resources,

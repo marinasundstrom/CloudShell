@@ -222,12 +222,19 @@ token also carries compatibility `cloudshell.permission` and
 `cloudshell.resource` claims, but authorization prefers the scoped
 `cloudshell.resource-permission` claim so a permission granted on one resource
 cannot combine with a different resource claim. This makes the basic flow
-demonstrable, including a Web API identity receiving read access to a Secrets
-Vault-shaped resource. In that flow the Web API owns the provisioned identity
-and the vault is the protected target resource; the vault does not need its own
-identity unless it later needs to call another resource or provider. External
-authority registration, durable client storage, and bearer token proof against
-provider-backed workloads remain future work.
+demonstrable, including a Web API identity receiving read access to
+Configuration Store and Secrets Vault resources. In that flow the Web API owns
+the provisioned identity and the configuration store or vault is the protected
+target resource; the target resource does not need its own identity unless it
+later needs to call another resource or provider.
+
+The Settings and Secrets sample verifies the provider-backed flow end to end:
+the Web API receives a credential acquisition endpoint and identity client
+credential, requests a bearer token from the built-in authority, and calls the
+configuration and secrets backing services with scoped
+`cloudshell.resource-permission` claims. The backing services no longer accept
+configuration-store or vault-specific service tokens. External authority
+registration and durable provider-backed client storage remain future work.
 
 The built-in provider MVP is verified at the Control Plane API boundary. A
 provisioned resource identity token can call an action on a resource only when
@@ -303,8 +310,9 @@ identity shape before a production identity provider is configured.
 Programmatic identity grants can still be evaluated in this mode. Passing an
 explicit acting resource identity to a resource action checks the declared
 grant model even when no token authority is configured. This is useful for
-early permission-boundary tests, but it is not a substitute for provider-backed
-identity proof.
+early permission-boundary tests. The Settings and Secrets sample covers the
+provider-backed local proof by using the built-in authority and bearer tokens
+against concrete configuration and secrets backing services.
 
 Development identity providers should stay replaceable infrastructure. A local
 provider can model deterministic subjects, scopes, and claims, while the same

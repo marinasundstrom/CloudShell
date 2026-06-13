@@ -8,14 +8,12 @@ public sealed record SecretsVaultDefinition
         string id,
         string name,
         IReadOnlyList<SecretsVaultSecret>? secrets = null,
-        string? accessToken = null,
         string? endpoint = null,
         IReadOnlyList<ResourceHealthCheck>? healthChecks = null)
     {
         Id = id;
         Name = name;
         Secrets = secrets ?? [];
-        AccessToken = accessToken;
         Endpoint = endpoint;
         HealthChecks = healthChecks ?? [];
     }
@@ -25,8 +23,6 @@ public sealed record SecretsVaultDefinition
     public string Name { get; init; }
 
     public IReadOnlyList<SecretsVaultSecret> Secrets { get; init; }
-
-    public string? AccessToken { get; init; }
 
     public string? Endpoint { get; init; }
 

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Hosting;
-using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace CloudShell.Providers.Configuration;
@@ -142,9 +141,6 @@ public sealed class SecretsVaultStore
                 ? SecretsVaultProvider.CreateId(definition.Name)
                 : definition.Id.Trim(),
             Name = definition.Name.Trim(),
-            AccessToken = string.IsNullOrWhiteSpace(definition.AccessToken)
-                ? CreateAccessToken()
-                : definition.AccessToken,
             Endpoint = string.IsNullOrWhiteSpace(definition.Endpoint)
                 ? null
                 : definition.Endpoint.Trim(),
@@ -170,6 +166,4 @@ public sealed class SecretsVaultStore
             ? path
             : Path.GetFullPath(path, contentRootPath);
 
-    private static string CreateAccessToken() =>
-        Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 }

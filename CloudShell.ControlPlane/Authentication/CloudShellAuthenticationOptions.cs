@@ -6,11 +6,11 @@ namespace CloudShell.ControlPlane.Authentication;
 public sealed class CloudShellAuthenticationOptions
 {
     public const string SectionName = "Authentication";
-    public const string PermissionClaimType = "cloudshell.permission";
-    public const string ResourceGroupClaimType = "cloudshell.resource-group";
-    public const string ResourceClaimType = "cloudshell.resource";
-    public const string ResourcePermissionClaimType = "cloudshell.resource-permission";
-    public const char ResourcePermissionClaimSeparator = '\u001f';
+    public const string PermissionClaimType = CloudShellAuthorizationClaimTypes.Permission;
+    public const string ResourceGroupClaimType = CloudShellAuthorizationClaimTypes.ResourceGroup;
+    public const string ResourceClaimType = CloudShellAuthorizationClaimTypes.Resource;
+    public const string ResourcePermissionClaimType = CloudShellAuthorizationClaimTypes.ResourcePermission;
+    public const char ResourcePermissionClaimSeparator = CloudShellAuthorizationClaimTypes.ResourcePermissionSeparator;
     public const string UngroupedScope = "__ungrouped";
 
     public bool Enabled { get; set; } = true;

@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -51,13 +52,13 @@ public static class ConfigurationApiExtensions
         ConfigurationResourceProvider provider)
     {
         var configurationStore = provider.GetStore(storeId);
-        if (string.IsNullOrWhiteSpace(GetAccessToken(request)))
+        if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
         {
             return Unauthorized();
         }
 
         if (configurationStore is null ||
-            !provider.IsAuthorized(storeId, GetAccessToken(request)))
+            !IsAuthorized(request, provider, storeId))
         {
             return NotFound();
         }
@@ -71,13 +72,13 @@ public static class ConfigurationApiExtensions
         HttpRequest request,
         ConfigurationResourceProvider provider)
     {
-        if (string.IsNullOrWhiteSpace(GetAccessToken(request)))
+        if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
         {
             return Unauthorized();
         }
 
         if (provider.GetStore(storeId) is null ||
-            !provider.IsAuthorized(storeId, GetAccessToken(request)))
+            !IsAuthorized(request, provider, storeId))
         {
             return NotFound();
         }
@@ -93,14 +94,17 @@ public static class ConfigurationApiExtensions
     private static ConfigurationEntryResponse ToResponse(ConfigurationEntry entry) =>
         new(entry.Name, entry.Value, entry.IsSecret);
 
-    private static string? GetAccessToken(HttpRequest request)
-    {
-        var headerToken = request.Headers["X-CloudShell-Configuration-Token"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(headerToken))
-        {
-            return headerToken;
-        }
+    private static bool IsAuthorized(
+        HttpRequest request,
+        ConfigurationResourceProvider provider,
+        string storeId) =>
+        ResourcePermissionClaimAuthorization.HasResourcePermission(
+            request.HttpContext.User,
+            storeId,
+            ConfigurationStoreResourceOperationPermissions.ReadEntries);
 
+    private static string? GetBearerToken(HttpRequest request)
+    {
         var authorization = request.Headers.Authorization.FirstOrDefault();
         const string bearerPrefix = "Bearer ";
         return authorization?.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase) == true
@@ -110,7 +114,7 @@ public static class ConfigurationApiExtensions
 
     private static IResult Unauthorized() =>
         Results.Problem(
-            "A configuration service token is required.",
+            "A configuration bearer token is required.",
             statusCode: StatusCodes.Status401Unauthorized,
             title: "Unauthorized");
 

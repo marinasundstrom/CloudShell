@@ -4,7 +4,13 @@ public sealed class CloudShellConfigurationOptions
 {
     public string? Endpoint { get; set; }
 
-    public string? Token { get; set; }
+    public string? IdentityTokenEndpoint { get; set; }
+
+    public string? IdentityClientId { get; set; }
+
+    public string? IdentityClientSecret { get; set; }
+
+    public string IdentityScope { get; set; } = "ControlPlane.Access";
 
     public string? ServiceName { get; set; }
 

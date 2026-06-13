@@ -37,6 +37,12 @@ public sealed class ConfigurationProviderOptions
 
     public string? SecretsServiceWorkingDirectory { get; set; }
 
+    public string? ServiceAuthenticationIssuer { get; set; }
+
+    public string? ServiceAuthenticationAudience { get; set; }
+
+    public string? ServiceAuthenticationSigningKeyPem { get; set; }
+
     public IList<ConfigurationStoreDefinition> InitialStores { get; } = [];
 
     public IList<SecretsVaultDefinition> InitialSecretsVaults { get; } = [];

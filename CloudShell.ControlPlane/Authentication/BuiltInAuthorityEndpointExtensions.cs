@@ -19,7 +19,7 @@ public static class BuiltInAuthorityEndpointExtensions
         var options = endpoints.ServiceProvider
             .GetRequiredService<IOptions<CloudShellAuthenticationOptions>>()
             .Value;
-        if (!options.Enabled || !options.BuiltInAuthority.Enabled)
+        if (!options.BuiltInAuthority.Enabled)
         {
             return endpoints;
         }
@@ -80,7 +80,7 @@ public static class BuiltInAuthorityEndpointExtensions
             var options = context.RequestServices
                 .GetRequiredService<IOptions<CloudShellAuthenticationOptions>>()
                 .Value;
-            if (!options.Enabled || !options.BuiltInAuthority.Enabled)
+            if (!options.BuiltInAuthority.Enabled)
             {
                 await next();
                 return;
