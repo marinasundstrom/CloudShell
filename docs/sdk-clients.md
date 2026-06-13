@@ -86,10 +86,6 @@ CLOUDSHELL_IDENTITY_SCOPE
 The convention is the same for local processes, direct container starts, and
 descriptor-driven container orchestration:
 
-- Resource providers also inject service endpoint variables for declared
-  dependencies, such as `CLOUDSHELL_CONFIGURATION_*_ENDPOINT` and
-  `CLOUDSHELL_SECRETS_*_ENDPOINT`, so SDK clients can discover the protected
-  service before requesting a token.
 - Resource providers inject these variables only for resources that have a
   resolved identity binding and a supported credential acquisition mechanism.
 - Orchestrators that materialize workload descriptors must pass the variables
@@ -103,6 +99,13 @@ descriptor-driven container orchestration:
 - The credential values are runtime inputs. They must not be copied into
   resource attributes, generated UI details, logs, activity messages, or other
   user-facing projections.
+
+Service endpoints are a separate concern. Configuration Store, Secrets Vault,
+and other resource-backed services should be discovered through the same
+service discovery and networking model as other services. Until network-level
+service discovery is available, applications configure the SDK endpoint
+variables explicitly or receive them from the current local development host
+integration.
 
 The credential contract is public preview. Future sources can add managed
 identity endpoints, federated workload identity, local development
@@ -150,8 +153,8 @@ var configuration = ConfigurationStoreClient.FromEnvironment(credential);
 var entries = await configuration.GetEntriesAsync();
 ```
 
-Applications that depend on a Configuration Store receive endpoint variables
-such as:
+Applications that configure Configuration Store endpoint discovery use
+variables such as:
 
 ```text
 CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_STORE_ID
@@ -190,8 +193,8 @@ var vault = SecretsVaultClient.FromEnvironment(credential);
 var secret = await vault.GetSecretAsync("sample-api-key");
 ```
 
-Applications that depend on a Secrets Vault receive endpoint variables such
-as:
+Applications that configure Secrets Vault endpoint discovery use variables
+such as:
 
 ```text
 CLOUDSHELL_SECRETS_<VAULT_NAME>_VAULT_ID

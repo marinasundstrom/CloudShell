@@ -821,7 +821,7 @@ public sealed partial class ApplicationResourceProvider(
         var application = store.GetApplication(resource.Id)
             ?? throw new InvalidOperationException($"Application resource '{resource.Id}' is not configured.");
 
-        var workload = CreateWorkloadConfiguration(application, resource.DependsOn);
+        var workload = CreateWorkloadConfiguration(application);
         return Task.FromResult(new ResourceOrchestrationDescriptor(
             resource.Id,
             resource.EffectiveTypeId,
@@ -1110,10 +1110,8 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveWorkloadEnvironmentVariables(
-        ApplicationResourceDefinition definition,
-        IReadOnlyList<string>? dependsOn = null) =>
-        ResolveDependencyEnvironmentVariables(definition, dependsOn ?? [])
-            .Concat(ResolveObservabilityEnvironmentVariables(definition))
+        ApplicationResourceDefinition definition) =>
+        ResolveObservabilityEnvironmentVariables(definition)
             .Concat(ResolveResourceIdentityEnvironmentVariables(definition))
             .Concat(definition.EnvironmentVariables)
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
@@ -2911,8 +2909,7 @@ public sealed partial class ApplicationResourceProvider(
         };
 
     private ResourceWorkloadConfiguration CreateWorkloadConfiguration(
-        ApplicationResourceDefinition application,
-        IReadOnlyList<string>? dependsOn = null)
+        ApplicationResourceDefinition application)
     {
         if (IsAspNetCoreProject(application))
         {
@@ -2925,7 +2922,7 @@ public sealed partial class ApplicationResourceProvider(
                 AspNetCoreHotReload: application.AspNetCoreHotReload,
                 Replicas: Math.Max(1, application.Replicas),
                 AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, dependsOn),
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
                 Observability: GetEffectiveObservability(application));
@@ -2941,7 +2938,7 @@ public sealed partial class ApplicationResourceProvider(
                 ContainerHostId: application.ContainerHostId,
                 Replicas: Math.Max(1, application.Replicas),
                 AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, dependsOn),
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
                 Observability: GetEffectiveObservability(application));
@@ -2958,7 +2955,7 @@ public sealed partial class ApplicationResourceProvider(
                 ContainerHostId: application.ContainerHostId,
                 Replicas: Math.Max(1, application.Replicas),
                 AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, dependsOn),
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
                 Observability: GetEffectiveObservability(application));
@@ -2972,7 +2969,7 @@ public sealed partial class ApplicationResourceProvider(
             WorkingDirectory: application.WorkingDirectory,
             Replicas: Math.Max(1, application.Replicas),
             AppSettings: application.AppSettings,
-            EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, dependsOn),
+            EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
             Lifetime: ToResourceLifetime(application.Lifetime),
             Observability: GetEffectiveObservability(application));
     }

@@ -3519,7 +3519,6 @@ public sealed class ResourceDeclarationTests
             new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
         services
             .AddControlPlane()
-            .AddSecretsProvider()
             .AddApplicationProvider(options =>
             {
                 options.ResourceIdentityTokenEndpoint = "http://localhost:5011/api/auth/token";
@@ -3536,14 +3535,10 @@ public sealed class ResourceDeclarationTests
                         ["clientSecret"] = "local-development-api-secret"
                     },
                     useAsDefault: true);
-                var secrets = resources
-                    .AddSecretsVault("secrets-vault:sample-app", "Sample App Secrets")
-                    .WithSecret("sample-api-key", "local-development-api-key");
 
                 resources
                     .AddContainer("api", "example/api:dev")
-                    .WithIdentity(identityProvider, name: "api-service")
-                    .WithEnvironment("SAMPLE_API_KEY", secrets.Secret("sample-api-key"));
+                    .WithIdentity(identityProvider, name: "api-service");
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -3570,12 +3565,9 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             "ControlPlane.Access",
             environment?[EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable]);
-        Assert.Equal(
-            "secrets-vault:sample-app",
-            environment?["CLOUDSHELL_SECRETS_SAMPLE_APP_SECRETS_VAULT_ID"]);
-        Assert.Contains(
-            "/api/secrets/vaults/secrets-vault%3Asample-app/secrets",
-            environment?["CLOUDSHELL_SECRETS_SAMPLE_APP_SECRETS_ENDPOINT"]);
+        Assert.DoesNotContain(
+            environment ?? [],
+            variable => variable.Key.StartsWith("CLOUDSHELL_SECRETS_", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
