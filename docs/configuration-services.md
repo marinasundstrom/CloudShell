@@ -153,7 +153,7 @@ identity. A production provider may use a managed identity endpoint,
 certificate, federated credential, workload identity, or another provider-owned
 mechanism instead.
 Applications should use `DefaultCloudShellResourceCredential` from
-`CloudShell.Abstractions` when they need to acquire their own resource identity
+`CloudShell.Client` when they need to acquire their own resource identity
 token directly. `CloudShell.Configuration` uses that credential chain
 internally.
 
@@ -177,27 +177,10 @@ configuration store resource. Missing tokens return `401`; invalid tokens,
 missing services, or missing grants return an unavailable or access-denied
 result from the caller's perspective.
 
-This is intentionally the same integration model authored Web APIs should use:
-
-```csharp
-var credential = new DefaultCloudShellResourceCredential();
-var configuration = ConfigurationStoreClient.FromEnvironment(credential);
-var entries = await configuration.GetEntriesAsync();
-```
-
-`ConfigurationStoreClient` is the public-preview SDK client for direct
-Configuration Store service calls. It accepts a `CloudShellResourceCredential`
-and can discover the injected `CLOUDSHELL_CONFIGURATION_*_ENDPOINT` variables,
-or callers can construct it with an explicit entries endpoint.
-
-Secrets Vault has a matching public-preview `SecretsVaultClient` in
-`CloudShell.Secrets`:
-
-```csharp
-var credential = new DefaultCloudShellResourceCredential();
-var vault = SecretsVaultClient.FromEnvironment(credential);
-var secret = await vault.GetSecretAsync("sample-api-key");
-```
+This is intentionally the same integration model authored Web APIs should use.
+Use the public-preview `ConfigurationStoreClient` from
+`CloudShell.Configuration.Client` for direct Configuration Store service calls.
+See [SDK clients](sdk-clients.md) for package boundaries and client usage.
 
 Applications that depend on a Secrets Vault receive:
 
@@ -208,9 +191,9 @@ CLOUDSHELL_SECRETS_<RESOURCE_ID>_VAULT_ID
 CLOUDSHELL_SECRETS_<RESOURCE_ID>_ENDPOINT
 ```
 
-The endpoint points at the protected vault secrets collection. The client uses
-the resource credential to request a token and sends it as a bearer token on
-each service call.
+The endpoint points at the protected vault secrets collection. Use the
+public-preview `SecretsVaultClient` from `CloudShell.Secrets.Client` for direct
+Secrets Vault service calls. See [SDK clients](sdk-clients.md).
 
 In this model, the caller owns a resource identity, obtains authentication evidence through
 the selected identity provider, and the protected service validates that

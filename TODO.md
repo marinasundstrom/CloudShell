@@ -75,10 +75,11 @@ Work the current proposals in this order:
   The remote Control Plane client now accepts `CloudShellResourceCredential`
   objects through SDK-style constructors and DI registration, so authored
   services can dogfood the same resource credential chain when calling
-  platform APIs. `ConfigurationStoreClient` and `SecretsVaultClient` now
-  provide the same SDK-style credential flow for direct calls to protected
-  Configuration Store and Secrets Vault service APIs, and the Settings and
-  Secrets sample dogfoods both clients.
+  platform APIs. `CloudShell.Configuration.Client` and
+  `CloudShell.Secrets.Client` now provide the same SDK-style credential flow
+  for direct calls to protected Configuration Store and Secrets Vault service
+  APIs, depend on the lightweight `CloudShell.Client` credential package, and
+  the Settings and Secrets sample dogfoods both clients.
   HTTP tests verify that built-in resource identity tokens respect read,
   lifecycle action, and identity-management permission boundaries through the
   Control Plane API.

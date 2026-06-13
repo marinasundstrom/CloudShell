@@ -1,4 +1,4 @@
-using CloudShell.Abstractions.Authentication;
+using CloudShell.Client.Authentication;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Shell;
 using Microsoft.Extensions.DependencyInjection;

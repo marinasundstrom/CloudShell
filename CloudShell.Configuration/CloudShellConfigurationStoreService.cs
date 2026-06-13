@@ -1,4 +1,4 @@
-using CloudShell.Abstractions.Authentication;
+using CloudShell.Client.Authentication;
 
 namespace CloudShell.Configuration;
 

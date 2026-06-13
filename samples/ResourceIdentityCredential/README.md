@@ -2,7 +2,7 @@
 
 This sample demonstrates the public-preview CloudShell resource credential
 chain and the SDK-style Control Plane client authentication flow. It uses
-`DefaultCloudShellResourceCredential` from `CloudShell.Abstractions` to acquire
+`DefaultCloudShellResourceCredential` from `CloudShell.Client` to acquire
 a bearer token for the current resource identity and, when a Control Plane base
 address is configured, supplies that credential to `RemoteControlPlane`.
 

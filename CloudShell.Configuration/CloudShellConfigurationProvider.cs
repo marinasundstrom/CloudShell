@@ -1,4 +1,5 @@
-using CloudShell.Abstractions.Authentication;
+using CloudShell.Client.Authentication;
+using CloudShell.Configuration.Client;
 using Microsoft.Extensions.Configuration;
 using System.Collections;
 using System.Text.Json;

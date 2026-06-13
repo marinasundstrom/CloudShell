@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CloudShell.Abstractions\CloudShell.Abstractions.csproj" />
+    <ProjectReference Include="..\CloudShell.Client\CloudShell.Client.csproj" />
   </ItemGroup>
 
 </Project>

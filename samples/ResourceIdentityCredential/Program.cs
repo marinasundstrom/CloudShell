@@ -1,4 +1,4 @@
-using CloudShell.Abstractions.Authentication;
+using CloudShell.Client.Authentication;
 using CloudShell.ControlPlane.Client;
 
 var scope = args.Length > 0 && !string.IsNullOrWhiteSpace(args[0])

@@ -1,11 +1,11 @@
-using CloudShell.Abstractions.Authentication;
+using CloudShell.Client.Authentication;
 using System.Collections;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-namespace CloudShell.Configuration;
+namespace CloudShell.Configuration.Client;
 
 /// <summary>
 /// SDK client for a CloudShell Configuration Store service.

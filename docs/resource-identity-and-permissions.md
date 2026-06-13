@@ -236,8 +236,10 @@ services can pass a `CloudShellResourceCredential` to `RemoteControlPlane` or
 to `AddRemoteControlPlane(...)` and use the domain-shaped `IControlPlane` or
 manager interfaces without passing raw bearer tokens through each call. Future
 service-specific SDK clients should reuse this credential contract.
-`ConfigurationStoreClient` and `SecretsVaultClient` are the first
-service-specific clients that follow that pattern.
+`CloudShell.Configuration.Client` and `CloudShell.Secrets.Client` are the first
+service-specific client packages that follow that pattern, and both depend on
+the lightweight `CloudShell.Client` credential package instead of the full
+Control Plane abstraction surface.
 
 `ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
 provider to provision one resource identity and its matching permission grants.

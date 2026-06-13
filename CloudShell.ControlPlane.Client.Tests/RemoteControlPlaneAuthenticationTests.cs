@@ -1,4 +1,4 @@
-using CloudShell.Abstractions.Authentication;
+using CloudShell.Client.Authentication;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.ControlPlane.Hosting;
 using Microsoft.AspNetCore.Builder;

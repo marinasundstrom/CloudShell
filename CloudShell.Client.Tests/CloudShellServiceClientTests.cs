@@ -1,9 +1,9 @@
-using CloudShell.Abstractions.Authentication;
-using CloudShell.Configuration;
-using CloudShell.Secrets;
+using CloudShell.Client.Authentication;
+using CloudShell.Configuration.Client;
+using CloudShell.Secrets.Client;
 using System.Net;
 
-namespace CloudShell.Abstractions.Tests;
+namespace CloudShell.Client.Tests;
 
 public sealed class CloudShellServiceClientTests
 {

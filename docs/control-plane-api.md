@@ -116,7 +116,8 @@ Authored services that run as CloudShell resources should use the same
 Azure-like SDK pattern as built-in services: create a
 `DefaultCloudShellResourceCredential` and pass it to the Control Plane client
 instead of moving raw tokens, client IDs, or secrets through domain method
-calls.
+calls. See [SDK clients](sdk-clients.md) for package boundaries and the
+shared credential contract.
 
 ```csharp
 var credential = new DefaultCloudShellResourceCredential();

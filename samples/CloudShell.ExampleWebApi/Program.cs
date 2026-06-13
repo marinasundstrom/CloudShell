@@ -1,6 +1,7 @@
-using CloudShell.Abstractions.Authentication;
+using CloudShell.Client.Authentication;
 using CloudShell.Configuration;
-using CloudShell.Secrets;
+using CloudShell.Configuration.Client;
+using CloudShell.Secrets.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddCloudShellConfiguration();

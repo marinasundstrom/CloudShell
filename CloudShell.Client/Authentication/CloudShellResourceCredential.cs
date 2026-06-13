@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace CloudShell.Abstractions.Authentication;
+namespace CloudShell.Client.Authentication;
 
 /// <summary>
 /// Acquires authentication evidence for a CloudShell resource identity.

@@ -28,7 +28,8 @@ Implemented today:
   identity bearer tokens and resource-permission claims.
 - A public-preview `DefaultCloudShellResourceCredential` chain for authored and
   built-in services that need to acquire authentication evidence for their own
-  resource identity.
+  resource identity. See [SDK clients](sdk-clients.md) for the lightweight
+  client package and service-client boundaries.
 
 Direction:
 

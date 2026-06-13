@@ -87,8 +87,12 @@ represented through the same resource model.
 - `CloudShell.Host`: development sample host that wires CloudShell UI, Control Plane, and local provider extensions together.
 - `CloudShell.ControlPlane`: control-plane services, authorization adapters, resource/log stores, and the versioned OpenAPI endpoint module.
 - `CloudShell.Abstractions`: extension SDK, shell contributions, and resource contracts.
+- `CloudShell.Client`: shared SDK client credential primitives.
+- `CloudShell.ControlPlane.Client`: remote domain client for the Control Plane API.
+- `CloudShell.Configuration.Client`: SDK client for Configuration Store service APIs.
 - `CloudShell.Configuration`: Microsoft `IConfiguration` provider for CloudShell configuration services.
 - `CloudShell.ConfigurationService`: standalone ASP.NET Core configuration service application.
+- `CloudShell.Secrets.Client`: SDK client for Secrets Vault service APIs.
 - `CloudShell.Persistence`: EF Core SQLite or SQL Server persistence for resources and local Identity.
 - `CloudShell.Providers.Applications`: extension for executable application resources on a local development machine.
 - `CloudShell.Providers.Configuration`: extension for local configuration service resources.

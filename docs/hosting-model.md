@@ -216,7 +216,8 @@ can run without credentials, use a static bearer token, or acquire a
 client-credentials token from the built-in Control Plane token authority.
 Authored services running as CloudShell resources can also use the SDK-style
 resource credential flow by passing `DefaultCloudShellResourceCredential` to
-the remote Control Plane client:
+the remote Control Plane client. See [SDK clients](sdk-clients.md) for package
+boundaries and usage:
 
 ```csharp
 builder.Services.AddRemoteControlPlane(

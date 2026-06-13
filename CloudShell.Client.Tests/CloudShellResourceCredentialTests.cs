@@ -1,7 +1,7 @@
+using CloudShell.Client.Authentication;
 using System.Net;
-using CloudShell.Abstractions.Authentication;
 
-namespace CloudShell.Abstractions.Tests;
+namespace CloudShell.Client.Tests;
 
 public sealed class CloudShellResourceCredentialTests
 {
