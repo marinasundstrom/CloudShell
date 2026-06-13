@@ -8,6 +8,7 @@ namespace CloudShell.ControlPlane.ResourceManager;
 
 public sealed class HostScopedResourceShutdownService(
     IServiceScopeFactory scopeFactory,
+    IHostEnvironment environment,
     ILogger<HostScopedResourceShutdownService> logger) : IHostedService
 {
     public const string ShutdownTrigger = "host-shutdown";
@@ -27,7 +28,7 @@ public sealed class HostScopedResourceShutdownService(
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                logger.LogInformation(
+                LogDevelopmentLifecycle(
                     "Stopping host-scoped resource {ResourceId} during Control Plane shutdown.",
                     resource.Id);
                 await resourceManager.ExecuteResourceActionAsync(
@@ -37,7 +38,7 @@ public sealed class HostScopedResourceShutdownService(
                         IgnoreDependentWarning: true,
                         TriggeredBy: ShutdownTrigger),
                     cancellationToken);
-                logger.LogInformation(
+                LogDevelopmentLifecycle(
                     "Stopped host-scoped resource {ResourceId} during Control Plane shutdown.",
                     resource.Id);
             }
@@ -48,6 +49,14 @@ public sealed class HostScopedResourceShutdownService(
                     "Failed to stop host-scoped resource {ResourceId} during Control Plane shutdown.",
                     resource.Id);
             }
+        }
+    }
+
+    private void LogDevelopmentLifecycle(string message, params object?[] args)
+    {
+        if (environment.IsDevelopment())
+        {
+            logger.LogInformation(message, args);
         }
     }
 

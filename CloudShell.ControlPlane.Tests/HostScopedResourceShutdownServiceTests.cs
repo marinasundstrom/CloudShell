@@ -2,6 +2,8 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace CloudShell.ControlPlane.Tests;
@@ -30,6 +32,7 @@ public sealed class HostScopedResourceShutdownServiceTests
             new Dictionary<string, ContainerHostDescriptor>(StringComparer.OrdinalIgnoreCase)));
         using var services = new ServiceCollection()
             .AddLogging()
+            .AddSingleton<IHostEnvironment>(new TestHostEnvironment())
             .AddScoped<IResourceManager>(_ => resourceManager)
             .AddScoped<IResourceOrchestrationCatalog>(_ => catalog)
             .AddSingleton<HostScopedResourceShutdownService>()
@@ -76,6 +79,18 @@ public sealed class HostScopedResourceShutdownServiceTests
         public Task<ResourceOrchestrationCatalogSnapshot> GetSnapshotAsync(
             CancellationToken cancellationToken = default) =>
             Task.FromResult(snapshot);
+    }
+
+    private sealed class TestHostEnvironment : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Production;
+
+        public string ApplicationName { get; set; } = "CloudShell.ControlPlane.Tests";
+
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+
+        public IFileProvider ContentRootFileProvider { get; set; } =
+            new NullFileProvider();
     }
 
     private sealed class RecordingResourceManager : IResourceManager
