@@ -44,8 +44,29 @@ MVP scope:
 | UX polish | Resource Manager common workflows are understandable, diagnostics are actionable, generated details are useful, and identity, configuration, secrets, networking, and app controls are discoverable without bespoke sample code. |
 | Samples should work | Supported samples build and smoke-test, including combined hosting, split hosting, container host, settings and secrets, host virtual networking, load balancer, project references, and container app deployment. |
 
-The execution plan and near-term roadmap below are the implementation order for
-reaching this MVP and then expanding beyond it.
+The execution plan and foundation rationale below define the implementation
+order for reaching this MVP and then expanding beyond it.
+
+### Post-MVP: Initial On-Premise Hosting
+
+Goal: make CloudShell credible as an initial on-premise control plane after the
+MVP local/team-owned flows are stable.
+
+The first post-MVP scenario should prove that CloudShell can host and manage a
+small on-premise environment with acceptable UI management, provider-backed
+networking on more than one operating-system/runtime target, and integration
+points that are good enough for real platform experimentation.
+
+Required outcome:
+
+| Area | Required outcome |
+| --- | --- |
+| On-premise host scenario | A deployable combined or split Control Plane/UI setup can manage resources against a team-owned host or host runtime, not only a developer workstation. |
+| Management UI | Resource Manager can inspect and operate the environment well enough for platform operators, with permission-aware controls and a read-only mode for environments where UI writes must be disabled. |
+| Cross-platform networking | Virtual networks, ingress/gateway/load-balancer providers, public endpoint mapping, and DNS/name mapping work through provider capabilities rather than OS-specific assumptions. |
+| Network-level discovery | Services can be discovered through network or provider-level mechanisms such as DNS, service registries, or Eureka-like systems, separate from the Aspire-compatible app environment-variable mapping. |
+| Integration points | Providers, CloudShell extensions, webhooks, WebSocket/streaming subscriptions, and API clients can react to resource events and lifecycle state without replacing the core orchestrator path. |
+| Validation samples | More complex samples prove multi-resource application topology, public ingress, DNS/name mapping, service discovery, identity-backed configuration/secrets, and operator UI workflows. |
 
 ## MVP Execution Plan
 
@@ -83,7 +104,8 @@ listed here before pulling in broader proposal work.
    runtime and image updates.
 8. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, `cloudshell.service`, DNS/name mapping, external
-   deployment projection, and container application environments.
+   deployment projection, container application environments, and the initial
+   on-premise hosting scenario.
 
 ### Now: MVP Convergence and Resource Manager Reliability
 
@@ -265,6 +287,14 @@ listed here before pulling in broader proposal work.
   exposure, DNS/name mapping, external deployment projection, and container
   application environments until host, routing, identity, runtime ownership,
   and deployment decisions are stable.
+- Prepare the first post-MVP on-premise hosting scenario once the MVP release
+  path is stable. That scenario should combine provider-backed networking,
+  virtual networks, ingress/public endpoint mapping, DNS/name mapping,
+  network-level service discovery, integration points, and more complex
+  validation samples.
+- Add a Resource Manager read-only mode so a local-development or
+  programmatic-declaration environment can be inspected without allowing UI
+  create/update/delete/action flows to override the declared graph.
 
 ## Foundation Rationale
 
@@ -497,6 +527,9 @@ This is where container application environments, autoscaling, traffic
 splitting, `cloudshell.service`, backend pools, Kubernetes-style service
 projection, and richer multi-host policy belong. These concepts depend on the
 host, routing, identity, runtime ownership, and deployment decisions above.
+The initial on-premise hosting scenario also belongs here: it should assemble
+the already-proven primitives into a larger environment rather than pulling
+new platform concepts into the MVP.
 
 References:
 

@@ -49,6 +49,14 @@ expectations rather than duplicating the task queue.
   automation, remote-host completeness, runtime-managed resources, and rich
   deployment history should not move ahead of those release-shaping slices
   unless they block the supported MVP samples.
+- The first post-MVP target is an initial on-premise hosting scenario. It
+  should prove acceptable Resource Manager operations, provider-backed
+  cross-platform networking, virtual networks, ingress/public endpoint mapping,
+  DNS/name mapping, network-level service discovery, event/integration points,
+  and more complex validation samples. Resource Manager read-only mode is part
+  of that post-MVP foundation so local-development or programmatic-declaration
+  environments can be inspected without letting UI writes override the declared
+  graph.
 - CloudShell is an open platform. Built-in services and samples should dogfood
   the same public integration points, identity model, service APIs, lifecycle
   contracts, diagnostics, and authorization surfaces that extension authors and

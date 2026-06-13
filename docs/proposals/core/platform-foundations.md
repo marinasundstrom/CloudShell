@@ -7,10 +7,12 @@ In progress.
 CloudShell already provides a resource model, Resource Manager, orchestration abstractions, runtime-managed resources, deployments, revisions, networking abstractions, and runtime execution capabilities.
 
 Several foundational platform capabilities remain undefined or only partially specified.
-Resource identity and permissions are the current first foundation focus. The
-initial provider model must support a separate development identity server for
-local work and Microsoft Entra ID (Azure AD) as a required external
-OIDC/OAuth provider target.
+MVP convergence is the current foundation focus: keep supported samples,
+Resource Manager behavior, diagnostics, lifecycle activity, settings/secrets,
+and built-in identity flows reliable before broadening into larger platform
+features. The identity provider model must still support a separate
+development identity server for local work and Microsoft Entra ID (Azure AD)
+as a required external OIDC/OAuth provider target.
 
 This proposal identifies the platform areas that should be treated as foundational and prioritized before introducing more advanced platform features.
 
@@ -28,6 +30,7 @@ Examples include:
 * resource metrics
 * usage reporting
 * reconciliation behavior
+* UI mutability policy
 
 Without clear platform foundations:
 
@@ -121,6 +124,22 @@ Areas include:
 
 This foundation supports orchestration, runtime-managed resources, deployments, and operational tooling.
 
+### UI Mutability and Read-Only Mode
+
+CloudShell needs a consistent way to decide when the Resource Manager UI can
+mutate resources.
+
+Local development and programmatic-declaration scenarios may want the UI to be
+inspection-only so users do not accidentally override resources owned by code.
+Team or production-like environments may allow UI-created resources and
+operator-driven actions. The policy should be explicit, permission-aware, and
+visible in the UI.
+
+Read-only mode should disable create, update, delete, and resource-action
+workflows while preserving Resource Manager inspection, diagnostics, logs,
+activity, topology, identity, configuration reference display, and network
+exposure views.
+
 ## Relationship to Existing Proposals
 
 This proposal does not define the detailed behavior of these areas.
@@ -135,10 +154,12 @@ Future proposals are expected for:
 * Traceability and Audit
 * Usage Monitoring and Metrics
 * Resource Reconciliation
+* UI Mutability and Read-Only Mode
 
-The current foundation order starts with identity and permissions, then uses
-that model to secure secret access and audit decisions before broadening into
-host/runtime ownership, runtime-managed resources, and deployments.
+The current foundation order starts with MVP convergence, then uses targeted
+identity and permission work to secure secret access and audit decisions before
+broadening into host/runtime ownership, runtime-managed resources, on-premise
+hosting, and deployments.
 
 ## Implementation Plan
 
@@ -153,10 +174,11 @@ host/runtime ownership, runtime-managed resources, and deployments.
 * Identify cross-cutting dependencies.
 * Define common terminology.
 * Define shared platform services.
+* Define Resource Manager read-only mode and mutability policy.
 
 ## Open Questions
 
-* After identity and permissions, which foundation should be implemented next?
+* Which foundation should be implemented next after MVP convergence?
 * Which areas require Resource Manager support?
 * Which areas belong to providers versus platform services?
 * Which capabilities should be mandatory for providers?

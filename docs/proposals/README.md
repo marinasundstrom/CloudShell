@@ -29,7 +29,7 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 | 10 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress design | Post-MVP foundation, with MVP implications for diagnostics and cleanup | Decide ownership, visibility, cleanup, diagnostics, and authorization before broad runtime artifact projection. |
 | 11 | [Deployments and revisions](deployment/deployments-and-revisions.md) | In progress design | Post-MVP foundation, with MVP current-revision support | Rich rollout history waits until runtime ownership and traceability boundaries are clear. |
 | 12 | [Deployment projection](deployment/deployment-projection.md) | In progress | Later portability | Tracks external deployment artifact projection and should not displace the MVP control-plane milestone. |
-| 13 | [DNS and name mapping](networking/dns-and-name-mapping-resource.md) | Proposed | Later networking | Name resolution remains separate from MVP network primitives unless needed by a concrete routing slice. |
+| 13 | [DNS and name mapping](networking/dns-and-name-mapping-resource.md) | Proposed | Post-MVP: Initial on-premise hosting | Name mapping and network-level service discovery should support the first on-premise scenario after MVP, while remaining separate from MVP routing primitives unless needed by a concrete sample. |
 
 ## Current proposal order
 

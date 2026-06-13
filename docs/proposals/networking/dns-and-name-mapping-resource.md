@@ -8,9 +8,9 @@ Proposed.
 
 ## Problem
 
-CloudShell can model applications, endpoints, virtual networks, ingress mappings, and load balancers, but it also needs a common way to describe how names resolve to those endpoints.
+CloudShell can model applications, endpoints, virtual networks, ingress mappings, and load balancers, but it also needs a common way to describe how names resolve to those endpoints and how services are discovered inside a network boundary.
 
-In local development this may mean `localhost`, `/etc/hosts`, Docker network aliases, or development domains such as `app.local`. In self-hosted and cloud-connected environments, the same intent may map to DNS zones, record sets, private DNS, ingress host rules, service discovery, or provider-owned naming systems.
+In local development this may mean `localhost`, `/etc/hosts`, Docker network aliases, or development domains such as `app.local`. In self-hosted and cloud-connected environments, the same intent may map to DNS zones, record sets, private DNS, ingress host rules, service discovery, Eureka-like registries, or provider-owned naming systems.
 
 Without a common name-mapping model, DNS-like behavior risks becoming hidden inside load balancers, virtual networks, or provider-specific configuration.
 
@@ -19,8 +19,8 @@ Without a common name-mapping model, DNS-like behavior risks becoming hidden ins
 * Model DNS zones, records, and name mappings as resources.
 * Keep name resolution separate from routing behavior.
 * Allow local development providers to materialize names through host files, local resolvers, or development DNS.
-* Allow cloud or infrastructure providers to materialize names through DNS zones, private DNS, service discovery, or provider-specific naming systems.
-* Let ingress, load balancer, and virtual network resources reference stable names without owning DNS directly.
+* Allow cloud or infrastructure providers to materialize names through DNS zones, private DNS, network-level service discovery, or provider-specific naming systems.
+* Let ingress, load balancer, service discovery, and virtual network resources reference stable names without owning DNS directly.
 * Support both public and private name mappings.
 * Keep provider-specific DNS behavior behind provider capabilities and actions.
 
@@ -30,6 +30,7 @@ Without a common name-mapping model, DNS-like behavior risks becoming hidden ins
 * Do not standardize every DNS record type in the first version.
 * Do not make load balancers own DNS records.
 * Do not make virtual networks own all name resolution behavior.
+* Do not replace the current Aspire-compatible application service-discovery environment-variable mapping.
 * Do not require public DNS integration for local development.
 * Do not standardize provider-specific DNS propagation, validation, or registrar behavior in the first version.
 
@@ -73,6 +74,15 @@ A DNS record or name mapping connects a name to a target:
 * load balancer frontend
 * service discovery entry
 * provider-owned endpoint
+
+Network-level service discovery is different from the current application
+resource service-discovery mapping. Application `WithReference(...)` and
+`WithServiceDiscovery()` produce workload configuration, usually environment
+variables in the .NET service-discovery shape. Network-level service discovery
+is infrastructure behavior: a resolver, registry, DNS provider, Eureka-like
+service, mesh, gateway, or platform controller can translate a stable service
+name to one or more reachable endpoints for resources inside a network
+boundary.
 
 ## Declaration Model
 
@@ -161,7 +171,15 @@ DNS name
     -> address or ingress endpoint
         -> gateway or load balancer
             -> backend target
+
+service name
+    -> service discovery registry or resolver
+        -> endpoint, ingress, load balancer, or backend target
 ```
+
+The DNS and service-discovery paths may be implemented by the same provider,
+but the model should not require that. A network can use DNS records for
+public names and a separate service registry for private service lookup.
 
 ## Provider Responsibilities
 
@@ -173,6 +191,8 @@ Examples:
 * Docker provider: network aliases or embedded DNS.
 * Traefik provider: host rules plus optional local name publication.
 * Kubernetes provider: Services, DNS names, ingress hosts, or Gateway API hostnames.
+* Service registry provider: Eureka, Consul, or another registry that resolves
+  service names to endpoint sets inside a network boundary.
 * Azure provider: public DNS zones, private DNS zones, public IP labels, or managed service hostnames.
 
 Provider resources advertise capabilities such as:
@@ -216,7 +236,7 @@ This allows the same load balancer rule to work with different DNS providers or 
 
 ## Relationship to Virtual Networks
 
-Virtual networks may use private DNS or service discovery, but DNS should remain a separate capability.
+Virtual networks may use private DNS or service discovery, but DNS and service discovery should remain separate capabilities.
 
 A virtual network can depend on a DNS provider or name resolver:
 
@@ -236,7 +256,32 @@ The virtual network defines the communication boundary.
 
 The DNS zone defines names within that boundary.
 
-The provider determines how those names are resolved.
+The provider determines how those names are resolved. A different provider may
+own network-level service discovery for the same boundary if the environment
+uses a service registry instead of DNS-style names.
+
+## Network-Level Service Discovery
+
+CloudShell should support service discovery at the network layer after the MVP
+local workflow is stable.
+
+This should be provider-backed and boundary-aware:
+
+* a virtual network or environment boundary can select a service discovery
+  provider
+* a service discovery provider can publish stable service names for resources,
+  endpoints, ingress endpoints, load-balancer frontends, or backend pools
+* providers can map names through DNS, a registry such as Eureka, Consul, or a
+  platform-native resolver
+* target resources can show read-only inbound discovery names in Resource
+  Manager
+* application-level environment-variable service discovery remains an
+  application provider concern and should not be the only discovery mechanism
+  for on-premise environments
+
+This allows CloudShell to support both local Aspire-like service discovery and
+on-premise network-level discovery without treating one as a compatibility
+layer over the other.
 
 ## Default Orchestrator Implementation
 
@@ -245,6 +290,8 @@ The default orchestrator should treat DNS as logical name mapping unless a provi
 Supported behavior:
 
 * Project DNS zones and name mappings as ordinary resources.
+* Project service discovery providers and discovery names as ordinary
+  resources or provider-owned projected data when a provider owns the registry.
 * Validate that mapping targets exist.
 * Preserve dependencies between names, targets, and providers.
 * Allow local providers to materialize mappings for development domains.
@@ -306,6 +353,8 @@ api
 8. Add a local development provider for host-based name publication.
 9. Add sample declarations for local DNS-style mappings.
 10. Add provider-backed examples for load balancer and virtual network integration.
+11. Add a post-MVP sample that uses network-level service discovery through a
+    provider such as a local registry or Eureka-like service.
 
 ## Remaining Tasks
 
@@ -315,6 +364,7 @@ api
 * Add provider diagnostics for names that cannot be published.
 * Add UI affordances for name mappings on target resources.
 * Add integration examples with virtual networks, load balancers, and ingress resources.
+* Decide the first provider-backed network-level service discovery sample.
 
 ## Open Questions
 
