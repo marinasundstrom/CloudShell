@@ -4,7 +4,17 @@ using Microsoft.Extensions.Hosting;
 
 internal static class SampleHostSettings
 {
-    public static WebApplicationOptions CreateWebApplicationOptions(string[] args)
+    public static WebApplicationBuilder CreateBuilder(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(CreateWebApplicationOptions(args));
+        builder.Configuration
+            .SetBasePath(AppContext.BaseDirectory)
+            .AddJsonFile("hostsettings.json", optional: true);
+
+        return builder;
+    }
+
+    private static WebApplicationOptions CreateWebApplicationOptions(string[] args)
     {
         var hostSettings = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)

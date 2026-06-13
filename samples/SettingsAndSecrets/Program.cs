@@ -11,7 +11,7 @@ using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using System.Security.Cryptography;
 
-var builder = WebApplication.CreateBuilder(SampleHostSettings.CreateWebApplicationOptions(args));
+var builder = SampleHostSettings.CreateBuilder(args);
 var repositoryRootPath = Path.GetFullPath("../..", builder.Environment.ContentRootPath);
 var configurationStoreServiceProjectPath = Path.Combine(
     repositoryRootPath,

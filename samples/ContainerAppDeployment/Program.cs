@@ -8,7 +8,7 @@ using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Docker;
 
-var builder = WebApplication.CreateBuilder(SampleHostSettings.CreateWebApplicationOptions(args));
+var builder = SampleHostSettings.CreateBuilder(args);
 
 const string registryHost = "localhost";
 const int registryPort = 5023;

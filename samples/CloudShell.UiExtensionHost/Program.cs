@@ -3,7 +3,7 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.UiExtensionHost;
 
-var builder = WebApplication.CreateBuilder(SampleHostSettings.CreateWebApplicationOptions(args));
+var builder = SampleHostSettings.CreateBuilder(args);
 
 builder
     .AddCloudShellUi()

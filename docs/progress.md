@@ -248,8 +248,11 @@ expectations rather than duplicating the task queue.
   so production log volume and persisted resource events/audit can be designed
   intentionally.
 - Web samples carry `hostsettings.json` with `environment` set to
-  `Development`, and load that host setting before building the ASP.NET Core
-  host so local sample runs show the development lifecycle logs.
+  `Development`, and load that host setting before creating the ASP.NET Core
+  `WebApplicationBuilder` so local sample runs show the development lifecycle
+  logs. The helper also adds `hostsettings.json` to builder configuration; the
+  pre-builder read is needed because minimal hosting selects the environment
+  while the builder is created.
 - Container app image deployments create and project a new app-owned revision;
   runtime container instances/replicas implement a revision but do not define
   the stable revision identity.
