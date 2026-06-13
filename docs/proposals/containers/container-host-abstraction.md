@@ -433,8 +433,11 @@ not introduce a second out-of-band local management API for the shell.
   builder host selection are in place.
 - Docker Compose host materialization uses `IContainerHostResolver` and no
   longer keeps a separate provider-local engine lookup fallback.
-- Continue moving expected host-resolution failures into diagnostics/action
-  capability reasons instead of surfacing late orchestration exceptions.
+- Missing explicit/default host resolution now feeds Run/Restart action
+  capability reasons and execution uses the same domain unavailable-action
+  error before provider dispatch. Continue extending this diagnostics path to
+  host unavailable, credential unavailable, missing runtime capability, and
+  unsupported image/build mode states.
 - Add a provider-owned Docker runtime implementation for owner-scoped
   implementation containers.
 - Continue removing remaining engine naming from provider internals where it is
@@ -442,7 +445,7 @@ not introduce a second out-of-band local management API for the shell.
 - Add host capability projection when a concrete workflow needs capability
   validation.
 - Add tests for explicit host selection, configured default host selection,
-  registered default host descriptors, missing host diagnostics, and
-  provider-owned runtime cleanup.
+  registered default host descriptors, missing host diagnostics, the next
+  host-readiness states, and provider-owned runtime cleanup.
 - Update load-balancer container mode to use the runtime contract instead of
   modeling implementation containers as user-authored container apps.

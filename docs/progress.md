@@ -331,8 +331,10 @@ expectations rather than duplicating the task queue.
   support unless the Secrets provider is already registered.
 - The container host abstraction should be host-first and descriptor-driven:
   providers resolve explicit or default container hosts through a shared
-  resolver, keep provider-owned runtime state behind provider contracts, and
-  migrate existing container-host APIs through compatibility adapters.
+  resolver, keep provider-owned runtime state behind provider contracts, use
+  host-oriented public naming, and report missing explicit/default host
+  placement through Run/Restart action capability reasons before orchestration
+  dispatch.
 - Container app replicas can now be updated as an explicit desired count
   through the domain manager and `PUT /api/container-apps/v1/{containerAppId}/replicas`.
   This is not autoscaling: richer replica health, placement, traffic splitting,

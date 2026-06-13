@@ -139,23 +139,25 @@ public sealed class InProcessControlPlane(
             AffectedResourceIds: [resourceId]));
     }
 
-    public Task<IReadOnlyDictionary<string, ResourceOperationCapabilities>> GetResourceOperationCapabilitiesAsync(
+    public async Task<IReadOnlyDictionary<string, ResourceOperationCapabilities>> GetResourceOperationCapabilitiesAsync(
         IReadOnlyList<string> resourceIds,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var capabilities = resourceIds
+        var resources = resourceIds
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Select(resourceId => resourceManager.GetResource(resourceId))
             .OfType<Resource>()
-            .Select(CreateCapabilities)
+            .ToArray();
+        var capabilities = await Task.WhenAll(resources.Select(resource =>
+            CreateCapabilitiesAsync(resource, cancellationToken)));
+
+        return capabilities
             .ToDictionary(
                 capability => capability.ResourceId,
                 capability => capability,
                 StringComparer.OrdinalIgnoreCase);
-
-        return Task.FromResult<IReadOnlyDictionary<string, ResourceOperationCapabilities>>(capabilities);
     }
 
     public Task<IReadOnlyList<ResourcePermissionGrant>> ListResourcePermissionGrantsAsync(
@@ -367,6 +369,10 @@ public sealed class InProcessControlPlane(
         }
 
         var unavailableReason = GetActionUnavailableReason(resource, action);
+        unavailableReason ??= await orchestration.GetActionUnavailableReasonAsync(
+            resource,
+            action,
+            cancellationToken);
         if (unavailableReason is not null)
         {
             throw new ControlPlaneException(ControlPlaneError.ResourceActionUnavailable(unavailableReason));
@@ -583,7 +589,9 @@ public sealed class InProcessControlPlane(
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart or ResourceActionKind.Pause;
 
-    private ResourceOperationCapabilities CreateCapabilities(Resource resource)
+    private async Task<ResourceOperationCapabilities> CreateCapabilitiesAsync(
+        Resource resource,
+        CancellationToken cancellationToken)
     {
         var group = resourceManager.GetGroupForResource(resource.Id);
         var canManage = authorization.CanAccessResource(
@@ -591,16 +599,16 @@ public sealed class InProcessControlPlane(
             group?.Id,
             CloudShellPermissions.Resources.Manage);
         var procedureProvider = GetProcedureProvider(resource);
-        var actionCapabilities = resource.ResourceActions
-            .Select(action => CreateActionCapability(
+        var actionCapabilities = await Task.WhenAll(resource.ResourceActions
+            .Select(action => CreateActionCapabilityAsync(
                 resource,
                 action,
                 CanAccessResource(
                     resource.Id,
                     group?.Id,
                     ResourceActionPermissions.GetRequiredPermission(action)),
-                procedureProvider is not null))
-            .ToArray();
+                procedureProvider is not null,
+                cancellationToken)));
         var executableActionIds = actionCapabilities
             .Where(capability => capability.CanExecute)
             .Select(capability => capability.ActionId)
@@ -614,11 +622,12 @@ public sealed class InProcessControlPlane(
             actionCapabilities);
     }
 
-    private static ResourceActionCapability CreateActionCapability(
+    private async Task<ResourceActionCapability> CreateActionCapabilityAsync(
         Resource resource,
         ResourceAction action,
         bool canExecute,
-        bool hasProcedureProvider)
+        bool hasProcedureProvider,
+        CancellationToken cancellationToken)
     {
         if (!canExecute)
         {
@@ -638,6 +647,10 @@ public sealed class InProcessControlPlane(
         }
 
         var unavailableReason = GetActionUnavailableReason(resource, action);
+        unavailableReason ??= await orchestration.GetActionUnavailableReasonAsync(
+            resource,
+            action,
+            cancellationToken);
         return new ResourceActionCapability(
             action.Id,
             unavailableReason is null,

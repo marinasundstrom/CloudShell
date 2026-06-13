@@ -90,6 +90,33 @@ public sealed class InProcessControlPlaneResourceStateTests
             capability.GetActionUnavailableReason("custom"));
     }
 
+    [Fact]
+    public async Task GetResourceOperationCapabilities_ReturnsMissingContainerHostReason()
+    {
+        var resource = CreateResource("target", ResourceState.Stopped);
+        var controlPlane = CreateControlPlane(
+            [resource],
+            descriptorProviders:
+            [
+                new StaticWorkloadDescriptorProvider(
+                    resource.Id,
+                    new ResourceWorkloadConfiguration(
+                        ResourceWorkloadKind.ContainerImage,
+                        "api",
+                        Image: "example/api:latest",
+                        ContainerHostId: "docker:missing"))
+            ]);
+
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync([resource.Id]);
+
+        var capability = Assert.Single(capabilities).Value;
+        Assert.False(capability.CanExecuteAction(ResourceActionIds.Run));
+        Assert.Equal(
+            "Container host 'docker:missing' is not registered.",
+            capability.GetActionUnavailableReason(ResourceActionIds.Run));
+        Assert.DoesNotContain(ResourceActionIds.Run, capability.ExecutableActionIds);
+    }
+
     [Theory]
     [InlineData(ResourceState.Running, ResourceActionIds.Run)]
     [InlineData(ResourceState.Stopped, ResourceActionIds.Stop)]
@@ -107,6 +134,33 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnavailable, exception.Error.Code);
         Assert.Contains("cannot", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_RejectsMissingContainerHostBeforeDispatch()
+    {
+        var provider = new TestResourceProvider();
+        var resource = CreateResource("target", ResourceState.Stopped);
+        var controlPlane = CreateControlPlane(
+            [resource],
+            provider,
+            descriptorProviders:
+            [
+                new StaticWorkloadDescriptorProvider(
+                    resource.Id,
+                    new ResourceWorkloadConfiguration(
+                        ResourceWorkloadKind.ContainerImage,
+                        "api",
+                        Image: "example/api:latest",
+                        ContainerHostId: "docker:missing"))
+            ]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Run)));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnavailable, exception.Error.Code);
+        Assert.Equal("Container host 'docker:missing' is not registered.", exception.Message);
         Assert.Empty(provider.ExecutedActions);
     }
 
@@ -857,6 +911,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<ResourcePermissionGrant>? permissionGrants = null,
         IReadOnlyList<ResourceIdentityProviderDefinition>? identityProviders = null,
         IReadOnlyList<IResourceIdentityProvisioner>? identityProvisioners = null,
+        IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,
+        IReadOnlyList<IContainerHostProvider>? containerHostProviders = null,
         Action<ResourceDeclarationStore>? configureDeclarations = null)
     {
         provider ??= new TestResourceProvider();
@@ -888,11 +944,12 @@ public sealed class InProcessControlPlaneResourceStateTests
             identityProvisioners ?? []);
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
-            [],
+            descriptorProviders ?? [],
             resourceManager,
             registrations,
             declarations,
-            CreateSelectionStore());
+            CreateSelectionStore(),
+            containerHostProviders ?? []);
 
         return new InProcessControlPlane(
             resourceManager,
@@ -963,6 +1020,27 @@ public sealed class InProcessControlPlaneResourceStateTests
             ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
         }
+    }
+
+    private sealed class StaticWorkloadDescriptorProvider(
+        string resourceId,
+        ResourceWorkloadConfiguration workload) : IResourceOrchestrationDescriptorProvider
+    {
+        public bool CanDescribe(Resource resource) =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceOrchestrationDescriptor> DescribeAsync(
+            Resource resource,
+            ResourceOrchestrationDescriptorContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ResourceOrchestrationDescriptor(
+                resource.Id,
+                resource.EffectiveTypeId,
+                resource.DependsOn,
+                [],
+                resource.Endpoints,
+                "1.0",
+                JsonSerializer.SerializeToElement(workload)));
     }
 
     private sealed class TestResourceIdentityProvisioner(string providerId) : IResourceIdentityProvisioner

@@ -66,9 +66,23 @@ public sealed class ResourceOrchestrationService(
         CancellationToken cancellationToken)
     {
         var context = CreateContext(resource);
-        await ValidateContainerEngineAsync(context, action, cancellationToken);
+        var unavailableReason = await GetContainerHostUnavailableReasonAsync(context, action, cancellationToken);
+        if (unavailableReason is not null)
+        {
+            throw new ControlPlaneException(ControlPlaneError.ResourceActionUnavailable(unavailableReason));
+        }
+
         var orchestrator = SelectActionOrchestrator(context, action);
         return await orchestrator.ExecuteActionAsync(context, action, cancellationToken);
+    }
+
+    public async Task<string?> GetActionUnavailableReasonAsync(
+        Resource resource,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        var context = CreateContext(resource);
+        return await GetContainerHostUnavailableReasonAsync(context, action, cancellationToken);
     }
 
     private async Task StartResourceDependenciesAsync(
@@ -293,20 +307,20 @@ public sealed class ResourceOrchestrationService(
             predicate(orchestrator));
     }
 
-    private async Task ValidateContainerEngineAsync(
+    private async Task<string?> GetContainerHostUnavailableReasonAsync(
         ResourceOrchestrationContext context,
         ResourceAction action,
         CancellationToken cancellationToken)
     {
         if (action.Kind is not (ResourceActionKind.Run or ResourceActionKind.Restart))
         {
-            return;
+            return null;
         }
 
         var workload = await ResolveExecutionWorkloadAsync(context, cancellationToken);
         if (workload?.Kind is not (ResourceWorkloadKind.ContainerImage or ResourceWorkloadKind.ContainerBuild))
         {
-            return;
+            return null;
         }
 
         var result = await containerHostResolver.ResolveAsync(
@@ -316,17 +330,11 @@ public sealed class ResourceOrchestrationService(
                 ExplicitHostResourceId: workload.ContainerHostId,
                 PreferredHostId: context.PreferredContainerHostId),
             cancellationToken);
-        if (!result.IsResolved)
-        {
-            if (!string.IsNullOrWhiteSpace(workload.ContainerHostId))
-            {
-                throw new InvalidOperationException(
-                    $"Container host '{workload.ContainerHostId}' is not registered.");
-            }
 
-            throw new InvalidOperationException(
-                $"Resource '{context.Resource.Name}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set WithContainerHost(...).");
-        }
+        return result.IsResolved
+            ? null
+            : result.ErrorMessage ??
+                $"Resource '{context.Resource.Name}' is container-backed but no matching container host is available.";
     }
 
     private async Task<ResourceWorkloadConfiguration?> ResolveExecutionWorkloadAsync(

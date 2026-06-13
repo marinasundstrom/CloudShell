@@ -124,12 +124,12 @@ listed here before pulling in broader proposal work.
 - Migrate Docker Compose materialization to the resolver while preserving
   samples and declarations on the current host-selection model. Docker Compose
   now requires the shared resolver instead of duplicating host lookup.
-- Return diagnostics and action capability reasons for missing hosts,
-  unavailable hosts, missing credentials, and unsupported runtime
-  capabilities.
+- Return diagnostics and action capability reasons for host placement failures.
+  Missing explicit/default container hosts now disable affected Run/Restart
+  actions before orchestration dispatch; unavailable hosts, missing
+  credentials, and unsupported runtime capabilities remain.
 - Add tests for explicit host selection, configured default host selection,
-  registered default host descriptors, missing-host diagnostics, and
-  compatibility adapter behavior.
+  registered default host descriptors, and missing-host diagnostics.
 
 ### Next: Configuration, Secrets, and Audit
 
