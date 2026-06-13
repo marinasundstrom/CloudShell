@@ -91,8 +91,9 @@ listed here before pulling in broader proposal work.
    dependency-start activity, resource-event filtering, and the first audit
    schemas for MVP operations.
 4. Host and runtime foundation: complete the shared host diagnostics needed by
-   container apps, Docker Compose, provider-owned runtime infrastructure, and
-   cleanup of host-scoped resources.
+   container apps, Docker Compose, and provider-owned runtime infrastructure,
+   building on the Resource Manager shutdown path that now stops host-scoped
+   workloads while leaving detached workloads recoverable.
 5. Network and routing hardening: tighten host-readiness, provider selection,
    route conflicts, endpoint conflicts, configuration preview, and backend
    diagnostics for the supported samples.

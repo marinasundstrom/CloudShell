@@ -248,17 +248,20 @@ expectations rather than duplicating the task queue.
   provider-owned runtime observations while start/restart work is in progress.
   Stale starting observations fall back to stopped so a crashed host does not
   leave an application permanently starting.
-- Control-plane-scoped application processes are terminated as process trees
-  during provider disposal, and shutdown waits briefly for them to exit so
-  host-scoped applications do not keep running after the CloudShell host stops.
-  In local development, Ctrl+C follows the normal ASP.NET Core host shutdown
-  path, so provider disposal is expected to run before the host process exits.
-  On startup, the Control Plane asks providers to reconcile host-scoped
-  resources before declaration auto-start; application process recovery stops
-  stale host-scoped PIDs while detached resources remain rediscoverable.
-  Programmatic application declarations default host-scoped for local
-  development, while UI-created application resources default detached where
-  supported.
+- During normal Control Plane shutdown, Resource Manager stops running
+  host-scoped workloads through the standard lifecycle action path with
+  `host-shutdown` as the trigger. Shutdown uses the orchestration catalog
+  lifetime signal, skips detached workloads, and stops dependents before their
+  dependencies. Provider disposal still terminates any remaining
+  control-plane-scoped local process tree as a final safety net, and shutdown
+  waits briefly for those processes to exit so host-scoped applications do not
+  keep running after the CloudShell host stops. In local development, Ctrl+C
+  follows the normal ASP.NET Core host shutdown path. On startup, the Control
+  Plane asks providers to reconcile host-scoped resources before declaration
+  auto-start; application process recovery stops stale host-scoped PIDs while
+  detached resources remain rediscoverable. Programmatic application
+  declarations default host-scoped for local development, while UI-created
+  application resources default detached where supported.
 - Detached process-backed applications recover by validating persisted PID and
   process start time when the resource definition still exists. Detached
   container-backed recovery is a separate host/runtime concern that should use

@@ -17,6 +17,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -104,6 +105,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<IResourceOrchestrationCatalog, ResourceOrchestrationCatalog>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IResourceOrchestrator, DefaultResourceOrchestrator>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, HostScopedResourceShutdownService>());
 
         return controlPlane;
     }
