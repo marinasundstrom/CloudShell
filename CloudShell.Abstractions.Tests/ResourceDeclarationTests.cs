@@ -3761,7 +3761,10 @@ public sealed class ResourceDeclarationTests
                 Replicas: 3,
                 EnvironmentVariables:
                 [
-                    new EnvironmentVariableAssignment("ASPNETCORE_ENVIRONMENT", "Development")
+                    new EnvironmentVariableAssignment("ASPNETCORE_ENVIRONMENT", "Development"),
+                    new EnvironmentVariableAssignment(
+                        "services__catalog-api__http__0",
+                        "http://catalog.local:8080")
                 ]),
             DependsOn:
             [
@@ -3788,6 +3791,9 @@ public sealed class ResourceDeclarationTests
         Assert.Contains("name: \"sample\"", yaml);
         Assert.Contains("  api:", yaml);
         Assert.Contains("    image: \"ghcr.io/example/api:dev\"", yaml);
+        Assert.Contains("    environment:", yaml);
+        Assert.Contains("      ASPNETCORE_ENVIRONMENT: \"Development\"", yaml);
+        Assert.Contains("      services__catalog-api__http__0: \"http://catalog.local:8080\"", yaml);
         Assert.Contains("    depends_on:", yaml);
         Assert.Contains("      - db", yaml);
         Assert.Contains("    labels:", yaml);
