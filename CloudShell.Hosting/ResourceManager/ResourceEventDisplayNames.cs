@@ -180,6 +180,10 @@ internal static class ResourceEventDisplayNames
         {
             value = value[ResourceEventTypes.Actions.Prefix.Length..];
         }
+        else if (value.StartsWith(EventPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            value = value[EventPrefix.Length..];
+        }
 
         var words = value
             .Replace('.', ' ')
