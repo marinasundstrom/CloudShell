@@ -90,7 +90,7 @@ public sealed class ResourceOrchestrationService(
         var orchestrator = SelectActionOrchestrator(context, action);
         AppendResourceActionEvent(
             resource,
-            "action.starting",
+            "action.start",
             $"Starting resource action '{action.Id}'.{FormatCause(cause)}",
             triggeredBy);
 

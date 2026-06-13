@@ -88,7 +88,7 @@ when that is known.
 
 Resource action lifecycle events are emitted for the resource whose action is
 running. When dependency startup starts another resource, that dependency gets
-its own `action.starting`, `action.execute`, or `action.failed` records with
+its own `action.start`, `action.execute`, or `action.failed` records with
 the dependency-start cause in the message.
 
 The current contracts are:

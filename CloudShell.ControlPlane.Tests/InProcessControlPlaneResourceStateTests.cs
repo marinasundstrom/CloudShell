@@ -636,7 +636,7 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         var dependencyEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "vault"));
         Assert.Contains(dependencyEvents, resourceEvent =>
-            resourceEvent.EventType == "action.starting" &&
+            resourceEvent.EventType == "action.start" &&
             resourceEvent.TriggeredBy == "operator" &&
             resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
         Assert.Contains(dependencyEvents, resourceEvent =>
@@ -647,7 +647,7 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
         Assert.Contains(rootEvents, resourceEvent =>
-            resourceEvent.EventType == "action.starting" &&
+            resourceEvent.EventType == "action.start" &&
             resourceEvent.TriggeredBy == "operator");
         Assert.Contains(rootEvents, resourceEvent =>
             resourceEvent.EventType == "action.execute" &&
