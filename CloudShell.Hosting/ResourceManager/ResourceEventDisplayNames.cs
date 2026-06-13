@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Hosting.Localization;
 using Microsoft.Extensions.Localization;
 using System.Globalization;
@@ -22,9 +23,19 @@ internal static class ResourceEventDisplayNames
             return localizer["Start action"].Value;
         }
 
+        if (string.Equals(eventType, ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Start), StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Start action failed"].Value;
+        }
+
         if (string.Equals(eventType, ResourceEventTypes.Actions.Lifecycle.Stop, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["Stop action"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Stop), StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Stop action failed"].Value;
         }
 
         if (string.Equals(eventType, ResourceEventTypes.Actions.Lifecycle.Pause, StringComparison.OrdinalIgnoreCase))
@@ -32,9 +43,19 @@ internal static class ResourceEventDisplayNames
             return localizer["Pause action"].Value;
         }
 
+        if (string.Equals(eventType, ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Pause), StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Pause action failed"].Value;
+        }
+
         if (string.Equals(eventType, ResourceEventTypes.Actions.Lifecycle.Restart, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["Restart action"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Restart), StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Restart action failed"].Value;
         }
 
         if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.Starting, StringComparison.OrdinalIgnoreCase))
