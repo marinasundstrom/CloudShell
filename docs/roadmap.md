@@ -25,8 +25,8 @@ Useful references:
 ## Authoritative Milestones
 
 Milestones in this file are the authoritative product scope. Proposal status
-tables, progress notes, and TODO queues should stay aligned with these
-milestones instead of redefining release scope independently.
+tables, progress notes, and the execution plan below should stay aligned with
+these milestones instead of redefining release scope independently.
 
 ### MVP
 
@@ -44,8 +44,172 @@ MVP scope:
 | UX polish | Resource Manager common workflows are understandable, diagnostics are actionable, generated details are useful, and identity, configuration, secrets, networking, and app controls are discoverable without bespoke sample code. |
 | Samples should work | Supported samples build and smoke-test, including combined hosting, split hosting, container host, settings and secrets, host virtual networking, load balancer, project references, and container app deployment. |
 
-The near-term roadmap below is the implementation order for reaching this MVP
-and then expanding beyond it.
+The execution plan and near-term roadmap below are the implementation order for
+reaching this MVP and then expanding beyond it.
+
+## MVP Execution Plan
+
+This section is the current task queue. Keep it focused on implementation
+slices that move the MVP forward; proposal documents remain the design
+trackers, and [Progress](progress.md) remains the completed-work tracker.
+
+### Immediate Proposal Order
+
+Work the current proposals in this order. For MVP, implement only the slice
+listed here before pulling in broader proposal work.
+
+1. Resource identity and permissions: close built-in access enforcement,
+   provisioning authorization, deny diagnostics, and mock-principal tests.
+2. Host abstractions: add host descriptors, compatibility adapters, a shared
+   resolver, Docker Compose/default container-app migration, and missing-host
+   diagnostics.
+3. Configuration and secrets access: add Resource Manager assignment flows for
+   literal settings, configuration-entry references, and vault-backed secret
+   references.
+4. Traceability and audit: persist/filter resource events and define audit
+   schemas for the operations already in the MVP path.
+5. Remote Docker host completion: finish concrete Docker host registration,
+   credentials, duplicate validation, discovery, diagnostics, and actions on
+   top of the shared resolver.
+6. Provider-owned runtime lifecycle: start with owner-scoped Docker runtime
+   support for Traefik/load-balancer implementation containers and app-owned
+   ingress cleanup.
+7. Network and routing hardening: tighten host-readiness, provider selection,
+   route conflicts, endpoint conflicts, configuration preview, and backend
+   diagnostics for the supported samples.
+8. Runtime-managed resources: make only the MVP ownership, cleanup, and
+   diagnostics decisions needed by provider-owned runtime and current
+   revisions.
+9. Deployments and revisions: preserve current app-owned revision projection;
+   defer rich rollout history, rollback, retention, and deployment resources.
+10. Advanced app and environment concepts: defer autoscaling, backend pools,
+    traffic splitting, `cloudshell.service`, DNS/name mapping, external
+    deployment projection, and container application environments.
+
+### Now: Resource Identity and Permissions
+
+- Keep [Resource identity and permissions](resource-identity-and-permissions.md)
+  as the current-state feature documentation and
+  [Identity and access](proposals/core/identity-and-access.md) as the open-work
+  tracker.
+- Add mock-principal support for local permission-boundary tests when
+  CloudShell authentication is disabled.
+- Add authorization diagnostics and action capability reasons for denied or
+  unavailable actions without leaking provider-specific internals.
+- Continue assigning documented Azure-style operation permissions for
+  configuration updates, deployment operations, logs, diagnostics, provider
+  actions, and future runtime-managed resources as those operations enter the
+  MVP path.
+- Validate provisioning-resource authorization boundaries with focused tests:
+  provisioning requires permission on the provisioning resource and manage
+  permission on the target resource; status reads require read permission on
+  the target and provisioning resource.
+- Defer broad IAM work unless it blocks the built-in identity MVP: resource
+  group or parent-resource identity inheritance, multiple identities per
+  resource, effective permission APIs, durable external authority
+  reconciliation, and provider-native requested-versus-effective grants.
+- Keep Microsoft Entra ID compatibility as a required contract target, but do
+  not block MVP on a full Entra provider if the provider-neutral contract and
+  compatibility tests are clear.
+
+### Next: Host Abstractions
+
+- Add host-oriented descriptors and provider contracts with compatibility
+  adapters for existing container-engine contracts.
+- Implement a shared `IContainerHostResolver` over explicit resource
+  descriptors, default host providers, compatibility engine providers, and
+  registered default host descriptors.
+- Migrate Docker Compose and default container-app host resolution to the
+  resolver while preserving existing `ContainerEngineId` compatibility.
+- Return diagnostics and action capability reasons for missing hosts,
+  unavailable hosts, missing credentials, and unsupported runtime
+  capabilities.
+- Add tests for explicit host selection, configured default host selection,
+  registered default host descriptors, missing-host diagnostics, and
+  compatibility adapter behavior.
+
+### Next: Configuration, Secrets, and Audit
+
+- Add Resource Manager UI support for assigning literal app settings,
+  configuration-entry references, and vault-backed secret references on
+  resources that advertise environment-variable support.
+- Show saved references and diagnostics without displaying resolved secret
+  values.
+- Verify assignment flows against identity-backed configuration and secret
+  read authorization.
+- Persist resource events and expose filtering by event type, actor, and time
+  range.
+- Define audit event schemas for resource actions, host/runtime operations,
+  image deployments, authorization decisions, identity provisioning, and secret
+  access.
+
+### Next: Concrete Host and Runtime Foundation
+
+- Continue the remote Docker hosts proposal on top of the shared host model:
+  persist provider-owned UI host configuration, wire supported credential
+  transports into Docker client creation, and keep credentials out of
+  projected attributes, endpoints, logs, and diagnostics.
+- Complete duplicate-host validation across local and remote Docker
+  registration paths, including compatibility coverage for existing
+  `docker.engine` registrations and stable `docker.host` UI/API projection.
+- Verify remote-host container discovery, actions, and diagnostics end to end
+  against a testable Docker endpoint with credential redaction coverage.
+- Add provider-owned Docker runtime support for owner-scoped implementation
+  containers after the resolver lands.
+- Continue Traefik container mode beyond apply-time startup by tying the
+  implementation container to load-balancer start, stop, delete, probe, and
+  cleanup on the selected host resource.
+- Extend app-owned ingress infrastructure with stop/delete lifecycle
+  projection, provider-owned status, and diagnostics for replicated HTTP/TCP
+  endpoints.
+
+### Next: Network and Routing Hardening
+
+- Harden macOS host-provided virtual networking by exercising real local proxy
+  mappings end to end, improving action capability reasons, and deciding how
+  reconciled mappings should be persisted or stopped.
+- Expand host-readiness warnings so endpoint mappings can name the specific
+  missing gateway, load balancer, DNS, service mesh, firewall, or cluster
+  network controller capability.
+- Finish provider-backed endpoint mapping materialization for real host
+  networking services, not just logical local networking.
+- Continue load balancer support beyond the first Traefik file-config provider
+  by adding provider validation diagnostics, configuration preview, route
+  conflict checks, target resolution diagnostics, and richer host/runtime
+  capability checks.
+- Finish the provider-resource selection path so load-balancer
+  `UseProvider(...)`, explicit host selection, and UI-created resources behave
+  consistently.
+- Extend endpoint assignment conflict diagnostics beyond platform-owned
+  endpoints so provider-projected runtime endpoints can participate in a
+  Resource Manager-wide validation pass.
+
+### Later: Runtime Ownership and Deployment Model
+
+- Decide which runtime artifacts become runtime-managed resources versus
+  provider-owned state: replicas, implementation containers, images, endpoint
+  registrations, backend registrations, health probes, and revisions.
+- Define ownership, visibility, query, authorization, cleanup, and
+  garbage-collection rules for runtime-managed resources.
+- Design provider-originated resource change streams so providers such as
+  Docker can push discovered container/status changes into Resource Manager
+  instead of relying only on UI-side inventory polling.
+- Design provider-owned replication projection for resources that can
+  implement replicas, keeping stable resources separate from runtime instances
+  and using parent-derived naming conventions for materialized runtime
+  containers.
+- Preserve container app current-revision projection for image updates; defer
+  rich rollout history, rollback, retention, and first-class deployment
+  resources until runtime ownership and traceability are clear.
+
+### Later: Advanced App and Environment Concepts
+
+- Defer container app autoscaling beyond the current explicit replica-count
+  API.
+- Defer backend pools, TLS binding, traffic splitting, advanced service
+  exposure, DNS/name mapping, external deployment projection, and container
+  application environments until host, routing, identity, runtime ownership,
+  and deployment decisions are stable.
 
 ## Near-Term Roadmap
 
@@ -281,6 +445,6 @@ References:
 
 ## Tracking Work
 
-The current task queue stays in [TODO](../TODO.md). Completed decisions and
-verification expectations stay in [Progress](progress.md). Proposal statuses
-stay in [docs/proposals](proposals/). Milestone scope stays in this roadmap.
+The current task queue and milestone scope stay in this roadmap. Completed
+decisions and verification expectations stay in [Progress](progress.md).
+Proposal statuses stay in [docs/proposals](proposals/).

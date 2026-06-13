@@ -3,9 +3,8 @@
 This is the living CloudShell progress tracker. Update it when a feature,
 stabilization pass, or design decision changes the current direction.
 
-See also: [Roadmap](roadmap.md) for product direction and [TODO](../TODO.md)
-for the current task queue that turns those priorities into concrete next
-tasks.
+See also: [Roadmap](roadmap.md) for product direction, milestone scope, and
+the current task queue that turns those priorities into concrete next tasks.
 
 ## Current MVP Focus
 
@@ -31,43 +30,15 @@ The MVP should prove:
 
 Proposal statuses are tracked in the authoritative proposal status table in
 [Proposals](proposals/README.md). Update that table together with the relevant
-proposal, this progress tracker, [Roadmap](roadmap.md), and [TODO](../TODO.md)
-when status, milestone relevance, or remaining work changes.
+proposal, this progress tracker, and [Roadmap](roadmap.md) when status,
+milestone relevance, or remaining work changes.
 
-## Current proposal order
+## Current implementation order
 
-1. Define resource identity and permissions first: resource identity-provider
-   contracts, default provider selection, identity bindings, resource-scoped
-   permissions, workload identity lifecycle, token claim mapping, action
-   authorization, authorization diagnostics, and a separate replaceable
-   development identity server using standard OIDC/OAuth. The same provider
-   contract must work with Microsoft Entra ID (Azure AD), including
-   issuer/audience validation, claim mapping, groups or app roles, and
-   service-principal automation flows.
-2. Jump next to host abstractions: host descriptors, compatibility adapters,
-   default/explicit host resolver, and host-resolution diagnostics.
-3. Align configuration and secrets access with identity: Resource Manager
-   assignment UI, in-process secrets client, and secret-read authorization.
-4. Persist and filter resource events, then define audit event schemas for
-   actions, host/runtime operations, deployments, authorization, and secret
-   access.
-5. Complete remote Docker hosts as the first concrete user-managed container
-   host: UI registration, provider-owned persistence, credentials,
-   duplicate-host validation, and remote action coverage.
-6. Add provider-owned runtime lifecycle support for implementation containers
-   and helper services, starting with Traefik container mode and app-owned
-   ingress cleanup.
-7. Harden virtual networking, load balancing, and replicated app ingress with
-   provider selection, host-readiness warnings, route conflicts, endpoint
-   conflict diagnostics, configuration preview, and backend resolution.
-8. Decide runtime-managed resource ownership, visibility, cleanup, diagnostics,
-   and authorization before broadening replica and implementation-resource
-   projection.
-9. Introduce richer deployment and revision concepts only after runtime
-   ownership and traceability boundaries are clear.
-10. Revisit advanced app and environment concepts such as autoscaling, backend
-   pools, traffic splitting, `cloudshell.service`, and container application
-   environments after the lower-level foundations stabilize.
+The authoritative MVP implementation order now lives in the
+[Roadmap MVP Execution Plan](roadmap.md#mvp-execution-plan). Keep this progress
+tracker focused on completed decisions, current state, and verification
+expectations rather than duplicating the task queue.
 
 ## Recent decisions
 

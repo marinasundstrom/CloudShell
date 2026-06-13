@@ -5,9 +5,9 @@ Their status, remaining tasks, open questions, and relationship to the current
 roadmap should be kept updated as implementation work lands.
 
 When a proposal changes direction or an implementation slice completes, update
-the relevant proposal together with [Roadmap](../roadmap.md),
-[Progress](../progress.md), and [TODO](../../TODO.md). The repo-local Codex
-skills also require this synchronization for feature and stabilization work.
+the relevant proposal together with [Roadmap](../roadmap.md) and
+[Progress](../progress.md). The repo-local Codex skills also require this
+synchronization for feature and stabilization work.
 
 ## Proposal Status
 
@@ -44,5 +44,5 @@ Work proposal areas in the current product order:
 9. [Deployments and revisions](deployment/deployments-and-revisions.md)
 10. Advanced app and environment concepts
 
-Use [Roadmap](../roadmap.md) for the reasoning behind this order and
-[TODO](../../TODO.md) for the concrete task queue.
+Use [Roadmap](../roadmap.md) for the reasoning behind this order and the
+concrete MVP execution plan.

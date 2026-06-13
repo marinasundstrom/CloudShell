@@ -190,10 +190,10 @@ resource.
      product guidance.
 9. Update documentation.
    - Update the relevant resource docs, API docs, programmatic resource docs,
-     progress tracker, and TODO queue.
+     progress tracker, and roadmap execution plan.
    - Document intentionally deferred chain links, such as "Control Plane
      provider only, no Resource Manager UI integration yet", in
-     `docs/progress.md` and `TODO.md`.
+     `docs/progress.md` and `docs/roadmap.md`.
 
 ## Artifact guidelines
 
