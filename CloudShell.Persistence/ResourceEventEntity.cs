@@ -15,4 +15,8 @@ internal sealed class ResourceEventEntity
     public string? TriggeredBy { get; set; }
 
     public string Level { get; set; } = "Information";
+
+    public string? TraceId { get; set; }
+
+    public string? SpanId { get; set; }
 }

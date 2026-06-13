@@ -60,10 +60,13 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
             entity.Property(resourceEvent => resourceEvent.Message).HasMaxLength(4000).IsRequired();
             entity.Property(resourceEvent => resourceEvent.TriggeredBy).HasMaxLength(500);
             entity.Property(resourceEvent => resourceEvent.Level).HasMaxLength(50).IsRequired();
+            entity.Property(resourceEvent => resourceEvent.TraceId).HasMaxLength(100);
+            entity.Property(resourceEvent => resourceEvent.SpanId).HasMaxLength(100);
             entity.Property(resourceEvent => resourceEvent.Timestamp)
                 .HasConversion(new DateTimeOffsetToBinaryConverter());
             entity.HasIndex(resourceEvent => resourceEvent.ResourceId);
             entity.HasIndex(resourceEvent => resourceEvent.EventType);
+            entity.HasIndex(resourceEvent => resourceEvent.TraceId);
             entity.HasIndex(resourceEvent => resourceEvent.Timestamp);
         });
     }

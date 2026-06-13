@@ -13,15 +13,18 @@ public sealed class EfCoreResourceEventStore(
             return;
         }
 
+        var enrichedEvent = resourceEvent.WithCurrentTraceContext();
         using var context = contextFactory.CreateDbContext();
         context.ResourceEvents.Add(new ResourceEventEntity
         {
-            ResourceId = resourceEvent.ResourceId.Trim(),
-            EventType = Normalize(resourceEvent.EventType, "event"),
-            Message = resourceEvent.Message.Trim(),
-            Timestamp = resourceEvent.Timestamp,
-            TriggeredBy = NormalizeOptional(resourceEvent.TriggeredBy),
-            Level = Normalize(resourceEvent.Level, "Information")
+            ResourceId = enrichedEvent.ResourceId.Trim(),
+            EventType = Normalize(enrichedEvent.EventType, "event"),
+            Message = enrichedEvent.Message.Trim(),
+            Timestamp = enrichedEvent.Timestamp,
+            TriggeredBy = NormalizeOptional(enrichedEvent.TriggeredBy),
+            Level = Normalize(enrichedEvent.Level, "Information"),
+            TraceId = NormalizeOptional(enrichedEvent.TraceId),
+            SpanId = NormalizeOptional(enrichedEvent.SpanId)
         });
         context.SaveChanges();
     }
@@ -61,6 +64,12 @@ public sealed class EfCoreResourceEventStore(
             events = events.Where(resourceEvent => resourceEvent.Timestamp < query.Before.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(query.TraceId))
+        {
+            var traceId = query.TraceId.Trim();
+            events = events.Where(resourceEvent => resourceEvent.TraceId == traceId);
+        }
+
         return events
             .OrderByDescending(resourceEvent => resourceEvent.Timestamp)
             .ThenByDescending(resourceEvent => resourceEvent.Id)
@@ -71,7 +80,9 @@ public sealed class EfCoreResourceEventStore(
                 resourceEvent.Message,
                 resourceEvent.Timestamp,
                 resourceEvent.TriggeredBy,
-                resourceEvent.Level))
+                resourceEvent.Level,
+                resourceEvent.TraceId,
+                resourceEvent.SpanId))
             .ToArray();
     }
 

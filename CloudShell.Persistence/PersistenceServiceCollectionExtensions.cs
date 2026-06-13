@@ -141,6 +141,7 @@ public static class PersistenceServiceCollectionExtensions
     {
         if (TableExists(context, "ResourceEvents"))
         {
+            EnsureResourceEventsColumns(context);
             return;
         }
 
@@ -154,10 +155,13 @@ public static class PersistenceServiceCollectionExtensions
                     "Message" TEXT NOT NULL,
                     "Timestamp" INTEGER NOT NULL,
                     "TriggeredBy" TEXT NULL,
-                    "Level" TEXT NOT NULL
+                    "Level" TEXT NOT NULL,
+                    "TraceId" TEXT NULL,
+                    "SpanId" TEXT NULL
                 );
                 CREATE INDEX IF NOT EXISTS "IX_ResourceEvents_EventType" ON "ResourceEvents" ("EventType");
                 CREATE INDEX IF NOT EXISTS "IX_ResourceEvents_ResourceId" ON "ResourceEvents" ("ResourceId");
+                CREATE INDEX IF NOT EXISTS "IX_ResourceEvents_TraceId" ON "ResourceEvents" ("TraceId");
                 CREATE INDEX IF NOT EXISTS "IX_ResourceEvents_Timestamp" ON "ResourceEvents" ("Timestamp");
                 """);
             return;
@@ -176,13 +180,94 @@ public static class PersistenceServiceCollectionExtensions
                         [Timestamp] bigint NOT NULL,
                         [TriggeredBy] nvarchar(500) NULL,
                         [Level] nvarchar(50) NOT NULL,
+                        [TraceId] nvarchar(100) NULL,
+                        [SpanId] nvarchar(100) NULL,
                         CONSTRAINT [PK_ResourceEvents] PRIMARY KEY ([Id])
                     );
                     CREATE INDEX [IX_ResourceEvents_EventType] ON [ResourceEvents] ([EventType]);
                     CREATE INDEX [IX_ResourceEvents_ResourceId] ON [ResourceEvents] ([ResourceId]);
+                    CREATE INDEX [IX_ResourceEvents_TraceId] ON [ResourceEvents] ([TraceId]);
                     CREATE INDEX [IX_ResourceEvents_Timestamp] ON [ResourceEvents] ([Timestamp]);
                 END;
                 """);
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported persistence provider '{context.Database.ProviderName}'.");
+    }
+
+    private static void EnsureResourceEventsColumns(DbContext context)
+    {
+        EnsureColumn(
+            context,
+            "ResourceEvents",
+            "TraceId",
+            sqliteDefinition: "\"TraceId\" TEXT NULL",
+            sqlServerDefinition: "[TraceId] nvarchar(100) NULL");
+        EnsureColumn(
+            context,
+            "ResourceEvents",
+            "SpanId",
+            sqliteDefinition: "\"SpanId\" TEXT NULL",
+            sqlServerDefinition: "[SpanId] nvarchar(100) NULL");
+
+        if (context.Database.IsSqlite())
+        {
+            context.Database.ExecuteSqlRaw("""
+                CREATE INDEX IF NOT EXISTS "IX_ResourceEvents_TraceId" ON "ResourceEvents" ("TraceId");
+                """);
+            return;
+        }
+
+        if (context.Database.IsSqlServer())
+        {
+            context.Database.ExecuteSqlRaw("""
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE name = N'IX_ResourceEvents_TraceId'
+                        AND object_id = OBJECT_ID(N'[dbo].[ResourceEvents]', N'U')
+                )
+                BEGIN
+                    CREATE INDEX [IX_ResourceEvents_TraceId] ON [ResourceEvents] ([TraceId]);
+                END;
+                """);
+        }
+    }
+
+    private static void EnsureColumn(
+        DbContext context,
+        string tableName,
+        string columnName,
+        string sqliteDefinition,
+        string sqlServerDefinition)
+    {
+        if (ColumnExists(context, tableName, columnName))
+        {
+            return;
+        }
+
+        if (context.Database.IsSqlite())
+        {
+            var sql = string.Concat(
+                "ALTER TABLE \"",
+                tableName,
+                "\" ADD COLUMN ",
+                sqliteDefinition,
+                ";");
+            context.Database.ExecuteSqlRaw(sql);
+            return;
+        }
+
+        if (context.Database.IsSqlServer())
+        {
+            var sql = string.Concat(
+                "ALTER TABLE [",
+                tableName,
+                "] ADD ",
+                sqlServerDefinition,
+                ";");
+            context.Database.ExecuteSqlRaw(sql);
             return;
         }
 
@@ -265,6 +350,51 @@ public static class PersistenceServiceCollectionExtensions
             parameter.ParameterName = "@tableName";
             parameter.Value = tableName;
             command.Parameters.Add(parameter);
+
+            var result = command.ExecuteScalar();
+            return Convert.ToInt32(result) > 0;
+        }
+        finally
+        {
+            if (closeConnection)
+            {
+                connection.Close();
+            }
+        }
+    }
+
+    private static bool ColumnExists(DbContext context, string tableName, string columnName)
+    {
+        var connection = context.Database.GetDbConnection();
+        var closeConnection = connection.State != ConnectionState.Open;
+        if (closeConnection)
+        {
+            connection.Open();
+        }
+
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = context.Database.IsSqlite()
+                ? """
+                    SELECT COUNT(*)
+                    FROM pragma_table_info(@tableName)
+                    WHERE name = @columnName;
+                    """
+                : """
+                    SELECT COUNT(*)
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_NAME = @tableName AND COLUMN_NAME = @columnName;
+                    """;
+            var tableParameter = command.CreateParameter();
+            tableParameter.ParameterName = "@tableName";
+            tableParameter.Value = tableName;
+            command.Parameters.Add(tableParameter);
+
+            var columnParameter = command.CreateParameter();
+            columnParameter.ParameterName = "@columnName";
+            columnParameter.Value = columnName;
+            command.Parameters.Add(columnParameter);
 
             var result = command.ExecuteScalar();
             return Convert.ToInt32(result) > 0;

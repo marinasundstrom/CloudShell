@@ -69,8 +69,16 @@ namespace CloudShell.Persistence.Migrations.CloudShell
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SpanId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("Timestamp")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("TraceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("TriggeredBy")
                         .HasMaxLength(500)
@@ -81,6 +89,8 @@ namespace CloudShell.Persistence.Migrations.CloudShell
                     b.HasIndex("EventType");
 
                     b.HasIndex("ResourceId");
+
+                    b.HasIndex("TraceId");
 
                     b.HasIndex("Timestamp");
 

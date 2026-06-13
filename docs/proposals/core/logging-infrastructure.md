@@ -117,14 +117,16 @@ Resource Manager lifecycle events automatically.
 
 When dependency startup starts another resource, that dependency gets its own
 action and lifecycle records with the dependency-start cause in the message.
-For MVP, result and failure details are text on the event message. Structured
-result fields, failure data, diagnostics, correlation IDs, and internal
+For MVP, result and failure details are text on the event message. Resource
+events can carry `traceId` and `spanId` so resource activity, Activity log
+entries, and distributed traces can be correlated during local and team-owned
+debugging. Structured result fields, failure data, diagnostics, and internal
 resource-manager state-transition metadata remain future event-schema work.
 
 The current contracts are:
 
 - `ResourceEvent`: platform activity record
-- `ResourceEventQuery`: query filters
+- `ResourceEventQuery`: query filters, including `traceId`
 - `ResourceEventTypes`: standardized action and lifecycle event type constants
 - `IResourceEventStore`: internal append/query storage
 - `IResourceEventManager`: consumer-facing query API
@@ -238,12 +240,14 @@ base log or event entry a blob store.
 - Keep Activity-tab filtering and action/event grouping focused on
   `IResourceEventManager`; broader event schema and audit decisions remain
   separate.
+- Keep resource event trace correlation focused on W3C `traceId`/`spanId`
+  fields. Do not turn resource events into trace spans or log records.
 - Use the structured `LogEntry` metadata fields for provider logs only when a
   source has real structured data; do not wrap plain stdout/stderr in fake
   structure.
 - Define initial event schemas for resource actions, image deployments,
   lifecycle operations, authorization denials, configuration reads, secret
   reads, and host/runtime reconciliation.
-- Decide which structured log attributes should become query filters before
-  broader provider log work.
+- Decide which structured log attributes beyond trace correlation should
+  become query filters before broader provider log work.
 - Decide retention and export policy after real Resource Manager usage exists.

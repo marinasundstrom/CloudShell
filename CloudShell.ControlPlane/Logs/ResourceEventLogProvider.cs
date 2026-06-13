@@ -76,6 +76,8 @@ public sealed class ResourceEventLogProvider(
             Source: "event",
             EventId: resourceEvent.EventType,
             Category: "CloudShell.ResourceEvents",
+            TraceId: resourceEvent.TraceId,
+            SpanId: resourceEvent.SpanId,
             Attributes: BuildAttributes(resourceEvent, actor));
     }
 

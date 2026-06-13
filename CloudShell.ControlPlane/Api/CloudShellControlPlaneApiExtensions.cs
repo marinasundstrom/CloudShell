@@ -765,6 +765,7 @@ public static class CloudShellControlPlaneApiExtensions
         string? resourceId,
         string? eventType,
         string? triggeredBy,
+        string? traceId,
         DateTimeOffset? since,
         DateTimeOffset? before,
         int? maxEvents,
@@ -772,12 +773,13 @@ public static class CloudShellControlPlaneApiExtensions
         CancellationToken cancellationToken) =>
         Results.Ok((await events.ListResourceEventsAsync(
                 new ResourceEventQuery(
-                    NormalizeOptional(resourceId),
-                    NormalizeOptional(eventType),
-                    NormalizeOptional(triggeredBy),
-                    since,
-                    before,
-                    Math.Clamp(maxEvents ?? 200, 1, 1000)),
+                    ResourceId: NormalizeOptional(resourceId),
+                    EventType: NormalizeOptional(eventType),
+                    TriggeredBy: NormalizeOptional(triggeredBy),
+                    Since: since,
+                    Before: before,
+                    MaxEvents: Math.Clamp(maxEvents ?? 200, 1, 1000),
+                    TraceId: NormalizeOptional(traceId)),
                 cancellationToken))
             .Select(resourceEvent => resourceEvent.ToResponse())
             .ToArray());

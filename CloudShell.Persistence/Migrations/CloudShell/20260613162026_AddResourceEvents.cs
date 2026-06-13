@@ -21,7 +21,9 @@ namespace CloudShell.Persistence.Migrations.CloudShell
                     Message = table.Column<string>(type: "TEXT", maxLength: 4000, nullable: false),
                     Timestamp = table.Column<long>(type: "INTEGER", nullable: false),
                     TriggeredBy = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
-                    Level = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false)
+                    Level = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    TraceId = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    SpanId = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -37,6 +39,11 @@ namespace CloudShell.Persistence.Migrations.CloudShell
                 name: "IX_ResourceEvents_ResourceId",
                 table: "ResourceEvents",
                 column: "ResourceId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ResourceEvents_TraceId",
+                table: "ResourceEvents",
+                column: "TraceId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ResourceEvents_Timestamp",

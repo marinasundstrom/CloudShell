@@ -16,10 +16,11 @@ public sealed class InMemoryResourceEventStore : IResourceEventStore
             return;
         }
 
-        var events = _events.GetOrAdd(resourceEvent.ResourceId, _ => new Queue<ResourceEvent>());
+        var enrichedEvent = resourceEvent.WithCurrentTraceContext();
+        var events = _events.GetOrAdd(enrichedEvent.ResourceId, _ => new Queue<ResourceEvent>());
         lock (events)
         {
-            events.Enqueue(resourceEvent);
+            events.Enqueue(enrichedEvent);
             while (events.Count > MaxEventsPerResource)
             {
                 events.Dequeue();
@@ -57,6 +58,12 @@ public sealed class InMemoryResourceEventStore : IResourceEventStore
         if (query.Before is not null)
         {
             events = events.Where(resourceEvent => resourceEvent.Timestamp < query.Before.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.TraceId))
+        {
+            events = events.Where(resourceEvent =>
+                string.Equals(resourceEvent.TraceId, query.TraceId, StringComparison.OrdinalIgnoreCase));
         }
 
         return events

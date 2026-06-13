@@ -52,13 +52,18 @@ public sealed class PersistenceDatabaseInitializationTests
                 "Resource started.",
                 DateTimeOffset.UtcNow,
                 "system",
-                "Information"));
+                "Information",
+                TraceId: "4bf92f3577b34da6a3ce929d0e0e4736",
+                SpanId: "00f067aa0ba902b7"));
 
             var events = eventStore.GetEvents(new ResourceEventQuery
             {
-                ResourceId = "application:test"
+                ResourceId = "application:test",
+                TraceId = "4bf92f3577b34da6a3ce929d0e0e4736"
             });
-            Assert.Single(events);
+            var resourceEvent = Assert.Single(events);
+            Assert.Equal("4bf92f3577b34da6a3ce929d0e0e4736", resourceEvent.TraceId);
+            Assert.Equal("00f067aa0ba902b7", resourceEvent.SpanId);
         }
         finally
         {

@@ -220,7 +220,9 @@ public sealed record ResourceEventResponse(
     string Message,
     DateTimeOffset Timestamp,
     string? TriggeredBy,
-    string Level);
+    string Level,
+    string? TraceId,
+    string? SpanId);
 
 public sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
@@ -446,7 +448,9 @@ internal static class CloudShellControlPlaneDtoMapper
             resourceEvent.Message,
             resourceEvent.Timestamp,
             resourceEvent.TriggeredBy,
-            resourceEvent.Level);
+            resourceEvent.Level,
+            resourceEvent.TraceId,
+            resourceEvent.SpanId);
 
     public static LogEntryResponse ToResponse(this LogEntry entry) =>
         new(

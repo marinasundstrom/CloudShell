@@ -212,7 +212,18 @@
             : L["Triggered by {0}", resourceEvent.TriggeredBy].Value;
 
     private string FormatEventMetadata(ResourceEvent resourceEvent) =>
-        L["{0} · {1}", resourceEvent.EventType, FormatTriggeredBy(resourceEvent)].Value;
+        string.IsNullOrWhiteSpace(resourceEvent.TraceId)
+            ? L["{0} · {1}", resourceEvent.EventType, FormatTriggeredBy(resourceEvent)].Value
+            : L[
+                "{0} · {1} · Trace {2}",
+                resourceEvent.EventType,
+                FormatTriggeredBy(resourceEvent),
+                FormatTraceId(resourceEvent.TraceId)].Value;
+
+    private static string FormatTraceId(string traceId) =>
+        traceId.Length <= 12
+            ? traceId
+            : traceId[^12..];
 
     private static string FormatTimestamp(DateTimeOffset timestamp) =>
         timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);

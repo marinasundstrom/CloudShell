@@ -424,6 +424,7 @@ public sealed class RemoteControlPlane : IControlPlane
             ("resourceId", query?.ResourceId),
             ("eventType", query?.EventType),
             ("triggeredBy", query?.TriggeredBy),
+            ("traceId", query?.TraceId),
             ("since", query?.Since?.ToString("O")),
             ("before", query?.Before?.ToString("O")),
             ("maxEvents", (query?.MaxEvents ?? 200).ToString())))
@@ -865,7 +866,9 @@ file sealed record ResourceEventResponse(
     string Message,
     DateTimeOffset Timestamp,
     string? TriggeredBy,
-    string Level);
+    string Level,
+    string? TraceId,
+    string? SpanId);
 
 file sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
@@ -1124,5 +1127,7 @@ file static class RemoteControlPlaneMapper
             response.Message,
             response.Timestamp,
             response.TriggeredBy,
-            response.Level);
+            response.Level,
+            response.TraceId,
+            response.SpanId);
 }

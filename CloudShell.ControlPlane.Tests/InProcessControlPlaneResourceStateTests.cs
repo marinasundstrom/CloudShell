@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Tests;
@@ -828,6 +829,9 @@ public sealed class InProcessControlPlaneResourceStateTests
             provider,
             resourceEvents: resourceEvents);
 
+        using var activity = new Activity("update-image-test");
+        activity.Start();
+
         var result = await controlPlane.UpdateResourceImageAsync(
             new UpdateResourceImageCommand(
                 "target",
@@ -840,8 +844,11 @@ public sealed class InProcessControlPlaneResourceStateTests
         var resourceEvent = Assert.Single(resourceEvents.GetEvents(new ResourceEventQuery(
             ResourceId: "target",
             EventType: ResourceEventTypes.Events.Deployment.ImageUpdated,
-            TriggeredBy: "build-server")));
+            TriggeredBy: "build-server",
+            TraceId: activity.TraceId.ToString())));
         Assert.Contains("example/api:20260608", resourceEvent.Message, StringComparison.Ordinal);
+        Assert.Equal(activity.TraceId.ToString(), resourceEvent.TraceId);
+        Assert.Equal(activity.SpanId.ToString(), resourceEvent.SpanId);
     }
 
     [Fact]

@@ -259,6 +259,11 @@ expectations rather than duplicating the task queue.
   for resource events, but resource events, audit records, diagnostics,
   metrics, traces, and future non-text payloads remain separate concerns tracked by
   [Logging infrastructure](proposals/core/logging-infrastructure.md).
+- Resource events can now capture W3C `traceId` and `spanId` from the current
+  activity, persist that context, filter activity by trace ID, and project the
+  same context into Activity log entries. This gives local distributed-app
+  debugging a direct bridge between resource activity, logs, and traces without
+  merging those signal types.
 - Application resources can project transient `Starting` state from
   provider-owned runtime observations while start/restart work is in progress.
   Stale starting observations fall back to stopped so a crashed host does not
