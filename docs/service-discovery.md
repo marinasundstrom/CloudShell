@@ -25,7 +25,7 @@ For example, a resource named `Sample App Settings` with an `entries` endpoint
 can be projected as:
 
 ```text
-services__sample-app-settings__entries__0=http://localhost:5138/api/configuration/entries
+services__sample-app-settings__entries__0=http://localhost:5138/api/configuration/stores/configuration%3Asample-app/entries
 ```
 
 CloudShell emits names based on both the referenced resource display name and

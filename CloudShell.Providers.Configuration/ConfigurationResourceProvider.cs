@@ -695,7 +695,7 @@ public sealed partial class ConfigurationResourceProvider :
             ? options.PublicBaseUrl.TrimEnd('/')
             : GetServiceBaseUrl(configurationStore);
 
-        return $"{endpoint}/api/configuration/entries?resourceId={Uri.EscapeDataString(resourceId)}";
+        return $"{endpoint}/api/configuration/stores/{Uri.EscapeDataString(resourceId)}/entries";
     }
 
     private static string CreateEnvironmentName(string name)

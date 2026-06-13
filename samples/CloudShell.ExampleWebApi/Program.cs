@@ -6,6 +6,7 @@ var builder = CloudShellApplication.CreateBuilder(args);
 builder.Configuration.AddCloudShellConfigurationStore();
 builder.Configuration.AddCloudShellSecretsVault();
 builder.Services.AddServiceDiscovery();
+builder.Services.AddHttpClient();
 builder.Services.ConfigureHttpClientDefaults(http =>
 {
     http.AddServiceDiscovery();
@@ -85,6 +86,37 @@ app.MapGet("/configuration", async (
             })
         });
     }
+});
+
+app.MapGet("/service-discovery/configuration", async (
+    IHttpClientFactory httpClientFactory,
+    CloudShellResourceCredential credential,
+    CancellationToken cancellationToken) =>
+{
+    const string logicalEndpoint = "https+http://_entries.sample-app-settings";
+    var token = await credential.GetTokenAsync(
+        new CloudShellResourceTokenRequest([ConfigurationStoreClient.DefaultScope]),
+        cancellationToken);
+    using var request = new HttpRequestMessage(HttpMethod.Get, logicalEndpoint);
+    request.Headers.Authorization = new("Bearer", token.Token);
+
+    var httpClient = httpClientFactory.CreateClient();
+    using var response = await httpClient.SendAsync(request, cancellationToken);
+    response.EnsureSuccessStatusCode();
+    var entries = await response.Content.ReadFromJsonAsync<IReadOnlyList<CloudShellConfigurationEntry>>(
+        cancellationToken: cancellationToken) ?? [];
+
+    return Results.Ok(new
+    {
+        status = "connected",
+        source = logicalEndpoint,
+        entries = entries.Select(entry => new
+        {
+            entry.Name,
+            Value = entry.IsSecret ? "Secret" : entry.Value,
+            entry.IsSecret
+        })
+    });
 });
 
 app.MapGet("/secrets/{name}", async (

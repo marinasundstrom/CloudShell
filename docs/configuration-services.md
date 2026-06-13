@@ -163,9 +163,13 @@ integrations use that credential chain internally.
 Applications fetch settings from:
 
 ```text
-GET <configuration-service-endpoint>/api/configuration/entries?resourceId=<resource-id>
-GET <configuration-service-endpoint>/api/configuration/entries/{name}?resourceId=<resource-id>
+GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/entries
+GET <configuration-service-endpoint>/api/configuration/stores/{resource-id}/entries/{name}
 ```
+
+The query-string route remains available for compatibility, but projected
+resource endpoints use the path-based route because Microsoft service discovery
+does not preserve query strings when resolving logical service URIs.
 
 Pass a bearer token for the calling resource identity:
 

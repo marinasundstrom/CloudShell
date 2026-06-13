@@ -208,6 +208,25 @@ public sealed class SampleSmokeTests
                 entry.GetProperty("name").GetString() == "Sample:Message" &&
                 entry.GetProperty("value").GetString() == "Hello from a configuration entry");
 
+        var serviceDiscoveryJson = await host.GetAbsoluteStringAsync(
+            $"{apiEndpoint.TrimEnd('/')}/service-discovery/configuration");
+        using var serviceDiscoveryDocument = JsonDocument.Parse(serviceDiscoveryJson);
+        Assert.Equal(
+            "connected",
+            serviceDiscoveryDocument.RootElement.GetProperty("status").GetString());
+        Assert.Equal(
+            "https+http://_entries.sample-app-settings",
+            serviceDiscoveryDocument.RootElement.GetProperty("source").GetString());
+        var serviceDiscoveryEntries = serviceDiscoveryDocument.RootElement
+            .GetProperty("entries")
+            .EnumerateArray()
+            .ToArray();
+        Assert.Contains(
+            serviceDiscoveryEntries,
+            entry =>
+                entry.GetProperty("name").GetString() == "Sample:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from a configuration entry");
+
         var apiSecretJson = await host.GetAbsoluteStringAsync(
             $"{apiEndpoint.TrimEnd('/')}/secrets/sample-api-key");
         using var apiSecretDocument = JsonDocument.Parse(apiSecretJson);

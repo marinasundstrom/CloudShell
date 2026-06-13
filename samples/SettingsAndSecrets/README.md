@@ -21,6 +21,11 @@ exist for this first client integration, but the resource graph now shows the
 intended direction: discovery locates the service, while identity and grants
 authorize access to it.
 
+The sample Web API exposes `/service-discovery/configuration` to prove the
+current service discovery path end to end. That endpoint calls the Configuration
+Store through the logical URI `https+http://_entries.sample-app-settings`,
+using the Web API resource identity token for authorization.
+
 The Web API also dogfoods the public-preview SDK clients and their
 service-specific Microsoft configuration integrations. It calls
 `AddCloudShellConfigurationStore()` from `CloudShell.Configuration.Client` and
