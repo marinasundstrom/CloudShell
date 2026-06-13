@@ -65,6 +65,8 @@ cloudShell.Resources(resources =>
             exposure: ResourceExposureScope.Public)
         .WithContainerHost(docker)
         .DependsOn(registry)
+        .WithReference(registry)
+        .WithServiceDiscovery()
         .WithEnvironment("SAMPLE_REGISTRY", registryAddress)
         .WithAutoStart(false)
         .Persist(overwrite: true);

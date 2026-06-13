@@ -9,8 +9,9 @@ The resource graph declares:
 - `docker:sample`: the local Docker environment.
 - `docker:container:sample-registry`: a local registry instance at
   `localhost:5023`.
-- `application:sample-api`: a container app that uses the registry and starts
-  from the mock image tag `cloudshell/mock-api:20260608.1`.
+- `application:sample-api`: a container app that depends on the registry for
+  lifecycle ordering, references it for service discovery, and starts from the
+  mock image tag `cloudshell/mock-api:20260608.1`.
 
 > We use port `5023` because standard `5000` is not available on MacOS.
 
@@ -18,6 +19,14 @@ The sample keeps the registry and app stopped by default. That makes the
 revision flow safe to run even when the mock image has not actually been pushed.
 When you do start the resources, Docker expects the referenced image tags to
 exist in `localhost:5023`.
+
+The app declaration keeps the lifecycle dependency and endpoint discovery
+relationship explicit:
+
+- `DependsOn(registry)` records that the app should start after the local
+  registry is available.
+- `WithReference(registry).WithServiceDiscovery()` projects registry endpoints
+  into the workload's service discovery configuration.
 
 Run the sample:
 
