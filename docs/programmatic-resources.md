@@ -92,6 +92,11 @@ that maps referenced resource endpoints into the .NET configuration shape. This
 keeps CloudShell open to other service discovery mechanisms, such as a dedicated
 service discovery service running in a container.
 
+Configuration Store and Secrets Vault are ordinary referenced services for
+endpoint discovery. Use `WithReference(...)` for discovery, and use identity
+bindings plus grants for authorization. Do not treat their endpoint variables as
+part of the resource identity credential contract.
+
 Programmatic application declarations default to host-scoped lifetime for local
 development. Executable applications, ASP.NET Core projects, and container apps
 are stopped with the CloudShell host and reconciled on the next Control Plane

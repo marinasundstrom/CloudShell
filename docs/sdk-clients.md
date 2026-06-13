@@ -171,6 +171,9 @@ CLOUDSHELL_CONFIGURATION_<RESOURCE_ID>_ENDPOINT
 
 The endpoint points at the protected entries collection. The client requests a
 resource identity token and sends it as a bearer token on each service call.
+CloudShell can set these variables through the current application-level
+service discovery mapping when the store is referenced; callers may also set
+them explicitly.
 
 The same package provides the configuration-provider integration:
 
@@ -212,6 +215,9 @@ CLOUDSHELL_SECRETS_<RESOURCE_ID>_ENDPOINT
 The endpoint points at the protected vault secrets collection. The client
 requests a resource identity token and sends it as a bearer token on each
 service call.
+CloudShell can set these variables through the current application-level
+service discovery mapping when the vault is referenced; callers may also set
+them explicitly.
 
 The same package provides the configuration-provider integration for secrets:
 

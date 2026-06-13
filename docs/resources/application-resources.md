@@ -144,6 +144,11 @@ environment variables using the .NET configuration shape.
 ASP.NET Core project resources enable that mapping automatically when
 `WithReference(...)` is used.
 
+Configuration Store and Secrets Vault resources follow the same rule as other
+services. Reference them when an application should discover their service
+endpoints; bind identity and grants separately when the application needs
+authorized access to their APIs.
+
 ```text
 services__<resource-name>__<endpoint-name-or-scheme>__0=<endpoint-address>
 ```

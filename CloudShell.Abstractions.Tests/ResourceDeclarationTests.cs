@@ -1755,6 +1755,56 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void TypedExecutableBuilder_TreatsConfigurationAndSecretsAsServiceDiscoveryReferences()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var settings = resources.AddConfigurationStore(
+                    "configuration:settings",
+                    "Settings");
+                var secrets = resources.AddSecretsVault(
+                    "secrets-vault:app",
+                    "App Secrets");
+
+                resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        "API",
+                        executablePath: "dotnet")
+                    .WithReference(settings)
+                    .WithReference(secrets)
+                    .WithServiceDiscovery();
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(
+            store.GetDeclarations(),
+            declaration => declaration.ResourceId == "application:api");
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.Empty(declaration.DependsOn);
+        Assert.Equal(
+            ["configuration:settings", "secrets-vault:app"],
+            application.References);
+        Assert.True(application.UseServiceDiscovery);
+    }
+
+    [Fact]
     public void TypedExecutableBuilder_StoresAppSettingsAndReferenceBackedEnvironmentVariables()
     {
         var services = new ServiceCollection();
