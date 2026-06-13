@@ -74,7 +74,10 @@ sealed class CloudShellServiceClients(CloudShellResourceCredential credential)
 ```
 
 The first credential source reads the environment contract injected by the
-resource provider that starts the workload process or container:
+resource provider that starts the workload process or container. Environment
+variables are the default injection mechanism because they work consistently
+for local executables, direct container starts, and descriptor-driven container
+orchestration:
 
 ```text
 CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT
@@ -110,7 +113,10 @@ integration.
 The credential contract is public preview. Future sources can add managed
 identity endpoints, federated workload identity, local development
 credentials, external provider plugins, or platform-specific brokers without
-changing service-client code.
+changing service-client code. Local development credentials may be backed by a
+file or developer profile on disk, similar to Azure SDK developer credentials;
+that stored credential is a credential source in the chain, not a replacement
+for the resource identity binding or permission grants.
 
 ## Control Plane Client
 

@@ -229,7 +229,10 @@ protected-service authentication surface is finalized for MVP.
 chain for services that need to obtain authentication evidence for their own
 resource identity. Its first source reads the injected `CLOUDSHELL_IDENTITY_*`
 environment contract; later sources should extend the same chain instead of
-adding service-specific token acquisition code.
+adding service-specific token acquisition code. Environment variables are the
+current runtime injection convention for executables and containers, but local
+development identities can later be resolved from a file or developer profile
+on disk through the same credential chain.
 
 The workload resource provider owns projecting that credential acquisition
 mechanism into the process or container it starts. Authored resources should
