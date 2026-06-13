@@ -28,5 +28,11 @@ public sealed class ResourceEventTypesTests
         Assert.Equal("event.lifecycle.started", ResourceEventTypes.Events.Lifecycle.Started);
         Assert.Equal("event.lifecycle.stopping", ResourceEventTypes.Events.Lifecycle.Stopping);
         Assert.Equal("event.lifecycle.stopped", ResourceEventTypes.Events.Lifecycle.Stopped);
+        Assert.Equal(
+            "event.configuration.appSettings.updated",
+            ResourceEventTypes.Events.Configuration.AppSettingsUpdated);
+        Assert.Equal(
+            "event.configuration.environmentVariables.updated",
+            ResourceEventTypes.Events.Configuration.EnvironmentVariablesUpdated);
     }
 }

@@ -48,6 +48,12 @@ public static class ResourceEventTypes
             public const string Restarted = "event.lifecycle.restarted";
             public const string RestartFailed = "event.lifecycle.restart.failed";
         }
+
+        public static class Configuration
+        {
+            public const string AppSettingsUpdated = "event.configuration.appSettings.updated";
+            public const string EnvironmentVariablesUpdated = "event.configuration.environmentVariables.updated";
+        }
     }
 
     private static string NormalizeEventTypeSegment(string value)

@@ -405,6 +405,11 @@ expectations rather than duplicating the task queue.
   settings and environment variables for missing configuration or Secrets
   Vault target resources and missing identity read grants before dispatching
   orchestration, without resolving or exposing referenced values.
+- Application app-setting and environment-variable updates now emit
+  platform-owned configuration activity events using
+  `event.configuration.appSettings.updated` and
+  `event.configuration.environmentVariables.updated`, without logging resolved
+  values or secret material.
 - Secrets Vault registration is available through a separate
   `AddSecretsProvider()` path, while `AddConfigurationProvider()` keeps
   compatibility by registering both configuration stores and Secrets Vault

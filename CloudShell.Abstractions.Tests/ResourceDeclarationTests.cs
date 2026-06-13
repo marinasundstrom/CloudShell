@@ -1813,6 +1813,9 @@ public sealed class ResourceDeclarationTests
         var services = new ServiceCollection();
 
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services.AddSingleton<RecordingResourceEventSink>();
+        services.AddSingleton<IResourceEventSink>(
+            serviceProvider => serviceProvider.GetRequiredService<RecordingResourceEventSink>());
         services
             .AddControlPlane()
             .AddApplicationProvider(options =>
@@ -1826,6 +1829,7 @@ public sealed class ResourceDeclarationTests
         {
             using var serviceProvider = services.BuildServiceProvider();
             var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var resourceEvents = serviceProvider.GetRequiredService<RecordingResourceEventSink>();
             var configurationProvider = Assert.Single(
                 serviceProvider.GetServices<IResourceEnvironmentVariableConfigurationProvider>());
             var registrations = new MutableResourceRegistrationStore();
@@ -1883,6 +1887,12 @@ public sealed class ResourceDeclarationTests
                 variable => variable.Name == "EXTERNAL_API_KEY" &&
                     variable.Secret?.VaultResourceId == "secrets-vault:app" &&
                     variable.Secret.SecretName == "ExternalApiKey");
+            var resourceEvent = Assert.Single(resourceEvents.Events);
+            Assert.Equal("application:api", resourceEvent.ResourceId);
+            Assert.Equal(
+                ResourceEventTypes.Events.Configuration.EnvironmentVariablesUpdated,
+                resourceEvent.EventType);
+            Assert.Equal("Updated 3 environment variables.", resourceEvent.Message);
         }
         finally
         {
@@ -1900,6 +1910,9 @@ public sealed class ResourceDeclarationTests
         var services = new ServiceCollection();
 
         services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services.AddSingleton<RecordingResourceEventSink>();
+        services.AddSingleton<IResourceEventSink>(
+            serviceProvider => serviceProvider.GetRequiredService<RecordingResourceEventSink>());
         services
             .AddControlPlane()
             .AddApplicationProvider(options =>
@@ -1913,6 +1926,7 @@ public sealed class ResourceDeclarationTests
         {
             using var serviceProvider = services.BuildServiceProvider();
             var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var resourceEvents = serviceProvider.GetRequiredService<RecordingResourceEventSink>();
             var configurationProvider = Assert.Single(
                 serviceProvider.GetServices<IResourceAppSettingConfigurationProvider>());
             var registrations = new MutableResourceRegistrationStore();
@@ -1971,6 +1985,12 @@ public sealed class ResourceDeclarationTests
                 setting => setting.Name == "ExternalApi:Key" &&
                     setting.Secret?.VaultResourceId == "secrets-vault:app" &&
                     setting.Secret.SecretName == "ExternalApiKey");
+            var resourceEvent = Assert.Single(resourceEvents.Events);
+            Assert.Equal("application:api", resourceEvent.ResourceId);
+            Assert.Equal(
+                ResourceEventTypes.Events.Configuration.AppSettingsUpdated,
+                resourceEvent.EventType);
+            Assert.Equal("Updated 3 app settings.", resourceEvent.Message);
         }
         finally
         {
@@ -4095,6 +4115,18 @@ public sealed class ResourceDeclarationTests
         {
             Context = context;
             return Task.FromResult(ResourceProcedureResult.Completed("Provisioned."));
+        }
+    }
+
+    private sealed class RecordingResourceEventSink : IResourceEventSink
+    {
+        private readonly List<ResourceEvent> events = [];
+
+        public IReadOnlyList<ResourceEvent> Events => events;
+
+        public void Append(ResourceEvent resourceEvent)
+        {
+            events.Add(resourceEvent);
         }
     }
 

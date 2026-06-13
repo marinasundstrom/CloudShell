@@ -415,6 +415,11 @@ public sealed partial class ApplicationResourceProvider(
             context.Registrations,
             cancellationToken);
 
+        AppendConfigurationEvent(
+            application.Id,
+            ResourceEventTypes.Events.Configuration.AppSettingsUpdated,
+            $"Updated {appSettings.Count} app setting{Pluralize(appSettings.Count)}.");
+
         return restartRequired
             ? ResourceProcedureResult.CompletedWithRestartRequired(
                 "App settings updated.",
@@ -449,6 +454,11 @@ public sealed partial class ApplicationResourceProvider(
             context.ResourceGroupId,
             context.Registrations,
             cancellationToken);
+
+        AppendConfigurationEvent(
+            application.Id,
+            ResourceEventTypes.Events.Configuration.EnvironmentVariablesUpdated,
+            $"Updated {environmentVariables.Count} environment variable{Pluralize(environmentVariables.Count)}.");
 
         return restartRequired
             ? ResourceProcedureResult.CompletedWithRestartRequired(
@@ -618,6 +628,16 @@ public sealed partial class ApplicationResourceProvider(
             : ResourceProcedureResult.Completed(
                 $"Updated {application.Name} to {updated.Replicas} replica{Pluralize(updated.Replicas)}.");
     }
+
+    private void AppendConfigurationEvent(
+        string resourceId,
+        string eventType,
+        string message) =>
+        resourceEvents?.Append(new ResourceEvent(
+            resourceId,
+            eventType,
+            message,
+            DateTimeOffset.UtcNow));
 
     public bool CanExport(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&

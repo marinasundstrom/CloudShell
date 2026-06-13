@@ -10,6 +10,7 @@ internal static class ResourceEventDisplayNames
     private const string EventPrefix = "event.";
     private const string LifecycleActionPrefix = "action.lifecycle.";
     private const string LifecycleEventPrefix = "event.lifecycle.";
+    private const string ConfigurationEventPrefix = "event.configuration.";
 
     public static string GetDisplayName(
         string eventType,
@@ -75,6 +76,16 @@ internal static class ResourceEventDisplayNames
             return localizer["Restarted"].Value;
         }
 
+        if (string.Equals(eventType, ResourceEventTypes.Events.Configuration.AppSettingsUpdated, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["App settings updated"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Configuration.EnvironmentVariablesUpdated, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Environment variables updated"].Value;
+        }
+
         return FormatCustomEventDisplayName(eventType);
     }
 
@@ -85,6 +96,7 @@ internal static class ResourceEventDisplayNames
         {
             ResourceEventGroupKey.LifecycleAction => localizer["Lifecycle actions"].Value,
             ResourceEventGroupKey.LifecycleEvent => localizer["Lifecycle events"].Value,
+            ResourceEventGroupKey.ConfigurationEvent => localizer["Configuration events"].Value,
             ResourceEventGroupKey.Action => localizer["Actions"].Value,
             ResourceEventGroupKey.Event => localizer["Events"].Value,
             _ => localizer["Activity"].Value
@@ -95,6 +107,7 @@ internal static class ResourceEventDisplayNames
         {
             ResourceEventGroupKey.LifecycleAction => "lifecycle-action",
             ResourceEventGroupKey.LifecycleEvent => "lifecycle-event",
+            ResourceEventGroupKey.ConfigurationEvent => "configuration-event",
             ResourceEventGroupKey.Action => "action",
             ResourceEventGroupKey.Event => "event",
             _ => "activity"
@@ -105,9 +118,10 @@ internal static class ResourceEventDisplayNames
         {
             ResourceEventGroupKey.LifecycleAction => 0,
             ResourceEventGroupKey.LifecycleEvent => 1,
-            ResourceEventGroupKey.Action => 2,
-            ResourceEventGroupKey.Event => 3,
-            _ => 4
+            ResourceEventGroupKey.ConfigurationEvent => 2,
+            ResourceEventGroupKey.Action => 3,
+            ResourceEventGroupKey.Event => 4,
+            _ => 5
         };
 
     private static ResourceEventGroupKey GetGroupKey(string eventType)
@@ -120,6 +134,11 @@ internal static class ResourceEventDisplayNames
         if (eventType.StartsWith(LifecycleEventPrefix, StringComparison.OrdinalIgnoreCase))
         {
             return ResourceEventGroupKey.LifecycleEvent;
+        }
+
+        if (eventType.StartsWith(ConfigurationEventPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return ResourceEventGroupKey.ConfigurationEvent;
         }
 
         if (eventType.StartsWith(ResourceEventTypes.Actions.Prefix, StringComparison.OrdinalIgnoreCase))
@@ -161,6 +180,7 @@ internal static class ResourceEventDisplayNames
     {
         LifecycleAction,
         LifecycleEvent,
+        ConfigurationEvent,
         Action,
         Event,
         Activity
