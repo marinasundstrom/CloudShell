@@ -16,12 +16,19 @@ app.MapGet("/health", () => Results.Ok(new
     timestamp = DateTimeOffset.UtcNow
 }));
 
-app.MapGet("/message", async (CancellationToken cancellationToken) =>
+app.MapGet("/message", async (
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
 {
+    var logger = loggerFactory.CreateLogger("CloudShell.ProjectReference.Api");
     using var activity = ProjectReferenceTraceSources.ActivitySource.StartActivity(
         "api.prepare-message",
         ActivityKind.Internal);
     activity?.SetTag("cloudshell.sample.resource", "project-reference-api");
+    logger.LogInformation(
+        ProjectReferenceLogEvents.PreparingMessage,
+        "Preparing API message on {Machine}",
+        Environment.MachineName);
 
     await Task.Delay(TimeSpan.FromMilliseconds(25), cancellationToken);
 
@@ -30,6 +37,10 @@ app.MapGet("/message", async (CancellationToken cancellationToken) =>
         Environment.MachineName);
 
     activity?.SetTag("cloudshell.sample.machine", message.Machine);
+    logger.LogInformation(
+        ProjectReferenceLogEvents.MessagePrepared,
+        "Prepared API message on {Machine}",
+        message.Machine);
 
     return Results.Ok(message);
 });

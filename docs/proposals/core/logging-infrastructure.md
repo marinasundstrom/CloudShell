@@ -158,13 +158,29 @@ The first structured `LogEntry` slice is in place through optional `category`,
 when projected through the log view, while stdout/stderr and provider logs can
 remain plain text.
 
+Application process logs now parse JSON console log lines at the provider
+boundary. The initial supported shape follows the standard
+`Microsoft.Extensions.Logging.Console` JSON formatter: `Timestamp`,
+`LogLevel`, `Category`, `EventId`, `Message`, `Exception`, `State`, and
+`Scopes` are mapped into `LogEntry`, with activity `TraceId` and `SpanId`
+picked up from scope data when available. CloudShell also accepts the same
+lower-camel field names used by its own persisted structured process-log
+lines. Malformed or non-JSON process output remains plain text.
+
+The Project Reference sample uses this path with `ILogger`, JSON console
+formatting, activity tracking options, service discovery, OpenTelemetry spans,
+and normal structured log properties. A single `/upstream` request now
+produces correlated spans and structured application logs for both the
+frontend and API resources.
+
 Remaining structured-log work should decide:
 
 - whether CloudShell needs a typed event ID shape instead of the current stable
   string event ID
 - how to represent scopes without leaking ambient request or credential data
 - which attributes should become indexed query fields
-- how OpenTelemetry log records map into `LogEntry`
+- how OpenTelemetry log records map into `LogEntry` beyond JSON console
+  capture
 
 ### Structured Resource Events
 

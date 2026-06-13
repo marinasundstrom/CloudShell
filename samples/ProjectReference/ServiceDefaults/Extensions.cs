@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
 using OpenTelemetry.Trace;
@@ -16,6 +17,20 @@ public static class Extensions
 {
     public static WebApplicationBuilder AddServiceDefaults(this WebApplicationBuilder builder)
     {
+        builder.Logging.ClearProviders();
+        builder.Logging.Configure(options =>
+        {
+            options.ActivityTrackingOptions =
+                ActivityTrackingOptions.TraceId |
+                ActivityTrackingOptions.SpanId |
+                ActivityTrackingOptions.ParentId;
+        });
+        builder.Logging.AddJsonConsole(options =>
+        {
+            options.IncludeScopes = true;
+            options.TimestampFormat = "O";
+        });
+
         builder.Services.AddHealthChecks();
         builder.Services.AddServiceDiscovery();
         builder.Services.AddHttpClient();
@@ -80,6 +95,17 @@ public static class ProjectReferenceTraceSources
     public const string ActivitySourceName = "CloudShell.ProjectReference";
 
     public static ActivitySource ActivitySource { get; } = new(ActivitySourceName);
+}
+
+public static class ProjectReferenceLogEvents
+{
+    public static readonly EventId CallingApi = new(1000, nameof(CallingApi));
+
+    public static readonly EventId ApiResponseReceived = new(1001, nameof(ApiResponseReceived));
+
+    public static readonly EventId PreparingMessage = new(2000, nameof(PreparingMessage));
+
+    public static readonly EventId MessagePrepared = new(2001, nameof(MessagePrepared));
 }
 
 internal sealed class CloudShellTraceExporter(HttpClient httpClient, IHostEnvironment environment) :

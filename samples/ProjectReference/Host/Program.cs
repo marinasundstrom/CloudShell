@@ -15,6 +15,8 @@ var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"]
 var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];
 var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"]
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/traces/ingest";
+var frontendEndpoint = builder.Configuration["ProjectReference:FrontendEndpoint"]
+    ?? "http://localhost:5218";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -45,7 +47,7 @@ cloudShell.Resources(resources =>
             "application:project-reference-frontend",
             "Project Reference Frontend",
             "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
-            endpoint: "http://localhost:5218",
+            endpoint: frontendEndpoint,
             hotReload: false)
         .WithHttpHealthCheck("/healthz")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")

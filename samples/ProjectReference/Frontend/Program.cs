@@ -16,8 +16,10 @@ app.MapGet("/", () => Results.Redirect("/upstream"));
 app.MapGet("/upstream", async (
     IConfiguration configuration,
     IHttpClientFactory httpClientFactory,
+    ILoggerFactory loggerFactory,
     CancellationToken cancellationToken) =>
 {
+    var logger = loggerFactory.CreateLogger("CloudShell.ProjectReference.Frontend");
     using var activity = ProjectReferenceTraceSources.ActivitySource.StartActivity(
         "frontend.call-project-reference-api",
         ActivityKind.Internal);
@@ -26,12 +28,20 @@ app.MapGet("/upstream", async (
     var endpoint = configuration.GetRequiredResourceUri("project-reference-api", "http");
     activity?.SetTag("cloudshell.sample.logical_api_endpoint", "https+http://project-reference-api");
     activity?.SetTag("cloudshell.sample.resolved_api_endpoint", endpoint.ToString());
+    logger.LogInformation(
+        ProjectReferenceLogEvents.CallingApi,
+        "Calling referenced API at {ResolvedEndpoint}",
+        endpoint);
 
     var client = httpClientFactory.CreateClient("project-reference-api");
     var message = await client.GetFromJsonAsync<ApiMessage>(
         "/message",
         cancellationToken);
     activity?.SetTag("cloudshell.sample.upstream_machine", message?.Machine ?? "unknown");
+    logger.LogInformation(
+        ProjectReferenceLogEvents.ApiResponseReceived,
+        "Received message from {UpstreamMachine}",
+        message?.Machine ?? "unknown");
 
     return Results.Ok(new
     {

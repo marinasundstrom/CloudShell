@@ -259,6 +259,11 @@ expectations rather than duplicating the task queue.
   for resource events, but resource events, audit records, diagnostics,
   metrics, traces, and future non-text payloads remain separate concerns tracked by
   [Logging infrastructure](proposals/core/logging-infrastructure.md).
+  Application process logs now parse standard JSON console output into those
+  structured fields while preserving plain stdout/stderr as text. The Project
+  Reference sample emits normal `ILogger` JSON console logs with activity
+  trace/span scope so the same `/upstream` request can be inspected through
+  related resource logs and the trace waterfall.
 - Resource events can now capture W3C `traceId` and `spanId` from the current
   activity, persist that context, filter activity by trace ID, and project the
   same context into Activity log entries. This gives local distributed-app
