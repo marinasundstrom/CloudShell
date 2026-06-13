@@ -96,6 +96,9 @@ listed here before pulling in broader proposal work.
 - Continue authorization diagnostics beyond resource-action capability reasons,
   especially for configuration updates, deployment operations, logs,
   diagnostics, provider actions, and audit event payloads.
+- Later UI enforcement should disable or hide Resource Manager operations
+  based on the current user's permissions, while still explaining the missing
+  permission in the same diagnostic style as Azure-style portals.
 - Continue assigning documented Azure-style operation permissions for
   configuration updates, deployment operations, logs, diagnostics, provider
   actions, and future runtime-managed resources as those operations enter the
@@ -145,7 +148,8 @@ listed here before pulling in broader proposal work.
 - Show saved references and diagnostics without displaying resolved secret
   values. Application overview now renders app-setting and environment-variable
   references as source labels and target references instead of resolved values
-  or raw CloudShell reference strings.
+  or raw CloudShell reference strings, and shows basic target availability and
+  identity-grant status.
 - Verify assignment flows against identity-backed configuration and secret
   read authorization.
 - Persist resource events and expose filtering by event type, actor, and time

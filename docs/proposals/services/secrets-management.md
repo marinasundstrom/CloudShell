@@ -333,7 +333,9 @@ app settings for non-secret values and vault-backed references for secrets.
   secret references through provider-owned configuration hooks.
 - Application overview now displays configured app settings and environment
   variables as source labels and target references, without resolving or
-  displaying secret values.
+  displaying secret values. It also shows whether the reference target is
+  available and whether an identity-bound resource will need a read grant at
+  runtime.
 - Decide how secret references should be versioned, rotated, and refreshed for
   already-running resources.
 - Add a separate secrets client/provider for in-process secret loading.

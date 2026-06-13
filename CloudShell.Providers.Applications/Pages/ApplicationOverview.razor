@@ -110,6 +110,7 @@ else
                     <tr>
                         <th>Name</th>
                         <th>Source</th>
+                        <th>Status</th>
                         <th>Value or reference</th>
                     </tr>
                 </thead>
@@ -119,6 +120,7 @@ else
                     <tr>
                         <td><strong>@row.Name</strong></td>
                         <td>@row.Source</td>
+                        <td><span class="@row.StatusCssClass">@row.Status</span></td>
                         <td>
                             <span>@row.Target</span>
                             @if (!string.IsNullOrWhiteSpace(row.Detail))
@@ -146,6 +148,7 @@ else
                     <tr>
                         <th>Name</th>
                         <th>Source</th>
+                        <th>Status</th>
                         <th>Value or reference</th>
                     </tr>
                 </thead>
@@ -155,6 +158,7 @@ else
                     <tr>
                         <td><strong>@row.Name</strong></td>
                         <td>@row.Source</td>
+                        <td><span class="@row.StatusCssClass">@row.Status</span></td>
                         <td>
                             <span>@row.Target</span>
                             @if (!string.IsNullOrWhiteSpace(row.Detail))
@@ -175,6 +179,7 @@ else
     public string? ResourceId { get; set; }
 
     private ApplicationResourceDefinition? Application { get; set; }
+    private Resource? ProjectedResource { get; set; }
     private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
@@ -184,9 +189,12 @@ else
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : ApplicationProvider.GetApplication(ResourceId);
+        ProjectedResource = Application is null
+            ? null
+            : ResourceManager.GetResource(Application.Id);
         EffectiveDependencies = Application is null
             ? []
-            : ResourceManager.GetResource(Application.Id)?.DependsOn ?? Application.DependsOn;
+            : ProjectedResource?.DependsOn ?? Application.DependsOn;
         InboundNetworkMappings = Application is null
             ? []
             : GetInboundNetworkMappings(Application.Id);
@@ -349,78 +357,19 @@ else
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
-    private SettingDisplayRow CreateSettingRow(AppSetting setting)
-    {
-        if (setting.ConfigurationEntry is not null)
-        {
-            return CreateConfigurationReferenceRow(setting.Name, setting.ConfigurationEntry);
-        }
+    private ApplicationSettingDisplayRow CreateSettingRow(AppSetting setting) =>
+        ApplicationSettingReferenceDisplay.Create(
+            setting,
+            Application?.Id ?? ResourceId ?? string.Empty,
+            ProjectedResource?.IdentityBinding,
+            resourceId => ResolveMappingResource(resourceId));
 
-        if (setting.Secret is not null)
-        {
-            return CreateSecretReferenceRow(setting.Name, setting.Secret);
-        }
-
-        return new SettingDisplayRow(
-            setting.Name,
-            "Literal value",
-            string.IsNullOrEmpty(setting.Value) ? "empty" : setting.Value,
-            null);
-    }
-
-    private SettingDisplayRow CreateSettingRow(EnvironmentVariableAssignment assignment)
-    {
-        if (assignment.ConfigurationEntry is not null)
-        {
-            return CreateConfigurationReferenceRow(assignment.Name, assignment.ConfigurationEntry);
-        }
-
-        if (assignment.Secret is not null)
-        {
-            return CreateSecretReferenceRow(assignment.Name, assignment.Secret);
-        }
-
-        return new SettingDisplayRow(
-            assignment.Name,
-            "Literal value",
-            string.IsNullOrEmpty(assignment.Value) ? "empty" : assignment.Value,
-            null);
-    }
-
-    private SettingDisplayRow CreateConfigurationReferenceRow(
-        string name,
-        ConfigurationEntryReference reference) =>
-        new(
-            name,
-            "Configuration entry",
-            FormatReferenceTarget(reference.StoreResourceId, reference.EntryName),
-            FormatReferenceDetail(reference.StoreResourceId, reference.Version));
-
-    private SettingDisplayRow CreateSecretReferenceRow(
-        string name,
-        SecretReference reference) =>
-        new(
-            name,
-            "Secret reference",
-            FormatReferenceTarget(reference.VaultResourceId, reference.SecretName),
-            FormatReferenceDetail(reference.VaultResourceId, reference.Version));
-
-    private string FormatReferenceTarget(string resourceId, string itemName)
-    {
-        var resource = ResolveMappingResource(resourceId);
-        return $"{resource?.Name ?? resourceId} / {itemName}";
-    }
-
-    private string FormatReferenceDetail(string resourceId, string? version)
-    {
-        var resource = ResolveMappingResource(resourceId);
-        var id = resource is null
-            ? $"{resourceId} (unavailable)"
-            : resource.Id;
-        return string.IsNullOrWhiteSpace(version)
-            ? id
-            : $"{id}; version {version}";
-    }
+    private ApplicationSettingDisplayRow CreateSettingRow(EnvironmentVariableAssignment assignment) =>
+        ApplicationSettingReferenceDisplay.Create(
+            assignment,
+            Application?.Id ?? ResourceId ?? string.Empty,
+            ProjectedResource?.IdentityBinding,
+            resourceId => ResolveMappingResource(resourceId));
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
@@ -497,10 +446,4 @@ else
     private sealed record LoadBalancerRouteView(
         Resource LoadBalancer,
         LoadBalancerRoute Route);
-
-    private sealed record SettingDisplayRow(
-        string Name,
-        string Source,
-        string Target,
-        string? Detail);
 }

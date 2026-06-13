@@ -1468,6 +1468,32 @@ h3 {
     margin-top: .15rem;
 }
 
+.reference-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.35rem;
+    padding: .08rem .45rem;
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.reference-status-ok {
+    color: #2f6f3e;
+    background: rgba(47, 111, 62, .14);
+}
+
+.reference-status-info {
+    color: #4f6688;
+    background: rgba(79, 102, 136, .16);
+}
+
+.reference-status-warning {
+    color: #946200;
+    background: rgba(148, 98, 0, .16);
+}
+
 @media (max-width: 720px) {
     .generated-resource-view .detail-list {
         grid-template-columns: 1fr;

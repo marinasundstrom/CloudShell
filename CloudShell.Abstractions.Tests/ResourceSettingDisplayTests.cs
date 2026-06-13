@@ -1,4 +1,6 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Providers.Applications;
 
 namespace CloudShell.Abstractions.Tests;
 
@@ -57,4 +59,80 @@ public sealed class ResourceSettingDisplayTests
             "@CloudShell.Configuration(storeResourceId=configuration:app; entryName=database-host)",
             value);
     }
+
+    [Fact]
+    public void ApplicationSettingReferenceDisplay_ReturnsLiteralStatus()
+    {
+        var row = ApplicationSettingReferenceDisplay.Create(
+            AppSetting.Literal("Sample:Mode", "Development"),
+            "application:api",
+            null,
+            _ => null);
+
+        Assert.Equal("Sample:Mode", row.Name);
+        Assert.Equal("Literal value", row.Source);
+        Assert.Equal("Development", row.Target);
+        Assert.Equal("Visible", row.Status);
+        Assert.Equal("ok", row.StatusKind);
+        Assert.Null(row.Detail);
+    }
+
+    [Fact]
+    public void ApplicationSettingReferenceDisplay_FlagsMissingConfigurationStore()
+    {
+        var row = ApplicationSettingReferenceDisplay.Create(
+            AppSetting.FromConfiguration(
+                "Sample:Message",
+                new ConfigurationEntryReference("configuration:missing", "Sample:Message")),
+            "application:api",
+            null,
+            _ => null);
+
+        Assert.Equal("Configuration entry", row.Source);
+        Assert.Equal("configuration:missing / Sample:Message", row.Target);
+        Assert.Equal("Unavailable", row.Status);
+        Assert.Equal("warning", row.StatusKind);
+        Assert.Equal("configuration:missing (unavailable)", row.Detail);
+    }
+
+    [Fact]
+    public void ApplicationSettingReferenceDisplay_ShowsGrantRequirementForIdentityBoundSecret()
+    {
+        var vault = CreateResource("secrets-vault:app", "App Secrets", ResourceClass.SecretsVault);
+        var identity = new ResourceIdentityBinding("identity:development", Name: "api-service");
+
+        var row = ApplicationSettingReferenceDisplay.Create(
+            EnvironmentVariableAssignment.FromSecret(
+                "SAMPLE_API_KEY",
+                new SecretReference("secrets-vault:app", "sample-api-key", "v2")),
+            "application:api",
+            identity,
+            id => string.Equals(id, vault.Id, StringComparison.OrdinalIgnoreCase) ? vault : null);
+
+        Assert.Equal("Secret reference", row.Source);
+        Assert.Equal("App Secrets / sample-api-key", row.Target);
+        Assert.Equal("Grant required", row.Status);
+        Assert.Equal("info", row.StatusKind);
+        Assert.Contains("secrets-vault:app; version v2", row.Detail);
+        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, row.Detail);
+        Assert.Contains("application:api/api-service", row.Detail);
+    }
+
+    private static Resource CreateResource(
+        string id,
+        string name,
+        ResourceClass resourceClass = ResourceClass.Generic) =>
+        new(
+            id,
+            name,
+            id,
+            "test",
+            "local",
+            ResourceState.Running,
+            [],
+            "1",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: id,
+            ResourceClass: resourceClass);
 }
