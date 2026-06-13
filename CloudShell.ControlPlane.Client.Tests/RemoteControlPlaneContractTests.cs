@@ -306,7 +306,7 @@ public sealed class RemoteControlPlaneContractTests
         var resourceEvents = await controlPlane.ListResourceEventsAsync(
             new ResourceEventQuery(
                 ResourceId: ContractImageResourceProvider.ResourceId,
-                EventType: "image.update",
+                EventType: ResourceEventTypes.Events.Deployment.ImageUpdated,
                 TriggeredBy: "build-server"));
 
         Assert.Equal("Updated contract:container-app to example/api:20260608.", result.Message);
@@ -314,13 +314,13 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(["example/api:20260608:False:build-server"], provider.UpdatedImages);
         var resourceEvent = Assert.Single(resourceEvents);
         Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.ResourceId);
-        Assert.Equal("image.update", resourceEvent.EventType);
+        Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.EventType);
         Assert.Equal("build-server", resourceEvent.TriggeredBy);
         Assert.Equal("Information", resourceEvent.Level);
         Assert.Contains("example/api:20260608", resourceEvent.Message, StringComparison.Ordinal);
         Assert.Contains(events, entry =>
             entry.Source == "event" &&
-            entry.Message.Contains("image.update", StringComparison.Ordinal) &&
+            entry.Message.Contains(ResourceEventTypes.Events.Deployment.ImageUpdated, StringComparison.Ordinal) &&
             entry.Message.Contains("build-server", StringComparison.Ordinal));
     }
 
@@ -338,13 +338,14 @@ public sealed class RemoteControlPlaneContractTests
         var response = await app.GetTestClient().GetAsync(
             "/api/control-plane/v1/resource-events" +
             $"?resourceId={Uri.EscapeDataString(ContractImageResourceProvider.ResourceId)}" +
-            "&eventType=image.update&triggeredBy=build-server&maxEvents=10");
+            $"&eventType={Uri.EscapeDataString(ResourceEventTypes.Events.Deployment.ImageUpdated)}" +
+            "&triggeredBy=build-server&maxEvents=10");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var resourceEvent = Assert.Single(document.RootElement.EnumerateArray());
         Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.GetProperty("resourceId").GetString());
-        Assert.Equal("image.update", resourceEvent.GetProperty("eventType").GetString());
+        Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.GetProperty("eventType").GetString());
         Assert.Equal("build-server", resourceEvent.GetProperty("triggeredBy").GetString());
         Assert.Equal("Information", resourceEvent.GetProperty("level").GetString());
         Assert.Contains("example/api:20260609", resourceEvent.GetProperty("message").GetString(), StringComparison.Ordinal);
@@ -371,7 +372,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(["3:False:load-balancer"], provider.UpdatedReplicas);
         Assert.Contains(events, entry =>
             entry.Source == "event" &&
-            entry.Message.Contains("replicas.update", StringComparison.Ordinal) &&
+            entry.Message.Contains(ResourceEventTypes.Events.Deployment.ReplicasUpdated, StringComparison.Ordinal) &&
             entry.Message.Contains("load-balancer", StringComparison.Ordinal));
     }
 

@@ -94,10 +94,12 @@ information when known. Custom action event types are derived from the action
 ID under `action.*`; authors may namespace their own action IDs, for example
 `database.backup` becomes `action.database.backup`. Standard lifecycle event
 types describe resource lifecycle facts, such as `event.lifecycle.starting`,
-`event.lifecycle.started`, `event.lifecycle.stopping`, and `event.lifecycle.stopped`. Authors can
-still define custom resource actions and custom resource event types; only
-standard lifecycle action kinds receive Resource Manager lifecycle events
-automatically.
+`event.lifecycle.started`, `event.lifecycle.stopping`, and
+`event.lifecycle.stopped`. Standard deployment events use
+`event.deployment.*` for resource deployment changes such as image and replica
+updates. Authors can still define custom resource actions and custom resource
+event types under `event.*`; only standard lifecycle action kinds receive
+Resource Manager lifecycle events automatically.
 
 When dependency startup starts another resource, that dependency gets its own
 action and lifecycle records with the dependency-start cause in the message.

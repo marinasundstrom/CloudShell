@@ -475,8 +475,9 @@ activity facts such as `action.lifecycle.stop`, `event.lifecycle.stopping`, and
 custom resource event types. Custom action event types use
 `action.<custom-action-id>`, and authors may namespace their own action IDs,
 for example `action.database.backup`. Authors may also namespace their own
-event types, such as `database.backup.completed`; only the standard lifecycle
-action kinds receive Resource Manager lifecycle events automatically.
+event types under `event.*`, such as `event.database.backup.completed`; only
+the standard lifecycle action kinds receive Resource Manager lifecycle events
+automatically.
 
 ### Action and Event Naming
 
@@ -493,8 +494,10 @@ types use `action.<custom-action-id>`, preserving author namespaces.
 Event types describe facts that happened. Standard lifecycle events use
 `event.lifecycle.*`, for example `event.lifecycle.starting`,
 `event.lifecycle.started`, `event.lifecycle.stopping`, and
-`event.lifecycle.stopped`. Authors may define their own event namespaces, such
-as `database.backup.completed`.
+`event.lifecycle.stopped`. Standard deployment events use
+`event.deployment.*`, for example `event.deployment.image.updated` and
+`event.deployment.replicas.updated`. Authors may define their own event
+namespaces under `event.*`, such as `event.database.backup.completed`.
 
 Display names are presentation metadata. The Activity UI can show friendly
 labels such as "Start action" or "Started" while preserving the stable event

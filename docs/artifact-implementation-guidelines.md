@@ -567,10 +567,10 @@ Implementation:
   Standard lifecycle event types describe lifecycle phases and outcomes, such
   as `event.lifecycle.starting`, `event.lifecycle.started`,
   `event.lifecycle.stopping`, and `event.lifecycle.stopped`. Event types are
-  namespaced too; authors may define custom event namespaces such as
-  `database.backup.completed`. Custom actions and custom event types are
-  allowed, but only standard lifecycle action kinds should be treated as
-  lifecycle events by Resource Manager.
+  namespaced too; authors may define custom event namespaces under `event.*`,
+  such as `event.database.backup.completed`. Custom actions and custom event
+  types are allowed, but only standard lifecycle action kinds should be treated
+  as lifecycle events by Resource Manager.
 - Emit resource events for operations such as actions, image updates,
   configuration changes, and important Control Plane decisions.
 - Keep resource events generic. Provider-specific logs can add operational

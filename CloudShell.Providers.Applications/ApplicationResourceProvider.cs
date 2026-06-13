@@ -506,7 +506,7 @@ public sealed partial class ApplicationResourceProvider(
 
         resourceEvents?.Append(new ResourceEvent(
             application.Id,
-            "containerApp.imageChanged",
+            ResourceEventTypes.Events.Deployment.ImageUpdated,
             $"Changed container image from '{application.ContainerImage ?? "none"}' to '{normalizedImage}' and created revision '{updated.ContainerRevision}'.",
             DateTimeOffset.UtcNow,
             triggeredBy));
@@ -529,7 +529,7 @@ public sealed partial class ApplicationResourceProvider(
                 cancellationToken);
             resourceEvents?.Append(new ResourceEvent(
                 application.Id,
-                "containerApp.restarted",
+                ResourceEventTypes.Events.Lifecycle.Restarted,
                 $"Restarted container app on revision '{updated.ContainerRevision}' after image update.",
                 DateTimeOffset.UtcNow,
                 triggeredBy));
@@ -594,7 +594,7 @@ public sealed partial class ApplicationResourceProvider(
 
         resourceEvents?.Append(new ResourceEvent(
             application.Id,
-            "containerApp.replicasChanged",
+            ResourceEventTypes.Events.Deployment.ReplicasUpdated,
             $"Changed container app replicas from '{application.Replicas}' to '{updated.Replicas}'.",
             DateTimeOffset.UtcNow,
             triggeredBy));
@@ -611,7 +611,7 @@ public sealed partial class ApplicationResourceProvider(
                 cancellationToken);
             resourceEvents?.Append(new ResourceEvent(
                 application.Id,
-                "containerApp.restarted",
+                ResourceEventTypes.Events.Lifecycle.Restarted,
                 $"Restarted container app with {updated.Replicas} replica{Pluralize(updated.Replicas)}.",
                 DateTimeOffset.UtcNow,
                 triggeredBy));

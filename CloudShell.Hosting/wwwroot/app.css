@@ -1015,6 +1015,10 @@ h3 {
     color: #64748b;
 }
 
+.resource-activity-group.deployment-event {
+    color: #7c3aed;
+}
+
 .resource-activity-group.action {
     color: #0f766e;
 }

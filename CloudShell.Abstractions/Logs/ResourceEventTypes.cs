@@ -54,6 +54,12 @@ public static class ResourceEventTypes
             public const string AppSettingsUpdated = "event.configuration.appSettings.updated";
             public const string EnvironmentVariablesUpdated = "event.configuration.environmentVariables.updated";
         }
+
+        public static class Deployment
+        {
+            public const string ImageUpdated = "event.deployment.image.updated";
+            public const string ReplicasUpdated = "event.deployment.replicas.updated";
+        }
     }
 
     private static string NormalizeEventTypeSegment(string value)

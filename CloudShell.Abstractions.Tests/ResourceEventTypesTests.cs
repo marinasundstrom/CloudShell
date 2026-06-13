@@ -34,5 +34,11 @@ public sealed class ResourceEventTypesTests
         Assert.Equal(
             "event.configuration.environmentVariables.updated",
             ResourceEventTypes.Events.Configuration.EnvironmentVariablesUpdated);
+        Assert.Equal(
+            "event.deployment.image.updated",
+            ResourceEventTypes.Events.Deployment.ImageUpdated);
+        Assert.Equal(
+            "event.deployment.replicas.updated",
+            ResourceEventTypes.Events.Deployment.ReplicasUpdated);
     }
 }

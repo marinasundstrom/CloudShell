@@ -542,6 +542,10 @@ expectations rather than duplicating the task queue.
   traceability, application-provider console logs for underlying container
   output, split-host client mapping, and documented registry-push deployment
   procedure.
+- Standardized image and replica update activity event types as
+  `event.deployment.image.updated` and
+  `event.deployment.replicas.updated`, with Resource Manager display names and
+  grouping aligned to the persisted event type names.
 - Split application resource documentation into a `docs/resources` area with
   separate pages for executable applications, ASP.NET Core project resources,
   and container apps.
