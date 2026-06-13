@@ -209,11 +209,13 @@ listed here before pulling in broader proposal work.
   actions before orchestration dispatch. The shared resolver also reports
   unavailable host resources and missing required host capabilities, with
   container-image and container-build capability IDs wired into container
-  workload validation. Missing credentials remain.
+  workload validation. These failures now carry structured reason codes for
+  API/UI consumers. Host connection credential readiness remains.
 - Resolver tests now cover explicit host selection, preferred host selection,
   configured default host selection, registered default host descriptors, and
-  missing-host, unavailable-host, and required-capability diagnostics.
-  Continue tests for credential diagnostics when that state is implemented.
+  missing-host, unavailable-host, required-capability diagnostics, and their
+  structured reason codes. Continue tests for host credential diagnostics when
+  that state is implemented.
 - Add provider-owned Docker runtime support for owner-scoped implementation
   containers after the resolver lands.
 - Continue Traefik container mode beyond apply-time startup by tying the

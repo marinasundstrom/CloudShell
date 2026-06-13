@@ -132,6 +132,7 @@ public sealed class ContainerHostResolverTests
             ExplicitHostResourceId: "docker:missing"));
 
         Assert.False(result.IsResolved);
+        Assert.Equal(ContainerHostResolutionFailureReason.HostNotRegistered, result.FailureReason);
         Assert.Equal("Container host 'docker:missing' is not registered.", result.ErrorMessage);
     }
 
@@ -154,6 +155,7 @@ public sealed class ContainerHostResolverTests
             ExplicitHostResourceId: hostResource.Id));
 
         Assert.False(result.IsResolved);
+        Assert.Equal(ContainerHostResolutionFailureReason.HostUnavailable, result.FailureReason);
         Assert.Equal("Container host 'docker:remote' is unavailable.", result.ErrorMessage);
     }
 
@@ -168,6 +170,7 @@ public sealed class ContainerHostResolverTests
             PreferredHostId: "docker:missing"));
 
         Assert.False(result.IsResolved);
+        Assert.Equal(ContainerHostResolutionFailureReason.HostNotRegistered, result.FailureReason);
         Assert.Equal("Preferred container host 'docker:missing' is not registered.", result.ErrorMessage);
     }
 
@@ -181,6 +184,7 @@ public sealed class ContainerHostResolverTests
             null));
 
         Assert.False(result.IsResolved);
+        Assert.Equal(ContainerHostResolutionFailureReason.DefaultHostMissing, result.FailureReason);
         Assert.Equal(
             "Resource 'application:api' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set an explicit container host.",
             result.ErrorMessage);
@@ -207,6 +211,7 @@ public sealed class ContainerHostResolverTests
             RequiredCapability: ContainerHostCapabilityIds.ContainerBuild));
 
         Assert.False(result.IsResolved);
+        Assert.Equal(ContainerHostResolutionFailureReason.RequiredCapabilityMissing, result.FailureReason);
         Assert.Equal(
             "Container host 'docker:remote' does not advertise required capability 'container.build'.",
             result.ErrorMessage);

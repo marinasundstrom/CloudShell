@@ -68,9 +68,21 @@ public sealed record ContainerHostResolutionRequest(
     string? PreferredHostId = null,
     string? RequiredCapability = null);
 
+public enum ContainerHostResolutionFailureReason
+{
+    None,
+    HostNotRegistered,
+    DefaultHostMissing,
+    HostUnavailable,
+    RequiredCapabilityMissing,
+    CredentialsUnavailable,
+    UnsupportedWorkload
+}
+
 public sealed record ContainerHostResolutionResult(
     ContainerHostDescriptor? Host,
-    string? ErrorMessage = null)
+    string? ErrorMessage = null,
+    ContainerHostResolutionFailureReason FailureReason = ContainerHostResolutionFailureReason.None)
 {
     public bool IsResolved => Host is not null && ErrorMessage is null;
 }

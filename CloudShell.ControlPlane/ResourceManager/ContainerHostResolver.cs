@@ -57,7 +57,8 @@ public sealed class ContainerHostResolver(
             ? resourceDefault
             : new ContainerHostResolutionResult(
                 null,
-                $"Resource '{request.TargetResourceId}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set an explicit container host.");
+                $"Resource '{request.TargetResourceId}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set an explicit container host.",
+                ContainerHostResolutionFailureReason.DefaultHostMissing);
     }
 
     private async Task<ContainerHostResolutionResult> ResolveByIdAsync(
@@ -76,14 +77,20 @@ public sealed class ContainerHostResolver(
         var resource = resourceManager.GetResource(hostId);
         if (resource is null)
         {
-            return new ContainerHostResolutionResult(null, notFoundMessage);
+            return new ContainerHostResolutionResult(
+                null,
+                notFoundMessage,
+                ContainerHostResolutionFailureReason.HostNotRegistered);
         }
 
         var descriptor = await TryDescribeAsync(resource, cancellationToken);
         var host = descriptor is null ? null : TryReadContainerHost(descriptor);
         return host is not null
             ? ValidateHost(host, requiredCapability, resource)
-            : new ContainerHostResolutionResult(null, notFoundMessage);
+            : new ContainerHostResolutionResult(
+                null,
+                notFoundMessage,
+                ContainerHostResolutionFailureReason.HostNotRegistered);
     }
 
     private async Task<ContainerHostResolutionResult?> ResolveDefaultResourceHostAsync(
@@ -118,7 +125,8 @@ public sealed class ContainerHostResolver(
         {
             return new ContainerHostResolutionResult(
                 null,
-                $"Container host '{host.Id}' is unavailable.");
+                $"Container host '{host.Id}' is unavailable.",
+                ContainerHostResolutionFailureReason.HostUnavailable);
         }
 
         requiredCapability = FirstNonEmpty(requiredCapability);
@@ -127,7 +135,8 @@ public sealed class ContainerHostResolver(
         {
             return new ContainerHostResolutionResult(
                 null,
-                $"Container host '{host.Id}' does not advertise required capability '{requiredCapability}'.");
+                $"Container host '{host.Id}' does not advertise required capability '{requiredCapability}'.",
+                ContainerHostResolutionFailureReason.RequiredCapabilityMissing);
         }
 
         return new ContainerHostResolutionResult(host);

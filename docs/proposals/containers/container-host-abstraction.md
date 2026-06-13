@@ -382,6 +382,10 @@ not introduce a second out-of-band local management API for the shell.
   - required runtime capability missing
   - credentials unavailable
   - unsupported image/build mode
+  Current resolver failures carry structured reason codes for the implemented
+  host missing, default missing, unavailable host, and required-capability
+  cases. Credential readiness remains tied to the provider-owned host
+  credential model.
 
 ## Example Flows
 

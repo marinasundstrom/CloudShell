@@ -427,7 +427,9 @@ expectations rather than duplicating the task queue.
   the shared resolver now reports unavailable host resources and missing
   required host capabilities as diagnostics. Container-image and
   container-build workloads request matching built-in host capability IDs, and
-  Docker hosts advertise those capabilities.
+  Docker hosts advertise those capabilities. Host placement failures now carry
+  structured reason codes so API/UI consumers do not need to parse diagnostic
+  text.
 - Container app replicas can now be updated as an explicit desired count
   through the domain manager and `PUT /api/container-apps/v1/{containerAppId}/replicas`.
   This is not autoscaling: richer replica health, placement, traffic splitting,
