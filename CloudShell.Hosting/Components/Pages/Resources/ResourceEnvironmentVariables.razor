@@ -65,6 +65,10 @@ else
                                 {
                                     <option value="@store.Id">@store.Name</option>
                                 }
+                                @if (IsMissingConfigurationStore(setting.ReferenceResourceId))
+                                {
+                                    <option value="@setting.ReferenceResourceId">@FormatUnavailableReference(setting.ReferenceResourceId)</option>
+                                }
                             </select>
                             <FluentTextField AriaLabel="@L["Configuration entry name"]"
                                              Placeholder="ConnectionStrings:Default"
@@ -82,6 +86,10 @@ else
                                 @foreach (var vault in SecretsVaults)
                                 {
                                     <option value="@vault.Id">@vault.Name</option>
+                                }
+                                @if (IsMissingSecretsVault(setting.ReferenceResourceId))
+                                {
+                                    <option value="@setting.ReferenceResourceId">@FormatUnavailableReference(setting.ReferenceResourceId)</option>
                                 }
                             </select>
                             <FluentTextField AriaLabel="@L["Secret name"]"
@@ -146,6 +154,10 @@ else
                             {
                                 <option value="@store.Id">@store.Name</option>
                             }
+                            @if (IsMissingConfigurationStore(variable.ReferenceResourceId))
+                            {
+                                <option value="@variable.ReferenceResourceId">@FormatUnavailableReference(variable.ReferenceResourceId)</option>
+                            }
                         </select>
                         <FluentTextField AriaLabel="@L["Configuration entry name"]"
                                          Placeholder="ConnectionStrings:Default"
@@ -163,6 +175,10 @@ else
                             @foreach (var vault in SecretsVaults)
                             {
                                 <option value="@vault.Id">@vault.Name</option>
+                            }
+                            @if (IsMissingSecretsVault(variable.ReferenceResourceId))
+                            {
+                                <option value="@variable.ReferenceResourceId">@FormatUnavailableReference(variable.ReferenceResourceId)</option>
                             }
                         </select>
                         <FluentTextField AriaLabel="@L["Secret name"]"
@@ -354,6 +370,19 @@ else
     private static bool IsSecretsVault(Resource resource) =>
         resource.ResourceClass == ResourceClass.SecretsVault ||
         string.Equals(resource.EffectiveTypeId, "secrets.vault", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsMissingConfigurationStore(string? resourceId) =>
+        !string.IsNullOrWhiteSpace(resourceId) &&
+        ConfigurationStores.All(resource =>
+            !string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+
+    private bool IsMissingSecretsVault(string? resourceId) =>
+        !string.IsNullOrWhiteSpace(resourceId) &&
+        SecretsVaults.All(resource =>
+            !string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
+
+    private static string FormatUnavailableReference(string? resourceId) =>
+        $"{resourceId} (unavailable)";
 
     private sealed class AppSettingInput
     {
