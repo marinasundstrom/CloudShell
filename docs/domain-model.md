@@ -463,7 +463,9 @@ performed on a resource, such as executing an action, changing configuration, or
 updating a deployable image. Provider or resource-type-specific logs can add
 more detail, such as container console output or container-app-specific restart
 events, but generic resource events are the consistent per-resource history.
-They are queryable activity records, not just text log lines.
+They are queryable activity records, not just text log lines. Resource Manager
+presents this stream as Activity, while provider resource logs remain separate
+operational streams.
 
 Standard resource actions and standard resource events are related but
 separate concepts. `ResourceActionIds` names standard operations such as

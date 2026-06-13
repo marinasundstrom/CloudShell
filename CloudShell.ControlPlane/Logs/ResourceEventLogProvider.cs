@@ -11,19 +11,19 @@ public sealed class ResourceEventLogProvider(
 
     public string Id => "resource-events";
 
-    public string DisplayName => "Resource events";
+    public string DisplayName => "Activity";
 
     public IReadOnlyList<LogDescriptor> GetLogs() =>
         resourceManager
             .GetResources()
             .Select(resource => new LogDescriptor(
                 GetLogId(resource.Id),
-                "Resource events",
+                "Activity",
                 DisplayName,
                 resource.Name,
                 LogSourceKind.Resource,
                 ResourceId: resource.Id,
-                Description: "Actor-attributed operational events recorded for this resource."))
+                Description: "Actor-attributed platform activity recorded for this resource."))
             .ToArray();
 
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(

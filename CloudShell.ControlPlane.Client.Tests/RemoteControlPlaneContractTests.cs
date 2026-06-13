@@ -301,7 +301,7 @@ public sealed class RemoteControlPlaneContractTests
             triggeredBy: "build-server");
         var eventLogs = await controlPlane.ListLogsAsync(
             new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
-        var eventLog = Assert.Single(eventLogs, log => log.Name == "Resource events");
+        var eventLog = Assert.Single(eventLogs, log => log.Name == "Activity");
         var events = await controlPlane.ReadLogAsync(eventLog.Id);
         var resourceEvents = await controlPlane.ListResourceEventsAsync(
             new ResourceEventQuery(
@@ -363,7 +363,7 @@ public sealed class RemoteControlPlaneContractTests
             triggeredBy: "load-balancer");
         var eventLogs = await controlPlane.ListLogsAsync(
             new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
-        var eventLog = Assert.Single(eventLogs, log => log.Name == "Resource events");
+        var eventLog = Assert.Single(eventLogs, log => log.Name == "Activity");
         var events = await controlPlane.ReadLogAsync(eventLog.Id);
 
         Assert.Equal("Updated contract:container-app to 3 replicas.", result.Message);
@@ -488,7 +488,7 @@ public sealed class RemoteControlPlaneContractTests
 
         var logs = await controlPlane.ListLogsAsync(new LogQuery(ResourceId: "network:contract"));
         var resourceEvents = Assert.Single(logs);
-        Assert.Equal("Resource events", resourceEvents.Name);
+        Assert.Equal("Activity", resourceEvents.Name);
         Assert.Equal("network:contract", resourceEvents.ResourceId);
 
         var span = new TraceSpan(

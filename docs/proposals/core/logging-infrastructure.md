@@ -113,9 +113,9 @@ The current contracts are:
 - `IResourceEventStore`: internal append/query storage
 - `IResourceEventManager`: consumer-facing query API
 
-Resource events may still be projected into a "Resource events" log view for
-users who open resource logs, but that projection is a view adapter. The
-resource event stream is not conceptually owned by the log provider model.
+Resource events may still be projected into an Activity log view for consumers
+that open resource logs, but that projection is a compatibility view adapter.
+The resource event stream is not conceptually owned by the log provider model.
 
 ## MVP Direction
 
@@ -219,8 +219,8 @@ base log or event entry a blob store.
 ## Remaining Tasks
 
 - Keep the current MVP resource event persistence/query slice small.
-- Add Activity-tab filtering and event-type grouping on top of
-  `IResourceEventManager`.
+- Add event-type grouping on top of `IResourceEventManager`; the Activity tab
+  already supports filtering by event type, actor, and time range.
 - Define initial event schemas for resource actions, image deployments,
   lifecycle operations, authorization denials, configuration reads, secret
   reads, and host/runtime reconciliation.

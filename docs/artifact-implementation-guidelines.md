@@ -553,7 +553,8 @@ Verification:
 
 `ResourceEvent` is the platform-owned resource history stream for operations
 performed on a resource. Consumers query it through `IResourceEventManager`;
-the generated "Resource events" log is a view adapter, not the owning model.
+the generated Activity log is a compatibility view adapter, not the owning
+model.
 
 Implementation:
 
