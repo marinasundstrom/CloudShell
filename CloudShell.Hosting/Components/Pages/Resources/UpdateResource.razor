@@ -118,7 +118,7 @@
             <div class="resource-tab-list" role="tablist" aria-label="@L["Resource views"]">
                 @foreach (var tab in tabs)
                 {
-                    <button class="resource-tab-button @(selectedTab?.Id == tab.Id ? "active" : null)"
+                    <button class="@GetTabButtonClass(tab, selectedTab)"
                             type="button"
                             role="tab"
                             aria-selected="@(selectedTab?.Id == tab.Id)"
@@ -418,7 +418,7 @@
             tabs.Add(new ResourceTabContribution(
                 GeneratedActivityTabId,
                 "Activity",
-                -80,
+                90,
                 typeof(ResourceActivity)));
         }
 
@@ -441,7 +441,7 @@
             tabs.Add(new ResourceTabContribution(
                 "environment",
                 "Environment",
-                30,
+                80,
                 typeof(ResourceEnvironmentVariables),
                 ShowsApplyButton: true));
         }
@@ -462,16 +462,43 @@
 
         if (string.Equals(tab.Id, GeneratedIdentityTabId, StringComparison.OrdinalIgnoreCase))
         {
-            return int.MinValue + 1;
+            return int.MaxValue - 1;
         }
 
         if (string.Equals(tab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase))
         {
-            return int.MinValue + 2;
+            return int.MaxValue;
+        }
+
+        if (string.Equals(tab.Id, "environment", StringComparison.OrdinalIgnoreCase))
+        {
+            return int.MaxValue - 2;
         }
 
         return tab.Order;
     }
+
+    private string GetTabButtonClass(
+        ResourceTabContribution tab,
+        ResourceTabContribution? selectedTab)
+    {
+        var classes = new List<string> { "resource-tab-button" };
+        if (selectedTab?.Id == tab.Id)
+        {
+            classes.Add("active");
+        }
+
+        if (IsBottomTab(tab))
+        {
+            classes.Add("bottom-tab");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private static bool IsBottomTab(ResourceTabContribution tab) =>
+        string.Equals(tab.Id, GeneratedIdentityTabId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(tab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase);
 
     private RenderFragment ResourceActionControls(Resource resource) => builder =>
     {

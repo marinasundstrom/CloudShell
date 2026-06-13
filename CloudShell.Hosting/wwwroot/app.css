@@ -885,6 +885,14 @@ h3 {
     box-shadow: inset 3px 0 0 var(--cloudshell-accent);
 }
 
+.resource-tab-button.bottom-tab {
+    margin-top: .65rem;
+}
+
+.resource-tab-button.bottom-tab + .resource-tab-button.bottom-tab {
+    margin-top: 0;
+}
+
 .registration-host {
     min-height: 18rem;
 }
