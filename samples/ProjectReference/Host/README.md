@@ -22,12 +22,16 @@ Both resources also enable OTLP export explicitly:
 .WithOtlpExporter(otlpEndpoint, otlpProtocol)
 ```
 
-The host reads that endpoint from `Observability:OtlpEndpoint` and
-`Observability:OtlpProtocol` in `appsettings.json`. The sample default points
-back at this host:
+The host reads `Observability:OtlpProtocol` from `appsettings.json` and derives
+the local CloudShell endpoint from `--urls`, `ASPNETCORE_URLS`, or
+`Observability:Endpoint`. You can still override `Observability:OtlpEndpoint`
+or `Observability:TraceIngestEndpoint` when the trace collector is not the
+current host.
+
+For example, running the host on `http://localhost:5011` injects:
 
 ```text
-http://localhost:5104
+http://localhost:5011
 ```
 
 The sample ServiceDefaults project instruments ASP.NET Core, HttpClient, and
@@ -35,7 +39,7 @@ the sample `CloudShell.ProjectReference` activity source. It posts span
 summaries back to CloudShell through:
 
 ```text
-http://localhost:5104/api/control-plane/v1/traces/ingest
+http://localhost:5011/api/control-plane/v1/traces/ingest
 ```
 
 To see traces, run the host, start the API and frontend resources from Resource
@@ -79,7 +83,13 @@ time.
 From the repository root:
 
 ```bash
-dotnet run --project samples/ProjectReference/Host --urls http://localhost:5104
+dotnet run --project samples/ProjectReference/Host -- --urls http://localhost:5104
+```
+
+Any local HTTP URL works. For example:
+
+```bash
+dotnet run --project samples/ProjectReference/Host -- --urls http://localhost:5011
 ```
 
 Open:
