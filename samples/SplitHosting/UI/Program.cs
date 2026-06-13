@@ -5,7 +5,7 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 
-var builder = SampleHostSettings.CreateBuilder(args);
+var builder = CloudShellApplication.CreateBuilder(args);
 
 builder.Services.AddRemoteControlPlane(options =>
 {

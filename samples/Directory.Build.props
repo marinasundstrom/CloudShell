@@ -1,6 +1,6 @@
 <Project>
   <ItemGroup Condition="'$(UsingMicrosoftNETSdkWeb)' == 'true'">
-    <Compile Include="$(MSBuildThisFileDirectory)SampleHostSettings.cs" Link="SampleHostSettings.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CloudShellApplication.cs" Link="CloudShellApplication.cs" />
     <Content Update="hostsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('hostsettings.json')" />
   </ItemGroup>
 </Project>

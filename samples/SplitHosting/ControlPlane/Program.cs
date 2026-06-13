@@ -3,7 +3,7 @@ using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 
-var builder = SampleHostSettings.CreateBuilder(args);
+var builder = CloudShellApplication.CreateBuilder(args);
 
 var controlPlane = builder.AddCloudShellControlPlane();
 

@@ -9,7 +9,7 @@ using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Docker;
 
-var builder = SampleHostSettings.CreateBuilder(args);
+var builder = CloudShellApplication.CreateBuilder(args);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();

@@ -10,7 +10,7 @@ using CloudShell.Providers.Applications;
 using CloudShell.Providers.Docker;
 using CloudShell.Providers.Traefik;
 
-var builder = SampleHostSettings.CreateBuilder(args);
+var builder = CloudShellApplication.CreateBuilder(args);
 
 var dynamicConfigurationDirectory = Path.Combine(
     builder.Environment.ContentRootPath,

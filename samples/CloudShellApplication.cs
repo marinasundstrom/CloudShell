@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
-internal static class SampleHostSettings
+internal static class CloudShellApplication
 {
     public static WebApplicationBuilder CreateBuilder(string[] args)
     {
