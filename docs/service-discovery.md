@@ -66,6 +66,25 @@ builder.Services.AddHttpClient("settings", client =>
 });
 ```
 
+Use the service name by itself when the referenced resource has a single
+reachable HTTP endpoint or when the protocol alias is enough. This is the
+preferred shape for the Settings and Secrets sample:
+
+```text
+https+http://sample-app-settings
+```
+
+Use Microsoft's named-endpoint host shape only when the application must select
+a specific endpoint from a multi-endpoint resource:
+
+```text
+https+http://_<endpoint-name>.<service-name>
+```
+
+For example, `_entries.sample-app-settings` selects the `entries` endpoint on
+`sample-app-settings`. It is valid, but it is noisier than necessary when the
+service name alone already resolves to the intended endpoint.
+
 Applications can also read the projected endpoint value directly from
 `IConfiguration`. CloudShell provides a small helper in
 `CloudShell.Configuration`:
