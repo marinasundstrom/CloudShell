@@ -47,6 +47,11 @@ internal static class ResourceEventDisplayNames
             return localizer["Started"].Value;
         }
 
+        if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.StartFailed, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Start failed"].Value;
+        }
+
         if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.Stopping, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["Stopping"].Value;
@@ -55,6 +60,11 @@ internal static class ResourceEventDisplayNames
         if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.Stopped, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["Stopped"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.StopFailed, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Stop failed"].Value;
         }
 
         if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.Pausing, StringComparison.OrdinalIgnoreCase))
@@ -67,6 +77,11 @@ internal static class ResourceEventDisplayNames
             return localizer["Paused"].Value;
         }
 
+        if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.PauseFailed, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Pause failed"].Value;
+        }
+
         if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.Restarting, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["Restarting"].Value;
@@ -75,6 +90,11 @@ internal static class ResourceEventDisplayNames
         if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.Restarted, StringComparison.OrdinalIgnoreCase))
         {
             return localizer["Restarted"].Value;
+        }
+
+        if (string.Equals(eventType, ResourceEventTypes.Events.Lifecycle.RestartFailed, StringComparison.OrdinalIgnoreCase))
+        {
+            return localizer["Restart failed"].Value;
         }
 
         if (string.Equals(eventType, ResourceEventTypes.Events.Configuration.AppSettingsUpdated, StringComparison.OrdinalIgnoreCase))
