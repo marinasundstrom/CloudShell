@@ -871,7 +871,13 @@ file sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
     string? Level,
-    string? Source);
+    string? Source,
+    string? EventId,
+    string? Category,
+    string? TraceId,
+    string? SpanId,
+    string? ExceptionSummary,
+    IReadOnlyDictionary<string, string>? Attributes);
 
 file sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);
 
@@ -1099,7 +1105,17 @@ file static class RemoteControlPlaneMapper
             response.SupportsStreaming);
 
     public static LogEntry ToLogEntry(this LogEntryResponse response) =>
-        new(response.Timestamp, response.Message, response.Level, response.Source);
+        new(
+            response.Timestamp,
+            response.Message,
+            response.Level,
+            response.Source,
+            response.EventId,
+            response.Category,
+            response.TraceId,
+            response.SpanId,
+            response.ExceptionSummary,
+            response.Attributes);
 
     public static ResourceEvent ToResourceEvent(this ResourceEventResponse response) =>
         new(

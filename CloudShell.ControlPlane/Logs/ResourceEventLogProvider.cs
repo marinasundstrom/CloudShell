@@ -73,6 +73,23 @@ public sealed class ResourceEventLogProvider(
             resourceEvent.Timestamp,
             $"{resourceEvent.EventType}: {resourceEvent.Message} Triggered by: {actor}.",
             resourceEvent.Level,
-            "event");
+            "event",
+            EventId: resourceEvent.EventType,
+            Category: "CloudShell.ResourceEvents",
+            Attributes: BuildAttributes(resourceEvent, actor));
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildAttributes(
+        ResourceEvent resourceEvent,
+        string actor)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["resourceId"] = resourceEvent.ResourceId,
+            ["eventType"] = resourceEvent.EventType,
+            ["triggeredBy"] = actor
+        };
+
+        return attributes;
     }
 }

@@ -1914,10 +1914,32 @@ h3 {
     white-space: nowrap;
 }
 
+.log-entry-body {
+    display: grid;
+    gap: .25rem;
+}
+
 .log-entry pre {
     margin: 0;
     white-space: pre;
     font: inherit;
+}
+
+.log-entry-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem .75rem;
+    margin: 0;
+    color: #93a4b7;
+    font-size: .72rem;
+}
+
+.log-entry-metadata dt {
+    font-weight: 600;
+}
+
+.log-entry-metadata dd {
+    margin: 0;
 }
 
 .log-entry-list.wrap .log-entry {

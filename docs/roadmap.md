@@ -194,7 +194,9 @@ listed here before pulling in broader proposal work.
 - Use [Logging infrastructure](proposals/core/logging-infrastructure.md) to
   track structured logging, non-text operational payloads, resource events,
   audit records, diagnostics, metrics, and traces without prematurely merging
-  those concerns.
+  those concerns. Provider log entries now support optional structured
+  metadata using familiar logging and OpenTelemetry terms while preserving
+  plain text stdout/stderr compatibility.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.

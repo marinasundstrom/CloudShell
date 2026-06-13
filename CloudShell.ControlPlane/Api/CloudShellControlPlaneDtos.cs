@@ -226,7 +226,13 @@ public sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
     string? Level,
-    string? Source);
+    string? Source,
+    string? EventId,
+    string? Category,
+    string? TraceId,
+    string? SpanId,
+    string? ExceptionSummary,
+    IReadOnlyDictionary<string, string>? Attributes);
 
 public sealed record CloudShellUserSettingResponse(
     string Key,
@@ -443,7 +449,17 @@ internal static class CloudShellControlPlaneDtoMapper
             resourceEvent.Level);
 
     public static LogEntryResponse ToResponse(this LogEntry entry) =>
-        new(entry.Timestamp, entry.Message, entry.Level, entry.Source);
+        new(
+            entry.Timestamp,
+            entry.Message,
+            entry.Level,
+            entry.Source,
+            entry.EventId,
+            entry.Category,
+            entry.TraceId,
+            entry.SpanId,
+            entry.ExceptionSummary,
+            entry.Attributes);
 
     public static CloudShellUserSettingResponse ToResponse(this CloudShellUserSetting setting) =>
         new(setting.Key, setting.Value, setting.UpdatedAt);

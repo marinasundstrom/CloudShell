@@ -141,7 +141,19 @@
                             <time>@entry.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
                             <span class="log-entry-source">@entry.Source</span>
                             <span class="log-entry-level">@entry.Level</span>
-                            <pre>@entry.Message</pre>
+                            <div class="log-entry-body">
+                                <pre>@entry.Message</pre>
+                                @if (HasStructuredMetadata(entry))
+                                {
+                                    <dl class="log-entry-metadata">
+                                        @foreach (var item in GetStructuredMetadata(entry))
+                                        {
+                                            <dt>@item.Key</dt>
+                                            <dd>@item.Value</dd>
+                                        }
+                                    </dl>
+                                }
+                            </div>
                         </div>
                     }
                 </div>
@@ -534,8 +546,62 @@
         return LogModule;
     }
 
-    private static (DateTimeOffset Timestamp, string Message, string? Level, string? Source) GetEntryKey(LogEntry entry) =>
-        (entry.Timestamp, entry.Message, entry.Level, entry.Source);
+    private static bool HasStructuredMetadata(LogEntry entry) =>
+        !string.IsNullOrWhiteSpace(entry.EventId) ||
+        !string.IsNullOrWhiteSpace(entry.Category) ||
+        !string.IsNullOrWhiteSpace(entry.TraceId) ||
+        !string.IsNullOrWhiteSpace(entry.SpanId) ||
+        !string.IsNullOrWhiteSpace(entry.ExceptionSummary) ||
+        entry.Attributes?.Count > 0;
+
+    private static IReadOnlyList<KeyValuePair<string, string>> GetStructuredMetadata(LogEntry entry)
+    {
+        var metadata = new List<KeyValuePair<string, string>>();
+        AddIfPresent(metadata, "category", entry.Category);
+        AddIfPresent(metadata, "eventId", entry.EventId);
+        AddIfPresent(metadata, "traceId", entry.TraceId);
+        AddIfPresent(metadata, "spanId", entry.SpanId);
+        AddIfPresent(metadata, "exception", entry.ExceptionSummary);
+        if (entry.Attributes is not null)
+        {
+            metadata.AddRange(
+                entry.Attributes
+                    .Where(attribute => !string.IsNullOrWhiteSpace(attribute.Value))
+                    .OrderBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase));
+        }
+
+        return metadata;
+    }
+
+    private static void AddIfPresent(
+        List<KeyValuePair<string, string>> metadata,
+        string key,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            metadata.Add(new KeyValuePair<string, string>(key, value));
+        }
+    }
+
+    private static (
+        DateTimeOffset Timestamp,
+        string Message,
+        string? Level,
+        string? Source,
+        string? EventId,
+        string? Category,
+        string? TraceId,
+        string? SpanId) GetEntryKey(LogEntry entry) =>
+        (
+            entry.Timestamp,
+            entry.Message,
+            entry.Level,
+            entry.Source,
+            entry.EventId,
+            entry.Category,
+            entry.TraceId,
+            entry.SpanId);
 
     private static string BuildLogRoute(LogDescriptor log)
     {

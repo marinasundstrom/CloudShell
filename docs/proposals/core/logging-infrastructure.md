@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+In progress.
 
 CloudShell currently has two related but separate surfaces:
 
@@ -75,10 +75,24 @@ The current contracts are:
 - `ILogStore`: internal aggregation
 - `ILogManager`: consumer-facing log listing and reading
 - `LogDescriptor`: source descriptor with resource, artifact, and source kind
-- `LogEntry`: current text-oriented entry projection
+- `LogEntry`: text-compatible entry projection with optional structured
+  logging metadata
 
 This surface is useful for Resource Manager log views and provider-specific
 operational detail.
+
+`LogEntry` keeps the familiar text log shape of timestamp, message, level, and
+source, but now also supports optional structured fields using common logging
+and OpenTelemetry terminology:
+
+- `category`: logger or source category, such as `CloudShell.ResourceEvents`
+- `eventId`: stable provider or platform event identifier
+- `traceId` and `spanId`: correlation with distributed traces when available
+- `exceptionSummary`: redacted exception summary text
+- `attributes`: string-only structured attributes for query/display metadata
+
+These fields are additive. Providers can continue to emit plain text entries,
+and structured fields must not contain secrets or credentials.
 
 ### Resource Events
 
@@ -136,19 +150,19 @@ For MVP, implement the smallest useful split:
 
 ### Structured Log Entries
 
-`LogEntry` may need optional structured fields:
+The first structured `LogEntry` slice is in place through optional `category`,
+`eventId`, `traceId`, `spanId`, `exceptionSummary`, and string-only
+`attributes` fields. Resource-event-backed Activity logs populate these fields
+when projected through the log view, while stdout/stderr and provider logs can
+remain plain text.
 
-- event ID or stable event name
-- category/source
-- scopes
-- correlation IDs
-- resource and artifact references
-- severity
-- exception summary
-- structured attributes
+Remaining structured-log work should decide:
 
-This should be additive and should not force every source to emit structured
-data.
+- whether CloudShell needs a typed event ID shape instead of the current stable
+  string event ID
+- how to represent scopes without leaking ambient request or credential data
+- which attributes should become indexed query fields
+- how OpenTelemetry log records map into `LogEntry`
 
 ### Structured Resource Events
 
@@ -224,9 +238,12 @@ base log or event entry a blob store.
 - Keep Activity-tab filtering and action/event grouping focused on
   `IResourceEventManager`; broader event schema and audit decisions remain
   separate.
+- Use the structured `LogEntry` metadata fields for provider logs only when a
+  source has real structured data; do not wrap plain stdout/stderr in fake
+  structure.
 - Define initial event schemas for resource actions, image deployments,
   lifecycle operations, authorization denials, configuration reads, secret
   reads, and host/runtime reconciliation.
-- Decide whether `LogEntry` needs additive structured fields before broader
-  provider log work.
+- Decide which structured log attributes should become query filters before
+  broader provider log work.
 - Decide retention and export policy after real Resource Manager usage exists.

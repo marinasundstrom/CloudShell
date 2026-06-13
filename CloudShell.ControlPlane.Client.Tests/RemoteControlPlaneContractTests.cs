@@ -320,6 +320,11 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Contains("example/api:20260608", resourceEvent.Message, StringComparison.Ordinal);
         Assert.Contains(events, entry =>
             entry.Source == "event" &&
+            entry.EventId == ResourceEventTypes.Events.Deployment.ImageUpdated &&
+            entry.Category == "CloudShell.ResourceEvents" &&
+            HasAttribute(entry, "resourceId", ContractImageResourceProvider.ResourceId) &&
+            HasAttribute(entry, "eventType", ResourceEventTypes.Events.Deployment.ImageUpdated) &&
+            HasAttribute(entry, "triggeredBy", "build-server") &&
             entry.Message.Contains(ResourceEventTypes.Events.Deployment.ImageUpdated, StringComparison.Ordinal) &&
             entry.Message.Contains("build-server", StringComparison.Ordinal));
     }
@@ -873,6 +878,10 @@ public sealed class RemoteControlPlaneContractTests
             new AssignResourceGroupCommand("network:contract", group.Id));
         return group;
     }
+
+    private static bool HasAttribute(LogEntry entry, string key, string value) =>
+        entry.Attributes?.TryGetValue(key, out var actual) is true &&
+        string.Equals(actual, value, StringComparison.Ordinal);
 
     private sealed class ContractNetworkingResourceProvider : IResourceProvider
     {
