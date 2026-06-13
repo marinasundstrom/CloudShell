@@ -119,6 +119,10 @@ Implemented today:
   Control Plane API.
 - Resource action execution with an explicit acting resource identity.
 - Provider-neutral `IResourceIdentityProvisioner` and provisioning planning.
+- Declarative startup provisioning intent through
+  `ProvisionIdentityOnStartup()`.
+- Provider-neutral provisioning status lookup through
+  `IResourceIdentityProvisioningStatusProvider`.
 - A development-oriented built-in provisioner that issues scoped
   resource-permission token claims through the built-in authority.
 - Optional provisioning-resource authorization for resource identity providers.
@@ -173,6 +177,15 @@ A provider definition can name a separate provisioning resource. That resource
 represents the CloudShell-managed hook or third-party service that registers a
 resource identity with the selected provider. It does not need to be the
 identity provider resource itself.
+
+CloudShell declarations may request startup provisioning for a resource
+identity. This is desired state in the resource graph, similar to assigning a
+managed identity to a workload before it starts. The selected identity provider
+or provisioning service owns the observed state and should report it through
+the provisioning status contract. For a durable provider, status should come
+from provider-owned state such as app registrations, service principals,
+managed identities, app-role assignments, or a provisioning database rather
+than from CloudShell resource metadata.
 
 Provider kinds:
 
@@ -422,14 +435,16 @@ service-principal automation flows.
 1. Basic development flow and sample.
    Implemented for the Settings and Secrets sample: declare a built-in
    identity provider, bind a Web API resource identity, grant that identity
-   access to configuration and secret resources, provision the Web API
-   identity, call provider-backed configuration and secrets services with a
-   bearer token, and verify read, lifecycle action, and identity-management
-   permission boundaries at the HTTP API.
+   access to configuration and secret resources, provision the Web API identity
+   at Control Plane startup, call provider-backed configuration and secrets
+   services with a bearer token, and verify read, lifecycle action, and
+   identity-management permission boundaries at the HTTP API.
 2. Provisioning-resource authorization.
-   Implemented for provisioning hooks: a provider can name a provisioning
-   resource, and callers must have provisioning permission on that resource as
-   well as manage permission on the target resource.
+   Implemented for provisioning hooks and status: a provider can name a
+   provisioning resource, callers must have provisioning permission on that
+   resource as well as manage permission on the target resource to provision,
+   and callers must have read permission on the target and provisioning
+   resource to query status.
 3. Managed identity and authority reconciliation.
    Make providers register or reconcile identities and grants with their
    backing authority instead of only recording CloudShell declarations.
@@ -452,7 +467,8 @@ service-principal automation flows.
   provider when no explicit identity provider is declared.
 - Add mock-principal support for local permission-boundary tests when
   CloudShell authentication is disabled.
-- Add durable provider-backed provisioning for identities and grants.
+- Add durable provider-backed provisioning and status reconciliation for
+  identities and grants.
 - Add Microsoft Entra ID provider mapping notes and compatibility tests.
 - Define identity-provider resources, provisioning-service resources,
   lifecycle, configuration projection, and protected management operations.

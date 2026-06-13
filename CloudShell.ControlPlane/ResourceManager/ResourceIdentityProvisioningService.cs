@@ -9,9 +9,12 @@ public sealed record ResourceIdentityProvisioningPlan(
 public sealed class ResourceIdentityProvisioningService(
     ResourceDeclarationStore declarations,
     ResourceIdentityProviderCatalog identityProviders,
-    IEnumerable<IResourceIdentityProvisioner> provisioners)
+    IEnumerable<IResourceIdentityProvisioner> provisioners,
+    IEnumerable<IResourceIdentityProvisioningStatusProvider>? statusProviders = null)
 {
     private readonly IReadOnlyList<IResourceIdentityProvisioner> provisioners = provisioners.ToArray();
+    private readonly IReadOnlyList<IResourceIdentityProvisioningStatusProvider> statusProviders =
+        (statusProviders ?? Array.Empty<IResourceIdentityProvisioningStatusProvider>()).ToArray();
 
     public ResourceIdentityProvisioningPlan CreatePlan(string? resourceId = null)
     {
@@ -137,6 +140,57 @@ public sealed class ResourceIdentityProvisioningService(
         return new ResourceIdentityProvisioningResult(
             request.Provider.Id,
             diagnostics);
+    }
+
+    public async Task<ResourceIdentityProvisioningStatusResult> GetResourceStatusAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        var plan = CreatePlan(resourceId);
+        var diagnostics = plan.Diagnostics.ToList();
+        if (plan.Requests.Count == 0)
+        {
+            if (diagnostics.Count == 0)
+            {
+                diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
+                    ResourceIdentityProvisioningDiagnosticSeverity.Warning,
+                    $"Resource '{resourceId}' does not declare a resource identity.",
+                    ResourceIdentityReference.ForResource(resourceId)));
+            }
+
+            return new ResourceIdentityProvisioningStatusResult(
+                string.Empty,
+                [],
+                diagnostics);
+        }
+
+        var request = plan.Requests.Single();
+        var statusProvider = statusProviders.FirstOrDefault(provider =>
+            provider.CanGetProvisioningStatus(request.Provider));
+        if (statusProvider is null)
+        {
+            diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
+                ResourceIdentityProvisioningDiagnosticSeverity.Warning,
+                $"No resource identity provisioning status provider is registered for provider '{request.Provider.Id}'.",
+                ProviderId: request.Provider.Id));
+            return new ResourceIdentityProvisioningStatusResult(
+                request.Provider.Id,
+                request.Identities
+                    .Select(entry => new ResourceIdentityProvisioningStatus(
+                        entry.Identity,
+                        ResourceIdentityProvisioningState.Unknown,
+                        "Provisioning status is not available for this identity provider."))
+                    .ToArray(),
+                diagnostics);
+        }
+
+        var result = await statusProvider.GetProvisioningStatusAsync(
+            request,
+            cancellationToken);
+        diagnostics.AddRange(result.ProvisioningDiagnostics);
+        return result with { Diagnostics = diagnostics };
     }
 
     private IReadOnlyList<ResourcePermissionGrant> GetPermissionGrants(

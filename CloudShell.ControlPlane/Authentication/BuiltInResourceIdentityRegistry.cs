@@ -69,6 +69,9 @@ public sealed class BuiltInResourceIdentityRegistry
         }
     }
 
+    public bool Contains(ResourceIdentityReference identity) =>
+        TryGetClient(CreateClientId(identity), out _);
+
     public static string CreateClientId(ResourceIdentityReference identity) =>
         string.IsNullOrWhiteSpace(identity.Name)
             ? identity.ResourceId
@@ -105,11 +108,16 @@ public sealed class BuiltInResourceIdentityRegistry
 }
 
 public sealed class BuiltInResourceIdentityProvisioner(
-    BuiltInResourceIdentityRegistry registry) : IResourceIdentityProvisioner
+    BuiltInResourceIdentityRegistry registry) :
+    IResourceIdentityProvisioner,
+    IResourceIdentityProvisioningStatusProvider
 {
     public string ProviderId => "built-in";
 
     public bool CanProvision(ResourceIdentityProviderDefinition provider) =>
+        provider.Kind == ResourceIdentityProviderKind.BuiltIn;
+
+    public bool CanGetProvisioningStatus(ResourceIdentityProviderDefinition provider) =>
         provider.Kind == ResourceIdentityProviderKind.BuiltIn;
 
     public Task<ResourceIdentityProvisioningResult> ProvisionAsync(
@@ -132,6 +140,32 @@ public sealed class BuiltInResourceIdentityProvisioner(
                     $"Provisioned built-in resource identity client '{BuiltInResourceIdentityRegistry.CreateClientId(entry.Identity)}'.",
                     entry.Identity,
                     request.Provider.Id))
+                .ToArray()));
+    }
+
+    public Task<ResourceIdentityProvisioningStatusResult> GetProvisioningStatusAsync(
+        ResourceIdentityProvisioningRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult(new ResourceIdentityProvisioningStatusResult(
+            request.Provider.Id,
+            request.Identities
+                .Select(entry =>
+                {
+                    var isProvisioned = registry.Contains(entry.Identity);
+                    return new ResourceIdentityProvisioningStatus(
+                        entry.Identity,
+                        isProvisioned
+                            ? ResourceIdentityProvisioningState.Provisioned
+                            : ResourceIdentityProvisioningState.NotProvisioned,
+                        isProvisioned
+                            ? "Built-in resource identity client is registered."
+                            : "Built-in resource identity client is not registered.",
+                        DateTimeOffset.UtcNow);
+                })
                 .ToArray()));
     }
 }

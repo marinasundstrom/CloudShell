@@ -21,6 +21,7 @@ public sealed record ResourceDeclaration(
     bool OverwritePersistedState = false,
     bool? AutoStartOverride = null,
     bool? DependencyAutoStartOverride = null,
+    bool ProvisionIdentityOnStartup = false,
     ResourceClass? ResourceClassOverride = null,
     IReadOnlyDictionary<string, string>? Attributes = null,
     ResourceIdentityBinding? Identity = null)
@@ -283,6 +284,18 @@ public static class ResourceDeclarationBuilderExtensions
 
         GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
             .SetDependencyAutoStart(builder.ResourceId, autoStart);
+        return builder;
+    }
+
+    public static TBuilder ProvisionIdentityOnStartup<TBuilder>(
+        this TBuilder builder,
+        bool provision = true)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .SetProvisionIdentityOnStartup(builder.ResourceId, provision);
         return builder;
     }
 
@@ -692,6 +705,7 @@ public sealed class ResourceDeclarationStore
                 overwritePersistedState,
                 existing?.AutoStartOverride,
                 existing?.DependencyAutoStartOverride,
+                existing?.ProvisionIdentityOnStartup ?? false,
                 resourceClass ?? existing?.ResourceClassOverride,
                 attributes is null
                     ? existing?.ResourceAttributes
@@ -827,6 +841,14 @@ public sealed class ResourceDeclarationStore
         });
     }
 
+    public void SetProvisionIdentityOnStartup(string resourceId, bool provision)
+    {
+        Update(resourceId, declaration => declaration with
+        {
+            ProvisionIdentityOnStartup = provision
+        });
+    }
+
     public void SetResourceClass(string resourceId, ResourceClass? resourceClass)
     {
         Update(resourceId, declaration => declaration with
@@ -948,6 +970,7 @@ public sealed class ResourceDeclarationStore
         bool overwritePersistedState,
         bool? autoStartOverride = null,
         bool? dependencyAutoStartOverride = null,
+        bool provisionIdentityOnStartup = false,
         ResourceClass? resourceClass = null,
         IReadOnlyDictionary<string, string>? attributes = null,
         ResourceIdentityBinding? identity = null) =>
@@ -962,6 +985,7 @@ public sealed class ResourceDeclarationStore
             overwritePersistedState,
             autoStartOverride,
             dependencyAutoStartOverride,
+            provisionIdentityOnStartup,
             resourceClass,
             NormalizeAttributes(attributes),
             identity);

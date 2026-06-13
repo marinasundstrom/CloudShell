@@ -30,16 +30,17 @@ internal sealed class CloudShellConfigurationProvider(
             {
                 Timeout = options.Timeout
             };
-            var token = ResolveAccessToken(client, service);
-            if (string.IsNullOrWhiteSpace(token))
+            var tokenResult = ResolveAccessToken(client, service);
+            if (string.IsNullOrWhiteSpace(tokenResult.Token))
             {
                 SetMetadata("Status", "unavailable");
-                SetMetadata("Detail", "No CloudShell configuration access token could be acquired.");
+                SetMetadata("Detail", tokenResult.FailureDetail ??
+                    "No CloudShell configuration access token could be acquired.");
                 return;
             }
 
             using var request = new HttpRequestMessage(HttpMethod.Get, service.Endpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResult.Token);
 
             using var response = client.Send(request);
             if (!response.IsSuccessStatusCode)
@@ -64,6 +65,7 @@ internal sealed class CloudShellConfigurationProvider(
                 Data[entry.Name] = entry.Value;
             }
 
+            ClearMetadata("Detail");
             SetMetadata("Status", "connected");
             SetMetadata("LoadedKeys", string.Join(',', entries.Select(entry => entry.Name)));
             SetMetadata("SecretKeys", string.Join(
@@ -79,6 +81,9 @@ internal sealed class CloudShellConfigurationProvider(
 
     private void SetMetadata(string name, string value) =>
         Data[$"{options.MetadataPrefix}:{name}"] = value;
+
+    private void ClearMetadata(string name) =>
+        Data.Remove($"{options.MetadataPrefix}:{name}");
 
     private static CloudShellConfigurationStoreService? ResolveConfigurationStoreService(
         CloudShellConfigurationOptions options)
@@ -133,7 +138,7 @@ internal sealed class CloudShellConfigurationProvider(
         return null;
     }
 
-    private static string? ResolveAccessToken(
+    private static AccessTokenResult ResolveAccessToken(
         HttpClient client,
         CloudShellConfigurationStoreService service)
     {
@@ -152,16 +157,21 @@ internal sealed class CloudShellConfigurationProvider(
                 })).GetAwaiter().GetResult();
             if (!response.IsSuccessStatusCode)
             {
-                return null;
+                var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                return AccessTokenResult.Failed(
+                    $"CloudShell identity token endpoint returned {(int)response.StatusCode}." +
+                    (string.IsNullOrWhiteSpace(body) ? string.Empty : $" {body}"));
             }
 
             var token = response.Content
                 .ReadFromJsonAsync<TokenResponse>(SerializerOptions)
                 .GetAwaiter()
                 .GetResult();
-            return token?.AccessToken;
+            return string.IsNullOrWhiteSpace(token?.AccessToken)
+                ? AccessTokenResult.Failed("CloudShell identity token endpoint returned no access token.")
+                : AccessTokenResult.Succeeded(token.AccessToken);
         }
-        return null;
+        return AccessTokenResult.Failed("No CloudShell identity credential was configured.");
     }
 
     private static string? GetOptionalVariable(
@@ -196,4 +206,13 @@ internal sealed class CloudShellConfigurationProvider(
 
     private sealed record TokenResponse(
         [property: JsonPropertyName("access_token")] string AccessToken);
+
+    private sealed record AccessTokenResult(
+        string? Token,
+        string? FailureDetail)
+    {
+        public static AccessTokenResult Succeeded(string token) => new(token, null);
+
+        public static AccessTokenResult Failed(string detail) => new(null, detail);
+    }
 }

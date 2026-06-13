@@ -103,7 +103,8 @@ cloudShell.Resources(resources =>
         .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
         .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))
         .WithEnvironment("SAMPLE_API_KEY", secrets.Secret("sample-api-key"))
-        .WithAutoStart(false);
+        .WithAutoStart(false)
+        .ProvisionIdentityOnStartup();
 
     secrets.Allow(api.Identity, SecretsVaultResourceOperationPermissions.ReadSecrets);
     settings.Allow(api.Identity, ConfigurationStoreResourceOperationPermissions.ReadEntries);

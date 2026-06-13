@@ -142,15 +142,22 @@ when status, milestone relevance, or remaining work changes.
   contains declared grants plus the provisioning command. A provider-neutral
   `IResourceIdentityProvisioner` contract and Control Plane
   provisioning planner can group declared identities and matching grants by
-  resolved identity provider. The built-in development provider can provision
-  an in-memory client-credentials client for a resource identity and project
+  resolved identity provider. Programmatic declarations can call
+  `ProvisionIdentityOnStartup()` so the Control Plane asks the provider to
+  provision a declared identity during startup, before auto-started or
+  manually started workloads need it. A provider-neutral provisioning status
+  contract and HTTP endpoint let Resource Manager query provider-owned observed
+  state instead of storing that state in resource metadata. The built-in
+  development provider can provision an in-memory client-credentials client for
+  a resource identity, report whether that client is registered, and project
   declared grants as scoped resource-permission token claims, with compatibility
   permission/resource claims for older callers. The Settings and Secrets sample
   demonstrates a Web API identity with read access to Configuration Store and
   Secrets Vault target resources while preserving reference-backed environment
-  variables. The Web API acquires a bearer token from the built-in authority and
-  calls the provider-backed Configuration Store and Secrets Vault HTTP services
-  with scoped resource-permission claims instead of configuration-store or
+  variables. The Web API identity is provisioned on Control Plane startup,
+  acquires a bearer token from the built-in authority, and calls the
+  provider-backed Configuration Store and Secrets Vault HTTP services with
+  scoped resource-permission claims instead of configuration-store or
   vault-specific auth secrets. HTTP tests now verify that provisioned built-in
   resource identity tokens respect read, lifecycle action, and
   identity-management permission boundaries through the Control Plane API.
@@ -164,9 +171,9 @@ when status, milestone relevance, or remaining work changes.
   resource owns the identity and permission requirements; the managed
   process/container/service handles safe runtime transfer of the resolved
   values. Mock-principal tests, identity-provider resource modeling,
-  durable concrete external authority registration, identity management UI,
-  multiple identities, and provider-backed managed identity lifecycle remain
-  future resource identity work.
+  durable concrete external authority registration and status reconciliation,
+  identity management UI, multiple identities, and provider-backed managed
+  identity lifecycle remain future resource identity work.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.

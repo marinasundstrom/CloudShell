@@ -19,6 +19,15 @@ app.MapGet("/health", () => Results.Ok(new
 
 app.MapGet("/configuration", (IConfiguration configuration) =>
 {
+    if (!string.Equals(
+            configuration["CloudShell:Configuration:Status"],
+            "connected",
+            StringComparison.OrdinalIgnoreCase) &&
+        configuration is IConfigurationRoot root)
+    {
+        root.Reload();
+    }
+
     var loadedKeys = configuration["CloudShell:Configuration:LoadedKeys"]?
         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         ?? [];

@@ -490,6 +490,31 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ProvisionIdentityOnStartup_RecordsResourceDeclarationIntent()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .Declare("applications", "application:api")
+                    .WithIdentity("identity:development", name: "api-service")
+                    .ProvisionIdentityOnStartup();
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations());
+
+        Assert.True(declaration.ProvisionIdentityOnStartup);
+        Assert.Equal("identity:development", declaration.IdentityBinding?.ProviderId);
+        Assert.Equal("api-service", declaration.IdentityBinding?.Name);
+    }
+
+    [Fact]
     public async Task ExecuteAction_DoesNotStartDependencyWhenDependencyAutoStartIsDisabled()
     {
         var services = new ServiceCollection();

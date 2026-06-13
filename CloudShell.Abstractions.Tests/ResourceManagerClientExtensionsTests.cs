@@ -269,6 +269,11 @@ public sealed class ResourceManagerClientExtensionsTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult(new ResourceIdentityProvisioningResult("test"));
 
+        public Task<ResourceIdentityProvisioningStatusResult> GetResourceIdentityProvisioningStatusAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ResourceIdentityProvisioningStatusResult("test", []));
+
         public Task RegisterResourceAsync(
             RegisterResourceCommand command,
             CancellationToken cancellationToken = default) =>

@@ -61,23 +61,25 @@ Work the current proposals in this order:
   identity. A provider-neutral resource identity provisioner contract and
   Control Plane provisioning planner now group declared identities and grants
   by resolved provider. The built-in development provider can provision an
-  in-memory client-credentials client for a resource identity and project
-  grants into scoped resource-permission token claims; the Settings and Secrets
-  sample demonstrates a Web API identity with read access to Configuration Store
-  and Secrets Vault target resources. Configuration and Secrets providers now
-  require matching grants when an identity-bound resource resolves configuration
-  entries or secrets. The Settings and Secrets sample now verifies the concrete
-  provider-backed flow: the Web API identity acquires a bearer token from the
-  built-in authority and uses scoped resource-permission claims to call
-  Configuration Store and Secrets Vault backing services without
-  configuration-store or vault-specific auth secrets. HTTP tests verify that
-  built-in resource identity tokens respect read, lifecycle action, and
-  identity-management permission boundaries through the Control Plane API.
+  in-memory client-credentials client for a resource identity, report provider
+  owned provisioning status, and project grants into scoped resource-permission
+  token claims; the Settings and Secrets sample demonstrates a Web API identity
+  with read access to Configuration Store and Secrets Vault target resources.
+  Configuration and Secrets providers now require matching grants when an
+  identity-bound resource resolves configuration entries or secrets. The
+  Settings and Secrets sample now verifies the concrete provider-backed flow:
+  the Web API identity is provisioned on Control Plane startup, acquires a
+  bearer token from the built-in authority, and uses scoped
+  resource-permission claims to call Configuration Store and Secrets Vault
+  backing services without configuration-store or vault-specific auth secrets.
+  HTTP tests verify that built-in resource identity tokens respect read,
+  lifecycle action, and identity-management permission boundaries through the
+  Control Plane API.
   Provider definitions can now name a separate provisioning resource, and
   provisioning requires provisioning permission on that resource in addition to
-  target resource manage permission. Next connect those grants to
-  mock-principal tests, identity-provider resource modeling, durable provider
-  reconciliation, and concrete authority registration.
+  target resource manage permission. Next connect those grants and provisioning
+  status to mock-principal tests, identity-provider resource modeling, durable
+  provider reconciliation, and concrete authority registration.
 - Continue assigning and documenting specific Azure-style operation permissions
   per resource type or class. Load-balancer apply and network endpoint
   reconciliation now use documented network operation permissions instead of

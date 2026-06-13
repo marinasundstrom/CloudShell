@@ -58,6 +58,17 @@ public interface IResourceIdentityProvisioner
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceIdentityProvisioningStatusProvider
+{
+    string ProviderId { get; }
+
+    bool CanGetProvisioningStatus(ResourceIdentityProviderDefinition provider);
+
+    Task<ResourceIdentityProvisioningStatusResult> GetProvisioningStatusAsync(
+        ResourceIdentityProvisioningRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record ResourceIdentityProvisioningRequest(
     ResourceIdentityProviderDefinition Provider,
     IReadOnlyList<ResourceIdentityProvisioningEntry> Identities,
@@ -66,6 +77,29 @@ public sealed record ResourceIdentityProvisioningRequest(
 public sealed record ResourceIdentityProvisioningEntry(
     ResourceIdentityReference Identity,
     ResourceIdentityBinding Binding);
+
+public sealed record ResourceIdentityProvisioningStatus(
+    ResourceIdentityReference Identity,
+    ResourceIdentityProvisioningState State,
+    string? Detail = null,
+    DateTimeOffset? ObservedAt = null);
+
+public sealed record ResourceIdentityProvisioningStatusResult(
+    string ProviderId,
+    IReadOnlyList<ResourceIdentityProvisioningStatus> Statuses,
+    IReadOnlyList<ResourceIdentityProvisioningDiagnostic>? Diagnostics = null)
+{
+    public IReadOnlyList<ResourceIdentityProvisioningDiagnostic> ProvisioningDiagnostics =>
+        Diagnostics ?? [];
+}
+
+public enum ResourceIdentityProvisioningState
+{
+    Unknown,
+    NotProvisioned,
+    Provisioned,
+    Failed
+}
 
 public sealed record ResourceIdentityProvisioningResult(
     string ProviderId,

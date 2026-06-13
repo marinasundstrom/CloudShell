@@ -44,8 +44,30 @@ public static class ResourceDeclarationPersistenceExtensions
 
         foreach (var diagnostic in result.Diagnostics)
         {
-            logger.LogWarning(
-                "Programmatic resource startup failed for {ResourceId}: {Message}",
+            var severity = diagnostic.Severity;
+            if (string.Equals(severity, "Error", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogError(
+                    "Programmatic resource startup reported {Severity} for {ResourceId}: {Message}",
+                    severity,
+                    diagnostic.ResourceId,
+                    diagnostic.Message);
+                continue;
+            }
+
+            if (string.Equals(severity, "Warning", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogWarning(
+                    "Programmatic resource startup reported {Severity} for {ResourceId}: {Message}",
+                    severity,
+                    diagnostic.ResourceId,
+                    diagnostic.Message);
+                continue;
+            }
+
+            logger.LogInformation(
+                "Programmatic resource startup reported {Severity} for {ResourceId}: {Message}",
+                severity,
                 diagnostic.ResourceId,
                 diagnostic.Message);
         }

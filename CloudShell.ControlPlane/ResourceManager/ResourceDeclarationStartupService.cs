@@ -14,6 +14,9 @@ public sealed record ResourceDeclarationStartupDiagnostic(
     string ResourceId,
     string Message)
 {
+    public static ResourceDeclarationStartupDiagnostic Warning(string resourceId, string message) =>
+        new("Warning", resourceId, message);
+
     public static ResourceDeclarationStartupDiagnostic Error(string resourceId, string message) =>
         new("Error", resourceId, message);
 }
@@ -27,6 +30,7 @@ public sealed class ResourceDeclarationStartupService(
     ResourceDeclarationStore declarations,
     ResourceOrchestratorSelectionStore selectionStore,
     ResourceIdentityProviderCatalog identityProviders,
+    ResourceIdentityProvisioningService identityProvisioning,
     CloudShellExtensionRegistry extensionRegistry,
     ICloudShellExtensionActivationStore activationStore)
 {
@@ -52,6 +56,9 @@ public sealed class ResourceDeclarationStartupService(
             selectionStore);
         var authorization = new StartupAuthorizationService();
         var diagnostics = new List<ResourceDeclarationStartupDiagnostic>();
+
+        await ProvisionStartupIdentitiesAsync(resourceManager, diagnostics, cancellationToken);
+
         foreach (var declaration in declarations.GetDeclarations()
                      .Where(declaration => ShouldAutoStartOnControlPlaneStart(declaration, resourceManager)))
         {
@@ -98,6 +105,55 @@ public sealed class ResourceDeclarationStartupService(
         }
 
         return new ResourceDeclarationStartupResult(diagnostics);
+    }
+
+    private async Task ProvisionStartupIdentitiesAsync(
+        IResourceManagerStore resourceManager,
+        List<ResourceDeclarationStartupDiagnostic> diagnostics,
+        CancellationToken cancellationToken)
+    {
+        foreach (var declaration in declarations.GetDeclarations()
+                     .Where(declaration => declaration.ProvisionIdentityOnStartup))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (declaration.IdentityBinding is null)
+            {
+                diagnostics.Add(ResourceDeclarationStartupDiagnostic.Warning(
+                    declaration.ResourceId,
+                    $"Declared resource '{declaration.ResourceId}' requested startup identity provisioning but does not declare an identity."));
+                continue;
+            }
+
+            var resource = resourceManager.GetResource(declaration.ResourceId);
+            if (resource is null)
+            {
+                diagnostics.Add(ResourceDeclarationStartupDiagnostic.Error(
+                    declaration.ResourceId,
+                    $"Declared resource '{declaration.ResourceId}' could not be found."));
+                continue;
+            }
+
+            try
+            {
+                var result = await identityProvisioning.ProvisionResourceAsync(
+                    resource.Id,
+                    cancellationToken);
+                foreach (var diagnostic in result.ProvisioningDiagnostics)
+                {
+                    diagnostics.Add(new ResourceDeclarationStartupDiagnostic(
+                        diagnostic.Severity.ToString(),
+                        diagnostic.Identity?.ResourceId ?? resource.Id,
+                        diagnostic.Message));
+                }
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                diagnostics.Add(ResourceDeclarationStartupDiagnostic.Error(
+                    declaration.ResourceId,
+                    exception.Message));
+            }
+        }
     }
 
     private bool ShouldAutoStartOnControlPlaneStart(

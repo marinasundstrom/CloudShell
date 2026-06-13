@@ -196,6 +196,7 @@ operations through `IResourceManager` and the HTTP API:
 GET /api/control-plane/v1/resource-permission-grants
 POST /api/control-plane/v1/resource-permission-grants/evaluate
 POST /api/control-plane/v1/resources/{resourceId}/identity/provision
+GET /api/control-plane/v1/resources/{resourceId}/identity/provisioning-status
 ```
 
 Grant evaluation answers whether the declared model contains a matching grant.
@@ -215,6 +216,26 @@ model.
 
 `ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
 provider to provision one resource identity and its matching permission grants.
+Programmatic declarations can request this when the Control Plane starts by
+calling `ProvisionIdentityOnStartup()` after declaring an identity:
+
+```csharp
+var api = resources
+    .AddAspNetCoreProject("application:api", "API", "../Api/Api.csproj")
+    .WithIdentity("development", name: "api-service")
+    .ProvisionIdentityOnStartup();
+```
+
+Startup provisioning is declarative desired behavior owned by the CloudShell
+resource graph. The observed provisioned/not-provisioned state remains owned
+by the selected identity provider. `GetResourceIdentityProvisioningStatusAsync`
+and the HTTP status endpoint ask the provider for that observed state. Providers
+with durable identity stores should answer from their provider-owned state,
+such as service principals, app registrations, managed identities, app-role
+assignments, or a provisioning service database. Providers that cannot report
+status return `Unknown` with a diagnostic. The built-in development provider
+reports whether its in-memory client registration currently exists.
+
 The first built-in provider implementation is development-oriented: it
 registers an in-memory client-credentials client with the built-in authority
 and projects declared grants as scoped resource-permission token claims. The

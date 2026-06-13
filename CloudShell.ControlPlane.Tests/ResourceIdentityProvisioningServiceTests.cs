@@ -122,13 +122,51 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal("identity:entra", diagnostic.ProviderId);
     }
 
-    private sealed class RecordingProvisioner(string providerId) : IResourceIdentityProvisioner
+    [Fact]
+    public async Task GetResourceStatusAsync_InvokesMatchingStatusProvider()
+    {
+        var declarations = new ResourceDeclarationStore();
+        var builder = new TestCloudShellBuilder();
+        declarations.Declare(
+            builder,
+            "test",
+            "api",
+            identity: new ResourceIdentityBinding("identity:dev", Name: "api-service"));
+        var provisioner = new RecordingProvisioner("identity:dev");
+
+        var service = new ResourceIdentityProvisioningService(
+            declarations,
+            new ResourceIdentityProviderCatalog(
+                [
+                    new("identity:dev", "Development", ResourceIdentityProviderKind.BuiltIn)
+                ]),
+            [],
+            [provisioner]);
+
+        var result = await service.GetResourceStatusAsync("api");
+
+        var request = Assert.Single(provisioner.StatusRequests);
+        Assert.Equal("identity:dev", request.Provider.Id);
+        var status = Assert.Single(result.Statuses);
+        Assert.Equal("api", status.Identity.ResourceId);
+        Assert.Equal(ResourceIdentityProvisioningState.Provisioned, status.State);
+        Assert.Empty(result.ProvisioningDiagnostics);
+    }
+
+    private sealed class RecordingProvisioner(string providerId) :
+        IResourceIdentityProvisioner,
+        IResourceIdentityProvisioningStatusProvider
     {
         public List<ResourceIdentityProvisioningRequest> Requests { get; } = [];
+
+        public List<ResourceIdentityProvisioningRequest> StatusRequests { get; } = [];
 
         public string ProviderId => providerId;
 
         public bool CanProvision(ResourceIdentityProviderDefinition provider) =>
+            string.Equals(provider.Id, ProviderId, StringComparison.OrdinalIgnoreCase);
+
+        public bool CanGetProvisioningStatus(ResourceIdentityProviderDefinition provider) =>
             string.Equals(provider.Id, ProviderId, StringComparison.OrdinalIgnoreCase);
 
         public Task<ResourceIdentityProvisioningResult> ProvisionAsync(
@@ -137,6 +175,20 @@ public sealed class ResourceIdentityProvisioningServiceTests
         {
             Requests.Add(request);
             return Task.FromResult(new ResourceIdentityProvisioningResult(request.Provider.Id));
+        }
+
+        public Task<ResourceIdentityProvisioningStatusResult> GetProvisioningStatusAsync(
+            ResourceIdentityProvisioningRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            StatusRequests.Add(request);
+            return Task.FromResult(new ResourceIdentityProvisioningStatusResult(
+                request.Provider.Id,
+                request.Identities
+                    .Select(entry => new ResourceIdentityProvisioningStatus(
+                        entry.Identity,
+                        ResourceIdentityProvisioningState.Provisioned))
+                    .ToArray()));
         }
     }
 

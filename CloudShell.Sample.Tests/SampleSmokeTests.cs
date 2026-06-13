@@ -88,13 +88,22 @@ public sealed class SampleSmokeTests
                 grant.GetProperty("targetResourceId").GetString() == "configuration:sample-app" &&
                 grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
 
-        var provisioning = await host.SendAsync(
-            HttpMethod.Post,
-            "/api/control-plane/v1/resources/application%3Asettings-secrets-api/identity/provision");
+        var provisioning = await host.GetStringAsync(
+            "/api/control-plane/v1/resources/application%3Asettings-secrets-api/identity/provisioning-status");
         using var provisioningDocument = JsonDocument.Parse(provisioning);
         Assert.Equal(
             "identity:development",
             provisioningDocument.RootElement.GetProperty("providerId").GetString());
+        var provisioningStatus = Assert.Single(provisioningDocument.RootElement.GetProperty("statuses").EnumerateArray());
+        var state = provisioningStatus.GetProperty("state");
+        if (state.ValueKind == JsonValueKind.String)
+        {
+            Assert.Equal("provisioned", state.GetString()?.ToLowerInvariant());
+        }
+        else
+        {
+            Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, state.GetInt32());
+        }
 
         await host.SendAsync(
             HttpMethod.Post,

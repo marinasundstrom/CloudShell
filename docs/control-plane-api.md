@@ -182,6 +182,8 @@ Plane API:
 ```text
 GET /api/control-plane/v1/resource-permission-grants
 POST /api/control-plane/v1/resource-permission-grants/evaluate
+POST /api/control-plane/v1/resources/{resourceId}/identity/provision
+GET /api/control-plane/v1/resources/{resourceId}/identity/provisioning-status
 ```
 
 These endpoints list declared grants and evaluate whether the declared model
@@ -192,6 +194,11 @@ instead of using the current user's resource permissions. This is model-level
 enforcement for declared resource identities. The API does not yet prove the
 acting identity with a token or register grants with an external identity
 authority.
+
+Identity provisioning asks the resolved provider to materialize a declared
+resource identity and matching grants. Provisioning status asks the provider
+for observed state; CloudShell treats that state as provider-owned rather than
+persisting it in resource metadata.
 
 The `CloudShell.ControlPlane.Client` package provides the default remote adapter
 for the current API shape. A generated OpenAPI client can replace its internal

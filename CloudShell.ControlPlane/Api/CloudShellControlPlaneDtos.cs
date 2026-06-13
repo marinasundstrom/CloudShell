@@ -123,6 +123,17 @@ public sealed record ResourceIdentityProvisioningResponse(
     string ProviderId,
     IReadOnlyList<ResourceIdentityProvisioningDiagnosticResponse> Diagnostics);
 
+public sealed record ResourceIdentityProvisioningStatusResponse(
+    ResourceIdentityReferenceResponse Identity,
+    ResourceIdentityProvisioningState State,
+    string? Detail,
+    DateTimeOffset? ObservedAt);
+
+public sealed record ResourceIdentityProvisioningStatusResultResponse(
+    string ProviderId,
+    IReadOnlyList<ResourceIdentityProvisioningStatusResponse> Statuses,
+    IReadOnlyList<ResourceIdentityProvisioningDiagnosticResponse> Diagnostics);
+
 public sealed record ResourceGroupResponse(
     string Id,
     string Name,
@@ -335,6 +346,25 @@ internal static class CloudShellControlPlaneDtoMapper
             result.ProvisioningDiagnostics
                 .Select(diagnostic => diagnostic.ToResponse())
                 .ToArray());
+
+    public static ResourceIdentityProvisioningStatusResultResponse ToResponse(
+        this ResourceIdentityProvisioningStatusResult result) =>
+        new(
+            result.ProviderId,
+            result.Statuses
+                .Select(status => status.ToResponse())
+                .ToArray(),
+            result.ProvisioningDiagnostics
+                .Select(diagnostic => diagnostic.ToResponse())
+                .ToArray());
+
+    public static ResourceIdentityProvisioningStatusResponse ToResponse(
+        this ResourceIdentityProvisioningStatus status) =>
+        new(
+            status.Identity.ToResponse(),
+            status.State,
+            status.Detail,
+            status.ObservedAt);
 
     public static ResourceIdentityProvisioningDiagnosticResponse ToResponse(
         this ResourceIdentityProvisioningDiagnostic diagnostic) =>
