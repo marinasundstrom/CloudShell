@@ -185,6 +185,10 @@ listed here before pulling in broader proposal work.
 - Extend app-owned ingress infrastructure with stop/delete lifecycle
   projection, provider-owned status, and diagnostics for replicated HTTP/TCP
   endpoints.
+- Define host/runtime recovery policy separately from host restart cleanup:
+  detached container apps should be rediscovered through container host and
+  stable workload identity, while crash restart/backoff behavior should be an
+  orchestrator policy instead of a side effect of runtime-state recovery.
 
 ### Next: Network and Routing Hardening
 
@@ -382,7 +386,10 @@ while the Traefik implementation container is provider-owned runtime state or
 an optional diagnostic child.
 
 This phase should also tighten stop/delete cleanup and runtime status
-projection for app-owned ingress infrastructure.
+projection for app-owned ingress infrastructure. Keep workload crash recovery
+separate from host restart reconciliation: providers report observed stopped or
+failed state, while orchestrators decide restart, backoff, or provider-native
+policy.
 
 References:
 

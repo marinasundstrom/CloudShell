@@ -126,6 +126,13 @@ public sealed partial class LocalProcessRunner(
             GetLogPath(definition.Id)));
     }
 
+    public Task CleanupHostScopedProcessAsync(
+        LocalProcessDefinition definition,
+        CancellationToken cancellationToken = default) =>
+        definition.Lifetime == LocalProcessLifetime.ControlPlaneScoped
+            ? StopAsync(definition, force: false, cancellationToken)
+            : Task.CompletedTask;
+
     public void Remove(string processId)
     {
         runtimeStates.Remove(processId);

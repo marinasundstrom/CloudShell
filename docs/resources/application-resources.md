@@ -34,6 +34,29 @@ known process ID, observed process start time, last observation time, last exit
 code, and log path when those concepts apply. The `Data` directory is ignored by
 git because this is local machine state.
 
+Runtime recovery has two separate concerns:
+
+- Host restart recovery reconciles what CloudShell owns after the CloudShell
+  host exits or crashes. Host-scoped resources should be cleaned up or treated
+  as stale on the next host startup. Detached resources may be rediscovered when
+  CloudShell still has a resource definition, either from persisted Resource
+  Manager configuration or from the same programmatic declaration being loaded
+  again.
+- Workload crash recovery decides whether a resource that exits unexpectedly
+  should be restarted, left stopped, restarted with backoff, or delegated to a
+  provider-native policy. That is an orchestration policy concern. Resource
+  providers should report the observed state and keep enough runtime identity
+  to reconcile ownership, but they should not silently invent restart policy
+  while rediscovering runtime state.
+
+Process-backed resources recover detached processes by validating both the
+persisted process ID and the recorded process start time, because a PID alone
+can be reused. Container-backed resources need a different recovery identity:
+the container host plus stable container name, replica name, or provider-native
+workload ID. Detached container recovery and crash restart policy should be
+handled through the orchestrator/host path rather than by treating the
+container-host CLI process as the workload identity.
+
 ## Resource Templates
 
 The application provider supports resource templates for

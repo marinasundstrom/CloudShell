@@ -99,7 +99,8 @@ cloudShell.Resources(resources =>
             "application:settings-secrets-api",
             "Settings and Secrets API",
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-            endpoint: apiEndpoint)
+            endpoint: apiEndpoint,
+            hotReload: false)
         .WithIdentity(identityProvider, name: "settings-secrets-api")
         .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
         .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))

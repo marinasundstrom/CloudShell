@@ -11,6 +11,8 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CloudShell.Providers.Applications;
 
@@ -25,6 +27,7 @@ public sealed partial class ApplicationResourceProvider(
     IEnumerable<IConfigurationEntryReferenceResolver> configurationEntryResolvers,
     IEnumerable<ISecretReferenceResolver> secretResolvers,
     ResourceDeclarationStore declarations,
+    ILogger<ApplicationResourceProvider>? logger = null,
     IResourceEventSink? resourceEvents = null) :
     IResourceProvider,
     ILogProvider,
@@ -39,6 +42,7 @@ public sealed partial class ApplicationResourceProvider(
     IResourceActionAvailabilityProvider,
     IResourceAppSettingConfigurationProvider,
     IResourceEnvironmentVariableConfigurationProvider,
+    IHostScopedResourceCleanupProvider,
     IDisposable
 {
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
@@ -48,6 +52,8 @@ public sealed partial class ApplicationResourceProvider(
 
     private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly ILogger<ApplicationResourceProvider> _logger =
+        logger ?? NullLogger<ApplicationResourceProvider>.Instance;
 
     public string Id => "applications";
 
@@ -766,6 +772,27 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
 
+    public async Task CleanupHostScopedResourcesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var application in store.GetApplications())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (application.Lifetime != ApplicationLifetime.ControlPlaneScoped ||
+                IsContainerBacked(application))
+            {
+                continue;
+            }
+
+            await localProcesses.CleanupHostScopedProcessAsync(
+                CreateLocalProcessDefinition(application),
+                cancellationToken);
+            LogDevelopmentLifecycle(
+                "Reconciled host-scoped application resource {ResourceId} ({ResourceType}) during Control Plane startup.",
+                application.Id,
+                application.ResourceType);
+        }
+    }
+
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
         Resource resource,
         ResourceOrchestrationDescriptorContext context,
@@ -783,6 +810,14 @@ public sealed partial class ApplicationResourceProvider(
             resource.Endpoints,
             "1.0",
             JsonSerializer.SerializeToElement(workload, TemplateSerializerOptions)));
+    }
+
+    private void LogDevelopmentLifecycle(string message, params object?[] args)
+    {
+        if (environment.IsDevelopment())
+        {
+            _logger.LogInformation(message, args);
+        }
     }
 
     public void Dispose()
@@ -824,10 +859,20 @@ public sealed partial class ApplicationResourceProvider(
         var definition = store.GetApplication(applicationId)
             ?? throw new InvalidOperationException($"Application resource '{applicationId}' is not configured.");
 
+        LogDevelopmentLifecycle(
+            "Starting application resource {ResourceId} ({ResourceType}) with {Lifetime} lifetime.",
+            definition.Id,
+            definition.ResourceType,
+            definition.Lifetime);
+
         if (IsContainerBacked(definition))
         {
             if (TryGetRunningProcess(definition, out _))
             {
+                LogDevelopmentLifecycle(
+                    "Application resource {ResourceId} ({ResourceType}) is already running.",
+                    definition.Id,
+                    definition.ResourceType);
                 return;
             }
 
@@ -848,6 +893,10 @@ public sealed partial class ApplicationResourceProvider(
                     resourceManager,
                     preferredContainerHostId,
                     cancellationToken);
+                LogDevelopmentLifecycle(
+                    "Started application resource {ResourceId} ({ResourceType}).",
+                    definition.Id,
+                    definition.ResourceType);
             }
             catch
             {
@@ -867,6 +916,10 @@ public sealed partial class ApplicationResourceProvider(
                 cancellationToken));
         if (localProcesses.IsRunning(localProcess))
         {
+            LogDevelopmentLifecycle(
+                "Application resource {ResourceId} ({ResourceType}) is already running.",
+                definition.Id,
+                definition.ResourceType);
             return;
         }
 
@@ -876,6 +929,10 @@ public sealed partial class ApplicationResourceProvider(
             await localProcesses.StartAsync(
                 localProcess,
                 cancellationToken);
+            LogDevelopmentLifecycle(
+                "Started application resource {ResourceId} ({ResourceType}).",
+                definition.Id,
+                definition.ResourceType);
         }
         catch
         {
@@ -1657,6 +1714,15 @@ public sealed partial class ApplicationResourceProvider(
         var application = store.GetApplication(applicationId);
         var log = GetProcessLog(applicationId);
 
+        if (application is not null)
+        {
+            LogDevelopmentLifecycle(
+                "Stopping application resource {ResourceId} ({ResourceType}) with {Lifetime} lifetime.",
+                application.Id,
+                application.ResourceType,
+                application.Lifetime);
+        }
+
         if (application is not null &&
             !IsContainerBacked(application))
         {
@@ -1664,6 +1730,10 @@ public sealed partial class ApplicationResourceProvider(
                 CreateLocalProcessDefinition(application),
                 force,
                 cancellationToken);
+            LogDevelopmentLifecycle(
+                "Stopped application resource {ResourceId} ({ResourceType}).",
+                application.Id,
+                application.ResourceType);
             return;
         }
 
@@ -1684,6 +1754,10 @@ public sealed partial class ApplicationResourceProvider(
             if (engine is not null)
             {
                 await StopContainerAsync(application, engine, log, cancellationToken);
+                LogDevelopmentLifecycle(
+                    "Stopped application resource {ResourceId} ({ResourceType}).",
+                    application.Id,
+                    application.ResourceType);
             }
         }
 

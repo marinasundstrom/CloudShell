@@ -225,6 +225,25 @@ expectations rather than duplicating the task queue.
 - Control-plane-scoped application processes are terminated as process trees
   during provider disposal, and shutdown waits briefly for them to exit so
   host-scoped applications do not keep running after the CloudShell host stops.
+  On startup, the Control Plane asks providers to reconcile host-scoped
+  resources before declaration auto-start; application process recovery stops
+  stale host-scoped PIDs while detached resources remain rediscoverable.
+  Programmatic application declarations default host-scoped for local
+  development, while UI-created application resources default detached where
+  supported.
+- Detached process-backed applications recover by validating persisted PID and
+  process start time when the resource definition still exists. Detached
+  container-backed recovery is a separate host/runtime concern that should use
+  container host identity plus stable container/replica IDs rather than the
+  container-host CLI process.
+- Workload crash recovery is distinct from host restart recovery. Providers
+  should project observed stopped/failed state; restart, backoff, and
+  provider-native recovery policy belong in the orchestrator/runtime policy
+  layer.
+- Application lifecycle operations emit host-console lifecycle log entries in
+  Development environments for local diagnostics. Broader operational logging
+  remains a separate policy decision so production log volume and persisted
+  resource events/audit can be designed intentionally.
 - Container app image deployments create and project a new app-owned revision;
   runtime container instances/replicas implement a revision but do not define
   the stable revision identity.

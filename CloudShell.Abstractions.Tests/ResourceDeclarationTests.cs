@@ -1231,6 +1231,105 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task LocalProcessRunner_CleanupHostScopedProcessStopsRecoveredProcess()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var options = new LocalProcessOptions
+        {
+            RuntimeStatePath = "application-runtime-state.json",
+            LogDirectory = "application-logs"
+        };
+        var environment = new TestHostEnvironment(contentRoot);
+        var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+        var definition = CreateLongRunningProcessDefinition();
+        LocalProcessRunner? firstRunner = null;
+        LocalProcessRunner? recoveryRunner = null;
+        Process? process = null;
+
+        try
+        {
+            firstRunner = new LocalProcessRunner(runtimeStates, options, environment);
+            await firstRunner.StartAsync(definition);
+            var runtimeState = runtimeStates.Get(definition.Id);
+            Assert.NotNull(runtimeState?.LastKnownProcessId);
+            process = Process.GetProcessById(runtimeState.LastKnownProcessId.Value);
+            Assert.False(process.HasExited);
+
+            recoveryRunner = new LocalProcessRunner(runtimeStates, options, environment);
+            await recoveryRunner.CleanupHostScopedProcessAsync(definition);
+
+            Assert.True(await WaitForExitAsync(process, TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            firstRunner?.Dispose();
+            recoveryRunner?.Dispose();
+
+            if (process is not null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ProgrammaticApplicationResources_DefaultToControlPlaneScopedLifetime()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddExecutableApplication(
+                    "application:worker",
+                    "Worker",
+                    executablePath: "dotnet");
+                resources.AddAspNetCoreProject(
+                    "application:api",
+                    "API",
+                    "src/API/API.csproj");
+                resources.AddContainer(
+                    "redis",
+                    "redis:7.2");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+
+        Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:worker")?.Lifetime);
+        Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:api")?.Lifetime);
+        Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:redis")?.Lifetime);
+    }
+
+    [Fact]
     public void ApplicationProvider_ProjectsFreshStartingRuntimeState()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

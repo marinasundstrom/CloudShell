@@ -53,7 +53,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         string? workingDirectory = null,
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
-        ApplicationLifetime lifetime = ApplicationLifetime.Detached,
+        ApplicationLifetime lifetime = ApplicationLifetime.ControlPlaneScoped,
         bool useServiceDiscovery = false,
         ResourceObservability? observability = null)
     {
@@ -97,7 +97,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         string projectPath,
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
-        ApplicationLifetime lifetime = ApplicationLifetime.Detached,
+        ApplicationLifetime lifetime = ApplicationLifetime.ControlPlaneScoped,
         bool hotReload = true,
         bool useServiceDiscovery = false,
         ResourceObservability? observability = null,
@@ -121,7 +121,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         string projectPath,
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
-        ApplicationLifetime lifetime = ApplicationLifetime.Detached,
+        ApplicationLifetime lifetime = ApplicationLifetime.ControlPlaneScoped,
         bool hotReload = true,
         bool useServiceDiscovery = false,
         ResourceObservability? observability = null,

@@ -92,6 +92,14 @@ that maps referenced resource endpoints into the .NET configuration shape. This
 keeps CloudShell open to other service discovery mechanisms, such as a dedicated
 service discovery service running in a container.
 
+Programmatic application declarations default to host-scoped lifetime for local
+development. Executable applications, ASP.NET Core projects, and container apps
+are stopped with the CloudShell host and reconciled on the next Control Plane
+startup. Use `.WithLifetime(ResourceLifetime.Detached)` when a declaration is a
+longer-lived service that should keep running after the host exits. UI-created
+application resources default detached where supported because those workflows
+usually model manually managed or production-like resources.
+
 Executable applications also keep `WaitFor(resource)` as an Aspire-compatible
 alias for dependency ordering. Prefer `DependsOn(resource)` when describing the
 CloudShell resource graph.

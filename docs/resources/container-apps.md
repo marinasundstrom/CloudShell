@@ -47,6 +47,23 @@ resources
 This is intentionally different from `resources.AddDocker().AddContainer(...)`,
 which creates a Docker container sub-resource parented under a Docker resource.
 
+## Lifetime
+
+Programmatic container app declarations default to `ControlPlaneScoped` for
+local development. CloudShell starts the container with host-scoped cleanup
+semantics where the selected container host supports them, and callers can opt
+into a longer-lived container app with `.WithLifetime(ResourceLifetime.Detached)`.
+
+The Resource Manager UI defaults container app registrations to `Detached`
+because UI-created resources usually model manually managed or production-like
+services that should keep running if the shell restarts.
+
+Detached container recovery is host-specific. A container app should be
+rediscovered through the selected container host and the stable container or
+replica identity, not through the `docker run` or other host CLI process used to
+launch it. Restarting a crashed container app is an orchestrator policy concern
+and should be modeled separately from host restart recovery.
+
 ## Registry
 
 Container apps can specify a container registry separately from the image name.

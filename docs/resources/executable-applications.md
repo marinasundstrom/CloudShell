@@ -19,16 +19,27 @@ Executable applications support two lifetimes:
   process ID and start time, and does not stop it when the CloudShell control
   plane or UI exits. On restart, CloudShell checks the persisted PID and process
   start time to rediscover the running process without trusting a potentially
-  reused PID by itself.
+  reused PID by itself. Rediscovery applies when the resource definition is
+  still available through persisted Resource Manager configuration or the same
+  programmatic declaration is loaded again.
 - `ControlPlaneScoped`: CloudShell owns the process lifetime. The provider stops
   the process tree when the CloudShell process is disposed and waits briefly
-  for it to exit. Use this for temporary helpers that should not outlive the
-  local CloudShell session.
+  for it to exit. On the next Control Plane startup, CloudShell also reconciles
+  any persisted PID for a host-scoped process and stops it before auto-starting
+  the current declaration graph. Use this for temporary helpers that should not
+  outlive the local CloudShell session.
 
-The default is `Detached` because executable application resources usually
-represent local dev services such as APIs, frontend dev servers, emulators, or
-workers. Those services should keep running if the CloudShell UI or Control
-Plane is restarted.
+The Resource Manager UI defaults executable applications to `Detached` because
+UI-created resources usually represent longer-lived services that should keep
+running if the shell restarts. Programmatic executable and ASP.NET Core project
+declarations default to `ControlPlaneScoped` for Aspire-like local development
+flows. Use `.WithLifetime(ResourceLifetime.Detached)` when a code-first
+declaration should intentionally survive the CloudShell host.
+
+This host restart recovery is different from workload crash recovery. If an
+executable process exits unexpectedly, CloudShell should project the observed
+state and leave restart/no-restart/backoff policy to the orchestrator layer or
+an explicit future resource policy.
 
 ## Logs
 

@@ -166,7 +166,7 @@
     private string? RegistryUsername { get; set; }
     private string? RegistryPasswordEnvironmentVariable { get; set; }
     private string SelectedHostId { get; set; } = string.Empty;
-    private string SelectedLifetime { get; set; } = ApplicationLifetime.ControlPlaneScoped.ToString();
+    private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool ExposeEndpoint { get; set; }
     private string PortName { get; set; } = "tcp";
     private int TargetPort { get; set; } = 80;
@@ -377,7 +377,7 @@
     private ApplicationLifetime ParseLifetime() =>
         Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)
             ? lifetime
-            : ApplicationLifetime.ControlPlaneScoped;
+            : ApplicationLifetime.Detached;
 
     private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
         lifetime switch

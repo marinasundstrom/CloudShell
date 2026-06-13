@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Api;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.ResourceManager;
@@ -27,6 +28,10 @@ public static class CloudShellControlPlaneApplicationExtensions
 
         app.Services.InitializeCloudShellDatabase(usesLocalIdentity);
         app.Services.PersistProgrammaticResourceDeclarations();
+        foreach (var provider in app.Services.GetServices<IHostScopedResourceCleanupProvider>())
+        {
+            await provider.CleanupHostScopedResourcesAsync();
+        }
         await app.Services.StartProgrammaticResourceDeclarationsAsync();
 
         if (usesLocalIdentity)

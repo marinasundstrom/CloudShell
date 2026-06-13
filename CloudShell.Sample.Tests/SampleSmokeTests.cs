@@ -575,7 +575,7 @@ public sealed class SampleSmokeTests
             using var client = new HttpClient
             {
                 BaseAddress = BaseAddress,
-                Timeout = TimeSpan.FromSeconds(10)
+                Timeout = StartupTimeout
             };
             using var request = new HttpRequestMessage(HttpMethod.Get, path);
             if (!string.IsNullOrWhiteSpace(bearerToken))
@@ -664,7 +664,7 @@ public sealed class SampleSmokeTests
             using var client = new HttpClient
             {
                 BaseAddress = BaseAddress,
-                Timeout = TimeSpan.FromSeconds(10)
+                Timeout = StartupTimeout
             };
             using var request = new HttpRequestMessage(method, path);
             if (!string.IsNullOrWhiteSpace(bearerToken))

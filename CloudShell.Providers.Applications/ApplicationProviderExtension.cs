@@ -35,6 +35,8 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
         builder.Services.AddSingleton<IResourceEnvironmentVariableConfigurationProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
+        builder.Services.AddSingleton<IHostScopedResourceCleanupProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
 
         builder
             .AddResourceProvider<ApplicationResourceProvider>()
