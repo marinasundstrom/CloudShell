@@ -201,12 +201,12 @@ listed here before pulling in broader proposal work.
 - Use the Project Reference sample as the current distributed tracing proving
   ground. It runs two ASP.NET Core project resources with OpenTelemetry,
   service discovery, frontend-to-API calls, and CloudShell trace ingestion.
-  The UI goal is an Aspire-like trace experience where users can inspect spans
-  across services while CloudShell keeps resource activity, logs, traces, and
-  future metrics as distinct observability signals. The trace-detail target is
-  a service-aware waterfall/flamegraph view with a service legend, span
-  details panel, and links from spans to related logs, activity entries, and
-  Resource Manager details.
+  The UI goal is a Zipkin-style trace experience where users can inspect spans
+  across services in a compact clickable waterfall while CloudShell keeps
+  resource activity, logs, traces, and future metrics as distinct observability
+  signals. The trace-detail target has a service legend, span details panel,
+  and links from spans to related logs, activity entries, and Resource Manager
+  details.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.

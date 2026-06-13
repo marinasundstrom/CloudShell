@@ -1953,6 +1953,340 @@ h3 {
     overflow-wrap: anywhere;
 }
 
+.recent-trace-list {
+    display: grid;
+    gap: .35rem;
+    margin-bottom: .75rem;
+}
+
+.recent-trace-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: .55rem;
+    min-width: 0;
+    padding: .55rem .65rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+    color: var(--cloudshell-text);
+    text-decoration: none;
+}
+
+.recent-trace-item:hover {
+    border-color: var(--cloudshell-accent);
+    background: var(--cloudshell-hover);
+}
+
+.recent-trace-item span {
+    display: grid;
+    gap: .12rem;
+    min-width: 0;
+}
+
+.recent-trace-item strong,
+.recent-trace-item small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.recent-trace-item small,
+.recent-trace-item em,
+.recent-trace-item b {
+    color: var(--cloudshell-text-muted);
+    font-size: .76rem;
+}
+
+.recent-trace-item em {
+    font-style: normal;
+}
+
+.trace-detail {
+    display: grid;
+    flex: 1 1 auto;
+    gap: .75rem;
+    min-height: 0;
+    overflow: auto;
+    padding-bottom: .25rem;
+}
+
+.trace-summary-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) repeat(3, minmax(6rem, 1fr));
+    gap: .5rem;
+}
+
+.trace-summary-grid > div {
+    min-width: 0;
+    padding: .65rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.trace-summary-grid span,
+.trace-service-row strong,
+.trace-span-label small,
+.trace-span-duration,
+.trace-detail-header p,
+.trace-attributes p {
+    color: var(--cloudshell-text-muted);
+    font-size: .76rem;
+}
+
+.trace-summary-grid strong {
+    display: block;
+    overflow: hidden;
+    margin-top: .25rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trace-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+    gap: .75rem;
+    min-height: 0;
+}
+
+.trace-waterfall-panel,
+.trace-span-details {
+    min-width: 0;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface);
+}
+
+.trace-waterfall-panel {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    min-height: 0;
+}
+
+.trace-service-legend {
+    display: grid;
+    gap: .35rem;
+    padding: .7rem;
+    border-bottom: 1px solid var(--cloudshell-divider);
+}
+
+.trace-service-row {
+    display: grid;
+    grid-template-columns: .65rem minmax(8rem, 1fr) minmax(5rem, 10rem) 3.5rem;
+    align-items: center;
+    gap: .45rem;
+    min-width: 0;
+    font-size: .82rem;
+}
+
+.trace-service-color {
+    display: inline-block;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 2px;
+}
+
+.trace-service-row > span:nth-child(2) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trace-service-meter {
+    height: .42rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--cloudshell-hover);
+}
+
+.trace-service-meter span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+}
+
+.trace-waterfall-header,
+.trace-span-row {
+    display: grid;
+    grid-template-columns: minmax(14rem, 20rem) minmax(9rem, 13rem) minmax(18rem, 1fr) 4.5rem;
+    align-items: center;
+    gap: .65rem;
+    min-width: 52rem;
+}
+
+.trace-waterfall-header {
+    padding: .45rem 1.05rem .35rem 1.05rem;
+    border-bottom: 1px solid var(--cloudshell-divider);
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.trace-waterfall-axis {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.trace-waterfall-axis span:nth-child(2) {
+    text-align: center;
+}
+
+.trace-waterfall-axis span:last-child {
+    text-align: right;
+}
+
+.trace-waterfall {
+    position: relative;
+    min-height: 0;
+    overflow: auto;
+}
+
+.trace-waterfall-ticks {
+    position: absolute;
+    inset: 0 5.2rem 0 calc(1.05rem + 20rem + 13rem + 1.3rem);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    pointer-events: none;
+}
+
+.trace-waterfall-ticks span {
+    border-left: 1px solid var(--cloudshell-divider);
+}
+
+.trace-waterfall-ticks span:last-child {
+    border-right: 1px solid var(--cloudshell-divider);
+}
+
+.trace-waterfall-rows {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    align-content: start;
+    padding: .35rem .65rem .65rem .65rem;
+}
+
+.trace-span-row {
+    padding: .35rem .4rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--cloudshell-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.trace-span-row:hover {
+    background: var(--cloudshell-hover);
+}
+
+.trace-span-row.selected {
+    border-color: var(--cloudshell-accent);
+    background: var(--cloudshell-selected);
+}
+
+.trace-span-label {
+    display: grid;
+    gap: .12rem;
+    min-width: 0;
+    padding-left: calc(var(--trace-depth, 0) * .9rem);
+}
+
+.trace-span-label strong,
+.trace-span-label small,
+.trace-span-service span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.trace-span-service {
+    display: grid;
+    grid-template-columns: .55rem minmax(0, 1fr);
+    align-items: center;
+    gap: .4rem;
+    min-width: 0;
+    color: var(--cloudshell-text-muted);
+    font-size: .76rem;
+}
+
+.trace-span-track {
+    position: relative;
+    height: 1rem;
+    border-radius: 999px;
+    background: var(--cloudshell-hover);
+}
+
+.trace-span-bar {
+    position: absolute;
+    top: .18rem;
+    bottom: .18rem;
+    min-width: .25rem;
+    border-radius: 999px;
+}
+
+.trace-span-duration {
+    justify-self: end;
+    white-space: nowrap;
+}
+
+.trace-span-details {
+    display: grid;
+    align-content: start;
+    gap: .75rem;
+    padding: .75rem;
+    overflow: auto;
+}
+
+.trace-detail-header {
+    display: grid;
+    grid-template-columns: .7rem minmax(0, 1fr);
+    gap: .55rem;
+    align-items: start;
+}
+
+.trace-detail-header h3,
+.trace-detail-header p,
+.trace-attributes h3,
+.trace-attributes p {
+    margin: 0;
+}
+
+.trace-detail-header h3 {
+    overflow-wrap: anywhere;
+    font-size: .95rem;
+}
+
+.trace-span-detail-list {
+    grid-template-columns: 6rem minmax(0, 1fr);
+}
+
+.trace-span-detail-list dd {
+    overflow-wrap: anywhere;
+}
+
+.trace-related-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+}
+
+.trace-attributes {
+    display: grid;
+    gap: .5rem;
+}
+
+.trace-attributes .log-entry-metadata {
+    display: grid;
+    grid-template-columns: minmax(8rem, auto) minmax(0, 1fr);
+    gap: .35rem .75rem;
+}
+
+.trace-attributes .log-entry-metadata dd {
+    overflow-wrap: anywhere;
+}
+
 .empty-state.compact {
     padding: 1rem;
     font-size: .82rem;

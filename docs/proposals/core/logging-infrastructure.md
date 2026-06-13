@@ -216,10 +216,10 @@ The Project Reference sample is the current distributed tracing proving ground.
 It uses standard OpenTelemetry ASP.NET Core and HttpClient instrumentation,
 CloudShell-injected service discovery configuration, and a sample activity
 source so a frontend request produces spans across both web service resources.
-The near-term UI direction is Aspire-like span inspection over retained trace
-spans: users should be able to follow a trace across services while CloudShell
-keeps resource activity, source logs, traces, and future metrics as separate
-signals with shared correlation fields.
+The near-term UI direction is Zipkin-style span inspection over retained trace
+spans: users should be able to follow a trace across services in a compact
+waterfall while CloudShell keeps resource activity, source logs, traces, and
+future metrics as separate signals with shared correlation fields.
 
 The target trace detail experience should be service-aware rather than a flat
 span table:
@@ -228,8 +228,8 @@ span table:
   count, and error span count.
 - Service legend using stable service/resource colors and basic execution-time
   contribution.
-- Nested waterfall or flamegraph view that preserves parent/child span
-  relationships and makes cross-service calls visible.
+- Nested waterfall view that preserves parent/child span relationships and
+  makes cross-service calls visible through positioned duration bars.
 - Span details panel with span name, span ID, parent span ID, timing, service,
   resource ID, kind, status, attributes, and events.
 - Navigation from a selected span to related resource logs, activity entries,
