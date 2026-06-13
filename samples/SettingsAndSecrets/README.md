@@ -55,6 +55,10 @@ dotnet run --project samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.cs
 
 The Web API resource listens on `http://localhost:5227` by default. Override
 `Samples:SettingsAndSecrets:ApiEndpoint` when that port is already in use.
+Smoke tests can also override
+`Samples:SettingsAndSecrets:ConfigurationServiceBasePort` and
+`Samples:SettingsAndSecrets:SecretsServiceBasePort` so provider-owned backing
+services do not collide with detached processes from another run.
 
 The Web API resource declaration calls `ProvisionIdentityOnStartup()`, so the
 built-in identity client is registered before the API resource is started. You

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -65,10 +66,16 @@ public sealed class SampleSmokeTests
     public async Task SettingsAndSecretsSample_ProjectsReferenceBackedEnvironmentResources()
     {
         var apiPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:sample-app");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:sample-app");
         using var host = await SampleProcess.StartAsync(
             "samples/SettingsAndSecrets/CloudShell.SettingsAndSecrets.csproj",
             await GetFreePortAsync(),
-            [("Samples__SettingsAndSecrets__ApiEndpoint", $"http://localhost:{apiPort}")]);
+            [
+                ("Samples__SettingsAndSecrets__ApiEndpoint", $"http://localhost:{apiPort}"),
+                ("Samples__SettingsAndSecrets__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("Samples__SettingsAndSecrets__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -475,6 +482,31 @@ public sealed class SampleSmokeTests
             listener.Stop();
             await Task.Yield();
         }
+    }
+
+    private static async Task<int> GetServiceBasePortAsync(string resourceId)
+    {
+        var offset = GetStableServicePortOffset(resourceId);
+        while (true)
+        {
+            var port = await GetFreePortAsync();
+            var basePort = port - offset;
+            if (basePort > 1024)
+            {
+                return basePort;
+            }
+        }
+    }
+
+    private static int GetStableServicePortOffset(string resourceId)
+    {
+        uint hash = 0;
+        foreach (var character in resourceId)
+        {
+            hash = unchecked((hash * 31) + char.ToUpperInvariant(character));
+        }
+
+        return (int)(hash % 1000);
     }
 
     private static string GetEndpointAddress(JsonElement resource, string endpointName)

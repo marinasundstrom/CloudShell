@@ -52,6 +52,8 @@ cloudShell
     {
         options.ServiceProjectPath = configurationStoreServiceProjectPath;
         options.ServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceBasePort = builder.Configuration.GetValue<int?>(
+            "Samples:SettingsAndSecrets:ConfigurationServiceBasePort") ?? options.ServiceBasePort;
         options.ServiceAuthenticationIssuer = identityIssuer;
         options.ServiceAuthenticationAudience = identityAudience;
         options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
@@ -60,6 +62,8 @@ cloudShell
     {
         options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
         options.SecretsServiceWorkingDirectory = repositoryRootPath;
+        options.SecretsServiceBasePort = builder.Configuration.GetValue<int?>(
+            "Samples:SettingsAndSecrets:SecretsServiceBasePort") ?? options.SecretsServiceBasePort;
         options.ServiceAuthenticationIssuer = identityIssuer;
         options.ServiceAuthenticationAudience = identityAudience;
         options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
