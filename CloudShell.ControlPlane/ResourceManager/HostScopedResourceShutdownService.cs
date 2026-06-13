@@ -37,7 +37,8 @@ public sealed class HostScopedResourceShutdownService(
                     startDependencies: false,
                     new ShutdownAuthorizationService(),
                     cancellationToken,
-                    triggeredBy: ShutdownTrigger);
+                    triggeredBy: ShutdownTrigger,
+                    cause: "Host shutdown");
                 LogDevelopmentLifecycle(
                     "Stopped host-scoped resource {ResourceId} during Control Plane shutdown.",
                     resource.Id);

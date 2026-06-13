@@ -48,6 +48,11 @@ public sealed class HostScopedResourceShutdownServiceTests
             resourceEvent =>
                 resourceEvent.EventType == ResourceEventTypes.Actions.Lifecycle.Stop &&
                 resourceEvent.TriggeredBy == HostScopedResourceShutdownService.ShutdownTrigger);
+        Assert.Contains(
+            resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api")),
+            resourceEvent =>
+                resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Stopping &&
+                resourceEvent.Message.Contains("Cause: Host shutdown.", StringComparison.Ordinal));
     }
 
     [Fact]
