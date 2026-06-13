@@ -5,6 +5,12 @@ namespace CloudShell.Abstractions.ResourceManager;
 
 public static class ContainerHostServiceCollectionExtensions
 {
+    private static readonly string[] DefaultCapabilities =
+    [
+        ContainerHostCapabilityIds.ContainerImage,
+        ContainerHostCapabilityIds.ContainerBuild
+    ];
+
     public static ICloudShellBuilder UseContainerHost(
         this ICloudShellBuilder builder,
         string id,
@@ -67,8 +73,18 @@ public static class ContainerHostServiceCollectionExtensions
             Registry = string.IsNullOrWhiteSpace(descriptor.Registry)
                 ? ContainerRegistryDefaults.Default
                 : descriptor.Registry.Trim(),
-            RegistryCredentials = ContainerRegistryCredentials.Normalize(descriptor.RegistryCredentials)
+            RegistryCredentials = ContainerRegistryCredentials.Normalize(descriptor.RegistryCredentials),
+            Capabilities = NormalizeCapabilities(descriptor.Capabilities)
         };
+
+    private static IReadOnlyList<string> NormalizeCapabilities(IReadOnlyList<string>? capabilities) =>
+        capabilities is null
+            ? DefaultCapabilities
+            : capabilities
+                .Where(capability => !string.IsNullOrWhiteSpace(capability))
+                .Select(capability => capability.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
     private sealed class StaticContainerHostProvider(ContainerHostDescriptor descriptor) : IContainerHostProvider
     {

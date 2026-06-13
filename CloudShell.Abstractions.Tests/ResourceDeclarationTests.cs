@@ -1978,6 +1978,9 @@ public sealed class ResourceDeclarationTests
         Assert.True(definition.IsDefault);
         Assert.Equal(provider.Endpoint.ToString(), definition.Endpoint);
         Assert.Equal(ContainerRegistryDefaults.Default, definition.Registry);
+        Assert.Equal(
+            [ContainerHostCapabilityIds.ContainerBuild, ContainerHostCapabilityIds.ContainerImage],
+            definition.HostCapabilities.Order(StringComparer.OrdinalIgnoreCase));
         Assert.Equal(DockerContainerResourceProvider.HostResourceType, host.EffectiveTypeId);
         Assert.Equal("local", host.ResourceAttributes["docker.host.kind"]);
         Assert.Equal(ContainerRegistryDefaults.Default, host.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
@@ -2070,6 +2073,9 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ContainerHostKind.Docker, containerHost.Kind);
         Assert.True(containerHost.IsDefault);
         Assert.Equal(ContainerRegistryDefaults.Default, containerHost.Registry);
+        Assert.Equal(
+            [ContainerHostCapabilityIds.ContainerBuild, ContainerHostCapabilityIds.ContainerImage],
+            containerHost.HostCapabilities.Order(StringComparer.OrdinalIgnoreCase));
     }
 
     [Fact]

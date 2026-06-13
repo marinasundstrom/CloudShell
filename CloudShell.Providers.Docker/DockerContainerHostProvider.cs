@@ -12,7 +12,12 @@ internal sealed class DockerContainerHostProvider(
             ContainerHostKind.Docker,
             options.ResolveEndpoint().ToString(),
             IsDefault: true,
-            Registry: NormalizeRegistry(options.Registry));
+            Registry: NormalizeRegistry(options.Registry),
+            Capabilities:
+            [
+                ContainerHostCapabilityIds.ContainerImage,
+                ContainerHostCapabilityIds.ContainerBuild
+            ]);
 
     private static string NormalizeRegistry(string? registry) =>
         string.IsNullOrWhiteSpace(registry)

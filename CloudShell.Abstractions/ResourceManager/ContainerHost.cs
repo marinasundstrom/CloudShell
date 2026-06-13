@@ -24,6 +24,12 @@ public enum ContainerHostKind
     Custom
 }
 
+public static class ContainerHostCapabilityIds
+{
+    public const string ContainerImage = "container.image";
+    public const string ContainerBuild = "container.build";
+}
+
 public sealed record ContainerHostDescriptor(
     string Id,
     string Name,

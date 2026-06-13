@@ -61,7 +61,7 @@ public sealed class ContainerHostResolverTests
             "Remote Docker",
             ContainerHostKind.Docker,
             "tcp://docker.example.test:2376",
-            Capabilities: ["container.image"]);
+            Capabilities: [ContainerHostCapabilityIds.ContainerImage]);
         var resolver = CreateResolver(
             [hostResource],
             descriptorProviders: [new StaticDescriptorProvider(hostResource.Id, host)]);
@@ -70,7 +70,7 @@ public sealed class ContainerHostResolverTests
             "application:api",
             "team-a",
             ExplicitHostResourceId: hostResource.Id,
-            RequiredCapability: "container.image"));
+            RequiredCapability: ContainerHostCapabilityIds.ContainerImage));
 
         Assert.True(result.IsResolved);
         Assert.Equal("docker:remote", result.Host?.Id);
@@ -195,7 +195,7 @@ public sealed class ContainerHostResolverTests
             "Remote Docker",
             ContainerHostKind.Docker,
             "tcp://docker.example.test:2376",
-            Capabilities: ["container.image"]);
+            Capabilities: [ContainerHostCapabilityIds.ContainerImage]);
         var resolver = CreateResolver(
             [hostResource],
             descriptorProviders: [new StaticDescriptorProvider(hostResource.Id, host)]);
@@ -204,7 +204,7 @@ public sealed class ContainerHostResolverTests
             "application:api",
             "team-a",
             ExplicitHostResourceId: hostResource.Id,
-            RequiredCapability: "container.build"));
+            RequiredCapability: ContainerHostCapabilityIds.ContainerBuild));
 
         Assert.False(result.IsResolved);
         Assert.Equal(

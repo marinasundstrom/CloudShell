@@ -443,7 +443,12 @@ public sealed partial class DockerContainerResourceProvider :
                 GetHostDefinition(resource.Id).NormalizedEndpoint,
                 IsDefault: string.Equals(resource.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase),
                 Registry: GetDockerResourceRegistry(resource.Id),
-                RegistryCredentials: GetDockerResourceCredentials(resource.Id));
+                RegistryCredentials: GetDockerResourceCredentials(resource.Id),
+                Capabilities:
+                [
+                    ContainerHostCapabilityIds.ContainerImage,
+                    ContainerHostCapabilityIds.ContainerBuild
+                ]);
 
             return Task.FromResult(new ResourceOrchestrationDescriptor(
                 resource.Id,

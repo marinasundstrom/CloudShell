@@ -33,6 +33,9 @@ public sealed class LocalDevelopmentDefaultsTests
         Assert.Equal("docker", host.Id);
         Assert.Equal(ContainerHostKind.Docker, host.Kind);
         Assert.True(host.IsDefault);
+        Assert.Equal(
+            [ContainerHostCapabilityIds.ContainerBuild, ContainerHostCapabilityIds.ContainerImage],
+            host.HostCapabilities.Order(StringComparer.OrdinalIgnoreCase));
         Assert.Equal("default", selection.OrchestratorId);
         Assert.Equal("docker", selection.PreferredContainerHostId);
     }

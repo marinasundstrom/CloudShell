@@ -328,7 +328,8 @@ public sealed class ResourceOrchestrationService(
                 context.Resource.Id,
                 context.ResourceGroup?.Id,
                 ExplicitHostResourceId: workload.ContainerHostId,
-                PreferredHostId: context.PreferredContainerHostId),
+                PreferredHostId: context.PreferredContainerHostId,
+                RequiredCapability: GetRequiredContainerHostCapability(workload)),
             cancellationToken);
 
         return result.IsResolved
@@ -369,6 +370,13 @@ public sealed class ResourceOrchestrationService(
         var targetDescriptor = await TryDescribeAsync(targetResource, context, cancellationToken);
         return targetDescriptor is null ? null : TryReadWorkload(targetDescriptor);
     }
+
+    private static string GetRequiredContainerHostCapability(ResourceWorkloadConfiguration workload) =>
+        workload.Kind switch
+        {
+            ResourceWorkloadKind.ContainerBuild => ContainerHostCapabilityIds.ContainerBuild,
+            _ => ContainerHostCapabilityIds.ContainerImage
+        };
 
     private async Task<ResourceOrchestrationDescriptor?> TryDescribeAsync(
         Resource resource,

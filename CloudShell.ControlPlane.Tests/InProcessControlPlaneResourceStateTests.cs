@@ -117,6 +117,41 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.DoesNotContain(ResourceActionIds.Run, capability.ExecutableActionIds);
     }
 
+    [Fact]
+    public async Task GetResourceOperationCapabilities_ReturnsMissingContainerHostCapabilityReason()
+    {
+        var resource = CreateResource("target", ResourceState.Stopped);
+        var hostResource = CreateResource("docker:local", ResourceState.Running);
+        var controlPlane = CreateControlPlane(
+            [resource, hostResource],
+            descriptorProviders:
+            [
+                new StaticWorkloadDescriptorProvider(
+                    resource.Id,
+                    new ResourceWorkloadConfiguration(
+                        ResourceWorkloadKind.ContainerBuild,
+                        "api",
+                        BuildContext: ".",
+                        ContainerHostId: hostResource.Id)),
+                new StaticContainerHostDescriptorProvider(
+                    hostResource.Id,
+                    new ContainerHostDescriptor(
+                        hostResource.Id,
+                        "Local Docker",
+                        ContainerHostKind.Docker,
+                        "unix:///var/run/docker.sock",
+                        Capabilities: [ContainerHostCapabilityIds.ContainerImage]))
+            ]);
+
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync([resource.Id]);
+
+        var capability = Assert.Single(capabilities).Value;
+        Assert.False(capability.CanExecuteAction(ResourceActionIds.Run));
+        Assert.Equal(
+            "Container host 'docker:local' does not advertise required capability 'container.build'.",
+            capability.GetActionUnavailableReason(ResourceActionIds.Run));
+    }
+
     [Theory]
     [InlineData(ResourceState.Running, ResourceActionIds.Run)]
     [InlineData(ResourceState.Stopped, ResourceActionIds.Stop)]
@@ -1041,6 +1076,27 @@ public sealed class InProcessControlPlaneResourceStateTests
                 resource.Endpoints,
                 "1.0",
                 JsonSerializer.SerializeToElement(workload)));
+    }
+
+    private sealed class StaticContainerHostDescriptorProvider(
+        string resourceId,
+        ContainerHostDescriptor host) : IResourceOrchestrationDescriptorProvider
+    {
+        public bool CanDescribe(Resource resource) =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceOrchestrationDescriptor> DescribeAsync(
+            Resource resource,
+            ResourceOrchestrationDescriptorContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ResourceOrchestrationDescriptor(
+                resource.Id,
+                ContainerHostResourceTypes.ContainerHost,
+                resource.DependsOn,
+                [],
+                resource.Endpoints,
+                "1.0",
+                JsonSerializer.SerializeToElement(host)));
     }
 
     private sealed class TestResourceIdentityProvisioner(string providerId) : IResourceIdentityProvisioner

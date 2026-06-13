@@ -336,7 +336,9 @@ expectations rather than duplicating the task queue.
   placement through Run/Restart action capability reasons before orchestration
   dispatch. Host descriptors can advertise non-secret runtime capabilities, and
   the shared resolver now reports unavailable host resources and missing
-  required host capabilities as diagnostics.
+  required host capabilities as diagnostics. Container-image and
+  container-build workloads request matching built-in host capability IDs, and
+  Docker hosts advertise those capabilities.
 - Container app replicas can now be updated as an explicit desired count
   through the domain manager and `PUT /api/container-apps/v1/{containerAppId}/replicas`.
   This is not autoscaling: richer replica health, placement, traffic splitting,

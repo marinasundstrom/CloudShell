@@ -187,7 +187,8 @@ public sealed record ContainerHostDescriptor(
 This descriptor is not a new platform resource type by itself. It is the
 provider-owned configuration payload returned by a resource descriptor.
 Capabilities are stable, non-secret runtime role IDs used by the resolver when
-a placement request names `RequiredCapability`.
+a placement request names `RequiredCapability`. The current built-in IDs are
+`container.image` and `container.build`.
 
 Pre-release migration rule: code that selects placement should use host names
 and emit `ContainerHostDescriptor`.
@@ -440,18 +441,20 @@ not introduce a second out-of-band local management API for the shell.
   missing required host capabilities now feed resolver diagnostics. Missing
   explicit/default hosts also feed Run/Restart action capability reasons and
   execution uses the same domain unavailable-action error before provider
-  dispatch. Continue extending this diagnostics path to credential unavailable
-  and unsupported image/build mode states.
+  dispatch. Container-image and container-build workloads now request matching
+  host capabilities. Continue extending this diagnostics path to credential
+  unavailable states.
 - Add a provider-owned Docker runtime implementation for owner-scoped
   implementation containers.
 - Continue removing remaining engine naming from provider internals where it is
   not explicitly Docker Engine product terminology.
 - Host descriptor capabilities are available for resolver-required capability
-  validation; add concrete capability IDs when a workflow needs them.
+  validation. Docker hosts advertise the built-in container-image and
+  container-build capabilities.
 - Resolver tests cover explicit host selection, preferred host selection,
   configured default host selection, registered default host descriptors, and
   missing host, unavailable host, and missing required-capability diagnostics.
-  Add tests for credential readiness and provider-owned runtime cleanup as
-  those slices land.
+  Add tests for credential readiness and provider-owned runtime cleanup as those
+  slices land.
 - Update load-balancer container mode to use the runtime contract instead of
   modeling implementation containers as user-authored container apps.
