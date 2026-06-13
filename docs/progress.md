@@ -73,6 +73,11 @@ The MVP should prove:
 
 - The WebUI is the shell surface; the Control Plane is a separately deployable
   service boundary.
+- Control Plane resource provider registration and CloudShell UI integration
+  registration are separate extension surfaces even when hosted in one ASP.NET
+  Core process. User-facing providers are generally expected to ship both the
+  Control Plane provider behavior and the matching Resource Manager UI
+  contributions.
 - Consumers should use domain managers, not generated HTTP clients directly.
 - Internal Control Plane stores/providers remain internal implementation
   contracts.

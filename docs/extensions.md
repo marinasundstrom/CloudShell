@@ -322,6 +322,16 @@ Only one installed extension can configure the start route. This keeps customiza
 
 Resource types are the user-facing contract for adding resources. An extension registers each type with `AddResourceType<TRegistrationComponent>`.
 
+Resource type and UI registration are separate from Control Plane resource
+provider registration. CloudShell UI and the Control Plane are distinct apps,
+even when a development host runs both inside one ASP.NET Core process. A
+Control Plane provider package can register services that project and operate
+resources, while the UI extension registers the Resource Manager experience for
+those resources. Most user-facing providers should ship both surfaces together:
+programmatic declarations and Control Plane providers for automation, plus
+resource type registration components, update components, tabs, detail routes,
+and UI actions for shell users.
+
 The registration component is rendered inside the common Add Resource page after the user chooses the type from a dropdown. It owns the type-specific form, validation, discovery hints, and the call to `IResourceRegistrationStore.RegisterAsync`.
 
 Resource providers are not shown as a product concept in the UI. They are implementation services that resource types use to map external systems into CloudShell resources.
@@ -382,6 +392,13 @@ Implement `IResourceProvider` to contribute discovered resource data:
 
 Providers are aggregated by Resource Manager. Other extensions consume `IResourceManagerStore`; they do not depend on provider implementations.
 
+Registering an internal provider gives the Control Plane resource behavior. It
+does not, by itself, create the shell UI for registering, updating, inspecting,
+or operating that resource type. Add the corresponding UI contributions when a
+resource is meant to be managed by users through Resource Manager. A provider
+can intentionally be programmatic-only, but that should be a conscious product
+decision rather than an accidental omission.
+
 When providers project `Resource.Attributes`, follow the shared attribute
 conventions:
 
@@ -414,6 +431,15 @@ Resources can also expose actions through `Resource.ResourceActions`. These acti
 `ResourceAction` is the command contract. `ResourceActionPresentation` is the UI policy for that command, including whether the action should be shown inline or in overflow, which icon to use, and whether the UI should ask before invoking it. Providers still execute the action normally when `ExecuteActionAsync` is called; confirmation is not part of provider execution.
 
 Providers that support actions implement `IResourceProcedureProvider.ExecuteActionAsync`. The Resource Manager passes the selected `Resource` and `ResourceAction` back to the provider, letting the provider execute the command against the underlying system.
+
+A UI action is different from a resource action. UI actions are custom Resource
+Manager behaviors attached by a UI extension, such as opening a wizard,
+navigating to a provider view, or invoking a resource action with additional
+presentation state. Resource actions are domain operations in the resource
+model and can be guarded by resource operation permissions. Resource Manager
+may display standard lifecycle resource actions automatically. Custom UI
+actions must be registered by the UI resource provider or extension that owns
+the shell presentation.
 
 ```csharp
 return new Resource(

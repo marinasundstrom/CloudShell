@@ -239,6 +239,16 @@ Providers implement contracts such as:
 Providers are not a product concept shown directly in the UI. They are part of
 the Control Plane implementation.
 
+Control Plane resource provider registration is separate from CloudShell UI
+integration registration. The same extension or NuGet package may provide both,
+and most user-facing resource providers should, but the contracts target
+different apps. The Control Plane provider projects and operates resources.
+The UI integration contributes resource type registration components, update
+components, tabs, detail routes, and UI actions for Resource Manager. This
+separation matters in split hosting, where the shell and Control Plane may run
+as different processes even when the common development host runs them together
+inside one ASP.NET Core application.
+
 ### Resource registration
 
 A registration is platform-owned state saying that a resource should be visible
@@ -384,7 +394,11 @@ Providers can also expose custom actions with stable IDs.
 
 Resource actions are not UI actions. A UI button or menu item may render a
 resource action, but the UI element is only a presentation of the resource
-operation.
+operation. A UI action is custom shell behavior attached to a resource in the
+UI. It may invoke a resource action, navigate to an extension-owned view, open
+a configuration workflow, or perform another UI-only operation. UI actions are
+registered by the UI resource provider or extension; resource actions are
+projected by the Control Plane provider through the resource model.
 
 The provider declares the action surface on `Resource.ResourceActions`.
 The Control Plane validates state, authorization, provider support, and other

@@ -30,6 +30,16 @@ The WebUI is the shell surface. The Control Plane owns resource inventory,
 registrations, lifecycle procedures, logs, templates, and provider-backed
 operational data.
 
+UI and Control Plane are distinct applications even when they are hosted
+together in one ASP.NET Core process. Resource provider registration for the
+Control Plane and UI integration registration for the shell are separate
+extension surfaces. They often belong to the same provider package or product
+feature, but they should not be treated as one registration contract. A
+provider that contributes Control Plane resource behavior is usually expected
+to contribute the matching Resource Manager UI integrations as well, including
+resource type registration UI, update views, tabs, detail routes, and UI
+actions where the resource needs custom operations.
+
 Shell integrations should depend on the cloud-plane client API in
 `CloudShell.Abstractions`: domain managers such as `IResourceManager`,
 `IResourceTemplateManager`, `ILogManager`, and `ITraceManager`, plus projected
@@ -91,7 +101,13 @@ value comes from provider policy. Dependency startup uses
 
 UI actions are downstream presentation choices. A UI button or menu item may
 use a resource action and capability, but the UI element is not the domain
-action.
+action. A UI action is custom shell behavior attached to a resource in the UI;
+it may invoke a resource action, navigate to an extension view, open a wizard,
+or perform another presentation workflow. Resource actions are the resource
+model operations that can be guarded by access permissions. Standard lifecycle
+resource actions may be displayed automatically by Resource Manager. Custom UI
+actions must be registered by the UI resource provider or extension that owns
+the presentation.
 
 Resource model validation belongs at the model and resource-management
 boundaries, not in UI components. A known resource type and its projected
