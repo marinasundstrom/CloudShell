@@ -278,6 +278,13 @@ same chain for managed identity endpoints, federated workload identity,
 developer credentials, external provider plugins, or platform-specific
 credential brokers.
 
+CloudShell client SDKs should accept `CloudShellResourceCredential` objects in
+the same way Azure SDK clients accept credential objects. The Control Plane
+domain client now supports this directly, and future service-specific clients
+for Configuration Store, Secrets Vault, or other protected resource services
+should layer over the same credential contract instead of inventing
+service-specific authentication options.
+
 Whether a materialized resource identity uses a client secret, certificate,
 federated credential, managed identity endpoint, signed assertion, or no
 explicit secret is delegated to the selected identity provider. Provider-owned

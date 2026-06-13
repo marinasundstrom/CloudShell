@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authentication;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Shell;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,6 +47,37 @@ public static class ControlPlaneClientServiceCollectionExtensions
         return services;
     }
 
+    public static IServiceCollection AddRemoteControlPlane(
+        this IServiceCollection services,
+        Uri baseAddress,
+        CloudShellResourceCredential credential,
+        IEnumerable<string>? scopes = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(baseAddress);
+        ArgumentNullException.ThrowIfNull(credential);
+
+        services
+            .AddOptions<RemoteControlPlaneOptions>()
+            .Configure(options =>
+            {
+                options.BaseAddress = baseAddress;
+                options.Credential.Mode = "ResourceCredential";
+                options.Credential.ResourceCredential = credential;
+                if (scopes is not null)
+                {
+                    options.Credential.Scopes = scopes.ToArray();
+                }
+            });
+
+        AddRemoteControlPlaneServices(services, (_, client) =>
+        {
+            client.BaseAddress = baseAddress;
+        });
+
+        return services;
+    }
+
     private static void AddRemoteControlPlaneServices(
         IServiceCollection services,
         Action<IServiceProvider, HttpClient> configureClient)
@@ -67,6 +99,9 @@ public static class ControlPlaneClientServiceCollectionExtensions
                 "CLIENTCREDENTIALS" => new ClientCredentialsControlPlaneCredential(
                     serviceProvider.GetRequiredService<IHttpClientFactory>(),
                     serviceProvider.GetRequiredService<IOptions<RemoteControlPlaneOptions>>()),
+                "RESOURCECREDENTIAL" or "CLOUDSHELLRESOURCECREDENTIAL" => new CloudShellResourceControlPlaneCredential(
+                    options.Credential.ResourceCredential ??
+                    new DefaultCloudShellResourceCredential()),
                 _ => throw new InvalidOperationException(
                     $"Unsupported Control Plane credential mode '{options.Credential.Mode}'.")
             };

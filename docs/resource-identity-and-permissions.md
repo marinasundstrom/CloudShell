@@ -231,6 +231,12 @@ resource identity. Its first source reads the injected `CLOUDSHELL_IDENTITY_*`
 environment contract; later sources should extend the same chain instead of
 adding service-specific token acquisition code.
 
+The Control Plane client supports the same SDK-style credential flow. Authored
+services can pass a `CloudShellResourceCredential` to `RemoteControlPlane` or
+to `AddRemoteControlPlane(...)` and use the domain-shaped `IControlPlane` or
+manager interfaces without passing raw bearer tokens through each call. Future
+service-specific SDK clients should reuse this credential contract.
+
 `ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
 provider to provision one resource identity and its matching permission grants.
 Programmatic declarations can request this when the Control Plane starts by

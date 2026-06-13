@@ -109,6 +109,9 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             "CloudShell resource credential acquired a token.",
             credentialSampleOutput);
+        Assert.Contains(
+            "CloudShell Control Plane client listed",
+            credentialSampleOutput);
 
         await host.SendAsync(
             HttpMethod.Post,
@@ -442,6 +445,8 @@ public sealed class SampleSmokeTests
         startInfo.Environment["CLOUDSHELL_IDENTITY_CLIENT_SECRET"] =
             "local-development-settings-secrets-api-secret";
         startInfo.Environment["CLOUDSHELL_IDENTITY_SCOPE"] = "ControlPlane.Access";
+        startInfo.Environment["CloudShell__ControlPlane__BaseAddress"] =
+            host.BaseAddress.ToString();
 
         using var process = Process.Start(startInfo) ??
             throw new InvalidOperationException("Could not start resource identity credential sample.");

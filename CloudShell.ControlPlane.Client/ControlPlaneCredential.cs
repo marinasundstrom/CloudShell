@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authentication;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
@@ -116,6 +117,63 @@ public sealed class ClientCredentialsControlPlaneCredential(
         [property: JsonPropertyName("token_type")] string TokenType,
         [property: JsonPropertyName("expires_in")] int ExpiresIn,
         [property: JsonPropertyName("scope")] string? Scope);
+}
+
+/// <summary>
+/// Adapts a CloudShell resource identity credential for Control Plane API calls.
+/// </summary>
+/// <remarks>
+/// Public preview API. This lets authored services use the same
+/// <see cref="CloudShellResourceCredential"/> chain for domain-shaped
+/// Control Plane clients that they use for other CloudShell-protected services.
+/// </remarks>
+public sealed class CloudShellResourceControlPlaneCredential(
+    CloudShellResourceCredential credential) : ControlPlaneCredential
+{
+    private readonly SemaphoreSlim refreshLock = new(1, 1);
+    private ControlPlaneAuthenticationResult? cachedResult;
+
+    public override async ValueTask<ControlPlaneAuthenticationResult?> AuthenticateAsync(
+        ControlPlaneAuthenticationContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (cachedResult?.ExpiresOn is { } expiresOn &&
+            expiresOn > DateTimeOffset.UtcNow.AddMinutes(1))
+        {
+            return cachedResult;
+        }
+
+        await refreshLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (cachedResult?.ExpiresOn is { } lockedExpiresOn &&
+                lockedExpiresOn > DateTimeOffset.UtcNow.AddMinutes(1))
+            {
+                return cachedResult;
+            }
+
+            var token = await credential.GetTokenAsync(
+                new CloudShellResourceTokenRequest(context.Scopes),
+                cancellationToken);
+            if (string.IsNullOrWhiteSpace(token.Token))
+            {
+                throw new InvalidOperationException(
+                    "The CloudShell resource credential returned no access token.");
+            }
+
+            cachedResult = new ControlPlaneAuthenticationResult(
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Authorization"] = $"Bearer {token.Token}"
+                },
+                token.ExpiresOn);
+            return cachedResult;
+        }
+        finally
+        {
+            refreshLock.Release();
+        }
+    }
 }
 
 public sealed class ControlPlaneAuthenticationHandler(

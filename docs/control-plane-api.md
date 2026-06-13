@@ -109,7 +109,38 @@ changes:
 
 The remote adapter supports a provider-neutral credential abstraction for
 Control Plane calls. Built-in modes cover no credentials, static bearer tokens,
-and client-credentials tokens issued by the Control Plane token authority.
+client-credentials tokens issued by the Control Plane token authority, and
+CloudShell resource credentials.
+
+Authored services that run as CloudShell resources should use the same
+Azure-like SDK pattern as built-in services: create a
+`DefaultCloudShellResourceCredential` and pass it to the Control Plane client
+instead of moving raw tokens, client IDs, or secrets through domain method
+calls.
+
+```csharp
+var credential = new DefaultCloudShellResourceCredential();
+var controlPlane = new RemoteControlPlane(
+    new Uri("https://control-plane.example.com"),
+    credential,
+    ["ControlPlane.Access"]);
+
+var resources = await controlPlane.ListResourcesAsync();
+```
+
+DI registration supports the same object-based credential flow:
+
+```csharp
+builder.Services.AddRemoteControlPlane(
+    new Uri("https://control-plane.example.com"),
+    new DefaultCloudShellResourceCredential(),
+    ["ControlPlane.Access"]);
+```
+
+This is the default platform SDK shape for the MVP. Service-specific SDK
+clients, such as future configuration-store or secrets-vault clients, should
+layer over the same `CloudShellResourceCredential` contract instead of defining
+independent credential mechanisms.
 
 For OAuth-based deployments, remote adapters should request a token for the
 Control Plane API resource and required scope, then attach it to each request:

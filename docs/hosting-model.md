@@ -214,6 +214,17 @@ Implemented today, split hosting configures the UI host with a remote Control
 Plane base URL and registers the remote `IControlPlane` adapter. The adapter
 can run without credentials, use a static bearer token, or acquire a
 client-credentials token from the built-in Control Plane token authority.
+Authored services running as CloudShell resources can also use the SDK-style
+resource credential flow by passing `DefaultCloudShellResourceCredential` to
+the remote Control Plane client:
+
+```csharp
+builder.Services.AddRemoteControlPlane(
+    new Uri("https://control-plane.example.com"),
+    new DefaultCloudShellResourceCredential(),
+    ["ControlPlane.Access"]);
+```
+
 Authentication can still be configured through the existing ASP.NET Core
 authentication modes, and the Control Plane API is protected when
 authentication is enabled.

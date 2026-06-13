@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.Authentication;
+
 namespace CloudShell.ControlPlane.Client;
 
 public sealed class RemoteControlPlaneOptions
@@ -12,6 +14,8 @@ public sealed class RemoteControlPlaneOptions
 public sealed class RemoteControlPlaneCredentialOptions
 {
     public string Mode { get; set; } = "None";
+
+    public CloudShellResourceCredential? ResourceCredential { get; set; }
 
     public string? BearerToken { get; set; }
 

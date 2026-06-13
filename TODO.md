@@ -72,6 +72,10 @@ Work the current proposals in this order:
   bearer token from the built-in authority, and uses scoped
   resource-permission claims to call Configuration Store and Secrets Vault
   backing services without configuration-store or vault-specific auth secrets.
+  The remote Control Plane client now accepts `CloudShellResourceCredential`
+  objects through SDK-style constructors and DI registration, so authored
+  services can dogfood the same resource credential chain when calling
+  platform APIs.
   HTTP tests verify that built-in resource identity tokens respect read,
   lifecycle action, and identity-management permission boundaries through the
   Control Plane API.

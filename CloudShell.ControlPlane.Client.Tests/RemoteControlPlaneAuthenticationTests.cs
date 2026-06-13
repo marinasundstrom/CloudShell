@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authentication;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.ControlPlane.Hosting;
 using Microsoft.AspNetCore.Builder;
@@ -45,6 +46,43 @@ public sealed class RemoteControlPlaneAuthenticationTests
         var groups = await controlPlane.ListResourceGroupsAsync();
 
         Assert.Empty(groups);
+    }
+
+    [Fact]
+    public async Task CloudShellResourceCredential_CanCallProtectedControlPlane()
+    {
+        await using var app = await CreateProtectedAppAsync();
+        var token = await GetTokenAsync(app.GetTestClient());
+        var resourceCredential = new TestCloudShellResourceCredential(token);
+        var controlPlane = CreateClient(
+            app,
+            new CloudShellResourceControlPlaneCredential(resourceCredential),
+            CreateOptions());
+
+        var groups = await controlPlane.ListResourceGroupsAsync();
+
+        Assert.Empty(groups);
+        Assert.Equal(["ControlPlane.Access"], resourceCredential.RequestedScopes);
+    }
+
+    [Fact]
+    public async Task CloudShellResourceCredential_UsesConfiguredControlPlaneScopes()
+    {
+        await using var app = await CreateProtectedAppAsync();
+        var token = await GetTokenAsync(app.GetTestClient());
+        var resourceCredential = new TestCloudShellResourceCredential(token);
+        var options = CreateOptions(credential =>
+        {
+            credential.Scopes = ["ControlPlane.Access", "Custom.Scope"];
+        });
+        var controlPlane = CreateClient(
+            app,
+            new CloudShellResourceControlPlaneCredential(resourceCredential),
+            options);
+
+        await controlPlane.ListResourceGroupsAsync();
+
+        Assert.Equal(["ControlPlane.Access", "Custom.Scope"], resourceCredential.RequestedScopes);
     }
 
     [Fact]
@@ -150,6 +188,22 @@ public sealed class RemoteControlPlaneAuthenticationTests
         [property: JsonPropertyName("token_type")] string TokenType,
         [property: JsonPropertyName("expires_in")] int ExpiresIn,
         [property: JsonPropertyName("scope")] string? Scope);
+
+    private sealed class TestCloudShellResourceCredential(string token) : CloudShellResourceCredential
+    {
+        public IReadOnlyList<string> RequestedScopes { get; private set; } = [];
+
+        public override ValueTask<CloudShellResourceAccessToken> GetTokenAsync(
+            CloudShellResourceTokenRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            RequestedScopes = request.Scopes.ToArray();
+            return ValueTask.FromResult(
+                new CloudShellResourceAccessToken(
+                    token,
+                    DateTimeOffset.UtcNow.AddMinutes(5)));
+        }
+    }
 
     private sealed class TestServerHttpClientFactory(WebApplication app) : IHttpClientFactory
     {

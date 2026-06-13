@@ -1,7 +1,9 @@
+using CloudShell.Abstractions.Authentication;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -9,11 +11,26 @@ using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Client;
 
-public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
+public sealed class RemoteControlPlane : IControlPlane
 {
     private const string RoutePrefix = "api/control-plane/v1";
     private const string ContainerAppsRoutePrefix = "api/container-apps/v1";
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    private readonly HttpClient httpClient;
+
+    public RemoteControlPlane(HttpClient httpClient)
+    {
+        ArgumentNullException.ThrowIfNull(httpClient);
+        this.httpClient = httpClient;
+    }
+
+    public RemoteControlPlane(
+        Uri baseAddress,
+        CloudShellResourceCredential credential,
+        IEnumerable<string>? scopes = null)
+        : this(CreateAuthenticatedHttpClient(baseAddress, credential, scopes))
+    {
+    }
 
     public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
 
@@ -501,6 +518,36 @@ public sealed class RemoteControlPlane(HttpClient httpClient) : IControlPlane
         var response = await httpClient.GetAsync(BuildUri(path, query), cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return await ReadRequiredAsync<T>(response, cancellationToken);
+    }
+
+    private static HttpClient CreateAuthenticatedHttpClient(
+        Uri baseAddress,
+        CloudShellResourceCredential credential,
+        IEnumerable<string>? scopes)
+    {
+        ArgumentNullException.ThrowIfNull(baseAddress);
+        ArgumentNullException.ThrowIfNull(credential);
+
+        var options = new RemoteControlPlaneOptions
+        {
+            BaseAddress = baseAddress
+        };
+        if (scopes is not null)
+        {
+            options.Credential.Scopes = scopes.ToArray();
+        }
+
+        var handler = new ControlPlaneAuthenticationHandler(
+            new CloudShellResourceControlPlaneCredential(credential),
+            Options.Create(options))
+        {
+            InnerHandler = new HttpClientHandler()
+        };
+
+        return new HttpClient(handler)
+        {
+            BaseAddress = baseAddress
+        };
     }
 
     private static async Task<T> ReadRequiredAsync<T>(
