@@ -9,6 +9,7 @@
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Resources"]</PageTitle>
@@ -45,7 +46,7 @@
                 @L["Settings"]
             </FluentButton>
         }
-        @if (Authorization.CanAccessResourceGroup(
+        @if (!IsReadOnly && Authorization.CanAccessResourceGroup(
             "__new_resource_group",
             CloudShellPermissions.ResourceGroups.Create))
         {
@@ -53,7 +54,7 @@
                 @L["Create group"]
             </FluentButton>
         }
-        @if (Authorization.HasPermission(CloudShellPermissions.Resources.Create))
+        @if (!IsReadOnly && Authorization.HasPermission(CloudShellPermissions.Resources.Create))
         {
             <FluentButton Appearance="Appearance.Accent" OnClick="AddResource">
                 @L["Add resource"]
@@ -65,6 +66,11 @@
 @if (ProcedureMessage is not null)
 {
     <div class="procedure-message">@ProcedureMessage</div>
+}
+
+@if (IsReadOnly)
+{
+    <div class="procedure-message">@L["Resource Manager is in read-only mode. Resource creation, lifecycle actions, updates, and deletes are disabled in this UI."]</div>
 }
 
 @if (PendingAction is not null)
@@ -595,6 +601,7 @@
     private string? ExecutingActionKey { get; set; }
     private PendingResourceAction? PendingAction { get; set; }
     private bool IsCheckingHealth { get; set; }
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
     private IReadOnlyDictionary<string, ResourceHealthSummary> HealthResults { get; set; } =
         new Dictionary<string, ResourceHealthSummary>(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? ResourcePollingCancellation { get; set; }
@@ -1176,6 +1183,12 @@
 
     private void PromptDelete(Resource resource)
     {
+        if (IsReadOnly)
+        {
+            ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            return;
+        }
+
         DeleteConfirmationResourceId = resource.Id;
         ProcedureMessage = null;
     }
@@ -1184,6 +1197,13 @@
 
     private async Task DeleteResource(Resource resource)
     {
+        if (IsReadOnly)
+        {
+            ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            DeleteConfirmationResourceId = null;
+            return;
+        }
+
         try
         {
             var result = await ResourceManager.DeleteResourceAsync(resource.Id);
@@ -1200,6 +1220,12 @@
 
     private async Task RequestResourceAction(Resource resource, ResourceAction action)
     {
+        if (IsReadOnly)
+        {
+            ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            return;
+        }
+
         var stoppedDependencies = ShouldStartDependencies(action)
             ? GetStoppedDependencies(resource)
             : [];
@@ -1289,6 +1315,12 @@
         ResourceAction action,
         bool startDependencies)
     {
+        if (IsReadOnly)
+        {
+            ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            return;
+        }
+
         ExecutingActionKey = GetActionKey(resource, action);
         ProcedureMessage = null;
         try
@@ -1356,7 +1388,7 @@
             .ToArray();
 
     private bool CanManage(Resource resource) =>
-        GetCapabilities(resource).CanManage;
+        !IsReadOnly && GetCapabilities(resource).CanManage;
 
     private bool HasProviderConfiguration(Resource resource) =>
         ShellCatalog.ResourceTypes.Any(type =>
@@ -1364,10 +1396,10 @@
             (type.UpdateComponentType is not null || type.ResourceTabs.Count > 0));
 
     private bool CanDelete(Resource resource) =>
-        GetCapabilities(resource).CanDelete;
+        !IsReadOnly && GetCapabilities(resource).CanDelete;
 
     private bool CanExecuteAction(Resource resource, ResourceAction action) =>
-        GetCapabilities(resource).CanExecuteAction(action.Id);
+        !IsReadOnly && GetCapabilities(resource).CanExecuteAction(action.Id);
 
     private ResourceOperationCapabilities GetCapabilities(Resource resource) =>
         ResourceCapabilities.GetValueOrDefault(resource.Id) ??

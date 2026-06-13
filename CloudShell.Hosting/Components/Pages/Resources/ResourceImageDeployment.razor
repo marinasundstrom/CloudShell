@@ -1,5 +1,6 @@
 @inject IResourceManager ResourceManager
 @inject IJSRuntime JS
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
 @if (CanDeployImage)
@@ -19,10 +20,15 @@
                               @bind-Value="DeploymentImage"
                               Immediate="true"
                               Placeholder="example/api:20260608"
-                              Disabled="@IsDeploying" />
-            <FluentCheckbox @bind-Value="RestartIfRunning" Disabled="@IsDeploying">
+                              Disabled="@(IsDeploying || IsReadOnly)" />
+            <FluentCheckbox @bind-Value="RestartIfRunning" Disabled="@(IsDeploying || IsReadOnly)">
                 @L["Restart if running"]
             </FluentCheckbox>
+
+            @if (IsReadOnly)
+            {
+                <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Image deployment is disabled in this UI."]</div>
+            }
 
             @if (!string.IsNullOrWhiteSpace(ImageDeploymentMessage))
             {
@@ -56,6 +62,7 @@
     private string? ImageDeploymentMessage { get; set; }
     private bool RestartIfRunning { get; set; } = true;
     private bool IsDeploying { get; set; }
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
     private bool CanDeployImage =>
         string.Equals(Resource.EffectiveTypeId, ContainerAppResourceType, StringComparison.OrdinalIgnoreCase) &&
@@ -64,6 +71,7 @@
 
     private bool CanSubmitImageDeployment =>
         CanDeployImage &&
+        !IsReadOnly &&
         Capabilities.CanManage &&
         !IsDeploying &&
         !string.IsNullOrWhiteSpace(DeploymentImage);
@@ -91,6 +99,11 @@
     {
         if (!CanSubmitImageDeployment)
         {
+            if (IsReadOnly)
+            {
+                ImageDeploymentMessage = L["Resource Manager is in read-only mode."].Value;
+            }
+
             return;
         }
 

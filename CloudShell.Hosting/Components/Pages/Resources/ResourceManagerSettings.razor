@@ -6,6 +6,7 @@
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Resource Manager settings"]</PageTitle>
@@ -14,7 +15,9 @@
     <div>
         <span class="eyebrow">@L["Resource Manager"]</span>
         <h1>@L["Settings"]</h1>
-        <p>@L["Choose which orchestrator handles lifecycle actions for the resource graph."]</p>
+        <p>@(IsReadOnly
+            ? L["Resource Manager is in read-only mode. Settings changes are disabled in this UI."]
+            : L["Choose which orchestrator handles lifecycle actions for the resource graph."])</p>
     </div>
     <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
         @L["Close"]
@@ -56,6 +59,14 @@
                 <span>@L["Local dev mode uses the default orchestrator for Aspire-like local resources and resource-owned endpoints. On-premise mode selects an orchestrator such as Docker Compose to own lifecycle, networking, and exposure. Container host registration is independent from orchestrator selection."]</span>
             </div>
 
+            @if (IsReadOnly)
+            {
+                <div class="procedure-message">
+                    <strong>@L["Read-only mode"]</strong>
+                    <span>@L["Resource Manager settings can be inspected, but changes are disabled by host configuration."]</span>
+                </div>
+            }
+
             @foreach (var warning in ConfigurationWarnings)
             {
                 <div class="procedure-confirmation">
@@ -68,6 +79,7 @@
             <FluentSelect TOption="string"
                           Id="orchestrator-id"
                           @bind-Value="SelectedOrchestratorId"
+                          Disabled="@IsReadOnly"
                           Appearance="Appearance.Outline">
                 @foreach (var orchestrator in GetOrchestrators())
                 {
@@ -79,6 +91,7 @@
             <FluentSelect TOption="string"
                           Id="container-host-id"
                           @bind-Value="SelectedContainerHostId"
+                          Disabled="@IsReadOnly"
                           Appearance="Appearance.Outline">
                 <FluentOption TOption="string" Value="">@L["Host environment"]</FluentOption>
                 @foreach (var host in ContainerHosts)
@@ -93,7 +106,7 @@
                                Min="@ResourceOrchestratorSelectionDefaults.MinimumHealthCheckIntervalSeconds.ToString()"
                                Max="@ResourceOrchestratorSelectionDefaults.MaximumHealthCheckIntervalSeconds.ToString()"
                                Step="1"
-                               Disabled="@IsHealthCheckIntervalConfigured"
+                               Disabled="@(IsReadOnly || IsHealthCheckIntervalConfigured)"
                                @bind-Value="SelectedHealthCheckIntervalSeconds" />
             <small>
                 @if (IsHealthCheckIntervalConfigured)
@@ -145,11 +158,13 @@
     private ResourceOrchestrationCatalogSnapshot OrchestrationSnapshot { get; set; } =
         ResourceOrchestrationCatalogSnapshot.Empty;
     private bool PendingChange { get; set; }
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
     private bool IsHealthCheckIntervalConfigured =>
         OrchestrationSettings.GetHealthCheckIntervalSettings().IsConfigured;
 
     private bool CanApply =>
+        !IsReadOnly &&
         !string.Equals(
             SelectedOrchestratorId,
             OrchestrationSettings.Get().OrchestratorId,
@@ -196,6 +211,11 @@
 
     private void RequestChange()
     {
+        if (IsReadOnly)
+        {
+            return;
+        }
+
         PendingChange = true;
     }
 
@@ -211,6 +231,12 @@
 
     private void ConfirmChange()
     {
+        if (IsReadOnly)
+        {
+            PendingChange = false;
+            return;
+        }
+
         OrchestrationSettings.Select(
             SelectedOrchestratorId,
             SelectedContainerHostId,

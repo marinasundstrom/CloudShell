@@ -5,6 +5,7 @@
 @inject IResourceTemplateManager Templates
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Resource templates"]</PageTitle>
@@ -12,7 +13,9 @@
 @{
     var selectedGroup = Groups.FirstOrDefault(group =>
         string.Equals(group.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase));
-    var canImport = Authorization.HasPermission(CloudShellPermissions.Resources.Create) &&
+    var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
+    var canImport = !isReadOnly &&
+        Authorization.HasPermission(CloudShellPermissions.Resources.Create) &&
         Authorization.CanAccessResourceGroup(
             "__new_resource_group",
             CloudShellPermissions.ResourceGroups.Create);
@@ -91,11 +94,17 @@
             </div>
         </div>
 
+        @if (isReadOnly)
+        {
+            <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Template import is disabled in this UI."]</div>
+        }
+
         <label for="import-json">@L["Template JSON"]</label>
         <FluentTextArea Id="import-json"
                         Class="template-json"
                         Rows="24"
                         Placeholder="@L["Paste a resource group template JSON document"]"
+                        ReadOnly="@isReadOnly"
                         @bind-Value="ImportJson" />
 
         <div class="form-actions">
@@ -109,7 +118,11 @@
             </FluentButton>
         </div>
 
-        @if (!canImport)
+        @if (isReadOnly)
+        {
+            <small class="template-note">@L["Import is disabled because Resource Manager is in read-only mode."]</small>
+        }
+        else if (!canImport)
         {
             <small class="template-note">@L["Import requires permission to create resource groups and resources."]</small>
         }
@@ -144,6 +157,7 @@
     private bool IsBusy { get; set; }
     private IReadOnlyList<ResourceGroup> Groups { get; set; } = [];
     private List<ResourceTemplateDiagnostic> Diagnostics { get; } = [];
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
     protected override async Task OnInitializedAsync()
     {
@@ -184,6 +198,12 @@
 
     private async Task ImportTemplate()
     {
+        if (IsReadOnly)
+        {
+            StatusMessage = L["Resource Manager is in read-only mode."].Value;
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(ImportJson))
         {
             return;

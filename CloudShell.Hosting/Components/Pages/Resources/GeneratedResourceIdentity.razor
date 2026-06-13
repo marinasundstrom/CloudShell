@@ -1,6 +1,7 @@
 @using CloudShell.Abstractions.ControlPlane
 @using CloudShell.Abstractions.ResourceManager
 @inject IResourceManager ResourceManager
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -61,11 +62,15 @@
                 </dl>
                 <div class="generated-row-actions">
                     <FluentButton Appearance="Appearance.Neutral"
-                                  Disabled="@ProvisioningIdentity"
+                                  Disabled="@(ProvisioningIdentity || IsReadOnly)"
                                   OnClick="ProvisionIdentity">
                         @GetProvisionIdentityButtonLabel()
                     </FluentButton>
                 </div>
+                @if (IsReadOnly)
+                {
+                    <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Identity provisioning is disabled in this UI."]</div>
+                }
             }
             else
             {
@@ -122,6 +127,7 @@
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
     private string? ProcedureMessage { get; set; }
     private bool ProvisioningIdentity { get; set; }
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
     private bool HasPermissionGrants =>
         InboundPermissionGrants.Count > 0 ||
@@ -244,8 +250,13 @@
 
     private async Task ProvisionIdentity()
     {
-        if (ProvisioningIdentity || Resource?.IdentityBinding is null)
+        if (ProvisioningIdentity || Resource?.IdentityBinding is null || IsReadOnly)
         {
+            if (IsReadOnly)
+            {
+                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            }
+
             return;
         }
 

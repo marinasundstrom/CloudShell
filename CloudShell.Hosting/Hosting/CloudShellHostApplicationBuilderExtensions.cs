@@ -64,6 +64,8 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.AddFluentUIComponents();
         builder.Services.Configure<CloudShellDisplayOptions>(
             builder.Configuration.GetSection(CloudShellDisplayOptions.SectionName));
+        builder.Services.Configure<ResourceManagerUiOptions>(
+            builder.Configuration.GetSection(ResourceManagerUiOptions.SectionName));
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
 

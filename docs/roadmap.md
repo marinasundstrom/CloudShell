@@ -292,9 +292,12 @@ listed here before pulling in broader proposal work.
   virtual networks, ingress/public endpoint mapping, DNS/name mapping,
   network-level service discovery, integration points, and more complex
   validation samples.
-- Add a Resource Manager read-only mode so a local-development or
-  programmatic-declaration environment can be inspected without allowing UI
-  create/update/delete/action flows to override the declared graph.
+- Resource Manager read-only mode is in place as the
+  `ResourceManager:ReadOnly` UI host setting, so local-development or
+  programmatic-declaration environments can be inspected without allowing UI
+  create/update/delete/action flows to override the declared graph. Follow-up
+  work is permission-aware UI enforcement and deciding whether any deployments
+  also need Control Plane write blocking.
 
 ## Foundation Rationale
 

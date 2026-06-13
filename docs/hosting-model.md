@@ -283,6 +283,28 @@ reverse proxy or policy enforcement point for every resource API.
 Protected API metadata for resource-owned runtime APIs is directional. The
 current remote adapter credential support covers Control Plane calls only.
 
+## Resource Manager Read-Only Mode
+
+Hosts can disable Resource Manager write affordances in the UI by setting:
+
+```json
+{
+  "ResourceManager": {
+    "ReadOnly": true
+  }
+}
+```
+
+The same setting can be supplied through environment variables as
+`ResourceManager__ReadOnly=true`.
+
+Read-only mode is a UI policy for inspection-focused environments, especially
+local-development hosts where programmatic declarations should remain
+authoritative. It hides or disables Resource Manager creation, lifecycle,
+update, import, identity-provisioning, image-deployment, and delete controls in
+the hosted UI. It is not a Control Plane security boundary; authorization and
+API enforcement still belong to the Control Plane.
+
 ## Persistence
 
 Programmatic declarations are startup configuration by default. Calling

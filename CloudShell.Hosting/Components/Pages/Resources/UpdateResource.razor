@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IJSRuntime JS
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 @implements IDisposable
 
@@ -23,7 +24,9 @@
     var tabs = BuildTabs(resource, resourceType);
     var selectedTab = tabs.FirstOrDefault(tab => tab.Id == SelectedTabId) ?? tabs.FirstOrDefault();
     var isGeneratedOverview = selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
+    var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
     var canManageResource = resource is not null &&
+        !isReadOnly &&
         Authorization.CanAccessResource(resource.Id, group?.Id, CloudShellPermissions.Resources.Manage);
 }
 
@@ -73,6 +76,11 @@
     <div class="procedure-message">@ProcedureMessage</div>
 }
 
+@if (isReadOnly)
+{
+    <div class="procedure-message">@L["Resource Manager is in read-only mode. Resource lifecycle actions and updates are disabled in this UI."]</div>
+}
+
 @if (PendingRestart is not null)
 {
     <div class="procedure-confirmation" role="alert">
@@ -80,7 +88,7 @@
         <span>@PendingRestart.Message</span>
         <div class="form-actions">
             <FluentButton Appearance="Appearance.Accent"
-                          Disabled="@IsRestarting"
+                          Disabled="@(IsRestarting || IsReadOnly)"
                           OnClick="RestartPendingResource">
                 @(IsRestarting ? L["Restarting"] : L["Restart now"])
             </FluentButton>
@@ -194,6 +202,7 @@
     private ResourceOperationCapabilities OperationCapabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
     private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
     private string? SelectedTabId { get; set; }
     private string? ProcedureMessage { get; set; }
     private PendingResourceRestart? PendingRestart { get; set; }
@@ -313,8 +322,13 @@
 
     private async Task RestartPendingResource()
     {
-        if (PendingRestart is null)
+        if (PendingRestart is null || IsReadOnly)
         {
+            if (IsReadOnly)
+            {
+                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            }
+
             return;
         }
 
@@ -582,7 +596,7 @@
         action.EffectivePresentation.DisplayStyle == ResourceActionDisplayStyle.Inline;
 
     private bool CanExecuteAction(ResourceAction action) =>
-        OperationCapabilities.CanExecuteAction(action.Id);
+        !IsReadOnly && OperationCapabilities.CanExecuteAction(action.Id);
 
     private bool IsExecutingAction(ResourceAction action) =>
         ExecutingActionIds.Contains(action.Id);
@@ -591,6 +605,11 @@
     {
         if (Resource is null || !CanExecuteAction(action) || IsExecutingAction(action))
         {
+            if (IsReadOnly)
+            {
+                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            }
+
             return;
         }
 

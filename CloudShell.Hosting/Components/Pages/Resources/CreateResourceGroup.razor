@@ -3,6 +3,7 @@
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Create resource group"]</PageTitle>
@@ -11,33 +12,48 @@
     <div>
         <span class="eyebrow">@L["Resource Manager"]</span>
         <h1>@L["Create resource group"]</h1>
-        <p>@L["Create a project boundary for organizing resources across resource types."]</p>
+        <p>@(IsReadOnly
+            ? L["Resource Manager is in read-only mode. Resource group creation is disabled in this UI."]
+            : L["Create a project boundary for organizing resources across resource types."])</p>
     </div>
 </section>
 
-<section class="form-panel panel">
-    <label for="group-name">@L["Name"]</label>
-    <FluentTextField Id="group-name" @bind-Value="Name" Placeholder="@L["Project development"]" />
+@if (IsReadOnly)
+{
+    <div class="procedure-message">@L["Resource Manager is in read-only mode. Resource creation, lifecycle actions, updates, and deletes are disabled in this UI."]</div>
+}
+else
+{
+    <section class="form-panel panel">
+        <label for="group-name">@L["Name"]</label>
+        <FluentTextField Id="group-name" @bind-Value="Name" Placeholder="@L["Project development"]" />
 
-    <label for="group-description">@L["Description"]</label>
-    <FluentTextArea Id="group-description" @bind-Value="Description" Rows="4" Placeholder="@L["Resources for the project development environment."]" />
+        <label for="group-description">@L["Description"]</label>
+        <FluentTextArea Id="group-description" @bind-Value="Description" Rows="4" Placeholder="@L["Resources for the project development environment."]" />
 
-    <div class="form-actions">
-        <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
-            @L["Cancel"]
-        </FluentButton>
-        <FluentButton Appearance="Appearance.Accent" Disabled="@string.IsNullOrWhiteSpace(Name)" OnClick="CreateGroup">
-            @L["Create"]
-        </FluentButton>
-    </div>
-</section>
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
+                @L["Cancel"]
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Accent" Disabled="@string.IsNullOrWhiteSpace(Name)" OnClick="CreateGroup">
+                @L["Create"]
+            </FluentButton>
+        </div>
+    </section>
+}
 
 @code {
     private string Name { get; set; } = string.Empty;
     private string Description { get; set; } = string.Empty;
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
     protected override void OnInitialized()
     {
+        if (IsReadOnly)
+        {
+            return;
+        }
+
         if (!Authorization.CanAccessResourceGroup(
                 "__new_resource_group",
                 CloudShellPermissions.ResourceGroups.Create))
@@ -50,6 +66,11 @@
 
     private async Task CreateGroup()
     {
+        if (IsReadOnly)
+        {
+            return;
+        }
+
         await ResourceManager.CreateResourceGroupAsync(
             new CreateResourceGroupCommand(Name, Description));
         Navigation.NavigateTo("/resources/add");

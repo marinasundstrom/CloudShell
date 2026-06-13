@@ -6,6 +6,7 @@
 @inject ILogManager LogManager
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -332,7 +333,7 @@
                     var capability = Capabilities.GetActionCapability(action.Id);
                     <div>
                         <strong>@action.DisplayName</strong>
-                        <span>@(capability?.CanExecute == false ? L["Unavailable"] : L["Available"])</span>
+                        <span>@(CanExecuteAction(action) ? L["Available"] : L["Unavailable"])</span>
                         <FluentButton Appearance="Appearance.Neutral"
                                       Disabled="@(!CanExecuteAction(action) || IsExecutingAction(action))"
                                       OnClick="() => ExecuteAction(action)">
@@ -409,6 +410,7 @@
         ResourceOperationCapabilities.None(string.Empty);
     private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private string? ProcedureMessage { get; set; }
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
     private bool IsNetworkResource => Resource.ResourceClass == ResourceClass.Network ||
         Resource.HasCapability(ResourceCapabilityIds.NetworkingProvider);
@@ -443,7 +445,7 @@
             : identity.Subject;
 
     private bool CanExecuteAction(ResourceAction action) =>
-        Capabilities.CanExecuteAction(action.Id);
+        !IsReadOnly && Capabilities.CanExecuteAction(action.Id);
 
     private bool IsExecutingAction(ResourceAction action) =>
         ExecutingActionIds.Contains(action.Id);
@@ -477,6 +479,11 @@
     {
         if (!CanExecuteAction(action) || IsExecutingAction(action))
         {
+            if (IsReadOnly)
+            {
+                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            }
+
             return;
         }
 

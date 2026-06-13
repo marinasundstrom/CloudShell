@@ -2,6 +2,7 @@
 @inject IResourceRegistrationStore Registrations
 @inject IEnumerable<IResourceAppSettingConfigurationProvider> AppSettingProviders
 @inject IEnumerable<IResourceEnvironmentVariableConfigurationProvider> EnvironmentVariableProviders
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
 
 @if (!string.IsNullOrWhiteSpace(ErrorMessage))
@@ -20,12 +21,17 @@ else if ((AppSettingProvider is null && EnvironmentVariableProvider is null) || 
 }
 else
 {
+    @if (IsReadOnly)
+    {
+        <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Environment editing is disabled in this UI."]</div>
+    }
+
     @if (AppSettingProvider is not null)
     {
         <div class="environment-editor resource-environment-editor">
             <div class="environment-header">
                 <strong>@L["App settings"]</strong>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="AddAppSetting">
+                <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="AddAppSetting">
                     @L["Add setting"]
                 </FluentButton>
             </div>
@@ -41,9 +47,11 @@ else
                     <div class="resource-environment-row" @key="setting">
                         <FluentTextField AriaLabel="@L["App setting name"]"
                                          Placeholder="ConnectionStrings:Default"
+                                         Disabled="@IsReadOnly"
                                          @bind-Value="setting.Name" />
                         <select class="resource-environment-source"
                                 aria-label="@L["App setting source"]"
+                                disabled="@IsReadOnly"
                                 @bind="setting.Source">
                             <option value="@EnvironmentVariableSource.Literal">@L["Custom value"]</option>
                             <option value="@EnvironmentVariableSource.Configuration">@L["Configuration entry"]</option>
@@ -53,12 +61,14 @@ else
                         @if (setting.Source == EnvironmentVariableSource.Literal)
                         {
                             <FluentTextField AriaLabel="@L["App setting value"]"
+                                             Disabled="@IsReadOnly"
                                              @bind-Value="setting.Value" />
                         }
                         else if (setting.Source == EnvironmentVariableSource.Configuration)
                         {
                             <select class="resource-environment-reference"
                                     aria-label="@L["Configuration store"]"
+                                    disabled="@IsReadOnly"
                                     @bind="setting.ReferenceResourceId">
                                 <option value="">@L["Select configuration store"]</option>
                                 @foreach (var store in ConfigurationStores)
@@ -72,15 +82,18 @@ else
                             </select>
                             <FluentTextField AriaLabel="@L["Configuration entry name"]"
                                              Placeholder="ConnectionStrings:Default"
+                                             Disabled="@IsReadOnly"
                                              @bind-Value="setting.ReferenceName" />
                             <FluentTextField AriaLabel="@L["Configuration entry version"]"
                                              Placeholder="@L["Version"]"
+                                             Disabled="@IsReadOnly"
                                              @bind-Value="setting.Version" />
                         }
                         else
                         {
                             <select class="resource-environment-reference"
                                     aria-label="@L["Secrets vault"]"
+                                    disabled="@IsReadOnly"
                                     @bind="setting.ReferenceResourceId">
                                 <option value="">@L["Select Secrets Vault"]</option>
                                 @foreach (var vault in SecretsVaults)
@@ -94,13 +107,15 @@ else
                             </select>
                             <FluentTextField AriaLabel="@L["Secret name"]"
                                              Placeholder="ApiKey"
+                                             Disabled="@IsReadOnly"
                                              @bind-Value="setting.ReferenceName" />
                             <FluentTextField AriaLabel="@L["Secret version"]"
                                              Placeholder="@L["Version"]"
+                                             Disabled="@IsReadOnly"
                                              @bind-Value="setting.Version" />
                         }
 
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveAppSetting(setting)">
+                        <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="() => RemoveAppSetting(setting)">
                             @L["Remove"]
                         </FluentButton>
                     </div>
@@ -114,7 +129,7 @@ else
     <div class="environment-editor resource-environment-editor">
         <div class="environment-header">
             <strong>@L["Environment variables"]</strong>
-            <FluentButton Appearance="Appearance.Neutral" OnClick="AddVariable">
+            <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="AddVariable">
                 @L["Add variable"]
             </FluentButton>
         </div>
@@ -130,9 +145,11 @@ else
                 <div class="resource-environment-row" @key="variable">
                     <FluentTextField AriaLabel="@L["Environment variable name"]"
                                      Placeholder="ASPNETCORE_ENVIRONMENT"
+                                     Disabled="@IsReadOnly"
                                      @bind-Value="variable.Name" />
                     <select class="resource-environment-source"
                             aria-label="@L["Environment variable source"]"
+                            disabled="@IsReadOnly"
                             @bind="variable.Source">
                         <option value="@EnvironmentVariableSource.Literal">@L["Custom value"]</option>
                         <option value="@EnvironmentVariableSource.Configuration">@L["Configuration entry"]</option>
@@ -142,12 +159,14 @@ else
                     @if (variable.Source == EnvironmentVariableSource.Literal)
                     {
                         <FluentTextField AriaLabel="@L["Environment variable value"]"
+                                         Disabled="@IsReadOnly"
                                          @bind-Value="variable.Value" />
                     }
                     else if (variable.Source == EnvironmentVariableSource.Configuration)
                     {
                         <select class="resource-environment-reference"
                                 aria-label="@L["Configuration store"]"
+                                disabled="@IsReadOnly"
                                 @bind="variable.ReferenceResourceId">
                             <option value="">@L["Select configuration store"]</option>
                             @foreach (var store in ConfigurationStores)
@@ -161,15 +180,18 @@ else
                         </select>
                         <FluentTextField AriaLabel="@L["Configuration entry name"]"
                                          Placeholder="ConnectionStrings:Default"
+                                         Disabled="@IsReadOnly"
                                          @bind-Value="variable.ReferenceName" />
                         <FluentTextField AriaLabel="@L["Configuration entry version"]"
                                          Placeholder="@L["Version"]"
+                                         Disabled="@IsReadOnly"
                                          @bind-Value="variable.Version" />
                     }
                     else
                     {
                         <select class="resource-environment-reference"
                                 aria-label="@L["Secrets vault"]"
+                                disabled="@IsReadOnly"
                                 @bind="variable.ReferenceResourceId">
                             <option value="">@L["Select Secrets Vault"]</option>
                             @foreach (var vault in SecretsVaults)
@@ -183,13 +205,15 @@ else
                         </select>
                         <FluentTextField AriaLabel="@L["Secret name"]"
                                          Placeholder="ApiKey"
+                                         Disabled="@IsReadOnly"
                                          @bind-Value="variable.ReferenceName" />
                         <FluentTextField AriaLabel="@L["Secret version"]"
                                          Placeholder="@L["Version"]"
+                                         Disabled="@IsReadOnly"
                                          @bind-Value="variable.Version" />
                     }
 
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveVariable(variable)">
+                    <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="() => RemoveVariable(variable)">
                         @L["Remove"]
                     </FluentButton>
                 </div>
@@ -216,6 +240,7 @@ else
     private List<EnvironmentVariableInput> Variables { get; } = [];
     private IReadOnlyList<Resource> ConfigurationStores { get; set; } = [];
     private IReadOnlyList<Resource> SecretsVaults { get; set; } = [];
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -278,6 +303,11 @@ else
 
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
+        if (IsReadOnly)
+        {
+            return ResourceProcedureResult.Completed("Resource Manager is in read-only mode.");
+        }
+
         if ((AppSettingProvider is null && EnvironmentVariableProvider is null) || Resource is null)
         {
             return ResourceProcedureResult.Completed("No app setting or environment variable provider is available.");

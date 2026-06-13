@@ -42,6 +42,26 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ProjectReferenceHost_HonorsResourceManagerReadOnlySetting()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
+            await GetFreePortAsync(),
+            [("ResourceManager__ReadOnly", "true")]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesHtml = await host.GetStringAsync("/resources");
+        Assert.Contains("Resource Manager is in read-only mode", resourcesHtml);
+        Assert.DoesNotContain(">Add resource<", resourcesHtml);
+        Assert.DoesNotContain(">Create group<", resourcesHtml);
+
+        var addResourceHtml = await host.GetStringAsync("/resources/add");
+        Assert.Contains("Resource registration is disabled", addResourceHtml);
+        Assert.DoesNotContain("Create a resource group", addResourceHtml);
+    }
+
+    [Fact]
     public async Task SettingsAndSecretsSample_ProjectsReferenceBackedEnvironmentResources()
     {
         var apiPort = await GetFreePortAsync();
