@@ -61,6 +61,21 @@ public sealed class ResourceSettingDisplayTests
     }
 
     [Fact]
+    public void ResourceSettingResolutionException_IncludesReferenceContext()
+    {
+        var exception = new ResourceSettingResolutionException(
+            "SAMPLE_API_KEY",
+            "secret",
+            "Identity 'application:api/api-service' is not allowed to read secrets.");
+
+        Assert.Equal("SAMPLE_API_KEY", exception.SettingName);
+        Assert.Equal("secret", exception.ReferenceKind);
+        Assert.Equal(
+            "Could not resolve secret reference for setting 'SAMPLE_API_KEY'. Identity 'application:api/api-service' is not allowed to read secrets.",
+            exception.Message);
+    }
+
+    [Fact]
     public void ApplicationSettingReferenceDisplay_ReturnsLiteralStatus()
     {
         var row = ApplicationSettingReferenceDisplay.Create(

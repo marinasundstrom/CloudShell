@@ -1132,18 +1132,19 @@ public sealed partial class ApplicationResourceProvider(
     {
         if (configurationEntry is not null)
         {
-            return ResolveConfigurationEntryValue(configurationEntry, context);
+            return ResolveConfigurationEntryValue(name, configurationEntry, context);
         }
 
         if (secret is not null)
         {
-            return await ResolveSecretValueAsync(secret, context, cancellationToken);
+            return await ResolveSecretValueAsync(name, secret, context, cancellationToken);
         }
 
         return literalValue ?? string.Empty;
     }
 
     private string ResolveConfigurationEntryValue(
+        string name,
         ConfigurationEntryReference reference,
         ResourceSettingResolutionContext context)
     {
@@ -1165,10 +1166,11 @@ public sealed partial class ApplicationResourceProvider(
         var message = errors.Count == 0
             ? $"No configuration provider can resolve entry '{reference.EntryName}' from '{reference.StoreResourceId}'."
             : string.Join(" ", errors);
-        throw new InvalidOperationException(message);
+        throw new ResourceSettingResolutionException(name, "configuration-entry", message);
     }
 
     private async Task<string> ResolveSecretValueAsync(
+        string name,
         SecretReference reference,
         ResourceSettingResolutionContext context,
         CancellationToken cancellationToken)
@@ -1191,7 +1193,7 @@ public sealed partial class ApplicationResourceProvider(
         var message = errors.Count == 0
             ? $"No vault provider can resolve secret '{reference.SecretName}' from '{reference.VaultResourceId}'."
             : string.Join(" ", errors);
-        throw new InvalidOperationException(message);
+        throw new ResourceSettingResolutionException(name, "secret", message);
     }
 
     private ResourceIdentityReference? ResolveIdentity(string resourceId)

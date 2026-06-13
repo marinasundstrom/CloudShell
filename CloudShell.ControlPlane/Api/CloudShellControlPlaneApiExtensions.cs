@@ -1056,6 +1056,8 @@ public static class CloudShellControlPlaneApiExtensions
         exception switch
         {
             ControlPlaneException controlPlaneException => controlPlaneException.Error,
+            ResourceSettingResolutionException settingResolutionException =>
+                ControlPlaneError.ResourceActionUnavailable(settingResolutionException.Message),
             ArgumentException argumentException => ControlPlaneError.InvalidRequest(argumentException.Message),
             _ => new(
                 ControlPlaneErrorCodes.OperationFailed,

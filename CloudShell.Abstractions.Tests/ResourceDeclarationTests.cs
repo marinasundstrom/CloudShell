@@ -992,6 +992,68 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ReportsSecretResolutionFailureBeforeStart()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .AddConfigurationProvider()
+            .Resources(resources =>
+            {
+                var api = resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        "API",
+                        executablePath: "dotnet")
+                    .WithIdentity("identity:development", name: "api-service")
+                    .WithEnvironment(
+                        "SAMPLE_API_KEY",
+                        new SecretReference("secrets-vault:app", "sample-api-key"));
+
+                resources
+                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .WithSecret("sample-api-key", "secret");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    provider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore([resource], [provider]);
+
+        var exception = await Assert.ThrowsAsync<ResourceSettingResolutionException>(() =>
+            provider.ExecuteActionAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                ResourceAction.Run));
+
+        Assert.Equal("SAMPLE_API_KEY", exception.SettingName);
+        Assert.Equal("secret", exception.ReferenceKind);
+        Assert.Contains("is not allowed to read secrets", exception.Message);
+    }
+
+    [Fact]
     public async Task SecretsVaultProvider_ExportsSecretNamesWithoutValues()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

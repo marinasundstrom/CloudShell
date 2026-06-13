@@ -151,7 +151,12 @@ listed here before pulling in broader proposal work.
   or raw CloudShell reference strings, and shows basic target availability and
   identity-grant status.
 - Verify assignment flows against identity-backed configuration and secret
-  read authorization.
+  read authorization. Runtime resolution failures now use typed diagnostics
+  and project as resource-action-unavailable API errors instead of generic
+  operation failures.
+- Expose transient lifecycle state such as `Starting` while start/restart
+  operations are in progress, so Resource Manager does not jump directly from
+  stopped to running.
 - Persist resource events and expose filtering by event type, actor, and time
   range.
 - Define audit event schemas for resource actions, host/runtime operations,

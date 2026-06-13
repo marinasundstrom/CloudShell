@@ -336,6 +336,9 @@ app settings for non-secret values and vault-backed references for secrets.
   displaying secret values. It also shows whether the reference target is
   available and whether an identity-bound resource will need a read grant at
   runtime.
+- Runtime reference-resolution failures are reported with typed setting
+  diagnostics and map to resource-action-unavailable API errors instead of
+  generic operation failures.
 - Decide how secret references should be versioned, rotated, and refreshed for
   already-running resources.
 - Add a separate secrets client/provider for in-process secret loading.

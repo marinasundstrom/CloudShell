@@ -61,6 +61,23 @@ public sealed record ResourceSettingResolutionResult(
         new(null, errorMessage);
 }
 
+public sealed class ResourceSettingResolutionException : InvalidOperationException
+{
+    public ResourceSettingResolutionException(
+        string settingName,
+        string referenceKind,
+        string message)
+        : base($"Could not resolve {referenceKind} reference for setting '{settingName}'. {message}")
+    {
+        SettingName = settingName;
+        ReferenceKind = referenceKind;
+    }
+
+    public string SettingName { get; }
+
+    public string ReferenceKind { get; }
+}
+
 public interface IConfigurationEntryReferenceResolver
 {
     ResourceSettingResolutionResult ResolveConfigurationEntry(

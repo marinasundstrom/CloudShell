@@ -627,6 +627,22 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task ControlPlaneApi_ReturnsProblemForSettingReferenceResolutionFailure()
+    {
+        await using var app = await CreateAppAsync(includeResolutionFailureResource: true);
+        var client = app.GetTestClient();
+
+        var response = await client.PostAsync(
+            "/api/control-plane/v1/resources/contract%3Aresolution-failure/actions/run",
+            null);
+
+        await AssertProblemAsync(
+            response,
+            "Could not resolve secret reference for setting 'SAMPLE_API_KEY'. Secret 'sample-api-key' was not found in Secrets Vault 'secrets-vault:app'.",
+            ControlPlaneErrorCodes.ResourceActionUnavailable);
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_ReturnsProblemForMissingDeleteResource()
     {
         await using var app = await CreateAppAsync();
@@ -694,7 +710,8 @@ public sealed class RemoteControlPlaneContractTests
         bool includeLifecycleResource = false,
         bool includeImageResource = false,
         bool includeMappedNetwork = false,
-        bool includeLoadBalancer = false)
+        bool includeLoadBalancer = false,
+        bool includeResolutionFailureResource = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -727,6 +744,10 @@ public sealed class RemoteControlPlaneContractTests
         if (includeMappedNetwork)
         {
             builder.Services.AddSingleton<IResourceProvider, ContractNetworkingResourceProvider>();
+        }
+        if (includeResolutionFailureResource)
+        {
+            builder.Services.AddSingleton<IResourceProvider, ContractResolutionFailureProvider>();
         }
 
         controlPlane.Resources(resources =>
@@ -790,6 +811,14 @@ public sealed class RemoteControlPlaneContractTests
             await registrations.RegisterAsync(
                 ContractImageResourceProvider.ProviderId,
                 ContractImageResourceProvider.ResourceId);
+        }
+        if (includeResolutionFailureResource)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var registrations = scope.ServiceProvider.GetRequiredService<IResourceRegistrationStore>();
+            await registrations.RegisterAsync(
+                ContractResolutionFailureProvider.ProviderId,
+                ContractResolutionFailureProvider.ResourceId);
         }
 
         return app;
@@ -900,6 +929,48 @@ public sealed class RemoteControlPlaneContractTests
                     ResourceAction.Restart
                 ])
         ];
+    }
+
+    private sealed class ContractResolutionFailureProvider : IResourceProvider, IResourceProcedureProvider
+    {
+        public const string ProviderId = "contract.resolution-failure";
+        public const string ResourceId = "contract:resolution-failure";
+
+        public string Id => ProviderId;
+
+        public string DisplayName => "Contract Resolution Failure";
+
+        public IReadOnlyList<Resource> GetResources() =>
+        [
+            new(
+                ResourceId,
+                "Contract Resolution Failure",
+                "Application",
+                DisplayName,
+                "local",
+                ResourceState.Stopped,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                TypeId: "application.executable",
+                ResourceClass: ResourceClass.Executable,
+                Actions: [ResourceAction.Run])
+        ];
+
+        public Task<ResourceProcedureResult> DeleteAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ResourceProcedureResult.Completed("Deleted."));
+
+        public Task<ResourceProcedureResult> ExecuteActionAsync(
+            ResourceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default) =>
+            throw new ResourceSettingResolutionException(
+                "SAMPLE_API_KEY",
+                "secret",
+                "Secret 'sample-api-key' was not found in Secrets Vault 'secrets-vault:app'.");
     }
 
     private sealed class ContractImageResourceProvider : IResourceProvider, IResourceImageUpdateProvider, IResourceReplicaUpdateProvider
