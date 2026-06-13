@@ -80,6 +80,9 @@ when status, milestone relevance, or remaining work changes.
   resource-permission claim evaluator is now exposed through
   `CloudShell.Abstractions` as a platform-owned authorization integration and
   used by built-in services.
+- Public exposure and API stability are separate decisions. Public APIs that
+  are not yet stable must be labeled as preview, experimental, or unstable,
+  with clear ownership, expected change surface, and path to stability.
 - The WebUI is the shell surface; the Control Plane is a separately deployable
   service boundary.
 - Control Plane resource provider registration and CloudShell UI integration

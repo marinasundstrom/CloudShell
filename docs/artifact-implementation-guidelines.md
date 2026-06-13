@@ -23,6 +23,10 @@ verification path.
   services, graduate it only if the platform owns the integration contract and
   is ready to maintain it as a public API. Otherwise keep it internal and avoid
   exposing incidental implementation details.
+- Public APIs that are not yet stable must be labeled as preview,
+  experimental, or unstable in code-facing documentation and product docs.
+  Document the owner, expected change surface, and what must happen before the
+  API is considered stable.
 - Control Plane services own resource inventory, registration, grouping,
   lifecycle procedures, logs, templates, validation, authorization, and
   provider coordination.
