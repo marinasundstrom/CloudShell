@@ -20,6 +20,12 @@
         <p>@L["Inspect resources that are configured to export distributed traces."]</p>
     </div>
     <div class="heading-actions">
+        @if (!string.IsNullOrWhiteSpace(TraceId))
+        {
+            <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
+                @L["Clear trace filter"]
+            </FluentButton>
+        }
         <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllResources">
             @L["All trace resources"]
         </FluentButton>
@@ -98,7 +104,7 @@
             <div class="panel-header log-viewer-header">
                 <div>
                     <h2>@L["Recent spans"]</h2>
-                    <p>@L["{0} spans retained in memory", spans.Count]</p>
+                    <p>@GetSpanSummary(spans.Count)</p>
                 </div>
             </div>
 
@@ -133,6 +139,9 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 @code {
     [SupplyParameterFromQuery]
     public string? ResourceId { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? TraceId { get; set; }
 
     private System.Threading.Timer? refreshTimer;
     private IReadOnlyList<Resource> TraceResources { get; set; } = [];
@@ -184,6 +193,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             ? []
             : await TraceManager.ListTraceSpansAsync(new TraceQuery(
                 ResourceId: selected.Id,
+                TraceId: NormalizeFilter(TraceId),
                 MaxSpans: 200));
 
         await InvokeAsync(StateHasChanged);
@@ -193,16 +203,59 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         Navigation.NavigateTo(
             Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
                 "/observability/traces",
-                "resourceId",
-                resource.Id));
+                BuildTraceQuery(resource.Id, TraceId)));
 
     private void ShowAllResources() => Navigation.NavigateTo("/observability/traces");
+
+    private void ClearTraceFilter()
+    {
+        var selected = GetSelectedResource(TraceResources);
+        if (selected is null)
+        {
+            Navigation.NavigateTo("/observability/traces");
+            return;
+        }
+
+        Navigation.NavigateTo(
+            Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                "/observability/traces",
+                "resourceId",
+                selected.Id));
+    }
 
     private void OpenResource(Resource resource) =>
         Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");
 
     private static string GetStateLabel(ResourceState state) =>
         state.ToString();
+
+    private string GetSpanSummary(int spanCount) =>
+        string.IsNullOrWhiteSpace(TraceId)
+            ? L["{0} spans retained in memory", spanCount].Value
+            : L["{0} spans retained in memory for trace {1}", spanCount, FormatTraceId(TraceId)].Value;
+
+    private static Dictionary<string, string?> BuildTraceQuery(string resourceId, string? traceId)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["resourceId"] = resourceId
+        };
+
+        if (!string.IsNullOrWhiteSpace(traceId))
+        {
+            query["traceId"] = traceId.Trim();
+        }
+
+        return query;
+    }
+
+    private static string? NormalizeFilter(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string FormatTraceId(string traceId) =>
+        traceId.Length <= 12
+            ? traceId
+            : traceId[^12..];
 
     private static string NormalizeServiceName(string name, string resourceId)
     {

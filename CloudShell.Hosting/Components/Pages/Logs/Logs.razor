@@ -149,7 +149,18 @@
                                         @foreach (var item in GetStructuredMetadata(entry))
                                         {
                                             <dt>@item.Key</dt>
-                                            <dd>@item.Value</dd>
+                                            <dd>
+                                                @if (IsTraceMetadata(item))
+                                                {
+                                                    <a class="resource-link" href="@BuildTraceRoute(selected.ResourceId, item.Value)">
+                                                        @FormatTraceId(item.Value)
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    @item.Value
+                                                }
+                                            </dd>
                                         }
                                     </dl>
                                 }
@@ -617,6 +628,31 @@
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
     }
+
+    private static bool IsTraceMetadata(KeyValuePair<string, string> item) =>
+        string.Equals(item.Key, "traceId", StringComparison.OrdinalIgnoreCase);
+
+    private static string BuildTraceRoute(string? resourceId, string traceId)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["traceId"] = traceId
+        };
+
+        if (!string.IsNullOrWhiteSpace(resourceId))
+        {
+            query["resourceId"] = resourceId;
+        }
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            "/observability/traces",
+            query);
+    }
+
+    private static string FormatTraceId(string traceId) =>
+        traceId.Length <= 12
+            ? traceId
+            : traceId[^12..];
 
     public async ValueTask DisposeAsync()
     {

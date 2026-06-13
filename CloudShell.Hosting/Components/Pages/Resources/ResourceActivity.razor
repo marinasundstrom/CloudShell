@@ -84,6 +84,12 @@
                         <div>
                             <strong>@ResourceEventDisplayNames.GetDisplayName(resourceEvent.EventType, L)</strong>
                             <span>@FormatEventMetadata(resourceEvent)</span>
+                            @if (!string.IsNullOrWhiteSpace(resourceEvent.TraceId))
+                            {
+                                <a class="resource-link" href="@BuildTraceRoute(resourceEvent)">
+                                    @L["Trace {0}", FormatTraceId(resourceEvent.TraceId)]
+                                </a>
+                            }
                         </div>
                         <p>@resourceEvent.Message</p>
                         <footer>
@@ -212,13 +218,20 @@
             : L["Triggered by {0}", resourceEvent.TriggeredBy].Value;
 
     private string FormatEventMetadata(ResourceEvent resourceEvent) =>
-        string.IsNullOrWhiteSpace(resourceEvent.TraceId)
-            ? L["{0} · {1}", resourceEvent.EventType, FormatTriggeredBy(resourceEvent)].Value
-            : L[
-                "{0} · {1} · Trace {2}",
-                resourceEvent.EventType,
-                FormatTriggeredBy(resourceEvent),
-                FormatTraceId(resourceEvent.TraceId)].Value;
+        L["{0} · {1}", resourceEvent.EventType, FormatTriggeredBy(resourceEvent)].Value;
+
+    private static string BuildTraceRoute(ResourceEvent resourceEvent)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["resourceId"] = resourceEvent.ResourceId,
+            ["traceId"] = resourceEvent.TraceId
+        };
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            "/observability/traces",
+            query);
+    }
 
     private static string FormatTraceId(string traceId) =>
         traceId.Length <= 12

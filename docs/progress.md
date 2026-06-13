@@ -264,6 +264,9 @@ expectations rather than duplicating the task queue.
   same context into Activity log entries. This gives local distributed-app
   debugging a direct bridge between resource activity, logs, and traces without
   merging those signal types.
+- Resource Manager now makes that bridge navigable: Activity entries and
+  structured log metadata link trace IDs to the Traces view, and the Traces
+  view can filter retained spans by trace ID.
 - Application resources can project transient `Starting` state from
   provider-owned runtime observations while start/restart work is in progress.
   Stale starting observations fall back to stopped so a crashed host does not
