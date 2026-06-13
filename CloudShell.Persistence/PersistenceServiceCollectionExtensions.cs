@@ -58,6 +58,7 @@ public static class PersistenceServiceCollectionExtensions
             context,
             CloudShellInitialMigrationId,
             "ResourceGroups");
+        EnsureCloudShellRuntimeTables(context);
 
         if (!initializeIdentityStore)
         {
@@ -87,6 +88,106 @@ public static class PersistenceServiceCollectionExtensions
         }
 
         context.Database.Migrate();
+    }
+
+    private static void EnsureCloudShellRuntimeTables(DbContext context)
+    {
+        EnsureExtensionActivationsTable(context);
+        EnsureResourceEventsTable(context);
+    }
+
+    private static void EnsureExtensionActivationsTable(DbContext context)
+    {
+        if (TableExists(context, "ExtensionActivations"))
+        {
+            return;
+        }
+
+        if (context.Database.IsSqlite())
+        {
+            context.Database.ExecuteSqlRaw("""
+                CREATE TABLE IF NOT EXISTS "ExtensionActivations" (
+                    "ExtensionId" TEXT NOT NULL CONSTRAINT "PK_ExtensionActivations" PRIMARY KEY,
+                    "State" TEXT NOT NULL,
+                    "UpdatedAt" INTEGER NOT NULL,
+                    "UpdatedBy" TEXT NULL
+                );
+                """);
+            return;
+        }
+
+        if (context.Database.IsSqlServer())
+        {
+            context.Database.ExecuteSqlRaw("""
+                IF OBJECT_ID(N'[dbo].[ExtensionActivations]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [ExtensionActivations] (
+                        [ExtensionId] nvarchar(200) NOT NULL,
+                        [State] nvarchar(50) NOT NULL,
+                        [UpdatedAt] bigint NOT NULL,
+                        [UpdatedBy] nvarchar(200) NULL,
+                        CONSTRAINT [PK_ExtensionActivations] PRIMARY KEY ([ExtensionId])
+                    );
+                END;
+                """);
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported persistence provider '{context.Database.ProviderName}'.");
+    }
+
+    private static void EnsureResourceEventsTable(DbContext context)
+    {
+        if (TableExists(context, "ResourceEvents"))
+        {
+            return;
+        }
+
+        if (context.Database.IsSqlite())
+        {
+            context.Database.ExecuteSqlRaw("""
+                CREATE TABLE IF NOT EXISTS "ResourceEvents" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_ResourceEvents" PRIMARY KEY AUTOINCREMENT,
+                    "ResourceId" TEXT NOT NULL,
+                    "EventType" TEXT NOT NULL,
+                    "Message" TEXT NOT NULL,
+                    "Timestamp" INTEGER NOT NULL,
+                    "TriggeredBy" TEXT NULL,
+                    "Level" TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS "IX_ResourceEvents_EventType" ON "ResourceEvents" ("EventType");
+                CREATE INDEX IF NOT EXISTS "IX_ResourceEvents_ResourceId" ON "ResourceEvents" ("ResourceId");
+                CREATE INDEX IF NOT EXISTS "IX_ResourceEvents_Timestamp" ON "ResourceEvents" ("Timestamp");
+                """);
+            return;
+        }
+
+        if (context.Database.IsSqlServer())
+        {
+            context.Database.ExecuteSqlRaw("""
+                IF OBJECT_ID(N'[dbo].[ResourceEvents]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [ResourceEvents] (
+                        [Id] bigint NOT NULL IDENTITY,
+                        [ResourceId] nvarchar(500) NOT NULL,
+                        [EventType] nvarchar(200) NOT NULL,
+                        [Message] nvarchar(4000) NOT NULL,
+                        [Timestamp] bigint NOT NULL,
+                        [TriggeredBy] nvarchar(500) NULL,
+                        [Level] nvarchar(50) NOT NULL,
+                        CONSTRAINT [PK_ResourceEvents] PRIMARY KEY ([Id])
+                    );
+                    CREATE INDEX [IX_ResourceEvents_EventType] ON [ResourceEvents] ([EventType]);
+                    CREATE INDEX [IX_ResourceEvents_ResourceId] ON [ResourceEvents] ([ResourceId]);
+                    CREATE INDEX [IX_ResourceEvents_Timestamp] ON [ResourceEvents] ([Timestamp]);
+                END;
+                """);
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported persistence provider '{context.Database.ProviderName}'.");
     }
 
     private static void BaselineInitialMigration(
