@@ -86,6 +86,10 @@ CLOUDSHELL_IDENTITY_SCOPE
 The convention is the same for local processes, direct container starts, and
 descriptor-driven container orchestration:
 
+- Resource providers also inject service endpoint variables for declared
+  dependencies, such as `CLOUDSHELL_CONFIGURATION_*_ENDPOINT` and
+  `CLOUDSHELL_SECRETS_*_ENDPOINT`, so SDK clients can discover the protected
+  service before requesting a token.
 - Resource providers inject these variables only for resources that have a
   resolved identity binding and a supported credential acquisition mechanism.
 - Orchestrators that materialize workload descriptors must pass the variables
