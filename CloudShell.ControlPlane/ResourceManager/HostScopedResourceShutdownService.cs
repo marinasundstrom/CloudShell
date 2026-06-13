@@ -11,21 +11,54 @@ public sealed class HostScopedResourceShutdownService(
     IHostEnvironment environment,
     ILogger<HostScopedResourceShutdownService> logger) : IHostedService
 {
+    private static readonly TimeSpan ShutdownCleanupTimeout = TimeSpan.FromSeconds(20);
+
     public const string ShutdownTrigger = "host-shutdown";
 
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
+        // The host token may already be cancelled when StopAsync runs after
+        // server shutdown timeouts. Resource cleanup is bounded separately.
+        _ = cancellationToken;
+        using var cleanup = new CancellationTokenSource(ShutdownCleanupTimeout);
+        var cleanupToken = cleanup.Token;
+
         await using var scope = scopeFactory.CreateAsyncScope();
         var orchestration = scope.ServiceProvider.GetRequiredService<ResourceOrchestrationService>();
         var catalog = scope.ServiceProvider.GetRequiredService<IResourceOrchestrationCatalog>();
-        var snapshot = await catalog.GetSnapshotAsync(cancellationToken);
+        ResourceOrchestrationCatalogSnapshot snapshot;
+        try
+        {
+            snapshot = await catalog.GetSnapshotAsync(cleanupToken);
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Timed out reading host-scoped resources during Control Plane shutdown.");
+            return;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Failed to read host-scoped resources during Control Plane shutdown.");
+            return;
+        }
+
         var candidates = GetHostScopedStopCandidates(snapshot).ToArray();
 
         foreach (var resource in OrderForShutdown(candidates))
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            if (cleanupToken.IsCancellationRequested)
+            {
+                logger.LogWarning(
+                    "Timed out stopping host-scoped resources during Control Plane shutdown.");
+                break;
+            }
+
             try
             {
                 LogDevelopmentLifecycle(
@@ -36,19 +69,24 @@ public sealed class HostScopedResourceShutdownService(
                     resource.StopAction!,
                     startDependencies: false,
                     new ShutdownAuthorizationService(),
-                    cancellationToken,
+                    cleanupToken,
                     triggeredBy: ShutdownTrigger,
                     cause: "Host shutdown");
                 LogDevelopmentLifecycle(
                     "Stopped host-scoped resource {ResourceId} during Control Plane shutdown.",
                     resource.Id);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception)
             {
                 logger.LogWarning(
                     exception,
                     "Failed to stop host-scoped resource {ResourceId} during Control Plane shutdown.",
                     resource.Id);
+
+                if (cleanupToken.IsCancellationRequested)
+                {
+                    break;
+                }
             }
         }
     }

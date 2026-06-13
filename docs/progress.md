@@ -289,12 +289,15 @@ expectations rather than duplicating the task queue.
   control-plane-scoped local process tree as a final safety net, and shutdown
   waits briefly for those processes to exit so host-scoped applications do not
   keep running after the CloudShell host stops. In local development, Ctrl+C
-  follows the normal ASP.NET Core host shutdown path. On startup, the Control
-  Plane asks providers to reconcile host-scoped resources before declaration
-  auto-start; application process recovery stops stale host-scoped PIDs while
-  detached resources remain rediscoverable. Programmatic application
-  declarations default host-scoped for local development, while UI-created
-  application resources default detached where supported.
+  follows the normal ASP.NET Core host shutdown path. Host-scoped resource
+  cleanup uses its own bounded best-effort token instead of propagating the
+  host shutdown token, so a cancelled or timed-out server shutdown does not
+  crash the Control Plane while it is stopping resources. On startup, the
+  Control Plane asks providers to reconcile host-scoped resources before
+  declaration auto-start; application process recovery stops stale host-scoped
+  PIDs while detached resources remain rediscoverable. Programmatic
+  application declarations default host-scoped for local development, while
+  UI-created application resources default detached where supported.
 - Detached process-backed applications recover by validating persisted PID and
   process start time when the resource definition still exists. Detached
   container-backed recovery is a separate host/runtime concern that should use

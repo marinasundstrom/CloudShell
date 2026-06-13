@@ -93,6 +93,31 @@ public sealed class HostScopedResourceShutdownServiceTests
                 resourceEvent.Message.Contains("Cause: Host shutdown.", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public async Task StopAsync_IgnoresCancelledHostTokenForBestEffortCleanup()
+    {
+        var api = CreateResource("api", "API", ResourceState.Running);
+        var catalog = new TestResourceOrchestrationCatalog(new ResourceOrchestrationCatalogSnapshot(
+            [api],
+            new Dictionary<string, ResourceWorkloadConfiguration>(StringComparer.OrdinalIgnoreCase)
+            {
+                [api.Id] = CreateWorkload(ResourceLifetime.ControlPlaneScoped)
+            },
+            new Dictionary<string, ContainerHostDescriptor>(StringComparer.OrdinalIgnoreCase)));
+        var orchestrator = new RecordingResourceOrchestrator();
+        var resourceEvents = new InMemoryResourceEventStore();
+        using var services = CreateServices(catalog, orchestrator, resourceEvents);
+        using var shutdown = new CancellationTokenSource();
+        await shutdown.CancelAsync();
+
+        await services.GetRequiredService<HostScopedResourceShutdownService>()
+            .StopAsync(shutdown.Token);
+
+        Assert.Equal(["api"], orchestrator.ExecutedActions.Select(action => action.ResourceId));
+        Assert.DoesNotContain(true, catalog.ObservedCancellationStates);
+        Assert.DoesNotContain(true, orchestrator.ObservedCancellationStates);
+    }
+
     private static ServiceProvider CreateServices(
         TestResourceOrchestrationCatalog catalog,
         RecordingResourceOrchestrator orchestrator,
@@ -155,9 +180,16 @@ public sealed class HostScopedResourceShutdownServiceTests
     {
         public ResourceOrchestrationCatalogSnapshot Snapshot => snapshot;
 
+        public List<bool> ObservedCancellationStates { get; } = [];
+
         public Task<ResourceOrchestrationCatalogSnapshot> GetSnapshotAsync(
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(snapshot);
+            CancellationToken cancellationToken = default)
+        {
+            ObservedCancellationStates.Add(cancellationToken.IsCancellationRequested);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return Task.FromResult(snapshot);
+        }
     }
 
     private sealed class TestHostEnvironment : IHostEnvironment
@@ -188,6 +220,8 @@ public sealed class HostScopedResourceShutdownServiceTests
 
         public HashSet<string> FailingResourceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+        public List<bool> ObservedCancellationStates { get; } = [];
+
         public bool CanExecute(
             ResourceOrchestrationContext context,
             ResourceAction action) =>
@@ -198,6 +232,8 @@ public sealed class HostScopedResourceShutdownServiceTests
             ResourceAction action,
             CancellationToken cancellationToken = default)
         {
+            ObservedCancellationStates.Add(cancellationToken.IsCancellationRequested);
+            cancellationToken.ThrowIfCancellationRequested();
             ExecutedActions.Add((context.Resource.Id, action.Id));
             if (FailingResourceIds.Contains(context.Resource.Id))
             {
