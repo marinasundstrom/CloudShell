@@ -267,6 +267,12 @@ expectations rather than duplicating the task queue.
 - Resource Manager now makes that bridge navigable: Activity entries and
   structured log metadata link trace IDs to the Traces view, and the Traces
   view can filter retained spans by trace ID.
+- The Project Reference sample now demonstrates distributed tracing across two
+  ASP.NET Core web services. The shared ServiceDefaults project uses
+  OpenTelemetry ASP.NET Core and HttpClient instrumentation, adds sample
+  application spans, and exports span summaries to CloudShell trace ingestion.
+  This sample is the current proving ground for an Aspire-like service-aware
+  trace view while keeping traces separate from resource activity and logs.
 - Application resources can project transient `Starting` state from
   provider-owned runtime observations while start/restart work is in progress.
   Stale starting observations fall back to stopped so a crashed host does not

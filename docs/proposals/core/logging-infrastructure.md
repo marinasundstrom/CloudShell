@@ -212,6 +212,15 @@ Metrics and traces should remain separate observability concepts. They can
 share correlation identifiers and resource references, but they should not be
 forced into the log/event storage model.
 
+The Project Reference sample is the current distributed tracing proving ground.
+It uses standard OpenTelemetry ASP.NET Core and HttpClient instrumentation,
+CloudShell-injected service discovery configuration, and a sample activity
+source so a frontend request produces spans across both web service resources.
+The near-term UI direction is Aspire-like span inspection over retained trace
+spans: users should be able to follow a trace across services while CloudShell
+keeps resource activity, source logs, traces, and future metrics as separate
+signals with shared correlation fields.
+
 ### Non-Text Payloads
 
 Some future operational records may point to payloads rather than embedding

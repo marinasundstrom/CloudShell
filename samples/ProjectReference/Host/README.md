@@ -11,6 +11,7 @@ references another project resource.
 The frontend resource uses:
 
 ```csharp
+.WithServiceDiscovery()
 .WithReference(api)
 .DependsOn(api)
 ```
@@ -29,8 +30,9 @@ back at this host:
 http://localhost:5104
 ```
 
-The sample ServiceDefaults project instruments ASP.NET Core and HttpClient
-activity and posts span summaries back to CloudShell through:
+The sample ServiceDefaults project instruments ASP.NET Core, HttpClient, and
+the sample `CloudShell.ProjectReference` activity source. It posts span
+summaries back to CloudShell through:
 
 ```text
 http://localhost:5104/api/control-plane/v1/traces/ingest
@@ -42,13 +44,28 @@ Manager, open `http://localhost:5218/upstream`, then open
 keeps these spans in memory while the host is running. CloudShell still writes
 stdout and stderr to the resource Logs view independently of trace collection.
 
+The expected trace includes spans from both web services:
+
+- the frontend request span
+- `frontend.call-project-reference-api`
+- the outbound HttpClient span
+- the API request span
+- `api.prepare-message`
+
+This sample is the current proving ground for an Aspire-like distributed trace
+experience in CloudShell: start from standard OpenTelemetry instrumentation,
+keep spans correlated to CloudShell resources, and evolve the UI toward a
+service-aware trace view over time.
+
 Both projects reference `CloudShell.ProjectReference.ServiceDefaults`, similar
 to an Aspire ServiceDefaults project. It registers common health endpoints,
 HTTP client defaults, `Microsoft.Extensions.ServiceDiscovery`, and a
 `AddResourceHttpClient(...)` helper that uses Aspire-style logical URIs such as
-`https+http://project-reference-api`. For ASP.NET Core project resources,
-`WithReference(...)` enables the referenced project's service discovery
-configuration automatically.
+`https+http://project-reference-api`. The frontend resource explicitly calls
+`WithServiceDiscovery()` so CloudShell injects service discovery configuration
+for its referenced API resource. `WithReference(...)` also enables service
+discovery for project resources today, but the sample keeps the requirement
+visible in the declaration.
 
 CloudShell starts both projects with `dotnet watch` by default. The API omits a
 port, so CloudShell assigns a stable local HTTP endpoint. The frontend receives

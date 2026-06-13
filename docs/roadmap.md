@@ -198,6 +198,12 @@ listed here before pulling in broader proposal work.
   those concerns. Provider log entries now support optional structured
   metadata using familiar logging and OpenTelemetry terms while preserving
   plain text stdout/stderr compatibility.
+- Use the Project Reference sample as the current distributed tracing proving
+  ground. It runs two ASP.NET Core project resources with OpenTelemetry,
+  service discovery, frontend-to-API calls, and CloudShell trace ingestion.
+  The UI goal is an Aspire-like trace experience where users can inspect spans
+  across services while CloudShell keeps resource activity, logs, traces, and
+  future metrics as distinct observability signals.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.

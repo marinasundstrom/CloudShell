@@ -1,4 +1,5 @@
 using CloudShell.ProjectReference.ServiceDefaults;
+using System.Diagnostics;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
@@ -15,10 +16,24 @@ app.MapGet("/health", () => Results.Ok(new
     timestamp = DateTimeOffset.UtcNow
 }));
 
-app.MapGet("/message", () => Results.Ok(new
+app.MapGet("/message", async (CancellationToken cancellationToken) =>
 {
-    message = "Hello from the referenced API project.",
-    machine = Environment.MachineName
-}));
+    using var activity = ProjectReferenceTraceSources.ActivitySource.StartActivity(
+        "api.prepare-message",
+        ActivityKind.Internal);
+    activity?.SetTag("cloudshell.sample.resource", "project-reference-api");
+
+    await Task.Delay(TimeSpan.FromMilliseconds(25), cancellationToken);
+
+    var message = new ApiMessage(
+        "Hello from the referenced API project.",
+        Environment.MachineName);
+
+    activity?.SetTag("cloudshell.sample.machine", message.Machine);
+
+    return Results.Ok(message);
+});
 
 app.Run();
+
+internal sealed record ApiMessage(string Message, string Machine);

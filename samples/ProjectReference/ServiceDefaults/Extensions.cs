@@ -28,6 +28,7 @@ public static class Extensions
             .WithTracing(tracing =>
             {
                 tracing
+                    .AddSource(ProjectReferenceTraceSources.ActivitySourceName)
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddProcessor(serviceProvider =>
@@ -72,6 +73,13 @@ public static class Extensions
         configuration.GetResourceUri(resourceName, endpointName)
         ?? throw new InvalidOperationException(
             $"Resource endpoint 'services:{resourceName}:{endpointName}' was not found in configuration.");
+}
+
+public static class ProjectReferenceTraceSources
+{
+    public const string ActivitySourceName = "CloudShell.ProjectReference";
+
+    public static ActivitySource ActivitySource { get; } = new(ActivitySourceName);
 }
 
 internal sealed class CloudShellTraceExporter(HttpClient httpClient, IHostEnvironment environment) :

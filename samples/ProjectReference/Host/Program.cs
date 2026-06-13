@@ -46,6 +46,7 @@ cloudShell.Resources(resources =>
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+        .WithServiceDiscovery()
         .WithReference(api)
         .DependsOn(api);
 });
