@@ -222,6 +222,9 @@ expectations rather than duplicating the task queue.
   provider-owned runtime observations while start/restart work is in progress.
   Stale starting observations fall back to stopped so a crashed host does not
   leave an application permanently starting.
+- Control-plane-scoped application processes are terminated as process trees
+  during provider disposal, and shutdown waits briefly for them to exit so
+  host-scoped applications do not keep running after the CloudShell host stops.
 - Container app image deployments create and project a new app-owned revision;
   runtime container instances/replicas implement a revision but do not define
   the stable revision identity.

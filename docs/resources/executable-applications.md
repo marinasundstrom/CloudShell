@@ -21,8 +21,9 @@ Executable applications support two lifetimes:
   start time to rediscover the running process without trusting a potentially
   reused PID by itself.
 - `ControlPlaneScoped`: CloudShell owns the process lifetime. The provider stops
-  the process when the CloudShell process is disposed. Use this for temporary
-  helpers that should not outlive the local CloudShell session.
+  the process tree when the CloudShell process is disposed and waits briefly
+  for it to exit. Use this for temporary helpers that should not outlive the
+  local CloudShell session.
 
 The default is `Detached` because executable application resources usually
 represent local dev services such as APIs, frontend dev servers, emulators, or

@@ -794,7 +794,7 @@ public sealed partial class ApplicationResourceProvider(
                 if (state.Lifetime == ApplicationLifetime.ControlPlaneScoped &&
                     !state.Process.HasExited)
                 {
-                    state.Process.Kill(entireProcessTree: true);
+                    ProcessShutdown.KillProcessTreeAndWait(state.Process);
                     runtimeStates.Save(new ApplicationRuntimeState(
                         applicationId,
                         state.Process.Id,

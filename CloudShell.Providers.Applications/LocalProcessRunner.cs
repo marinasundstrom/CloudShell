@@ -176,7 +176,7 @@ public sealed partial class LocalProcessRunner(
                 if (state.Lifetime == LocalProcessLifetime.ControlPlaneScoped &&
                     !state.Process.HasExited)
                 {
-                    state.Process.Kill(entireProcessTree: true);
+                    ProcessShutdown.KillProcessTreeAndWait(state.Process);
                     runtimeStates.Save(new ApplicationRuntimeState(
                         processId,
                         state.Process.Id,

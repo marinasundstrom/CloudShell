@@ -13,6 +13,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using System.Diagnostics;
 using System.Text.Json;
 
 namespace CloudShell.Abstractions.Tests;
@@ -1172,6 +1173,61 @@ public sealed class ResourceDeclarationTests
         Assert.Contains("Setting 'SAMPLE_API_KEY' references 'secrets-vault:app'", reason);
         Assert.Contains("identity 'application:api/api-service' is not allowed to read secrets", reason);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, reason);
+    }
+
+    [Fact]
+    public async Task LocalProcessRunner_DisposeStopsControlPlaneScopedProcesses()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var options = new LocalProcessOptions
+        {
+            RuntimeStatePath = "application-runtime-state.json",
+            LogDirectory = "application-logs"
+        };
+        var environment = new TestHostEnvironment(contentRoot);
+        var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+        var definition = CreateLongRunningProcessDefinition();
+        Process? process = null;
+
+        try
+        {
+            var runner = new LocalProcessRunner(runtimeStates, options, environment);
+            await runner.StartAsync(definition);
+            var runtimeState = runtimeStates.Get(definition.Id);
+            Assert.NotNull(runtimeState?.LastKnownProcessId);
+            process = Process.GetProcessById(runtimeState.LastKnownProcessId.Value);
+            Assert.False(process.HasExited);
+
+            runner.Dispose();
+
+            Assert.True(await WaitForExitAsync(process, TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            if (process is not null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
     }
 
     [Fact]
@@ -3838,6 +3894,42 @@ public sealed class ResourceDeclarationTests
             DateTimeOffset.UtcNow,
             [],
             Capabilities: [new(ResourceCapabilityIds.EndpointSource)]);
+
+    private static LocalProcessDefinition CreateLongRunningProcessDefinition() =>
+        OperatingSystem.IsWindows()
+            ? new LocalProcessDefinition(
+                $"process:test:{Guid.NewGuid():N}",
+                Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe",
+                "/d /s /c \"timeout /t 30 /nobreak > nul\"",
+                Lifetime: LocalProcessLifetime.ControlPlaneScoped)
+            : new LocalProcessDefinition(
+                $"process:test:{Guid.NewGuid():N}",
+                "/bin/sh",
+                "-c \"sleep 30\"",
+                Lifetime: LocalProcessLifetime.ControlPlaneScoped);
+
+    private static async Task<bool> WaitForExitAsync(Process process, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                if (process.HasExited)
+                {
+                    return true;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                return true;
+            }
+
+            await Task.Delay(50);
+        }
+
+        return process.HasExited;
+    }
 
     private static Resource CreateNetworkingProviderResource(string id) =>
         new(
