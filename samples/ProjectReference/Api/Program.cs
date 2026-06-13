@@ -1,6 +1,6 @@
 using CloudShell.ProjectReference.ServiceDefaults;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(SampleHostSettings.CreateWebApplicationOptions(args));
 builder.AddServiceDefaults();
 
 var app = builder.Build();

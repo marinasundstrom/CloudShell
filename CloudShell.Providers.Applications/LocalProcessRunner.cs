@@ -1,6 +1,8 @@
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -11,10 +13,13 @@ namespace CloudShell.Providers.Applications;
 public sealed partial class LocalProcessRunner(
     ApplicationRuntimeStateStore runtimeStates,
     LocalProcessOptions options,
-    IHostEnvironment environment) : IDisposable
+    IHostEnvironment environment,
+    ILogger<LocalProcessRunner>? logger = null) : IDisposable
 {
     private readonly ConcurrentDictionary<string, LocalProcessState> _processes =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly ILogger<LocalProcessRunner> _logger =
+        logger ?? NullLogger<LocalProcessRunner>.Instance;
 
     public bool IsRunning(LocalProcessDefinition? definition) =>
         TryGetRunningProcess(definition, out _);
@@ -183,6 +188,9 @@ public sealed partial class LocalProcessRunner(
                 if (state.Lifetime == LocalProcessLifetime.ControlPlaneScoped &&
                     !state.Process.HasExited)
                 {
+                    LogDevelopmentLifecycle(
+                        "Stopping host-scoped process resource {ResourceId} during Control Plane shutdown.",
+                        processId);
                     ProcessShutdown.KillProcessTreeAndWait(state.Process);
                     runtimeStates.Save(new ApplicationRuntimeState(
                         processId,
@@ -191,6 +199,9 @@ public sealed partial class LocalProcessRunner(
                         DateTimeOffset.UtcNow,
                         TryGetExitCode(state.Process),
                         state.LogPath));
+                    LogDevelopmentLifecycle(
+                        "Stopped host-scoped process resource {ResourceId} during Control Plane shutdown.",
+                        processId);
                 }
             }
             catch (InvalidOperationException)
@@ -198,6 +209,14 @@ public sealed partial class LocalProcessRunner(
             }
 
             state.Process.Dispose();
+        }
+    }
+
+    private void LogDevelopmentLifecycle(string message, params object?[] args)
+    {
+        if (environment.IsDevelopment())
+        {
+            _logger.LogInformation(message, args);
         }
     }
 

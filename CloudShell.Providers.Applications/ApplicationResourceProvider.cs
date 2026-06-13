@@ -829,6 +829,9 @@ public sealed partial class ApplicationResourceProvider(
                 if (state.Lifetime == ApplicationLifetime.ControlPlaneScoped &&
                     !state.Process.HasExited)
                 {
+                    LogDevelopmentLifecycle(
+                        "Stopping host-scoped application resource {ResourceId} during Control Plane shutdown.",
+                        applicationId);
                     ProcessShutdown.KillProcessTreeAndWait(state.Process);
                     runtimeStates.Save(new ApplicationRuntimeState(
                         applicationId,
@@ -837,6 +840,9 @@ public sealed partial class ApplicationResourceProvider(
                         DateTimeOffset.UtcNow,
                         TryGetExitCode(state.Process),
                         state.LogPath));
+                    LogDevelopmentLifecycle(
+                        "Stopped host-scoped application resource {ResourceId} during Control Plane shutdown.",
+                        applicationId);
                 }
             }
             catch (InvalidOperationException)

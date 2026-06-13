@@ -8,7 +8,7 @@ using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(SampleHostSettings.CreateWebApplicationOptions(args));
 
 const int targetPort = 5291;
 const int virtualNetworkPort = 5290;

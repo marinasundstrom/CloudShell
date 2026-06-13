@@ -498,6 +498,15 @@ public sealed class SampleSmokeTests
             IReadOnlyList<(string Key, string Value)>? environment = null)
         {
             var root = FindRepositoryRoot();
+            var projectFile = Path.Combine(root, projectPath);
+            var projectDirectory = Path.GetDirectoryName(projectFile) ??
+                throw new InvalidOperationException($"Could not resolve sample project directory for '{projectPath}'.");
+            var dataDirectory = Path.Combine(projectDirectory, "Data");
+            if (Directory.Exists(dataDirectory))
+            {
+                Directory.Delete(dataDirectory, recursive: true);
+            }
+
             var baseAddress = new Uri($"http://127.0.0.1:{port}");
             var startInfo = new ProcessStartInfo("dotnet")
             {
@@ -509,7 +518,7 @@ public sealed class SampleSmokeTests
             startInfo.ArgumentList.Add("run");
             startInfo.ArgumentList.Add("--no-build");
             startInfo.ArgumentList.Add("--project");
-            startInfo.ArgumentList.Add(Path.Combine(root, projectPath));
+            startInfo.ArgumentList.Add(projectFile);
             startInfo.ArgumentList.Add("--");
             startInfo.ArgumentList.Add("--urls");
             startInfo.ArgumentList.Add(baseAddress.ToString());

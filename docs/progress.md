@@ -225,6 +225,8 @@ expectations rather than duplicating the task queue.
 - Control-plane-scoped application processes are terminated as process trees
   during provider disposal, and shutdown waits briefly for them to exit so
   host-scoped applications do not keep running after the CloudShell host stops.
+  In local development, Ctrl+C follows the normal ASP.NET Core host shutdown
+  path, so provider disposal is expected to run before the host process exits.
   On startup, the Control Plane asks providers to reconcile host-scoped
   resources before declaration auto-start; application process recovery stops
   stale host-scoped PIDs while detached resources remain rediscoverable.
@@ -240,10 +242,14 @@ expectations rather than duplicating the task queue.
   should project observed stopped/failed state; restart, backoff, and
   provider-native recovery policy belong in the orchestrator/runtime policy
   layer.
-- Application lifecycle operations emit host-console lifecycle log entries in
-  Development environments for local diagnostics. Broader operational logging
-  remains a separate policy decision so production log volume and persisted
-  resource events/audit can be designed intentionally.
+- Application lifecycle operations, including host shutdown cleanup, emit
+  host-console lifecycle log entries in Development environments for local
+  diagnostics. Broader operational logging remains a separate policy decision
+  so production log volume and persisted resource events/audit can be designed
+  intentionally.
+- Web samples carry `hostsettings.json` with `environment` set to
+  `Development`, and load that host setting before building the ASP.NET Core
+  host so local sample runs show the development lifecycle logs.
 - Container app image deployments create and project a new app-owned revision;
   runtime container instances/replicas implement a revision but do not define
   the stable revision identity.

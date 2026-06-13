@@ -7,7 +7,7 @@ using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(SampleHostSettings.CreateWebApplicationOptions(args));
 
 var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"];
 var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];

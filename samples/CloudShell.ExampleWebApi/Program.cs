@@ -2,7 +2,7 @@ using CloudShell.Client.Authentication;
 using CloudShell.Configuration.Client;
 using CloudShell.Secrets.Client;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(SampleHostSettings.CreateWebApplicationOptions(args));
 builder.Configuration.AddCloudShellConfigurationStore();
 builder.Configuration.AddCloudShellSecretsVault();
 builder.Services.AddSingleton<CloudShellResourceCredential>(_ => new DefaultCloudShellResourceCredential());

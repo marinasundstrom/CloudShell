@@ -7,7 +7,7 @@ using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.ResourceHost;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(SampleHostSettings.CreateWebApplicationOptions(args));
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
