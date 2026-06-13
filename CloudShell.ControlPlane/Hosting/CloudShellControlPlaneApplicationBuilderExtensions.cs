@@ -50,8 +50,10 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<IResourceRegistrationStore, AuthorizedResourceRegistrationStore>();
         builder.Services.AddScoped<IResourceManagerStore, ResourceManagerStore>();
         builder.Services.AddScoped<ILogStore, LogStore>();
-        builder.Services.AddSingleton<InMemoryResourceEventStore>();
-        builder.Services.AddSingleton<IResourceEventSink>(
+        builder.Services.TryAddSingleton<InMemoryResourceEventStore>();
+        builder.Services.TryAddSingleton<IResourceEventStore>(
+            serviceProvider => serviceProvider.GetRequiredService<InMemoryResourceEventStore>());
+        builder.Services.TryAddSingleton<IResourceEventSink>(
             serviceProvider => serviceProvider.GetRequiredService<InMemoryResourceEventStore>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<ILogProvider, ResourceEventLogProvider>());
@@ -86,6 +88,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<IResourceManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<IResourceTemplateManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<IResourceEventManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<ILogManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());

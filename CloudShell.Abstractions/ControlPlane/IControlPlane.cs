@@ -8,6 +8,7 @@ namespace CloudShell.Abstractions.ControlPlane;
 public interface IControlPlane :
     IResourceManager,
     IResourceTemplateManager,
+    IResourceEventManager,
     ILogManager,
     ITraceManager;
 
@@ -136,6 +137,13 @@ public interface ILogManager
     IAsyncEnumerable<LogEntry> StreamLogAsync(
         string logId,
         StreamLogOptions? options = null,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IResourceEventManager
+{
+    Task<IReadOnlyList<ResourceEvent>> ListResourceEventsAsync(
+        ResourceEventQuery? query = null,
         CancellationToken cancellationToken = default);
 }
 

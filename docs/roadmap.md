@@ -68,7 +68,9 @@ listed here before pulling in broader proposal work.
    literal settings, configuration-entry references, and vault-backed secret
    references.
 4. Traceability and audit: persist/filter resource events and define audit
-   schemas for the operations already in the MVP path.
+   schemas for the operations already in the MVP path while keeping provider
+   logs, resource events, diagnostics, metrics, traces, and future non-text
+   payloads as separate concerns.
 5. Remote Docker host completion: finish concrete Docker host registration,
    credentials, duplicate validation, discovery, diagnostics, and actions on
    top of the shared resolver.
@@ -161,10 +163,15 @@ listed here before pulling in broader proposal work.
   provider-owned starting observation and fall back to stopped when that
   observation becomes stale.
 - Persist resource events and expose filtering by event type, actor, and time
-  range.
+  range. The initial persistence/query slice is in place through
+  `IResourceEventManager`; Resource Manager activity UI is next.
 - Define audit event schemas for resource actions, host/runtime operations,
   image deployments, authorization decisions, identity provisioning, and secret
   access.
+- Use [Logging infrastructure](proposals/core/logging-infrastructure.md) to
+  track structured logging, non-text operational payloads, resource events,
+  audit records, diagnostics, metrics, and traces without prematurely merging
+  those concerns.
 
 ### Next: Concrete Host and Runtime Foundation
 
@@ -352,6 +359,7 @@ References:
 
 - [Platform Foundations Proposal](proposals/core/platform-foundations.md)
 - [Identity and Access Proposal](proposals/core/identity-and-access.md)
+- [Logging infrastructure](proposals/core/logging-infrastructure.md)
 - [Container apps](resources/container-apps.md#logs-and-events)
 
 ### 5. Remote Docker Host Completion

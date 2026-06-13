@@ -3,7 +3,7 @@ using System.Collections.Concurrent;
 
 namespace CloudShell.ControlPlane.Logs;
 
-public sealed class InMemoryResourceEventStore : IResourceEventSink
+public sealed class InMemoryResourceEventStore : IResourceEventStore
 {
     private const int MaxEventsPerResource = 1_000;
     private readonly ConcurrentDictionary<string, Queue<ResourceEvent>> _events =
@@ -27,27 +27,49 @@ public sealed class InMemoryResourceEventStore : IResourceEventSink
         }
     }
 
-    public IReadOnlyList<ResourceEvent> GetEvents(
-        string resourceId,
-        int maxEntries,
-        DateTimeOffset? before)
+    public IReadOnlyList<ResourceEvent> GetEvents(ResourceEventQuery? query = null)
     {
-        if (!_events.TryGetValue(resourceId, out var events))
+        query ??= new ResourceEventQuery();
+        var maxEvents = Math.Clamp(query.MaxEvents, 1, MaxEventsPerResource);
+        IEnumerable<ResourceEvent> events = string.IsNullOrWhiteSpace(query.ResourceId)
+            ? _events.Values.SelectMany(GetSnapshot)
+            : _events.TryGetValue(query.ResourceId, out var resourceEvents)
+                ? GetSnapshot(resourceEvents)
+                : [];
+
+        if (!string.IsNullOrWhiteSpace(query.EventType))
         {
-            return [];
+            events = events.Where(resourceEvent =>
+                string.Equals(resourceEvent.EventType, query.EventType, StringComparison.OrdinalIgnoreCase));
         }
 
+        if (!string.IsNullOrWhiteSpace(query.TriggeredBy))
+        {
+            events = events.Where(resourceEvent =>
+                string.Equals(resourceEvent.TriggeredBy, query.TriggeredBy, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (query.Since is not null)
+        {
+            events = events.Where(resourceEvent => resourceEvent.Timestamp >= query.Since.Value);
+        }
+
+        if (query.Before is not null)
+        {
+            events = events.Where(resourceEvent => resourceEvent.Timestamp < query.Before.Value);
+        }
+
+        return events
+            .OrderByDescending(resourceEvent => resourceEvent.Timestamp)
+            .Take(maxEvents)
+            .ToArray();
+    }
+
+    private static ResourceEvent[] GetSnapshot(Queue<ResourceEvent> events)
+    {
         lock (events)
         {
-            var query = events.AsEnumerable();
-            if (before is not null)
-            {
-                query = query.Where(resourceEvent => resourceEvent.Timestamp < before.Value);
-            }
-
-            return query
-                .TakeLast(Math.Max(1, maxEntries))
-                .ToArray();
+            return events.ToArray();
         }
     }
 }

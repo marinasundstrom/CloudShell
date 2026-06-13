@@ -11,6 +11,8 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
 
     internal DbSet<ExtensionActivationEntity> ExtensionActivations => Set<ExtensionActivationEntity>();
 
+    internal DbSet<ResourceEventEntity> ResourceEvents => Set<ResourceEventEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ResourceGroupEntity>(entity =>
@@ -47,6 +49,22 @@ public sealed class CloudShellDbContext(DbContextOptions<CloudShellDbContext> op
             entity.Property(activation => activation.UpdatedBy).HasMaxLength(200);
             entity.Property(activation => activation.UpdatedAt)
                 .HasConversion(new DateTimeOffsetToBinaryConverter());
+        });
+
+        modelBuilder.Entity<ResourceEventEntity>(entity =>
+        {
+            entity.ToTable("ResourceEvents");
+            entity.HasKey(resourceEvent => resourceEvent.Id);
+            entity.Property(resourceEvent => resourceEvent.ResourceId).HasMaxLength(500).IsRequired();
+            entity.Property(resourceEvent => resourceEvent.EventType).HasMaxLength(200).IsRequired();
+            entity.Property(resourceEvent => resourceEvent.Message).HasMaxLength(4000).IsRequired();
+            entity.Property(resourceEvent => resourceEvent.TriggeredBy).HasMaxLength(500);
+            entity.Property(resourceEvent => resourceEvent.Level).HasMaxLength(50).IsRequired();
+            entity.Property(resourceEvent => resourceEvent.Timestamp)
+                .HasConversion(new DateTimeOffsetToBinaryConverter());
+            entity.HasIndex(resourceEvent => resourceEvent.ResourceId);
+            entity.HasIndex(resourceEvent => resourceEvent.EventType);
+            entity.HasIndex(resourceEvent => resourceEvent.Timestamp);
         });
     }
 }

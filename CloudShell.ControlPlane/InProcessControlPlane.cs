@@ -19,7 +19,7 @@ public sealed class InProcessControlPlane(
     ILogStore logs,
     ITraceStore traces,
     ICloudShellAuthorizationService authorization,
-    IResourceEventSink? resourceEvents = null) : IControlPlane
+    IResourceEventStore? resourceEvents = null) : IControlPlane
 {
     public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
 
@@ -531,6 +531,33 @@ public sealed class InProcessControlPlane(
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(ApplyQuery(logs.GetLogs(), query));
+    }
+
+    public Task<IReadOnlyList<ResourceEvent>> ListResourceEventsAsync(
+        ResourceEventQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (resourceEvents is null)
+        {
+            return Task.FromResult<IReadOnlyList<ResourceEvent>>([]);
+        }
+
+        var visibleResourceIds = resourceManager.GetResources()
+            .Select(resource => resource.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (query?.ResourceId is not null &&
+            !visibleResourceIds.Contains(query.ResourceId))
+        {
+            return Task.FromResult<IReadOnlyList<ResourceEvent>>([]);
+        }
+
+        var events = resourceEvents
+            .GetEvents(query)
+            .Where(resourceEvent => visibleResourceIds.Contains(resourceEvent.ResourceId))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<ResourceEvent>>(events);
     }
 
     public Task<LogDescriptor?> GetLogAsync(

@@ -463,12 +463,17 @@ performed on a resource, such as executing an action, changing configuration, or
 updating a deployable image. Provider or resource-type-specific logs can add
 more detail, such as container console output or container-app-specific restart
 events, but generic resource events are the consistent per-resource history.
+They are queryable activity records, not just text log lines.
 
 In code:
 
 - `ILogManager` is the public domain abstraction.
 - `ILogStore` is the internal Control Plane implementation store.
 - `ILogProvider` is the provider contract.
+- `IResourceEventManager` is the public domain abstraction for resource
+  activity queries.
+- `IResourceEventStore` is the internal append/query store for resource
+  events.
 
 ### Template
 

@@ -1,9 +1,11 @@
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.Logs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Data;
 
 namespace CloudShell.Persistence;
@@ -31,6 +33,9 @@ public static class PersistenceServiceCollectionExtensions
                 persistenceOptions.IdentityConnectionString));
         services.AddSingleton<EfCoreResourceStore>();
         services.AddSingleton<EfCoreExtensionActivationStore>();
+        services.TryAddSingleton<IResourceEventStore, EfCoreResourceEventStore>();
+        services.TryAddSingleton<IResourceEventSink>(
+            serviceProvider => serviceProvider.GetRequiredService<IResourceEventStore>());
         services.AddSingleton<IResourceRegistrationStore>(
             serviceProvider => serviceProvider.GetRequiredService<EfCoreResourceStore>());
         services.AddSingleton<IResourceGroupStore>(

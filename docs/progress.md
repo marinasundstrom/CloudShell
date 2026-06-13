@@ -247,6 +247,16 @@ expectations rather than duplicating the task queue.
   diagnostics. Broader operational logging remains a separate policy decision
   so production log volume and persisted resource events/audit can be designed
   intentionally.
+- Provider logs and resource events are separate concerns. `ILogProvider` and
+  `ILogManager` remain source-oriented operational log abstractions, while
+  `ResourceEvent`, `IResourceEventStore`, and `IResourceEventManager` form the
+  platform-owned resource activity stream. Resource events are now persisted
+  through the Control Plane persistence store and queryable by resource, event
+  type, actor, and time range through the Control Plane API and remote client.
+  The generated "Resource events" log remains a view adapter over that stream.
+  Broader structured logging, audit, diagnostics, metrics, traces, retention,
+  and non-text payload decisions are tracked in
+  `docs/proposals/core/logging-infrastructure.md`.
 - Web samples carry `hostsettings.json` with `environment` set to
   `Development`, and load that host setting before creating the ASP.NET Core
   `WebApplicationBuilder` so local sample runs show the development lifecycle

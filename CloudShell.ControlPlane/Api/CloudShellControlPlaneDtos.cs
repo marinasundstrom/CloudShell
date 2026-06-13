@@ -214,6 +214,14 @@ public sealed record LogResponse(
     string? ArtifactId,
     bool SupportsStreaming);
 
+public sealed record ResourceEventResponse(
+    string ResourceId,
+    string EventType,
+    string Message,
+    DateTimeOffset Timestamp,
+    string? TriggeredBy,
+    string Level);
+
 public sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
@@ -424,6 +432,15 @@ internal static class CloudShellControlPlaneDtoMapper
             log.ResourceId,
             log.ArtifactId,
             log.SupportsStreaming);
+
+    public static ResourceEventResponse ToResponse(this ResourceEvent resourceEvent) =>
+        new(
+            resourceEvent.ResourceId,
+            resourceEvent.EventType,
+            resourceEvent.Message,
+            resourceEvent.Timestamp,
+            resourceEvent.TriggeredBy,
+            resourceEvent.Level);
 
     public static LogEntryResponse ToResponse(this LogEntry entry) =>
         new(entry.Timestamp, entry.Message, entry.Level, entry.Source);

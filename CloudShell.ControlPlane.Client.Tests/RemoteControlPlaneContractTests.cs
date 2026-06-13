@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using System.Text.Json;
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
@@ -302,14 +303,51 @@ public sealed class RemoteControlPlaneContractTests
             new LogQuery(ResourceId: ContractImageResourceProvider.ResourceId));
         var eventLog = Assert.Single(eventLogs, log => log.Name == "Resource events");
         var events = await controlPlane.ReadLogAsync(eventLog.Id);
+        var resourceEvents = await controlPlane.ListResourceEventsAsync(
+            new ResourceEventQuery(
+                ResourceId: ContractImageResourceProvider.ResourceId,
+                EventType: "image.update",
+                TriggeredBy: "build-server"));
 
         Assert.Equal("Updated contract:container-app to example/api:20260608.", result.Message);
         var provider = app.Services.GetRequiredService<ContractImageResourceProvider>();
         Assert.Equal(["example/api:20260608:False:build-server"], provider.UpdatedImages);
+        var resourceEvent = Assert.Single(resourceEvents);
+        Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.ResourceId);
+        Assert.Equal("image.update", resourceEvent.EventType);
+        Assert.Equal("build-server", resourceEvent.TriggeredBy);
+        Assert.Equal("Information", resourceEvent.Level);
+        Assert.Contains("example/api:20260608", resourceEvent.Message, StringComparison.Ordinal);
         Assert.Contains(events, entry =>
             entry.Source == "event" &&
             entry.Message.Contains("image.update", StringComparison.Ordinal) &&
             entry.Message.Contains("build-server", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ControlPlaneApi_FiltersResourceEvents()
+    {
+        await using var app = await CreateAppAsync(includeImageResource: true);
+        var controlPlane = CreateClient(app);
+        await controlPlane.UpdateResourceImageAsync(
+            ContractImageResourceProvider.ResourceId,
+            "example/api:20260609",
+            restartIfRunning: false,
+            triggeredBy: "build-server");
+
+        var response = await app.GetTestClient().GetAsync(
+            "/api/control-plane/v1/resource-events" +
+            $"?resourceId={Uri.EscapeDataString(ContractImageResourceProvider.ResourceId)}" +
+            "&eventType=image.update&triggeredBy=build-server&maxEvents=10");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var resourceEvent = Assert.Single(document.RootElement.EnumerateArray());
+        Assert.Equal(ContractImageResourceProvider.ResourceId, resourceEvent.GetProperty("resourceId").GetString());
+        Assert.Equal("image.update", resourceEvent.GetProperty("eventType").GetString());
+        Assert.Equal("build-server", resourceEvent.GetProperty("triggeredBy").GetString());
+        Assert.Equal("Information", resourceEvent.GetProperty("level").GetString());
+        Assert.Contains("example/api:20260609", resourceEvent.GetProperty("message").GetString(), StringComparison.Ordinal);
     }
 
     [Fact]

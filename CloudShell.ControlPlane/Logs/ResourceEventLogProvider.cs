@@ -4,7 +4,7 @@ using CloudShell.Abstractions.ResourceManager;
 namespace CloudShell.ControlPlane.Logs;
 
 public sealed class ResourceEventLogProvider(
-    InMemoryResourceEventStore events,
+    IResourceEventStore events,
     IResourceManagerStore resourceManager) : ILogProvider
 {
     private const string LogIdSuffix = ":resource-events";
@@ -39,7 +39,11 @@ public sealed class ResourceEventLogProvider(
         }
 
         return Task.FromResult<IReadOnlyList<LogEntry>>(
-            events.GetEvents(resourceId, maxEntries, before)
+            events.GetEvents(new ResourceEventQuery(
+                    ResourceId: resourceId,
+                    Before: before,
+                    MaxEvents: maxEntries))
+                .OrderBy(resourceEvent => resourceEvent.Timestamp)
                 .Select(ToLogEntry)
                 .ToArray());
     }

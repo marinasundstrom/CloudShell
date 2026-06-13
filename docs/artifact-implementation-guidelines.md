@@ -538,6 +538,9 @@ Implementation:
   `ILogStore` for internal storage.
 - Use `ResourceId`, `ArtifactId`, and `SourceKind` to scope descriptors.
 - Keep provider console output separate from platform resource events.
+- Do not assume every operational signal is a text log. Structured log fields,
+  metrics, traces, diagnostics, audit records, and non-text payload references
+  are tracked separately in the logging infrastructure proposal.
 - Avoid assuming one log per resource.
 
 Verification:
@@ -549,7 +552,8 @@ Verification:
 ### Resource event
 
 `ResourceEvent` is the platform-owned resource history stream for operations
-performed on a resource.
+performed on a resource. Consumers query it through `IResourceEventManager`;
+the generated "Resource events" log is a view adapter, not the owning model.
 
 Implementation:
 
@@ -559,6 +563,7 @@ Implementation:
   configuration changes, and important Control Plane decisions.
 - Keep resource events generic. Provider-specific logs can add operational
   detail.
+- Keep structured event properties additive until event schemas are defined.
 
 Verification:
 

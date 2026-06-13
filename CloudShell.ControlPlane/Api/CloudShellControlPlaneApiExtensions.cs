@@ -134,6 +134,10 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapGet("/logs", ListLogs)
             .WithName("CloudShellControlPlane_ListLogs");
 
+        api.MapGet("/resource-events", ListResourceEvents)
+            .WithName("CloudShellControlPlane_ListResourceEvents")
+            .Produces<ResourceEventResponse[]>(StatusCodes.Status200OK);
+
         api.MapGet("/logs/{logId}", GetLog)
             .WithName("CloudShellControlPlane_GetLog");
 
@@ -755,6 +759,27 @@ public static class CloudShellControlPlaneApiExtensions
                 new LogQuery(resourceId, artifactId, sourceKind),
                 cancellationToken))
             .Select(log => log.ToResponse())
+            .ToArray());
+
+    private static async Task<IResult> ListResourceEvents(
+        string? resourceId,
+        string? eventType,
+        string? triggeredBy,
+        DateTimeOffset? since,
+        DateTimeOffset? before,
+        int? maxEvents,
+        IResourceEventManager events,
+        CancellationToken cancellationToken) =>
+        Results.Ok((await events.ListResourceEventsAsync(
+                new ResourceEventQuery(
+                    NormalizeOptional(resourceId),
+                    NormalizeOptional(eventType),
+                    NormalizeOptional(triggeredBy),
+                    since,
+                    before,
+                    Math.Clamp(maxEvents ?? 200, 1, 1000)),
+                cancellationToken))
+            .Select(resourceEvent => resourceEvent.ToResponse())
             .ToArray());
 
     private static async Task<IResult> GetLog(

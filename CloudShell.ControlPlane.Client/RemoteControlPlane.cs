@@ -415,6 +415,21 @@ public sealed class RemoteControlPlane : IControlPlane
         .Select(response => response.ToLogDescriptor())
         .ToArray();
 
+    public async Task<IReadOnlyList<ResourceEvent>> ListResourceEventsAsync(
+        ResourceEventQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<ResourceEventResponse>>(
+            "resource-events",
+            cancellationToken,
+            ("resourceId", query?.ResourceId),
+            ("eventType", query?.EventType),
+            ("triggeredBy", query?.TriggeredBy),
+            ("since", query?.Since?.ToString("O")),
+            ("before", query?.Before?.ToString("O")),
+            ("maxEvents", (query?.MaxEvents ?? 200).ToString())))
+        .Select(response => response.ToResourceEvent())
+        .ToArray();
+
     public async Task<LogDescriptor?> GetLogAsync(
         string logId,
         CancellationToken cancellationToken = default)
@@ -844,6 +859,14 @@ file sealed record LogResponse(
     string? ArtifactId,
     bool SupportsStreaming);
 
+file sealed record ResourceEventResponse(
+    string ResourceId,
+    string EventType,
+    string Message,
+    DateTimeOffset Timestamp,
+    string? TriggeredBy,
+    string Level);
+
 file sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
@@ -1077,4 +1100,13 @@ file static class RemoteControlPlaneMapper
 
     public static LogEntry ToLogEntry(this LogEntryResponse response) =>
         new(response.Timestamp, response.Message, response.Level, response.Source);
+
+    public static ResourceEvent ToResourceEvent(this ResourceEventResponse response) =>
+        new(
+            response.ResourceId,
+            response.EventType,
+            response.Message,
+            response.Timestamp,
+            response.TriggeredBy,
+            response.Level);
 }

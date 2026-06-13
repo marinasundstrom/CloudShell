@@ -130,6 +130,7 @@ Instead, it identifies them as foundational platform concerns that require dedic
 Future proposals are expected for:
 
 * Resource Identity and Permissions
+* Logging Infrastructure
 * Storage Resources and Volume Management
 * Traceability and Audit
 * Usage Monitoring and Metrics
