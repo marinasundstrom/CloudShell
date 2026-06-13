@@ -1,7 +1,6 @@
 using CloudShell.Abstractions.Authentication;
 using Microsoft.Extensions.Configuration;
 using System.Collections;
-using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace CloudShell.Configuration;
@@ -9,8 +8,6 @@ namespace CloudShell.Configuration;
 internal sealed class CloudShellConfigurationProvider(
     CloudShellConfigurationOptions options) : ConfigurationProvider
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
-
     public override void Load()
     {
         var service = ResolveConfigurationStoreService(options);
@@ -29,30 +26,15 @@ internal sealed class CloudShellConfigurationProvider(
             {
                 Timeout = options.Timeout
             };
-            var tokenResult = ResolveAccessToken(service);
-            if (string.IsNullOrWhiteSpace(tokenResult.Token))
-            {
-                SetMetadata("Status", "unavailable");
-                SetMetadata("Detail", tokenResult.FailureDetail ??
-                    "No CloudShell configuration access token could be acquired.");
-                return;
-            }
-
-            using var request = new HttpRequestMessage(HttpMethod.Get, service.Endpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenResult.Token);
-
-            using var response = client.Send(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                SetMetadata("Status", "unavailable");
-                SetMetadata("Detail", $"CloudShell configuration store service returned {(int)response.StatusCode}.");
-                return;
-            }
-
-            using var stream = response.Content.ReadAsStream();
-            var entries = JsonSerializer.Deserialize<IReadOnlyList<CloudShellConfigurationEntry>>(
-                stream,
-                SerializerOptions) ?? [];
+            var configuration = new ConfigurationStoreClient(
+                new Uri(service.Endpoint),
+                service.Credential,
+                client,
+                [service.IdentityScope]);
+            var entries = configuration
+                .GetEntriesAsync()
+                .GetAwaiter()
+                .GetResult();
 
             foreach (var entry in entries)
             {
@@ -71,7 +53,12 @@ internal sealed class CloudShellConfigurationProvider(
                 ',',
                 entries.Where(entry => entry.IsSecret).Select(entry => entry.Name)));
         }
-        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or JsonException)
+        catch (Exception exception) when (
+            exception is CloudShellCredentialUnavailableException or
+                CloudShellAuthenticationException or
+                HttpRequestException or
+                TaskCanceledException or
+                JsonException)
         {
             SetMetadata("Status", "unavailable");
             SetMetadata("Detail", exception.Message);
@@ -157,29 +144,6 @@ internal sealed class CloudShellConfigurationProvider(
                     DefaultScope = options.IdentityScope
                 });
 
-    private static AccessTokenResult ResolveAccessToken(
-        CloudShellConfigurationStoreService service)
-    {
-        try
-        {
-            var token = service.Credential
-                .GetTokenAsync(new CloudShellResourceTokenRequest([service.IdentityScope]))
-                .GetAwaiter()
-                .GetResult();
-            return string.IsNullOrWhiteSpace(token.Token)
-                ? AccessTokenResult.Failed("CloudShell resource credential returned no access token.")
-                : AccessTokenResult.Succeeded(token.Token);
-        }
-        catch (Exception exception) when (
-            exception is CloudShellCredentialUnavailableException or
-                CloudShellAuthenticationException or
-                HttpRequestException or
-                TaskCanceledException)
-        {
-            return AccessTokenResult.Failed(exception.Message);
-        }
-    }
-
     private static string? GetOptionalVariable(
         IReadOnlyDictionary<string, string> variables,
         string name) =>
@@ -210,12 +174,4 @@ internal sealed class CloudShellConfigurationProvider(
         return new string(characters).Trim('_');
     }
 
-    private sealed record AccessTokenResult(
-        string? Token,
-        string? FailureDetail)
-    {
-        public static AccessTokenResult Succeeded(string token) => new(token, null);
-
-        public static AccessTokenResult Failed(string detail) => new(null, detail);
-    }
 }

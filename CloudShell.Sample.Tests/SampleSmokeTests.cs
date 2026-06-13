@@ -175,6 +175,16 @@ public sealed class SampleSmokeTests
             entry =>
                 entry.GetProperty("name").GetString() == "Sample:Message" &&
                 entry.GetProperty("value").GetString() == "Hello from a configuration entry");
+
+        var apiSecretJson = await host.GetAbsoluteStringAsync(
+            $"{apiEndpoint.TrimEnd('/')}/secrets/sample-api-key");
+        using var apiSecretDocument = JsonDocument.Parse(apiSecretJson);
+        Assert.Equal(
+            "connected",
+            apiSecretDocument.RootElement.GetProperty("status").GetString());
+        Assert.Equal(
+            "local-development-api-key",
+            apiSecretDocument.RootElement.GetProperty("value").GetString());
     }
 
     [Fact]

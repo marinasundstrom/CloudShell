@@ -283,7 +283,9 @@ the same way Azure SDK clients accept credential objects. The Control Plane
 domain client now supports this directly, and future service-specific clients
 for Configuration Store, Secrets Vault, or other protected resource services
 should layer over the same credential contract instead of inventing
-service-specific authentication options.
+service-specific authentication options. The first service-specific clients are
+`ConfigurationStoreClient` and `SecretsVaultClient`; both are public preview
+and dogfood the shared resource credential chain.
 
 Whether a materialized resource identity uses a client secret, certificate,
 federated credential, managed identity endpoint, signed assertion, or no

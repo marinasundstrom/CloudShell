@@ -80,6 +80,8 @@ public sealed class SecretsProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<SecretsVaultStore>();
         builder.Services.AddSingleton<ISecretReferenceResolver>(
             serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProvider>());
+        builder.Services.AddSingleton<IResourceEnvironmentVariableProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProvider>());
 
         builder
             .AddResourceProvider<SecretsVaultProvider>()

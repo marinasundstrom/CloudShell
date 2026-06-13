@@ -19,6 +19,7 @@ public sealed partial class SecretsVaultProvider(
     ILogProvider,
     IResourceProcedureProvider,
     ISecretReferenceResolver,
+    IResourceEnvironmentVariableProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
     IResourceTemplateProvider
@@ -41,6 +42,22 @@ public sealed partial class SecretsVaultProvider(
         store.GetVaults()
             .Select(CreateResource)
             .ToArray();
+
+    public IReadOnlyList<EnvironmentVariableAssignment> GetEnvironmentVariables(string resourceId)
+    {
+        if (store.GetVault(resourceId) is not { } vault)
+        {
+            return [];
+        }
+
+        return
+        [
+            new($"CLOUDSHELL_SECRETS_{CreateEnvironmentName(vault.Name)}_VAULT_ID", vault.Id),
+            new($"CLOUDSHELL_SECRETS_{CreateEnvironmentName(vault.Name)}_ENDPOINT", GetSecretsEndpoint(vault.Id)),
+            new($"CLOUDSHELL_SECRETS_{CreateEnvironmentName(vault.Id)}_VAULT_ID", vault.Id),
+            new($"CLOUDSHELL_SECRETS_{CreateEnvironmentName(vault.Id)}_ENDPOINT", GetSecretsEndpoint(vault.Id))
+        ];
+    }
 
     public IReadOnlyList<LogDescriptor> GetLogs() => store
         .GetVaults()
@@ -595,6 +612,15 @@ public sealed partial class SecretsVaultProvider(
             : value;
     }
 
+    private static string CreateEnvironmentName(string name)
+    {
+        var normalized = EnvironmentNamePattern()
+            .Replace(name.Trim().ToUpperInvariant(), "_")
+            .Trim('_');
+
+        return string.IsNullOrWhiteSpace(normalized) ? "VAULT" : normalized;
+    }
+
     private static IReadOnlyList<ResourceHealthCheck> NormalizeHealthChecks(
         IReadOnlyList<ResourceHealthCheck> healthChecks) =>
         healthChecks
@@ -622,4 +648,7 @@ public sealed partial class SecretsVaultProvider(
 
     [GeneratedRegex("[^a-z0-9]+")]
     private static partial Regex SlugPattern();
+
+    [GeneratedRegex("[^A-Z0-9]+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex EnvironmentNamePattern();
 }

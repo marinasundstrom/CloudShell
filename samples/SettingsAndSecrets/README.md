@@ -11,6 +11,13 @@ environment variables from references:
 The application resource stores references, not copied values. CloudShell
 resolves those references when the resource is started.
 
+The Web API also dogfoods the public-preview SDK clients for direct service
+access. Its `/configuration` endpoint uses `ConfigurationStoreClient` with
+`DefaultCloudShellResourceCredential`, and `/secrets/{name}` uses
+`SecretsVaultClient` with the same credential chain. Those clients discover the
+service endpoints injected by the dependent `configuration.store` and
+`secrets.vault` resources.
+
 The sample also declares a built-in development identity provider. The Web API
 resource has a `settings-secrets-api` identity. The configuration store grants
 that identity `ConfigurationStoreResourceOperationPermissions.ReadEntries`, and
@@ -38,3 +45,6 @@ curl http://localhost:5011/api/control-plane/v1/resources/application%3Asettings
 Then run the Web API resource and open `/configuration`. If the API was already
 running before identity provisioning, `/configuration` retries configuration
 loading on the next request.
+
+After the Web API is running, `/secrets/sample-api-key` reads the secret value
+from the protected Secrets Vault service with the Web API resource identity.

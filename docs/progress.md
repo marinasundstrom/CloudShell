@@ -88,7 +88,11 @@ when status, milestone relevance, or remaining work changes.
   contract, `CloudShell.Configuration` uses it to acquire configuration access
   tokens, and the remote Control Plane client can accept it directly through
   SDK-style constructors and DI registration so resource-hosted authored
-  services can call platform APIs without passing raw bearer tokens.
+  services can call platform APIs without passing raw bearer tokens. The
+  Configuration Store and Secrets Vault service APIs now have matching
+  public-preview SDK clients, `ConfigurationStoreClient` and
+  `SecretsVaultClient`, that accept the same resource credential and are
+  dogfooded by the Settings and Secrets sample.
 - Public exposure and API stability are separate decisions. Public APIs that
   are not yet stable must be labeled as preview, experimental, or unstable,
   with clear ownership, expected change surface, and path to stability.

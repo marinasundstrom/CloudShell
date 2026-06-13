@@ -107,6 +107,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ResourceIdentityCredential"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.ResourceIdentityCredential", "samples\ResourceIdentityCredential\CloudShell.ResourceIdentityCredential.csproj", "{BA1AB8F2-1D17-4B1F-8675-122F9D5DF96E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudShell.Secrets", "CloudShell.Secrets\CloudShell.Secrets.csproj", "{D852B676-F7DA-40D7-B6DF-AE9931803032}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -525,6 +527,18 @@ Global
 		{BA1AB8F2-1D17-4B1F-8675-122F9D5DF96E}.Release|x64.Build.0 = Release|Any CPU
 		{BA1AB8F2-1D17-4B1F-8675-122F9D5DF96E}.Release|x86.ActiveCfg = Release|Any CPU
 		{BA1AB8F2-1D17-4B1F-8675-122F9D5DF96E}.Release|x86.Build.0 = Release|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Debug|x64.Build.0 = Debug|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Debug|x86.Build.0 = Debug|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Release|x64.ActiveCfg = Release|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Release|x64.Build.0 = Release|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Release|x86.ActiveCfg = Release|Any CPU
+		{D852B676-F7DA-40D7-B6DF-AE9931803032}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

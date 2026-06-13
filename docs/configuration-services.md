@@ -178,7 +178,41 @@ missing services, or missing grants return an unavailable or access-denied
 result from the caller's perspective.
 
 This is intentionally the same integration model authored Web APIs should use:
-the caller owns a resource identity, obtains authentication evidence through
+
+```csharp
+var credential = new DefaultCloudShellResourceCredential();
+var configuration = ConfigurationStoreClient.FromEnvironment(credential);
+var entries = await configuration.GetEntriesAsync();
+```
+
+`ConfigurationStoreClient` is the public-preview SDK client for direct
+Configuration Store service calls. It accepts a `CloudShellResourceCredential`
+and can discover the injected `CLOUDSHELL_CONFIGURATION_*_ENDPOINT` variables,
+or callers can construct it with an explicit entries endpoint.
+
+Secrets Vault has a matching public-preview `SecretsVaultClient` in
+`CloudShell.Secrets`:
+
+```csharp
+var credential = new DefaultCloudShellResourceCredential();
+var vault = SecretsVaultClient.FromEnvironment(credential);
+var secret = await vault.GetSecretAsync("sample-api-key");
+```
+
+Applications that depend on a Secrets Vault receive:
+
+```text
+CLOUDSHELL_SECRETS_<VAULT_NAME>_VAULT_ID
+CLOUDSHELL_SECRETS_<VAULT_NAME>_ENDPOINT
+CLOUDSHELL_SECRETS_<RESOURCE_ID>_VAULT_ID
+CLOUDSHELL_SECRETS_<RESOURCE_ID>_ENDPOINT
+```
+
+The endpoint points at the protected vault secrets collection. The client uses
+the resource credential to request a token and sends it as a bearer token on
+each service call.
+
+In this model, the caller owns a resource identity, obtains authentication evidence through
 the selected identity provider, and the protected service validates that
 evidence before applying CloudShell resource grants. A built-in configuration
 service may own a specialized resource type and provider-owned runtime, but its

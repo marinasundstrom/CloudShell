@@ -1,4 +1,6 @@
+using CloudShell.Abstractions.Authentication;
 using CloudShell.Configuration;
+using CloudShell.Secrets;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddCloudShellConfiguration();
@@ -17,37 +19,101 @@ app.MapGet("/health", () => Results.Ok(new
     timestamp = DateTimeOffset.UtcNow
 }));
 
-app.MapGet("/configuration", (IConfiguration configuration) =>
+app.MapGet("/configuration", async (IConfiguration configuration, CancellationToken cancellationToken) =>
 {
-    if (!string.Equals(
-            configuration["CloudShell:Configuration:Status"],
-            "connected",
-            StringComparison.OrdinalIgnoreCase) &&
-        configuration is IConfigurationRoot root)
+    try
     {
-        root.Reload();
-    }
-
-    var loadedKeys = configuration["CloudShell:Configuration:LoadedKeys"]?
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        ?? [];
-    var secretKeys = configuration["CloudShell:Configuration:SecretKeys"]?
-        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-        .ToHashSet(StringComparer.OrdinalIgnoreCase)
-        ?? [];
-
-    return Results.Ok(new
-    {
-        status = configuration["CloudShell:Configuration:Status"] ?? "unavailable",
-        detail = configuration["CloudShell:Configuration:Detail"],
-        source = configuration["CloudShell:Configuration:Source"],
-        entries = loadedKeys.Select(key => new
+        var client = ConfigurationStoreClient.FromEnvironment(
+            new DefaultCloudShellResourceCredential());
+        var entries = await client.GetEntriesAsync(cancellationToken);
+        return Results.Ok(new
         {
-            Name = key,
-            Value = secretKeys.Contains(key) ? "Secret" : configuration[key],
-            IsSecret = secretKeys.Contains(key)
-        })
-    });
+            status = "connected",
+            detail = (string?)null,
+            source = client.EntriesEndpoint.ToString(),
+            entries = entries.Select(entry => new
+            {
+                entry.Name,
+                Value = entry.IsSecret ? "Secret" : entry.Value,
+                entry.IsSecret
+            })
+        });
+    }
+    catch (Exception exception) when (
+        exception is CloudShellCredentialUnavailableException or
+            CloudShellAuthenticationException or
+            HttpRequestException or
+            TaskCanceledException)
+    {
+        if (!string.Equals(
+                configuration["CloudShell:Configuration:Status"],
+                "connected",
+                StringComparison.OrdinalIgnoreCase) &&
+            configuration is IConfigurationRoot root)
+        {
+            root.Reload();
+        }
+
+        var loadedKeys = configuration["CloudShell:Configuration:LoadedKeys"]?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            ?? [];
+        var secretKeys = configuration["CloudShell:Configuration:SecretKeys"]?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase)
+            ?? [];
+
+        return Results.Ok(new
+        {
+            status = configuration["CloudShell:Configuration:Status"] ?? "unavailable",
+            detail = exception.Message,
+            source = configuration["CloudShell:Configuration:Source"],
+            entries = loadedKeys.Select(key => new
+            {
+                Name = key,
+                Value = secretKeys.Contains(key) ? "Secret" : configuration[key],
+                IsSecret = secretKeys.Contains(key)
+            })
+        });
+    }
+});
+
+app.MapGet("/secrets/{name}", async (string name, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var client = SecretsVaultClient.FromEnvironment(
+            new DefaultCloudShellResourceCredential());
+        var secret = await client.GetSecretAsync(name, cancellationToken: cancellationToken);
+        return secret is null
+            ? Results.NotFound(new
+            {
+                status = "notFound",
+                source = client.SecretsEndpoint.ToString(),
+                name
+            })
+            : Results.Ok(new
+            {
+                status = "connected",
+                source = client.SecretsEndpoint.ToString(),
+                secret.Name,
+                secret.Value,
+                secret.Version
+            });
+    }
+    catch (Exception exception) when (
+        exception is CloudShellCredentialUnavailableException or
+            CloudShellAuthenticationException or
+            HttpRequestException or
+            TaskCanceledException)
+    {
+        return Results.Ok(new
+        {
+            status = "unavailable",
+            detail = exception.Message,
+            source = (string?)null,
+            name
+        });
+    }
 });
 
 app.MapGet("/echo/{message}", (string message) => Results.Ok(new

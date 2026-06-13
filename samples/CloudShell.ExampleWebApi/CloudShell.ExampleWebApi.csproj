@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\CloudShell.Configuration\CloudShell.Configuration.csproj" />
+    <ProjectReference Include="..\..\CloudShell.Secrets\CloudShell.Secrets.csproj" />
   </ItemGroup>
 
 </Project>
