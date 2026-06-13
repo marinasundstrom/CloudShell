@@ -542,7 +542,6 @@ public sealed class ResourceDeclarationTests
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
             [],
-            [],
             resourceManager,
             registrations,
             declarations,
@@ -597,7 +596,6 @@ public sealed class ResourceDeclarationTests
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
             [],
-            [],
             resourceManager,
             registrations,
             declarations,
@@ -642,7 +640,6 @@ public sealed class ResourceDeclarationTests
             new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
-            [],
             [],
             resourceManager,
             registrations,
@@ -692,7 +689,6 @@ public sealed class ResourceDeclarationTests
             new TestOptionsMonitor<ResourceManagerOptions>(new ResourceManagerOptions()));
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
-            [],
             [],
             resourceManager,
             registrations,
@@ -1959,7 +1955,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public async Task DockerProvider_DescribesDefaultHostAsGenericContainerEngine()
+    public async Task DockerProvider_DescribesDefaultHostAsGenericContainerHost()
     {
         using var provider = new DockerContainerResourceProvider(new DockerProviderOptions());
         var host = Assert.Single(provider.GetResources(), resource =>
@@ -1970,12 +1966,12 @@ public sealed class ResourceDeclarationTests
         var descriptor = await provider.DescribeAsync(
             host,
             new ResourceOrchestrationDescriptorContext(null, null, null!));
-        var definition = descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(
+        var definition = descriptor.Configuration.Deserialize<ContainerHostDescriptor>(
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
-        Assert.Equal(ContainerEngineResourceTypes.ContainerEngine, descriptor.ResourceType);
+        Assert.Equal(ContainerHostResourceTypes.ContainerHost, descriptor.ResourceType);
         Assert.NotNull(definition);
-        Assert.Equal(ContainerEngineKind.Docker, definition.Kind);
+        Assert.Equal(ContainerHostKind.Docker, definition.Kind);
         Assert.True(definition.IsDefault);
         Assert.Equal(provider.Endpoint.ToString(), definition.Endpoint);
         Assert.Equal(ContainerRegistryDefaults.Default, definition.Registry);
@@ -2051,7 +2047,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public void UseDocker_RegistersImplicitContainerEngineWithoutResourceDeclaration()
+    public void UseDocker_RegistersImplicitContainerHostWithoutResourceDeclaration()
     {
         var services = new ServiceCollection();
 
@@ -2063,60 +2059,14 @@ public sealed class ResourceDeclarationTests
         var declarations = serviceProvider
             .GetRequiredService<ResourceDeclarationStore>()
             .GetDeclarations();
-        var host = Assert.Single(serviceProvider.GetServices<IContainerEngineProvider>())
-            .GetContainerEngine();
         var containerHost = Assert.Single(serviceProvider.GetServices<IContainerHostProvider>())
             .GetDefaultHost();
 
         Assert.Empty(declarations);
-        Assert.Equal("docker", host.Id);
-        Assert.Equal(ContainerEngineKind.Docker, host.Kind);
-        Assert.True(host.IsDefault);
-        Assert.Equal(ContainerRegistryDefaults.Default, host.Registry);
-        Assert.Equal(host.Id, containerHost.Id);
+        Assert.Equal("docker", containerHost.Id);
         Assert.Equal(ContainerHostKind.Docker, containerHost.Kind);
         Assert.True(containerHost.IsDefault);
-        Assert.Equal(host.Registry, containerHost.Registry);
-    }
-
-    [Fact]
-    public void ContainerHostCompatibility_ConvertsEngineDescriptors()
-    {
-        var engine = new ContainerEngineResourceDefinition(
-            "podman",
-            "Podman",
-            ContainerEngineKind.Podman,
-            "unix:///run/podman/podman.sock",
-            IsDefault: true,
-            Registry: "registry.example.test",
-            RegistryCredentials: new ContainerRegistryCredentials(
-                "registry-user",
-                "REGISTRY_PASSWORD"));
-
-        var host = engine.ToContainerHostDescriptor();
-        var converted = host.ToContainerEngineResourceDefinition();
-
-        Assert.Equal("podman", host.Id);
-        Assert.Equal(ContainerHostKind.Podman, host.Kind);
-        Assert.True(host.IsDefault);
-        Assert.Equal("registry.example.test", host.Registry);
-        Assert.Equal(engine, converted);
-    }
-
-    [Fact]
-    public void ContainerHostCompatibility_RejectsNonEngineHosts()
-    {
-        var host = new ContainerHostDescriptor(
-            "kubernetes:dev",
-            "Development Kubernetes",
-            ContainerHostKind.Kubernetes,
-            "https://kubernetes.example.test",
-            IsDefault: true);
-
-        Assert.False(host.TryToContainerEngineResourceDefinition(out _));
-        var exception = Assert.Throws<InvalidOperationException>(
-            host.ToContainerEngineResourceDefinition);
-        Assert.Contains("Kubernetes", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(ContainerRegistryDefaults.Default, containerHost.Registry);
     }
 
     [Fact]
@@ -2970,7 +2920,7 @@ public sealed class ResourceDeclarationTests
                     .WithRegistry("https://registry.example.com")
                     .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
                     .WithEndpoint("tds", targetPort: 1433, port: 14333)
-                    .WithContainerEngine("docker:dev")
+                    .WithContainerHost("docker:dev")
                     .WithLifetime(ResourceLifetime.Detached);
 
                 Assert.IsAssignableFrom<ILifetimeBoundResourceBuilder<IContainerResourceBuilder>>(container);
@@ -2999,7 +2949,7 @@ public sealed class ResourceDeclarationTests
             resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
         Assert.Equal("example/sql-server:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerImage]);
         Assert.Equal("https://registry.example.com", resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
-        Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerEngineId]);
+        Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerHostId]);
         Assert.StartsWith("rev-", resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision]);
         Assert.Equal(resource.ResourceAttributes[ResourceAttributeNames.ContainerRevision], resource.Version);
         Assert.Equal(ApplicationLifetime.Detached, provider.GetApplication("application:sql")?.Lifetime);
@@ -3012,7 +2962,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             "REGISTRY_PASSWORD",
             provider.GetApplication("application:sql")?.ContainerRegistryCredentials?.PasswordEnvironmentVariable);
-        Assert.Equal("docker:dev", workload?.ContainerEngineId);
+        Assert.Equal("docker:dev", workload?.ContainerHostId);
         Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
         var port = Assert.Single(workload?.WorkloadPorts ?? []);
         Assert.Equal("tds", port.Name);
@@ -3169,7 +3119,7 @@ public sealed class ResourceDeclarationTests
             ResourceWorkloadKind.ContainerImage,
             "API",
             Image: "example/api:dev",
-            ContainerEngineId: "docker:remote");
+            ContainerHostId: "docker:remote");
         var resolver = new TestContainerHostResolver(
             new ContainerHostDescriptor(
                 "docker:remote",
@@ -3349,7 +3299,7 @@ public sealed class ResourceDeclarationTests
             {
                 resources
                     .AddContainer("api", "example/api:latest")
-                    .WithContainerEngine("docker");
+                    .WithContainerHost("docker");
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -3394,7 +3344,7 @@ public sealed class ResourceDeclarationTests
             {
                 resources
                     .AddContainer("api", "example/api:latest")
-                    .WithContainerEngine("docker");
+                    .WithContainerHost("docker");
             });
 
         using var serviceProvider = services.BuildServiceProvider();

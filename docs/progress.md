@@ -238,20 +238,14 @@ expectations rather than duplicating the task queue.
   When no network is created, the platform projects a default host network.
   Virtual networks reuse endpoint requests and mappings while advertising
   virtual-network and ingress capabilities.
-- Container host abstraction work has started with the compatibility layer:
-  `ContainerHostDescriptor`, `ContainerHostResourceTypes.ContainerHost`, and
-  `IContainerHostProvider` are public abstractions; existing
-  `ContainerEngineResourceDefinition` values can be converted to host
-  descriptors and host descriptors can be converted back when they represent
-  Docker, Podman, or Docker-compatible hosts. `UseContainerEngine(...)` and
-  `UseDocker()` now register host providers alongside existing engine
-  providers so current engine consumers keep working while resolver migration
-  proceeds. `IContainerHostResolver` is now available and the Control Plane
-  container-workload validation path uses it for explicit host IDs, preferred
-  hosts, configured default hosts, compatibility engine providers, and
-  registered default host descriptors. Docker Compose materialization requires
-  the shared resolver instead of keeping a separate provider-local host lookup
-  path.
+- Container host abstraction work now uses host-oriented public names:
+  `ContainerHostDescriptor`, `ContainerHostResourceTypes.ContainerHost`,
+  `IContainerHostProvider`, `IContainerHostResolver`, `UseContainerHost(...)`,
+  `ContainerHostId`, and `WithContainerHost(...)`. `UseDocker()` registers the
+  implicit local Docker host through the host provider contract. Control Plane
+  container-workload validation and Docker Compose materialization require the
+  shared resolver instead of keeping provider-local or engine-compatible host
+  lookup paths.
 - Host-provided virtual networking starts with macOS. The built-in macOS host
   networking provider is an activated resource that can materialize virtual
   endpoint mappings as local TCP proxies for HTTP, HTTPS, and TCP endpoints.
@@ -338,7 +332,7 @@ expectations rather than duplicating the task queue.
 - The container host abstraction should be host-first and descriptor-driven:
   providers resolve explicit or default container hosts through a shared
   resolver, keep provider-owned runtime state behind provider contracts, and
-  migrate existing container-engine APIs through compatibility adapters.
+  migrate existing container-host APIs through compatibility adapters.
 - Container app replicas can now be updated as an explicit desired count
   through the domain manager and `PUT /api/container-apps/v1/{containerAppId}/replicas`.
   This is not autoscaling: richer replica health, placement, traffic splitting,

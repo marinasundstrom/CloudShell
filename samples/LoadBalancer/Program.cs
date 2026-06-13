@@ -51,7 +51,7 @@ cloudShell.Resources(resources =>
             port: 5080,
             protocol: "http",
             exposure: ResourceExposureScope.Local)
-        .WithContainerEngine(dockerHost)
+        .WithContainerHost(dockerHost)
         .WithAutoStart(false)
         .Persist(overwrite: true);
 
@@ -67,7 +67,7 @@ cloudShell.Resources(resources =>
             protocol: "http",
             exposure: ResourceExposureScope.Local)
         .WithReplicas(3)
-        .WithContainerEngine(dockerHost)
+        .WithContainerHost(dockerHost)
         .WithAutoStart(false)
         .Persist(overwrite: true);
 
@@ -84,7 +84,7 @@ cloudShell.Resources(resources =>
             exposure: ResourceExposureScope.Local)
         .WithEnvironment("POSTGRES_PASSWORD", "cloudshell")
         .WithEnvironment("POSTGRES_DB", "cloudshell")
-        .WithContainerEngine(dockerHost)
+        .WithContainerHost(dockerHost)
         .WithAutoStart(false)
         .Persist(overwrite: true);
 

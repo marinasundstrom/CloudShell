@@ -60,7 +60,7 @@ public sealed class ResourceOrchestratorSelectionStore : IResourceOrchestrationS
 
     public void Select(
         string orchestratorId,
-        string? preferredContainerEngineId = null,
+        string? preferredContainerHostId = null,
         int healthCheckIntervalSeconds = DefaultHealthCheckIntervalSeconds)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orchestratorId);
@@ -69,7 +69,7 @@ public sealed class ResourceOrchestratorSelectionStore : IResourceOrchestrationS
         {
             _selection = new ResourceOrchestratorSelection(
                 orchestratorId.Trim(),
-                NormalizeOptional(preferredContainerEngineId),
+                NormalizeOptional(preferredContainerHostId),
                 NormalizeHealthCheckInterval(healthCheckIntervalSeconds),
                 DateTimeOffset.UtcNow);
             Persist();
@@ -107,7 +107,7 @@ public sealed class ResourceOrchestratorSelectionStore : IResourceOrchestrationS
             OrchestratorId = string.IsNullOrWhiteSpace(selection.OrchestratorId)
                 ? ResourceOrchestratorSelection.Default.OrchestratorId
                 : selection.OrchestratorId.Trim(),
-            PreferredContainerEngineId = NormalizeOptional(selection.PreferredContainerEngineId),
+            PreferredContainerHostId = NormalizeOptional(selection.PreferredContainerHostId),
             HealthCheckIntervalSeconds = NormalizeHealthCheckInterval(
                 selection.HealthCheckIntervalSeconds == 0
                     ? DefaultHealthCheckIntervalSeconds

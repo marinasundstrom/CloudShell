@@ -25,7 +25,6 @@ public sealed class ResourceDeclarationStartupService(
     IEnumerable<IResourceProvider> providers,
     IEnumerable<IResourceOrchestrator> orchestrators,
     IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders,
-    IEnumerable<IContainerEngineProvider> containerEngineProviders,
     IEnumerable<IContainerHostProvider> containerHostProviders,
     EfCoreResourceStore persistedResources,
     ResourceDeclarationStore declarations,
@@ -50,7 +49,6 @@ public sealed class ResourceDeclarationStartupService(
         var orchestration = new ResourceOrchestrationService(
             orchestrators,
             descriptorProviders,
-            containerEngineProviders,
             resourceManager,
             registrations,
             declarations,

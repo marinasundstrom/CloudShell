@@ -64,7 +64,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
             .AddResourceType<Pages.RegisterContainerImageResource>(
                 ApplicationResourceTypes.ContainerApp,
                 "Container app",
-                "Register a top-level containerized application that runs through the selected or default container engine.",
+                "Register a top-level containerized application that runs through the selected or default container host.",
                 "container",
                 22,
                 resourceClass: ResourceClass.Container)

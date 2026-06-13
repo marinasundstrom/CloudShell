@@ -165,7 +165,7 @@ public sealed partial class ApplicationResourceProvider(
             context.Resource.Id,
             force: true,
             context.ResourceManager,
-            context.PreferredContainerEngineId,
+            context.PreferredContainerHostId,
             cancellationToken);
         store.Remove(context.Resource.Id);
         runtimeStates.Remove(context.Resource.Id);
@@ -193,7 +193,7 @@ public sealed partial class ApplicationResourceProvider(
                     context.ResourceGroupId,
                     context.Registrations,
                     context.ResourceManager,
-                    context.PreferredContainerEngineId,
+                    context.PreferredContainerHostId,
                     cancellationToken);
                 return ResourceProcedureResult.Completed($"Started {context.Resource.Name}.");
             case ResourceActionKind.Stop:
@@ -201,7 +201,7 @@ public sealed partial class ApplicationResourceProvider(
                     context.Resource.Id,
                     force: true,
                     context.ResourceManager,
-                    context.PreferredContainerEngineId,
+                    context.PreferredContainerHostId,
                     cancellationToken);
                 return ResourceProcedureResult.Completed($"Stopped {context.Resource.Name}.");
             case ResourceActionKind.Restart:
@@ -209,7 +209,7 @@ public sealed partial class ApplicationResourceProvider(
                     context.Resource.Id,
                     force: true,
                     context.ResourceManager,
-                    context.PreferredContainerEngineId,
+                    context.PreferredContainerHostId,
                     cancellationToken);
                 await StartApplicationAsync(
                     context.Resource.Id,
@@ -217,7 +217,7 @@ public sealed partial class ApplicationResourceProvider(
                     context.ResourceGroupId,
                     context.Registrations,
                     context.ResourceManager,
-                    context.PreferredContainerEngineId,
+                    context.PreferredContainerHostId,
                     cancellationToken);
                 return ResourceProcedureResult.Completed($"Restarted {context.Resource.Name}.");
             default:
@@ -273,10 +273,10 @@ public sealed partial class ApplicationResourceProvider(
         }
 
         var application = GetContainerApplication(context.ResourceContext.Resource.Id);
-        var engine = await ResolveRequiredContainerEngineAsync(
+        var engine = await ResolveRequiredContainerHostAsync(
             application,
             context.ResourceContext.ResourceManager,
-            context.ResourceContext.PreferredContainerEngineId,
+            context.ResourceContext.PreferredContainerHostId,
             cancellationToken);
         var processLog = GetProcessLog(application.Id);
 
@@ -324,7 +324,7 @@ public sealed partial class ApplicationResourceProvider(
                     context.ResourceContext.ResourceGroupId,
                     context.ResourceContext.Registrations,
                     context.ResourceContext.ResourceManager,
-                    context.ResourceContext.PreferredContainerEngineId,
+                    context.ResourceContext.PreferredContainerHostId,
                     context.Service,
                     context.Instance,
                     cancellationToken);
@@ -333,7 +333,7 @@ public sealed partial class ApplicationResourceProvider(
                 await StopContainerApplicationInstanceAsync(
                     application,
                     context.ResourceContext.ResourceManager,
-                    context.ResourceContext.PreferredContainerEngineId,
+                    context.ResourceContext.PreferredContainerHostId,
                     context.Instance,
                     cancellationToken);
                 return;
@@ -429,7 +429,7 @@ public sealed partial class ApplicationResourceProvider(
                 application.Id,
                 force: true,
                 context.ResourceManager,
-                context.PreferredContainerEngineId,
+                context.PreferredContainerHostId,
                 cancellationToken);
             await StartApplicationAsync(
                 application.Id,
@@ -437,7 +437,7 @@ public sealed partial class ApplicationResourceProvider(
                 context.ResourceGroupId,
                 context.Registrations,
                 context.ResourceManager,
-                context.PreferredContainerEngineId,
+                context.PreferredContainerHostId,
                 cancellationToken);
             resourceEvents?.Append(new ResourceEvent(
                 application.Id,
@@ -498,7 +498,7 @@ public sealed partial class ApplicationResourceProvider(
                 application.Id,
                 force: true,
                 context.ResourceManager,
-                context.PreferredContainerEngineId,
+                context.PreferredContainerHostId,
                 cancellationToken);
         }
 
@@ -519,7 +519,7 @@ public sealed partial class ApplicationResourceProvider(
                 context.ResourceGroupId,
                 context.Registrations,
                 context.ResourceManager,
-                context.PreferredContainerEngineId,
+                context.PreferredContainerHostId,
                 cancellationToken);
             resourceEvents?.Append(new ResourceEvent(
                 application.Id,
@@ -568,7 +568,7 @@ public sealed partial class ApplicationResourceProvider(
             IsContainerBacked(application) ? GetEffectiveContainerRegistry(application) : null,
             application.ContainerBuildContext,
             application.ContainerDockerfile,
-            application.ContainerEngineId,
+            application.ContainerHostId,
             application.Replicas,
             application.EndpointPorts,
             application.ProjectPath,
@@ -624,7 +624,7 @@ public sealed partial class ApplicationResourceProvider(
             containerRegistry: configuration.ContainerRegistry,
             containerBuildContext: configuration.ContainerBuildContext,
             containerDockerfile: configuration.ContainerDockerfile,
-            containerEngineId: configuration.ContainerEngineId,
+            containerHostId: configuration.ContainerHostId,
             replicas: configuration.Replicas,
             endpointPorts: configuration.EndpointPorts,
             resourceType: template.ResourceType,
@@ -746,7 +746,7 @@ public sealed partial class ApplicationResourceProvider(
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
         IResourceManagerStore? resourceManager,
-        string? preferredContainerEngineId,
+        string? preferredContainerHostId,
         CancellationToken cancellationToken)
     {
         var definition = store.GetApplication(applicationId)
@@ -762,7 +762,7 @@ public sealed partial class ApplicationResourceProvider(
             if (resourceManager is null)
             {
                 throw new InvalidOperationException(
-                    $"Container resource '{definition.Name}' requires resource manager context to resolve a container engine.");
+                    $"Container resource '{definition.Name}' requires resource manager context to resolve a container host.");
             }
 
             await StartContainerApplicationAsync(
@@ -771,7 +771,7 @@ public sealed partial class ApplicationResourceProvider(
                 resourceGroupId,
                 registrations,
                 resourceManager,
-                preferredContainerEngineId,
+                preferredContainerHostId,
                 cancellationToken);
             return;
         }
@@ -1164,7 +1164,7 @@ public sealed partial class ApplicationResourceProvider(
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
         IResourceManagerStore resourceManager,
-        string? preferredContainerEngineId,
+        string? preferredContainerHostId,
         CancellationToken cancellationToken)
     {
         var service = CreateDefaultContainerOrchestratorService(definition);
@@ -1176,7 +1176,7 @@ public sealed partial class ApplicationResourceProvider(
                     resourceGroupId,
                     registrations,
                     resourceManager,
-                    preferredContainerEngineId),
+                    preferredContainerHostId),
                 service),
             ResourceAction.Run,
             cancellationToken);
@@ -1188,7 +1188,7 @@ public sealed partial class ApplicationResourceProvider(
                 resourceGroupId,
                 registrations,
                 resourceManager,
-                preferredContainerEngineId,
+                preferredContainerHostId,
                 service,
                 instance,
                 cancellationToken);
@@ -1201,7 +1201,7 @@ public sealed partial class ApplicationResourceProvider(
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
         IResourceManagerStore? resourceManager,
-        string? preferredContainerEngineId,
+        string? preferredContainerHostId,
         ResourceOrchestratorService service,
         ResourceOrchestratorServiceInstance instance,
         CancellationToken cancellationToken)
@@ -1212,17 +1212,17 @@ public sealed partial class ApplicationResourceProvider(
                 $"Container resource '{definition.Name}' cannot be started by the default orchestrator because it does not specify a container image.");
         }
 
-        var engine = await ResolveRequiredContainerEngineAsync(
+        var engine = await ResolveRequiredContainerHostAsync(
             definition,
             resourceManager,
-            preferredContainerEngineId,
+            preferredContainerHostId,
             cancellationToken);
         var logPath = GetLogPath(definition.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
         var processLog = new ApplicationProcessLog(logPath);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
-            await RunContainerEngineCommandAsync(
+            await RunContainerHostCommandAsync(
                 engine,
                 ["rm", "-f", instance.Name],
                 processLog,
@@ -1231,14 +1231,14 @@ public sealed partial class ApplicationResourceProvider(
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = GetContainerEngineExecutable(engine),
+            FileName = GetContainerHostExecutable(engine),
             WorkingDirectory = Environment.CurrentDirectory,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
 
-        ConfigureContainerEngineEnvironment(startInfo, engine);
+        ConfigureContainerHostEnvironment(startInfo, engine);
         startInfo.ArgumentList.Add("run");
         startInfo.ArgumentList.Add("--name");
         startInfo.ArgumentList.Add(instance.Name);
@@ -1418,7 +1418,7 @@ public sealed partial class ApplicationResourceProvider(
         string applicationId,
         bool force,
         IResourceManagerStore? resourceManager,
-        string? preferredContainerEngineId,
+        string? preferredContainerHostId,
         CancellationToken cancellationToken)
     {
         var application = store.GetApplication(applicationId);
@@ -1440,12 +1440,12 @@ public sealed partial class ApplicationResourceProvider(
             if (resourceManager is null)
             {
                 throw new InvalidOperationException(
-                    $"Container resource '{application.Name}' requires resource manager context to resolve a container engine.");
+                    $"Container resource '{application.Name}' requires resource manager context to resolve a container host.");
             }
 
-            var engine = await ResolveContainerEngineAsync(
-                application.ContainerEngineId,
-                preferredContainerEngineId,
+            var engine = await ResolveContainerHostAsync(
+                application.ContainerHostId,
+                preferredContainerHostId,
                 resourceManager,
                 cancellationToken);
             if (engine is not null)
@@ -1473,7 +1473,7 @@ public sealed partial class ApplicationResourceProvider(
 
     private async Task StopContainerAsync(
         ApplicationResourceDefinition definition,
-        ContainerEngineResourceDefinition engine,
+        ContainerHostDescriptor engine,
         ApplicationProcessLog log,
         CancellationToken cancellationToken)
     {
@@ -1501,19 +1501,19 @@ public sealed partial class ApplicationResourceProvider(
     private async Task StopContainerApplicationInstanceAsync(
         ApplicationResourceDefinition definition,
         IResourceManagerStore? resourceManager,
-        string? preferredContainerEngineId,
+        string? preferredContainerHostId,
         ResourceOrchestratorServiceInstance instance,
         CancellationToken cancellationToken)
     {
         if (resourceManager is null)
         {
             throw new InvalidOperationException(
-                $"Container resource '{definition.Name}' requires resource manager context to resolve a container engine.");
+                $"Container resource '{definition.Name}' requires resource manager context to resolve a container host.");
         }
 
-        var engine = await ResolveContainerEngineAsync(
-            definition.ContainerEngineId,
-            preferredContainerEngineId,
+        var engine = await ResolveContainerHostAsync(
+            definition.ContainerHostId,
+            preferredContainerHostId,
             resourceManager,
             cancellationToken);
         if (engine is null)
@@ -1531,19 +1531,19 @@ public sealed partial class ApplicationResourceProvider(
 
     private async Task StopContainerApplicationInstanceAsync(
         ApplicationResourceDefinition definition,
-        ContainerEngineResourceDefinition engine,
+        ContainerHostDescriptor engine,
         ApplicationProcessLog log,
         ResourceOrchestratorServiceInstance instance,
         CancellationToken cancellationToken)
     {
-        await RunContainerEngineCommandAsync(
+        await RunContainerHostCommandAsync(
             engine,
             ["stop", instance.Name],
             log,
             cancellationToken);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
-            await RunContainerEngineCommandAsync(
+            await RunContainerHostCommandAsync(
                 engine,
                 ["rm", "-f", instance.Name],
                 log,
@@ -1553,7 +1553,7 @@ public sealed partial class ApplicationResourceProvider(
 
     private async Task StartContainerAppIngressAsync(
         ApplicationResourceDefinition definition,
-        ContainerEngineResourceDefinition engine,
+        ContainerHostDescriptor engine,
         ResourceOrchestratorService service,
         ApplicationProcessLog log,
         CancellationToken cancellationToken)
@@ -1575,7 +1575,7 @@ public sealed partial class ApplicationResourceProvider(
             CreateContainerAppIngressConfiguration(service, ingressPorts),
             cancellationToken);
 
-        await RunContainerEngineCommandAsync(
+        await RunContainerHostCommandAsync(
             engine,
             ["rm", "-f", ingressName],
             log,
@@ -1611,7 +1611,7 @@ public sealed partial class ApplicationResourceProvider(
             arguments.Add($"--entrypoints.{entrypoint}.address=:{hostPort.ToString(CultureInfo.InvariantCulture)}");
         }
 
-        await RunContainerEngineCommandAsync(
+        await RunContainerHostCommandAsync(
             engine,
             arguments,
             log,
@@ -1624,7 +1624,7 @@ public sealed partial class ApplicationResourceProvider(
 
     private Task StopContainerAppIngressAsync(
         ApplicationResourceDefinition definition,
-        ContainerEngineResourceDefinition engine,
+        ContainerHostDescriptor engine,
         ApplicationProcessLog log,
         CancellationToken cancellationToken)
     {
@@ -1638,11 +1638,11 @@ public sealed partial class ApplicationResourceProvider(
 
     private static async Task StopContainerAppIngressAsync(
         ResourceOrchestratorService service,
-        ContainerEngineResourceDefinition engine,
+        ContainerHostDescriptor engine,
         ApplicationProcessLog log,
         CancellationToken cancellationToken)
     {
-        await RunContainerEngineCommandAsync(
+        await RunContainerHostCommandAsync(
             engine,
             ["rm", "-f", GetContainerAppIngressName(service)],
             log,
@@ -1736,32 +1736,32 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private static async Task EnsureContainerNetworkAsync(
-        ContainerEngineResourceDefinition engine,
+        ContainerHostDescriptor engine,
         string network,
         ApplicationProcessLog log,
         CancellationToken cancellationToken)
     {
-        await RunContainerEngineCommandAsync(
+        await RunContainerHostCommandAsync(
             engine,
             ["network", "create", network],
             log,
             cancellationToken);
     }
 
-    private static async Task<int> RunContainerEngineCommandAsync(
-        ContainerEngineResourceDefinition engine,
+    private static async Task<int> RunContainerHostCommandAsync(
+        ContainerHostDescriptor engine,
         IReadOnlyList<string> arguments,
         ApplicationProcessLog log,
         CancellationToken cancellationToken)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = GetContainerEngineExecutable(engine),
+            FileName = GetContainerHostExecutable(engine),
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
-        ConfigureContainerEngineEnvironment(startInfo, engine);
+        ConfigureContainerHostEnvironment(startInfo, engine);
         foreach (var argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
@@ -1870,7 +1870,7 @@ public sealed partial class ApplicationResourceProvider(
             attributes[ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerBuildContext, application.ContainerBuildContext);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerDockerfile, application.ContainerDockerfile);
-            AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerEngineId, application.ContainerEngineId);
+            AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerHostId, application.ContainerHostId);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerRevision, GetEffectiveContainerRevision(application));
         }
         else
@@ -2204,7 +2204,7 @@ public sealed partial class ApplicationResourceProvider(
                 : null,
             ContainerBuildContext = NormalizeNullable(definition.ContainerBuildContext),
             ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
-            ContainerEngineId = NormalizeNullable(definition.ContainerEngineId),
+            ContainerHostId = NormalizeNullable(definition.ContainerHostId),
             ContainerRevision = NormalizeNullable(definition.ContainerRevision) ??
                 (IsContainerBacked(definition) ? CreateContainerRevision() : null),
             Replicas = Math.Max(1, definition.Replicas),
@@ -2536,7 +2536,7 @@ public sealed partial class ApplicationResourceProvider(
                 application.Name,
                 Image: application.ContainerImage,
                 Registry: GetEffectiveContainerRegistry(application),
-                ContainerEngineId: application.ContainerEngineId,
+                ContainerHostId: application.ContainerHostId,
                 Replicas: Math.Max(1, application.Replicas),
                 AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
@@ -2553,7 +2553,7 @@ public sealed partial class ApplicationResourceProvider(
                 BuildContext: application.ContainerBuildContext,
                 Dockerfile: application.ContainerDockerfile,
                 Registry: GetEffectiveContainerRegistry(application),
-                ContainerEngineId: application.ContainerEngineId,
+                ContainerHostId: application.ContainerHostId,
                 Replicas: Math.Max(1, application.Replicas),
                 AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
@@ -2601,54 +2601,54 @@ public sealed partial class ApplicationResourceProvider(
         ResourceOrchestratorService service) =>
         ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);
 
-    private async Task<ContainerEngineResourceDefinition> ResolveRequiredContainerEngineAsync(
+    private async Task<ContainerHostDescriptor> ResolveRequiredContainerHostAsync(
         ApplicationResourceDefinition definition,
         IResourceManagerStore? resourceManager,
-        string? preferredContainerEngineId,
+        string? preferredContainerHostId,
         CancellationToken cancellationToken)
     {
         if (resourceManager is null)
         {
             throw new InvalidOperationException(
-                $"Container resource '{definition.Name}' requires resource manager context to resolve a container engine.");
+                $"Container resource '{definition.Name}' requires resource manager context to resolve a container host.");
         }
 
-        return await ResolveContainerEngineAsync(
-            definition.ContainerEngineId,
-            preferredContainerEngineId,
+        return await ResolveContainerHostAsync(
+            definition.ContainerHostId,
+            preferredContainerHostId,
             resourceManager,
             cancellationToken)
             ?? throw new InvalidOperationException(
-                $"Resource '{definition.Name}' is container-backed but no default container engine is registered. Use UseDocker(), UseContainerEngine(...), or set WithContainerEngine(...).");
+                $"Resource '{definition.Name}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set WithContainerHost(...).");
     }
 
-    private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
-        string? containerEngineId,
-        string? preferredContainerEngineId,
+    private async Task<ContainerHostDescriptor?> ResolveContainerHostAsync(
+        string? containerHostId,
+        string? preferredContainerHostId,
         IResourceManagerStore resourceManager,
         CancellationToken cancellationToken)
     {
-        var selectedEngineId = FirstNonEmpty(containerEngineId, preferredContainerEngineId);
+        var selectedEngineId = FirstNonEmpty(containerHostId, preferredContainerHostId);
         if (!string.IsNullOrWhiteSpace(selectedEngineId))
         {
-            return await ResolveContainerEngineByIdAsync(selectedEngineId, resourceManager, cancellationToken)
+            return await ResolveContainerHostByIdAsync(selectedEngineId, resourceManager, cancellationToken)
                 ?? throw new InvalidOperationException(
-                    $"Container engine '{selectedEngineId}' is not registered.");
+                    $"Container host '{selectedEngineId}' is not registered.");
         }
 
-        return GetContainerEngines()
+        return GetContainerHosts()
             .Where(engine => engine.IsDefault)
             .OrderBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault()
-            ?? await ResolveDefaultContainerEngineResourceAsync(resourceManager, cancellationToken);
+            ?? await ResolveDefaultContainerHostResourceAsync(resourceManager, cancellationToken);
     }
 
-    private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineByIdAsync(
+    private async Task<ContainerHostDescriptor?> ResolveContainerHostByIdAsync(
         string engineId,
         IResourceManagerStore resourceManager,
         CancellationToken cancellationToken)
     {
-        var engine = GetContainerEngines()
+        var engine = GetContainerHosts()
             .FirstOrDefault(engine => string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase));
         if (engine is not null)
         {
@@ -2661,23 +2661,23 @@ public sealed partial class ApplicationResourceProvider(
             return null;
         }
 
-        var descriptor = await TryDescribeContainerEngineAsync(resource, resourceManager, cancellationToken);
-        return descriptor is null ? null : TryReadContainerEngine(descriptor);
+        var descriptor = await TryDescribeContainerHostAsync(resource, resourceManager, cancellationToken);
+        return descriptor is null ? null : TryReadContainerHost(descriptor);
     }
 
-    private async Task<ContainerEngineResourceDefinition?> ResolveDefaultContainerEngineResourceAsync(
+    private async Task<ContainerHostDescriptor?> ResolveDefaultContainerHostResourceAsync(
         IResourceManagerStore resourceManager,
         CancellationToken cancellationToken)
     {
         foreach (var resource in resourceManager.GetResources())
         {
-            var descriptor = await TryDescribeContainerEngineAsync(resource, resourceManager, cancellationToken);
+            var descriptor = await TryDescribeContainerHostAsync(resource, resourceManager, cancellationToken);
             if (descriptor is null)
             {
                 continue;
             }
 
-            var engine = TryReadContainerEngine(descriptor);
+            var engine = TryReadContainerHost(descriptor);
             if (engine?.IsDefault == true)
             {
                 return engine;
@@ -2687,7 +2687,7 @@ public sealed partial class ApplicationResourceProvider(
         return null;
     }
 
-    private async Task<ResourceOrchestrationDescriptor?> TryDescribeContainerEngineAsync(
+    private async Task<ResourceOrchestrationDescriptor?> TryDescribeContainerHostAsync(
         Resource resource,
         IResourceManagerStore resourceManager,
         CancellationToken cancellationToken)
@@ -2710,17 +2710,17 @@ public sealed partial class ApplicationResourceProvider(
             cancellationToken);
     }
 
-    private static ContainerEngineResourceDefinition? TryReadContainerEngine(
+    private static ContainerHostDescriptor? TryReadContainerHost(
         ResourceOrchestrationDescriptor descriptor)
     {
-        if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
+        if (!descriptor.ResourceType.Equals(ContainerHostResourceTypes.ContainerHost, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
         try
         {
-            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(TemplateSerializerOptions);
+            return descriptor.Configuration.Deserialize<ContainerHostDescriptor>(TemplateSerializerOptions);
         }
         catch (JsonException)
         {
@@ -2728,10 +2728,10 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngines() =>
+    private IReadOnlyList<ContainerHostDescriptor> GetContainerHosts() =>
         serviceProvider
-            .GetServices<IContainerEngineProvider>()
-            .Select(provider => provider.GetContainerEngine())
+            .GetServices<IContainerHostProvider>()
+            .Select(provider => provider.GetDefaultHost())
             .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
             .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
@@ -2860,19 +2860,19 @@ public sealed partial class ApplicationResourceProvider(
         return string.IsNullOrWhiteSpace(identifier) ? "cloudshell" : identifier;
     }
 
-    private static string GetContainerEngineExecutable(ContainerEngineResourceDefinition engine) =>
-        engine.Kind == ContainerEngineKind.Podman ? "podman" : "docker";
+    private static string GetContainerHostExecutable(ContainerHostDescriptor engine) =>
+        engine.Kind == ContainerHostKind.Podman ? "podman" : "docker";
 
-    private static void ConfigureContainerEngineEnvironment(
+    private static void ConfigureContainerHostEnvironment(
         ProcessStartInfo startInfo,
-        ContainerEngineResourceDefinition engine)
+        ContainerHostDescriptor engine)
     {
         if (string.IsNullOrWhiteSpace(engine.Endpoint))
         {
             return;
         }
 
-        if (engine.Kind == ContainerEngineKind.Podman)
+        if (engine.Kind == ContainerHostKind.Podman)
         {
             startInfo.Environment["CONTAINER_HOST"] = engine.Endpoint;
             return;
@@ -2943,7 +2943,7 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private static async Task LoginToContainerRegistryAsync(
-        ContainerEngineResourceDefinition engine,
+        ContainerHostDescriptor engine,
         string registry,
         ContainerRegistryCredentials? credentials,
         ApplicationProcessLog log,
@@ -2959,13 +2959,13 @@ public sealed partial class ApplicationResourceProvider(
         var password = credentials.ResolvePassword();
         var startInfo = new ProcessStartInfo
         {
-            FileName = GetContainerEngineExecutable(engine),
+            FileName = GetContainerHostExecutable(engine),
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
-        ConfigureContainerEngineEnvironment(startInfo, engine);
+        ConfigureContainerHostEnvironment(startInfo, engine);
         startInfo.ArgumentList.Add("login");
         startInfo.ArgumentList.Add(registryAddress);
         startInfo.ArgumentList.Add("--username");
@@ -3192,7 +3192,7 @@ public sealed partial class ApplicationResourceProvider(
         string? ContainerRegistry = null,
         string? ContainerBuildContext = null,
         string? ContainerDockerfile = null,
-        string? ContainerEngineId = null,
+        string? ContainerHostId = null,
         int Replicas = 1,
         IReadOnlyList<ServicePort>? EndpointPorts = null,
         string? ProjectPath = null,

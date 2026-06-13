@@ -70,7 +70,7 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 * Do not make Deployment a normal user-authored resource.
 * Do not require every resource to use deployments.
 * Do not require every orchestrator to implement advanced rollout strategies immediately.
-* Do not expose Docker Compose, Kubernetes, or container-engine-specific implementation details in the common deployment model.
+* Do not expose Docker Compose, Kubernetes, or container-host-specific implementation details in the common deployment model.
 * Do not move resource graph ownership from the Resource Manager to the orchestrator.
 * Do not require resources to manually create their own replicas.
 * Do not make deployments responsible for general resource dependency resolution.
@@ -321,7 +321,7 @@ Orchestrators are responsible for:
 * reporting revision status
 * mapping the common deployment model to backend-specific behavior
 
-The default orchestrator may manage services and replicas directly using the default container engine.
+The default orchestrator may manage services and replicas directly using the default container host.
 
 The Docker Compose orchestrator may project deployments into Docker Compose services, containers, and scale operations.
 
@@ -357,7 +357,7 @@ Deployment created
 Revision created
 Service reconciled
 Replica resources created
-Containers started through default container engine
+Containers started through default container host
 Revision marked active
 ```
 

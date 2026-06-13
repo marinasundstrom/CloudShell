@@ -19,7 +19,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? containerImage = null,
         string? containerBuildContext = null,
         string? containerDockerfile = null,
-        string? containerEngineId = null,
+        string? containerHostId = null,
         int replicas = 1,
         IReadOnlyList<ServicePort>? endpointPorts = null,
         string? resourceType = null,
@@ -49,7 +49,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ContainerRegistry = containerRegistry;
         ContainerBuildContext = containerBuildContext;
         ContainerDockerfile = containerDockerfile;
-        ContainerEngineId = containerEngineId;
+        ContainerHostId = containerHostId;
         Replicas = replicas;
         EndpointPorts = endpointPorts ?? [];
         ResourceType = string.IsNullOrWhiteSpace(resourceType)
@@ -96,7 +96,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
 
     public string? ContainerDockerfile { get; init; }
 
-    public string? ContainerEngineId { get; init; }
+    public string? ContainerHostId { get; init; }
 
     public int Replicas { get; init; }
 

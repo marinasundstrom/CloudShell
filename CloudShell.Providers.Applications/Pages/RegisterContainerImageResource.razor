@@ -4,17 +4,17 @@
 @inject IResourceManagerStore ResourceManager
 @inject IResourceGroupStore ResourceGroups
 @inject IResourceRegistrationStore Registrations
-@inject IEnumerable<IContainerEngineProvider> ContainerEngineProviders
+@inject IEnumerable<IContainerHostProvider> ContainerHostProviders
 @inject IEnumerable<IResourceOrchestrationDescriptorProvider> DescriptorProviders
 @inject NavigationManager Navigation
 
 <div class="type-registration">
     <div class="form-panel">
-        @if (!HasImplicitContainerEngine())
+        @if (!HasImplicitContainerHost())
         {
             <div class="procedure-confirmation">
-                <strong>No default container engine</strong>
-                <span>Select a container engine for this resource or register a default engine with UseDocker() or UseContainerEngine(...).</span>
+                <strong>No default container host</strong>
+                <span>Select a container host for this resource or register a default host with UseDocker().</span>
             </div>
         }
 
@@ -36,15 +36,15 @@
         <label for="container-registry-password-environment-variable">Registry password environment variable</label>
         <FluentTextField Id="container-registry-password-environment-variable" @bind-Value="RegistryPasswordEnvironmentVariable" />
 
-        <label for="container-engine">Container engine</label>
+        <label for="container-host">Container host</label>
         <FluentSelect TOption="string"
-                      Id="container-engine"
-                      @bind-Value="SelectedEngineId"
+                      Id="container-host"
+                      @bind-Value="SelectedHostId"
                       Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default engine</FluentOption>
-            @foreach (var engine in GetContainerEngines())
+            <FluentOption TOption="string" Value="">Default host</FluentOption>
+            @foreach (var host in GetContainerHosts())
             {
-                <FluentOption TOption="string" Value="@engine.Id">@GetEngineLabel(engine)</FluentOption>
+                <FluentOption TOption="string" Value="@host.Id">@GetHostLabel(host)</FluentOption>
             }
         </FluentSelect>
 
@@ -165,7 +165,7 @@
     private string Registry { get; set; } = ContainerRegistryDefaults.Default;
     private string? RegistryUsername { get; set; }
     private string? RegistryPasswordEnvironmentVariable { get; set; }
-    private string SelectedEngineId { get; set; } = string.Empty;
+    private string SelectedHostId { get; set; } = string.Empty;
     private string SelectedLifetime { get; set; } = ApplicationLifetime.ControlPlaneScoped.ToString();
     private bool ExposeEndpoint { get; set; }
     private string PortName { get; set; } = "tcp";
@@ -193,7 +193,7 @@
             return;
         }
 
-        if (!ValidateContainerEngine())
+        if (!ValidateContainerHost())
         {
             return;
         }
@@ -237,7 +237,7 @@
             containerImage: Image.Trim(),
             containerRegistry: NormalizeRegistry(Registry),
             containerRegistryCredentials: BuildRegistryCredentials(),
-            containerEngineId: NormalizeNullable(SelectedEngineId),
+            containerHostId: NormalizeNullable(SelectedHostId),
             endpointPorts: BuildEndpointPorts(),
             resourceType: ApplicationResourceTypes.ContainerApp,
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
@@ -251,26 +251,26 @@
         Navigation.NavigateTo("/resources");
     }
 
-    private bool ValidateContainerEngine()
+    private bool ValidateContainerHost()
     {
-        var engines = GetContainerEngines();
-        if (!string.IsNullOrWhiteSpace(SelectedEngineId))
+        var hosts = GetContainerHosts();
+        if (!string.IsNullOrWhiteSpace(SelectedHostId))
         {
-            if (engines.Any(engine => string.Equals(engine.Id, SelectedEngineId, StringComparison.OrdinalIgnoreCase)))
+            if (hosts.Any(host => string.Equals(host.Id, SelectedHostId, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
 
-            ErrorMessage = $"Container engine '{SelectedEngineId}' is not registered.";
+            ErrorMessage = $"Container host '{SelectedHostId}' is not registered.";
             return false;
         }
 
-        if (engines.Any(engine => engine.IsDefault))
+        if (hosts.Any(host => host.IsDefault))
         {
             return true;
         }
 
-        ErrorMessage = "A default container engine is required unless this resource selects an explicit engine.";
+        ErrorMessage = "A default container host is required unless this resource selects an explicit host.";
         return false;
     }
 
@@ -316,30 +316,30 @@
         Registrations.GetRegistration(resourceId) is not null ||
         ApplicationProvider.GetApplication(resourceId) is not null;
 
-    private bool HasImplicitContainerEngine() =>
-        GetContainerEngines().Any(engine => engine.IsDefault);
+    private bool HasImplicitContainerHost() =>
+        GetContainerHosts().Any(host => host.IsDefault);
 
-    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngines()
+    private IReadOnlyList<ContainerHostDescriptor> GetContainerHosts()
     {
-        var configuredEngines = ContainerEngineProviders
-            .Select(provider => provider.GetContainerEngine())
-            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id));
-        var resourceEngines = ResourceManager
+        var configuredHosts = ContainerHostProviders
+            .Select(provider => provider.GetDefaultHost())
+            .Where(host => !string.IsNullOrWhiteSpace(host.Id));
+        var resourceHosts = ResourceManager
             .GetResources()
-            .Select(TryReadContainerEngine)
-            .Where(engine => engine is not null)
-            .Select(engine => engine!);
+            .Select(TryReadContainerHost)
+            .Where(host => host is not null)
+            .Select(host => host!);
 
-        return configuredEngines
-            .Concat(resourceEngines)
-            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+        return configuredHosts
+            .Concat(resourceHosts)
+            .GroupBy(host => host.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
-            .OrderByDescending(engine => engine.IsDefault)
-            .ThenBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(host => host.IsDefault)
+            .ThenBy(host => host.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
-    private ContainerEngineResourceDefinition? TryReadContainerEngine(Resource resource)
+    private ContainerHostDescriptor? TryReadContainerHost(Resource resource)
     {
         var provider = DescriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
         if (provider is null)
@@ -357,12 +357,12 @@
                         ResourceManager))
                 .GetAwaiter()
                 .GetResult();
-            if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
+            if (!descriptor.ResourceType.Equals(ContainerHostResourceTypes.ContainerHost, StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
 
-            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(
+            return descriptor.Configuration.Deserialize<ContainerHostDescriptor>(
                 new JsonSerializerOptions(JsonSerializerDefaults.Web));
         }
         catch (JsonException)
@@ -371,8 +371,8 @@
         }
     }
 
-    private static string GetEngineLabel(ContainerEngineResourceDefinition engine) =>
-        engine.IsDefault ? $"{engine.Name} (default)" : engine.Name;
+    private static string GetHostLabel(ContainerHostDescriptor host) =>
+        host.IsDefault ? $"{host.Name} (default)" : host.Name;
 
     private ApplicationLifetime ParseLifetime() =>
         Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)

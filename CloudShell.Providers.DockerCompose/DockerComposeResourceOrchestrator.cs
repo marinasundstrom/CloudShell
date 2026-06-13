@@ -189,14 +189,14 @@ public sealed partial class DockerComposeResourceOrchestrator(
             ?? throw new InvalidOperationException(
                 $"Docker Compose could not resolve a container workload for resource '{context.Resource.Name}'.");
         var explicitHostId = FirstNonEmpty(
-            workload.ContainerEngineId,
-            options.ContainerEngineId);
+            workload.ContainerHostId,
+            options.ContainerHostId);
         var result = await containerHostResolver.ResolveAsync(
             new ContainerHostResolutionRequest(
                 context.Resource.Id,
                 context.ResourceGroup?.Id,
                 explicitHostId,
-                context.PreferredContainerEngineId),
+                context.PreferredContainerHostId),
             cancellationToken);
         if (result.IsResolved)
         {

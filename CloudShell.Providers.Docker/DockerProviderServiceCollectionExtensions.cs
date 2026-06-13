@@ -10,7 +10,7 @@ namespace CloudShell.Providers.Docker;
 public static class DockerProviderServiceCollectionExtensions
 {
     private const string DefaultOrchestratorId = "default";
-    private const string DockerContainerEngineId = "docker";
+    private const string DockerContainerHostId = "docker";
 
     public static ICloudShellBuilder UseLocalDevelopmentDefaults(
         this ICloudShellBuilder builder,
@@ -87,9 +87,7 @@ public static class DockerProviderServiceCollectionExtensions
         var options = builder.Services.GetOrAddDockerProviderOptions();
         configure?.Invoke(options);
         builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IContainerEngineProvider, DockerContainerEngineProvider>());
-        builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IContainerHostProvider, DockerContainerEngineProvider>());
+            ServiceDescriptor.Singleton<IContainerHostProvider, DockerContainerHostProvider>());
     }
 
     /// <summary>
@@ -255,7 +253,7 @@ public static class DockerProviderServiceCollectionExtensions
 
             orchestrationSettings.Select(
                 DefaultOrchestratorId,
-                DockerContainerEngineId,
+                DockerContainerHostId,
                 selection.HealthCheckIntervalSeconds);
             return Task.CompletedTask;
         }
@@ -265,7 +263,7 @@ public static class DockerProviderServiceCollectionExtensions
         private static bool HasUserSelection(ResourceOrchestratorSelection selection) =>
             selection.UpdatedAt != DateTimeOffset.MinValue ||
             !string.Equals(selection.OrchestratorId, DefaultOrchestratorId, StringComparison.OrdinalIgnoreCase) ||
-            !string.IsNullOrWhiteSpace(selection.PreferredContainerEngineId);
+            !string.IsNullOrWhiteSpace(selection.PreferredContainerHostId);
     }
 }
 

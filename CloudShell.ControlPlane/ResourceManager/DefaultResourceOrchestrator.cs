@@ -127,7 +127,7 @@ public sealed class DefaultResourceOrchestrator : IResourceOrchestrator
             context.ResourceGroup?.Id,
             context.Registrations,
             context.ResourceManager,
-            context.PreferredContainerEngineId);
+            context.PreferredContainerHostId);
 
     private static IResourceProcedureProvider? GetProcedureProvider(
         ResourceOrchestrationContext context)

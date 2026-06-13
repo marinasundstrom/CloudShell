@@ -30,8 +30,8 @@ else
                 <dd>@NormalizeRegistry(Application.ContainerRegistry)</dd>
                 <dt>Revision</dt>
                 <dd>@(Application.ContainerRevision ?? "unrevisioned")</dd>
-                <dt>Container engine</dt>
-                <dd>@(Application.ContainerEngineId ?? "default")</dd>
+                <dt>Container host</dt>
+                <dd>@(Application.ContainerHostId ?? "default")</dd>
                 <dt>Replicas</dt>
                 <dd>@Math.Max(1, Application.Replicas)</dd>
             }

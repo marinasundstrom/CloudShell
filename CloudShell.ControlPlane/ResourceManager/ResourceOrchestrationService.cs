@@ -8,7 +8,6 @@ namespace CloudShell.ControlPlane.ResourceManager;
 public sealed class ResourceOrchestrationService(
     IEnumerable<IResourceOrchestrator> orchestrators,
     IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders,
-    IEnumerable<IContainerEngineProvider> containerEngineProviders,
     IResourceManagerStore resourceManager,
     IResourceRegistrationStore registrations,
     ResourceDeclarationStore declarations,
@@ -26,10 +25,9 @@ public sealed class ResourceOrchestrationService(
             resourceManager,
             registrations,
             descriptorProviders,
-            containerHostProviders ?? [],
-            containerEngineProviders);
+            containerHostProviders ?? []);
 
-    public string? PreferredContainerEngineId => selectionStore.Get().PreferredContainerEngineId;
+    public string? PreferredContainerHostId => selectionStore.Get().PreferredContainerHostId;
 
     public async Task<ResourceProcedureResult> DeleteAsync(
         Resource resource,
@@ -259,7 +257,7 @@ public sealed class ResourceOrchestrationService(
             resourceManager.GetGroupForResource(resource.Id),
             resourceManager,
             registrations,
-            selectionStore.Get().PreferredContainerEngineId);
+            selectionStore.Get().PreferredContainerHostId);
     }
 
     private IResourceOrchestrator SelectActionOrchestrator(
@@ -315,19 +313,19 @@ public sealed class ResourceOrchestrationService(
             new ContainerHostResolutionRequest(
                 context.Resource.Id,
                 context.ResourceGroup?.Id,
-                ExplicitHostResourceId: workload.ContainerEngineId,
-                PreferredHostId: context.PreferredContainerEngineId),
+                ExplicitHostResourceId: workload.ContainerHostId,
+                PreferredHostId: context.PreferredContainerHostId),
             cancellationToken);
         if (!result.IsResolved)
         {
-            if (!string.IsNullOrWhiteSpace(workload.ContainerEngineId))
+            if (!string.IsNullOrWhiteSpace(workload.ContainerHostId))
             {
                 throw new InvalidOperationException(
-                    $"Container engine '{workload.ContainerEngineId}' is not registered.");
+                    $"Container host '{workload.ContainerHostId}' is not registered.");
             }
 
             throw new InvalidOperationException(
-                $"Resource '{context.Resource.Name}' is container-backed but no default container engine is registered. Use UseDocker(), UseContainerEngine(...), or set WithContainerEngine(...).");
+                $"Resource '{context.Resource.Name}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set WithContainerHost(...).");
         }
     }
 

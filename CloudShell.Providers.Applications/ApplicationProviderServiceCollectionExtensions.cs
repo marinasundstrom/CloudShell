@@ -204,7 +204,7 @@ public static class ApplicationProviderServiceCollectionExtensions
     /// <remarks>
     /// The declared resource is the stable deployment target for image updates
     /// and revisions. Runtime containers or replicas may be projected by the
-    /// selected container engine provider, but callers should deploy through the
+    /// selected container host provider, but callers should deploy through the
     /// container app resource.
     /// </remarks>
     public static IContainerResourceBuilder AddContainerApplication(
@@ -669,20 +669,20 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
-    public IContainerResourceBuilder WithContainerEngine(string containerEngineId)
+    public IContainerResourceBuilder WithContainerHost(string containerHostId)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(containerEngineId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(containerHostId);
         declared.Definition = declared.Definition with
         {
-            ContainerEngineId = containerEngineId
+            ContainerHostId = containerHostId
         };
         return this;
     }
 
-    public IContainerResourceBuilder WithContainerEngine(IResourceBuilder containerEngine)
+    public IContainerResourceBuilder WithContainerHost(IResourceBuilder containerEngine)
     {
         ArgumentNullException.ThrowIfNull(containerEngine);
-        return WithContainerEngine(containerEngine.ResourceId);
+        return WithContainerHost(containerEngine.ResourceId);
     }
 
     public IContainerResourceBuilder WithEndpoint(

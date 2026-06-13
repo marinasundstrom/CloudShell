@@ -20,7 +20,7 @@ CloudShell now has three related concepts that must stay distinct:
 - provider-owned runtime state, such as an implementation container, helper
   process, or scheduler deployment created on behalf of the stable resource
 
-The current code still uses older "container engine" names in several internal
+The current code still uses older "container host" names in several internal
 contracts. That naming worked for local Docker-only orchestration, but it is too
 narrow for the resource model CloudShell is moving toward:
 
@@ -53,7 +53,7 @@ This proposal owns the generic placement and runtime integration model:
 - how a provider resolves an implicit or explicit host into a usable descriptor
 - how provider-owned runtime state is created, tracked, probed, logged, and
   removed without becoming the stable user resource
-- how current `container engine` APIs migrate to host-oriented names
+- how current `container host` APIs migrate to host-oriented names
 
 The proposals should remain separate. Docker is the first concrete host
 provider, not the platform abstraction.
@@ -69,9 +69,9 @@ provider, not the platform abstraction.
   inventing a parallel Web API concept.
 - Provide a narrow provider-owned runtime contract for implementation
   containers or helper services.
-- Move current `IContainerEngineProvider`, `ContainerEngineResourceDefinition`,
-  and `ContainerEngineId` names to host-oriented names before release, while
-  keeping samples and built-in providers on the current API.
+- Move engine-oriented provider, descriptor, workload, settings, and builder
+  names to host-oriented names before release, while keeping samples and
+  built-in providers on the current API.
 
 ## Non-Goals
 
@@ -103,7 +103,7 @@ target. It may be a `docker.host` resource, an implicit local Docker host from
 vendor appliance API.
 
 The selected host is a stable reference in provider-owned configuration when a
-resource needs explicit placement. Existing fields named `ContainerEngineId`
+resource needs explicit placement. Existing fields named `ContainerHostId`
 should migrate toward `ContainerHostId` or `HostResourceId`.
 
 ### Runtime State Is Provider-Owned
@@ -184,19 +184,14 @@ public sealed record ContainerHostDescriptor(
 ```
 
 This descriptor is not a new platform resource type by itself. It is the
-provider-owned configuration payload returned by a resource descriptor, just as
-`ContainerEngineResourceDefinition` is today.
+provider-owned configuration payload returned by a resource descriptor.
 
-Pre-release migration rule:
-
-- New code should prefer host names and emit `ContainerHostDescriptor`.
-- Existing engine-named code should be renamed or removed when the consuming
-  path has moved to the host model.
+Pre-release migration rule: code that selects placement should use host names
+and emit `ContainerHostDescriptor`.
 
 ### Host Provider
 
-The provider registration path should move from `IContainerEngineProvider` to a
-host-oriented provider:
+The provider registration path uses a host-oriented provider:
 
 ```csharp
 public interface IContainerHostProvider
@@ -205,14 +200,9 @@ public interface IContainerHostProvider
 }
 ```
 
-This is the equivalent of the current `IContainerEngineProvider`: it supplies a
-configured default host without requiring a user-managed host resource. The
-first implementation can wrap the existing Docker default.
-
-Pre-release migration rule:
-
-- `IContainerEngineProvider` remains only while call sites are being renamed.
-- The default host resolver should converge on `IContainerHostProvider`.
+This supplies a configured default host without requiring a user-managed host
+resource. `UseDocker()` and `UseContainerHost(...)` register providers through
+this contract.
 
 ### Host Resolution
 
@@ -366,8 +356,7 @@ not introduce a second out-of-band local management API for the shell.
   - registered default host resources
 - Docker Compose orchestration calls the resolver and does not keep a separate
   provider-local host lookup path.
-- Replace `ContainerEngineId` on workload configuration with `ContainerHostId`
-  or `HostResourceId`.
+- Use `ContainerHostId` on workload configuration for explicit placement.
 
 ### Phase 3: Provider-Owned Runtime
 
@@ -439,16 +428,17 @@ not introduce a second out-of-band local management API for the shell.
 
 - Migrate consuming code from the new host-oriented descriptor and provider
   contracts into the shared resolver. `ContainerHostDescriptor`,
-  `ContainerHostResourceTypes.ContainerHost`, and `IContainerHostProvider` are
-  in place.
+  `ContainerHostResourceTypes.ContainerHost`, `IContainerHostProvider`,
+  `UseContainerHost(...)`, host selection settings, and container resource
+  builder host selection are in place.
 - Docker Compose host materialization uses `IContainerHostResolver` and no
   longer keeps a separate provider-local engine lookup fallback.
 - Continue moving expected host-resolution failures into diagnostics/action
   capability reasons instead of surfacing late orchestration exceptions.
 - Add a provider-owned Docker runtime implementation for owner-scoped
   implementation containers.
-- Rename application/container builder APIs, settings, UI copy, and samples
-  from engine naming to host naming.
+- Continue removing remaining engine naming from provider internals where it is
+  not explicitly Docker Engine product terminology.
 - Add host capability projection when a concrete workflow needs capability
   validation.
 - Add tests for explicit host selection, configured default host selection,

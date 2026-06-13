@@ -24,22 +24,17 @@ public sealed class LocalDevelopmentDefaultsTests
 
         await StartHostedServicesAsync(serviceProvider);
 
-        var engine = Assert.Single(serviceProvider.GetServices<IContainerEngineProvider>())
-            .GetContainerEngine();
         var host = Assert.Single(serviceProvider.GetServices<IContainerHostProvider>())
             .GetDefaultHost();
         var selection = serviceProvider
             .GetRequiredService<IResourceOrchestrationSettings>()
             .Get();
 
-        Assert.Equal("docker", engine.Id);
-        Assert.Equal(ContainerEngineKind.Docker, engine.Kind);
-        Assert.True(engine.IsDefault);
-        Assert.Equal(engine.Id, host.Id);
+        Assert.Equal("docker", host.Id);
         Assert.Equal(ContainerHostKind.Docker, host.Kind);
         Assert.True(host.IsDefault);
         Assert.Equal("default", selection.OrchestratorId);
-        Assert.Equal("docker", selection.PreferredContainerEngineId);
+        Assert.Equal("docker", selection.PreferredContainerHostId);
     }
 
     [Fact]
@@ -60,7 +55,7 @@ public sealed class LocalDevelopmentDefaultsTests
         var selection = settings.Get();
 
         Assert.Equal("docker-compose", selection.OrchestratorId);
-        Assert.Equal("podman", selection.PreferredContainerEngineId);
+        Assert.Equal("podman", selection.PreferredContainerHostId);
         Assert.Equal(42, selection.HealthCheckIntervalSeconds);
     }
 

@@ -827,7 +827,7 @@ public sealed class InProcessControlPlane(
             group?.Id,
             registrations,
             resourceManager,
-            orchestration.PreferredContainerEngineId);
+            orchestration.PreferredContainerHostId);
     }
 
     private ResourceRegistration? GetRegistrationForResourceOrAncestor(Resource resource)

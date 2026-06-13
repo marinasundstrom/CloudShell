@@ -71,7 +71,7 @@ The CloudShell UI abstraction is a container host. Docker Engine is the runtime
 product exposed by a Docker host. New docs and APIs should prefer "container
 host" and "container runtime"; "engine" should appear only when referring to
 Docker Engine specifically, transport details, compatibility names, or existing
-generic container-engine APIs that have not yet been renamed.
+generic container-host APIs that have not yet been renamed.
 
 `container.host` remains the future generic resource-type direction for
 non-Docker hosts. This implementation keeps the Docker provider concrete with

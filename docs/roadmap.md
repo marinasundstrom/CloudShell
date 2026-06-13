@@ -114,13 +114,13 @@ listed here before pulling in broader proposal work.
 
 ### Next: Host Abstractions
 
-- Add host-oriented descriptors and provider contracts with compatibility
-  adapters for existing container-engine contracts. This compatibility layer is
-  in place; continue with resolver adoption.
+- Add host-oriented descriptors, provider contracts, host registration, and
+  builder/settings names. These host-oriented names are now in place for
+  declarations, samples, Resource Manager settings, Docker host descriptors,
+  and resolver-backed orchestration.
 - Implement a shared `IContainerHostResolver` over explicit resource
-  descriptors, default host providers, compatibility engine providers, and
-  registered default host descriptors. This is in place for Control Plane
-  container-workload validation.
+  descriptors, default host providers, and registered default host descriptors.
+  This is in place for Control Plane container-workload validation.
 - Migrate Docker Compose materialization to the resolver while preserving
   samples and declarations on the current host-selection model. Docker Compose
   now requires the shared resolver instead of duplicating host lookup.
@@ -286,7 +286,7 @@ and "how does provider-owned runtime state get created, probed, stopped, and
 cleaned up?"
 
 The first slice should add host descriptors, compatibility adapters for the
-existing container-engine contracts, a shared explicit/default host resolver,
+existing container-host contracts, a shared explicit/default host resolver,
 and diagnostics for missing or unsuitable hosts. Provider-owned runtime
 containers should come after the resolver is in place.
 

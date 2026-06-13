@@ -54,64 +54,6 @@ public sealed class ContainerHostResolverTests
     }
 
     [Fact]
-    public async Task ResolveAsync_UsesCompatibilityEngineProvider()
-    {
-        var resolver = CreateResolver(
-            [],
-            engineProviders:
-            [
-                new StaticEngineProvider(new ContainerEngineResourceDefinition(
-                    "docker",
-                    "Docker",
-                    ContainerEngineKind.Docker,
-                    "unix:///var/run/docker.sock",
-                    IsDefault: true))
-            ]);
-
-        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
-            "application:api",
-            null));
-
-        Assert.True(result.IsResolved);
-        Assert.Equal("docker", result.Host?.Id);
-        Assert.Equal(ContainerHostKind.Docker, result.Host?.Kind);
-    }
-
-    [Fact]
-    public async Task ResolveAsync_PrefersHostProviderOverCompatibilityEngineProvider()
-    {
-        var resolver = CreateResolver(
-            [],
-            hostProviders:
-            [
-                new StaticHostProvider(new ContainerHostDescriptor(
-                    "docker",
-                    "Docker Host",
-                    ContainerHostKind.Docker,
-                    "unix:///var/run/docker.sock",
-                    IsDefault: true,
-                    Metadata: new Dictionary<string, string> { ["source"] = "host" }))
-            ],
-            engineProviders:
-            [
-                new StaticEngineProvider(new ContainerEngineResourceDefinition(
-                    "docker",
-                    "Docker Engine",
-                    ContainerEngineKind.Docker,
-                    "unix:///var/run/docker.sock",
-                    IsDefault: true))
-            ]);
-
-        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
-            "application:api",
-            null));
-
-        Assert.True(result.IsResolved);
-        Assert.Equal("Docker Host", result.Host?.Name);
-        Assert.Equal("host", result.Host?.HostMetadata["source"]);
-    }
-
-    [Fact]
     public async Task ResolveAsync_ReturnsDiagnosticForMissingExplicitHost()
     {
         var resolver = CreateResolver([]);
@@ -128,16 +70,14 @@ public sealed class ContainerHostResolverTests
     private static ContainerHostResolver CreateResolver(
         IReadOnlyList<Resource> resources,
         IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,
-        IReadOnlyList<IContainerHostProvider>? hostProviders = null,
-        IReadOnlyList<IContainerEngineProvider>? engineProviders = null)
+        IReadOnlyList<IContainerHostProvider>? hostProviders = null)
     {
         var resourceManager = new TestResourceManagerStore(resources);
         return new ContainerHostResolver(
             resourceManager,
             new TestResourceRegistrationStore(resources),
             descriptorProviders ?? [],
-            hostProviders ?? [],
-            engineProviders ?? []);
+            hostProviders ?? []);
     }
 
     private static Resource CreateResource(string id, string name) =>
@@ -158,11 +98,6 @@ public sealed class ContainerHostResolverTests
     private sealed class StaticHostProvider(ContainerHostDescriptor host) : IContainerHostProvider
     {
         public ContainerHostDescriptor GetDefaultHost() => host;
-    }
-
-    private sealed class StaticEngineProvider(ContainerEngineResourceDefinition engine) : IContainerEngineProvider
-    {
-        public ContainerEngineResourceDefinition GetContainerEngine() => engine;
     }
 
     private sealed class StaticDescriptorProvider(string resourceId, ContainerHostDescriptor host)

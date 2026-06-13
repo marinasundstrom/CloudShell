@@ -27,7 +27,7 @@ public sealed record ResourceWorkloadConfiguration(
     string Registry = ContainerRegistryDefaults.Default,
     string? BuildContext = null,
     string? Dockerfile = null,
-    string? ContainerEngineId = null,
+    string? ContainerHostId = null,
     int Replicas = 1,
     IReadOnlyList<AppSetting>? AppSettings = null,
     IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null,
@@ -317,9 +317,9 @@ public interface IContainerResourceBuilder :
         string username,
         string passwordEnvironmentVariable);
 
-    IContainerResourceBuilder WithContainerEngine(string containerEngineId);
+    IContainerResourceBuilder WithContainerHost(string containerHostId);
 
-    IContainerResourceBuilder WithContainerEngine(IResourceBuilder containerEngine);
+    IContainerResourceBuilder WithContainerHost(IResourceBuilder containerEngine);
 
     IContainerResourceBuilder WithEndpoint(
         string name,

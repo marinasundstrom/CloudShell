@@ -8,7 +8,7 @@ public interface IResourceOrchestrationSettings
 
     void Select(
         string orchestratorId,
-        string? preferredContainerEngineId = null,
+        string? preferredContainerHostId = null,
         int healthCheckIntervalSeconds = ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds);
 }
 
@@ -27,7 +27,7 @@ public static class ResourceOrchestratorSelectionDefaults
 
 public sealed record ResourceOrchestratorSelection(
     string OrchestratorId,
-    string? PreferredContainerEngineId,
+    string? PreferredContainerHostId,
     int HealthCheckIntervalSeconds,
     DateTimeOffset UpdatedAt)
 {

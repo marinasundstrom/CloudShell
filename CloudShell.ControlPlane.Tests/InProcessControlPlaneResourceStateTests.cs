@@ -889,7 +889,6 @@ public sealed class InProcessControlPlaneResourceStateTests
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
             [],
-            [],
             resourceManager,
             registrations,
             declarations,

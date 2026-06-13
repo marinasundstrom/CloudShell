@@ -2,20 +2,17 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Docker;
 
-internal sealed class DockerContainerEngineProvider(
-    DockerProviderOptions options) : IContainerEngineProvider, IContainerHostProvider
+internal sealed class DockerContainerHostProvider(
+    DockerProviderOptions options) : IContainerHostProvider
 {
-    public ContainerEngineResourceDefinition GetContainerEngine() =>
+    public ContainerHostDescriptor GetDefaultHost() =>
         new(
             "docker",
             "Docker",
-            ContainerEngineKind.Docker,
+            ContainerHostKind.Docker,
             options.ResolveEndpoint().ToString(),
             IsDefault: true,
             Registry: NormalizeRegistry(options.Registry));
-
-    public ContainerHostDescriptor GetDefaultHost() =>
-        GetContainerEngine().ToContainerHostDescriptor();
 
     private static string NormalizeRegistry(string? registry) =>
         string.IsNullOrWhiteSpace(registry)

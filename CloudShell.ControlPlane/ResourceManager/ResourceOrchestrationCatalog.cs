@@ -17,7 +17,7 @@ public sealed class ResourceOrchestrationCatalog(
     {
         var resources = resourceManager.GetResources();
         var workloads = new Dictionary<string, ResourceWorkloadConfiguration>(StringComparer.OrdinalIgnoreCase);
-        var containerEngines = new Dictionary<string, ContainerEngineResourceDefinition>(StringComparer.OrdinalIgnoreCase);
+        var containerHosts = new Dictionary<string, ContainerHostDescriptor>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var resource in resources)
         {
@@ -35,18 +35,18 @@ public sealed class ResourceOrchestrationCatalog(
             }
 
             if (descriptor.ResourceType.Equals(
-                    ContainerEngineResourceTypes.ContainerEngine,
+                    ContainerHostResourceTypes.ContainerHost,
                     StringComparison.OrdinalIgnoreCase))
             {
-                var engine = TryDeserialize<ContainerEngineResourceDefinition>(descriptor.Configuration);
-                if (engine is not null)
+                var host = TryDeserialize<ContainerHostDescriptor>(descriptor.Configuration);
+                if (host is not null)
                 {
-                    containerEngines[resource.Id] = engine;
+                    containerHosts[resource.Id] = host;
                 }
             }
         }
 
-        return new ResourceOrchestrationCatalogSnapshot(resources, workloads, containerEngines);
+        return new ResourceOrchestrationCatalogSnapshot(resources, workloads, containerHosts);
     }
 
     private async Task<ResourceOrchestrationDescriptor?> TryDescribeAsync(

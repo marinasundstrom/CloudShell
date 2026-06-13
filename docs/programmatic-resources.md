@@ -459,9 +459,8 @@ The Docker Compose orchestrator runs lifecycle commands through `docker compose`
 for matching Compose service names. For example, `application:api` maps to the
 `api` Compose service. `UseDocker(...)` registers Docker as the implicit
 default container host and enables Docker Compose orchestration without adding
-Docker to the resource graph. Existing APIs such as `UseContainerEngine(...)`
-use engine-oriented naming for compatibility, but conceptually they register a
-container host instance with runtime-specific provider facts.
+Docker to the resource graph. `UseContainerHost(...)` can register an explicit
+configured host when the app should target a non-default host.
 
 When a project uses `AsContainerImage(...)` or `WithContainerBuild(...)`, or a
 resource is declared through `AddContainer(...)`, it can be materialized into

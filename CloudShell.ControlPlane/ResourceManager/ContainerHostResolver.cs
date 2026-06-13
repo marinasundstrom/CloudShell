@@ -7,8 +7,7 @@ public sealed class ContainerHostResolver(
     IResourceManagerStore resourceManager,
     IResourceRegistrationStore registrations,
     IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders,
-    IEnumerable<IContainerHostProvider> containerHostProviders,
-    IEnumerable<IContainerEngineProvider> containerEngineProviders) : IContainerHostResolver
+    IEnumerable<IContainerHostProvider> containerHostProviders) : IContainerHostResolver
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -16,8 +15,6 @@ public sealed class ContainerHostResolver(
         descriptorProviders.ToArray();
     private readonly IReadOnlyList<IContainerHostProvider> containerHostProviders =
         containerHostProviders.ToArray();
-    private readonly IReadOnlyList<IContainerEngineProvider> containerEngineProviders =
-        containerEngineProviders.ToArray();
 
     public async Task<ContainerHostResolutionResult> ResolveAsync(
         ContainerHostResolutionRequest request,
@@ -58,7 +55,7 @@ public sealed class ContainerHostResolver(
             ? new ContainerHostResolutionResult(resourceDefault)
             : new ContainerHostResolutionResult(
                 null,
-                $"Resource '{request.TargetResourceId}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerEngine(...), or set an explicit container host.");
+                $"Resource '{request.TargetResourceId}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set an explicit container host.");
     }
 
     private async Task<ContainerHostResolutionResult> ResolveByIdAsync(
@@ -109,9 +106,8 @@ public sealed class ContainerHostResolver(
     }
 
     private IReadOnlyList<ContainerHostDescriptor> GetConfiguredHosts() =>
-        containerEngineProviders
-            .Select(provider => provider.GetContainerEngine().ToContainerHostDescriptor())
-            .Concat(containerHostProviders.Select(provider => provider.GetDefaultHost()))
+        containerHostProviders
+            .Select(provider => provider.GetDefaultHost())
             .Where(host => !string.IsNullOrWhiteSpace(host.Id))
             .GroupBy(host => host.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
@@ -159,14 +155,6 @@ public sealed class ContainerHostResolver(
                 return descriptor.Configuration.Deserialize<ContainerHostDescriptor>(SerializerOptions);
             }
 
-            if (descriptor.ResourceType.Equals(
-                    ContainerEngineResourceTypes.ContainerEngine,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return descriptor.Configuration
-                    .Deserialize<ContainerEngineResourceDefinition>(SerializerOptions)?
-                    .ToContainerHostDescriptor();
-            }
         }
         catch (JsonException)
         {

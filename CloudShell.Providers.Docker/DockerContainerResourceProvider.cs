@@ -436,10 +436,10 @@ public sealed partial class DockerContainerResourceProvider :
     {
         if (IsHostResource(resource))
         {
-            var host = new ContainerEngineResourceDefinition(
+            var host = new ContainerHostDescriptor(
                 resource.Id,
                 resource.Name,
-                ContainerEngineKind.Docker,
+                ContainerHostKind.Docker,
                 GetHostDefinition(resource.Id).NormalizedEndpoint,
                 IsDefault: string.Equals(resource.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase),
                 Registry: GetDockerResourceRegistry(resource.Id),
@@ -447,7 +447,7 @@ public sealed partial class DockerContainerResourceProvider :
 
             return Task.FromResult(new ResourceOrchestrationDescriptor(
                 resource.Id,
-                ContainerEngineResourceTypes.ContainerEngine,
+                ContainerHostResourceTypes.ContainerHost,
                 resource.DependsOn,
                 [],
                 resource.Endpoints,
@@ -768,7 +768,7 @@ public sealed partial class DockerContainerResourceProvider :
             ResourceClass: ResourceClass.Infrastructure,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                [ResourceAttributeNames.InfrastructureKind] = ContainerEngineKind.Docker.ToString(),
+                [ResourceAttributeNames.InfrastructureKind] = ContainerHostKind.Docker.ToString(),
                 [ResourceAttributeNames.ContainerRegistry] = NormalizeRegistry(configured.Registry),
                 ["docker.host.kind"] = configured.Host.Kind.ToString().ToLowerInvariant(),
                 ["docker.host.endpoint"] = configured.Host.NormalizedEndpoint

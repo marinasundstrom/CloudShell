@@ -1,7 +1,7 @@
 @page "/resources/settings"
 @rendermode InteractiveServer
 @inject IEnumerable<IResourceOrchestrator> Orchestrators
-@inject IEnumerable<IContainerEngineProvider> ContainerEngineProviders
+@inject IEnumerable<IContainerHostProvider> ContainerHostProviders
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
 @inject NavigationManager Navigation
@@ -53,7 +53,7 @@
         <div class="form-panel">
             <div class="procedure-message">
                 <strong>@L["CloudShell modes"]</strong>
-                <span>@L["Local dev mode uses the default orchestrator for Aspire-like local resources and resource-owned endpoints. On-premise mode selects an orchestrator such as Docker Compose to own lifecycle, networking, and exposure. Container engine registration is independent from orchestrator selection."]</span>
+                <span>@L["Local dev mode uses the default orchestrator for Aspire-like local resources and resource-owned endpoints. On-premise mode selects an orchestrator such as Docker Compose to own lifecycle, networking, and exposure. Container host registration is independent from orchestrator selection."]</span>
             </div>
 
             @foreach (var warning in ConfigurationWarnings)
@@ -75,15 +75,15 @@
                 }
             </FluentSelect>
 
-            <label for="container-engine-id">@L["Preferred container engine"]</label>
+            <label for="container-host-id">@L["Preferred container host"]</label>
             <FluentSelect TOption="string"
-                          Id="container-engine-id"
-                          @bind-Value="SelectedContainerEngineId"
+                          Id="container-host-id"
+                          @bind-Value="SelectedContainerHostId"
                           Appearance="Appearance.Outline">
                 <FluentOption TOption="string" Value="">@L["Host environment"]</FluentOption>
-                @foreach (var engine in ContainerEngines)
+                @foreach (var host in ContainerHosts)
                 {
-                    <FluentOption TOption="string" Value="@engine.Id">@engine.DisplayName</FluentOption>
+                    <FluentOption TOption="string" Value="@host.Id">@host.DisplayName</FluentOption>
                 }
             </FluentSelect>
 
@@ -137,10 +137,10 @@
 
 @code {
     private string SelectedOrchestratorId { get; set; } = "default";
-    private string? SelectedContainerEngineId { get; set; }
+    private string? SelectedContainerHostId { get; set; }
     private int SelectedHealthCheckIntervalSeconds { get; set; } =
         ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds;
-    private IReadOnlyList<ContainerEngineOption> ContainerEngines { get; set; } = [];
+    private IReadOnlyList<ContainerHostOption> ContainerHosts { get; set; } = [];
     private IReadOnlyList<string> ConfigurationWarnings { get; set; } = [];
     private ResourceOrchestrationCatalogSnapshot OrchestrationSnapshot { get; set; } =
         ResourceOrchestrationCatalogSnapshot.Empty;
@@ -155,8 +155,8 @@
             OrchestrationSettings.Get().OrchestratorId,
             StringComparison.OrdinalIgnoreCase) ||
         !string.Equals(
-            NormalizeOptional(SelectedContainerEngineId),
-            OrchestrationSettings.Get().PreferredContainerEngineId,
+            NormalizeOptional(SelectedContainerHostId),
+            OrchestrationSettings.Get().PreferredContainerHostId,
             StringComparison.OrdinalIgnoreCase) ||
         (!IsHealthCheckIntervalConfigured &&
             ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(SelectedHealthCheckIntervalSeconds) !=
@@ -172,10 +172,10 @@
 
         var selection = OrchestrationSettings.Get();
         SelectedOrchestratorId = selection.OrchestratorId;
-        SelectedContainerEngineId = selection.PreferredContainerEngineId;
+        SelectedContainerHostId = selection.PreferredContainerHostId;
         SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
         OrchestrationSnapshot = await OrchestrationCatalog.GetSnapshotAsync();
-        ContainerEngines = GetContainerEngines();
+        ContainerHosts = GetContainerHosts();
         ConfigurationWarnings = GetConfigurationWarnings();
     }
 
@@ -203,7 +203,7 @@
     {
         var selection = OrchestrationSettings.Get();
         SelectedOrchestratorId = selection.OrchestratorId;
-        SelectedContainerEngineId = selection.PreferredContainerEngineId;
+        SelectedContainerHostId = selection.PreferredContainerHostId;
         SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
@@ -213,7 +213,7 @@
     {
         OrchestrationSettings.Select(
             SelectedOrchestratorId,
-            SelectedContainerEngineId,
+            SelectedContainerHostId,
             SelectedHealthCheckIntervalSeconds);
         SelectedHealthCheckIntervalSeconds = OrchestrationSettings.Get().HealthCheckIntervalSeconds;
         ConfigurationWarnings = GetConfigurationWarnings();
@@ -225,31 +225,31 @@
     private ResourceHealthCheckIntervalSettings GetEffectiveHealthCheckInterval() =>
         OrchestrationSettings.GetHealthCheckIntervalSettings();
 
-    private IReadOnlyList<ContainerEngineOption> GetContainerEngines() =>
-        ContainerEngineProviders
-            .Select(provider => provider.GetContainerEngine())
-            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
-            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+    private IReadOnlyList<ContainerHostOption> GetContainerHosts() =>
+        ContainerHostProviders
+            .Select(provider => provider.GetDefaultHost())
+            .Where(host => !string.IsNullOrWhiteSpace(host.Id))
+            .GroupBy(host => host.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
-            .Select(engine => new ContainerEngineOption(
-                engine.Id,
-                engine.IsDefault
-                    ? $"{engine.Name} ({L["default"]})"
-                    : engine.Name))
-            .OrderBy(engine => engine.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .Select(host => new ContainerHostOption(
+                host.Id,
+                host.IsDefault
+                    ? $"{host.Name} ({L["default"]})"
+                    : host.Name))
+            .OrderBy(host => host.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<string> GetConfigurationWarnings()
     {
         var warnings = new List<string>();
-        var engines = GetContainerEngineDefinitions();
-        var selectedEngineId = NormalizeOptional(SelectedContainerEngineId);
-        var hasDefaultEngine = engines.Any(engine => engine.IsDefault);
+        var hosts = GetContainerHostDefinitions();
+        var selectedHostId = NormalizeOptional(SelectedContainerHostId);
+        var hasDefaultHost = hosts.Any(host => host.IsDefault);
 
-        if (!string.IsNullOrWhiteSpace(selectedEngineId) &&
-            !engines.Any(engine => string.Equals(engine.Id, selectedEngineId, StringComparison.OrdinalIgnoreCase)))
+        if (!string.IsNullOrWhiteSpace(selectedHostId) &&
+            !hosts.Any(host => string.Equals(host.Id, selectedHostId, StringComparison.OrdinalIgnoreCase)))
         {
-            warnings.Add(L["Preferred container engine '{0}' is not registered.", selectedEngineId]);
+            warnings.Add(L["Preferred container host '{0}' is not registered.", selectedHostId]);
         }
 
         foreach (var resource in OrchestrationSnapshot.Resources)
@@ -262,20 +262,20 @@
                 continue;
             }
 
-            var engineId = NormalizeOptional(workload.ContainerEngineId) ?? selectedEngineId;
-            if (!string.IsNullOrWhiteSpace(engineId))
+            var hostId = NormalizeOptional(workload.ContainerHostId) ?? selectedHostId;
+            if (!string.IsNullOrWhiteSpace(hostId))
             {
-                if (!engines.Any(engine => string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase)))
+                if (!hosts.Any(host => string.Equals(host.Id, hostId, StringComparison.OrdinalIgnoreCase)))
                 {
-                    warnings.Add(L["Container resource '{0}' references container engine '{1}', but that engine is not registered.", resource.Name, engineId]);
+                    warnings.Add(L["Container resource '{0}' references container host '{1}', but that host is not registered.", resource.Name, hostId]);
                 }
 
                 continue;
             }
 
-            if (!hasDefaultEngine)
+            if (!hasDefaultHost)
             {
-                warnings.Add(L["Container resource '{0}' does not specify a container engine and no default container engine is registered.", resource.Name]);
+                warnings.Add(L["Container resource '{0}' does not specify a container host and no default container host is registered.", resource.Name]);
             }
         }
 
@@ -327,17 +327,17 @@
         warnings.Add(L["Virtual network '{0}' requires host networking provider '{1}', but it is not active on this host.", resource.Name, string.Join(", ", missingProviders)]);
     }
 
-    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngineDefinitions()
+    private IReadOnlyList<ContainerHostDescriptor> GetContainerHostDefinitions()
     {
-        var configuredEngines = ContainerEngineProviders
-            .Select(provider => provider.GetContainerEngine())
-            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
+        var configuredHosts = ContainerHostProviders
+            .Select(provider => provider.GetDefaultHost())
+            .Where(host => !string.IsNullOrWhiteSpace(host.Id))
             .ToArray();
-        var resourceEngines = OrchestrationSnapshot.ContainerEngines.Values;
+        var resourceHosts = OrchestrationSnapshot.ContainerHosts.Values;
 
-        return configuredEngines
-            .Concat(resourceEngines)
-            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
+        return configuredHosts
+            .Concat(resourceHosts)
+            .GroupBy(host => host.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToArray();
     }
@@ -348,7 +348,7 @@
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private sealed record ContainerEngineOption(
+    private sealed record ContainerHostOption(
         string Id,
         string DisplayName);
 }

@@ -27,14 +27,14 @@ internal sealed class LocalResourceOrchestrationSettings : IResourceOrchestratio
 
     public void Select(
         string orchestratorId,
-        string? preferredContainerEngineId = null,
+        string? preferredContainerHostId = null,
         int healthCheckIntervalSeconds = ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds)
     {
         selection = new ResourceOrchestratorSelection(
             string.IsNullOrWhiteSpace(orchestratorId)
                 ? ResourceOrchestratorSelection.Default.OrchestratorId
                 : orchestratorId,
-            preferredContainerEngineId,
+            preferredContainerHostId,
             ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(healthCheckIntervalSeconds),
             DateTimeOffset.UtcNow);
     }

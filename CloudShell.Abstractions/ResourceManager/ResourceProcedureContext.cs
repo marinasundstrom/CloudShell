@@ -6,4 +6,4 @@ public sealed record ResourceProcedureContext(
     string? ResourceGroupId,
     IResourceRegistrationStore Registrations,
     IResourceManagerStore? ResourceManager = null,
-    string? PreferredContainerEngineId = null);
+    string? PreferredContainerHostId = null);

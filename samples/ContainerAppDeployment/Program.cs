@@ -63,7 +63,7 @@ cloudShell.Resources(resources =>
             port: 5088,
             protocol: "http",
             exposure: ResourceExposureScope.Public)
-        .WithContainerEngine(docker)
+        .WithContainerHost(docker)
         .DependsOn(registry)
         .WithEnvironment("SAMPLE_REGISTRY", registryAddress)
         .WithAutoStart(false)

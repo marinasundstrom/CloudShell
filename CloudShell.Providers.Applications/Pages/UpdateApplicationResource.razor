@@ -308,7 +308,7 @@ else
             CanConfigureContainerImage ? NormalizeNullable(ContainerImage) : Application.ContainerImage,
             CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerBuildContext) : Application.ContainerBuildContext,
             CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerDockerfile) : Application.ContainerDockerfile,
-            Application.ContainerEngineId,
+            Application.ContainerHostId,
             CanConfigureReplicas ? Math.Max(1, Replicas) : Math.Max(1, Application.Replicas),
             CanConfigureEndpoint ? BuildEndpointPorts(Application.ResourceType, Endpoint) : Application.EndpointPorts,
             resourceType: Application.ResourceType,
@@ -359,7 +359,7 @@ else
             !Equals(existing.ContainerRegistryCredentials, updated.ContainerRegistryCredentials) ||
             !string.Equals(existing.ContainerBuildContext, updated.ContainerBuildContext, StringComparison.Ordinal) ||
             !string.Equals(existing.ContainerDockerfile, updated.ContainerDockerfile, StringComparison.Ordinal) ||
-            !string.Equals(existing.ContainerEngineId, updated.ContainerEngineId, StringComparison.Ordinal) ||
+            !string.Equals(existing.ContainerHostId, updated.ContainerHostId, StringComparison.Ordinal) ||
             existing.Replicas != updated.Replicas ||
             !HasSameObservabilitySignals(existing.Observability, updated.Observability) ||
             !existing.EnvironmentVariables.SequenceEqual(updated.EnvironmentVariables) ||

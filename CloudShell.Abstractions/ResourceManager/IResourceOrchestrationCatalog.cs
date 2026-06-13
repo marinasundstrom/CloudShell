@@ -9,10 +9,10 @@ public interface IResourceOrchestrationCatalog
 public sealed record ResourceOrchestrationCatalogSnapshot(
     IReadOnlyList<Resource> Resources,
     IReadOnlyDictionary<string, ResourceWorkloadConfiguration> Workloads,
-    IReadOnlyDictionary<string, ContainerEngineResourceDefinition> ContainerEngines)
+    IReadOnlyDictionary<string, ContainerHostDescriptor> ContainerHosts)
 {
     public static ResourceOrchestrationCatalogSnapshot Empty { get; } = new(
         [],
         new Dictionary<string, ResourceWorkloadConfiguration>(StringComparer.OrdinalIgnoreCase),
-        new Dictionary<string, ContainerEngineResourceDefinition>(StringComparer.OrdinalIgnoreCase));
+        new Dictionary<string, ContainerHostDescriptor>(StringComparer.OrdinalIgnoreCase));
 }

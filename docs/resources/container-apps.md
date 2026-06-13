@@ -32,7 +32,7 @@ resources
         "API",
         "team/api:dev",
         registry: "https://registry.example.com")
-    .WithContainerEngine("docker:dev");
+    .WithContainerHost("docker:dev");
 ```
 
 `AddContainer(...)` remains available as the Aspire-compatible shorthand for the

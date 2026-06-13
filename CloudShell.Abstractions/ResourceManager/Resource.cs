@@ -94,7 +94,7 @@ public static class ResourceAttributeNames
     public const string ContainerRegistry = "container.registry";
     public const string ContainerBuildContext = "container.buildContext";
     public const string ContainerDockerfile = "container.dockerfile";
-    public const string ContainerEngineId = "container.engineId";
+    public const string ContainerHostId = "container.engineId";
     public const string ContainerReplicas = "container.replicas";
     public const string ContainerRevision = "container.revision";
     public const string EndpointCount = "endpoints.count";
