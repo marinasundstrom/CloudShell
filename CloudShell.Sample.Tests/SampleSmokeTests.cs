@@ -215,7 +215,7 @@ public sealed class SampleSmokeTests
             "connected",
             serviceDiscoveryDocument.RootElement.GetProperty("status").GetString());
         Assert.Equal(
-            "https+http://_entries.sample-app-settings",
+            "https+http://sample-app-settings",
             serviceDiscoveryDocument.RootElement.GetProperty("source").GetString());
         var serviceDiscoveryEntries = serviceDiscoveryDocument.RootElement
             .GetProperty("entries")

@@ -93,7 +93,7 @@ app.MapGet("/service-discovery/configuration", async (
     CloudShellResourceCredential credential,
     CancellationToken cancellationToken) =>
 {
-    const string logicalEndpoint = "https+http://_entries.sample-app-settings";
+    const string logicalEndpoint = "https+http://sample-app-settings";
     var token = await credential.GetTokenAsync(
         new CloudShellResourceTokenRequest([ConfigurationStoreClient.DefaultScope]),
         cancellationToken);
