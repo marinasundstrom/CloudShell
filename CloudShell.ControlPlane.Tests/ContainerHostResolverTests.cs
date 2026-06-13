@@ -31,6 +31,28 @@ public sealed class ContainerHostResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_UsesPreferredHostResourceDescriptor()
+    {
+        var hostResource = CreateResource("docker:preferred", "Preferred Docker");
+        var host = new ContainerHostDescriptor(
+            "docker:preferred",
+            "Preferred Docker",
+            ContainerHostKind.Docker,
+            "tcp://preferred.example.test:2376");
+        var resolver = CreateResolver(
+            [hostResource],
+            descriptorProviders: [new StaticDescriptorProvider(hostResource.Id, host)]);
+
+        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
+            "application:api",
+            "team-a",
+            PreferredHostId: hostResource.Id));
+
+        Assert.True(result.IsResolved);
+        Assert.Equal("docker:preferred", result.Host?.Id);
+    }
+
+    [Fact]
     public async Task ResolveAsync_UsesConfiguredDefaultHost()
     {
         var resolver = CreateResolver(
@@ -54,6 +76,28 @@ public sealed class ContainerHostResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_UsesRegisteredDefaultHostDescriptor()
+    {
+        var hostResource = CreateResource("docker:registered", "Registered Docker");
+        var host = new ContainerHostDescriptor(
+            "docker:registered",
+            "Registered Docker",
+            ContainerHostKind.Docker,
+            "tcp://registered.example.test:2376",
+            IsDefault: true);
+        var resolver = CreateResolver(
+            [hostResource],
+            descriptorProviders: [new StaticDescriptorProvider(hostResource.Id, host)]);
+
+        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
+            "application:api",
+            "team-a"));
+
+        Assert.True(result.IsResolved);
+        Assert.Equal("docker:registered", result.Host?.Id);
+    }
+
+    [Fact]
     public async Task ResolveAsync_ReturnsDiagnosticForMissingExplicitHost()
     {
         var resolver = CreateResolver([]);
@@ -65,6 +109,35 @@ public sealed class ContainerHostResolverTests
 
         Assert.False(result.IsResolved);
         Assert.Equal("Container host 'docker:missing' is not registered.", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ReturnsDiagnosticForMissingPreferredHost()
+    {
+        var resolver = CreateResolver([]);
+
+        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
+            "application:api",
+            null,
+            PreferredHostId: "docker:missing"));
+
+        Assert.False(result.IsResolved);
+        Assert.Equal("Preferred container host 'docker:missing' is not registered.", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ReturnsDiagnosticWhenNoDefaultHostExists()
+    {
+        var resolver = CreateResolver([]);
+
+        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
+            "application:api",
+            null));
+
+        Assert.False(result.IsResolved);
+        Assert.Equal(
+            "Resource 'application:api' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set an explicit container host.",
+            result.ErrorMessage);
     }
 
     private static ContainerHostResolver CreateResolver(

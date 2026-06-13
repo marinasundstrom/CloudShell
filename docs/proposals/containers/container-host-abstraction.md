@@ -444,8 +444,9 @@ not introduce a second out-of-band local management API for the shell.
   not explicitly Docker Engine product terminology.
 - Add host capability projection when a concrete workflow needs capability
   validation.
-- Add tests for explicit host selection, configured default host selection,
-  registered default host descriptors, missing host diagnostics, the next
-  host-readiness states, and provider-owned runtime cleanup.
+- Resolver tests cover explicit host selection, preferred host selection,
+  configured default host selection, registered default host descriptors, and
+  missing host diagnostics. Add tests for the next host-readiness states and
+  provider-owned runtime cleanup as those slices land.
 - Update load-balancer container mode to use the runtime contract instead of
   modeling implementation containers as user-authored container apps.

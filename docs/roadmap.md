@@ -128,8 +128,10 @@ listed here before pulling in broader proposal work.
   Missing explicit/default container hosts now disable affected Run/Restart
   actions before orchestration dispatch; unavailable hosts, missing
   credentials, and unsupported runtime capabilities remain.
-- Add tests for explicit host selection, configured default host selection,
-  registered default host descriptors, and missing-host diagnostics.
+- Resolver tests now cover explicit host selection, preferred host selection,
+  configured default host selection, registered default host descriptors, and
+  missing-host diagnostics. Continue tests for host unavailable, credentials,
+  and runtime-capability diagnostics as those states are implemented.
 
 ### Next: Configuration, Secrets, and Audit
 
