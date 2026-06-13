@@ -15,16 +15,19 @@ public sealed class ClaimsCloudShellAuthorizationService(
 
     private ClaimsPrincipal User => user;
 
+    private bool BypassAuthorization =>
+        !options.Enabled && !options.EvaluateClaimsWhenDisabled;
+
     public bool IsAuthenticated =>
-        !options.Enabled || User.Identity?.IsAuthenticated == true;
+        BypassAuthorization || User.Identity?.IsAuthenticated == true;
 
     public bool HasPermission(string permission) =>
-        !options.Enabled ||
+        BypassAuthorization ||
         IsAuthenticated && HasClaim(CloudShellAuthenticationOptions.PermissionClaimType, permission);
 
     public bool CanAccessResourceGroup(string? resourceGroupId, string permission)
     {
-        if (!options.Enabled)
+        if (BypassAuthorization)
         {
             return true;
         }
@@ -40,7 +43,7 @@ public sealed class ClaimsCloudShellAuthorizationService(
 
     public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission)
     {
-        if (!options.Enabled)
+        if (BypassAuthorization)
         {
             return true;
         }

@@ -432,6 +432,14 @@ Authorization services then allow all operations and no authentication
 fallback policy is installed. This also makes the Control Plane API
 unauthenticated, so do not use this setting for shared or production hosts.
 
+Local permission-boundary tests can opt into claim evaluation without enabling
+the full ASP.NET Core authentication pipeline by setting
+`Authentication:EvaluateClaimsWhenDisabled` to `true` and supplying a mock
+authenticated `ClaimsPrincipal` through the host or test context. In that mode,
+CloudShell evaluates the normal permission, resource-group, resource, and
+resource-permission claims instead of allowing every operation. Leave this
+disabled for the simplest early-development loop.
+
 Programmatic resource identity declarations are part of the resource model, not
 only an unauthenticated development feature. Resources may declare concrete
 identity bindings or state that they require an identity whose provider-specific

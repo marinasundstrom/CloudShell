@@ -59,7 +59,8 @@ Work the current proposals in this order. For MVP, implement only the slice
 listed here before pulling in broader proposal work.
 
 1. Resource identity and permissions: close built-in access enforcement,
-   provisioning authorization, deny diagnostics, and mock-principal tests.
+   provisioning authorization, deny diagnostics, and remaining permission
+   boundary tests.
 2. Host abstractions: add host descriptors, compatibility adapters, a shared
    resolver, Docker Compose/default container-app migration, and missing-host
    diagnostics.
@@ -92,10 +93,9 @@ listed here before pulling in broader proposal work.
   as the current-state feature documentation and
   [Identity and access](proposals/core/identity-and-access.md) as the open-work
   tracker.
-- Add mock-principal support for local permission-boundary tests when
-  CloudShell authentication is disabled.
-- Add authorization diagnostics and action capability reasons for denied or
-  unavailable actions without leaking provider-specific internals.
+- Continue authorization diagnostics beyond resource-action capability reasons,
+  especially for configuration updates, deployment operations, logs,
+  diagnostics, provider actions, and audit event payloads.
 - Continue assigning documented Azure-style operation permissions for
   configuration updates, deployment operations, logs, diagnostics, provider
   actions, and future runtime-managed resources as those operations enter the

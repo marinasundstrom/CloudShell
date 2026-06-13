@@ -90,6 +90,9 @@ expectations rather than duplicating the task queue.
   affordances.
 - Resource action capabilities are separate signals that describe current
   executability and reasons.
+- Resource action capability reasons include authorization denial messages with
+  the target resource ID, so Resource Manager can explain disabled resource
+  actions consistently with action execution failures.
 - Standard lifecycle resource actions map to the Azure RBAC-style
   `CloudShell.Resources/resources/lifecycle/action` operation permission.
   Custom actions can declare narrower Azure-style operation permissions and
@@ -170,10 +173,16 @@ expectations rather than duplicating the task queue.
   identity-bound resource resolves configuration entries or secrets. The
   resource owns the identity and permission requirements; the managed
   process/container/service handles safe runtime transfer of the resolved
-  values. Mock-principal tests, identity-provider resource modeling,
-  durable concrete external authority registration and status reconciliation,
-  identity management UI, multiple identities, and provider-backed managed
-  identity lifecycle remain future resource identity work.
+  values. Identity-provider resource modeling, durable concrete external
+  authority registration and status reconciliation, identity management UI,
+  multiple identities, and provider-backed managed identity lifecycle remain
+  future resource identity work.
+- Authentication-disabled local development still allows all operations by
+  default, but hosts and tests can opt into mock-principal permission-boundary
+  evaluation with `Authentication:EvaluateClaimsWhenDisabled`. That mode keeps
+  the ASP.NET Core authentication pipeline disabled while evaluating normal
+  CloudShell permission, resource-group, resource, and resource-permission
+  claims on the supplied authenticated principal.
 - The domain model should be documented across product concepts, public
   abstractions, internal Control Plane services, provider contracts, API
   projection, and UI projection.

@@ -218,6 +218,55 @@ public sealed class AuthorizationTests
             CloudShellPermissions.ResourceGroups.Manage));
     }
 
+    [Fact]
+    public void DisabledAuthentication_CanEvaluateMockPrincipalClaims()
+    {
+        var authorization = CreateAuthorization(
+            new CloudShellAuthenticationOptions
+            {
+                Enabled = false,
+                EvaluateClaimsWhenDisabled = true
+            },
+            new Claim(
+                CloudShellAuthenticationOptions.PermissionClaimType,
+                CloudShellPermissions.Resources.Read),
+            CreateResourcePermissionClaim(
+                "service:allowed",
+                CloudShellPermissions.Resources.Actions.Lifecycle));
+
+        Assert.True(authorization.IsAuthenticated);
+        Assert.True(authorization.HasPermission(CloudShellPermissions.Resources.Read));
+        Assert.True(authorization.CanAccessResource(
+            "service:allowed",
+            null,
+            CloudShellPermissions.Resources.Actions.Lifecycle));
+        Assert.False(authorization.CanAccessResource(
+            "service:denied",
+            null,
+            CloudShellPermissions.Resources.Actions.Lifecycle));
+        Assert.False(authorization.CanAccessResourceGroup(
+            "group-a",
+            CloudShellPermissions.Resources.Read));
+    }
+
+    [Fact]
+    public void DisabledAuthentication_MockPrincipalEvaluationRequiresAuthenticatedPrincipal()
+    {
+        var authorization = CreateAuthorization(
+            new CloudShellAuthenticationOptions
+            {
+                Enabled = false,
+                EvaluateClaimsWhenDisabled = true
+            },
+            authenticated: false,
+            new Claim(
+                CloudShellAuthenticationOptions.PermissionClaimType,
+                CloudShellPermissions.Resources.Read));
+
+        Assert.False(authorization.IsAuthenticated);
+        Assert.False(authorization.HasPermission(CloudShellPermissions.Resources.Read));
+    }
+
     private static ClaimsCloudShellAuthorizationService CreateAuthorization(
         CloudShellAuthenticationOptions options,
         params Claim[] claims) =>

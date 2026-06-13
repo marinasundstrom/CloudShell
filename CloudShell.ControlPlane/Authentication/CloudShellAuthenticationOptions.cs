@@ -15,6 +15,8 @@ public sealed class CloudShellAuthenticationOptions
 
     public bool Enabled { get; set; } = true;
 
+    public bool EvaluateClaimsWhenDisabled { get; set; }
+
     public string Mode { get; set; } = "Identity";
 
     public bool AllowLocalSetup { get; set; }

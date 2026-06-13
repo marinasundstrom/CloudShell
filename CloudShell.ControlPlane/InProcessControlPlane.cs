@@ -626,7 +626,7 @@ public sealed class InProcessControlPlane(
             return new ResourceActionCapability(
                 action.Id,
                 false,
-                $"The '{FormatPermissionRequirement(permission)}' permission is required.");
+                $"The '{FormatPermissionRequirement(permission)}' permission is required for resource '{resource.Id}'.");
         }
 
         if (!hasProcedureProvider)

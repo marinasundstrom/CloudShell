@@ -360,6 +360,12 @@ metadata can still be projected and diagnosed. This allows local hosts,
 templates, providers, and Resource Manager UI surfaces to exercise the intended
 identity shape before a production identity provider is configured.
 
+Local permission-boundary tests can set
+`Authentication:EvaluateClaimsWhenDisabled` to `true` and provide a mock
+authenticated principal. CloudShell then evaluates the normal permission,
+resource-group, resource, and resource-permission claims even though the
+authentication pipeline itself is disabled.
+
 Programmatic identity grants can still be evaluated in this mode. Passing an
 explicit acting resource identity to a resource action checks the declared
 grant model even when no token authority is configured. This is useful for

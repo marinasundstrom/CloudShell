@@ -86,7 +86,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.True(capability.CanExecuteAction(ResourceActionIds.Pause));
         Assert.False(capability.CanExecuteAction("custom"));
         Assert.Equal(
-            "The 'CloudShell.Resources/resources/actions/execute/action' or 'resources.manage' permission is required.",
+            "The 'CloudShell.Resources/resources/actions/execute/action' or 'resources.manage' permission is required for resource 'target'.",
             capability.GetActionUnavailableReason("custom"));
     }
 

@@ -140,6 +140,9 @@ Implemented today:
   identity-enabled resources.
 - HTTP tests proving built-in resource identity tokens respect read,
   lifecycle action, and identity-management permission boundaries.
+- Opt-in mock-principal permission-boundary evaluation for
+  authentication-disabled local hosts and tests through
+  `Authentication:EvaluateClaimsWhenDisabled`.
 
 ## Domain Model
 
@@ -497,8 +500,6 @@ service-principal automation flows.
   resources.
 - Decide whether local development should automatically use the built-in
   provider when no explicit identity provider is declared.
-- Add mock-principal support for local permission-boundary tests when
-  CloudShell authentication is disabled.
 - Add durable provider-backed provisioning and status reconciliation for
   identities and grants.
 - Add Microsoft Entra ID provider mapping notes and compatibility tests.
@@ -509,8 +510,9 @@ service-principal automation flows.
 - Continue assigning documented operation permissions for configuration
   updates, deployment operations, logs, diagnostics, provider actions, and
   future runtime-managed resources.
-- Add authorization diagnostics and action capability reasons for denied
-  operations.
+- Continue authorization diagnostics beyond resource-action capability reasons,
+  especially for configuration updates, deployment operations, logs,
+  diagnostics, provider actions, and audit event payloads.
 - Add effective permission APIs only after the grant model and provider mapping
   semantics are stable.
 - Add audit event schemas for resource actions, provider operations, identity
