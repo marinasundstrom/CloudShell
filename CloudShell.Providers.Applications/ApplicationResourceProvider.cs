@@ -821,7 +821,10 @@ public sealed partial class ApplicationResourceProvider(
         var application = store.GetApplication(resource.Id)
             ?? throw new InvalidOperationException($"Application resource '{resource.Id}' is not configured.");
 
-        var workload = CreateWorkloadConfiguration(application);
+        var workload = CreateWorkloadConfiguration(
+            application,
+            context.ResourceGroup?.Id,
+            context.ResourceManager);
         return Task.FromResult(new ResourceOrchestrationDescriptor(
             resource.Id,
             resource.EffectiveTypeId,
@@ -1044,6 +1047,37 @@ public sealed partial class ApplicationResourceProvider(
             .ToArray();
     }
 
+    private IReadOnlyList<EnvironmentVariableAssignment> ResolveServiceDiscoveryEnvironmentVariables(
+        ApplicationResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceManagerStore? resourceManager)
+    {
+        if (resourceManager is null)
+        {
+            return [];
+        }
+
+        var references = definition.References
+            .Where(reference => !string.IsNullOrWhiteSpace(reference))
+            .Where(reference => IsSameResourceGroup(resourceManager.GetGroupForResource(reference)?.Id, resourceGroupId))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (references.Count == 0)
+        {
+            return [];
+        }
+
+        return references
+            .Select(reference => resourceManager.GetResource(reference))
+            .Where(resource => resource is not null)
+            .Cast<Resource>()
+            .SelectMany(CreateServiceDiscoveryEndpointEnvironmentVariables)
+            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToArray();
+    }
+
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveObservabilityEnvironmentVariables(
         ApplicationResourceDefinition definition)
     {
@@ -1110,8 +1144,13 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveWorkloadEnvironmentVariables(
-        ApplicationResourceDefinition definition) =>
-        ResolveObservabilityEnvironmentVariables(definition)
+        ApplicationResourceDefinition definition,
+        string? resourceGroupId = null,
+        IResourceManagerStore? resourceManager = null) =>
+        (definition.UseServiceDiscovery
+                ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, resourceManager)
+                : [])
+            .Concat(ResolveObservabilityEnvironmentVariables(definition))
             .Concat(ResolveResourceIdentityEnvironmentVariables(definition))
             .Concat(definition.EnvironmentVariables)
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
@@ -1664,8 +1703,13 @@ public sealed partial class ApplicationResourceProvider(
         ResourceRegistration? registration,
         string? resourceGroupId) =>
         registration is not null &&
+        IsSameResourceGroup(registration.ResourceGroupId, resourceGroupId);
+
+    private static bool IsSameResourceGroup(
+        string? candidateResourceGroupId,
+        string? resourceGroupId) =>
         string.Equals(
-            NormalizeGroupId(registration.ResourceGroupId),
+            NormalizeGroupId(candidateResourceGroupId),
             NormalizeGroupId(resourceGroupId),
             StringComparison.OrdinalIgnoreCase);
 
@@ -2909,7 +2953,9 @@ public sealed partial class ApplicationResourceProvider(
         };
 
     private ResourceWorkloadConfiguration CreateWorkloadConfiguration(
-        ApplicationResourceDefinition application)
+        ApplicationResourceDefinition application,
+        string? resourceGroupId = null,
+        IResourceManagerStore? resourceManager = null)
     {
         if (IsAspNetCoreProject(application))
         {
@@ -2922,7 +2968,7 @@ public sealed partial class ApplicationResourceProvider(
                 AspNetCoreHotReload: application.AspNetCoreHotReload,
                 Replicas: Math.Max(1, application.Replicas),
                 AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
                 Observability: GetEffectiveObservability(application));
@@ -2938,7 +2984,7 @@ public sealed partial class ApplicationResourceProvider(
                 ContainerHostId: application.ContainerHostId,
                 Replicas: Math.Max(1, application.Replicas),
                 AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
                 Observability: GetEffectiveObservability(application));
@@ -2955,7 +3001,7 @@ public sealed partial class ApplicationResourceProvider(
                 ContainerHostId: application.ContainerHostId,
                 Replicas: Math.Max(1, application.Replicas),
                 AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
                 Observability: GetEffectiveObservability(application));
@@ -2969,7 +3015,7 @@ public sealed partial class ApplicationResourceProvider(
             WorkingDirectory: application.WorkingDirectory,
             Replicas: Math.Max(1, application.Replicas),
             AppSettings: application.AppSettings,
-            EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application),
+            EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
             Lifetime: ToResourceLifetime(application.Lifetime),
             Observability: GetEffectiveObservability(application));
     }

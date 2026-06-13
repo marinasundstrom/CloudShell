@@ -1235,6 +1235,12 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    IContainerResourceBuilder IContainerResourceBuilder.WithServiceDiscovery(bool enabled)
+    {
+        WithServiceDiscovery(enabled);
+        return this;
+    }
+
     IContainerResourceBuilder IContainerResourceBuilder.WithObservability(bool enabled)
     {
         WithObservability(enabled);

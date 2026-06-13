@@ -87,10 +87,11 @@ Aspire-compatible concept: endpoint references. `WithReference(resource)`
 records that the application wants endpoint/configuration values for another
 resource. For ASP.NET Core project resources, `WithReference(...)` also enables
 service discovery configuration for the referenced resource. For generic
-executable applications, `WithServiceDiscovery()` remains the explicit opt-in
-that maps referenced resource endpoints into the .NET configuration shape. This
-keeps CloudShell open to other service discovery mechanisms, such as a dedicated
-service discovery service running in a container.
+executable applications and container apps, `WithServiceDiscovery()` remains
+the explicit opt-in that maps referenced resource endpoints into the .NET
+configuration shape. This keeps CloudShell open to other service discovery
+mechanisms, such as a dedicated service discovery service running in a
+container.
 
 Configuration Store and Secrets Vault are ordinary referenced services for
 endpoint discovery. Use `WithReference(...)` for discovery, and use identity

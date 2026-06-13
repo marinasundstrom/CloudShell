@@ -370,6 +370,8 @@ public interface IContainerResourceBuilder :
 
     IContainerResourceBuilder WithReplicas(int replicas);
 
+    IContainerResourceBuilder WithServiceDiscovery(bool enabled = true);
+
     IContainerResourceBuilder WithObservability(bool enabled = true);
 
     IContainerResourceBuilder WithOtlpExporter(

@@ -138,8 +138,9 @@ settings as locally started processes.
 Application resources can opt in to Aspire-compatible service discovery for
 referenced resources. `WithReference(...)` records that an application wants
 endpoint/configuration values for another resource; `WithServiceDiscovery()` is
-the separate opt-in that maps those referenced resource endpoints into
-environment variables using the .NET configuration shape.
+the separate opt-in for executable applications and container apps that maps
+those referenced resource endpoints into environment variables using the .NET
+configuration shape.
 
 ASP.NET Core project resources enable that mapping automatically when
 `WithReference(...)` is used.

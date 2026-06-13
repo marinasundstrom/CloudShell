@@ -3621,6 +3621,63 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ContainerApplicationBuilder_DescribesServiceDiscoveryEnvironment()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider()
+            .Resources(resources =>
+            {
+                var catalog = resources.Declare("service", "service:catalog");
+
+                resources
+                    .AddContainer("api", "example/api:dev")
+                    .WithReference(catalog)
+                    .WithServiceDiscovery();
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+        var catalogResource = new Resource(
+            "service:catalog",
+            "Catalog API",
+            "Service",
+            "Test",
+            "local",
+            ResourceState.Running,
+            [ResourceEndpoint.FromAddress("http", "http://catalog.local:8080", "http")],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            []);
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(
+                null,
+                null,
+                new StaticResourceManagerStore([catalogResource])));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var environment = workload?.WorkloadEnvironmentVariables
+            .ToDictionary(variable => variable.Name, variable => variable.Value);
+
+        Assert.Equal(
+            "http://catalog.local:8080",
+            environment?["services__catalog-api__http__0"]);
+        Assert.Equal(
+            "http://catalog.local:8080",
+            environment?["services__service-catalog__http__0"]);
+        Assert.DoesNotContain(
+            environment ?? [],
+            variable => variable.Key.StartsWith("CLOUDSHELL_SECRETS_", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task ContainerApplicationBuilder_DefaultsRegistryToDockerHub()
     {
         var services = new ServiceCollection();

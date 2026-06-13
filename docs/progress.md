@@ -75,9 +75,12 @@ expectations rather than duplicating the task queue.
   credential acquisition environment when they start identity-bound workloads
   or project workload descriptors for container orchestration, while service
   endpoints remain a normal service discovery or explicit configuration
-  concern. The remote Control Plane client can accept the credential directly
-  through SDK-style constructors and DI registration so resource-hosted authored
-  services can call platform APIs without passing raw bearer tokens. The
+  concern. Container app declarations can opt into the current application-level
+  service discovery mapping for referenced resources, and descriptor-based
+  orchestrators receive the same `services__...` environment shape. The remote
+  Control Plane client can accept the credential directly through SDK-style
+  constructors and DI registration so resource-hosted authored services can
+  call platform APIs without passing raw bearer tokens. The
   Configuration Store and Secrets Vault service APIs now have matching
   public-preview SDK clients in `CloudShell.Configuration.Client` and
   `CloudShell.Secrets.Client`, backed by the lightweight `CloudShell.Client`
