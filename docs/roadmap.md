@@ -119,9 +119,10 @@ listed here before pulling in broader proposal work.
   in place; continue with resolver adoption.
 - Implement a shared `IContainerHostResolver` over explicit resource
   descriptors, default host providers, compatibility engine providers, and
-  registered default host descriptors.
-- Migrate Docker Compose and default container-app host resolution to the
-  resolver while preserving existing `ContainerEngineId` compatibility.
+  registered default host descriptors. This is in place for Control Plane
+  container-workload validation.
+- Migrate Docker Compose materialization to the resolver while preserving
+  existing `ContainerEngineId` compatibility.
 - Return diagnostics and action capability reasons for missing hosts,
   unavailable hosts, missing credentials, and unsupported runtime
   capabilities.

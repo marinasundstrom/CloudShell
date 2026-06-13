@@ -12,14 +12,22 @@ public sealed class ResourceOrchestrationService(
     IResourceManagerStore resourceManager,
     IResourceRegistrationStore registrations,
     ResourceDeclarationStore declarations,
-    ResourceOrchestratorSelectionStore selectionStore)
+    ResourceOrchestratorSelectionStore selectionStore,
+    IEnumerable<IContainerHostProvider>? containerHostProviders = null,
+    IContainerHostResolver? containerHostResolver = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
     private readonly IReadOnlyList<IResourceOrchestrationDescriptorProvider> descriptorProviders =
         descriptorProviders.ToArray();
-    private readonly IReadOnlyList<IContainerEngineProvider> containerEngineProviders =
-        containerEngineProviders.ToArray();
+    private readonly IContainerHostResolver containerHostResolver =
+        containerHostResolver ??
+        new ContainerHostResolver(
+            resourceManager,
+            registrations,
+            descriptorProviders,
+            containerHostProviders ?? [],
+            containerEngineProviders);
 
     public string? PreferredContainerEngineId => selectionStore.Get().PreferredContainerEngineId;
 
@@ -303,22 +311,21 @@ public sealed class ResourceOrchestrationService(
             return;
         }
 
-        var selectedEngineId = FirstNonEmpty(
-            workload.ContainerEngineId,
-            context.PreferredContainerEngineId);
-        if (!string.IsNullOrWhiteSpace(selectedEngineId))
+        var result = await containerHostResolver.ResolveAsync(
+            new ContainerHostResolutionRequest(
+                context.Resource.Id,
+                context.ResourceGroup?.Id,
+                ExplicitHostResourceId: workload.ContainerEngineId,
+                PreferredHostId: context.PreferredContainerEngineId),
+            cancellationToken);
+        if (!result.IsResolved)
         {
-            if (await ResolveContainerEngineAsync(selectedEngineId, context, cancellationToken) is null)
+            if (!string.IsNullOrWhiteSpace(workload.ContainerEngineId))
             {
                 throw new InvalidOperationException(
-                    $"Container engine '{selectedEngineId}' is not registered.");
+                    $"Container engine '{workload.ContainerEngineId}' is not registered.");
             }
 
-            return;
-        }
-
-        if (await ResolveDefaultContainerEngineAsync(context, cancellationToken) is null)
-        {
             throw new InvalidOperationException(
                 $"Resource '{context.Resource.Name}' is container-backed but no default container engine is registered. Use UseDocker(), UseContainerEngine(...), or set WithContainerEngine(...).");
         }
@@ -409,88 +416,6 @@ public sealed class ResourceOrchestrationService(
             return null;
         }
     }
-
-    private async Task<ContainerEngineResourceDefinition?> ResolveContainerEngineAsync(
-        string engineId,
-        ResourceOrchestrationContext context,
-        CancellationToken cancellationToken)
-    {
-        var engine = GetContainerEngines()
-            .FirstOrDefault(engine => string.Equals(engine.Id, engineId, StringComparison.OrdinalIgnoreCase));
-        if (engine is not null)
-        {
-            return engine;
-        }
-
-        var resource = context.ResourceManager.GetResource(engineId);
-        if (resource is null)
-        {
-            return null;
-        }
-
-        var descriptor = await TryDescribeAsync(resource, context, cancellationToken);
-        return descriptor is null ? null : TryReadContainerEngine(descriptor);
-    }
-
-    private async Task<ContainerEngineResourceDefinition?> ResolveDefaultContainerEngineAsync(
-        ResourceOrchestrationContext context,
-        CancellationToken cancellationToken)
-    {
-        var engine = GetContainerEngines()
-            .Where(engine => engine.IsDefault)
-            .OrderBy(engine => engine.Name, StringComparer.OrdinalIgnoreCase)
-            .FirstOrDefault();
-        if (engine is not null)
-        {
-            return engine;
-        }
-
-        foreach (var resource in context.ResourceManager.GetResources())
-        {
-            var descriptor = await TryDescribeAsync(resource, context, cancellationToken);
-            if (descriptor is null)
-            {
-                continue;
-            }
-
-            engine = TryReadContainerEngine(descriptor);
-            if (engine?.IsDefault == true)
-            {
-                return engine;
-            }
-        }
-
-        return null;
-    }
-
-    private static ContainerEngineResourceDefinition? TryReadContainerEngine(
-        ResourceOrchestrationDescriptor descriptor)
-    {
-        if (!descriptor.ResourceType.Equals(ContainerEngineResourceTypes.ContainerEngine, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        try
-        {
-            return descriptor.Configuration.Deserialize<ContainerEngineResourceDefinition>(SerializerOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    private IReadOnlyList<ContainerEngineResourceDefinition> GetContainerEngines() =>
-        containerEngineProviders
-            .Select(provider => provider.GetContainerEngine())
-            .Where(engine => !string.IsNullOrWhiteSpace(engine.Id))
-            .GroupBy(engine => engine.Id, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
-            .ToArray();
-
-    private static string? FirstNonEmpty(params string?[] values) =>
-        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private ResourceRegistration? GetRegistrationForResourceOrAncestor(Resource resource)
     {

@@ -448,8 +448,11 @@ not introduce a second out-of-band local management API for the shell.
   contracts into the shared resolver. `ContainerHostDescriptor`,
   `ContainerHostResourceTypes.ContainerHost`, `IContainerHostProvider`, and
   compatibility adapters for existing engine contracts are in place.
-- Implement `IContainerHostResolver` and migrate Docker Compose host
-  resolution to it.
+- Migrate Docker Compose host materialization to `IContainerHostResolver`.
+  The shared resolver is in place and Control Plane container workload
+  validation uses it for explicit host/resource descriptors, configured
+  default hosts, compatibility engine providers, and registered default host
+  descriptors.
 - Add a provider-owned Docker runtime implementation for owner-scoped
   implementation containers.
 - Update application/container builder APIs to prefer host naming while keeping

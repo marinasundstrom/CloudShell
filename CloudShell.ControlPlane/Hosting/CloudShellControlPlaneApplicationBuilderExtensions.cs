@@ -57,6 +57,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Scoped<ILogProvider, ResourceEventLogProvider>());
         builder.Services.AddSingleton<ITraceStore, InMemoryTraceStore>();
         builder.Services.AddScoped<ResourceTemplateService>();
+        builder.Services.AddScoped<IContainerHostResolver, ContainerHostResolver>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
         builder.Services.AddScoped<ResourceDeclarationStartupService>();
         builder.Services.AddScoped<ResourceIdentityProvisioningService>();

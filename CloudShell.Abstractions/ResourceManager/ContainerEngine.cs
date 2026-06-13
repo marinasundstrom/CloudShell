@@ -71,6 +71,27 @@ public interface IContainerHostProvider
     ContainerHostDescriptor GetDefaultHost();
 }
 
+public interface IContainerHostResolver
+{
+    Task<ContainerHostResolutionResult> ResolveAsync(
+        ContainerHostResolutionRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record ContainerHostResolutionRequest(
+    string TargetResourceId,
+    string? ResourceGroupId,
+    string? ExplicitHostResourceId = null,
+    string? PreferredHostId = null,
+    string? RequiredCapability = null);
+
+public sealed record ContainerHostResolutionResult(
+    ContainerHostDescriptor? Host,
+    string? ErrorMessage = null)
+{
+    public bool IsResolved => Host is not null && ErrorMessage is null;
+}
+
 public static class ContainerHostCompatibility
 {
     public static ContainerHostDescriptor ToContainerHostDescriptor(

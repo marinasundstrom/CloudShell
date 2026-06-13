@@ -246,7 +246,10 @@ expectations rather than duplicating the task queue.
   Docker, Podman, or Docker-compatible hosts. `UseContainerEngine(...)` and
   `UseDocker()` now register host providers alongside existing engine
   providers so current engine consumers keep working while resolver migration
-  proceeds.
+  proceeds. `IContainerHostResolver` is now available and the Control Plane
+  container-workload validation path uses it for explicit host IDs, preferred
+  hosts, configured default hosts, compatibility engine providers, and
+  registered default host descriptors.
 - Host-provided virtual networking starts with macOS. The built-in macOS host
   networking provider is an activated resource that can materialize virtual
   endpoint mappings as local TCP proxies for HTTP, HTTPS, and TCP endpoints.

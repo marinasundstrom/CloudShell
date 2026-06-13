@@ -26,6 +26,7 @@ public sealed class ResourceDeclarationStartupService(
     IEnumerable<IResourceOrchestrator> orchestrators,
     IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders,
     IEnumerable<IContainerEngineProvider> containerEngineProviders,
+    IEnumerable<IContainerHostProvider> containerHostProviders,
     EfCoreResourceStore persistedResources,
     ResourceDeclarationStore declarations,
     ResourceOrchestratorSelectionStore selectionStore,
@@ -53,7 +54,8 @@ public sealed class ResourceDeclarationStartupService(
             resourceManager,
             registrations,
             declarations,
-            selectionStore);
+            selectionStore,
+            containerHostProviders);
         var authorization = new StartupAuthorizationService();
         var diagnostics = new List<ResourceDeclarationStartupDiagnostic>();
 
