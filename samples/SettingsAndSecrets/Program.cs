@@ -102,6 +102,9 @@ cloudShell.Resources(resources =>
             endpoint: apiEndpoint,
             hotReload: false)
         .WithIdentity(identityProvider, name: "settings-secrets-api")
+        .WithReference(settings)
+        .WithReference(secrets)
+        .WithServiceDiscovery()
         .WithEnvironment("SAMPLE_MESSAGE", settings.Entry("Sample:Message"))
         .WithEnvironment("SAMPLE_MODE", settings.Entry("Sample:Mode"))
         .WithEnvironment("SAMPLE_API_KEY", secrets.Secret("sample-api-key"))
