@@ -150,12 +150,16 @@ when status, milestone relevance, or remaining work changes.
   Secrets Vault target resources while preserving reference-backed environment
   variables. HTTP tests now verify that provisioned built-in resource identity
   tokens respect read, lifecycle action, and identity-management permission
-  boundaries through the Control Plane API.
+  boundaries through the Control Plane API. Provider definitions can now name a
+  separate provisioning resource, and provisioning requires
+  `CloudShell.Identity/provisioningServices/identities/provision/action` or
+  `resources.manage` on that provisioning resource in addition to
+  `resources.manage` on the target resource.
   Configuration and Secrets providers now require matching grants when an
   identity-bound resource resolves configuration entries or secrets. The
   resource owns the identity and permission requirements; the managed
   process/container/service handles safe runtime transfer of the resolved
-  values. Mock-principal tests, provider-resource authorization,
+  values. Mock-principal tests, identity-provider resource modeling,
   provider-backed identity proof, concrete external authority registration,
   identity management UI, multiple identities, and provider-backed managed
   identity lifecycle remain future resource identity work.

@@ -184,11 +184,12 @@ public static class ResourceDeclarationBuilderExtensions
         string name,
         ResourceIdentityProviderKind kind = ResourceIdentityProviderKind.Oidc,
         IReadOnlyDictionary<string, string>? settings = null,
+        string? provisioningResourceId = null,
         bool useAsDefault = false)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var provider = new ResourceIdentityProviderDefinition(id, name, kind, settings);
+        var provider = new ResourceIdentityProviderDefinition(id, name, kind, settings, provisioningResourceId);
         return GetOrAddDeclarationStore(builder.Services)
             .AddIdentityProvider(provider, useAsDefault);
     }

@@ -26,7 +26,9 @@ itself remains resource metadata.
 Resource identity providers are configured independently from the user sign-in
 provider. A provider definition names the identity system that can resolve
 workload identity metadata or eventually issue and validate tokens for a
-resource.
+resource. A provider definition may also name a separate provisioning resource:
+that resource represents the CloudShell-managed hook or third-party service
+that can register identities and grants with the selected authority.
 
 ```json
 {
@@ -37,6 +39,7 @@ resource.
         "Id": "identity:entra",
         "Name": "Microsoft Entra ID",
         "Kind": "Oidc",
+        "ProvisioningResourceId": "identity-provisioner:entra",
         "Settings": {
           "Authority": "https://login.microsoftonline.com/{tenantId}/v2.0",
           "Audience": "api://cloudshell-control-plane"
@@ -87,8 +90,11 @@ var api = resources
 ```
 
 `resources.AddIdentityProvider(...)` registers provider metadata with the
-declaration model; it is not yet a first-class identity-provider resource with
-its own lifecycle.
+declaration model. When the provider has a provisioning resource, callers must
+have `CloudShell.Identity/provisioningServices/identities/provision/action` or
+`resources.manage` on that resource before provisioning identities. The
+provisioning resource is not required to be the identity provider itself; it
+can be a third-party service that calls an external authority API.
 
 ## Identity Bindings
 
@@ -245,11 +251,12 @@ ASP.NET Core Identity types. The stable contract remains the provider-neutral
 resource identity binding and permission grant model so the same declarations
 can later be reconciled with Microsoft Entra ID or another provider.
 
-Full identity provisioning should treat identity providers as resources with
-their own identities and permissions. The current MVP authorizes provisioning
-through `resources.manage` on the target resource. A later slice should require
-permission to provision or manage identities on the selected identity-provider
-resource as well.
+Full identity provisioning can involve identity providers, provisioning hooks,
+and third-party registration services as separate resources. The current MVP
+authorizes provisioning through `resources.manage` on the target resource and,
+when the selected provider names a provisioning resource,
+`CloudShell.Identity/provisioningServices/identities/provision/action` or
+`resources.manage` on that provisioning resource.
 
 Provisioning starts from the provider-neutral `IResourceIdentityProvisioner`
 contract. The Control Plane can build provisioning requests from declared
@@ -278,6 +285,7 @@ members remain compatibility aliases.
 | `cloudshell.network` and `cloudshell.virtualNetwork` | `reconcileEndpointMappings` | `NetworkResourceOperationPermissions.ReconcileEndpointMappings` |
 | `cloudshell.loadBalancer` | `applyLoadBalancerConfiguration` | `LoadBalancerResourceOperationPermissions.ApplyConfiguration` |
 | `secrets.vault` and `ResourceClass.SecretsVault` | secret value read | `SecretsVaultResourceOperationPermissions.ReadSecrets` |
+| Resource identity provisioning service | resource identity provisioning | `ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities` |
 
 When adding a new resource action, document the operation permission in this
 catalog. Prefer a resource-type-specific operation for meaningful provider or

@@ -68,9 +68,12 @@ Work the current proposals in this order:
   require matching grants when an identity-bound resource resolves configuration
   entries or secrets, and HTTP tests verify that built-in resource identity
   tokens respect read, lifecycle action, and identity-management permission
-  boundaries through the Control Plane API. Next connect those grants to
-  mock-principal tests, provider-resource authorization, provider-backed
-  identity proof, and concrete authority registration.
+  boundaries through the Control Plane API. Provider definitions can now name a
+  separate provisioning resource, and provisioning requires provisioning
+  permission on that resource in addition to target resource manage permission.
+  Next connect those grants to mock-principal tests, identity-provider resource
+  modeling, provider-backed identity proof, and concrete authority
+  registration.
 - Continue assigning and documenting specific Azure-style operation permissions
   per resource type or class. Load-balancer apply and network endpoint
   reconciliation now use documented network operation permissions instead of
@@ -94,9 +97,9 @@ Work the current proposals in this order:
   development provisioner, but the resource model must stay provider-neutral so
   teams can move the same declarations to Microsoft Entra ID or another
   provider.
-- Model identity providers as protected resources and require permission to
-  provision or manage identities on the selected identity-provider resource in
-  addition to permission on the target resource.
+- Define identity-provider resources separately from provisioning hook/service
+  resources, including when identity-management operations require permission
+  on the provider resource, the provisioning resource, or both.
 
 ## Next: Host Abstractions
 

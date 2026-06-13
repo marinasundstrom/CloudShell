@@ -33,6 +33,12 @@ public static class SecretsVaultResourceOperationPermissions
         "CloudShell.Secrets/vaults/secrets/read/action";
 }
 
+public static class ResourceIdentityProvisioningOperationPermissions
+{
+    public const string ProvisionIdentities =
+        "CloudShell.Identity/provisioningServices/identities/provision/action";
+}
+
 public static class CloudShellPermissions
 {
     public const string All = "*";
@@ -89,6 +95,15 @@ public static class CloudShellPermissions
         {
             public const string Read =
                 ConfigurationStoreResourceOperationPermissions.ReadEntries;
+        }
+    }
+
+    public static class Identity
+    {
+        public static class Actions
+        {
+            public const string ProvisionIdentities =
+                ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities;
         }
     }
 }

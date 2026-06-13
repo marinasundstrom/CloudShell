@@ -20,25 +20,31 @@ public sealed class ResourceIdentityProviderOptions
 
     public string Name { get; set; } = string.Empty;
 
+    public string? ProvisioningResourceId { get; set; }
+
     public ResourceIdentityProviderKind Kind { get; set; } = ResourceIdentityProviderKind.Oidc;
 
     public Dictionary<string, string> Settings { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
 
     public ResourceIdentityProviderDefinition ToDefinition() =>
-        new(Id, Name, Kind, Settings);
+        new(Id, Name, Kind, Settings, ProvisioningResourceId);
 }
 
 public sealed record ResourceIdentityProviderDefinition(
     string Id,
     string Name,
     ResourceIdentityProviderKind Kind,
-    IReadOnlyDictionary<string, string>? Settings = null)
+    IReadOnlyDictionary<string, string>? Settings = null,
+    string? ProvisioningResourceId = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptySettings =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyDictionary<string, string> ProviderSettings => Settings ?? EmptySettings;
+
+    public string? ProvisioningResourceId { get; init; } =
+        string.IsNullOrWhiteSpace(ProvisioningResourceId) ? null : ProvisioningResourceId.Trim();
 }
 
 public interface IResourceIdentityProvisioner
@@ -101,7 +107,8 @@ public sealed class ResourceIdentityProviderCatalog
             var normalizedProvider = provider with
             {
                 Id = provider.Id.Trim(),
-                Name = provider.Name.Trim()
+                Name = provider.Name.Trim(),
+                ProvisioningResourceId = provider.ProvisioningResourceId
             };
             if (!normalizedProviders.TryAdd(normalizedProvider.Id, normalizedProvider))
             {

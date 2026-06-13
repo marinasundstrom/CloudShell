@@ -239,8 +239,8 @@
 
     private string GetProvisionIdentityButtonLabel() =>
         ProvisioningIdentity
-            ? L["Provisioning"].Value
-            : L["Provision identity"].Value;
+            ? L["Provisioning identity"].Value
+            : L["Provision an identity for this resource"].Value;
 
     private async Task ProvisionIdentity()
     {
@@ -256,7 +256,7 @@
             var result = await ResourceManager.ProvisionResourceIdentityAsync(Resource.Id);
             var diagnostic = result.ProvisioningDiagnostics.FirstOrDefault();
             ProcedureMessage = diagnostic is null
-                ? L["Provisioned identity with provider {0}.", result.ProviderId].Value
+                ? L["Provisioned an identity for this resource."].Value
                 : diagnostic.Message;
         }
         catch (Exception exception)

@@ -1,9 +1,11 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -269,6 +271,77 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
         Assert.Empty(provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task ProvisionResourceIdentityAsync_RequiresPermissionOnProvisioningResource()
+    {
+        var provisioner = new TestResourceIdentityProvisioner("identity:dev");
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Running),
+                CreateResource("identity:dev", ResourceState.Running)
+            ],
+            authorization: new ResourceScopedAuthorizationService(
+                ("api", CloudShellPermissions.Resources.Manage)),
+            identityProviders:
+            [
+                new(
+                    "identity:dev",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    ProvisioningResourceId: "identity:dev")
+            ],
+            identityProvisioners: [provisioner],
+            configureDeclarations: declarations => declarations.Declare(
+                new TestCloudShellBuilder(),
+                "test",
+                "api",
+                identity: new ResourceIdentityBinding("identity:dev", Name: "api-service")));
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.ProvisionResourceIdentityAsync("api"));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Equal(
+            "The 'CloudShell.Identity/provisioningServices/identities/provision/action' or 'resources.manage' permission is required for resource 'identity:dev'.",
+            exception.Message);
+        Assert.Empty(provisioner.Requests);
+    }
+
+    [Fact]
+    public async Task ProvisionResourceIdentityAsync_AllowsProvisioningResourcePermission()
+    {
+        var provisioner = new TestResourceIdentityProvisioner("identity:dev");
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Running),
+                CreateResource("identity:dev", ResourceState.Running)
+            ],
+            authorization: new ResourceScopedAuthorizationService(
+                ("api", CloudShellPermissions.Resources.Manage),
+                ("identity:dev", ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities)),
+            identityProviders:
+            [
+                new(
+                    "identity:dev",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    ProvisioningResourceId: "identity:dev")
+            ],
+            identityProvisioners: [provisioner],
+            configureDeclarations: declarations => declarations.Declare(
+                new TestCloudShellBuilder(),
+                "test",
+                "api",
+                identity: new ResourceIdentityBinding("identity:dev", Name: "api-service")));
+
+        var result = await controlPlane.ProvisionResourceIdentityAsync("api");
+
+        Assert.Equal("identity:dev", result.ProviderId);
+        var request = Assert.Single(provisioner.Requests);
+        Assert.Equal("identity:dev", request.Provider.Id);
+        Assert.Equal("api", Assert.Single(request.Identities).Identity.ResourceId);
     }
 
     [Theory]
@@ -781,7 +854,10 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<ResourceGroup>? groups = null,
         ICloudShellAuthorizationService? authorization = null,
         IReadOnlyDictionary<string, ResourceClass>? resourceTypeClasses = null,
-        IReadOnlyList<ResourcePermissionGrant>? permissionGrants = null)
+        IReadOnlyList<ResourcePermissionGrant>? permissionGrants = null,
+        IReadOnlyList<ResourceIdentityProviderDefinition>? identityProviders = null,
+        IReadOnlyList<IResourceIdentityProvisioner>? identityProvisioners = null,
+        Action<ResourceDeclarationStore>? configureDeclarations = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
@@ -803,11 +879,13 @@ public sealed class InProcessControlPlaneResourceStateTests
             declarations.AddPermissionGrant(grant);
         }
 
+        configureDeclarations?.Invoke(declarations);
+
         var templates = new ResourceTemplateService(resourceManager, resourceGroups, registrations);
         var identityProvisioning = new ResourceIdentityProvisioningService(
             declarations,
-            new ResourceIdentityProviderCatalog(),
-            []);
+            new ResourceIdentityProviderCatalog(identityProviders ?? []),
+            identityProvisioners ?? []);
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
             [],
@@ -886,6 +964,29 @@ public sealed class InProcessControlPlaneResourceStateTests
             ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
         }
+    }
+
+    private sealed class TestResourceIdentityProvisioner(string providerId) : IResourceIdentityProvisioner
+    {
+        public List<ResourceIdentityProvisioningRequest> Requests { get; } = [];
+
+        public string ProviderId => providerId;
+
+        public bool CanProvision(ResourceIdentityProviderDefinition provider) =>
+            string.Equals(provider.Id, ProviderId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceIdentityProvisioningResult> ProvisionAsync(
+            ResourceIdentityProvisioningRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new ResourceIdentityProvisioningResult(request.Provider.Id));
+        }
+    }
+
+    private sealed class TestCloudShellBuilder : ICloudShellBuilder
+    {
+        public IServiceCollection Services { get; } = new ServiceCollection();
     }
 
     private sealed class TestReadOnlyResourceProvider : IResourceProvider
@@ -1238,6 +1339,26 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) =>
             HasPermission(permission);
+    }
+
+    private sealed class ResourceScopedAuthorizationService(
+        params (string ResourceId, string Permission)[] grants) : ICloudShellAuthorizationService
+    {
+        private readonly HashSet<string> grants = new(
+            grants.Select(grant => CreateKey(grant.ResourceId, grant.Permission)),
+            StringComparer.OrdinalIgnoreCase);
+
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => false;
+
+        public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => false;
+
+        public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) =>
+            grants.Contains(CreateKey(resourceId, permission));
+
+        private static string CreateKey(string resourceId, string permission) =>
+            $"{resourceId}\n{permission}";
     }
 
     private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment

@@ -121,9 +121,11 @@ Implemented today:
 - Provider-neutral `IResourceIdentityProvisioner` and provisioning planning.
 - A development-oriented built-in provisioner that issues scoped
   resource-permission token claims through the built-in authority.
+- Optional provisioning-resource authorization for resource identity providers.
 - Resource-operation permission constants for lifecycle actions, custom
-  actions, configuration entry reads, secret value reads, network endpoint
-  reconciliation, and load-balancer configuration apply.
+  actions, configuration entry reads, secret value reads, identity
+  provisioning, network endpoint reconciliation, and load-balancer
+  configuration apply.
 - Configuration and Secrets providers requiring matching grants when an
   identity-bound resource resolves configuration entries or secrets.
 - Resource Manager overview identity metadata and a generated Identity tab for
@@ -162,6 +164,11 @@ Provider definitions may be supplied by host configuration or programmatic
 resource declarations. Identity providers should eventually be representable as
 first-class protected resources with their own lifecycle, identities, and
 permissions.
+
+A provider definition can name a separate provisioning resource. That resource
+represents the CloudShell-managed hook or third-party service that registers a
+resource identity with the selected provider. It does not need to be the
+identity provider resource itself.
 
 Provider kinds:
 
@@ -413,10 +420,10 @@ service-principal automation flows.
    access to configuration and secret resources, provision the Web API
    identity, and verify read, lifecycle action, and identity-management
    permission boundaries at the HTTP API.
-2. Provider-resource authorization.
-   Model identity providers as protected resources and require permission to
-   provision or manage identities on the selected provider resource as well as
-   on the target resource.
+2. Provisioning-resource authorization.
+   Implemented for provisioning hooks: a provider can name a provisioning
+   resource, and callers must have provisioning permission on that resource as
+   well as manage permission on the target resource.
 3. Managed identity and authority reconciliation.
    Make providers register or reconcile identities and grants with their
    backing authority instead of only recording CloudShell declarations.
@@ -442,10 +449,10 @@ service-principal automation flows.
 - Add provider-backed identity proof for at least one workload type.
 - Add durable provider-backed provisioning for identities and grants.
 - Add Microsoft Entra ID provider mapping notes and compatibility tests.
-- Define identity-provider resources, lifecycle, configuration projection, and
-  protected management operations.
-- Require authorization on the selected identity-provider resource for
-  provisioning and identity-management operations.
+- Define identity-provider resources, provisioning-service resources,
+  lifecycle, configuration projection, and protected management operations.
+- Decide when identity-management operations should require authorization on
+  the selected identity-provider resource, the provisioning resource, or both.
 - Continue assigning documented operation permissions for configuration
   updates, deployment operations, logs, diagnostics, provider actions, and
   future runtime-managed resources.

@@ -196,6 +196,8 @@ public sealed class InProcessControlPlane(
                 CloudShellPermissions.Resources.Manage);
         }
 
+        AuthorizeResourceIdentityProvisioning(resourceIdentityProvisioning.CreatePlan(resource.Id));
+
         return await resourceIdentityProvisioning.ProvisionResourceAsync(
             resource.Id,
             cancellationToken);
@@ -626,6 +628,32 @@ public sealed class InProcessControlPlane(
         }
 
         return ResourceIdentityCanAccessResource(actingIdentity, resourceId, permission);
+    }
+
+    private void AuthorizeResourceIdentityProvisioning(ResourceIdentityProvisioningPlan plan)
+    {
+        foreach (var provisioningResourceId in plan.Requests
+            .Select(request => request.Provider.ProvisioningResourceId)
+            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+            .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var provisioningResource = resourceManager.GetResource(provisioningResourceId!)
+                ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(provisioningResourceId!));
+            var group = resourceManager.GetGroupForResource(provisioningResource.Id);
+            if (!authorization.CanAccessResource(
+                    provisioningResource.Id,
+                    group?.Id,
+                    ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities) &&
+                !authorization.CanAccessResource(
+                    provisioningResource.Id,
+                    group?.Id,
+                    CloudShellPermissions.Resources.Manage))
+            {
+                throw ControlPlaneAccessDeniedException.ForResource(
+                    provisioningResource.Id,
+                    FormatPermissionRequirement(ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities));
+            }
+        }
     }
 
     private bool ResourceIdentityCanAccessResource(
