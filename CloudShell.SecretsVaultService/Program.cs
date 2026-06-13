@@ -21,6 +21,8 @@ app.MapGet("/healthz", () => Results.Ok(new
 }))
 .AllowAnonymous();
 
+app.UseCloudShellBuiltInBearerAuthentication();
+
 var api = app
     .MapGroup("/api/secrets")
     .WithTags("Secrets");
@@ -44,24 +46,22 @@ static IResult GetSecretByQuery(
     string name,
     string? version,
     HttpRequest request,
-    SecretsVaultServiceStore store,
-    BuiltInAuthorityTokenService authority) =>
-    GetSecret(resourceId, name, version, request, store, authority);
+    SecretsVaultServiceStore store) =>
+    GetSecret(resourceId, name, version, request, store);
 
 static IResult ListSecrets(
     string vaultId,
     HttpRequest request,
-    SecretsVaultServiceStore store,
-    BuiltInAuthorityTokenService authority)
+    SecretsVaultServiceStore store)
 {
     var vault = store.GetVault(vaultId);
-    if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
+    if (!HasBearerToken(request))
     {
         return Unauthorized();
     }
 
     if (vault is null ||
-        !IsAuthorized(vault, request, authority))
+        !IsAuthorized(vault, request))
     {
         return NotFound();
     }
@@ -76,17 +76,16 @@ static IResult GetSecret(
     string name,
     string? version,
     HttpRequest request,
-    SecretsVaultServiceStore store,
-    BuiltInAuthorityTokenService authority)
+    SecretsVaultServiceStore store)
 {
     var vault = store.GetVault(vaultId);
-    if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
+    if (!HasBearerToken(request))
     {
         return Unauthorized();
     }
 
     if (vault is null ||
-        !IsAuthorized(vault, request, authority))
+        !IsAuthorized(vault, request))
     {
         return NotFound();
     }
@@ -105,23 +104,18 @@ static IResult GetSecret(
 
 static bool IsAuthorized(
     SecretsVaultDefinition vault,
-    HttpRequest request,
-    BuiltInAuthorityTokenService authority)
-{
-    var token = GetBearerToken(request);
-    return ResourcePermissionClaimAuthorization.HasResourcePermission(
-            authority.ValidateToken(token ?? string.Empty),
-            vault.Id,
-            SecretsVaultResourceOperationPermissions.ReadSecrets);
-}
+    HttpRequest request) =>
+    ResourcePermissionClaimAuthorization.HasResourcePermission(
+        request.HttpContext.User,
+        vault.Id,
+        SecretsVaultResourceOperationPermissions.ReadSecrets);
 
-static string? GetBearerToken(HttpRequest request)
+static bool HasBearerToken(HttpRequest request)
 {
     var authorization = request.Headers.Authorization.FirstOrDefault();
     const string bearerPrefix = "Bearer ";
-    return authorization?.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase) == true
-        ? authorization[bearerPrefix.Length..].Trim()
-        : null;
+    return authorization?.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase) == true &&
+        !string.IsNullOrWhiteSpace(authorization[bearerPrefix.Length..]);
 }
 
 static IResult Unauthorized() =>

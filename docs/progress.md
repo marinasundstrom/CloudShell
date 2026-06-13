@@ -79,7 +79,10 @@ when status, milestone relevance, or remaining work changes.
   generally useful for integrators and the platform owns the contract; the
   resource-permission claim evaluator is now exposed through
   `CloudShell.Abstractions` as a platform-owned authorization integration and
-  used by built-in services.
+  used by built-in services. The Configuration Store and Secrets Vault backing
+  services now use the shared built-in bearer middleware plus that public
+  preview claim evaluator instead of validating resource tokens directly in
+  each endpoint handler.
 - Public exposure and API stability are separate decisions. Public APIs that
   are not yet stable must be labeled as preview, experimental, or unstable,
   with clear ownership, expected change surface, and path to stability.

@@ -2,6 +2,13 @@ using System.Security.Claims;
 
 namespace CloudShell.Abstractions.Authorization;
 
+/// <summary>
+/// Evaluates CloudShell resource-permission claims for protected resource services.
+/// </summary>
+/// <remarks>
+/// Preview API: the platform owns this integration contract, but the protected-service
+/// authentication surface may still evolve before the MVP API is declared stable.
+/// </remarks>
 public static class ResourcePermissionClaimAuthorization
 {
     public static bool HasResourcePermission(

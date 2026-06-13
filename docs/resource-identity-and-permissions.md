@@ -223,7 +223,8 @@ provider configuration and runtime state, but it should not get a separate
 identity mechanism unless the exception and replacement path are documented.
 `ResourcePermissionClaimAuthorization` in `CloudShell.Abstractions` is the
 shared helper for protected services that need to evaluate scoped
-`cloudshell.resource-permission` claims.
+`cloudshell.resource-permission` claims. It is a public preview API until the
+protected-service authentication surface is finalized for MVP.
 
 `ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
 provider to provision one resource identity and its matching permission grants.

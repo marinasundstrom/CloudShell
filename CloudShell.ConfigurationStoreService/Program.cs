@@ -21,6 +21,8 @@ app.MapGet("/healthz", () => Results.Ok(new
 }))
 .AllowAnonymous();
 
+app.UseCloudShellBuiltInBearerAuthentication();
+
 var api = app
     .MapGroup("/api/configuration")
     .WithTags("Configuration");
@@ -46,32 +48,29 @@ app.Run();
 static IResult ListEntriesByQuery(
     string resourceId,
     HttpRequest request,
-    ConfigurationStoreServiceStore store,
-    BuiltInAuthorityTokenService authority) =>
-    ListEntries(resourceId, request, store, authority);
+    ConfigurationStoreServiceStore store) =>
+    ListEntries(resourceId, request, store);
 
 static IResult GetEntryByQuery(
     string resourceId,
     string name,
     HttpRequest request,
-    ConfigurationStoreServiceStore store,
-    BuiltInAuthorityTokenService authority) =>
-    GetEntry(resourceId, name, request, store, authority);
+    ConfigurationStoreServiceStore store) =>
+    GetEntry(resourceId, name, request, store);
 
 static IResult ListEntries(
     string storeId,
     HttpRequest request,
-    ConfigurationStoreServiceStore store,
-    BuiltInAuthorityTokenService authority)
+    ConfigurationStoreServiceStore store)
 {
     var configurationStore = store.GetStore(storeId);
-    if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
+    if (!HasBearerToken(request))
     {
         return Unauthorized();
     }
 
     if (configurationStore is null ||
-        !IsAuthorized(configurationStore, request, authority))
+        !IsAuthorized(configurationStore, request))
     {
         return NotFound();
     }
@@ -83,17 +82,16 @@ static IResult GetEntry(
     string storeId,
     string name,
     HttpRequest request,
-    ConfigurationStoreServiceStore store,
-    BuiltInAuthorityTokenService authority)
+    ConfigurationStoreServiceStore store)
 {
     var configurationStore = store.GetStore(storeId);
-    if (string.IsNullOrWhiteSpace(GetBearerToken(request)))
+    if (!HasBearerToken(request))
     {
         return Unauthorized();
     }
 
     if (configurationStore is null ||
-        !IsAuthorized(configurationStore, request, authority))
+        !IsAuthorized(configurationStore, request))
     {
         return NotFound();
     }
@@ -111,23 +109,18 @@ static ConfigurationEntryResponse ToResponse(ConfigurationEntry entry) =>
 
 static bool IsAuthorized(
     ConfigurationStoreDefinition configurationStore,
-    HttpRequest request,
-    BuiltInAuthorityTokenService authority)
-{
-    var token = GetBearerToken(request);
-    return ResourcePermissionClaimAuthorization.HasResourcePermission(
-            authority.ValidateToken(token ?? string.Empty),
-            configurationStore.Id,
-            ConfigurationStoreResourceOperationPermissions.ReadEntries);
-}
+    HttpRequest request) =>
+    ResourcePermissionClaimAuthorization.HasResourcePermission(
+        request.HttpContext.User,
+        configurationStore.Id,
+        ConfigurationStoreResourceOperationPermissions.ReadEntries);
 
-static string? GetBearerToken(HttpRequest request)
+static bool HasBearerToken(HttpRequest request)
 {
     var authorization = request.Headers.Authorization.FirstOrDefault();
     const string bearerPrefix = "Bearer ";
-    return authorization?.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase) == true
-        ? authorization[bearerPrefix.Length..].Trim()
-        : null;
+    return authorization?.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase) == true &&
+        !string.IsNullOrWhiteSpace(authorization[bearerPrefix.Length..]);
 }
 
 static IResult Unauthorized() =>
