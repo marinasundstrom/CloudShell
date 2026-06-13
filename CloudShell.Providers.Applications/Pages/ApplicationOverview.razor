@@ -105,13 +105,31 @@ else
         }
         else
         {
-            <dl class="detail-list">
-                @foreach (var setting in Application.AppSettings)
+            <table class="settings-reference-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Source</th>
+                        <th>Value or reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var row in Application.AppSettings.Select(CreateSettingRow))
                 {
-                    <dt>@setting.Name</dt>
-                    <dd>@ResourceSettingDisplay.Format(setting)</dd>
+                    <tr>
+                        <td><strong>@row.Name</strong></td>
+                        <td>@row.Source</td>
+                        <td>
+                            <span>@row.Target</span>
+                            @if (!string.IsNullOrWhiteSpace(row.Detail))
+                            {
+                                <small>@row.Detail</small>
+                            }
+                        </td>
+                    </tr>
                 }
-            </dl>
+                </tbody>
+            </table>
         }
     </section>
 
@@ -123,13 +141,31 @@ else
         }
         else
         {
-            <dl class="detail-list">
-                @foreach (var variable in Application.EnvironmentVariables)
+            <table class="settings-reference-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Source</th>
+                        <th>Value or reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var row in Application.EnvironmentVariables.Select(CreateSettingRow))
                 {
-                    <dt>@variable.Name</dt>
-                    <dd>@ResourceSettingDisplay.Format(variable)</dd>
+                    <tr>
+                        <td><strong>@row.Name</strong></td>
+                        <td>@row.Source</td>
+                        <td>
+                            <span>@row.Target</span>
+                            @if (!string.IsNullOrWhiteSpace(row.Detail))
+                            {
+                                <small>@row.Detail</small>
+                            }
+                        </td>
+                    </tr>
                 }
-            </dl>
+                </tbody>
+            </table>
         }
     </section>
 }
@@ -313,6 +349,79 @@ else
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
+    private SettingDisplayRow CreateSettingRow(AppSetting setting)
+    {
+        if (setting.ConfigurationEntry is not null)
+        {
+            return CreateConfigurationReferenceRow(setting.Name, setting.ConfigurationEntry);
+        }
+
+        if (setting.Secret is not null)
+        {
+            return CreateSecretReferenceRow(setting.Name, setting.Secret);
+        }
+
+        return new SettingDisplayRow(
+            setting.Name,
+            "Literal value",
+            string.IsNullOrEmpty(setting.Value) ? "empty" : setting.Value,
+            null);
+    }
+
+    private SettingDisplayRow CreateSettingRow(EnvironmentVariableAssignment assignment)
+    {
+        if (assignment.ConfigurationEntry is not null)
+        {
+            return CreateConfigurationReferenceRow(assignment.Name, assignment.ConfigurationEntry);
+        }
+
+        if (assignment.Secret is not null)
+        {
+            return CreateSecretReferenceRow(assignment.Name, assignment.Secret);
+        }
+
+        return new SettingDisplayRow(
+            assignment.Name,
+            "Literal value",
+            string.IsNullOrEmpty(assignment.Value) ? "empty" : assignment.Value,
+            null);
+    }
+
+    private SettingDisplayRow CreateConfigurationReferenceRow(
+        string name,
+        ConfigurationEntryReference reference) =>
+        new(
+            name,
+            "Configuration entry",
+            FormatReferenceTarget(reference.StoreResourceId, reference.EntryName),
+            FormatReferenceDetail(reference.StoreResourceId, reference.Version));
+
+    private SettingDisplayRow CreateSecretReferenceRow(
+        string name,
+        SecretReference reference) =>
+        new(
+            name,
+            "Secret reference",
+            FormatReferenceTarget(reference.VaultResourceId, reference.SecretName),
+            FormatReferenceDetail(reference.VaultResourceId, reference.Version));
+
+    private string FormatReferenceTarget(string resourceId, string itemName)
+    {
+        var resource = ResolveMappingResource(resourceId);
+        return $"{resource?.Name ?? resourceId} / {itemName}";
+    }
+
+    private string FormatReferenceDetail(string resourceId, string? version)
+    {
+        var resource = ResolveMappingResource(resourceId);
+        var id = resource is null
+            ? $"{resourceId} (unavailable)"
+            : resource.Id;
+        return string.IsNullOrWhiteSpace(version)
+            ? id
+            : $"{id}; version {version}";
+    }
+
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
 
@@ -388,4 +497,10 @@ else
     private sealed record LoadBalancerRouteView(
         Resource LoadBalancer,
         LoadBalancerRoute Route);
+
+    private sealed record SettingDisplayRow(
+        string Name,
+        string Source,
+        string Target,
+        string? Detail);
 }

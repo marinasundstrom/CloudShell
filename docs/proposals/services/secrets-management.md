@@ -332,7 +332,7 @@ app settings for non-secret values and vault-backed references for secrets.
   environment variables, configuration-entry references, and vault-backed
   secret references through provider-owned configuration hooks.
 - Application overview now displays configured app settings and environment
-  variables with canonical CloudShell reference strings, without resolving or
+  variables as source labels and target references, without resolving or
   displaying secret values.
 - Decide how secret references should be versioned, rotated, and refreshed for
   already-running resources.

@@ -1438,9 +1438,62 @@ h3 {
     overflow-wrap: anywhere;
 }
 
+.settings-reference-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: .25rem;
+}
+
+.settings-reference-table th,
+.settings-reference-table td {
+    padding: .45rem .75rem .45rem 0;
+    border-bottom: 1px solid var(--cloudshell-divider);
+    text-align: left;
+    vertical-align: top;
+}
+
+.settings-reference-table th {
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+    text-transform: uppercase;
+}
+
+.settings-reference-table td {
+    overflow-wrap: anywhere;
+}
+
+.settings-reference-table td small {
+    display: block;
+    color: var(--cloudshell-text-muted);
+    margin-top: .15rem;
+}
+
 @media (max-width: 720px) {
     .generated-resource-view .detail-list {
         grid-template-columns: 1fr;
+    }
+
+    .settings-reference-table,
+    .settings-reference-table thead,
+    .settings-reference-table tbody,
+    .settings-reference-table tr,
+    .settings-reference-table th,
+    .settings-reference-table td {
+        display: block;
+    }
+
+    .settings-reference-table thead {
+        display: none;
+    }
+
+    .settings-reference-table tr {
+        padding: .45rem 0;
+        border-bottom: 1px solid var(--cloudshell-divider);
+    }
+
+    .settings-reference-table td {
+        border-bottom: 0;
+        padding: .2rem 0;
     }
 
     .generated-resource-view .detail-list dt {

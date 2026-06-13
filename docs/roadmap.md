@@ -144,8 +144,8 @@ listed here before pulling in broader proposal work.
   through provider-owned configuration hooks.
 - Show saved references and diagnostics without displaying resolved secret
   values. Application overview now renders app-setting and environment-variable
-  references with canonical CloudShell reference strings instead of resolved
-  values.
+  references as source labels and target references instead of resolved values
+  or raw CloudShell reference strings.
 - Verify assignment flows against identity-backed configuration and secret
   read authorization.
 - Persist resource events and expose filtering by event type, actor, and time
