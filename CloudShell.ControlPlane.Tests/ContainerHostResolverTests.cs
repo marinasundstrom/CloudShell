@@ -53,6 +53,30 @@ public sealed class ContainerHostResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_UsesHostWhenRequiredCapabilityIsAdvertised()
+    {
+        var hostResource = CreateResource("docker:remote", "Remote Docker");
+        var host = new ContainerHostDescriptor(
+            "docker:remote",
+            "Remote Docker",
+            ContainerHostKind.Docker,
+            "tcp://docker.example.test:2376",
+            Capabilities: ["container.image"]);
+        var resolver = CreateResolver(
+            [hostResource],
+            descriptorProviders: [new StaticDescriptorProvider(hostResource.Id, host)]);
+
+        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
+            "application:api",
+            "team-a",
+            ExplicitHostResourceId: hostResource.Id,
+            RequiredCapability: "container.image"));
+
+        Assert.True(result.IsResolved);
+        Assert.Equal("docker:remote", result.Host?.Id);
+    }
+
+    [Fact]
     public async Task ResolveAsync_UsesConfiguredDefaultHost()
     {
         var resolver = CreateResolver(
@@ -112,6 +136,28 @@ public sealed class ContainerHostResolverTests
     }
 
     [Fact]
+    public async Task ResolveAsync_ReturnsDiagnosticForUnavailableExplicitHost()
+    {
+        var hostResource = CreateResource("docker:remote", "Remote Docker", ResourceState.Stopped);
+        var host = new ContainerHostDescriptor(
+            "docker:remote",
+            "Remote Docker",
+            ContainerHostKind.Docker,
+            "tcp://docker.example.test:2376");
+        var resolver = CreateResolver(
+            [hostResource],
+            descriptorProviders: [new StaticDescriptorProvider(hostResource.Id, host)]);
+
+        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
+            "application:api",
+            "team-a",
+            ExplicitHostResourceId: hostResource.Id));
+
+        Assert.False(result.IsResolved);
+        Assert.Equal("Container host 'docker:remote' is unavailable.", result.ErrorMessage);
+    }
+
+    [Fact]
     public async Task ResolveAsync_ReturnsDiagnosticForMissingPreferredHost()
     {
         var resolver = CreateResolver([]);
@@ -140,6 +186,32 @@ public sealed class ContainerHostResolverTests
             result.ErrorMessage);
     }
 
+    [Fact]
+    public async Task ResolveAsync_ReturnsDiagnosticForMissingRequiredCapability()
+    {
+        var hostResource = CreateResource("docker:remote", "Remote Docker");
+        var host = new ContainerHostDescriptor(
+            "docker:remote",
+            "Remote Docker",
+            ContainerHostKind.Docker,
+            "tcp://docker.example.test:2376",
+            Capabilities: ["container.image"]);
+        var resolver = CreateResolver(
+            [hostResource],
+            descriptorProviders: [new StaticDescriptorProvider(hostResource.Id, host)]);
+
+        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
+            "application:api",
+            "team-a",
+            ExplicitHostResourceId: hostResource.Id,
+            RequiredCapability: "container.build"));
+
+        Assert.False(result.IsResolved);
+        Assert.Equal(
+            "Container host 'docker:remote' does not advertise required capability 'container.build'.",
+            result.ErrorMessage);
+    }
+
     private static ContainerHostResolver CreateResolver(
         IReadOnlyList<Resource> resources,
         IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,
@@ -153,14 +225,17 @@ public sealed class ContainerHostResolverTests
             hostProviders ?? []);
     }
 
-    private static Resource CreateResource(string id, string name) =>
+    private static Resource CreateResource(
+        string id,
+        string name,
+        ResourceState state = ResourceState.Running) =>
         new(
             id,
             name,
             "docker.host",
             "docker",
             "local",
-            ResourceState.Running,
+            state,
             [],
             "1.0",
             DateTimeOffset.UtcNow,

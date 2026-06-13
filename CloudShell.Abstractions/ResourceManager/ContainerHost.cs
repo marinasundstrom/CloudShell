@@ -32,9 +32,12 @@ public sealed record ContainerHostDescriptor(
     bool IsDefault = false,
     string Registry = ContainerRegistryDefaults.Default,
     ContainerRegistryCredentials? RegistryCredentials = null,
-    IReadOnlyDictionary<string, string>? Metadata = null)
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    IReadOnlyList<string>? Capabilities = null)
 {
     public IReadOnlyDictionary<string, string> HostMetadata => Metadata ?? EmptyMetadata;
+
+    public IReadOnlyList<string> HostCapabilities => Capabilities ?? [];
 
     private static readonly IReadOnlyDictionary<string, string> EmptyMetadata =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

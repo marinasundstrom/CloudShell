@@ -126,12 +126,14 @@ listed here before pulling in broader proposal work.
   now requires the shared resolver instead of duplicating host lookup.
 - Return diagnostics and action capability reasons for host placement failures.
   Missing explicit/default container hosts now disable affected Run/Restart
-  actions before orchestration dispatch; unavailable hosts, missing
-  credentials, and unsupported runtime capabilities remain.
+  actions before orchestration dispatch. The shared resolver also reports
+  unavailable host resources and missing required host capabilities; missing
+  credentials and unsupported image/build modes remain.
 - Resolver tests now cover explicit host selection, preferred host selection,
   configured default host selection, registered default host descriptors, and
-  missing-host diagnostics. Continue tests for host unavailable, credentials,
-  and runtime-capability diagnostics as those states are implemented.
+  missing-host, unavailable-host, and required-capability diagnostics.
+  Continue tests for credentials and image/build mode diagnostics as those
+  states are implemented.
 
 ### Next: Configuration, Secrets, and Audit
 
