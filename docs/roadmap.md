@@ -58,53 +58,82 @@ trackers, and [Progress](progress.md) remains the completed-work tracker.
 Work the current proposals in this order. For MVP, implement only the slice
 listed here before pulling in broader proposal work.
 
-1. Resource identity and permissions: close built-in access enforcement,
-   provisioning authorization, deny diagnostics, and remaining permission
-   boundary tests.
-2. Host abstractions: add host descriptors, compatibility adapters, a shared
-   resolver, Docker Compose/default container-app migration, and missing-host
-   diagnostics.
-3. Configuration and secrets access: add Resource Manager assignment flows for
-   literal settings, configuration-entry references, and vault-backed secret
-   references.
-4. Traceability and audit: persist/filter resource events and define audit
-   schemas for the operations already in the MVP path while keeping provider
-   logs, resource events, diagnostics, metrics, traces, and future non-text
-   payloads as separate concerns.
-5. Remote Docker host completion: finish concrete Docker host registration,
-   credentials, duplicate validation, discovery, diagnostics, and actions on
-   top of the shared resolver.
-6. Provider-owned runtime lifecycle: start with owner-scoped Docker runtime
-   support for Traefik/load-balancer implementation containers and app-owned
-   ingress cleanup.
-7. Network and routing hardening: tighten host-readiness, provider selection,
+1. MVP convergence and Resource Manager reliability: keep supported samples
+   green, tighten generated resource details, lifecycle actions, activity
+   records, diagnostics, and state transitions around the flows that already
+   work.
+2. Configuration, secrets, and identity polish: finish the visible
+   settings/secrets assignment and reference experience, keep identity opt-in
+   for early modeling, and close only the built-in access gaps needed by those
+   flows.
+3. Lifecycle traceability and audit: harden the common lifecycle procedure,
+   dependency-start activity, resource-event filtering, and the first audit
+   schemas for MVP operations.
+4. Host and runtime foundation: complete the shared host diagnostics needed by
+   container apps, Docker Compose, provider-owned runtime infrastructure, and
+   cleanup of host-scoped resources.
+5. Network and routing hardening: tighten host-readiness, provider selection,
    route conflicts, endpoint conflicts, configuration preview, and backend
    diagnostics for the supported samples.
-8. Runtime-managed resources: make only the MVP ownership, cleanup, and
-   diagnostics decisions needed by provider-owned runtime and current
-   revisions.
-9. Deployments and revisions: preserve current app-owned revision projection;
-   defer rich rollout history, rollback, retention, and deployment resources.
-10. Advanced app and environment concepts: defer autoscaling, backend pools,
-    traffic splitting, `cloudshell.service`, DNS/name mapping, external
-    deployment projection, and container application environments.
+6. Remote Docker host completion: finish concrete remote-host registration and
+   credentials if it validates the host model, but do not let it block the
+   local/default container-host MVP path.
+7. Runtime-managed resources and deployment model: make only the ownership,
+   cleanup, current-revision, and diagnostics decisions needed by provider-owned
+   runtime and image updates.
+8. Advanced app and environment concepts: defer autoscaling, backend pools,
+   traffic splitting, `cloudshell.service`, DNS/name mapping, external
+   deployment projection, and container application environments.
 
-### Now: Resource Identity and Permissions
+### Now: MVP Convergence and Resource Manager Reliability
+
+- Keep the baseline samples building and smoke-testing as the release gate:
+  combined hosting, split hosting, container host, settings and secrets, host
+  virtual networking, load balancer, project references, and container app
+  deployment.
+- Treat the Settings and Secrets sample as the current proof of the developer
+  service-integration flow: a resource can model settings and secrets first,
+  then opt into identity and resource-scoped grants when access enforcement is
+  needed.
+- Make Resource Manager generated details predictable for common resources:
+  Overview first, resource-specific tabs next, Environment after resource
+  configuration, and Identity/Activity near the bottom.
+- Keep lifecycle actions and resource activity consistent: `Start` is the
+  canonical action, every lifecycle action records the requested action and
+  resulting events, and dependencies started by orchestration get their own
+  activity records.
+- Prefer action capability reasons, resource diagnostics, and stable
+  ProblemDetails codes over provider-specific exception text.
+- Do not expand broad IAM, workflow automation, runtime-managed resource, or
+  deployment-history scope unless the missing piece blocks the supported MVP
+  samples.
+
+### Next: Configuration, Secrets, and Identity Polish
 
 - Keep [Resource identity and permissions](resource-identity-and-permissions.md)
   as the current-state feature documentation and
   [Identity and access](proposals/core/identity-and-access.md) as the open-work
   tracker.
-- Continue authorization diagnostics beyond resource-action capability reasons,
-  especially for configuration updates, deployment operations, logs,
-  diagnostics, provider actions, and audit event payloads.
+- Finish the Resource Manager assignment experience for literal settings,
+  configuration-entry references, and vault-backed secret references on
+  resources that advertise environment-variable support.
+- Show saved references and diagnostics without displaying resolved secret
+  values. Application overview now renders app-setting and environment-variable
+  references as source labels and target references instead of resolved values
+  or raw CloudShell reference strings, and shows basic target availability and
+  identity-grant status.
+- Verify assignment flows against identity-backed configuration and secret read
+  authorization. Runtime resolution failures now use typed diagnostics and
+  project as resource-action-unavailable API errors instead of generic
+  operation failures. Resource action capabilities now preflight safe reference
+  checks for missing referenced resources and identity grants before
+  orchestration dispatch.
+- Continue authorization diagnostics where they directly support MVP flows,
+  especially configuration updates, secret reads, resource actions, logs, and
+  diagnostics.
 - Later UI enforcement should disable or hide Resource Manager operations
   based on the current user's permissions, while still explaining the missing
   permission in the same diagnostic style as Azure-style portals.
-- Continue assigning documented Azure-style operation permissions for
-  configuration updates, deployment operations, logs, diagnostics, provider
-  actions, and future runtime-managed resources as those operations enter the
-  MVP path.
 - Provisioning-resource authorization boundaries now have focused coverage:
   provisioning requires permission on the provisioning resource and manage
   permission on the target resource, while status reads require read
@@ -117,7 +146,29 @@ listed here before pulling in broader proposal work.
   not block MVP on a full Entra provider if the provider-neutral contract and
   compatibility tests are clear.
 
-### Next: Host Abstractions
+### Next: Lifecycle, Traceability, and Audit
+
+- Expose transient lifecycle state such as `Starting` while start/restart
+  operations are in progress. Application resources now project a fresh
+  provider-owned starting observation and fall back to stopped when that
+  observation becomes stale.
+- Persist resource events and expose filtering by event type, actor, and time
+  range. The initial persistence/query slice is in place through
+  `IResourceEventManager`, and Resource Manager now has a generated Activity
+  tab for resource events. Next work is filtering, event schema polish, and
+  tighter integration with authorization/audit decisions.
+- Use [Lifecycle orchestration](proposals/core/lifecycle-orchestration.md) to
+  keep dependency startup, lifecycle action execution, resource activity, and
+  future event-triggered automation on one common orchestration model.
+- Use [Logging infrastructure](proposals/core/logging-infrastructure.md) to
+  track structured logging, non-text operational payloads, resource events,
+  audit records, diagnostics, metrics, and traces without prematurely merging
+  those concerns.
+- Define only the audit event schemas needed by current MVP operations:
+  resource actions, host/runtime operations, image deployments, authorization
+  decisions, identity provisioning, configuration reads, and secret reads.
+
+### Next: Host and Runtime Foundation
 
 - Add host-oriented descriptors, provider contracts, host registration, and
   builder/settings names. These host-oriented names are now in place for
@@ -139,56 +190,6 @@ listed here before pulling in broader proposal work.
   configured default host selection, registered default host descriptors, and
   missing-host, unavailable-host, and required-capability diagnostics.
   Continue tests for credential diagnostics when that state is implemented.
-
-### Next: Configuration, Secrets, and Audit
-
-- Add Resource Manager UI support for assigning literal app settings,
-  configuration-entry references, and vault-backed secret references on
-  resources that advertise environment-variable support. The generic
-  Environment tab now edits application app settings and environment variables
-  through provider-owned configuration hooks.
-- Show saved references and diagnostics without displaying resolved secret
-  values. Application overview now renders app-setting and environment-variable
-  references as source labels and target references instead of resolved values
-  or raw CloudShell reference strings, and shows basic target availability and
-  identity-grant status.
-- Verify assignment flows against identity-backed configuration and secret
-  read authorization. Runtime resolution failures now use typed diagnostics
-  and project as resource-action-unavailable API errors instead of generic
-  operation failures. Resource action capabilities now preflight safe
-  reference checks for missing referenced resources and identity grants before
-  orchestration dispatch.
-- Expose transient lifecycle state such as `Starting` while start/restart
-  operations are in progress. Application resources now project a fresh
-  provider-owned starting observation and fall back to stopped when that
-  observation becomes stale.
-- Persist resource events and expose filtering by event type, actor, and time
-  range. The initial persistence/query slice is in place through
-  `IResourceEventManager`, and Resource Manager now has a generated Activity
-  tab for resource events. Next work is filtering, event schema polish, and
-  tighter integration with authorization/audit decisions.
-- Define audit event schemas for resource actions, host/runtime operations,
-  image deployments, authorization decisions, identity provisioning, and secret
-  access.
-- Use [Logging infrastructure](proposals/core/logging-infrastructure.md) to
-  track structured logging, non-text operational payloads, resource events,
-  audit records, diagnostics, metrics, and traces without prematurely merging
-  those concerns.
-- Use [Lifecycle orchestration](proposals/core/lifecycle-orchestration.md) to
-  keep dependency startup, lifecycle action execution, resource activity, and
-  future event-triggered automation on one common orchestration model.
-
-### Next: Concrete Host and Runtime Foundation
-
-- Continue the remote Docker hosts proposal on top of the shared host model:
-  persist provider-owned UI host configuration, wire supported credential
-  transports into Docker client creation, and keep credentials out of
-  projected attributes, endpoints, logs, and diagnostics.
-- Complete duplicate-host validation across local and remote Docker
-  registration paths, including compatibility coverage for existing
-  `docker.engine` registrations and stable `docker.host` UI/API projection.
-- Verify remote-host container discovery, actions, and diagnostics end to end
-  against a testable Docker endpoint with credential redaction coverage.
 - Add provider-owned Docker runtime support for owner-scoped implementation
   containers after the resolver lands.
 - Continue Traefik container mode beyond apply-time startup by tying the
@@ -201,6 +202,21 @@ listed here before pulling in broader proposal work.
   detached container apps should be rediscovered through container host and
   stable workload identity, while crash restart/backoff behavior should be an
   orchestrator policy instead of a side effect of runtime-state recovery.
+
+### Next: Remote Docker Host Completion
+
+- Continue the remote Docker hosts proposal on top of the shared host model:
+  persist provider-owned UI host configuration, wire supported credential
+  transports into Docker client creation, and keep credentials out of
+  projected attributes, endpoints, logs, and diagnostics.
+- Complete duplicate-host validation across local and remote Docker
+  registration paths, including compatibility coverage for existing
+  `docker.engine` registrations and stable `docker.host` UI/API projection.
+- Verify remote-host container discovery, actions, and diagnostics end to end
+  against a testable Docker endpoint with credential redaction coverage.
+- Keep this path behind local/default container-host stability. Remote Docker
+  proves the host abstraction, but the MVP should still be useful with the
+  local Docker host and programmatic declarations.
 
 ### Next: Network and Routing Hardening
 
@@ -250,13 +266,16 @@ listed here before pulling in broader proposal work.
   application environments until host, routing, identity, runtime ownership,
   and deployment decisions are stable.
 
-## Near-Term Roadmap
+## Foundation Rationale
 
-The next work should follow the product focus first, then proposal
-dependencies. Identity and permissions are now the first focus because every
-later on-premise control-plane feature needs a consistent answer for who is
-acting, what they can do, how workloads authenticate to platform services, and
-how those decisions are audited.
+The MVP execution plan above is the current task queue. The sections below
+explain how the larger foundations relate and why they still matter. The
+current focus is MVP convergence: make the supported Resource Manager flows
+reliable, understandable, diagnosable, and covered by sample smoke tests.
+Identity remains a required foundation for access enforcement and
+workload-to-platform calls, but broad IAM work is no longer the front of the
+queue unless it blocks the current settings, secrets, lifecycle, or
+resource-action flows.
 
 Several first slices are already in place: virtual-network resources, macOS
 host-networking, load-balancer resources, Traefik file-provider output,
@@ -266,14 +285,14 @@ slices into coherent security, host, networking, and deployment foundations.
 
 ### 1. Resource Identity and Permissions
 
-Goal: define resource identity and authorization first, then use that slice as
-the foundation for broader platform identity.
+Goal: keep resource identity and authorization strong enough for the MVP
+service-integration and Resource Manager permission flows, then defer broader
+platform identity until the core experience is stable.
 
-Start with the identity and access proposal. The initial work
-should define the resource identity-provider contract, default provider
-selection, resource identity bindings, resource-scoped permission names,
-permission assignments, workload identity lifecycle, token claim mapping, and
-action authorization diagnostics.
+Keep using the identity and access proposal as the tracker for resource
+identity-provider contracts, default provider selection, resource identity
+bindings, resource-scoped permission names, permission assignments, workload
+identity lifecycle, token claim mapping, and action authorization diagnostics.
 
 The built-in development authority should preserve resource-permission
 pairing in token claims so a permission granted on one resource cannot combine
@@ -340,7 +359,7 @@ foundation.
 
 The existing Secrets Vault and resource-assignment path can continue, but
 in-process secret loading and service-to-service secret access should use the
-identity and permission model from the first phase. A resource should not gain
+current identity and permission model. A resource should not gain
 secret read access solely because it references a secret.
 
 References:

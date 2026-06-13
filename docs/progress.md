@@ -42,6 +42,13 @@ expectations rather than duplicating the task queue.
 
 ## Recent decisions
 
+- MVP work is now prioritized around convergence of the flows that already
+  work: reliable samples, Resource Manager detail polish, settings/secrets
+  references, opt-in built-in identity, lifecycle actions, activity records,
+  diagnostics, and stable local/default host behavior. Broad IAM, workflow
+  automation, remote-host completeness, runtime-managed resources, and rich
+  deployment history should not move ahead of those release-shaping slices
+  unless they block the supported MVP samples.
 - CloudShell is an open platform. Built-in services and samples should dogfood
   the same public integration points, identity model, service APIs, lifecycle
   contracts, diagnostics, and authorization surfaces that extension authors and
