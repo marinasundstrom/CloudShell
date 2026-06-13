@@ -51,6 +51,37 @@ public sealed class HostScopedResourceShutdownServiceTests
         });
     }
 
+    [Fact]
+    public async Task StopAsync_ContinuesWhenAHostScopedResourceStopFails()
+    {
+        var api = CreateResource("api", "API", ResourceState.Running);
+        var worker = CreateResource("worker", "Worker", ResourceState.Running);
+        var resourceManager = new RecordingResourceManager
+        {
+            FailingResourceIds = { "api" }
+        };
+        var catalog = new TestResourceOrchestrationCatalog(new ResourceOrchestrationCatalogSnapshot(
+            [api, worker],
+            new Dictionary<string, ResourceWorkloadConfiguration>(StringComparer.OrdinalIgnoreCase)
+            {
+                [api.Id] = CreateWorkload(ResourceLifetime.ControlPlaneScoped),
+                [worker.Id] = CreateWorkload(ResourceLifetime.ControlPlaneScoped)
+            },
+            new Dictionary<string, ContainerHostDescriptor>(StringComparer.OrdinalIgnoreCase)));
+        using var services = new ServiceCollection()
+            .AddLogging()
+            .AddSingleton<IHostEnvironment>(new TestHostEnvironment())
+            .AddScoped<IResourceManager>(_ => resourceManager)
+            .AddScoped<IResourceOrchestrationCatalog>(_ => catalog)
+            .AddSingleton<HostScopedResourceShutdownService>()
+            .BuildServiceProvider();
+
+        await services.GetRequiredService<HostScopedResourceShutdownService>()
+            .StopAsync(CancellationToken.None);
+
+        Assert.Equal(["api", "worker"], resourceManager.Commands.Select(command => command.ResourceId));
+    }
+
     private static Resource CreateResource(
         string id,
         string name,
@@ -99,11 +130,18 @@ public sealed class HostScopedResourceShutdownServiceTests
 
         public List<ExecuteResourceActionCommand> Commands { get; } = [];
 
+        public HashSet<string> FailingResourceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+
         public Task<ResourceProcedureResult> ExecuteResourceActionAsync(
             ExecuteResourceActionCommand command,
             CancellationToken cancellationToken = default)
         {
             Commands.Add(command);
+            if (FailingResourceIds.Contains(command.ResourceId))
+            {
+                throw new InvalidOperationException($"Could not stop {command.ResourceId}.");
+            }
+
             ResourcesChanged?.Invoke(
                 this,
                 new ResourceChangeNotification(
