@@ -634,6 +634,7 @@
                 new ExecuteResourceActionCommand(
                     Resource.Id,
                     action.Id,
+                    StartDependencies: ShouldStartDependencies(action),
                     IgnoreDependentWarning: true));
             ProcedureMessage = result.Message;
             await ReloadResourceAsync();
@@ -671,6 +672,9 @@
 
     private string GetLogsActionLabel(int logCount) =>
         logCount == 1 ? L["Logs"].Value : L["Logs ({0})", logCount].Value;
+
+    private static bool ShouldStartDependencies(ResourceAction action) =>
+        action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
 
     private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
     {
