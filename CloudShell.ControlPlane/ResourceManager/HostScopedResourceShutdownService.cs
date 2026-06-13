@@ -1,4 +1,4 @@
-using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,7 +18,7 @@ public sealed class HostScopedResourceShutdownService(
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
-        var resourceManager = scope.ServiceProvider.GetRequiredService<IResourceManager>();
+        var orchestration = scope.ServiceProvider.GetRequiredService<ResourceOrchestrationService>();
         var catalog = scope.ServiceProvider.GetRequiredService<IResourceOrchestrationCatalog>();
         var snapshot = await catalog.GetSnapshotAsync(cancellationToken);
         var candidates = GetHostScopedStopCandidates(snapshot).ToArray();
@@ -31,13 +31,13 @@ public sealed class HostScopedResourceShutdownService(
                 LogDevelopmentLifecycle(
                     "Stopping host-scoped resource {ResourceId} during Control Plane shutdown.",
                     resource.Id);
-                await resourceManager.ExecuteResourceActionAsync(
-                    new ExecuteResourceActionCommand(
-                        resource.Id,
-                        ResourceActionIds.Stop,
-                        IgnoreDependentWarning: true,
-                        TriggeredBy: ShutdownTrigger),
-                    cancellationToken);
+                await orchestration.ExecuteActionAsync(
+                    resource,
+                    resource.StopAction!,
+                    startDependencies: false,
+                    new ShutdownAuthorizationService(),
+                    cancellationToken,
+                    triggeredBy: ShutdownTrigger);
                 LogDevelopmentLifecycle(
                     "Stopped host-scoped resource {ResourceId} during Control Plane shutdown.",
                     resource.Id);
@@ -111,5 +111,16 @@ public sealed class HostScopedResourceShutdownService(
         {
             visiting.Remove(resource.Id);
         }
+    }
+
+    private sealed class ShutdownAuthorizationService : ICloudShellAuthorizationService
+    {
+        public bool IsAuthenticated => true;
+
+        public bool HasPermission(string permission) => true;
+
+        public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => true;
+
+        public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) => true;
     }
 }

@@ -251,8 +251,9 @@ expectations rather than duplicating the task queue.
 - During normal Control Plane shutdown, Resource Manager stops running
   host-scoped workloads through the standard lifecycle action path with
   `host-shutdown` as the trigger. Shutdown uses the orchestration catalog
-  lifetime signal, skips detached workloads, and stops dependents before their
-  dependencies. Provider disposal still terminates any remaining
+  lifetime signal, skips detached workloads, stops dependents before their
+  dependencies, and uses internal system authorization instead of depending on
+  the current request user. Provider disposal still terminates any remaining
   control-plane-scoped local process tree as a final safety net, and shutdown
   waits briefly for those processes to exit so host-scoped applications do not
   keep running after the CloudShell host stops. In local development, Ctrl+C
