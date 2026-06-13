@@ -168,7 +168,9 @@ expectations rather than duplicating the task queue.
   provisioning requires
   `CloudShell.Identity/provisioningServices/identities/provision/action` or
   `resources.manage` on that provisioning resource in addition to
-  `resources.manage` on the target resource.
+  `resources.manage` on the target resource. Provisioning-status reads require
+  `resources.read` or `resources.manage` on both the target resource and the
+  provisioning resource.
   Configuration and Secrets providers now require matching grants when an
   identity-bound resource resolves configuration entries or secrets. The
   resource owns the identity and permission requirements; the managed

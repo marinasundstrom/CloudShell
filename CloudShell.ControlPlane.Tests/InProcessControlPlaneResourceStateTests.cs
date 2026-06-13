@@ -478,6 +478,106 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal("api", Assert.Single(request.Identities).Identity.ResourceId);
     }
 
+    [Fact]
+    public async Task GetResourceIdentityProvisioningStatusAsync_RequiresReadPermissionOnTargetResource()
+    {
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Running),
+                CreateResource("identity:dev", ResourceState.Running)
+            ],
+            authorization: new ResourceScopedAuthorizationService(
+                ("identity:dev", CloudShellPermissions.Resources.Read)),
+            identityProviders:
+            [
+                new(
+                    "identity:dev",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    ProvisioningResourceId: "identity:dev")
+            ],
+            configureDeclarations: declarations => declarations.Declare(
+                new TestCloudShellBuilder(),
+                "test",
+                "api",
+                identity: new ResourceIdentityBinding("identity:dev", Name: "api-service")));
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.GetResourceIdentityProvisioningStatusAsync("api"));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Equal(
+            "The 'resources.read' or 'resources.manage' permission is required for resource 'api'.",
+            exception.Message);
+    }
+
+    [Fact]
+    public async Task GetResourceIdentityProvisioningStatusAsync_RequiresReadPermissionOnProvisioningResource()
+    {
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Running),
+                CreateResource("identity:dev", ResourceState.Running)
+            ],
+            authorization: new ResourceScopedAuthorizationService(
+                ("api", CloudShellPermissions.Resources.Read)),
+            identityProviders:
+            [
+                new(
+                    "identity:dev",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    ProvisioningResourceId: "identity:dev")
+            ],
+            configureDeclarations: declarations => declarations.Declare(
+                new TestCloudShellBuilder(),
+                "test",
+                "api",
+                identity: new ResourceIdentityBinding("identity:dev", Name: "api-service")));
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.GetResourceIdentityProvisioningStatusAsync("api"));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Equal(
+            "The 'resources.read' or 'resources.manage' permission is required for resource 'identity:dev'.",
+            exception.Message);
+    }
+
+    [Fact]
+    public async Task GetResourceIdentityProvisioningStatusAsync_AllowsReadOnTargetAndProvisioningResource()
+    {
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Running),
+                CreateResource("identity:dev", ResourceState.Running)
+            ],
+            authorization: new ResourceScopedAuthorizationService(
+                ("api", CloudShellPermissions.Resources.Read),
+                ("identity:dev", CloudShellPermissions.Resources.Read)),
+            identityProviders:
+            [
+                new(
+                    "identity:dev",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    ProvisioningResourceId: "identity:dev")
+            ],
+            configureDeclarations: declarations => declarations.Declare(
+                new TestCloudShellBuilder(),
+                "test",
+                "api",
+                identity: new ResourceIdentityBinding("identity:dev", Name: "api-service")));
+
+        var result = await controlPlane.GetResourceIdentityProvisioningStatusAsync("api");
+
+        Assert.Equal("identity:dev", result.ProviderId);
+        var status = Assert.Single(result.Statuses);
+        Assert.Equal("api", status.Identity.ResourceId);
+        Assert.Equal("api-service", status.Identity.Name);
+        Assert.Equal(ResourceIdentityProvisioningState.Unknown, status.State);
+    }
+
     [Theory]
     [InlineData(ResourceState.Starting, ResourceActionIds.Restart)]
     [InlineData(ResourceState.Paused, ResourceActionIds.Stop)]

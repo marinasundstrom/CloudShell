@@ -126,6 +126,8 @@ Implemented today:
 - A development-oriented built-in provisioner that issues scoped
   resource-permission token claims through the built-in authority.
 - Optional provisioning-resource authorization for resource identity providers.
+- Provisioning-status authorization requiring read access on both the target
+  resource and the provisioning resource.
 - Resource-operation permission constants for lifecycle actions, custom
   actions, configuration entry reads, secret value reads, identity
   provisioning, network endpoint reconciliation, and load-balancer

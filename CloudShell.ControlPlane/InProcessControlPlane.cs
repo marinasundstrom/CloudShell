@@ -224,7 +224,7 @@ public sealed class InProcessControlPlane(
         {
             throw ControlPlaneAccessDeniedException.ForResource(
                 resourceId,
-                CloudShellPermissions.Resources.Read);
+                FormatPermissionRequirement(CloudShellPermissions.Resources.Read));
         }
 
         var plan = resourceIdentityProvisioning.CreatePlan(resource.Id);
@@ -720,7 +720,7 @@ public sealed class InProcessControlPlane(
             {
                 throw ControlPlaneAccessDeniedException.ForResource(
                     provisioningResource.Id,
-                    CloudShellPermissions.Resources.Read);
+                    FormatPermissionRequirement(CloudShellPermissions.Resources.Read));
             }
         }
     }

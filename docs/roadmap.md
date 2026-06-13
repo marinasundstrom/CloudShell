@@ -103,10 +103,10 @@ listed here before pulling in broader proposal work.
   configuration updates, deployment operations, logs, diagnostics, provider
   actions, and future runtime-managed resources as those operations enter the
   MVP path.
-- Validate provisioning-resource authorization boundaries with focused tests:
+- Provisioning-resource authorization boundaries now have focused coverage:
   provisioning requires permission on the provisioning resource and manage
-  permission on the target resource; status reads require read permission on
-  the target and provisioning resource.
+  permission on the target resource, while status reads require read
+  permission on both the target and provisioning resource.
 - Defer broad IAM work unless it blocks the built-in identity MVP: resource
   group or parent-resource identity inheritance, multiple identities per
   resource, effective permission APIs, durable external authority
