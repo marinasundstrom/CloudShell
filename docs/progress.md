@@ -273,6 +273,9 @@ expectations rather than duplicating the task queue.
   application spans, and exports span summaries to CloudShell trace ingestion.
   This sample is the current proving ground for an Aspire-like service-aware
   trace view while keeping traces separate from resource activity and logs.
+  The intended trace detail direction is a service-aware waterfall/flamegraph
+  with a service legend, span details, and links from spans to related logs,
+  activity entries, and Resource Manager details.
 - Application resources can project transient `Starting` state from
   provider-owned runtime observations while start/restart work is in progress.
   Stale starting observations fall back to stopped so a crashed host does not

@@ -221,6 +221,26 @@ spans: users should be able to follow a trace across services while CloudShell
 keeps resource activity, source logs, traces, and future metrics as separate
 signals with shared correlation fields.
 
+The target trace detail experience should be service-aware rather than a flat
+span table:
+
+- Trace header with trace ID, entry service/operation, duration, total span
+  count, and error span count.
+- Service legend using stable service/resource colors and basic execution-time
+  contribution.
+- Nested waterfall or flamegraph view that preserves parent/child span
+  relationships and makes cross-service calls visible.
+- Span details panel with span name, span ID, parent span ID, timing, service,
+  resource ID, kind, status, attributes, and events.
+- Navigation from a selected span to related resource logs, activity entries,
+  and resource details using shared `traceId`, `spanId`, `resourceId`, and
+  service name correlation.
+
+This is an interaction target, not a requirement to copy any specific vendor
+UI. CloudShell should keep the view consistent with Resource Manager and should
+prefer resource-aware terminology where generic tracing tools expose only
+service names.
+
 ### Non-Text Payloads
 
 Some future operational records may point to payloads rather than embedding
