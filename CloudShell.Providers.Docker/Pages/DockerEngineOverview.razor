@@ -231,7 +231,7 @@ else
         builder.OpenComponent<FluentMenuButton>(sequence++);
         builder.AddAttribute(sequence++, "Class", "action-overflow-button");
         builder.AddAttribute(sequence++, "ButtonAppearance", Appearance.Neutral);
-        builder.AddAttribute(sequence++, "UseMenuService", false);
+        builder.AddAttribute(sequence++, "UseMenuService", true);
         builder.AddAttribute(sequence++, "ButtonStyle", "width: 2rem; min-width: 2rem;");
         builder.AddAttribute(sequence++, "ButtonContent", (RenderFragment)(buttonBuilder =>
         {

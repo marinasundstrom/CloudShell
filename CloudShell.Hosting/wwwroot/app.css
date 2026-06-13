@@ -603,6 +603,25 @@ h3 {
     box-shadow: 0 .2rem 0 currentColor;
 }
 
+.action-icon-details::before {
+    content: "";
+    position: absolute;
+    inset: .1rem;
+    border: .12rem solid currentColor;
+    border-radius: 1px;
+}
+
+.action-icon-details::after {
+    content: "";
+    position: absolute;
+    left: .28rem;
+    top: .3rem;
+    width: .36rem;
+    height: .1rem;
+    background: currentColor;
+    box-shadow: 0 .18rem 0 currentColor;
+}
+
 .action-overflow-label {
     display: inline-grid;
     place-items: center;

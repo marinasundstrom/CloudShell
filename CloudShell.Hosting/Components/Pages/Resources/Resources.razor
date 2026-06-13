@@ -12,6 +12,7 @@
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Resources"]</PageTitle>
+<FluentMenuProvider />
 
 @{
     var allResources = ResourceInventory;
@@ -222,7 +223,7 @@
                     <span>@HealthIndicator(resource)</span>
                     <span class="endpoint">@EndpointLink(resource.PrimaryEndpoint)</span>
                     <span class="resource-row-actions" @onclick:stopPropagation="true">
-                        @ResourceActionControls(resource)
+                        @ResourceActionControls(resource, includeDetailsAction: true)
                     </span>
                 </div>
             }
@@ -1589,10 +1590,12 @@
     private static string GetActionKey(Resource resource, ResourceAction action) =>
         $"{resource.Id}:{action.Id}";
 
-    private RenderFragment ResourceActionControls(Resource resource) => builder =>
+    private RenderFragment ResourceActionControls(
+        Resource resource,
+        bool includeDetailsAction = false) => builder =>
     {
         var logs = GetLogs(resource);
-        if (resource.ResourceActions.Count == 0 && logs.Count == 0)
+        if (resource.ResourceActions.Count == 0 && logs.Count == 0 && !includeDetailsAction)
         {
             return;
         }
@@ -1625,7 +1628,7 @@
             .Where(action => !IsInlineAction(action))
             .ToArray();
 
-        if (overflowActions.Length == 0)
+        if (overflowActions.Length == 0 && !includeDetailsAction)
         {
             if (logs.Count > 0)
             {
@@ -1653,7 +1656,7 @@
 
         builder.OpenComponent<FluentMenuButton>(sequence++);
         builder.AddAttribute(sequence++, "Class", "action-overflow-button");
-        builder.AddAttribute(sequence++, "UseMenuService", false);
+        builder.AddAttribute(sequence++, "UseMenuService", true);
         builder.AddAttribute(sequence++, "ButtonAppearance", Appearance.Neutral);
         builder.AddAttribute(sequence++, "ButtonStyle", "width: 2rem; min-width: 2rem;");
         builder.AddAttribute(sequence++, "ButtonContent", (RenderFragment)(buttonBuilder =>
@@ -1711,6 +1714,29 @@
                     itemBuilder.CloseElement();
                     itemBuilder.OpenElement(5, "span");
                     itemBuilder.AddContent(6, GetLogsActionLabel(logs.Count));
+                    itemBuilder.CloseElement();
+                    itemBuilder.CloseElement();
+                }));
+                menuBuilder.CloseComponent();
+            }
+
+            if (includeDetailsAction)
+            {
+                menuBuilder.OpenComponent<FluentMenuItem>(menuSequence++);
+                menuBuilder.AddAttribute(menuSequence++, "OnClick",
+                    EventCallback.Factory.Create<MouseEventArgs>(
+                        this,
+                        () => OpenResourceDetails(resource)));
+                menuBuilder.AddAttribute(menuSequence++, "ChildContent", (RenderFragment)(itemBuilder =>
+                {
+                    itemBuilder.OpenElement(0, "span");
+                    itemBuilder.AddAttribute(1, "class", "menu-action-content");
+                    itemBuilder.OpenElement(2, "span");
+                    itemBuilder.AddAttribute(3, "class", "action-icon action-icon-details");
+                    itemBuilder.AddAttribute(4, "aria-hidden", "true");
+                    itemBuilder.CloseElement();
+                    itemBuilder.OpenElement(5, "span");
+                    itemBuilder.AddContent(6, L["Details"]);
                     itemBuilder.CloseElement();
                     itemBuilder.CloseElement();
                 }));

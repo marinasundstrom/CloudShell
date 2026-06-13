@@ -11,6 +11,7 @@
 @implements IDisposable
 
 <PageTitle>@L["Resource details"]</PageTitle>
+<FluentMenuProvider />
 
 @{
     var resource = Resource;
@@ -493,7 +494,7 @@
         {
             builder.OpenComponent<FluentMenuButton>(sequence++);
             builder.AddAttribute(sequence++, "Class", "action-overflow-button");
-            builder.AddAttribute(sequence++, "UseMenuService", false);
+            builder.AddAttribute(sequence++, "UseMenuService", true);
             builder.AddAttribute(sequence++, "ButtonAppearance", Appearance.Neutral);
             builder.AddAttribute(sequence++, "ButtonContent", (RenderFragment)(buttonBuilder =>
             {
