@@ -47,10 +47,11 @@ Then inspect the relevant implementation and tests before editing.
 6. Add focused tests at the owning layer. Add contract tests when an API shape
    or remote adapter changes.
 7. Update docs when a feature changes system concepts, hosting guidance, API
-   shape, proposal status, or MVP progress. Keep `docs/roadmap.md`,
-   `docs/progress.md`, `TODO.md`, and the relevant `docs/proposals/` files in
-   sync so proposal status, remaining tasks, and current priorities do not
-   drift.
+   shape, proposal status, milestone scope, or MVP progress. Treat
+   `docs/roadmap.md` as authoritative for milestone scope and
+   `docs/proposals/README.md` as authoritative for proposal status. Keep those
+   files, `docs/progress.md`, `TODO.md`, and the relevant proposal documents in
+   sync so remaining tasks and current priorities do not drift.
 8. Update `TODO.md` when the feature changes the current task queue.
 9. Run the relevant narrow tests first, then the verification baseline from
    `docs/progress.md` for cross-boundary changes.

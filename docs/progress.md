@@ -7,10 +7,15 @@ See also: [Roadmap](roadmap.md) for product direction and [TODO](../TODO.md)
 for the current task queue that turns those priorities into concrete next
 tasks.
 
-## Current MVP focus
+## Current MVP Focus
 
 Make CloudShell functional and stable for the common-hosted scenario while
 preserving the path to split hosting.
+
+The authoritative MVP milestone is defined in [Roadmap](roadmap.md). Current
+MVP scope is Container Apps Version 1, network primitives, built-in identity,
+working app settings and secrets integrations, Resource Manager UX polish, and
+reliable samples.
 
 The MVP should prove:
 
@@ -24,15 +29,10 @@ The MVP should prove:
 
 ## Proposal status snapshot
 
-- Platform foundations proposal: In progress
-- Identity and access proposal: Current implementation working document
-- Secrets management proposal: In progress
-- Container host abstraction proposal: Proposed
-- Remote Docker hosts proposal: Partially implemented
-- Load balancer resource proposal: In progress
-- Virtual network resource proposal: In progress
-- Runtime-managed resource proposal: In progress design
-- Deployments and revisions proposal: In progress design
+Proposal statuses are tracked in the authoritative proposal status table in
+[Proposals](proposals/README.md). Update that table together with the relevant
+proposal, this progress tracker, [Roadmap](roadmap.md), and [TODO](../TODO.md)
+when status, milestone relevance, or remaining work changes.
 
 ## Current proposal order
 

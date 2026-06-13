@@ -1,7 +1,9 @@
 # TODO
 
-This is the current task queue. Keep `docs/progress.md` as the living
-tracker for completed decisions and broader MVP status.
+This is the current task queue. Keep `docs/roadmap.md` authoritative for
+milestone scope, `docs/proposals/README.md` authoritative for proposal
+statuses, and `docs/progress.md` as the living tracker for completed
+decisions and broader MVP progress.
 
 See also: [Roadmap](docs/roadmap.md) for product direction and
 [Progress](docs/progress.md) for completed work, current MVP focus, and the

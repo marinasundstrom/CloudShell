@@ -22,6 +22,31 @@ Useful references:
 - [Control Plane API](control-plane-api.md)
 - [CloudShell and Aspire](cloudshell-and-aspire.md)
 
+## Authoritative Milestones
+
+Milestones in this file are the authoritative product scope. Proposal status
+tables, progress notes, and TODO queues should stay aligned with these
+milestones instead of redefining release scope independently.
+
+### MVP
+
+Goal: make CloudShell useful as a combined-hosted local and team-owned control
+plane while preserving the split-hosting path.
+
+MVP scope:
+
+| Area | Required outcome |
+| --- | --- |
+| Container Apps, Version 1 | Container app resources can be declared, inspected, started, stopped, updated by image/revision, configured with replicas, and connected to the default container-host path. |
+| Network primitives | Network resources, endpoint requests, endpoint mappings, load-balancer routes, and host-local networking provide enough routing to expose common container app scenarios with clear diagnostics. |
+| Identity, Built-in | The built-in identity provider can provision resource identities, issue scoped resource-permission tokens, and enforce those permissions for Control Plane actions, configuration reads, and secret reads. |
+| App settings and secrets integrations | App settings, configuration-entry references, and secret references work through programmatic declarations, Resource Manager assignment flows, runtime transfer, redaction, and authorization. |
+| UX polish | Resource Manager common workflows are understandable, diagnostics are actionable, generated details are useful, and identity, configuration, secrets, networking, and app controls are discoverable without bespoke sample code. |
+| Samples should work | Supported samples build and smoke-test, including combined hosting, split hosting, container host, settings and secrets, host virtual networking, load balancer, project references, and container app deployment. |
+
+The near-term roadmap below is the implementation order for reaching this MVP
+and then expanding beyond it.
+
 ## Near-Term Roadmap
 
 The next work should follow the product focus first, then proposal
@@ -80,7 +105,7 @@ References:
 - [Identity and Access Proposal](proposals/core/identity-and-access.md)
 - [Resource identity and permissions](resource-identity-and-permissions.md)
 - [Authentication and authorization](authentication-and-authorization.md)
-- [Platform Foundations Proposal](proposals/platform-foundations.md)
+- [Platform Foundations Proposal](proposals/core/platform-foundations.md)
 
 ### 2. Host Abstractions
 
@@ -100,9 +125,9 @@ containers should come after the resolver is in place.
 
 References:
 
-- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
-- [Remote Docker Hosts Proposal](proposals/remote-docker-hosts.md)
-- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
+- [Container Host Abstraction Proposal](proposals/containers/container-host-abstraction.md)
+- [Remote Docker Hosts Proposal](proposals/containers/remote-docker-hosts.md)
+- [Load Balancer Resource Proposal](proposals/networking/load-balancer-resource.md)
 - [Container apps](resources/container-apps.md)
 
 ### 3. Configuration and Secrets Access
@@ -117,7 +142,7 @@ secret read access solely because it references a secret.
 
 References:
 
-- [Secrets Management Proposal](proposals/secrets-management.md)
+- [Secrets Management Proposal](proposals/services/secrets-management.md)
 - [Identity and Access Proposal](proposals/core/identity-and-access.md)
 - [Resource templates](resource-templates.md)
 - [Programmatic resources](programmatic-resources.md)
@@ -134,7 +159,7 @@ authorization decisions.
 
 References:
 
-- [Platform Foundations Proposal](proposals/platform-foundations.md)
+- [Platform Foundations Proposal](proposals/core/platform-foundations.md)
 - [Identity and Access Proposal](proposals/core/identity-and-access.md)
 - [Container apps](resources/container-apps.md#logs-and-events)
 
@@ -154,8 +179,8 @@ container apps and provider-owned infrastructure.
 
 References:
 
-- [Remote Docker Hosts Proposal](proposals/remote-docker-hosts.md)
-- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
+- [Remote Docker Hosts Proposal](proposals/containers/remote-docker-hosts.md)
+- [Container Host Abstraction Proposal](proposals/containers/container-host-abstraction.md)
 - [Domain model](domain-model.md)
 
 ### 6. Provider-Owned Runtime Lifecycle
@@ -175,8 +200,8 @@ projection for app-owned ingress infrastructure.
 References:
 
 - [Load balancers](resources/load-balancers.md)
-- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
-- [Container Host Abstraction Proposal](proposals/container-host-abstraction.md)
+- [Load Balancer Resource Proposal](proposals/networking/load-balancer-resource.md)
+- [Container Host Abstraction Proposal](proposals/containers/container-host-abstraction.md)
 - [Container apps](resources/container-apps.md)
 
 ### 7. Network and Routing Hardening
@@ -197,9 +222,9 @@ reliable.
 
 References:
 
-- [Virtual Network Resource Proposal](proposals/virtual-network-resource.md)
+- [Virtual Network Resource Proposal](proposals/networking/virtual-network-resource.md)
 - [Networking](networking.md)
-- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
+- [Load Balancer Resource Proposal](proposals/networking/load-balancer-resource.md)
 - [Load balancers](resources/load-balancers.md)
 
 ### 8. Runtime-Managed Resources
@@ -215,8 +240,8 @@ and diagnostics without cluttering normal Resource Manager views.
 
 References:
 
-- [Runtime-Managed Resource Proposal](proposals/runtime-managed-resource.md)
-- [Deployments and Revisions Proposal](proposals/deployments-and-revisions.md)
+- [Runtime-Managed Resource Proposal](proposals/core/provider-created-and-runtime-managed-resources.md)
+- [Deployments and Revisions Proposal](proposals/deployment/deployments-and-revisions.md)
 - [Domain model: Resource](domain-model.md#resource)
 
 ### 9. Deployment and Revision Model
@@ -232,8 +257,8 @@ networking, or basic replica count updates.
 
 References:
 
-- [Deployments and Revisions Proposal](proposals/deployments-and-revisions.md)
-- [Runtime-Managed Resource Proposal](proposals/runtime-managed-resource.md)
+- [Deployments and Revisions Proposal](proposals/deployment/deployments-and-revisions.md)
+- [Runtime-Managed Resource Proposal](proposals/core/provider-created-and-runtime-managed-resources.md)
 - [Container apps](resources/container-apps.md#revisions)
 - [Progress](progress.md)
 
@@ -250,12 +275,12 @@ host, routing, identity, runtime ownership, and deployment decisions above.
 References:
 
 - [Container apps](resources/container-apps.md)
-- [Virtual Network Resource Proposal](proposals/virtual-network-resource.md)
-- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
+- [Virtual Network Resource Proposal](proposals/networking/virtual-network-resource.md)
+- [Load Balancer Resource Proposal](proposals/networking/load-balancer-resource.md)
 - [Hosting model](hosting-model.md)
 
 ## Tracking Work
 
 The current task queue stays in [TODO](../TODO.md). Completed decisions and
-verification expectations stay in [Progress](progress.md). Larger design
-threads should live under [docs/proposals](proposals/).
+verification expectations stay in [Progress](progress.md). Proposal statuses
+stay in [docs/proposals](proposals/). Milestone scope stays in this roadmap.
