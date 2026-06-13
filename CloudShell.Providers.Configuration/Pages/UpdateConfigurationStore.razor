@@ -6,7 +6,7 @@
 @if (Store is null)
 {
     <div class="empty-state">
-        <strong>Configuration service is unavailable</strong>
+        <strong>Configuration Store is unavailable</strong>
         <span>The resource may have been removed or is no longer visible.</span>
     </div>
 }
@@ -32,44 +32,6 @@ else
                 }
             </FluentSelect>
 
-            <div class="environment-editor">
-                <div class="environment-header">
-                    <strong>Entries</strong>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="AddEntry">
-                        Add entry
-                    </FluentButton>
-                </div>
-
-                @foreach (var entry in Entries)
-                {
-                    <div class="environment-row configuration-entry-row @(entry.IsLockedSecret ? "locked-secret" : null)">
-                        <FluentTextField AriaLabel="Configuration entry name"
-                                         Disabled="@entry.IsLockedSecret"
-                                         @bind-Value="entry.Name" />
-                        @if (entry.IsLockedSecret)
-                        {
-                            <span class="configuration-secret-placeholder">@CreateMask(entry.Value)</span>
-                        }
-                        else
-                        {
-                            <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" />
-                        }
-                        @if (entry.IsLockedSecret)
-                        {
-                            <span class="configuration-secret-status">Secret</span>
-                        }
-                        else
-                        {
-                            <FluentCheckbox @bind-Value="entry.IsSecret">
-                                Secret
-                            </FluentCheckbox>
-                        }
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEntry(entry)">
-                            Remove
-                        </FluentButton>
-                    </div>
-                }
-            </div>
         </div>
     </div>
 }
@@ -85,7 +47,6 @@ else
     private string Name { get; set; } = string.Empty;
     private string? Endpoint { get; set; }
     private string SelectedGroupId { get; set; } = string.Empty;
-    private List<ConfigurationEntryInput> Entries { get; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
 
     protected override void OnParametersSet()
@@ -99,13 +60,6 @@ else
             Name = Store.Name;
             Endpoint = Store.Endpoint;
             SelectedGroupId = ResourceManager.GetGroupForResource(Store.Id)?.Id ?? string.Empty;
-            Entries.Clear();
-            Entries.AddRange(Store.Entries
-                .Select(ConfigurationEntryInput.FromEntry));
-            if (Entries.Count == 0)
-            {
-                Entries.Add(new());
-            }
         }
 
         if (Configuration is not null &&
@@ -116,28 +70,17 @@ else
         }
     }
 
-    private void AddEntry() => Entries.Add(new());
-
-    private void RemoveEntry(ConfigurationEntryInput entry)
-    {
-        Entries.Remove(entry);
-        if (Entries.Count == 0)
-        {
-            Entries.Add(new());
-        }
-    }
-
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
         if (Store is null)
         {
-            return ResourceProcedureResult.Completed("Configuration service is unavailable.");
+            return ResourceProcedureResult.Completed("Configuration Store is unavailable.");
         }
 
         var definition = new ConfigurationStoreDefinition(
             Store.Id,
             Name,
-            BuildEntries(),
+            Store.Entries,
             endpoint: Endpoint,
             healthChecks: Store.HealthChecks);
 
@@ -147,35 +90,6 @@ else
             Registrations,
             cancellationToken);
 
-        return ResourceProcedureResult.Completed("Configuration service updated.");
-    }
-
-    private IReadOnlyList<ConfigurationEntry> BuildEntries() =>
-        Entries
-            .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
-            .Select(entry => new ConfigurationEntry(
-                entry.Name!.Trim(),
-                entry.Value ?? string.Empty,
-                entry.IsSecret))
-            .ToArray();
-
-    private static string CreateMask(string? value) =>
-        new('*', Math.Clamp(value?.Length ?? 0, 8, 24));
-
-    private sealed class ConfigurationEntryInput(string? name = null, string? value = null, bool isSecret = false)
-    {
-        public string? Name { get; set; } = name;
-
-        public string? Value { get; set; } = value;
-
-        public bool IsSecret { get; set; } = isSecret;
-
-        public bool IsLockedSecret { get; init; }
-
-        public static ConfigurationEntryInput FromEntry(ConfigurationEntry entry) =>
-            new(entry.Name, entry.Value, entry.IsSecret)
-            {
-                IsLockedSecret = entry.IsSecret
-            };
+        return ResourceProcedureResult.Completed("Configuration Store updated.");
     }
 }

@@ -56,7 +56,7 @@ cloudShell.Resources(resources =>
         .WithEntries(
         [
             new("SampleMessage", "Hello from CloudShell configuration"),
-            new("SampleSecret", "local-development-secret", IsSecret: true)
+            new("SampleMode", "Development")
         ]);
 });
 

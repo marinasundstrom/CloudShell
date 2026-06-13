@@ -42,7 +42,7 @@ public sealed partial class ConfigurationResourceProvider :
 
     public string Id => "configuration";
 
-    public string DisplayName => "Configuration";
+    public string DisplayName => "Configuration Store";
 
     public IReadOnlyList<Resource> GetResources()
     {
@@ -55,13 +55,13 @@ public sealed partial class ConfigurationResourceProvider :
         .GetStores()
         .Select(configurationStore => new LogDescriptor(
             GetLogId(configurationStore.Id),
-            "Configuration service logs",
+            "Configuration Store service logs",
             DisplayName,
             configurationStore.Name,
             LogSourceKind.Resource,
             ResourceId: configurationStore.Id,
             SupportsStreaming: true,
-            Description: "Configuration service stdout, stderr, and lifecycle events."))
+            Description: "Configuration Store service stdout, stderr, and lifecycle events."))
         .ToArray();
 
     public Task<IReadOnlyList<LogEntry>> ReadLogAsync(
@@ -124,7 +124,7 @@ public sealed partial class ConfigurationResourceProvider :
         var declaredStore = options.DeclaredStores.FirstOrDefault(store =>
             string.Equals(store.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException(
-                $"Configuration service declaration '{declaration.ResourceId}' was not found.");
+                $"Configuration Store declaration '{declaration.ResourceId}' was not found.");
 
         if (!declaration.OverwritePersistedState &&
             (registrations.GetRegistration(declaration.ResourceId) is not null ||
@@ -183,7 +183,7 @@ public sealed partial class ConfigurationResourceProvider :
         var normalized = EnsureServiceEndpoint(NormalizeDefinition(definition));
         if (store.GetStore(normalized.Id) is null)
         {
-            throw new InvalidOperationException($"Configuration service '{normalized.Id}' is not configured.");
+            throw new InvalidOperationException($"Configuration Store '{normalized.Id}' is not configured.");
         }
 
         store.Save(normalized);
@@ -202,7 +202,7 @@ public sealed partial class ConfigurationResourceProvider :
         CancellationToken cancellationToken = default)
     {
         var configurationStore = store.GetStore(context.Resource.Id)
-            ?? throw new InvalidOperationException($"Configuration service '{context.Resource.Id}' is not configured.");
+            ?? throw new InvalidOperationException($"Configuration Store '{context.Resource.Id}' is not configured.");
         var process = CreateServiceProcessDefinition(configurationStore);
         switch (action.Kind)
         {
@@ -222,7 +222,7 @@ public sealed partial class ConfigurationResourceProvider :
                 break;
             default:
                 throw new NotSupportedException(
-                    $"Configuration services do not support action '{action.DisplayName}'.");
+                    $"Configuration Store resources do not support action '{action.DisplayName}'.");
         }
 
         return ResourceProcedureResult.Completed(CreateActionMessage(action, context.Resource.Name));
@@ -249,7 +249,7 @@ public sealed partial class ConfigurationResourceProvider :
             context.Registrations,
             cancellationToken);
         await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
-        return ResourceProcedureResult.Completed("Configuration service removed.");
+        return ResourceProcedureResult.Completed("Configuration Store removed.");
     }
 
     public IReadOnlyList<EnvironmentVariableAssignment> GetEnvironmentVariables(string resourceId)
@@ -300,12 +300,6 @@ public sealed partial class ConfigurationResourceProvider :
                 $"Configuration entry '{reference.EntryName}' was not found in '{reference.StoreResourceId}'.");
         }
 
-        if (entry.IsSecret)
-        {
-            return ResourceSettingResolutionResult.Failed(
-                $"Configuration entry '{reference.EntryName}' is secret and must be referenced through a vault secret.");
-        }
-
         return ResourceSettingResolutionResult.Resolved(entry.Value);
     }
 
@@ -324,13 +318,11 @@ public sealed partial class ConfigurationResourceProvider :
         CancellationToken cancellationToken = default)
     {
         var configurationStore = store.GetStore(resource.Id)
-            ?? throw new InvalidOperationException($"Configuration service '{resource.Id}' is not configured.");
+            ?? throw new InvalidOperationException($"Configuration Store '{resource.Id}' is not configured.");
 
         var configuration = new ConfigurationStoreTemplateConfiguration(
             configurationStore.Endpoint,
-            configurationStore.Entries
-                .Select(entry => entry.IsSecret ? entry with { Value = string.Empty } : entry)
-                .ToArray());
+            configurationStore.Entries);
 
         return Task.FromResult(new ResourceTemplateDefinition(
             configurationStore.Name,
@@ -354,12 +346,12 @@ public sealed partial class ConfigurationResourceProvider :
     {
         if (!CanImport(template))
         {
-            throw new InvalidOperationException("The configuration service template is not supported.");
+            throw new InvalidOperationException("The Configuration Store template is not supported.");
         }
 
         var configuration = template.Configuration.Deserialize<ConfigurationStoreTemplateConfiguration>(
             TemplateSerializerOptions)
-            ?? throw new InvalidOperationException("The configuration service template configuration is invalid.");
+            ?? throw new InvalidOperationException("The Configuration Store template configuration is invalid.");
 
         var resourceId = string.IsNullOrWhiteSpace(template.ResourceId)
             ? CreateUniqueImportId(template.Name)
@@ -378,7 +370,7 @@ public sealed partial class ConfigurationResourceProvider :
 
         return new ResourceTemplateImportResult(
             resourceId,
-            $"Imported configuration service '{template.Name}'.");
+            $"Imported Configuration Store '{template.Name}'.");
     }
 
     public static string CreateId(string name)
@@ -412,7 +404,7 @@ public sealed partial class ConfigurationResourceProvider :
         new(
             configurationStore.Id,
             configurationStore.Name,
-            "Configuration service",
+            "Configuration Store",
             DisplayName,
             "local",
             GetState(configurationStore),
@@ -606,7 +598,7 @@ public sealed partial class ConfigurationResourceProvider :
         }
 
         throw new TimeoutException(
-            $"Configuration service endpoint '{healthUrl}' did not become ready within 20 seconds.",
+            $"Configuration Store endpoint '{healthUrl}' did not become ready within 20 seconds.",
             lastException);
     }
 
@@ -671,7 +663,8 @@ public sealed partial class ConfigurationResourceProvider :
                 .Select(entry => entry with
                 {
                     Name = entry.Name.Trim(),
-                    Value = entry.Value ?? string.Empty
+                    Value = entry.Value ?? string.Empty,
+                    IsSecret = false
                 })
                 .GroupBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.Last())

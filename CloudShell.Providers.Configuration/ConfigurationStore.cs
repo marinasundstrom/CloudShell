@@ -153,7 +153,8 @@ public sealed class ConfigurationStore
                 .Select(entry => entry with
                 {
                     Name = entry.Name.Trim(),
-                    Value = entry.Value ?? string.Empty
+                    Value = entry.Value ?? string.Empty,
+                    IsSecret = false
                 })
                 .GroupBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(group => group.Last())

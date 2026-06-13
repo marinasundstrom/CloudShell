@@ -131,6 +131,6 @@ static IResult Unauthorized() =>
 
 static IResult NotFound() =>
     Results.Problem(
-        "The configuration service or entry was not found.",
+        "The Configuration Store or entry was not found.",
         statusCode: StatusCodes.Status404NotFound,
         title: "Not found");

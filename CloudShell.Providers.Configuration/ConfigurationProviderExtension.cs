@@ -37,8 +37,8 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
             .AddLogProvider<ConfigurationResourceProvider>()
             .AddResourceType<Pages.RegisterConfigurationStore>(
                 "configuration.store",
-                "Configuration service",
-                "Create a local configuration service for non-secret settings that dependent resources can consume.",
+                "Configuration Store",
+                "Create a local Configuration Store for setting references that dependent resources can consume.",
                 "key",
                 15,
                 probeOptions: new ResourceTypeProbeOptions(
@@ -56,9 +56,15 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                 10)
             .AddResourceTab<Pages.UpdateConfigurationStore>(
                 "configuration.store",
-                "configuration",
-                "Configuration",
+                "settings",
+                "Settings",
                 20,
+                showsApplyButton: true)
+            .AddResourceTab<Pages.ConfigurationStoreEntries>(
+                "configuration.store",
+                "entries",
+                "Entries",
+                30,
                 showsApplyButton: true);
     }
 }
@@ -100,9 +106,15 @@ public sealed class SecretsProviderExtension : ICloudShellExtension
                 10)
             .AddResourceTab<Pages.UpdateSecretsVault>(
                 SecretsVaultProvider.ResourceType,
+                "settings",
+                "Settings",
+                20,
+                showsApplyButton: true)
+            .AddResourceTab<Pages.SecretsVaultSecrets>(
+                SecretsVaultProvider.ResourceType,
                 "secrets",
                 "Secrets",
-                20,
+                30,
                 showsApplyButton: true);
     }
 }

@@ -1115,7 +1115,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public void ConfigurationProvider_ResolvesOnlyNonSecretConfigurationEntries()
+    public void ConfigurationProvider_ResolvesConfigurationEntries()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var services = new ServiceCollection();
@@ -1143,14 +1143,17 @@ public sealed class ResourceDeclarationTests
         var resolved = resolver.ResolveConfigurationEntry(
             new ConfigurationEntryReference("configuration:app", "Database:Name"),
             context);
-        var rejected = resolver.ResolveConfigurationEntry(
+        var legacySecret = resolver.ResolveConfigurationEntry(
             new ConfigurationEntryReference("configuration:app", "Database:Password"),
             context);
 
         Assert.True(resolved.IsResolved);
         Assert.Equal("appdb", resolved.Value);
-        Assert.False(rejected.IsResolved);
-        Assert.Contains("must be referenced through a vault secret", rejected.ErrorMessage);
+        Assert.True(legacySecret.IsResolved);
+        Assert.Equal("secret", legacySecret.Value);
+        Assert.DoesNotContain(
+            resolver.GetStore("configuration:app")!.Entries,
+            entry => entry.IsSecret);
     }
 
     [Fact]
