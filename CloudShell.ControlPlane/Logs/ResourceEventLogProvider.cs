@@ -72,8 +72,8 @@ public sealed class ResourceEventLogProvider(
         return new LogEntry(
             resourceEvent.Timestamp,
             $"{resourceEvent.EventType}: {resourceEvent.Message} Triggered by: {actor}.",
-            resourceEvent.Level,
-            "event",
+            Severity: resourceEvent.Level,
+            Source: "event",
             EventId: resourceEvent.EventType,
             Category: "CloudShell.ResourceEvents",
             Attributes: BuildAttributes(resourceEvent, actor));

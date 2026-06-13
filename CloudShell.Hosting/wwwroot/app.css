@@ -1909,7 +1909,8 @@ h3 {
 
 .log-entry time,
 .log-entry-source,
-.log-entry-level {
+.log-entry-level,
+.log-entry-severity {
     color: #93a4b7;
     white-space: nowrap;
 }

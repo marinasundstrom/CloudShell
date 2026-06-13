@@ -140,7 +140,7 @@
                         <div class="log-entry">
                             <time>@entry.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
                             <span class="log-entry-source">@entry.Source</span>
-                            <span class="log-entry-level">@entry.Level</span>
+                            <span class="log-entry-severity">@entry.Severity</span>
                             <div class="log-entry-body">
                                 <pre>@entry.Message</pre>
                                 @if (HasStructuredMetadata(entry))
@@ -587,7 +587,7 @@
     private static (
         DateTimeOffset Timestamp,
         string Message,
-        string? Level,
+        string? Severity,
         string? Source,
         string? EventId,
         string? Category,
@@ -596,7 +596,7 @@
         (
             entry.Timestamp,
             entry.Message,
-            entry.Level,
+            entry.Severity,
             entry.Source,
             entry.EventId,
             entry.Category,

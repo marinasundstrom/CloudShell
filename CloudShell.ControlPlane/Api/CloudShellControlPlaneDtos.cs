@@ -225,7 +225,7 @@ public sealed record ResourceEventResponse(
 public sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
-    string? Level,
+    string? Severity,
     string? Source,
     string? EventId,
     string? Category,
@@ -452,7 +452,7 @@ internal static class CloudShellControlPlaneDtoMapper
         new(
             entry.Timestamp,
             entry.Message,
-            entry.Level,
+            entry.Severity,
             entry.Source,
             entry.EventId,
             entry.Category,

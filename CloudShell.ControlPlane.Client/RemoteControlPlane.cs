@@ -870,7 +870,7 @@ file sealed record ResourceEventResponse(
 file sealed record LogEntryResponse(
     DateTimeOffset Timestamp,
     string Message,
-    string? Level,
+    string? Severity,
     string? Source,
     string? EventId,
     string? Category,
@@ -1108,7 +1108,7 @@ file static class RemoteControlPlaneMapper
         new(
             response.Timestamp,
             response.Message,
-            response.Level,
+            response.Severity,
             response.Source,
             response.EventId,
             response.Category,

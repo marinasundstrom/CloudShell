@@ -13,14 +13,14 @@ internal sealed class ApplicationProcessLog
         _logPath = logPath;
     }
 
-    public void Append(string message, string source, string? level = null)
+    public void Append(string message, string source, string? severity = null)
     {
         if (string.IsNullOrEmpty(message))
         {
             return;
         }
 
-        var entry = new LogEntry(DateTimeOffset.UtcNow, message, level, source);
+        var entry = new LogEntry(DateTimeOffset.UtcNow, message, severity, source);
         lock (_entries)
         {
             _entries.Enqueue(entry);
@@ -93,7 +93,7 @@ internal sealed class ApplicationProcessLog
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!);
-        var level = string.IsNullOrWhiteSpace(entry.Level) ? "Information" : entry.Level;
+        var severity = string.IsNullOrWhiteSpace(entry.Severity) ? "Information" : entry.Severity;
         var source = string.IsNullOrWhiteSpace(entry.Source) ? "process" : entry.Source;
         using var stream = new FileStream(
             _logPath,
@@ -101,7 +101,7 @@ internal sealed class ApplicationProcessLog
             FileAccess.Write,
             FileShare.ReadWrite);
         using var writer = new StreamWriter(stream);
-        writer.WriteLine($"[{entry.Timestamp:O}] [{level}] [{source}] {entry.Message}");
+        writer.WriteLine($"[{entry.Timestamp:O}] [{severity}] [{source}] {entry.Message}");
     }
 
     private static IReadOnlyList<LogEntry> ReadFromFile(
@@ -144,9 +144,9 @@ internal sealed class ApplicationProcessLog
                 DateTimeOffset.TryParse(line[1..timestampEnd], out var timestamp))
             {
                 var remaining = line[(timestampEnd + 1)..].TrimStart();
-                var level = ParseBracketedValue(ref remaining);
+                var severity = ParseBracketedValue(ref remaining);
                 var source = ParseBracketedValue(ref remaining);
-                return new LogEntry(timestamp, remaining, level, source);
+                return new LogEntry(timestamp, remaining, severity, source);
             }
         }
 

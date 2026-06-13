@@ -327,6 +327,15 @@ public sealed class RemoteControlPlaneContractTests
             HasAttribute(entry, "triggeredBy", "build-server") &&
             entry.Message.Contains(ResourceEventTypes.Events.Deployment.ImageUpdated, StringComparison.Ordinal) &&
             entry.Message.Contains("build-server", StringComparison.Ordinal));
+
+        var logResponse = await app.GetTestClient().GetAsync(
+            $"/api/control-plane/v1/logs/{Uri.EscapeDataString(eventLog.Id)}/entries");
+        Assert.Equal(HttpStatusCode.OK, logResponse.StatusCode);
+        using var logDocument = JsonDocument.Parse(await logResponse.Content.ReadAsStringAsync());
+        var logEntry = Assert.Single(logDocument.RootElement.EnumerateArray());
+        Assert.Equal("Information", logEntry.GetProperty("severity").GetString());
+        Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, logEntry.GetProperty("eventId").GetString());
+        Assert.False(logEntry.TryGetProperty("level", out _));
     }
 
     [Fact]

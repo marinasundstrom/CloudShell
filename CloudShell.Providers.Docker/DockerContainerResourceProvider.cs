@@ -864,7 +864,7 @@ public sealed partial class DockerContainerResourceProvider :
                 var source = result.Target == MultiplexedStream.TargetStream.StandardError
                     ? "stderr"
                     : "stdout";
-                var level = result.Target == MultiplexedStream.TargetStream.StandardError
+                var severity = result.Target == MultiplexedStream.TargetStream.StandardError
                     ? "Error"
                     : null;
                 var pending = result.Target == MultiplexedStream.TargetStream.StandardError
@@ -872,7 +872,7 @@ public sealed partial class DockerContainerResourceProvider :
                     : stdout;
                 var chunk = Encoding.UTF8.GetString(buffer, 0, result.Count);
 
-                foreach (var entry in AppendLogChunk(pending, chunk, source, level))
+                foreach (var entry in AppendLogChunk(pending, chunk, source, severity))
                 {
                     yield return entry;
                 }
@@ -887,7 +887,7 @@ public sealed partial class DockerContainerResourceProvider :
     private static IReadOnlyList<LogEntry> ParseLogOutput(
         string? output,
         string source,
-        string? level)
+        string? severity)
     {
         if (string.IsNullOrWhiteSpace(output))
         {
@@ -897,7 +897,7 @@ public sealed partial class DockerContainerResourceProvider :
         var entries = new List<LogEntry>();
         foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
-            entries.Add(ParseLogLine(line, source, level));
+            entries.Add(ParseLogLine(line, source, severity));
         }
 
         return entries;
@@ -907,7 +907,7 @@ public sealed partial class DockerContainerResourceProvider :
         StringBuilder pending,
         string chunk,
         string source,
-        string? level)
+        string? severity)
     {
         pending.Append(chunk);
 
@@ -922,7 +922,7 @@ public sealed partial class DockerContainerResourceProvider :
 
             if (index > lineStart)
             {
-                yield return ParseLogLine(text[lineStart..index], source, level);
+                yield return ParseLogLine(text[lineStart..index], source, severity);
             }
             lineStart = index + 1;
         }
@@ -937,7 +937,7 @@ public sealed partial class DockerContainerResourceProvider :
     private static IEnumerable<LogEntry> FlushLogChunk(
         StringBuilder pending,
         string source,
-        string? level,
+        string? severity,
         bool final)
     {
         if (!final || pending.Length == 0)
@@ -947,13 +947,13 @@ public sealed partial class DockerContainerResourceProvider :
 
         var line = pending.ToString();
         pending.Clear();
-        yield return ParseLogLine(line, source, level);
+        yield return ParseLogLine(line, source, severity);
     }
 
     private static LogEntry ParseLogLine(
         string line,
         string source,
-        string? level)
+        string? severity)
     {
         var trimmed = line.TrimEnd('\r');
         var normalized = StripAnsiEscapeSequences(trimmed);
@@ -967,7 +967,7 @@ public sealed partial class DockerContainerResourceProvider :
             message = normalized[(separatorIndex + 1)..];
         }
 
-        return new LogEntry(timestamp, message, level, source);
+        return new LogEntry(timestamp, message, severity, source);
     }
 
     private static string StripAnsiEscapeSequences(string value) =>

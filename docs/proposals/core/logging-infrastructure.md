@@ -81,8 +81,8 @@ The current contracts are:
 This surface is useful for Resource Manager log views and provider-specific
 operational detail.
 
-`LogEntry` keeps the familiar text log shape of timestamp, message, level, and
-source, but now also supports optional structured fields using common logging
+`LogEntry` keeps the familiar text log shape of timestamp, message, severity,
+and source, but now also supports optional structured fields using common logging
 and OpenTelemetry terminology:
 
 - `category`: logger or source category, such as `CloudShell.ResourceEvents`

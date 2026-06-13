@@ -252,12 +252,12 @@ expectations rather than duplicating the task queue.
   deterministic action procedure rather than replacing it.
   Resource-type logs remain available for operational detail such as container
   console output.
-- Provider-owned operational logs now remain text-compatible while supporting
-  optional structured metadata on `LogEntry`: `category`, `eventId`, `traceId`,
-  `spanId`, `exceptionSummary`, and string-only `attributes`. The Activity log
-  compatibility projection uses these fields for resource events, but resource
-  events, audit records, diagnostics, metrics, traces, and future non-text
-  payloads remain separate concerns tracked by
+- Provider-owned operational logs now remain text-compatible with `severity`
+  terminology and optional structured metadata on `LogEntry`: `category`,
+  `eventId`, `traceId`, `spanId`, `exceptionSummary`, and string-only
+  `attributes`. The Activity log compatibility projection uses these fields
+  for resource events, but resource events, audit records, diagnostics,
+  metrics, traces, and future non-text payloads remain separate concerns tracked by
   [Logging infrastructure](proposals/core/logging-infrastructure.md).
 - Application resources can project transient `Starting` state from
   provider-owned runtime observations while start/restart work is in progress.
