@@ -71,6 +71,11 @@ when status, milestone relevance, or remaining work changes.
 
 ## Recent decisions
 
+- CloudShell is an open platform. Built-in services and samples should dogfood
+  the same public integration points, identity model, service APIs, lifecycle
+  contracts, diagnostics, and authorization surfaces that extension authors and
+  third-party service authors use unless a documented transitional exception is
+  needed.
 - The WebUI is the shell surface; the Control Plane is a separately deployable
   service boundary.
 - Control Plane resource provider registration and CloudShell UI integration

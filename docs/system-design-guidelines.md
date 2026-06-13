@@ -10,8 +10,8 @@ For artifact-by-artifact implementation and verification expectations, see
 
 ## Product goals
 
-CloudShell is a self-hosted cloud-portal shell for local development,
-team-owned platform tooling, and on-premise environments.
+CloudShell is an open, self-hosted cloud-portal platform for local
+development, team-owned platform tooling, and on-premise environments.
 
 The product should make it possible to:
 
@@ -21,6 +21,9 @@ The product should make it possible to:
   logs, procedures, and capabilities without owning the whole application.
 - Expose a domain-shaped integration model so consumers do not need to think in
   raw Web API terms.
+- Design services, integration points, and APIs for product integrators and
+  extension authors first, then dogfood those surfaces in built-in resources
+  and samples unless there is a documented reason not to.
 - Keep provider-owned configuration and platform-owned registration state
   clearly separated.
 
@@ -52,6 +55,15 @@ Internal Control Plane services can use lower-level provider and store
 interfaces such as `IResourceManagerStore`, `IResourceRegistrationStore`, and
 `ILogStore`. These are implementation contracts for the service process, not
 the client-side integration model.
+
+Built-in CloudShell services should not get private integration paths just
+because their resource types are built in. A CloudShell-owned configuration
+store, Secrets Vault, identity provisioner, load balancer, or helper service
+may have a specialized resource type and provider-owned runtime, but its
+identity, access grants, service API, lifecycle, diagnostics, and client
+integration should use the same public abstractions available to authored
+resources and third-party providers. Any exception is an architectural
+shortcut and must be documented with the reason and intended replacement.
 
 ## Resource model
 

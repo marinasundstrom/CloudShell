@@ -239,6 +239,14 @@ such as OAuth client secrets, certificates, federated credentials, or managed
 identity endpoints are authority evidence for the assigned resource identity,
 not application secrets from a CloudShell secrets vault.
 
+Built-in platform services and authored services should use the same identity
+and access integration points. A Secrets Vault, Configuration Store, or
+CloudShell-owned helper service may be projected by a built-in resource type,
+but its runtime API should acquire and validate identity through the same
+provider-neutral resource identity, credential acquisition, and access-grant
+contracts that an authored Web API would use. Special built-in shortcuts are
+allowed only as documented transitional implementation details.
+
 The intended flow is:
 
 1. A resource declares or receives an identity binding.

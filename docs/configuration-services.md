@@ -2,9 +2,9 @@
 
 CloudShell includes a configuration provider that contributes `configuration.store`
 resources. Each resource is a separate local configuration store with its own
-entries, endpoint, access token, and resource group assignment. Each store owns
-the runtime process that serves its HTTP API; it does not register that process
-as a separate application resource.
+entries, endpoint, resource identity metadata, and resource group assignment.
+Each store owns the runtime process that serves its HTTP API; it does not
+register that process as a separate application resource.
 
 CloudShell also includes a separate Secrets provider that contributes
 `secrets.vault` resources and secret-reference resolution. Hosts can call
@@ -122,20 +122,36 @@ resource model and logs attached to the configuration service resource.
 
 Executable applications receive configuration service connection details through
 resource dependencies. If an application depends on a configuration service,
-CloudShell injects environment variables when the process starts:
+CloudShell injects the configuration endpoint and resource ID when the process
+starts:
 
 ```text
 CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_STORE_ID
 CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_ENDPOINT
-CLOUDSHELL_CONFIGURATION_<SERVICE_NAME>_TOKEN
 CLOUDSHELL_CONFIGURATION_<RESOURCE_ID>_STORE_ID
 CLOUDSHELL_CONFIGURATION_<RESOURCE_ID>_ENDPOINT
-CLOUDSHELL_CONFIGURATION_<RESOURCE_ID>_TOKEN
 ```
 
 `<SERVICE_NAME>` and `<RESOURCE_ID>` are uppercased and normalized for
 environment variable names. The resource-ID variables avoid collisions when two
 groups use similarly named services.
+
+Applications also need a credential acquisition path for their own resource
+identity, such as the built-in development token endpoint used by the
+Settings and Secrets sample:
+
+```text
+CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT
+CLOUDSHELL_IDENTITY_CLIENT_ID
+CLOUDSHELL_IDENTITY_CLIENT_SECRET
+CLOUDSHELL_IDENTITY_SCOPE
+```
+
+Those identity variables are not configuration-store secrets. They represent
+the provider-selected credential mechanism for the application resource
+identity. A production provider may use a managed identity endpoint,
+certificate, federated credential, workload identity, or another provider-owned
+mechanism instead.
 
 Applications fetch settings from:
 
@@ -144,34 +160,26 @@ GET <configuration-service-endpoint>/api/configuration/entries?resourceId=<resou
 GET <configuration-service-endpoint>/api/configuration/entries/{name}?resourceId=<resource-id>
 ```
 
-Pass the token with either:
+Pass a bearer token for the calling resource identity:
 
 ```text
 Authorization: Bearer <token>
-X-CloudShell-Configuration-Token: <token>
 ```
 
-The configuration API is hosted by each standalone service application instance
-and is anonymous at the ASP.NET authentication layer because it uses the resource
-token as its own authentication boundary. Missing tokens return `401`; invalid
-tokens and missing services return `404`.
+The configuration service runtime validates the token and requires a matching
+resource-permission grant for
+`ConfigurationStoreResourceOperationPermissions.ReadEntries` on the target
+configuration store resource. Missing tokens return `401`; invalid tokens,
+missing services, or missing grants return an unavailable or access-denied
+result from the caller's perspective.
 
-The configuration service runtime enforces this token check itself. If a
-configuration service resource is implemented later as a containerized service,
-the containerized runtime must keep enforcing the configured authentication
-contract on its own API endpoints.
-
-Implemented today, configuration service APIs use this generated resource-token
-model.
-
-Directionally, this resource-token model is separate from provider-specific
-protected API registration. A configuration service does not need
-identity-provider API resource registration while its runtime API is protected
-only by the generated configuration token. If a future configuration provider
-supports OAuth, mTLS, API keys, signed requests, or another shared
-authentication abstraction for its runtime APIs, each protected configuration
-service instance or shared configuration service endpoint must expose the
-authentication metadata clients need to authenticate to that API.
+This is intentionally the same integration model authored Web APIs should use:
+the caller owns a resource identity, obtains authentication evidence through
+the selected identity provider, and the protected service validates that
+evidence before applying CloudShell resource grants. A built-in configuration
+service may own a specialized resource type and provider-owned runtime, but its
+protected API should not use a private auth path that third-party services
+cannot also use.
 
 ## Microsoft Configuration API
 
@@ -187,9 +195,9 @@ builder.Configuration.AddCloudShellConfiguration();
 ```
 
 By default, the provider discovers the first injected
-`CLOUDSHELL_CONFIGURATION_*_ENDPOINT` and matching `*_TOKEN` environment
-variable pair. To select a specific service or configure explicit connection
-details:
+`CLOUDSHELL_CONFIGURATION_*_ENDPOINT` and the matching
+`CLOUDSHELL_IDENTITY_*` credential acquisition variables. To select a specific
+service or configure explicit connection details:
 
 ```csharp
 builder.Configuration.AddCloudShellConfiguration(options =>

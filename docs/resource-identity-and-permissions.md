@@ -214,6 +214,14 @@ environment variables, mounted configuration, token endpoints, or platform
 managed identity facilities without storing raw credentials in the resource
 model.
 
+This rule applies to built-in CloudShell resource services as well as authored
+services. Configuration Store, Secrets Vault, and future CloudShell-owned
+helper services should dogfood the same resource identity, credential
+acquisition, access-grant, and protected-service API contracts that extension
+authors use for their own Web APIs. A built-in resource type can own specialized
+provider configuration and runtime state, but it should not get a separate
+identity mechanism unless the exception and replacement path are documented.
+
 `ProvisionResourceIdentityAsync(resourceId)` asks the resolved identity
 provider to provision one resource identity and its matching permission grants.
 Programmatic declarations can request this when the Control Plane starts by
