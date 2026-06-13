@@ -78,6 +78,10 @@ The MVP should prove:
   Core process. User-facing providers are generally expected to ship both the
   Control Plane provider behavior and the matching Resource Manager UI
   contributions.
+- CloudShell UI extensions have layered responsibilities: the base UI
+  extension architecture contributes shell views and navigation; Resource
+  Manager UI extensions build on that architecture for resource-specific UI;
+  Control Plane resource providers remain non-UI resource behavior.
 - Consumers should use domain managers, not generated HTTP clients directly.
 - Internal Control Plane stores/providers remain internal implementation
   contracts.

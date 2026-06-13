@@ -1,13 +1,15 @@
-# UI Extensions
+# UI Extension Architecture
 
 UI extensions add shell views, navigation, shell-hosted workspaces, and start
 page behavior. They run in the CloudShell UI app and should depend on the
 domain-shaped shell integration APIs instead of internal Control Plane stores
 or provider implementations.
 
-Resource-specific UI such as Add Resource forms, update components, detail
-tabs, and resource UI actions is covered by
-[Control Plane and Resource Manager extensions](control-plane-resource-manager.md).
+This is the base UI extension architecture. Resource Manager UI extensions
+build on these same Blazor, routing, navigation, and activation mechanisms for
+resource-specific presentation. Resource-specific UI such as Add Resource
+forms, update components, detail tabs, and resource UI actions is covered by
+[Resource Manager UI extensions](resource-manager-ui.md).
 
 ## Views
 

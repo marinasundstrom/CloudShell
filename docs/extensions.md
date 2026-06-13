@@ -16,24 +16,38 @@ product objectives behind these extension points.
 
 | Area | Use |
 | --- | --- |
-| [UI extensions](extensions/ui.md) | Shell views, sidebar navigation, shell-hosted views, cross-extension navigation, and start page customization. |
-| [Control Plane and Resource Manager extensions](extensions/control-plane-resource-manager.md) | Resource providers, resource type registration UI, programmatic resource factories, resource actions, Resource Manager tabs/detail routes, logs, and resource provider examples. |
+| [UI extension architecture](extensions/ui.md) | Base shell UI extension model: shell views, sidebar navigation, shell-hosted views, cross-extension navigation, and start page customization. |
+| [Resource Manager UI extensions](extensions/resource-manager-ui.md) | Resource-specific UI built on the base UI extension architecture: Add Resource forms, update components, generated details, tabs, detail routes, and resource UI actions. |
+| [Control Plane resource providers](extensions/control-plane-resource-providers.md) | Non-UI resource-provider extensions: resource projection, creation, procedures, logs, templates, programmatic declarations, and provider examples. |
+| [Resource provider integration workflow](extensions/control-plane-resource-manager.md) | How user-facing resource providers pair Control Plane behavior with Resource Manager UI integration. |
 
 ## Boundary
 
 Control Plane resource provider registration is not the same thing as
 CloudShell UI registration.
 
+The base UI extension architecture is the shell-level Blazor contribution
+model. Resource Manager UI extensions build on that model for resource-specific
+presentation. Control Plane resource-provider extensions are non-UI services
+that project and operate resources.
+
 A Control Plane provider contributes resource behavior: projection, creation,
 procedure execution, logs, templates, provider-owned runtime state, and
-provider-owned configuration. Resource Manager and shell UI contributions
-contribute presentation: Add Resource forms, update components, tabs, detail
-routes, UI actions, navigation, and custom views.
+provider-owned configuration. Resource Manager UI contributions contribute
+resource presentation: Add Resource forms, update components, tabs, detail
+routes, and UI actions. Generic shell UI contributions contribute navigation,
+custom views, and shell-hosted workspaces.
 
 Most user-facing providers should ship both surfaces together. A provider that
 only registers Control Plane behavior is programmatic-only unless another UI
 extension contributes the Resource Manager experience. That may be intentional,
 but it should be a product decision rather than an accidental omission.
+
+When implementing any resource provider or other Control Plane extension,
+consider the matching CloudShell UI integration. It is not technically required
+for hosts that do not use CloudShell UI, but if the feature is intended for
+interactive users, the Resource Manager UI integration is part of the expected
+product surface.
 
 ## Entry Point
 

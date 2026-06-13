@@ -4,11 +4,12 @@ This document defines implementation and verification expectations for
 CloudShell artifacts. It is a practical checklist for agent and manual changes
 that add, change, project, or verify resource-model artifacts.
 
-Read this with [Domain model](domain-model.md) and
-[System design guidelines](system-design-guidelines.md). The domain model
-defines the concepts. This document defines how to implement them consistently
-across the public abstraction, Control Plane, API, remote client, providers,
-and UI.
+Read this with [Domain model](domain-model.md),
+[System design guidelines](system-design-guidelines.md), and the
+[extension authoring overview](extensions.md). The domain model defines the
+concepts. This document defines how to implement them consistently across the
+public abstraction, Control Plane, API, remote client, Control Plane
+providers, Resource Manager UI integrations, and shell UI extensions.
 
 ## Artifact contract
 
@@ -29,6 +30,13 @@ verification path.
   obvious mappings.
 - The shell UI renders projected artifacts and capabilities. It should not own
   domain validation, lifecycle policy, or provider behavior.
+- Resource Manager UI integrations are resource-specific shell UI extensions.
+  They build on the base UI extension architecture but remain separate from
+  non-UI Control Plane resource providers.
+- Any Control Plane extension or resource provider should consider the
+  matching CloudShell UI integration. The UI integration is not technically
+  required for deployments that do not use CloudShell UI, but omitting it for a
+  user-facing feature should be an explicit documented decision.
 
 When changing an artifact, first answer:
 
@@ -84,8 +92,9 @@ Use this flow for every artifact change.
 4. Project the artifact through API DTOs when split hosting or remote clients
    need it.
 5. Map the API shape back into the public model in the remote client.
-6. Render or invoke it in the UI only after the domain and capability shape is
-   available.
+6. Render or invoke it through Resource Manager UI only after the domain and
+   capability shape is available. Use generic shell UI extensions only for
+   shell-level views, navigation, and workspaces.
 7. Add targeted tests at the owning layer, plus API/client contract tests when
    transport shape changes.
 8. Update docs and progress when the artifact changes product concepts,
@@ -109,10 +118,7 @@ resource.
      user-facing name.
    - Document ownership boundaries, especially which configuration is
      platform-owned and which configuration remains provider-owned.
-2. Add the contribution and provider contract path.
-   - Register a `ResourceTypeContribution` with the expected class,
-     registration component, optional update component, tabs, and probe
-     options.
+2. Add the Control Plane provider path.
    - Implement the provider projection through `IResourceProvider` and creation
      through `IResourceCreationProvider` when the type can be created by users
      or declarations.
@@ -138,8 +144,6 @@ resource.
 5. Implement authoring surfaces.
    - Add programmatic declaration builders or extension methods when the type
      should be declared in code.
-   - Add Add Resource UI and update UI paths when users should configure the
-     type manually.
    - Keep start-after-create UI behavior explicit and separate from
      programmatic startup autostart.
 6. Project through the API and remote client.
@@ -151,14 +155,20 @@ resource.
      client.
    - Update OpenAPI expectations and contract tests for changed transport
      shape, hypermedia actions, errors, or authorization behavior.
-7. Implement shell UI behavior.
+7. Implement Resource Manager UI integration.
+   - Register a `ResourceTypeContribution` with the expected class,
+     registration component, optional update component, tabs, and probe
+     options when users should manage the resource through Resource Manager.
    - Verify the resource appears in Resource Manager lists, filters, grouped
      views, and generated details.
    - Render endpoints, attributes, related resources, health checks, logs,
      observability, actions, capability reasons, endpoint mappings, routes, and
      provider detail routes as applicable.
-   - Ensure UI action controls use advertised resource actions and
-     Control Plane capabilities rather than local state guesses.
+   - Register custom Resource Manager UI actions only for presentation
+     workflows. Use advertised resource actions and Control Plane capabilities
+     for domain operations instead of local state guesses.
+   - Use the base UI extension architecture only for generic shell views,
+     navigation, and shell-hosted workspaces.
 8. Add tests and samples.
    - Add abstraction tests for builders, helpers, and public contribution
      contracts.
@@ -172,8 +182,9 @@ resource.
 9. Update documentation.
    - Update the relevant resource docs, API docs, programmatic resource docs,
      progress tracker, and TODO queue.
-   - Document intentionally deferred chain links, such as "provider projection
-     only, no Add Resource UI yet", in `docs/progress.md` and `TODO.md`.
+   - Document intentionally deferred chain links, such as "Control Plane
+     provider only, no Resource Manager UI integration yet", in
+     `docs/progress.md` and `TODO.md`.
 
 ## Artifact guidelines
 
@@ -422,6 +433,9 @@ Verification:
 ### Resource action
 
 `ResourceAction` is a domain operation on a resource. It is not a UI action.
+UI actions are Resource Manager presentation artifacts that may invoke resource
+actions but are registered by Resource Manager UI extensions, not projected by
+Control Plane providers as resource-model operations.
 
 Implementation:
 
@@ -667,6 +681,13 @@ components, and update components are presentation artifacts.
 Implementation:
 
 - Keep shell contribution contracts in the extension/UI layer.
+- Use base UI extension artifacts for shell-level views, navigation,
+  shell-hosted workspaces, and start page behavior.
+- Use Resource Manager UI extension artifacts for resource type registration
+  UI, update components, resource tabs, detail routes, generated detail
+  overrides, and resource UI actions.
+- Keep non-UI resource projection and operation behavior in Control Plane
+  resource-provider extensions.
 - Do not encode domain validation or lifecycle policy in UI contributions.
 - Use domain managers and capabilities to read, render, and invoke resource
   operations.
