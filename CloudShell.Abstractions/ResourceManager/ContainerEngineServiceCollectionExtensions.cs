@@ -45,8 +45,9 @@ public static class ContainerEngineServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(definition);
 
-        builder.Services.AddSingleton<IContainerEngineProvider>(
-            new StaticContainerEngineProvider(Normalize(definition)));
+        var provider = new StaticContainerHostProvider(Normalize(definition));
+        builder.Services.AddSingleton<IContainerEngineProvider>(provider);
+        builder.Services.AddSingleton<IContainerHostProvider>(provider);
         return builder;
     }
 
@@ -70,9 +71,11 @@ public static class ContainerEngineServiceCollectionExtensions
             RegistryCredentials = ContainerRegistryCredentials.Normalize(definition.RegistryCredentials)
         };
 
-    private sealed class StaticContainerEngineProvider(
-        ContainerEngineResourceDefinition definition) : IContainerEngineProvider
+    private sealed class StaticContainerHostProvider(
+        ContainerEngineResourceDefinition definition) : IContainerEngineProvider, IContainerHostProvider
     {
         public ContainerEngineResourceDefinition GetContainerEngine() => definition;
+
+        public ContainerHostDescriptor GetDefaultHost() => definition.ToContainerHostDescriptor();
     }
 }

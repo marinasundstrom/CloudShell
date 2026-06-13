@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+In progress.
 
 This proposal defines how CloudShell should select and use container-capable
 hosts for provider-owned runtime infrastructure. It is the bridge between the
@@ -444,8 +444,10 @@ not introduce a second out-of-band local management API for the shell.
 
 ## Remaining Tasks
 
-- Add host-oriented descriptor and provider contracts with compatibility
-  adapters for existing engine contracts.
+- Migrate consuming code from the new host-oriented descriptor and provider
+  contracts into the shared resolver. `ContainerHostDescriptor`,
+  `ContainerHostResourceTypes.ContainerHost`, `IContainerHostProvider`, and
+  compatibility adapters for existing engine contracts are in place.
 - Implement `IContainerHostResolver` and migrate Docker Compose host
   resolution to it.
 - Add a provider-owned Docker runtime implementation for owner-scoped

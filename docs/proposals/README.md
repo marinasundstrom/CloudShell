@@ -18,7 +18,7 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 | Order | Proposal | Status | Milestone relationship | Notes |
 | --- | --- | --- | --- | --- |
 | 1 | [Identity and access](core/identity-and-access.md) | Current implementation working document | MVP: Identity, Built-in | Current first focus. Tracks resource identity providers, built-in provisioning, resource-scoped permissions, token claims, and authorization diagnostics. |
-| 2 | [Container host abstraction](containers/container-host-abstraction.md) | Proposed | MVP: Container Apps, Version 1 | Next foundation after identity. Needed for default and explicit host resolution plus provider-owned runtime infrastructure. |
+| 2 | [Container host abstraction](containers/container-host-abstraction.md) | In progress | MVP: Container Apps, Version 1 | Host descriptor/provider compatibility layer is in place. Next foundation after identity is the shared default/explicit host resolver plus provider-owned runtime infrastructure. |
 | 3 | [Secrets management](services/secrets-management.md) | In progress | MVP: App settings and secrets integrations | Built-in vault slice exists; remaining work aligns assignment UI and secret access with resource identity and permissions. |
 | 4 | [Platform foundations](core/platform-foundations.md) | In progress | MVP: UX polish; Samples should work | Cross-cutting foundation tracker for identity, authorization, traceability, persistence, diagnostics, and operational reliability. |
 | 5 | [Remote Docker hosts](containers/remote-docker-hosts.md) | Partially implemented | MVP: Container Apps, Version 1 | Concrete Docker host resource work continues on top of the shared host abstraction. |

@@ -2065,12 +2065,58 @@ public sealed class ResourceDeclarationTests
             .GetDeclarations();
         var host = Assert.Single(serviceProvider.GetServices<IContainerEngineProvider>())
             .GetContainerEngine();
+        var containerHost = Assert.Single(serviceProvider.GetServices<IContainerHostProvider>())
+            .GetDefaultHost();
 
         Assert.Empty(declarations);
         Assert.Equal("docker", host.Id);
         Assert.Equal(ContainerEngineKind.Docker, host.Kind);
         Assert.True(host.IsDefault);
         Assert.Equal(ContainerRegistryDefaults.Default, host.Registry);
+        Assert.Equal(host.Id, containerHost.Id);
+        Assert.Equal(ContainerHostKind.Docker, containerHost.Kind);
+        Assert.True(containerHost.IsDefault);
+        Assert.Equal(host.Registry, containerHost.Registry);
+    }
+
+    [Fact]
+    public void ContainerHostCompatibility_ConvertsEngineDescriptors()
+    {
+        var engine = new ContainerEngineResourceDefinition(
+            "podman",
+            "Podman",
+            ContainerEngineKind.Podman,
+            "unix:///run/podman/podman.sock",
+            IsDefault: true,
+            Registry: "registry.example.test",
+            RegistryCredentials: new ContainerRegistryCredentials(
+                "registry-user",
+                "REGISTRY_PASSWORD"));
+
+        var host = engine.ToContainerHostDescriptor();
+        var converted = host.ToContainerEngineResourceDefinition();
+
+        Assert.Equal("podman", host.Id);
+        Assert.Equal(ContainerHostKind.Podman, host.Kind);
+        Assert.True(host.IsDefault);
+        Assert.Equal("registry.example.test", host.Registry);
+        Assert.Equal(engine, converted);
+    }
+
+    [Fact]
+    public void ContainerHostCompatibility_RejectsNonEngineHosts()
+    {
+        var host = new ContainerHostDescriptor(
+            "kubernetes:dev",
+            "Development Kubernetes",
+            ContainerHostKind.Kubernetes,
+            "https://kubernetes.example.test",
+            IsDefault: true);
+
+        Assert.False(host.TryToContainerEngineResourceDefinition(out _));
+        var exception = Assert.Throws<InvalidOperationException>(
+            host.ToContainerEngineResourceDefinition);
+        Assert.Contains("Kubernetes", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

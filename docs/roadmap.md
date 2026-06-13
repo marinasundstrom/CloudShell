@@ -115,7 +115,8 @@ listed here before pulling in broader proposal work.
 ### Next: Host Abstractions
 
 - Add host-oriented descriptors and provider contracts with compatibility
-  adapters for existing container-engine contracts.
+  adapters for existing container-engine contracts. This compatibility layer is
+  in place; continue with resolver adoption.
 - Implement a shared `IContainerHostResolver` over explicit resource
   descriptors, default host providers, compatibility engine providers, and
   registered default host descriptors.

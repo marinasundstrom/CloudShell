@@ -238,6 +238,15 @@ expectations rather than duplicating the task queue.
   When no network is created, the platform projects a default host network.
   Virtual networks reuse endpoint requests and mappings while advertising
   virtual-network and ingress capabilities.
+- Container host abstraction work has started with the compatibility layer:
+  `ContainerHostDescriptor`, `ContainerHostResourceTypes.ContainerHost`, and
+  `IContainerHostProvider` are public abstractions; existing
+  `ContainerEngineResourceDefinition` values can be converted to host
+  descriptors and host descriptors can be converted back when they represent
+  Docker, Podman, or Docker-compatible hosts. `UseContainerEngine(...)` and
+  `UseDocker()` now register host providers alongside existing engine
+  providers so current engine consumers keep working while resolver migration
+  proceeds.
 - Host-provided virtual networking starts with macOS. The built-in macOS host
   networking provider is an activated resource that can materialize virtual
   endpoint mappings as local TCP proxies for HTTP, HTTPS, and TCP endpoints.

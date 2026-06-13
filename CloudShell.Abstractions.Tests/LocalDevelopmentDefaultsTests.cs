@@ -26,6 +26,8 @@ public sealed class LocalDevelopmentDefaultsTests
 
         var engine = Assert.Single(serviceProvider.GetServices<IContainerEngineProvider>())
             .GetContainerEngine();
+        var host = Assert.Single(serviceProvider.GetServices<IContainerHostProvider>())
+            .GetDefaultHost();
         var selection = serviceProvider
             .GetRequiredService<IResourceOrchestrationSettings>()
             .Get();
@@ -33,6 +35,9 @@ public sealed class LocalDevelopmentDefaultsTests
         Assert.Equal("docker", engine.Id);
         Assert.Equal(ContainerEngineKind.Docker, engine.Kind);
         Assert.True(engine.IsDefault);
+        Assert.Equal(engine.Id, host.Id);
+        Assert.Equal(ContainerHostKind.Docker, host.Kind);
+        Assert.True(host.IsDefault);
         Assert.Equal("default", selection.OrchestratorId);
         Assert.Equal("docker", selection.PreferredContainerEngineId);
     }

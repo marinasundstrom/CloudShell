@@ -88,6 +88,8 @@ public static class DockerProviderServiceCollectionExtensions
         configure?.Invoke(options);
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IContainerEngineProvider, DockerContainerEngineProvider>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IContainerHostProvider, DockerContainerEngineProvider>());
     }
 
     /// <summary>
