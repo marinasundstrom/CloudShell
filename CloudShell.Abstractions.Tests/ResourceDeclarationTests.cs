@@ -1474,6 +1474,94 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ConfiguresAppSettingsWithReferences()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var configurationProvider = Assert.Single(
+                serviceProvider.GetServices<IResourceAppSettingConfigurationProvider>());
+            var registrations = new MutableResourceRegistrationStore();
+
+            await provider.SetupApplicationAsync(
+                new ApplicationResourceDefinition(
+                    "application:api",
+                    "API",
+                    "dotnet",
+                    dependsOn: ["postgres:db"],
+                    environmentVariables:
+                    [
+                        EnvironmentVariableAssignment.FromSecret(
+                            "EXTERNAL_API_KEY",
+                            new SecretReference("secrets-vault:env", "ExternalApiKey"))
+                    ]),
+                resourceGroupId: null,
+                registrations);
+
+            var resource = Assert.Single(provider.GetResources());
+            Assert.True(configurationProvider.CanConfigureAppSettings(resource));
+
+            var result = await configurationProvider.UpdateAppSettingsAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations),
+                [
+                    AppSetting.Literal("ASPNETCORE_ENVIRONMENT", "Staging"),
+                    AppSetting.FromConfiguration(
+                        "ConnectionStrings:Default",
+                        new ConfigurationEntryReference("configuration:app", "ConnectionStrings:Default")),
+                    AppSetting.FromSecret(
+                        "ExternalApi:Key",
+                        new SecretReference("secrets-vault:app", "ExternalApiKey"))
+                ]);
+
+            var application = provider.GetApplication("application:api");
+            var registration = registrations.GetRegistration("application:api");
+
+            Assert.Equal("App settings updated.", result.Message);
+            Assert.Equal(
+                ["postgres:db", "configuration:app", "secrets-vault:app", "secrets-vault:env"],
+                application?.DependsOn);
+            Assert.Equal(
+                ["postgres:db", "configuration:app", "secrets-vault:app", "secrets-vault:env"],
+                registration?.DependsOn);
+            Assert.Contains(
+                application?.AppSettings ?? [],
+                setting => setting.Name == "ConnectionStrings:Default" &&
+                    setting.ConfigurationEntry?.StoreResourceId == "configuration:app" &&
+                    setting.ConfigurationEntry.EntryName == "ConnectionStrings:Default");
+            Assert.Contains(
+                application?.AppSettings ?? [],
+                setting => setting.Name == "ExternalApi:Key" &&
+                    setting.Secret?.VaultResourceId == "secrets-vault:app" &&
+                    setting.Secret.SecretName == "ExternalApiKey");
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void TypedExecutableBuilder_CanDependOnContainerResource()
     {
         var services = new ServiceCollection();

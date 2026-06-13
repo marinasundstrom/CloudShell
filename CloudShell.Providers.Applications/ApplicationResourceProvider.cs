@@ -35,6 +35,7 @@ public sealed partial class ApplicationResourceProvider(
     IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
     IResourceOrchestratorServiceProcedureProvider,
+    IResourceAppSettingConfigurationProvider,
     IResourceEnvironmentVariableConfigurationProvider,
     IDisposable
 {
@@ -238,6 +239,10 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
 
+    public bool CanConfigureAppSettings(Resource resource) =>
+        ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
+        store.GetApplication(resource.Id) is not null;
+
     public bool CanExecuteOrchestratorService(
         Resource resource,
         ResourceAction action) =>
@@ -346,6 +351,44 @@ public sealed partial class ApplicationResourceProvider(
     public IReadOnlyList<EnvironmentVariableAssignment> GetConfiguredEnvironmentVariables(string resourceId) =>
         store.GetApplication(resourceId)?.EnvironmentVariables ?? [];
 
+    public IReadOnlyList<AppSetting> GetConfiguredAppSettings(string resourceId) =>
+        store.GetApplication(resourceId)?.AppSettings ?? [];
+
+    public async Task<ResourceProcedureResult> UpdateAppSettingsAsync(
+        ResourceProcedureContext context,
+        IReadOnlyList<AppSetting> appSettings,
+        CancellationToken cancellationToken = default)
+    {
+        var application = store.GetApplication(context.Resource.Id)
+            ?? throw new InvalidOperationException($"Application resource '{context.Resource.Id}' is not configured.");
+        var dependencies = GetConfigurationDependencyResourceIds(
+                application.DependsOn,
+                appSettings,
+                application.EnvironmentVariables)
+            .ToArray();
+        var definition = application with
+        {
+            AppSettings = appSettings,
+            DependsOn = dependencies
+        };
+        var restartRequired =
+            IsRunning(application.Id) &&
+            !application.AppSettings.SequenceEqual(appSettings);
+
+        await UpdateApplicationAsync(
+            definition,
+            context.ResourceGroupId,
+            context.Registrations,
+            cancellationToken);
+
+        return restartRequired
+            ? ResourceProcedureResult.CompletedWithRestartRequired(
+                "App settings updated.",
+                application.Id,
+                "The resource is running. Restart it now to apply the app setting changes.")
+            : ResourceProcedureResult.Completed("App settings updated.");
+    }
+
     public async Task<ResourceProcedureResult> UpdateEnvironmentVariablesAsync(
         ResourceProcedureContext context,
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables,
@@ -353,9 +396,10 @@ public sealed partial class ApplicationResourceProvider(
     {
         var application = store.GetApplication(context.Resource.Id)
             ?? throw new InvalidOperationException($"Application resource '{context.Resource.Id}' is not configured.");
-        var dependencies = application.DependsOn
-            .Concat(GetEnvironmentVariableReferenceResourceIds(environmentVariables))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var dependencies = GetConfigurationDependencyResourceIds(
+                application.DependsOn,
+                application.AppSettings,
+                environmentVariables)
             .ToArray();
         var definition = application with
         {
@@ -2256,6 +2300,31 @@ public sealed partial class ApplicationResourceProvider(
             })
             .Where(variable => variable.ConfigurationEntry is null || variable.Secret is null)
             .ToArray();
+
+    private static IEnumerable<string> GetConfigurationDependencyResourceIds(
+        IReadOnlyList<string> existingDependencies,
+        IReadOnlyList<AppSetting> appSettings,
+        IReadOnlyList<EnvironmentVariableAssignment> environmentVariables) =>
+        existingDependencies
+            .Concat(GetAppSettingReferenceResourceIds(appSettings))
+            .Concat(GetEnvironmentVariableReferenceResourceIds(environmentVariables))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+    private static IEnumerable<string> GetAppSettingReferenceResourceIds(IReadOnlyList<AppSetting> appSettings)
+    {
+        foreach (var setting in appSettings)
+        {
+            if (!string.IsNullOrWhiteSpace(setting.ConfigurationEntry?.StoreResourceId))
+            {
+                yield return setting.ConfigurationEntry.StoreResourceId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(setting.Secret?.VaultResourceId))
+            {
+                yield return setting.Secret.VaultResourceId;
+            }
+        }
+    }
 
     private static IEnumerable<string> GetEnvironmentVariableReferenceResourceIds(
         IReadOnlyList<EnvironmentVariableAssignment> environmentVariables)

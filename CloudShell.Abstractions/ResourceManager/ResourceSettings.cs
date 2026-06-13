@@ -30,6 +30,18 @@ public sealed record SecretReference(
     string SecretName,
     string? Version = null);
 
+public interface IResourceAppSettingConfigurationProvider
+{
+    bool CanConfigureAppSettings(Resource resource);
+
+    IReadOnlyList<AppSetting> GetConfiguredAppSettings(string resourceId);
+
+    Task<ResourceProcedureResult> UpdateAppSettingsAsync(
+        ResourceProcedureContext context,
+        IReadOnlyList<AppSetting> appSettings,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record ResourceSettingResolutionContext(
     string TargetResourceId,
     string? ResourceGroupId = null,
