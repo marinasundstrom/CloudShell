@@ -1112,6 +1112,7 @@ public sealed partial class ApplicationResourceProvider(
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveWorkloadEnvironmentVariables(
         ApplicationResourceDefinition definition) =>
         ResolveObservabilityEnvironmentVariables(definition)
+            .Concat(ResolveResourceIdentityEnvironmentVariables(definition))
             .Concat(definition.EnvironmentVariables)
             .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
             .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)

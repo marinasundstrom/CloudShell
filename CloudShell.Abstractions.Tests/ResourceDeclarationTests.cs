@@ -4,6 +4,7 @@ using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Client.Authentication;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
@@ -3507,6 +3508,63 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(14333, port.Port);
         var endpoint = Assert.Single(resource.Endpoints);
         Assert.Equal("tcp://localhost:14333", endpoint.Address);
+    }
+
+    [Fact]
+    public async Task ContainerApplicationBuilder_DescribesResourceIdentityCredentialEnvironment()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.ResourceIdentityTokenEndpoint = "http://localhost:5011/api/auth/token";
+                options.ResourceIdentityDefaultScope = "ControlPlane.Access";
+            })
+            .Resources(resources =>
+            {
+                var identityProvider = resources.AddIdentityProvider(
+                    "identity:development",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    new Dictionary<string, string>
+                    {
+                        ["clientSecret"] = "local-development-api-secret"
+                    },
+                    useAsDefault: true);
+
+                resources
+                    .AddContainer("api", "example/api:dev")
+                    .WithIdentity(identityProvider, name: "api-service");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var environment = workload?.WorkloadEnvironmentVariables
+            .ToDictionary(variable => variable.Name, variable => variable.Value);
+
+        Assert.Equal(
+            "http://localhost:5011/api/auth/token",
+            environment?[EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable]);
+        Assert.Equal(
+            "application:api/api-service",
+            environment?[EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable]);
+        Assert.Equal(
+            "local-development-api-secret",
+            environment?[EnvironmentCloudShellResourceCredential.ClientSecretEnvironmentVariable]);
+        Assert.Equal(
+            "ControlPlane.Access",
+            environment?[EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable]);
     }
 
     [Fact]

@@ -83,6 +83,23 @@ CLOUDSHELL_IDENTITY_CLIENT_SECRET
 CLOUDSHELL_IDENTITY_SCOPE
 ```
 
+The convention is the same for local processes, direct container starts, and
+descriptor-driven container orchestration:
+
+- Resource providers inject these variables only for resources that have a
+  resolved identity binding and a supported credential acquisition mechanism.
+- Orchestrators that materialize workload descriptors must pass the variables
+  through to the workload container or process unchanged.
+- Authored services use `DefaultCloudShellResourceCredential` or an explicit
+  `CloudShellResourceCredential`; service clients use that credential to
+  request bearer tokens and attach `Authorization: Bearer ...`.
+- Protected resource services authorize the bearer token through resource
+  permission claims. For example, Secrets Vault checks
+  `SecretsVault.ReadSecrets` on the vault resource before returning a secret.
+- The credential values are runtime inputs. They must not be copied into
+  resource attributes, generated UI details, logs, activity messages, or other
+  user-facing projections.
+
 The credential contract is public preview. Future sources can add managed
 identity endpoints, federated workload identity, local development
 credentials, external provider plugins, or platform-specific brokers without

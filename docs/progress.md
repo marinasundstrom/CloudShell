@@ -72,8 +72,9 @@ expectations rather than duplicating the task queue.
   public-preview resource credential chain for authored and built-in services;
   its first source dogfoods the injected `CLOUDSHELL_IDENTITY_*` environment
   contract. Application and container resource providers own injecting that
-  credential acquisition environment when they start identity-bound workloads,
-  and the remote Control Plane client can accept the credential directly
+  credential acquisition environment when they start identity-bound workloads
+  or project workload descriptors for container orchestration, and the remote
+  Control Plane client can accept the credential directly
   through SDK-style constructors and DI registration so resource-hosted authored
   services can call platform APIs without passing raw bearer tokens. The
   Configuration Store and Secrets Vault service APIs now have matching
