@@ -18,7 +18,7 @@ storage. Secrets providers own secret storage, retrieval, versioning, and
 rotation behavior.
 
 This proposal intentionally leaves resource identity rules to the separate
-identity-and-permissions proposal.
+[identity and access proposal](../core/identity-and-access.md).
 
 ## Problem
 

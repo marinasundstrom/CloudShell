@@ -41,7 +41,7 @@ slices into coherent security, host, networking, and deployment foundations.
 Goal: define resource identity and authorization first, then use that slice as
 the foundation for broader platform identity.
 
-Start with the resource identity and permissions proposal. The initial work
+Start with the identity and access proposal. The initial work
 should define the resource identity-provider contract, default provider
 selection, resource identity bindings, resource-scoped permission names,
 permission assignments, workload identity lifecycle, token claim mapping, and
@@ -77,9 +77,8 @@ inspection.
 
 References:
 
-- [Identity and Permissions Proposal](proposals/identity-and-permissions.md)
+- [Identity and Access Proposal](proposals/core/identity-and-access.md)
 - [Resource identity and permissions](resource-identity-and-permissions.md)
-- [Resource Identity and Permissions Proposal](proposals/resource-identity-and-permissions.md)
 - [Authentication and authorization](authentication-and-authorization.md)
 - [Platform Foundations Proposal](proposals/platform-foundations.md)
 
@@ -119,7 +118,7 @@ secret read access solely because it references a secret.
 References:
 
 - [Secrets Management Proposal](proposals/secrets-management.md)
-- [Identity and Permissions Proposal](proposals/identity-and-permissions.md)
+- [Identity and Access Proposal](proposals/core/identity-and-access.md)
 - [Resource templates](resource-templates.md)
 - [Programmatic resources](programmatic-resources.md)
 
@@ -136,7 +135,7 @@ authorization decisions.
 References:
 
 - [Platform Foundations Proposal](proposals/platform-foundations.md)
-- [Identity and Permissions Proposal](proposals/identity-and-permissions.md)
+- [Identity and Access Proposal](proposals/core/identity-and-access.md)
 - [Container apps](resources/container-apps.md#logs-and-events)
 
 ### 5. Remote Docker Host Completion

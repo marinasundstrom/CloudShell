@@ -13,7 +13,7 @@ skills also require this synchronization for feature and stabilization work.
 
 Work proposal areas in the current product order:
 
-1. Resource identity and permissions
+1. [Identity and access](core/identity-and-access.md)
 2. Host abstractions
 3. Configuration and secrets access
 4. Traceability and audit

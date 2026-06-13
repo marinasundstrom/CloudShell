@@ -25,9 +25,7 @@ The MVP should prove:
 ## Proposal status snapshot
 
 - Platform foundations proposal: In progress
-- Resource identity and permissions proposal: Proposed; current implementation
-  focus
-- Identity and permissions proposal: In progress platform foundation
+- Identity and access proposal: Current implementation working document
 - Secrets management proposal: In progress
 - Container host abstraction proposal: Proposed
 - Remote Docker hosts proposal: Partially implemented
@@ -113,9 +111,9 @@ The MVP should prove:
   inheritance, token issuance, and provider-backed workload behavior remain
   future resource identity work.
 - `docs/resource-identity-and-permissions.md` is the current-state feature
-  documentation for resource identity and permissions. The matching proposal
-  remains the tracker for open design, decisions, and remaining implementation
-  work.
+  documentation for resource identity and permissions.
+  `docs/proposals/core/identity-and-access.md` is the consolidated proposal
+  tracker for open design, decisions, and remaining implementation work.
 - Programmatic resource declarations support one optional identity binding per
   resource. Builders can declare a concrete provider binding with
   `WithIdentity(...)` or declare only identity intent with `RequireIdentity(...)`;

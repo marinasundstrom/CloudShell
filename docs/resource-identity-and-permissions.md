@@ -306,4 +306,4 @@ provider.
 ## Related Design Work
 
 The active proposal tracks unfinished design and implementation work:
-[Resource Identity and Permissions Proposal](proposals/resource-identity-and-permissions.md).
+[Identity and access proposal](proposals/core/identity-and-access.md).
