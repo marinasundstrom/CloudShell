@@ -513,6 +513,9 @@ service-principal automation flows.
 - Continue authorization diagnostics beyond resource-action capability reasons,
   especially for configuration updates, deployment operations, logs,
   diagnostics, provider actions, and audit event payloads.
+- Resource action capability diagnostics now include provider-owned
+  application checks for missing configuration or secret reference targets and
+  missing identity read grants before orchestration dispatch.
 - Add effective permission APIs only after the grant model and provider mapping
   semantics are stable.
 - Add audit event schemas for resource actions, provider operations, identity

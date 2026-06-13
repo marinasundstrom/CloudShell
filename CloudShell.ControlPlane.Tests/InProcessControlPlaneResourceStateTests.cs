@@ -152,6 +152,29 @@ public sealed class InProcessControlPlaneResourceStateTests
             capability.GetActionUnavailableReason(ResourceActionIds.Run));
     }
 
+    [Fact]
+    public async Task GetResourceOperationCapabilities_ReturnsProviderUnavailableReason()
+    {
+        var resource = CreateResource("target", ResourceState.Stopped);
+        var provider = new TestResourceProvider();
+        var availability = new TestActionAvailabilityProvider(
+            resource.Id,
+            ResourceActionIds.Run,
+            "Reference target missing.");
+        var controlPlane = CreateControlPlane(
+            [resource],
+            provider,
+            actionAvailabilityProviders: [availability]);
+
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync([resource.Id]);
+
+        var capability = Assert.Single(capabilities).Value;
+        Assert.False(capability.CanExecuteAction(ResourceActionIds.Run));
+        Assert.Equal(availability.Reason, capability.GetActionUnavailableReason(ResourceActionIds.Run));
+        Assert.DoesNotContain(ResourceActionIds.Run, capability.ExecutableActionIds);
+        Assert.Empty(provider.ExecutedActions);
+    }
+
     [Theory]
     [InlineData(ResourceState.Running, ResourceActionIds.Run)]
     [InlineData(ResourceState.Stopped, ResourceActionIds.Stop)]
@@ -196,6 +219,28 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnavailable, exception.Error.Code);
         Assert.Equal("Container host 'docker:missing' is not registered.", exception.Message);
+        Assert.Empty(provider.ExecutedActions);
+    }
+
+    [Fact]
+    public async Task ExecuteResourceActionAsync_RejectsProviderUnavailableReasonBeforeDispatch()
+    {
+        var provider = new TestResourceProvider();
+        var resource = CreateResource("target", ResourceState.Stopped);
+        var availability = new TestActionAvailabilityProvider(
+            resource.Id,
+            ResourceActionIds.Run,
+            "Reference target missing.");
+        var controlPlane = CreateControlPlane(
+            [resource],
+            provider,
+            actionAvailabilityProviders: [availability]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Run)));
+
+        Assert.Equal(ControlPlaneErrorCodes.ResourceActionUnavailable, exception.Error.Code);
+        Assert.Equal(availability.Reason, exception.Message);
         Assert.Empty(provider.ExecutedActions);
     }
 
@@ -948,6 +993,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IResourceIdentityProvisioner>? identityProvisioners = null,
         IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,
         IReadOnlyList<IContainerHostProvider>? containerHostProviders = null,
+        IReadOnlyList<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
         Action<ResourceDeclarationStore>? configureDeclarations = null)
     {
         provider ??= new TestResourceProvider();
@@ -984,7 +1030,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             registrations,
             declarations,
             CreateSelectionStore(),
-            containerHostProviders ?? []);
+            containerHostProviders ?? [],
+            actionAvailabilityProviders: actionAvailabilityProviders ?? []);
 
         return new InProcessControlPlane(
             resourceManager,
@@ -1055,6 +1102,24 @@ public sealed class InProcessControlPlaneResourceStateTests
             ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
         }
+    }
+
+    private sealed class TestActionAvailabilityProvider(
+        string resourceId,
+        string actionId,
+        string reason) : IResourceActionAvailabilityProvider
+    {
+        public string Reason => reason;
+
+        public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(action.Id, actionId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<string?> GetActionUnavailableReasonAsync(
+            ResourceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(reason);
     }
 
     private sealed class StaticWorkloadDescriptorProvider(

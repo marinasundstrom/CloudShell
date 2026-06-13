@@ -153,7 +153,9 @@ listed here before pulling in broader proposal work.
 - Verify assignment flows against identity-backed configuration and secret
   read authorization. Runtime resolution failures now use typed diagnostics
   and project as resource-action-unavailable API errors instead of generic
-  operation failures.
+  operation failures. Resource action capabilities now preflight safe
+  reference checks for missing referenced resources and identity grants before
+  orchestration dispatch.
 - Expose transient lifecycle state such as `Starting` while start/restart
   operations are in progress. Application resources now project a fresh
   provider-owned starting observation and fall back to stopped when that

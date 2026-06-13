@@ -55,3 +55,13 @@ public interface IResourceOrchestrationDescriptorProvider
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default);
 }
+
+public interface IResourceActionAvailabilityProvider
+{
+    bool CanEvaluateAction(Resource resource, ResourceAction action);
+
+    Task<string?> GetActionUnavailableReasonAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default);
+}

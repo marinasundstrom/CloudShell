@@ -13,12 +13,15 @@ public sealed class ResourceOrchestrationService(
     ResourceDeclarationStore declarations,
     ResourceOrchestratorSelectionStore selectionStore,
     IEnumerable<IContainerHostProvider>? containerHostProviders = null,
-    IContainerHostResolver? containerHostResolver = null)
+    IContainerHostResolver? containerHostResolver = null,
+    IEnumerable<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
     private readonly IReadOnlyList<IResourceOrchestrationDescriptorProvider> descriptorProviders =
         descriptorProviders.ToArray();
+    private readonly IReadOnlyList<IResourceActionAvailabilityProvider> actionAvailabilityProviders =
+        actionAvailabilityProviders?.ToArray() ?? [];
     private readonly IContainerHostResolver containerHostResolver =
         containerHostResolver ??
         new ContainerHostResolver(
@@ -66,7 +69,7 @@ public sealed class ResourceOrchestrationService(
         CancellationToken cancellationToken)
     {
         var context = CreateContext(resource);
-        var unavailableReason = await GetContainerHostUnavailableReasonAsync(context, action, cancellationToken);
+        var unavailableReason = await GetActionUnavailableReasonAsync(context, action, cancellationToken);
         if (unavailableReason is not null)
         {
             throw new ControlPlaneException(ControlPlaneError.ResourceActionUnavailable(unavailableReason));
@@ -82,7 +85,7 @@ public sealed class ResourceOrchestrationService(
         CancellationToken cancellationToken = default)
     {
         var context = CreateContext(resource);
-        return await GetContainerHostUnavailableReasonAsync(context, action, cancellationToken);
+        return await GetActionUnavailableReasonAsync(context, action, cancellationToken);
     }
 
     private async Task StartResourceDependenciesAsync(
@@ -337,6 +340,58 @@ public sealed class ResourceOrchestrationService(
             : result.ErrorMessage ??
                 $"Resource '{context.Resource.Name}' is container-backed but no matching container host is available.";
     }
+
+    private async Task<string?> GetActionUnavailableReasonAsync(
+        ResourceOrchestrationContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        var providerReason = await GetProviderActionUnavailableReasonAsync(
+            context,
+            action,
+            cancellationToken);
+        if (providerReason is not null)
+        {
+            return providerReason;
+        }
+
+        return await GetContainerHostUnavailableReasonAsync(context, action, cancellationToken);
+    }
+
+    private async Task<string?> GetProviderActionUnavailableReasonAsync(
+        ResourceOrchestrationContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        foreach (var provider in actionAvailabilityProviders)
+        {
+            if (!provider.CanEvaluateAction(context.Resource, action))
+            {
+                continue;
+            }
+
+            var reason = await provider.GetActionUnavailableReasonAsync(
+                CreateProcedureContext(context),
+                action,
+                cancellationToken);
+            if (!string.IsNullOrWhiteSpace(reason))
+            {
+                return reason;
+            }
+        }
+
+        return null;
+    }
+
+    private static ResourceProcedureContext CreateProcedureContext(
+        ResourceOrchestrationContext context) =>
+        new(
+            context.Resource,
+            context.Registration,
+            context.ResourceGroup?.Id,
+            context.Registrations,
+            context.ResourceManager,
+            context.PreferredContainerHostId);
 
     private async Task<ResourceWorkloadConfiguration?> ResolveExecutionWorkloadAsync(
         ResourceOrchestrationContext context,

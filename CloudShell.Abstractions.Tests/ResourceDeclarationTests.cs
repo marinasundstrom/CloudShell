@@ -1054,6 +1054,127 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ReportsMissingSecretReferenceTargetAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        "API",
+                        executablePath: "dotnet")
+                    .WithEnvironment(
+                        "SAMPLE_API_KEY",
+                        new SecretReference("secrets-vault:missing", "sample-api-key"));
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    provider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore([resource], [provider]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            ResourceAction.Run);
+
+        Assert.Equal(
+            "Setting 'SAMPLE_API_KEY' references Secrets Vault 'secrets-vault:missing', but that resource is not available.",
+            reason);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_ReportsMissingSecretGrantAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .AddSecretsProvider()
+            .Resources(resources =>
+            {
+                resources
+                    .AddExecutableApplication(
+                        "application:api",
+                        "API",
+                        executablePath: "dotnet")
+                    .WithIdentity("identity:development", name: "api-service")
+                    .WithEnvironment(
+                        "SAMPLE_API_KEY",
+                        new SecretReference("secrets-vault:app", "sample-api-key"));
+
+                resources
+                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .WithSecret("sample-api-key", "secret");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var providers = serviceProvider.GetServices<IResourceProvider>().ToArray();
+        var resources = providers
+            .SelectMany(provider => provider.GetResources())
+            .ToArray();
+        var resource = Assert.Single(resources, resource => resource.Id == "application:api");
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    resource.Id,
+                    provider.Id,
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [])
+            ]);
+        var resourceManager = new StaticResourceManagerStore(resources, providers);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            ResourceAction.Run);
+
+        Assert.NotNull(reason);
+        Assert.Contains("Setting 'SAMPLE_API_KEY' references 'secrets-vault:app'", reason);
+        Assert.Contains("identity 'application:api/api-service' is not allowed to read secrets", reason);
+        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, reason);
+    }
+
+    [Fact]
     public void ApplicationProvider_ProjectsFreshStartingRuntimeState()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

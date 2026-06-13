@@ -339,6 +339,10 @@ app settings for non-secret values and vault-backed references for secrets.
 - Runtime reference-resolution failures are reported with typed setting
   diagnostics and map to resource-action-unavailable API errors instead of
   generic operation failures.
+- Application Run/Restart capabilities now preflight safe reference checks for
+  missing configuration or Secrets Vault target resources and missing
+  identity read grants before dispatch, without resolving or displaying
+  referenced values.
 - Decide how secret references should be versioned, rotated, and refreshed for
   already-running resources.
 - Add a separate secrets client/provider for in-process secret loading.

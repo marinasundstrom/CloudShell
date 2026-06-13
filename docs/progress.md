@@ -329,6 +329,10 @@ expectations rather than duplicating the task queue.
 - Application resource templates preserve reference-backed app settings and
   environment variables by carrying configuration-entry references and Secrets
   Vault references without embedding secret values.
+- Application Run/Restart capabilities now preflight reference-backed app
+  settings and environment variables for missing configuration or Secrets
+  Vault target resources and missing identity read grants before dispatching
+  orchestration, without resolving or exposing referenced values.
 - Secrets Vault registration is available through a separate
   `AddSecretsProvider()` path, while `AddConfigurationProvider()` keeps
   compatibility by registering both configuration stores and Secrets Vault
@@ -511,6 +515,9 @@ expectations rather than duplicating the task queue.
   configuration-entry and Secrets Vault references to a Web API resource's
   environment variables and using a provisioned resource identity to read the
   backing services without service auth secrets.
+- Added provider-owned Run/Restart capability preflight for reference-backed
+  application settings so missing reference targets or missing identity read
+  grants disable the action before orchestration dispatch.
 
 ## Active stabilization areas
 

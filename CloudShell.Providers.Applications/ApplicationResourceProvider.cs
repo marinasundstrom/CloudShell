@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
@@ -35,6 +36,7 @@ public sealed partial class ApplicationResourceProvider(
     IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
     IResourceOrchestratorServiceProcedureProvider,
+    IResourceActionAvailabilityProvider,
     IResourceAppSettingConfigurationProvider,
     IResourceEnvironmentVariableConfigurationProvider,
     IDisposable
@@ -243,6 +245,31 @@ public sealed partial class ApplicationResourceProvider(
     public bool CanConfigureAppSettings(Resource resource) =>
         ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
         store.GetApplication(resource.Id) is not null;
+
+    public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
+        ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId) &&
+        store.GetApplication(resource.Id) is not null &&
+        action.Kind is ResourceActionKind.Run or ResourceActionKind.Restart;
+
+    public Task<string?> GetActionUnavailableReasonAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (action.Kind is not (ResourceActionKind.Run or ResourceActionKind.Restart))
+        {
+            return Task.FromResult<string?>(null);
+        }
+
+        var application = store.GetApplication(context.Resource.Id);
+        if (application is null)
+        {
+            return Task.FromResult<string?>(null);
+        }
+
+        return Task.FromResult(GetReferenceUnavailableReason(application, context));
+    }
 
     public bool CanExecuteOrchestratorService(
         Resource resource,
@@ -1228,6 +1255,141 @@ public sealed partial class ApplicationResourceProvider(
             ? null
             : ResourceIdentityReference.ForResource(resourceId, declaration.IdentityBinding.Name);
     }
+
+    private string? GetReferenceUnavailableReason(
+        ApplicationResourceDefinition definition,
+        ResourceProcedureContext context)
+    {
+        foreach (var setting in definition.AppSettings)
+        {
+            var reason = GetReferenceUnavailableReason(
+                setting.Name,
+                setting.ConfigurationEntry,
+                setting.Secret,
+                definition,
+                context);
+            if (reason is not null)
+            {
+                return reason;
+            }
+        }
+
+        foreach (var variable in definition.EnvironmentVariables)
+        {
+            var reason = GetReferenceUnavailableReason(
+                variable.Name,
+                variable.ConfigurationEntry,
+                variable.Secret,
+                definition,
+                context);
+            if (reason is not null)
+            {
+                return reason;
+            }
+        }
+
+        return null;
+    }
+
+    private string? GetReferenceUnavailableReason(
+        string settingName,
+        ConfigurationEntryReference? configurationEntry,
+        SecretReference? secret,
+        ApplicationResourceDefinition definition,
+        ResourceProcedureContext context)
+    {
+        if (configurationEntry is not null)
+        {
+            return GetConfigurationReferenceUnavailableReason(
+                settingName,
+                configurationEntry,
+                definition,
+                context);
+        }
+
+        if (secret is not null)
+        {
+            return GetSecretReferenceUnavailableReason(
+                settingName,
+                secret,
+                definition,
+                context);
+        }
+
+        return null;
+    }
+
+    private string? GetConfigurationReferenceUnavailableReason(
+        string settingName,
+        ConfigurationEntryReference reference,
+        ApplicationResourceDefinition definition,
+        ResourceProcedureContext context)
+    {
+        var target = context.ResourceManager?.GetResource(reference.StoreResourceId);
+        if (target is null)
+        {
+            return $"Setting '{settingName}' references configuration store '{reference.StoreResourceId}', but that resource is not available.";
+        }
+
+        return GetIdentityGrantUnavailableReason(
+            settingName,
+            reference.StoreResourceId,
+            "configuration entries",
+            ConfigurationStoreResourceOperationPermissions.ReadEntries,
+            target,
+            definition);
+    }
+
+    private string? GetSecretReferenceUnavailableReason(
+        string settingName,
+        SecretReference reference,
+        ApplicationResourceDefinition definition,
+        ResourceProcedureContext context)
+    {
+        var target = context.ResourceManager?.GetResource(reference.VaultResourceId);
+        if (target is null)
+        {
+            return $"Setting '{settingName}' references Secrets Vault '{reference.VaultResourceId}', but that resource is not available.";
+        }
+
+        return GetIdentityGrantUnavailableReason(
+            settingName,
+            reference.VaultResourceId,
+            "secrets",
+            SecretsVaultResourceOperationPermissions.ReadSecrets,
+            target,
+            definition);
+    }
+
+    private string? GetIdentityGrantUnavailableReason(
+        string settingName,
+        string referencedResourceId,
+        string readableItemLabel,
+        string permission,
+        Resource target,
+        ApplicationResourceDefinition definition)
+    {
+        var identity = ResolveIdentity(definition.Id);
+        if (identity is null)
+        {
+            return null;
+        }
+
+        var result = declarations
+            .CreatePermissionGrantEvaluator()
+            .Evaluate(identity, target.Id, permission);
+        if (result.IsAllowed)
+        {
+            return null;
+        }
+
+        return $"Setting '{settingName}' references '{referencedResourceId}', but identity '{FormatIdentity(identity)}' is not allowed to read {readableItemLabel}. Grant '{permission}' on resource '{target.Id}'.";
+    }
+
+    private static string FormatIdentity(ResourceIdentityReference identity) =>
+        string.IsNullOrWhiteSpace(identity.Name)
+            ? identity.ResourceId
+            : $"{identity.ResourceId}/{identity.Name}";
 
     private async Task StartContainerApplicationAsync(
         ApplicationResourceDefinition definition,
