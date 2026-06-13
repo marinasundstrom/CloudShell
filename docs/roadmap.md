@@ -174,6 +174,9 @@ listed here before pulling in broader proposal work.
   track structured logging, non-text operational payloads, resource events,
   audit records, diagnostics, metrics, and traces without prematurely merging
   those concerns.
+- Use [Lifecycle orchestration](proposals/core/lifecycle-orchestration.md) to
+  keep dependency startup, lifecycle action execution, resource activity, and
+  future event-triggered automation on one common orchestration model.
 
 ### Next: Concrete Host and Runtime Foundation
 

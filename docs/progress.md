@@ -223,7 +223,10 @@ expectations rather than duplicating the task queue.
   lifecycle changes, including dependencies that are auto-started because
   another resource was started. Authors may define custom namespaced actions
   and events; only standard lifecycle action kinds receive Resource Manager
-  lifecycle events automatically.
+  lifecycle events automatically. The proposed lifecycle orchestration model is
+  tracked in [Lifecycle orchestration](proposals/core/lifecycle-orchestration.md)
+  so future extension points and event-triggered workflows build on the same
+  deterministic action procedure rather than replacing it.
   Resource-type logs remain available for operational detail such as container
   console output.
 - Application resources can project transient `Starting` state from
