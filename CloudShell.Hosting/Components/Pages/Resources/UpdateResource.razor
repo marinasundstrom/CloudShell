@@ -2,9 +2,11 @@
 @page "/resources/{ResourceId}/details"
 @rendermode InteractiveServer
 @inject IResourceManager ResourceManager
+@inject ILogManager LogManager
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
+@inject IJSRuntime JS
 @inject IStringLocalizer<SharedResource> L
 @implements IDisposable
 
@@ -25,12 +27,32 @@
 }
 
 <section class="page-heading compact">
-    <div>
+    <div class="resource-page-title">
         <span class="eyebrow">@L["Resource Manager"]</span>
-        <h1>@(resource?.Name ?? L["Resource"])</h1>
-        <p>@L["Generated details and provider-contributed views for this resource."]</p>
+        <div class="resource-title-line">
+            @if (resource is not null)
+            {
+                <span class="state-dot @GetStateClass(resource.State)"
+                      title="@L["State: {0}", resource.State]"
+                      aria-label="@L["State: {0}", resource.State]"></span>
+            }
+            <h1>@(resource?.Name ?? L["Resource"])</h1>
+        </div>
+        <p>@(resource?.Kind ?? L["Generated details and provider-contributed views for this resource."])</p>
     </div>
-    <div class="heading-actions">
+    <div class="heading-actions resource-detail-actions">
+        @if (resource is not null)
+        {
+            @ResourceActionControls(resource)
+            @if (ResourceLogs.Count > 0)
+            {
+                <FluentButton Appearance="Appearance.Neutral"
+                              Title="@GetLogsActionLabel(ResourceLogs.Count)"
+                              OnClick="OpenLogs">
+                    @GetLogsActionLabel(ResourceLogs.Count)
+                </FluentButton>
+            }
+        }
         <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
             @L["Close"]
         </FluentButton>
@@ -166,6 +188,10 @@
     private ResourceConfigurationContext? ConfigurationContext { get; set; }
     private Resource? Resource { get; set; }
     private ResourceGroup? ResourceGroup { get; set; }
+    private IReadOnlyList<LogDescriptor> ResourceLogs { get; set; } = [];
+    private ResourceOperationCapabilities OperationCapabilities { get; set; } =
+        ResourceOperationCapabilities.None(string.Empty);
+    private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private string? SelectedTabId { get; set; }
     private string? ProcedureMessage { get; set; }
     private PendingResourceRestart? PendingRestart { get; set; }
@@ -186,6 +212,16 @@
             !Authorization.CanAccessResource(Resource.Id, ResourceGroup?.Id, CloudShellPermissions.Resources.Read))
         {
             Navigation.NavigateTo("/account/access-denied");
+        }
+
+        if (Resource is null)
+        {
+            ResourceLogs = [];
+            OperationCapabilities = ResourceOperationCapabilities.None(string.Empty);
+        }
+        else
+        {
+            await LoadResourceAffordancesAsync(Resource);
         }
 
         if (!string.IsNullOrWhiteSpace(RequestedQueryTabId))
@@ -289,13 +325,7 @@
             ProcedureMessage = result.Message;
             PendingRestart = null;
 
-            if (!string.IsNullOrWhiteSpace(ResourceId))
-            {
-                Resource = await ResourceManager.GetResourceAsync(ResourceId);
-                ResourceGroup = Resource is null
-                    ? null
-                    : await ResourceManager.GetResourceGroupForResourceAsync(Resource.Id);
-            }
+            await ReloadResourceAsync();
         }
         catch (Exception exception)
         {
@@ -315,7 +345,31 @@
     {
         Resource = resource;
         ResourceGroup = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
+        await LoadResourceAffordancesAsync(resource);
         ResourceContentVersion++;
+    }
+
+    private async Task ReloadResourceAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId))
+        {
+            return;
+        }
+
+        Resource = await ResourceManager.GetResourceAsync(ResourceId);
+        ResourceGroup = Resource is null
+            ? null
+            : await ResourceManager.GetResourceGroupForResourceAsync(Resource.Id);
+        if (Resource is not null)
+        {
+            await LoadResourceAffordancesAsync(Resource);
+        }
+    }
+
+    private async Task LoadResourceAffordancesAsync(Resource resource)
+    {
+        ResourceLogs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resource.Id));
+        OperationCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
     }
 
     private static bool CanShowImageDeployment(
@@ -382,10 +436,197 @@
 
         return tabs
             .Concat(contributedTabs)
-            .OrderBy(tab => tab.Order)
+            .OrderBy(GetResourceTabOrder)
             .ThenBy(tab => tab.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
+
+    private static int GetResourceTabOrder(ResourceTabContribution tab)
+    {
+        if (string.Equals(tab.Id, GeneratedOverviewTabId, StringComparison.OrdinalIgnoreCase))
+        {
+            return int.MinValue;
+        }
+
+        if (string.Equals(tab.Id, GeneratedIdentityTabId, StringComparison.OrdinalIgnoreCase))
+        {
+            return int.MinValue + 1;
+        }
+
+        return tab.Order;
+    }
+
+    private RenderFragment ResourceActionControls(Resource resource) => builder =>
+    {
+        if (resource.ResourceActions.Count == 0)
+        {
+            return;
+        }
+
+        var sequence = 0;
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", "inline-actions");
+
+        foreach (var action in resource.ResourceActions.Where(IsInlineAction))
+        {
+            builder.OpenComponent<FluentButton>(sequence++);
+            builder.AddAttribute(sequence++, "Class", "action-icon-button");
+            builder.AddAttribute(sequence++, "Appearance", Appearance.Neutral);
+            builder.AddAttribute(sequence++, "Title", action.DisplayName);
+            builder.AddAttribute(sequence++, "Disabled", !CanExecuteAction(action) || IsExecutingAction(action));
+            builder.AddAttribute(sequence++, "OnClick",
+                EventCallback.Factory.Create<MouseEventArgs>(this, () => ExecuteAction(action)));
+            builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
+            {
+                buttonBuilder.OpenElement(0, "span");
+                buttonBuilder.AddAttribute(1, "class", $"action-icon {GetActionIconClass(action)}");
+                buttonBuilder.AddAttribute(2, "aria-hidden", "true");
+                buttonBuilder.CloseElement();
+            }));
+            builder.CloseComponent();
+        }
+
+        var overflowActions = resource.ResourceActions
+            .Where(action => !IsInlineAction(action))
+            .ToArray();
+        if (overflowActions.Length > 0)
+        {
+            builder.OpenComponent<FluentMenuButton>(sequence++);
+            builder.AddAttribute(sequence++, "Class", "action-overflow-button");
+            builder.AddAttribute(sequence++, "UseMenuService", false);
+            builder.AddAttribute(sequence++, "ButtonAppearance", Appearance.Neutral);
+            builder.AddAttribute(sequence++, "ButtonContent", (RenderFragment)(buttonBuilder =>
+            {
+                buttonBuilder.OpenElement(0, "span");
+                buttonBuilder.AddAttribute(1, "class", "action-overflow-label");
+                buttonBuilder.AddAttribute(2, "aria-label", L["More actions"]);
+                buttonBuilder.AddContent(3, "...");
+                buttonBuilder.CloseElement();
+            }));
+            builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(menuBuilder =>
+            {
+                var menuSequence = 0;
+                foreach (var action in overflowActions)
+                {
+                    menuBuilder.OpenComponent<FluentMenuItem>(menuSequence++);
+                    menuBuilder.AddAttribute(menuSequence++, "Disabled", !CanExecuteAction(action) || IsExecutingAction(action));
+                    menuBuilder.AddAttribute(menuSequence++, "OnClick",
+                        EventCallback.Factory.Create<MouseEventArgs>(this, () => ExecuteAction(action)));
+                    menuBuilder.AddAttribute(menuSequence++, "ChildContent", (RenderFragment)(itemBuilder =>
+                    {
+                        itemBuilder.OpenElement(0, "span");
+                        itemBuilder.AddAttribute(1, "class", "menu-action-content");
+                        itemBuilder.OpenElement(2, "span");
+                        itemBuilder.AddAttribute(3, "class", $"action-icon {GetActionIconClass(action)}");
+                        itemBuilder.AddAttribute(4, "aria-hidden", "true");
+                        itemBuilder.CloseElement();
+                        itemBuilder.OpenElement(5, "span");
+                        itemBuilder.AddContent(6, IsExecutingAction(action) ? L["Working"] : action.DisplayName);
+                        itemBuilder.CloseElement();
+                        itemBuilder.CloseElement();
+                    }));
+                    menuBuilder.CloseComponent();
+                }
+            }));
+            builder.CloseComponent();
+        }
+
+        builder.CloseElement();
+    };
+
+    private static bool IsInlineAction(ResourceAction action) =>
+        action.EffectivePresentation.DisplayStyle == ResourceActionDisplayStyle.Inline;
+
+    private bool CanExecuteAction(ResourceAction action) =>
+        OperationCapabilities.CanExecuteAction(action.Id);
+
+    private bool IsExecutingAction(ResourceAction action) =>
+        ExecutingActionIds.Contains(action.Id);
+
+    private async Task ExecuteAction(ResourceAction action)
+    {
+        if (Resource is null || !CanExecuteAction(action) || IsExecutingAction(action))
+        {
+            return;
+        }
+
+        if (action.RequiresConfirmation)
+        {
+            var confirmed = await JS.InvokeAsync<bool>(
+                "confirm",
+                action.Description ??
+                L["Run {0} for {1}?", action.DisplayName, Resource.Name].Value);
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
+        ExecutingActionIds.Add(action.Id);
+        ProcedureMessage = null;
+        PendingRestart = null;
+        try
+        {
+            var result = await ResourceManager.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    Resource.Id,
+                    action.Id,
+                    IgnoreDependentWarning: true));
+            ProcedureMessage = result.Message;
+            await ReloadResourceAsync();
+            ResourceContentVersion++;
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            ExecutingActionIds.Remove(action.Id);
+        }
+    }
+
+    private void OpenLogs()
+    {
+        if (Resource is null || ResourceLogs.Count == 0)
+        {
+            return;
+        }
+
+        var query = new Dictionary<string, string?>
+        {
+            ["resourceId"] = Resource.Id
+        };
+
+        if (ResourceLogs.Count == 1)
+        {
+            query["logId"] = ResourceLogs[0].Id;
+        }
+
+        Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
+    }
+
+    private string GetLogsActionLabel(int logCount) =>
+        logCount == 1 ? L["Logs"].Value : L["Logs ({0})", logCount].Value;
+
+    private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
+    {
+        ResourceActionIcon.Run => "action-icon-run",
+        ResourceActionIcon.Stop => "action-icon-stop",
+        ResourceActionIcon.Pause => "action-icon-pause",
+        ResourceActionIcon.Restart => "action-icon-restart",
+        _ => "action-icon-custom"
+    };
+
+    private static string GetStateClass(ResourceState state) => state switch
+    {
+        ResourceState.Running => "state-running",
+        ResourceState.Starting => "state-starting",
+        ResourceState.Paused => "state-paused",
+        ResourceState.Degraded => "state-degraded",
+        ResourceState.Stopped => "state-stopped",
+        _ => "state-unknown"
+    };
 
     public void Dispose()
     {

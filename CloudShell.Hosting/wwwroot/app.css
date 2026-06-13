@@ -106,6 +106,22 @@ h3 {
     align-items: center;
 }
 
+.resource-page-title {
+    min-width: 0;
+}
+
+.resource-title-line {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-width: 0;
+}
+
+.resource-title-line h1 {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
 .heading-actions,
 .command-surface {
     display: flex;
@@ -478,6 +494,14 @@ h3 {
 
 .resource-row-actions {
     min-height: 2rem;
+}
+
+.resource-detail-actions {
+    justify-content: flex-end;
+}
+
+.resource-detail-actions .inline-actions {
+    flex-wrap: wrap;
 }
 
 .action-icon-button,
