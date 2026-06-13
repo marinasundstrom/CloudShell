@@ -89,6 +89,13 @@ Never project secrets through resource artifacts. Secret values belong in
 provider-owned configuration, environment-variable references, secret stores,
 or protected runtime channels.
 
+Prefer proven building blocks for common concerns. If a maintained NuGet
+package, standard API, protocol, or container image already solves a provider
+or service implementation detail, use it before designing CloudShell-specific
+machinery. Keep that reuse behind the owning provider, service, or abstraction
+boundary so CloudShell still projects stable product concepts rather than
+incidental library or container details.
+
 ## Implementation flow
 
 Use this flow for every artifact change.

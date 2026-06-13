@@ -65,6 +65,16 @@ integration should use the same public abstractions available to authored
 resources and third-party providers. Any exception is an architectural
 shortcut and must be documented with the reason and intended replacement.
 
+CloudShell should not reimplement common infrastructure concerns when a
+well-supported package, protocol, API, or runtime component already fits the
+job. Prefer established NuGet packages for common application concerns and
+established container images for provider-owned service implementation details
+when they reduce product risk and match the desired boundary. Reuse must still
+fit CloudShell's domain model: third-party packages and containers can
+implement providers or services, but they should not leak provider-native
+configuration, credentials, or incidental runtime shapes into projected
+resources unless those facts are stable CloudShell concepts.
+
 It is acceptable to develop a capability internally first while the model is
 still uncertain. When that internal surface becomes generally useful for
 integrators, extension authors, or authored services, graduate it into a public
