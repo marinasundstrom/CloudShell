@@ -86,15 +86,30 @@ Resource events are platform-owned activity records. They describe operations
 performed on or because of a resource, including who or what triggered them
 when that is known.
 
-Resource action lifecycle events are emitted for the resource whose action is
-running. When dependency startup starts another resource, that dependency gets
-its own `action.start`, `action.execute`, or `action.failed` records with
-the dependency-start cause in the message.
+Actions and events are related but separate. The activity stream should show
+the requested action and the resulting resource event. Standard action event
+types for lifecycle operations use the `action.lifecycle.*` namespace, such as
+`action.lifecycle.run` and `action.lifecycle.stop`, and carry actor/trigger
+information when known. Custom action event types are derived from the action
+ID under `action.*`; authors may namespace their own action IDs, for example
+`database.backup` becomes `action.database.backup`. Standard lifecycle event
+types describe resource lifecycle facts, such as `lifecycle.starting`,
+`lifecycle.started`, `lifecycle.stopping`, and `lifecycle.stopped`. Authors can
+still define custom resource actions and custom resource event types; only
+standard lifecycle action kinds receive Resource Manager lifecycle events
+automatically.
+
+When dependency startup starts another resource, that dependency gets its own
+action and lifecycle records with the dependency-start cause in the message.
+For MVP, result and failure details are text on the event message. Structured
+result fields, failure data, diagnostics, correlation IDs, and internal
+resource-manager state-transition metadata remain future event-schema work.
 
 The current contracts are:
 
 - `ResourceEvent`: platform activity record
 - `ResourceEventQuery`: query filters
+- `ResourceEventTypes`: standardized action and lifecycle event type constants
 - `IResourceEventStore`: internal append/query storage
 - `IResourceEventManager`: consumer-facing query API
 
@@ -150,6 +165,14 @@ Candidate fields include:
 
 The platform should define schemas for high-value operations before accepting
 arbitrary unbounded payloads.
+
+### Event Display Metadata
+
+Resource Manager can map known event types to friendly display names while
+keeping the stored event type stable. Standard lifecycle action and event types
+use built-in display names. A future Resource Manager UI extension point may
+let authors provide display metadata for their own namespaced action and event
+types without changing the stored `ResourceEvent` contract.
 
 ### Audit Records
 

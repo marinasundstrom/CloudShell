@@ -465,6 +465,17 @@ more detail, such as container console output or container-app-specific restart
 events, but generic resource events are the consistent per-resource history.
 They are queryable activity records, not just text log lines.
 
+Standard resource actions and standard resource events are related but
+separate concepts. `ResourceActionIds` names standard operations such as
+`run`, `stop`, `pause`, and `restart`. `ResourceEventTypes` names standard
+activity facts such as `action.lifecycle.stop`, `lifecycle.stopping`, and
+`lifecycle.stopped`. Authors may still define custom resource actions and
+custom resource event types. Custom action event types use
+`action.<custom-action-id>`, and authors may namespace their own action IDs,
+for example `action.database.backup`. Authors may also namespace their own
+event types, such as `database.backup.completed`; only the standard lifecycle
+action kinds receive Resource Manager lifecycle events automatically.
+
 In code:
 
 - `ILogManager` is the public domain abstraction.

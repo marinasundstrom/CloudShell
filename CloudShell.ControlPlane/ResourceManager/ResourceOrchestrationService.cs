@@ -90,17 +90,24 @@ public sealed class ResourceOrchestrationService(
         var orchestrator = SelectActionOrchestrator(context, action);
         AppendResourceActionEvent(
             resource,
-            "action.start",
-            $"Starting resource action '{action.Id}'.{FormatCause(cause)}",
+            GetActionEventType(action),
+            $"Requested resource action '{action.Id}'.{FormatCause(cause)}",
+            triggeredBy);
+        AppendLifecycleEvent(
+            resource,
+            GetLifecycleEventTypes(action)?.Starting,
+            GetLifecycleStartingMessage(action),
+            cause,
             triggeredBy);
 
         try
         {
             var result = await orchestrator.ExecuteActionAsync(context, action, cancellationToken);
-            AppendResourceActionEvent(
+            AppendLifecycleEvent(
                 resource,
-                "action.execute",
-                $"Executed action '{action.Id}'.{FormatCause(cause)} Result: {result.Message}",
+                GetLifecycleEventTypes(action)?.Completed,
+                $"{GetLifecycleCompletedMessage(action)} Result: {result.Message}",
+                cause,
                 triggeredBy);
 
             return result;
@@ -109,8 +116,15 @@ public sealed class ResourceOrchestrationService(
         {
             AppendResourceActionEvent(
                 resource,
-                "action.failed",
+                ResourceEventTypes.Actions.ForFailedAction(action.Id),
                 $"Failed action '{action.Id}'.{FormatCause(cause)} Reason: {exception.Message}",
+                triggeredBy,
+                "Warning");
+            AppendLifecycleEvent(
+                resource,
+                GetLifecycleEventTypes(action)?.Failed,
+                $"{GetLifecycleFailedMessage(action)} Reason: {exception.Message}",
+                cause,
                 triggeredBy,
                 "Warning");
 
@@ -259,10 +273,92 @@ public sealed class ResourceOrchestrationService(
             triggeredBy,
             level));
 
+    private void AppendLifecycleEvent(
+        Resource resource,
+        string? eventType,
+        string? message,
+        string? cause,
+        string? triggeredBy,
+        string level = "Information")
+    {
+        if (string.IsNullOrWhiteSpace(eventType) ||
+            string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        AppendResourceActionEvent(
+            resource,
+            eventType,
+            $"{message}{FormatCause(cause)}",
+            triggeredBy,
+            level);
+    }
+
+    private static string GetActionEventType(ResourceAction action) =>
+        ResourceEventTypes.Actions.ForAction(action.Id);
+
+    private static ResourceLifecycleEventTypes? GetLifecycleEventTypes(ResourceAction action) =>
+        action.Kind switch
+        {
+            ResourceActionKind.Run => new(
+                ResourceEventTypes.Events.Lifecycle.Starting,
+                ResourceEventTypes.Events.Lifecycle.Started,
+                ResourceEventTypes.Events.Lifecycle.StartFailed),
+            ResourceActionKind.Stop => new(
+                ResourceEventTypes.Events.Lifecycle.Stopping,
+                ResourceEventTypes.Events.Lifecycle.Stopped,
+                ResourceEventTypes.Events.Lifecycle.StopFailed),
+            ResourceActionKind.Pause => new(
+                ResourceEventTypes.Events.Lifecycle.Pausing,
+                ResourceEventTypes.Events.Lifecycle.Paused,
+                ResourceEventTypes.Events.Lifecycle.PauseFailed),
+            ResourceActionKind.Restart => new(
+                ResourceEventTypes.Events.Lifecycle.Restarting,
+                ResourceEventTypes.Events.Lifecycle.Restarted,
+                ResourceEventTypes.Events.Lifecycle.RestartFailed),
+            _ => null
+        };
+
+    private static string? GetLifecycleStartingMessage(ResourceAction action) =>
+        action.Kind switch
+        {
+            ResourceActionKind.Run => "Resource is starting.",
+            ResourceActionKind.Stop => "Resource is stopping.",
+            ResourceActionKind.Pause => "Resource is pausing.",
+            ResourceActionKind.Restart => "Resource is restarting.",
+            _ => null
+        };
+
+    private static string? GetLifecycleCompletedMessage(ResourceAction action) =>
+        action.Kind switch
+        {
+            ResourceActionKind.Run => "Resource started.",
+            ResourceActionKind.Stop => "Resource stopped.",
+            ResourceActionKind.Pause => "Resource paused.",
+            ResourceActionKind.Restart => "Resource restarted.",
+            _ => null
+        };
+
+    private static string? GetLifecycleFailedMessage(ResourceAction action) =>
+        action.Kind switch
+        {
+            ResourceActionKind.Run => "Resource failed to start.",
+            ResourceActionKind.Stop => "Resource failed to stop.",
+            ResourceActionKind.Pause => "Resource failed to pause.",
+            ResourceActionKind.Restart => "Resource failed to restart.",
+            _ => null
+        };
+
     private static string FormatCause(string? cause) =>
         string.IsNullOrWhiteSpace(cause)
             ? string.Empty
             : $" Cause: {cause.Trim().TrimEnd('.')}.";
+
+    private sealed record ResourceLifecycleEventTypes(
+        string Starting,
+        string Completed,
+        string Failed);
 
     private static ControlPlaneException CreateDependencyAutoStartException(
         Resource rootResource,

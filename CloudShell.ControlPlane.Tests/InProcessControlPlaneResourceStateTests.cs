@@ -613,6 +613,36 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_LogsActionAndLifecycleEventsForStop()
+    {
+        var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            resourceEvents: resourceEvents);
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Stop,
+                TriggeredBy: "operator"));
+
+        Assert.Equal(["target:stop"], provider.ExecutedActions);
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "target"));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Stop) &&
+            resourceEvent.TriggeredBy == "operator");
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Stopping &&
+            resourceEvent.TriggeredBy == "operator");
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Stopped &&
+            resourceEvent.TriggeredBy == "operator" &&
+            resourceEvent.Message.Contains("Executed stop", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_LogsDependencyLifecycleEventsOnDependencyResource()
     {
         var provider = new TestResourceProvider();
@@ -636,21 +666,25 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         var dependencyEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "vault"));
         Assert.Contains(dependencyEvents, resourceEvent =>
-            resourceEvent.EventType == "action.start" &&
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Run) &&
             resourceEvent.TriggeredBy == "operator" &&
             resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
         Assert.Contains(dependencyEvents, resourceEvent =>
-            resourceEvent.EventType == "action.execute" &&
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Starting &&
             resourceEvent.TriggeredBy == "operator" &&
-            resourceEvent.Message.Contains("Executed action 'run'", StringComparison.Ordinal) &&
+            resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
+        Assert.Contains(dependencyEvents, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Started &&
+            resourceEvent.TriggeredBy == "operator" &&
+            resourceEvent.Message.Contains("Executed run", StringComparison.Ordinal) &&
             resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
 
         var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
         Assert.Contains(rootEvents, resourceEvent =>
-            resourceEvent.EventType == "action.start" &&
+            resourceEvent.EventType == ResourceEventTypes.Actions.ForAction(ResourceActionIds.Run) &&
             resourceEvent.TriggeredBy == "operator");
         Assert.Contains(rootEvents, resourceEvent =>
-            resourceEvent.EventType == "action.execute" &&
+            resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Started &&
             resourceEvent.TriggeredBy == "operator");
         Assert.DoesNotContain(rootEvents, resourceEvent =>
             resourceEvent.Message.Contains("Dependency auto-start", StringComparison.Ordinal));

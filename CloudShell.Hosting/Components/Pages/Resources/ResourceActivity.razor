@@ -30,8 +30,8 @@
                 {
                     <article class="resource-activity-event">
                         <div>
-                            <strong>@resourceEvent.EventType</strong>
-                            <span>@FormatTriggeredBy(resourceEvent)</span>
+                            <strong>@ResourceEventDisplayNames.GetDisplayName(resourceEvent.EventType, L)</strong>
+                            <span>@FormatEventMetadata(resourceEvent)</span>
                         </div>
                         <p>@resourceEvent.Message</p>
                         <footer>
@@ -84,6 +84,9 @@
         string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy)
             ? L["Triggered by system"].Value
             : L["Triggered by {0}", resourceEvent.TriggeredBy].Value;
+
+    private string FormatEventMetadata(ResourceEvent resourceEvent) =>
+        L["{0} · {1}", resourceEvent.EventType, FormatTriggeredBy(resourceEvent)].Value;
 
     private static string FormatTimestamp(DateTimeOffset timestamp) =>
         timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);

@@ -558,7 +558,17 @@ the generated "Resource events" log is a view adapter, not the owning model.
 Implementation:
 
 - Record actor or trigger information when available.
-- Use stable event types and levels.
+- Use stable event types and levels. Standard lifecycle action event types use
+  the `action.lifecycle.*` namespace, such as `action.lifecycle.run` and
+  `action.lifecycle.stop`. Custom action event types are derived from the
+  requested action ID under `action.*`; authors may namespace their own action
+  IDs, such as `database.backup`.
+  Standard lifecycle event types describe lifecycle phases and outcomes, such
+  as `lifecycle.starting`, `lifecycle.started`, `lifecycle.stopping`, and
+  `lifecycle.stopped`. Event types are namespaced too; authors may define
+  custom event namespaces such as `database.backup.completed`. Custom actions
+  and custom event types are allowed, but only standard lifecycle action kinds
+  should be treated as lifecycle events by Resource Manager.
 - Emit resource events for operations such as actions, image updates,
   configuration changes, and important Control Plane decisions.
 - Keep resource events generic. Provider-specific logs can add operational

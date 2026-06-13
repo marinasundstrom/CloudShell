@@ -216,9 +216,14 @@ expectations rather than duplicating the task queue.
   runtime resource IDs to deploy a new app image.
 - Resource-scoped events are the platform traceability stream for operations
   performed on resources, including who or what triggered the operation.
-  Resource action lifecycle events are recorded on the resource whose action
-  runs, including dependencies that are auto-started because another resource
-  was started.
+  Standard lifecycle action events such as `action.lifecycle.run` and
+  `action.lifecycle.stop` are separate from resulting lifecycle events such as
+  `lifecycle.starting`, `lifecycle.started`, `lifecycle.stopping`, and
+  `lifecycle.stopped`. Both are recorded on the resource whose action or
+  lifecycle changes, including dependencies that are auto-started because
+  another resource was started. Authors may define custom namespaced actions
+  and events; only standard lifecycle action kinds receive Resource Manager
+  lifecycle events automatically.
   Resource-type logs remain available for operational detail such as container
   console output.
 - Application resources can project transient `Starting` state from
