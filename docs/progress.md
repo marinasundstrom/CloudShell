@@ -85,16 +85,16 @@ when status, milestone relevance, or remaining work changes.
   each endpoint handler. `DefaultCloudShellResourceCredential` is now the
   public-preview resource credential chain for authored and built-in services;
   its first source dogfoods the injected `CLOUDSHELL_IDENTITY_*` environment
-  contract, `CloudShell.Configuration` uses it to acquire configuration access
-  tokens, and the remote Control Plane client can accept it directly through
+  contract, and the remote Control Plane client can accept it directly through
   SDK-style constructors and DI registration so resource-hosted authored
   services can call platform APIs without passing raw bearer tokens. The
   Configuration Store and Secrets Vault service APIs now have matching
   public-preview SDK clients in `CloudShell.Configuration.Client` and
   `CloudShell.Secrets.Client`, backed by the lightweight `CloudShell.Client`
   credential package. They accept the same resource credential without dragging
-  in full Control Plane abstractions and are dogfooded by the Settings and
-  Secrets sample.
+  in full Control Plane abstractions, own their service-specific
+  `IConfiguration` integrations, and are dogfooded by the Settings and Secrets
+  sample.
 - Public exposure and API stability are separate decisions. Public APIs that
   are not yet stable must be labeled as preview, experimental, or unstable,
   with clear ownership, expected change surface, and path to stability.

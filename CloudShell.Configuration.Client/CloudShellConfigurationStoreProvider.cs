@@ -1,38 +1,37 @@
 using CloudShell.Client.Authentication;
-using CloudShell.Configuration.Client;
 using Microsoft.Extensions.Configuration;
 using System.Collections;
 using System.Text.Json;
 
-namespace CloudShell.Configuration;
+namespace CloudShell.Configuration.Client;
 
-internal sealed class CloudShellConfigurationProvider(
-    CloudShellConfigurationOptions options) : ConfigurationProvider
+internal sealed class CloudShellConfigurationStoreProvider(
+    CloudShellConfigurationStoreOptions options) : ConfigurationProvider
 {
     public override void Load()
     {
-        var service = ResolveConfigurationStoreService(options);
-        if (service is null)
+        var endpoint = ResolveEndpoint(options);
+        if (endpoint is null)
         {
             SetMetadata("Status", "unavailable");
-            SetMetadata("Detail", "No CloudShell configuration store service endpoint and identity credential were configured or injected.");
+            SetMetadata("Detail", "No CloudShell Configuration Store endpoint was configured or injected.");
             return;
         }
 
-        SetMetadata("Source", service.Endpoint);
+        SetMetadata("Source", endpoint.ToString());
 
         try
         {
-            using var client = new HttpClient
+            using var httpClient = new HttpClient
             {
                 Timeout = options.Timeout
             };
-            var configuration = new ConfigurationStoreClient(
-                new Uri(service.Endpoint),
-                service.Credential,
-                client,
-                [service.IdentityScope]);
-            var entries = configuration
+            var client = new ConfigurationStoreClient(
+                endpoint,
+                options.Credential ?? CreateExplicitCredential(options),
+                httpClient,
+                [options.IdentityScope]);
+            var entries = client
                 .GetEntriesAsync()
                 .GetAwaiter()
                 .GetResult();
@@ -72,15 +71,12 @@ internal sealed class CloudShellConfigurationProvider(
     private void ClearMetadata(string name) =>
         Data.Remove($"{options.MetadataPrefix}:{name}");
 
-    private static CloudShellConfigurationStoreService? ResolveConfigurationStoreService(
-        CloudShellConfigurationOptions options)
+    private static Uri? ResolveEndpoint(CloudShellConfigurationStoreOptions options)
     {
-        if (!string.IsNullOrWhiteSpace(options.Endpoint))
+        if (!string.IsNullOrWhiteSpace(options.Endpoint) &&
+            Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var configuredEndpoint))
         {
-            return new CloudShellConfigurationStoreService(
-                options.Endpoint,
-                options.Credential ?? CreateExplicitCredential(options),
-                options.IdentityScope);
+            return configuredEndpoint;
         }
 
         var variables = Environment.GetEnvironmentVariables()
@@ -91,46 +87,24 @@ internal sealed class CloudShellConfigurationProvider(
                 entry => (string)entry.Value!,
                 StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (name, endpoint) in variables
+        foreach (var (_, endpoint) in variables
             .Where(item =>
                 item.Key.StartsWith("CLOUDSHELL_CONFIGURATION_", StringComparison.OrdinalIgnoreCase) &&
                 item.Key.EndsWith("_ENDPOINT", StringComparison.OrdinalIgnoreCase) &&
                 MatchesServiceName(item.Key, options.ServiceName))
-            .OrderByDescending(item => MatchesServiceName(item.Key, "EXAMPLE_CONFIGURATION"))
-            .ThenBy(item => item.Key, StringComparer.OrdinalIgnoreCase))
+            .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase))
         {
-            var identityTokenEndpoint = GetOptionalVariable(variables, "CLOUDSHELL_IDENTITY_TOKEN_ENDPOINT");
-            var identityClientId = GetOptionalVariable(variables, "CLOUDSHELL_IDENTITY_CLIENT_ID");
-            var identityClientSecret = GetOptionalVariable(variables, "CLOUDSHELL_IDENTITY_CLIENT_SECRET");
-            var identityScope = GetOptionalVariable(variables, "CLOUDSHELL_IDENTITY_SCOPE") ??
-                options.IdentityScope;
-            if (string.IsNullOrWhiteSpace(endpoint) ||
-                (string.IsNullOrWhiteSpace(identityTokenEndpoint) ||
-                 string.IsNullOrWhiteSpace(identityClientId) ||
-                 string.IsNullOrWhiteSpace(identityClientSecret)))
+            if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
             {
-                continue;
+                return uri;
             }
-
-            return new CloudShellConfigurationStoreService(
-                endpoint,
-                new EnvironmentCloudShellResourceCredential(
-                    new EnvironmentCloudShellResourceCredentialOptions
-                    {
-                        TokenEndpoint = identityTokenEndpoint,
-                        ClientId = identityClientId,
-                        ClientSecret = identityClientSecret,
-                        Scope = identityScope,
-                        DefaultScope = options.IdentityScope
-                    }),
-                identityScope);
         }
 
         return null;
     }
 
     private static CloudShellResourceCredential CreateExplicitCredential(
-        CloudShellConfigurationOptions options) =>
+        CloudShellConfigurationStoreOptions options) =>
         string.IsNullOrWhiteSpace(options.IdentityTokenEndpoint) &&
         string.IsNullOrWhiteSpace(options.IdentityClientId) &&
         string.IsNullOrWhiteSpace(options.IdentityClientSecret)
@@ -144,13 +118,6 @@ internal sealed class CloudShellConfigurationProvider(
                     Scope = options.IdentityScope,
                     DefaultScope = options.IdentityScope
                 });
-
-    private static string? GetOptionalVariable(
-        IReadOnlyDictionary<string, string> variables,
-        string name) =>
-        variables.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value)
-            ? value
-            : null;
 
     private static bool MatchesServiceName(string environmentVariableName, string? serviceName)
     {
@@ -174,5 +141,4 @@ internal sealed class CloudShellConfigurationProvider(
 
         return new string(characters).Trim('_');
     }
-
 }

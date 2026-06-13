@@ -11,12 +11,15 @@ environment variables from references:
 The application resource stores references, not copied values. CloudShell
 resolves those references when the resource is started.
 
-The Web API also dogfoods the public-preview SDK clients for direct service
-access. Its `/configuration` endpoint uses `ConfigurationStoreClient` with
-`DefaultCloudShellResourceCredential`, and `/secrets/{name}` uses
-`SecretsVaultClient` with the same credential chain. Those clients discover the
-service endpoints injected by the dependent `configuration.store` and
-`secrets.vault` resources.
+The Web API also dogfoods the public-preview SDK clients and their
+service-specific Microsoft configuration integrations. It calls
+`AddCloudShellConfigurationStore()` from `CloudShell.Configuration.Client` and
+`AddCloudShellSecretsVault()` from `CloudShell.Secrets.Client`, registers
+`DefaultCloudShellResourceCredential` as the application resource credential,
+then supplies that credential to `ConfigurationStoreClient` and
+`SecretsVaultClient` through its service-client model. Those integrations and
+clients discover the service endpoints injected by the dependent
+`configuration.store` and `secrets.vault` resources.
 
 The sample also declares a built-in development identity provider. The Web API
 resource has a `settings-secrets-api` identity. The configuration store grants

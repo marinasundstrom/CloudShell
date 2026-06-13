@@ -154,8 +154,8 @@ certificate, federated credential, workload identity, or another provider-owned
 mechanism instead.
 Applications should use `DefaultCloudShellResourceCredential` from
 `CloudShell.Client` when they need to acquire their own resource identity
-token directly. `CloudShell.Configuration` uses that credential chain
-internally.
+token directly. The service-specific SDK clients and their `IConfiguration`
+integrations use that credential chain internally.
 
 Applications fetch settings from:
 
@@ -204,15 +204,16 @@ cannot also use.
 
 ## Microsoft Configuration API
 
-Applications can consume CloudShell configuration through the reusable
-`CloudShell.Configuration` project. It implements the standard
-`Microsoft.Extensions.Configuration` provider contract:
+Applications can consume CloudShell configuration through the
+`CloudShell.Configuration.Client` package. The same package that owns
+`ConfigurationStoreClient` also owns the standard
+`Microsoft.Extensions.Configuration` provider integration:
 
 ```csharp
-using CloudShell.Configuration;
+using CloudShell.Configuration.Client;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddCloudShellConfiguration();
+builder.Configuration.AddCloudShellConfigurationStore();
 ```
 
 By default, the provider discovers the first injected
@@ -221,7 +222,7 @@ By default, the provider discovers the first injected
 service or configure explicit connection details:
 
 ```csharp
-builder.Configuration.AddCloudShellConfiguration(options =>
+builder.Configuration.AddCloudShellConfigurationStore(options =>
 {
     options.ServiceName = "Example Configuration";
     options.Timeout = TimeSpan.FromSeconds(5);
@@ -234,18 +235,32 @@ Loaded entries are available through normal `IConfiguration` lookup:
 var value = builder.Configuration["SampleMessage"];
 ```
 
-Provider diagnostics are exposed under `CloudShell:Configuration:*`, including
-`Status`, `Detail`, `Source`, `LoadedKeys`, and `SecretKeys`. The provider does
-not throw when the service is unavailable; it records unavailable status so the
-application can continue running and log the state.
+Provider diagnostics are exposed under `CloudShell:ConfigurationStore:*`,
+including `Status`, `Detail`, `Source`, `LoadedKeys`, and `SecretKeys`. The
+provider does not throw when the service is unavailable; it records
+unavailable status so the application can continue running and log the state.
+
+Secrets Vault has its own service-specific configuration integration in
+`CloudShell.Secrets.Client`:
+
+```csharp
+using CloudShell.Secrets.Client;
+
+builder.Configuration.AddCloudShellSecretsVault();
+```
+
+By default, secret names are configuration keys and `--` maps to the .NET
+configuration `:` delimiter. Provider diagnostics are exposed under
+`CloudShell:SecretsVault:*`.
 
 ## Sample
 
 The host declares an `Example Configuration` service programmatically. If an
 executable application depends on that service, the sample app can use
-`CloudShell.Configuration` to read the injected CloudShell endpoint and token,
-load settings at startup, log connection failures, and continue running if the
-service is unavailable.
+`CloudShell.Configuration.Client` to read the injected CloudShell endpoint and
+token, load settings at startup, log connection failures, and continue running
+if the service is unavailable. It can use `CloudShell.Secrets.Client` the same
+way for vault-backed secrets.
 
 When the sample app is started from Resource Manager, open:
 

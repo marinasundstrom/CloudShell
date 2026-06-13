@@ -20,12 +20,11 @@ request/response contracts.
   domain-shaped `IControlPlane`, `IResourceManager`, resource, log, and trace
   contracts.
 - `CloudShell.Configuration.Client`: Configuration Store SDK client. It
-  references `CloudShell.Client`, not the full Control Plane abstractions.
-- `CloudShell.Configuration`: Microsoft `IConfiguration` provider. It is not
-  the low-level SDK client package; it depends on
-  `CloudShell.Configuration.Client`.
+  references `CloudShell.Client`, not the full Control Plane abstractions, and
+  owns the Microsoft `IConfiguration` integration for configuration entries.
 - `CloudShell.Secrets.Client`: Secrets Vault SDK client. It references
-  `CloudShell.Client`, not the full Control Plane abstractions.
+  `CloudShell.Client`, not the full Control Plane abstractions, and owns the
+  Microsoft `IConfiguration` integration for vault secrets.
 
 Future service-specific SDK clients should follow the same `.Client`
 convention and avoid depending on `CloudShell.Abstractions` unless the client
@@ -41,6 +40,37 @@ specific credential source:
 using CloudShell.Client.Authentication;
 
 var credential = new DefaultCloudShellResourceCredential();
+```
+
+In ASP.NET Core services, register the credential once and supply it to SDK
+clients from the application service model:
+
+```csharp
+using CloudShell.Client.Authentication;
+using CloudShell.Configuration.Client;
+using CloudShell.Secrets.Client;
+
+builder.Configuration.AddCloudShellConfigurationStore();
+builder.Configuration.AddCloudShellSecretsVault();
+builder.Services.AddSingleton<CloudShellResourceCredential>(_ => new DefaultCloudShellResourceCredential());
+builder.Services.AddSingleton<CloudShellServiceClients>();
+
+app.MapGet("/configuration", async (
+    CloudShellServiceClients clients,
+    CancellationToken cancellationToken) =>
+{
+    var configuration = clients.CreateConfigurationStoreClient();
+    return await configuration.GetEntriesAsync(cancellationToken);
+});
+
+sealed class CloudShellServiceClients(CloudShellResourceCredential credential)
+{
+    public ConfigurationStoreClient CreateConfigurationStoreClient() =>
+        ConfigurationStoreClient.FromEnvironment(credential);
+
+    public SecretsVaultClient CreateSecretsVaultClient() =>
+        SecretsVaultClient.FromEnvironment(credential);
+}
 ```
 
 The first credential source reads the environment contract injected by resource
@@ -112,6 +142,20 @@ CLOUDSHELL_CONFIGURATION_<RESOURCE_ID>_ENDPOINT
 The endpoint points at the protected entries collection. The client requests a
 resource identity token and sends it as a bearer token on each service call.
 
+The same package provides the configuration-provider integration:
+
+```csharp
+using CloudShell.Configuration.Client;
+
+builder.Configuration.AddCloudShellConfigurationStore(options =>
+{
+    options.ServiceName = "Sample App Settings";
+});
+```
+
+Provider diagnostics are exposed under `CloudShell:ConfigurationStore:*`,
+including `Status`, `Detail`, `Source`, `LoadedKeys`, and `SecretKeys`.
+
 ## Secrets Vault Client
 
 Use `CloudShell.Secrets.Client` for direct Secrets Vault service calls:
@@ -138,6 +182,23 @@ CLOUDSHELL_SECRETS_<RESOURCE_ID>_ENDPOINT
 The endpoint points at the protected vault secrets collection. The client
 requests a resource identity token and sends it as a bearer token on each
 service call.
+
+The same package provides the configuration-provider integration for secrets:
+
+```csharp
+using CloudShell.Secrets.Client;
+
+builder.Configuration.AddCloudShellSecretsVault(options =>
+{
+    options.VaultName = "Sample App Secrets";
+});
+```
+
+Secret names are loaded as configuration keys. By default, `--` in secret
+names maps to the .NET configuration `:` delimiter, matching the Azure Key
+Vault-style convention. Provider diagnostics are exposed under
+`CloudShell:SecretsVault:*`, including `Status`, `Detail`, `Source`, and
+`LoadedKeys`.
 
 ## Stability
 
