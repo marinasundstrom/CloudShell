@@ -1,0 +1,97 @@
+@using System.Globalization
+@inject IResourceEventManager ResourceEvents
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    <section class="generated-section">
+        <div class="resource-activity-header">
+            <div>
+                <h3>@L["Activity"]</h3>
+                <span>@L["{0} events", Events.Count]</span>
+            </div>
+            <FluentButton Appearance="Appearance.Neutral"
+                          Disabled="@IsLoading"
+                          OnClick="Refresh">
+                @(IsLoading ? L["Refreshing"] : L["Refresh"])
+            </FluentButton>
+        </div>
+
+        @if (Events.Count == 0)
+        {
+            <div class="empty-state compact">
+                <strong>@L["No activity"]</strong>
+                <span>@L["No resource activity events have been recorded."]</span>
+            </div>
+        }
+        else
+        {
+            <div class="resource-activity-list">
+                @foreach (var resourceEvent in Events)
+                {
+                    <article class="resource-activity-event">
+                        <div>
+                            <strong>@resourceEvent.EventType</strong>
+                            <span>@FormatTriggeredBy(resourceEvent)</span>
+                        </div>
+                        <p>@resourceEvent.Message</p>
+                        <footer>
+                            <time datetime="@resourceEvent.Timestamp.ToString("O", CultureInfo.InvariantCulture)">
+                                @FormatTimestamp(resourceEvent.Timestamp)
+                            </time>
+                            <span class="resource-activity-level @GetLevelClass(resourceEvent.Level)">
+                                @resourceEvent.Level
+                            </span>
+                        </footer>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private IReadOnlyList<ResourceEvent> Events { get; set; } = [];
+    private bool IsLoading { get; set; }
+
+    protected override Task OnParametersSetAsync() => LoadEventsAsync();
+
+    private Task Refresh() => LoadEventsAsync();
+
+    private async Task LoadEventsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId))
+        {
+            Events = [];
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Events = await ResourceEvents.ListResourceEventsAsync(
+                new ResourceEventQuery(ResourceId: ResourceId, MaxEvents: 100));
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private string FormatTriggeredBy(ResourceEvent resourceEvent) =>
+        string.IsNullOrWhiteSpace(resourceEvent.TriggeredBy)
+            ? L["Triggered by system"].Value
+            : L["Triggered by {0}", resourceEvent.TriggeredBy].Value;
+
+    private static string FormatTimestamp(DateTimeOffset timestamp) =>
+        timestamp.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+
+    private static string GetLevelClass(string? level) =>
+        string.Equals(level, "Warning", StringComparison.OrdinalIgnoreCase)
+            ? "warning"
+            : string.Equals(level, "Error", StringComparison.OrdinalIgnoreCase)
+                ? "error"
+                : "information";
+}

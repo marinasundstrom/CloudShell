@@ -105,7 +105,8 @@ For MVP, implement the smallest useful split:
 2. Persist resource events as platform-owned activity.
 3. Query resource events by resource, event type, actor, and time range.
 4. Use Resource Manager activity views to render resource events separately
-   from raw provider logs.
+   from raw provider logs. A generated resource Activity tab now reads from
+   `IResourceEventManager`.
 5. Document audit, structured properties, retention, and export as follow-up
    decisions.
 
@@ -190,7 +191,8 @@ base log or event entry a blob store.
 ## Remaining Tasks
 
 - Keep the current MVP resource event persistence/query slice small.
-- Add Resource Manager activity UI on top of `IResourceEventManager`.
+- Add Activity-tab filtering and event-type grouping on top of
+  `IResourceEventManager`.
 - Define initial event schemas for resource actions, image deployments,
   lifecycle operations, authorization denials, configuration reads, secret
   reads, and host/runtime reconciliation.

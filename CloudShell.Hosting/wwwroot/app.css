@@ -937,6 +937,71 @@ h3 {
     overflow-wrap: anywhere;
 }
 
+.resource-activity-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.resource-activity-header span {
+    display: block;
+    margin-top: .15rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+}
+
+.resource-activity-list {
+    display: grid;
+    gap: .5rem;
+}
+
+.resource-activity-event {
+    display: grid;
+    gap: .45rem;
+    padding: .65rem .7rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.resource-activity-event > div,
+.resource-activity-event footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.resource-activity-event p {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.resource-activity-event span,
+.resource-activity-event time {
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+}
+
+.resource-activity-level {
+    border-radius: 999px;
+    padding: .12rem .45rem;
+    border: 1px solid var(--cloudshell-divider);
+}
+
+.resource-activity-level.warning {
+    color: #f59e0b;
+}
+
+.resource-activity-level.error {
+    color: #ef4444;
+}
+
+.resource-activity-level.information {
+    color: var(--cloudshell-accent);
+}
+
 .generated-deploy-form {
     display: grid;
     gap: .55rem;

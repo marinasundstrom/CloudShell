@@ -179,6 +179,7 @@
 @code {
     private const string GeneratedOverviewTabId = "overview";
     private const string GeneratedIdentityTabId = "identity";
+    private const string GeneratedActivityTabId = "activity";
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -411,6 +412,16 @@
                 typeof(GeneratedResourceIdentity)));
         }
 
+        if (!contributedTabs.Any(tab =>
+                string.Equals(tab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase)))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedActivityTabId,
+                "Activity",
+                -80,
+                typeof(ResourceActivity)));
+        }
+
         if (resourceType?.UpdateComponentType is not null &&
             !contributedTabs.Any(tab =>
                 string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase)))
@@ -452,6 +463,11 @@
         if (string.Equals(tab.Id, GeneratedIdentityTabId, StringComparison.OrdinalIgnoreCase))
         {
             return int.MinValue + 1;
+        }
+
+        if (string.Equals(tab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase))
+        {
+            return int.MinValue + 2;
         }
 
         return tab.Order;

@@ -164,7 +164,9 @@ listed here before pulling in broader proposal work.
   observation becomes stale.
 - Persist resource events and expose filtering by event type, actor, and time
   range. The initial persistence/query slice is in place through
-  `IResourceEventManager`; Resource Manager activity UI is next.
+  `IResourceEventManager`, and Resource Manager now has a generated Activity
+  tab for resource events. Next work is filtering, event schema polish, and
+  tighter integration with authorization/audit decisions.
 - Define audit event schemas for resource actions, host/runtime operations,
   image deployments, authorization decisions, identity provisioning, and secret
   access.

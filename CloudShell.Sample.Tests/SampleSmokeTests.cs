@@ -262,6 +262,12 @@ public sealed class SampleSmokeTests
         var stoppedResource = stoppedDocument.RootElement;
         Assert.Equal((int)ResourceState.Stopped, stoppedResource.GetProperty("state").GetInt32());
         Assert.True(stoppedResource.GetProperty("resourceActions").TryGetProperty("run", out _));
+
+        var activityHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("sample:api")}/details?tab=activity");
+        Assert.Contains("Activity", activityHtml);
+        Assert.Contains("action.execute", activityHtml);
+        Assert.Contains("Stop completed", activityHtml);
     }
 
     [Fact]
