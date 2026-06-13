@@ -1,6 +1,7 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Persistence;
 
@@ -33,7 +34,8 @@ public sealed class ResourceDeclarationStartupService(
     ResourceIdentityProviderCatalog identityProviders,
     ResourceIdentityProvisioningService identityProvisioning,
     CloudShellExtensionRegistry extensionRegistry,
-    ICloudShellExtensionActivationStore activationStore)
+    ICloudShellExtensionActivationStore activationStore,
+    IResourceEventSink? resourceEvents = null)
 {
     public async Task<ResourceDeclarationStartupResult> StartAutoStartDeclarationsAsync(
         CancellationToken cancellationToken = default)
@@ -55,7 +57,8 @@ public sealed class ResourceDeclarationStartupService(
             declarations,
             selectionStore,
             containerHostProviders,
-            actionAvailabilityProviders: actionAvailabilityProviders);
+            actionAvailabilityProviders: actionAvailabilityProviders,
+            resourceEvents: resourceEvents);
         var authorization = new StartupAuthorizationService();
         var diagnostics = new List<ResourceDeclarationStartupDiagnostic>();
 
@@ -94,7 +97,8 @@ public sealed class ResourceDeclarationStartupService(
                     runAction,
                     startDependencies: true,
                     authorization,
-                    cancellationToken);
+                    cancellationToken,
+                    triggeredBy: "startup");
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {

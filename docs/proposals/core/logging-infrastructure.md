@@ -86,6 +86,11 @@ Resource events are platform-owned activity records. They describe operations
 performed on or because of a resource, including who or what triggered them
 when that is known.
 
+Resource action lifecycle events are emitted for the resource whose action is
+running. When dependency startup starts another resource, that dependency gets
+its own `action.starting`, `action.execute`, or `action.failed` records with
+the dependency-start cause in the message.
+
 The current contracts are:
 
 - `ResourceEvent`: platform activity record

@@ -393,14 +393,8 @@ public sealed class InProcessControlPlane(
             action,
             command.StartDependencies,
             CreateAuthorizationService(command.ActingIdentity),
-            cancellationToken);
-
-        resourceEvents?.Append(new ResourceEvent(
-            resource.Id,
-            "action.execute",
-            $"Executed action '{action.Id}'. Result: {result.Message}",
-            DateTimeOffset.UtcNow,
-            command.TriggeredBy));
+            cancellationToken,
+            command.TriggeredBy);
 
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourceActionExecuted,

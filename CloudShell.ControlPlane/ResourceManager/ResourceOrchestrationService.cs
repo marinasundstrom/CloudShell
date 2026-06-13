@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Authorization;
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using System.Text.Json;
 
@@ -14,7 +15,8 @@ public sealed class ResourceOrchestrationService(
     ResourceOrchestratorSelectionStore selectionStore,
     IEnumerable<IContainerHostProvider>? containerHostProviders = null,
     IContainerHostResolver? containerHostResolver = null,
-    IEnumerable<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null)
+    IEnumerable<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
+    IResourceEventSink? resourceEvents = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
     private readonly IReadOnlyList<IResourceOrchestrator> orchestrators = orchestrators.ToArray();
@@ -46,7 +48,9 @@ public sealed class ResourceOrchestrationService(
         ResourceAction action,
         bool startDependencies,
         ICloudShellAuthorizationService authorization,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? triggeredBy = null,
+        string? cause = null)
     {
         if (startDependencies && ShouldStartDependencies(action))
         {
@@ -57,16 +61,24 @@ public sealed class ResourceOrchestrationService(
                 new HashSet<string>(StringComparer.OrdinalIgnoreCase),
                 new HashSet<string>(StringComparer.OrdinalIgnoreCase),
                 [],
+                triggeredBy,
                 cancellationToken);
         }
 
-        return await ExecuteActionCoreAsync(resource, action, cancellationToken);
+        return await ExecuteActionCoreAsync(
+            resource,
+            action,
+            cancellationToken,
+            triggeredBy,
+            cause);
     }
 
     private async Task<ResourceProcedureResult> ExecuteActionCoreAsync(
         Resource resource,
         ResourceAction action,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? triggeredBy = null,
+        string? cause = null)
     {
         var context = CreateContext(resource);
         var unavailableReason = await GetActionUnavailableReasonAsync(context, action, cancellationToken);
@@ -76,7 +88,34 @@ public sealed class ResourceOrchestrationService(
         }
 
         var orchestrator = SelectActionOrchestrator(context, action);
-        return await orchestrator.ExecuteActionAsync(context, action, cancellationToken);
+        AppendResourceActionEvent(
+            resource,
+            "action.starting",
+            $"Starting resource action '{action.Id}'.{FormatCause(cause)}",
+            triggeredBy);
+
+        try
+        {
+            var result = await orchestrator.ExecuteActionAsync(context, action, cancellationToken);
+            AppendResourceActionEvent(
+                resource,
+                "action.execute",
+                $"Executed action '{action.Id}'.{FormatCause(cause)} Result: {result.Message}",
+                triggeredBy);
+
+            return result;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            AppendResourceActionEvent(
+                resource,
+                "action.failed",
+                $"Failed action '{action.Id}'.{FormatCause(cause)} Reason: {exception.Message}",
+                triggeredBy,
+                "Warning");
+
+            throw;
+        }
     }
 
     public async Task<string?> GetActionUnavailableReasonAsync(
@@ -95,6 +134,7 @@ public sealed class ResourceOrchestrationService(
         HashSet<string> visiting,
         HashSet<string> completed,
         List<Resource> path,
+        string? triggeredBy,
         CancellationToken cancellationToken)
     {
         if (!visiting.Add(resource.Id))
@@ -149,6 +189,7 @@ public sealed class ResourceOrchestrationService(
                     visiting,
                     completed,
                     path,
+                    triggeredBy,
                     cancellationToken);
 
                 var runAction = dependency.ResourceActions.FirstOrDefault(action =>
@@ -177,7 +218,12 @@ public sealed class ResourceOrchestrationService(
 
                 try
                 {
-                    await ExecuteActionCoreAsync(dependency, runAction, cancellationToken);
+                    await ExecuteActionCoreAsync(
+                        dependency,
+                        runAction,
+                        cancellationToken,
+                        triggeredBy ?? rootResource.Id,
+                        $"Dependency auto-start for '{rootResource.Name}' ({rootResource.Id}).");
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
@@ -198,6 +244,25 @@ public sealed class ResourceOrchestrationService(
             visiting.Remove(resource.Id);
         }
     }
+
+    private void AppendResourceActionEvent(
+        Resource resource,
+        string eventType,
+        string message,
+        string? triggeredBy,
+        string level = "Information") =>
+        resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            eventType,
+            message,
+            DateTimeOffset.UtcNow,
+            triggeredBy,
+            level));
+
+    private static string FormatCause(string? cause) =>
+        string.IsNullOrWhiteSpace(cause)
+            ? string.Empty
+            : $" Cause: {cause.Trim().TrimEnd('.')}.";
 
     private static ControlPlaneException CreateDependencyAutoStartException(
         Resource rootResource,

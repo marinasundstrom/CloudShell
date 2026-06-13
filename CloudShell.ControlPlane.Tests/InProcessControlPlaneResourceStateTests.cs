@@ -4,6 +4,7 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Logs;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -612,6 +613,50 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_LogsDependencyLifecycleEventsOnDependencyResource()
+    {
+        var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Stopped, dependsOn: ["vault"]),
+                CreateResource("vault", ResourceState.Stopped)
+            ],
+            provider,
+            resourceEvents: resourceEvents);
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand(
+                "api",
+                ResourceActionIds.Run,
+                StartDependencies: true,
+                TriggeredBy: "operator"));
+
+        Assert.Equal(["vault:run", "api:run"], provider.ExecutedActions);
+
+        var dependencyEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "vault"));
+        Assert.Contains(dependencyEvents, resourceEvent =>
+            resourceEvent.EventType == "action.starting" &&
+            resourceEvent.TriggeredBy == "operator" &&
+            resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
+        Assert.Contains(dependencyEvents, resourceEvent =>
+            resourceEvent.EventType == "action.execute" &&
+            resourceEvent.TriggeredBy == "operator" &&
+            resourceEvent.Message.Contains("Executed action 'run'", StringComparison.Ordinal) &&
+            resourceEvent.Message.Contains("Dependency auto-start for 'api' (api)", StringComparison.Ordinal));
+
+        var rootEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "api"));
+        Assert.Contains(rootEvents, resourceEvent =>
+            resourceEvent.EventType == "action.starting" &&
+            resourceEvent.TriggeredBy == "operator");
+        Assert.Contains(rootEvents, resourceEvent =>
+            resourceEvent.EventType == "action.execute" &&
+            resourceEvent.TriggeredBy == "operator");
+        Assert.DoesNotContain(rootEvents, resourceEvent =>
+            resourceEvent.Message.Contains("Dependency auto-start", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_BlocksStopWhenRunningDependentsExist()
     {
         var provider = new TestResourceProvider();
@@ -1094,7 +1139,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,
         IReadOnlyList<IContainerHostProvider>? containerHostProviders = null,
         IReadOnlyList<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
-        Action<ResourceDeclarationStore>? configureDeclarations = null)
+        Action<ResourceDeclarationStore>? configureDeclarations = null,
+        IResourceEventStore? resourceEvents = null)
     {
         provider ??= new TestResourceProvider();
         var registrations = new TestResourceRegistrationStore(resources.Select(resource =>
@@ -1131,7 +1177,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             declarations,
             CreateSelectionStore(),
             containerHostProviders ?? [],
-            actionAvailabilityProviders: actionAvailabilityProviders ?? []);
+            actionAvailabilityProviders: actionAvailabilityProviders ?? [],
+            resourceEvents: resourceEvents);
 
         return new InProcessControlPlane(
             resourceManager,
@@ -1143,7 +1190,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             templates,
             new EmptyLogStore(),
             new EmptyTraceStore(),
-            authorization ?? new AllowAllAuthorizationService());
+            authorization ?? new AllowAllAuthorizationService(),
+            resourceEvents);
     }
 
     private static Resource CreateResource(
