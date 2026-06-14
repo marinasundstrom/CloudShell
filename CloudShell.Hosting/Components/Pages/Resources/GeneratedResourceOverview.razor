@@ -507,6 +507,7 @@
                 new ExecuteResourceActionCommand(
                     Resource.Id,
                     action.Id,
+                    StartDependencies: ShouldStartDependencies(action),
                     IgnoreDependentWarning: true));
             ProcedureMessage = result.Message;
             Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
@@ -523,6 +524,9 @@
 
     private string GetAttributeValue(string name, string fallback) =>
         Resource.ResourceAttributes.GetValueOrDefault(name) ?? fallback;
+
+    private static bool ShouldStartDependencies(ResourceAction action) =>
+        action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
 
     private string FormatNetworkReadiness()
     {
