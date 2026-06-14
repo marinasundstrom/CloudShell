@@ -211,9 +211,11 @@ CloudShell resources.
 Load balancers should target the stable container app or another stable
 Resource Manager artifact when the user wants gateway-level control beyond a
 single app's ingress. Optional `cloudshell.service` resources can be used as
-logical facades for scenarios that need that extra indirection. The replica
-containers themselves still remain runtime artifacts, not separate Resource
-Manager resources.
+logical facades for scenarios that need that extra indirection. They can also
+represent a manually composed service unit or replica set, for example several
+web application instance resources behind one shared Service frontend that a
+load balancer targets. The replica containers themselves still remain runtime
+artifacts, not separate Resource Manager resources.
 
 ## Image Deployment Procedure
 

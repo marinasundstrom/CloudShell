@@ -153,7 +153,10 @@ concept, not automatically the same thing as the internal orchestrator service
 descriptor used to maintain container app replicas. It is an optional
 CloudShell resource that can model a stable service unit or facade over
 non-application targets, multiple targets, imported provider-native services,
-or advanced routing scenarios. Orchestrator extensions can translate
+or advanced routing scenarios. For example, a team can manually compose a
+replica set from several web application instance resources, put a Service in
+front of them, and configure a load balancer to target that Service endpoint.
+Orchestrator extensions can translate
 application and networking declarations to Docker Compose networks and
 published ports, on-premise clusters, or another runtime-specific model without
 requiring a `cloudshell.service` resource for normal container app exposure.

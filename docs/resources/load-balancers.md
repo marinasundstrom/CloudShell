@@ -32,6 +32,11 @@ a raw target port as an authoring convenience. Endpoint references remain the
 preferred stable contract for single-app targets because the container app
 endpoint can already represent app-owned ingress over one or more replicas.
 Port-based routes remain useful for advanced provider-owned routing scenarios.
+When a user intentionally models a `cloudshell.service` resource, the load
+balancer can target that Service endpoint as a shared frontend. This supports
+advanced/manual topologies such as a Service over several web application
+instance resources, where the Service represents the replica set or service
+unit and the load balancer owns public routing to it.
 
 When a provider materializes a container app through Docker Compose,
 Kubernetes, or another runtime, the orchestrator-specific service, ingress, or

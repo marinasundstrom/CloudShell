@@ -90,6 +90,10 @@ expectations rather than duplicating the task queue.
   Application registration UIs now allow explicitly modeled Service resources
   as references, so an app can depend on a deliberate service facade without
   making Service resources mandatory for all app exposure.
+  Service resources are also documented as a potential shared frontend for
+  manually composed service units or replica sets, such as several web
+  application instance resources behind one Service endpoint that a load
+  balancer targets.
   For MVP, DNS/name mapping can start as logical resource projection,
   relationship display, validation, and provider-materialization diagnostics;
   real public DNS propagation and provider-backed network-level service

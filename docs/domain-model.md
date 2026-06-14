@@ -193,7 +193,10 @@ CloudShell model and API layer. A `cloudshell.service` resource can still model
 a logical service unit or facade over non-application targets, multiple
 application targets, imported provider-native services, or advanced routing
 scenarios that need a stable discovery name independent of one container app
-lifecycle. It is not required to expose a normal container app in the MVP, and
+lifecycle. One potential use is a manually composed replica set: several web
+application instance resources can be grouped behind a shared Service frontend,
+then a load balancer can target that Service endpoint instead of each instance.
+It is not required to expose a normal container app in the MVP, and
 it is not the internal orchestrator service descriptor by default. Later
 orchestrators may deliberately materialize a `cloudshell.service` resource as
 their own service-level primitive, or derive an orchestrator service descriptor
