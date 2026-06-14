@@ -92,6 +92,11 @@ Use "container host" for the selectable CloudShell host resource and
 using "engine" as a CloudShell abstraction except for product-specific wording
 such as Docker Engine.
 
+Eligible container-host resources should advertise the `container.host`
+resource capability. Resource Manager uses that capability to populate
+load-balancer host selection, with type-based fallback only for older or
+provider-specific host resources that do not advertise the capability yet.
+
 `UseContainerHost(...)` is optional. If omitted, provider execution should
 resolve the configured default container host or provider-preferred host. When
 a provider runs in a container, that implementation container is provider-owned

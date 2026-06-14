@@ -235,12 +235,16 @@
     private IReadOnlyList<Resource> GetHostCandidates() =>
         Resources
             .Where(resource => !string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
-            .Where(resource => resource.ResourceClass == ResourceClass.Infrastructure ||
-                resource.EffectiveTypeId.Contains("docker", StringComparison.OrdinalIgnoreCase) ||
-                resource.EffectiveTypeId.Contains("host", StringComparison.OrdinalIgnoreCase))
+            .Where(IsContainerHostCandidate)
             .Where(IsInSelectedGroup)
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private static bool IsContainerHostCandidate(Resource resource) =>
+        resource.HasCapability(ResourceCapabilityIds.ContainerHost) ||
+        (resource.ResourceClass == ResourceClass.Infrastructure &&
+            (resource.EffectiveTypeId.Contains("docker", StringComparison.OrdinalIgnoreCase) ||
+                resource.EffectiveTypeId.Contains("host", StringComparison.OrdinalIgnoreCase)));
 
     private IReadOnlyList<Resource> GetTargetCandidates() =>
         Resources

@@ -3186,6 +3186,7 @@ public sealed class ResourceDeclarationTests
             [ContainerHostCapabilityIds.ContainerBuild, ContainerHostCapabilityIds.ContainerImage],
             definition.HostCapabilities.Order(StringComparer.OrdinalIgnoreCase));
         Assert.Equal(DockerContainerResourceProvider.HostResourceType, host.EffectiveTypeId);
+        Assert.True(host.HasCapability(ResourceCapabilityIds.ContainerHost));
         Assert.Equal("local", host.ResourceAttributes["docker.host.kind"]);
         Assert.Equal(ContainerRegistryDefaults.Default, host.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
     }

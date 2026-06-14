@@ -794,7 +794,8 @@ public sealed partial class DockerContainerResourceProvider :
                 [ResourceAttributeNames.ContainerRegistry] = NormalizeRegistry(configured.Registry),
                 ["docker.host.kind"] = configured.Host.Kind.ToString().ToLowerInvariant(),
                 ["docker.host.endpoint"] = configured.Host.NormalizedEndpoint
-            });
+            },
+            Capabilities: [new(ResourceCapabilityIds.ContainerHost)]);
 
     private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
         resource.EffectiveTypeId switch

@@ -638,6 +638,9 @@ expectations rather than duplicating the task queue.
 - The load-balancer fluent API now uses `UseContainerHost(...)` and
   `UseDefaultContainerHost()` for placement so container-host assignment is
   explicit in the user-facing declaration model.
+- Docker host resources now advertise the `container.host` resource capability,
+  and Resource Manager uses that capability when populating load-balancer
+  container-host choices while retaining a fallback for older host resources.
 - `IResourceManager` publishes coarse `ResourcesChanged` notifications after
   resource-manager mutations. Resource Manager listens for those notifications
   and also polls the inventory so provider-discovered changes, such as runtime
