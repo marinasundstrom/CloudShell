@@ -1,6 +1,7 @@
 @page "/logs"
 @rendermode InteractiveServer
 @implements IAsyncDisposable
+@using System.Globalization
 @inject ILogManager LogManager
 @inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
@@ -34,37 +35,7 @@
     </div>
 </section>
 
-<section class="logs-workspace">
-    <aside class="log-source-list">
-        <div class="scope-heading">
-            <h2>@(selectedResource?.Name ?? L["Sources"])</h2>
-            <span>@L["{0} logs", logs.Count]</span>
-        </div>
-
-        @foreach (var log in logs)
-        {
-            <button class="log-source-item @(selected?.Id == log.Id ? "active" : null)"
-                    @onclick="() => SelectLog(log)">
-                <span>
-                    <strong>@log.SourceName</strong>
-                    <small>@log.Name</small>
-                </span>
-                @if (log.SupportsStreaming)
-                {
-                    <em>@L["stream"]</em>
-                }
-            </button>
-        }
-
-        @if (logs.Count == 0)
-        {
-            <div class="empty-state compact">
-                <strong>@L["No logs"]</strong>
-                <span>@L["No registered log sources match this scope."]</span>
-            </div>
-        }
-    </aside>
-
+<section class="trace-workspace">
     <div class="log-viewer panel">
         @if (selected is null)
         {
@@ -81,8 +52,25 @@
                     <p>@selected.Name / @selected.Provider / @selected.SourceKind</p>
                 </div>
                 <div class="log-viewer-actions">
+                    <label class="trace-source-filter" for="log-source-filter">
+                        <span>@L["Log source"]</span>
+                        <FluentSelect TOption="LogDescriptor"
+                                      Id="log-source-filter"
+                                      Class="trace-source-select"
+                                      Items="@logs"
+                                      OptionText="@(log => $"{log.SourceName} / {log.Name}")"
+                                      OptionValue="@(log => log.Id)"
+                                      SelectedOption="@selected"
+                                      SelectedOptionChanged="SelectLog"
+                                      Appearance="Appearance.Neutral" />
+                    </label>
                     <FluentCheckbox Class="log-wrap-toggle" @bind-Value="WrapLogMessages">
                         @L["Wrap"]
+                    </FluentCheckbox>
+                    <FluentCheckbox Class="log-wrap-toggle"
+                                    @bind-Value="ShowStructuredOnly"
+                                    Disabled="@(GetStructuredEntryCount() == 0)">
+                        @L["Structured only"]
                     </FluentCheckbox>
                     @if (selected.SupportsStreaming)
                     {
@@ -123,51 +111,141 @@
             }
             else
             {
+                var visibleEntryItems = GetVisibleEntryItems();
+                var selectedStructuredEntryItem = GetSelectedStructuredEntryItem(visibleEntryItems);
+                var selectedStructuredEntry = selectedStructuredEntryItem?.Entry;
+
                 <div class="log-history-bar">
                     <FluentButton Appearance="Appearance.Neutral"
                                   Disabled="@(!CanLoadOlderEntries || IsLoadingOlder)"
                                   OnClick="LoadOlderEntriesAsync">
                         @(IsLoadingOlder ? L["Loading older"] : L["Load older"])
                     </FluentButton>
-                    <span>@L["{0} entries in view", Entries.Count]</span>
+                    <span>@GetEntryCountLabel(visibleEntryItems.Count)</span>
                 </div>
-                <div @ref="LogEntryList"
-                     class="log-entry-list @(WrapLogMessages ? "wrap" : null)"
-                     role="log"
-                     aria-label="@selected.Name">
-                    @foreach (var entry in Entries)
-                    {
-                        <div class="log-entry">
-                            <time>@entry.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
-                            <span class="log-entry-source">@entry.Source</span>
-                            <span class="log-entry-severity">@entry.Severity</span>
-                            <div class="log-entry-body">
-                                <pre>@entry.Message</pre>
-                                @if (HasStructuredMetadata(entry))
-                                {
-                                    <dl class="log-entry-metadata">
-                                        @foreach (var item in GetStructuredMetadata(entry))
+
+                @if (visibleEntryItems.Count == 0)
+                {
+                    <div class="empty-state compact">
+                        <strong>@L["No structured entries"]</strong>
+                        <span>@L["This log source has entries, but none contain structured metadata."]</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="structured-log-view">
+                        <div @ref="LogEntryList"
+                             class="log-entry-list @(WrapLogMessages ? "wrap" : null)"
+                             role="log"
+                             aria-label="@selected.Name">
+                            @foreach (var item in visibleEntryItems)
+                            {
+                                var entry = item.Entry;
+                                var isStructured = HasStructuredMetadata(entry);
+                                var isSelectedStructured =
+                                    isStructured &&
+                                    string.Equals(item.SelectionKey, selectedStructuredEntryItem?.SelectionKey, StringComparison.Ordinal);
+                                <button class="log-entry @(isStructured ? "structured" : null) @(isSelectedStructured ? "selected" : null)"
+                                        type="button"
+                                        aria-pressed="@isSelectedStructured"
+                                        @onclick="() => SelectStructuredEntry(item)">
+                                    <time>@entry.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
+                                    <span class="log-entry-source">@entry.Source</span>
+                                    <span class="log-entry-severity">@entry.Severity</span>
+                                    <div class="log-entry-body">
+                                        <pre>@entry.Message</pre>
+                                        @if (isStructured)
                                         {
-                                            <dt>@item.Key</dt>
-                                            <dd>
-                                                @if (IsTraceMetadata(item))
-                                                {
-                                                    <a class="resource-link" href="@BuildTraceRoute(selected.ResourceId, item.Value)">
-                                                        @FormatTraceId(item.Value)
-                                                    </a>
-                                                }
-                                                else
-                                                {
-                                                    @item.Value
-                                                }
-                                            </dd>
+                                            <span class="structured-log-summary">
+                                                @GetStructuredSummary(entry)
+                                            </span>
                                         }
-                                    </dl>
-                                }
-                            </div>
+                                    </div>
+                                </button>
+                            }
                         </div>
-                    }
-                </div>
+
+                        @if (selectedStructuredEntry is null)
+                        {
+                            <aside class="structured-log-details empty">
+                                <div class="empty-state compact">
+                                    <strong>@L["No structured entry selected"]</strong>
+                                    <span>@L["Select a structured log entry to inspect its fields."]</span>
+                                </div>
+                            </aside>
+                        }
+                        else
+                        {
+                            <aside class="structured-log-details">
+                                <div class="structured-log-detail-header">
+                                    <span>@selectedStructuredEntry.Severity</span>
+                                    <h3>@selectedStructuredEntry.Message</h3>
+                                    <p>@selectedStructuredEntry.Timestamp.ToLocalTime().ToString("g")</p>
+                                </div>
+
+                                <dl class="detail-list compact structured-log-core">
+                                    <dt>@L["Category"]</dt>
+                                    <dd>@(selectedStructuredEntry.Category ?? L["none"].Value)</dd>
+                                    <dt>@L["Event ID"]</dt>
+                                    <dd>@(selectedStructuredEntry.EventId ?? L["none"].Value)</dd>
+                                    <dt>@L["Source"]</dt>
+                                    <dd>@(selectedStructuredEntry.Source ?? L["none"].Value)</dd>
+                                    <dt>@L["Trace ID"]</dt>
+                                    <dd>
+                                        @if (!string.IsNullOrWhiteSpace(selectedStructuredEntry.TraceId))
+                                        {
+                                            <a class="resource-link" href="@BuildTraceRoute(selected.ResourceId, selectedStructuredEntry.TraceId)">
+                                                @selectedStructuredEntry.TraceId
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            @L["none"]
+                                        }
+                                    </dd>
+                                    <dt>@L["Span ID"]</dt>
+                                    <dd>@(selectedStructuredEntry.SpanId ?? L["none"].Value)</dd>
+                                    @if (!string.IsNullOrWhiteSpace(selectedStructuredEntry.ExceptionSummary))
+                                    {
+                                        <dt>@L["Exception"]</dt>
+                                        <dd>@selectedStructuredEntry.ExceptionSummary</dd>
+                                    }
+                                </dl>
+
+                                <div class="structured-log-detail-actions">
+                                    @if (!string.IsNullOrWhiteSpace(selectedStructuredEntry.TraceId))
+                                    {
+                                        <FluentButton Appearance="Appearance.Neutral"
+                                                      Href="@BuildTraceRoute(selected.ResourceId, selectedStructuredEntry.TraceId)">
+                                            @L["Open trace"]
+                                        </FluentButton>
+                                    }
+                                </div>
+
+                                <div class="structured-log-attributes">
+                                    <h3>@L["Attributes"]</h3>
+                                    @if (selectedStructuredEntry.Attributes is null ||
+                                        selectedStructuredEntry.Attributes.Count == 0)
+                                    {
+                                        <p>@L["No attributes were captured for this entry."]</p>
+                                    }
+                                    else
+                                    {
+                                        <dl class="log-entry-metadata">
+                                            @foreach (var item in selectedStructuredEntry.Attributes
+                                                .Where(item => !string.IsNullOrWhiteSpace(item.Value))
+                                                .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase))
+                                            {
+                                                <dt>@item.Key</dt>
+                                                <dd>@item.Value</dd>
+                                            }
+                                        </dl>
+                                    }
+                                </div>
+                            </aside>
+                        }
+                    </div>
+                }
             }
         }
     </div>
@@ -183,6 +261,7 @@
     private IReadOnlyList<LogEntry> Entries { get; set; } = [];
     private string? LoadedLogId { get; set; }
     private string? StreamingLogId { get; set; }
+    private string? SelectedStructuredEntryKey { get; set; }
     private string? ReadError { get; set; }
     private CancellationTokenSource? StreamingCancellation { get; set; }
     private Task? StreamingTask { get; set; }
@@ -194,6 +273,7 @@
     private bool CanLoadOlderEntries { get; set; }
     private bool IsStreaming { get; set; }
     private bool WrapLogMessages { get; set; }
+    private bool ShowStructuredOnly { get; set; }
     private bool ShouldScrollToLatest { get; set; }
     private double? PreservePrependedScrollHeight { get; set; }
     private bool IsDisposed { get; set; }
@@ -214,6 +294,7 @@
             await StopStreamingAsync();
             Entries = [];
             LoadedLogId = null;
+            SelectedStructuredEntryKey = null;
             CanLoadOlderEntries = false;
             return;
         }
@@ -251,6 +332,78 @@
 
     private IReadOnlyList<LogDescriptor> GetVisibleLogs() =>
         VisibleLogs;
+
+    private IReadOnlyList<LogEntry> GetVisibleEntries() =>
+        ShowStructuredOnly
+            ? Entries.Where(HasStructuredMetadata).ToArray()
+            : Entries;
+
+    private IReadOnlyList<LogEntryDisplayItem> GetVisibleEntryItems()
+    {
+        var occurrenceCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        return GetVisibleEntries()
+            .Select(entry =>
+            {
+                var baseKey = GetEntrySelectionBaseKey(entry);
+                occurrenceCounts.TryGetValue(baseKey, out var occurrence);
+                occurrenceCounts[baseKey] = occurrence + 1;
+                return new LogEntryDisplayItem(entry, $"{baseKey}|{occurrence}");
+            })
+            .ToArray();
+    }
+
+    private int GetStructuredEntryCount() =>
+        Entries.Count(HasStructuredMetadata);
+
+    private string GetEntryCountLabel(int visibleEntryCount)
+    {
+        var structuredCount = GetStructuredEntryCount();
+        return ShowStructuredOnly
+            ? L["{0} structured entries in view", visibleEntryCount].Value
+            : L["{0} entries in view / {1} structured", visibleEntryCount, structuredCount].Value;
+    }
+
+    private LogEntryDisplayItem? GetSelectedStructuredEntryItem(IReadOnlyList<LogEntryDisplayItem> visibleEntryItems)
+    {
+        if (!string.IsNullOrWhiteSpace(SelectedStructuredEntryKey))
+        {
+            var selected = visibleEntryItems.FirstOrDefault(item =>
+                HasStructuredMetadata(item.Entry) &&
+                string.Equals(item.SelectionKey, SelectedStructuredEntryKey, StringComparison.Ordinal));
+            if (selected is not null)
+            {
+                return selected;
+            }
+        }
+
+        return visibleEntryItems.LastOrDefault(item => HasStructuredMetadata(item.Entry));
+    }
+
+    private void SelectStructuredEntry(LogEntryDisplayItem item)
+    {
+        if (HasStructuredMetadata(item.Entry))
+        {
+            SelectedStructuredEntryKey = item.SelectionKey;
+        }
+    }
+
+    private static string GetEntrySelectionBaseKey(LogEntry entry) =>
+        string.Join(
+            "|",
+            entry.Timestamp.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture),
+            entry.Source,
+            entry.Severity,
+            entry.EventId,
+            entry.Category,
+            entry.TraceId,
+            entry.SpanId,
+            entry.Message);
+
+    private string GetStructuredSummary(LogEntry entry)
+    {
+        var fields = GetStructuredMetadata(entry).Count;
+        return L["{0} structured fields", fields].Value;
+    }
 
     private async Task LoadVisibleLogsAsync()
     {
@@ -307,6 +460,7 @@
             CanLoadOlderEntries = Entries.Count >= InitialWindowEntries;
             ShouldScrollToLatest = Entries.Count > 0;
             LoadedLogId = log.Id;
+            SelectedStructuredEntryKey = null;
         }
         catch (Exception exception)
         {
@@ -314,6 +468,7 @@
             CanLoadOlderEntries = false;
             ReadError = exception.Message;
             LoadedLogId = log.Id;
+            SelectedStructuredEntryKey = null;
         }
         finally
         {
@@ -594,6 +749,8 @@
             metadata.Add(new KeyValuePair<string, string>(key, value));
         }
     }
+
+    private sealed record LogEntryDisplayItem(LogEntry Entry, string SelectionKey);
 
     private static (
         DateTimeOffset Timestamp,

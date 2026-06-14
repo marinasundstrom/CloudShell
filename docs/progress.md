@@ -263,7 +263,10 @@ expectations rather than duplicating the task queue.
   structured fields while preserving plain stdout/stderr as text. The Project
   Reference sample emits normal `ILogger` JSON console logs with activity
   trace/span scope so the same `/upstream` request can be inspected through
-  related resource logs and the trace waterfall.
+  related resource logs and the trace waterfall. The Logs view now uses a
+  header-level source selector, a structured-only filter, and a structured entry
+  details pane so source logs have more horizontal space while still exposing
+  category, event, trace/span, exception, and attribute fields.
 - Resource events can now capture W3C `traceId` and `spanId` from the current
   activity, persist that context, filter activity by trace ID, and project the
   same context into Activity log entries. This gives local distributed-app

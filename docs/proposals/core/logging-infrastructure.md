@@ -173,6 +173,11 @@ and normal structured log properties. A single `/upstream` request now
 produces correlated spans and structured application logs for both the
 frontend and API resources.
 
+The shell Logs view treats structured metadata as inspectable entry detail, not
+as inline text noise. Log source selection lives in the page header, structured
+entries can be filtered, and selecting a structured entry shows category,
+event, trace/span, exception, and attribute fields in a side pane.
+
 Remaining structured-log work should decide:
 
 - whether CloudShell needs a typed event ID shape instead of the current stable

@@ -1754,73 +1754,10 @@ h3 {
     font-size: 1.8rem;
 }
 
-.logs-workspace {
-    display: grid;
-    grid-template-columns: 18rem minmax(0, 1fr);
-    gap: .75rem;
-    align-items: start;
-}
-
 .trace-workspace {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
-}
-
-.log-source-list {
-    display: grid;
-    gap: .35rem;
-}
-
-.log-source-item {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: .55rem;
-    width: 100%;
-    padding: .6rem .65rem;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--cloudshell-text);
-    text-align: left;
-    cursor: pointer;
-}
-
-.log-source-item:hover {
-    background: var(--cloudshell-hover);
-}
-
-.log-source-item.active {
-    border-color: var(--cloudshell-accent);
-    background: var(--cloudshell-selected);
-    box-shadow: inset 3px 0 0 var(--cloudshell-accent);
-}
-
-.log-source-item strong,
-.log-source-item small {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.log-source-item small {
-    margin-top: .12rem;
-    color: var(--cloudshell-text-subtle);
-    font-size: .75rem;
-}
-
-.log-source-item em,
-.stream-pill {
-    border: 1px solid var(--cloudshell-accent);
-    border-radius: 999px;
-    padding: .16rem .45rem;
-    background: var(--cloudshell-selected);
-    color: var(--cloudshell-accent-foreground);
-    font-size: .72rem;
-    font-style: normal;
-    font-weight: 650;
 }
 
 .log-viewer {
@@ -1915,6 +1852,14 @@ h3 {
     line-height: 1.45;
 }
 
+.structured-log-view {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+    gap: .75rem;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 .log-entry {
     display: grid;
     grid-template-columns: 4.6rem 4.2rem 5rem max-content;
@@ -1923,10 +1868,31 @@ h3 {
     min-width: max-content;
     padding: .32rem .55rem;
     border-bottom: 1px solid #1f2937;
+    border-top: 0;
+    border-right: 0;
+    border-left: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: default;
 }
 
 .log-entry:last-child {
     border-bottom: 0;
+}
+
+.log-entry.structured {
+    cursor: pointer;
+}
+
+.log-entry.structured:hover,
+.log-entry.structured.selected {
+    background: #172033;
+}
+
+.log-entry.structured.selected {
+    box-shadow: inset 3px 0 0 var(--cloudshell-accent);
 }
 
 .log-entry time,
@@ -1946,6 +1912,11 @@ h3 {
     margin: 0;
     white-space: pre;
     font: inherit;
+}
+
+.structured-log-summary {
+    color: #93a4b7;
+    font-size: .72rem;
 }
 
 .log-entry-metadata {
@@ -1973,6 +1944,87 @@ h3 {
 .log-entry-list.wrap .log-entry pre {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+.structured-log-details {
+    display: grid;
+    align-content: start;
+    gap: .75rem;
+    min-width: 0;
+    padding: .75rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    overflow: auto;
+    background: var(--cloudshell-surface);
+}
+
+.structured-log-details.empty {
+    align-content: center;
+}
+
+.structured-log-detail-header {
+    display: grid;
+    gap: .25rem;
+}
+
+.structured-log-detail-header span {
+    width: fit-content;
+    padding: .12rem .45rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 999px;
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+}
+
+.structured-log-detail-header h3,
+.structured-log-detail-header p,
+.structured-log-attributes h3,
+.structured-log-attributes p {
+    margin: 0;
+}
+
+.structured-log-detail-header h3 {
+    overflow-wrap: anywhere;
+    font-size: .95rem;
+}
+
+.structured-log-core {
+    grid-template-columns: 5.5rem minmax(0, 1fr);
+}
+
+.structured-log-core dd {
+    overflow-wrap: anywhere;
+}
+
+.structured-log-detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .45rem;
+}
+
+.structured-log-attributes {
+    display: grid;
+    gap: .5rem;
+}
+
+.structured-log-attributes .log-entry-metadata {
+    display: grid;
+    grid-template-columns: minmax(8rem, auto) minmax(0, 1fr);
+    gap: .35rem .75rem;
+}
+
+.structured-log-attributes .log-entry-metadata dd {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 980px) {
+    .structured-log-view {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .structured-log-details {
+        max-height: none;
+    }
 }
 
 .recent-trace-list {
