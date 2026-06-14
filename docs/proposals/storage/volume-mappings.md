@@ -403,8 +403,10 @@ through future monitoring APIs.
 5. Add first Resource Manager volume selector for resources that can reference
    volumes. Container app create selectors and a dedicated resource Storage tab
    for container-backed resources are in place.
-6. Map container app volume attachments through the default local and Docker
-   Compose orchestrator paths.
+6. Map container app volume attachments through runtime paths. The default
+   local Docker runner now translates managed `FileSystem` volume resources
+   into bind mounts and preserves unmanaged references as Docker named
+   volumes. Docker Compose mapping remains open.
 7. Add Resource Manager generated overview support for attached volumes.
 8. Add dedicated create/attach UI for basic volume resources and mappings.
    Direct volume create/configuration/overview UI is in place; richer attach
@@ -432,6 +434,8 @@ through future monitoring APIs.
   capability-based storage resources once storage capabilities are stable.
 - Add provider/host compatibility diagnostics so container hosts only accept
   volumes whose storage medium they can materialize.
+- Map container app volume attachments through Docker Compose and later
+  provider-backed orchestrator paths.
 - Add on-premise storage provider sample after the local/Docker path works.
 
 ## Open Questions

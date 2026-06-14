@@ -3433,6 +3433,72 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void LocalContainerVolumeArguments_PreserveUnmanagedVolumeReference()
+    {
+        var arguments = ApplicationResourceProvider.CreateLocalContainerVolumeArguments(
+            [new ResourceVolumeMount("docker-sql-data", "/var/opt/mssql", true)],
+            null,
+            Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(["docker-sql-data:/var/opt/mssql:ro"], arguments);
+    }
+
+    [Fact]
+    public void LocalContainerVolumeArguments_ResolveLocalStorageOwnedVolume()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var storage = new Resource(
+            "storage:local",
+            "Local Storage",
+            StorageProviderNames.LocalStorage,
+            StorageProviderNames.LocalStorage,
+            "local",
+            ResourceState.Running,
+            [],
+            StorageMedia.FileSystem,
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.StorageResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.StorageMedium] = StorageMedia.FileSystem,
+                [ResourceAttributeNames.StorageLocation] = "./Data/storage"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageMountProvider)]);
+        var volume = new Resource(
+            "volume:sql-data",
+            "SQL Data",
+            "Volume",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [],
+            StorageProviderNames.LocalStorage,
+            DateTimeOffset.UtcNow,
+            ["storage:local"],
+            TypeId: PlatformResourceProvider.VolumeResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.VolumeStorageMedium] = StorageMedia.FileSystem,
+                [ResourceAttributeNames.VolumeStorageResourceId] = "storage:local",
+                [ResourceAttributeNames.VolumeSubPath] = "sql-server"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+        var resourceManager = new StaticResourceManagerStore([storage, volume]);
+
+        var arguments = ApplicationResourceProvider.CreateLocalContainerVolumeArguments(
+            [new ResourceVolumeMount("volume:sql-data", "/var/opt/mssql", false, "data")],
+            resourceManager,
+            contentRoot);
+
+        var expectedPath = Path.GetFullPath(Path.Combine(contentRoot, "Data/storage/sql-server"));
+        Assert.Equal([$"{expectedPath}:/var/opt/mssql"], arguments);
+        Assert.True(Directory.Exists(expectedPath));
+    }
+
+    [Fact]
     public void Resources_RegisterProgrammaticIdentityProviderAndDefault()
     {
         var services = new ServiceCollection();

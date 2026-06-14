@@ -49,6 +49,6 @@ discovery.
 
 The storage graph is intentionally explicit. The Local Storage resource is a
 `Storage` class resource that announces the `FileSystem` medium. The SQL data
-volume is a sub-item of that storage resource and projects the same medium so a
-runtime provider can decide whether the selected container host can materialize
-the mount.
+volume is a sub-item of that storage resource and projects the same medium.
+The default local Docker runner materializes that `FileSystem` volume as a bind
+mount when SQL Server starts.

@@ -1732,6 +1732,15 @@ public sealed partial class ApplicationResourceProvider(
         startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
         startInfo.ArgumentList.Add("-e");
         startInfo.ArgumentList.Add($"CLOUDSHELL_REPLICA_ORDINAL={instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}");
+        foreach (var volumeArgument in CreateLocalContainerVolumeArguments(
+                     service.ServiceVolumeMounts,
+                     resourceManager,
+                     environment.ContentRootPath))
+        {
+            startInfo.ArgumentList.Add("-v");
+            startInfo.ArgumentList.Add(volumeArgument);
+        }
+
         startInfo.ArgumentList.Add(definition.ProjectContainerBuild
             ? definition.ContainerImage
             : CreateRegistryImageReference(
@@ -3790,6 +3799,158 @@ public sealed partial class ApplicationResourceProvider(
         var identifier = builder.ToString().Trim('-');
         return string.IsNullOrWhiteSpace(identifier) ? "cloudshell" : identifier;
     }
+
+    internal static IReadOnlyList<string> CreateLocalContainerVolumeArguments(
+        IReadOnlyList<ResourceVolumeMount> mounts,
+        IResourceManagerStore? resourceManager,
+        string contentRootPath) =>
+        mounts
+            .Where(mount =>
+                !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
+                !string.IsNullOrWhiteSpace(mount.TargetPath))
+            .Select(mount => CreateLocalContainerVolumeArgument(mount, resourceManager, contentRootPath))
+            .ToArray();
+
+    private static string CreateLocalContainerVolumeArgument(
+        ResourceVolumeMount mount,
+        IResourceManagerStore? resourceManager,
+        string contentRootPath)
+    {
+        var source = ResolveLocalContainerVolumeSource(
+            mount.NormalizedVolumeReference,
+            resourceManager,
+            contentRootPath);
+        return mount.ReadOnly
+            ? $"{source}:{mount.NormalizedTargetPath}:ro"
+            : $"{source}:{mount.NormalizedTargetPath}";
+    }
+
+    private static string ResolveLocalContainerVolumeSource(
+        string volumeReference,
+        IResourceManagerStore? resourceManager,
+        string contentRootPath)
+    {
+        var volume = resourceManager?.GetResource(volumeReference);
+        if (volume is null)
+        {
+            return volumeReference;
+        }
+
+        if (!IsVolumeResource(volume))
+        {
+            throw new InvalidOperationException(
+                $"Volume reference '{volumeReference}' points to resource '{volume.Name}', which is not a volume resource.");
+        }
+
+        var medium = GetAttribute(volume, ResourceAttributeNames.VolumeStorageMedium);
+        if (!string.IsNullOrWhiteSpace(medium) &&
+            !string.Equals(medium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Volume resource '{volume.Id}' uses storage medium '{medium}', which cannot be mounted by the default local container runner.");
+        }
+
+        var path = GetAttribute(volume, ResourceAttributeNames.VolumeLocation);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            path = ResolveStorageOwnedVolumePath(volume, resourceManager, contentRootPath);
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            path = Path.Combine(
+                contentRootPath,
+                "Data",
+                "storage",
+                CreateStableIdentifier(volume.Id));
+        }
+
+        var fullPath = ResolveContentRootPath(path, contentRootPath);
+        Directory.CreateDirectory(fullPath);
+        return fullPath;
+    }
+
+    private static string ResolveStorageOwnedVolumePath(
+        Resource volume,
+        IResourceManagerStore? resourceManager,
+        string contentRootPath)
+    {
+        var storageResourceId = GetAttribute(volume, ResourceAttributeNames.VolumeStorageResourceId);
+        var subPath = GetAttribute(volume, ResourceAttributeNames.VolumeSubPath);
+        if (string.IsNullOrWhiteSpace(storageResourceId))
+        {
+            return string.Empty;
+        }
+
+        var storage = resourceManager?.GetResource(storageResourceId)
+            ?? throw new InvalidOperationException(
+                $"Volume resource '{volume.Id}' references storage resource '{storageResourceId}', but that storage resource was not found.");
+        var storageMedium = GetAttribute(storage, ResourceAttributeNames.StorageMedium);
+        if (!string.IsNullOrWhiteSpace(storageMedium) &&
+            !string.Equals(storageMedium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Storage resource '{storage.Id}' uses storage medium '{storageMedium}', which cannot be mounted by the default local container runner.");
+        }
+
+        var storageRoot = GetAttribute(storage, ResourceAttributeNames.StorageLocation);
+        if (string.IsNullOrWhiteSpace(storageRoot) ||
+            string.Equals(storageRoot, "provider default", StringComparison.OrdinalIgnoreCase))
+        {
+            storageRoot = Path.Combine(
+                contentRootPath,
+                "Data",
+                "storage",
+                CreateStableIdentifier(storage.Id));
+        }
+
+        var fullStorageRoot = ResolveContentRootPath(storageRoot, contentRootPath);
+        if (string.IsNullOrWhiteSpace(subPath))
+        {
+            return Path.Combine(fullStorageRoot, CreateStableIdentifier(volume.Id));
+        }
+
+        if (Path.IsPathRooted(subPath))
+        {
+            throw new InvalidOperationException(
+                $"Volume resource '{volume.Id}' has absolute subpath '{subPath}'. Storage-owned volume subpaths must be relative.");
+        }
+
+        var fullPath = Path.GetFullPath(Path.Combine(fullStorageRoot, subPath));
+        if (!IsPathWithin(fullPath, fullStorageRoot))
+        {
+            throw new InvalidOperationException(
+                $"Volume resource '{volume.Id}' has subpath '{subPath}' outside storage resource '{storage.Id}'.");
+        }
+
+        return fullPath;
+    }
+
+    private static string ResolveContentRootPath(string path, string contentRootPath) =>
+        Path.GetFullPath(Path.IsPathRooted(path)
+            ? path
+            : Path.Combine(contentRootPath, path));
+
+    private static bool IsPathWithin(string candidatePath, string rootPath)
+    {
+        var normalizedRoot = Path.GetFullPath(rootPath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedCandidate = Path.GetFullPath(candidatePath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return string.Equals(normalizedCandidate, normalizedRoot, StringComparison.Ordinal) ||
+            normalizedCandidate.StartsWith(
+                normalizedRoot + Path.DirectorySeparatorChar,
+                StringComparison.Ordinal);
+    }
+
+    private static bool IsVolumeResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
+        resource.HasCapability(ResourceCapabilityIds.StorageVolume);
+
+    private static string GetAttribute(Resource resource, string name) =>
+        resource.ResourceAttributes.TryGetValue(name, out var value)
+            ? value
+            : string.Empty;
 
     private static string GetContainerHostExecutable(ContainerHostDescriptor engine) =>
         engine.Kind == ContainerHostKind.Podman ? "podman" : "docker";
