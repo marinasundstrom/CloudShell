@@ -103,8 +103,7 @@ cloudShell.Resources(resources =>
             "application:settings-secrets-api",
             "Settings and Secrets API",
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
-            endpoint: apiEndpoint,
-            hotReload: false)
+            endpoint: apiEndpoint)
         .WithIdentity(identityProvider, name: "settings-secrets-api")
         .WithReference(settings)
         .WithReference(secrets)

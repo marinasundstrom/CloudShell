@@ -2125,7 +2125,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, application.ResourceType);
         Assert.Equal("src/API/API.csproj", application.ProjectPath);
         Assert.Null(application.ProjectArguments);
-        Assert.True(application.AspNetCoreHotReload);
+        Assert.False(application.AspNetCoreHotReload);
         Assert.Empty(application.ExecutablePath);
         Assert.Null(application.Arguments);
         Assert.Null(application.Endpoint);
@@ -2188,7 +2188,7 @@ public sealed class ResourceDeclarationTests
             Assert.Equal(ResourceClass.Project, resource.ResourceClass);
             Assert.Equal(ResourceWorkloadKind.AspNetCoreProject.ToString(), resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
             Assert.Equal("src/API/API.csproj", resource.ResourceAttributes[ResourceAttributeNames.ProjectPath]);
-            Assert.Equal("true", resource.ResourceAttributes[ResourceAttributeNames.ProjectHotReload]);
+            Assert.Equal("false", resource.ResourceAttributes[ResourceAttributeNames.ProjectHotReload]);
             Assert.False(resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ExecutablePath));
             Assert.False(resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ExecutableArguments));
             Assert.Equal(ResourceWorkloadKind.AspNetCoreProject, workload?.Kind);
@@ -2380,7 +2380,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public void TypedAspNetCoreProjectBuilder_CanDisableHotReload()
+    public void TypedAspNetCoreProjectBuilder_CanEnableHotReload()
     {
         var services = new ServiceCollection();
 
@@ -2393,7 +2393,7 @@ public sealed class ResourceDeclarationTests
                         "application:api",
                         "API",
                         "src/API/API.csproj",
-                        hotReload: false)
+                        hotReload: true)
                     .WithApplicationArguments("--seed");
             });
 
@@ -2412,8 +2412,68 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal("src/API/API.csproj", application.ProjectPath);
         Assert.Equal("--seed", application.ProjectArguments);
-        Assert.False(application.AspNetCoreHotReload);
+        Assert.True(application.AspNetCoreHotReload);
         Assert.Null(application.Arguments);
+    }
+
+    [Fact]
+    public void AspNetCoreProjectRunner_UsesDotNetRunByDefault()
+    {
+        var arguments = BuildDotNetAspNetCoreProjectArguments(
+            "src/API/API.csproj",
+            hotReload: false,
+            applicationArguments: "--seed");
+
+        Assert.Equal("run --project src/API/API.csproj --no-launch-profile -- --seed", arguments);
+    }
+
+    [Fact]
+    public void AspNetCoreProjectRunner_UsesNonInteractiveWatchWhenHotReloadIsEnabled()
+    {
+        var arguments = BuildDotNetAspNetCoreProjectArguments(
+            "src/API/API.csproj",
+            hotReload: true,
+            applicationArguments: "--seed");
+
+        Assert.Equal(
+            "watch --non-interactive --project src/API/API.csproj run --no-launch-profile -- --seed",
+            arguments);
+    }
+
+    [Fact]
+    public void AspNetCoreProjectRunner_AddsRudeEditRestartEnvironmentWhenHotReloadIsEnabled()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var application = new ApplicationResourceDefinition(
+            "application:api",
+            "API",
+            string.Empty,
+            endpointPorts:
+            [
+                new ServicePort("http", 5127, 5127, "http")
+            ],
+            resourceType: ApplicationResourceTypes.AspNetCoreProject,
+            projectPath: "src/API/API.csproj",
+            aspNetCoreHotReload: true);
+        var method = typeof(ApplicationResourceProvider).GetMethod(
+            "ResolveAspNetCoreProjectEnvironmentVariables",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        var variables = Assert.IsAssignableFrom<IReadOnlyList<EnvironmentVariableAssignment>>(
+            method!.Invoke(provider, [application]));
+        var environment = variables.ToDictionary(variable => variable.Name, variable => variable.Value);
+
+        Assert.Equal("http://localhost:5127", environment["ASPNETCORE_URLS"]);
+        Assert.Equal("true", environment["DOTNET_WATCH_RESTART_ON_RUDE_EDIT"]);
     }
 
     [Fact]
@@ -4719,6 +4779,18 @@ public sealed class ResourceDeclarationTests
         public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => true;
 
         public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) => true;
+    }
+
+    private static string BuildDotNetAspNetCoreProjectArguments(
+        string projectPath,
+        bool hotReload,
+        string? applicationArguments)
+    {
+        var method = typeof(ApplicationResourceProvider).GetMethod(
+            "BuildDotNetAspNetCoreProjectArguments",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+
+        return Assert.IsType<string>(method!.Invoke(null, [projectPath, hotReload, applicationArguments]));
     }
 
     private sealed class TestOptionsMonitor<TOptions>(TOptions currentValue) :

@@ -27,7 +27,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ResourceObservability? observability = null,
         string? projectPath = null,
         string? projectArguments = null,
-        bool aspNetCoreHotReload = true,
+        bool aspNetCoreHotReload = false,
         string? containerRevision = null,
         string? containerRegistry = null,
         ContainerRegistryCredentials? containerRegistryCredentials = null,

@@ -139,7 +139,7 @@
     private ResourceEndpointAssignment EndpointAssignment { get; set; } =
         ResourceEndpointAssignment.ProviderDefault;
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
-    private bool UseHotReload { get; set; } = true;
+    private bool UseHotReload { get; set; }
     private bool UseServiceDiscovery { get; set; } = true;
     private bool EnableObservability { get; set; } = true;
     private bool WaitForReferences { get; set; } = true;

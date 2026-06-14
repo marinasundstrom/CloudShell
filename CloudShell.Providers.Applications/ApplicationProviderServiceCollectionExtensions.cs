@@ -98,7 +98,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         ApplicationLifetime lifetime = ApplicationLifetime.ControlPlaneScoped,
-        bool hotReload = true,
+        bool hotReload = false,
         bool useServiceDiscovery = false,
         ResourceObservability? observability = null,
         string? applicationArguments = null) =>
@@ -122,7 +122,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
         ApplicationLifetime lifetime = ApplicationLifetime.ControlPlaneScoped,
-        bool hotReload = true,
+        bool hotReload = false,
         bool useServiceDiscovery = false,
         ResourceObservability? observability = null,
         string? applicationArguments = null)

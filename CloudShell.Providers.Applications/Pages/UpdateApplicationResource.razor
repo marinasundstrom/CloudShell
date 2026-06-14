@@ -171,7 +171,7 @@ else
     private string? WorkingDirectory { get; set; }
     private string ProjectPath { get; set; } = string.Empty;
     private string? ApplicationArguments { get; set; }
-    private bool UseHotReload { get; set; } = true;
+    private bool UseHotReload { get; set; }
     private string? Endpoint { get; set; }
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseServiceDiscovery { get; set; }

@@ -97,6 +97,11 @@ expectations rather than duplicating the task queue.
   projects as a container build workload; the default local runner uses the
   .NET SDK container publish path when no Dockerfile is supplied, or a
   Dockerfile build path when the project declares one.
+- ASP.NET Core project hot reload is opt-in. Project resources run with plain
+  `dotnet run` by default; when `hotReload: true` is declared, CloudShell runs
+  `dotnet watch --non-interactive` and sets
+  `DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true` so rude edits restart instead of
+  blocking on the watch prompt.
 - Public exposure and API stability are separate decisions. Public APIs that
   are not yet stable must be labeled as preview, experimental, or unstable,
   with clear ownership, expected change surface, and path to stability.

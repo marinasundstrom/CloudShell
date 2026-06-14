@@ -35,8 +35,7 @@ cloudShell.Resources(resources =>
     var api = resources.AddAspNetCoreProject(
         "application:project-reference-api",
         "Project Reference API",
-        "../Api/CloudShell.ProjectReferenceApi.csproj",
-        hotReload: false)
+        "../Api/CloudShell.ProjectReferenceApi.csproj")
         .WithHttpHealthCheck("/health")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
@@ -44,11 +43,10 @@ cloudShell.Resources(resources =>
 
     resources
         .AddAspNetCoreProject(
-            "application:project-reference-frontend",
-            "Project Reference Frontend",
-            "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
-            endpoint: frontendEndpoint,
-            hotReload: false)
+        "application:project-reference-frontend",
+        "Project Reference Frontend",
+        "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
+        endpoint: frontendEndpoint)
         .WithHttpHealthCheck("/healthz")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)

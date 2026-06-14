@@ -301,17 +301,19 @@ resources
         exposure: ResourceExposureScope.Public);
 ```
 
-ASP.NET Core project declarations run with hot reload by default:
+ASP.NET Core project declarations run with plain `dotnet run` by default:
 
 ```bash
-dotnet watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj run --no-launch-profile
+dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile
 ```
 
-Set `hotReload: false` when you want a plain `dotnet run` process. ASP.NET Core
-project resources get a stable local HTTP endpoint automatically when `endpoint`
-is omitted. Supplying `endpoint: "http://localhost:5127"` fixes the port instead.
-CloudShell injects the resolved endpoint into `ASPNETCORE_URLS`, so the project
-binds to the Resource Manager endpoint without relying on launch profiles.
+Set `hotReload: true` when you want `dotnet watch` for a project resource.
+CloudShell runs watch mode as non-interactive and asks `dotnet watch` to restart
+on rude edits instead of prompting. ASP.NET Core project resources get a stable
+local HTTP endpoint automatically when `endpoint` is omitted. Supplying
+`endpoint: "http://localhost:5127"` fixes the port instead. CloudShell injects
+the resolved endpoint into `ASPNETCORE_URLS`, so the project binds to the
+Resource Manager endpoint without relying on launch profiles.
 Use `WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`, or
 `WithEndpointPort(...)` to declare fixed or named endpoints. Named endpoints
 match the Aspire URI shape `https+http://_endpointName.serviceName`.

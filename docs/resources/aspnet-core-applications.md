@@ -29,14 +29,18 @@ resources
     .WithReference(configuration);
 ```
 
-By default, CloudShell starts ASP.NET Core project resources with hot reload:
+By default, CloudShell starts ASP.NET Core project resources with plain
+`dotnet run`:
 
 ```bash
-dotnet watch --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj run --no-launch-profile
+dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj --no-launch-profile
 ```
 
-Pass `hotReload: false` to use plain `dotnet run --no-launch-profile` instead.
-Pass `applicationArguments` when the hosted app should receive command-line
+Pass `hotReload: true` to opt into `dotnet watch`. When hot reload is enabled,
+CloudShell starts watch mode with `--non-interactive` and sets
+`DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true`, so rude edits restart the app instead
+of leaving the hosted process blocked on the watch prompt. Pass
+`applicationArguments` when the hosted app should receive command-line
 arguments. CloudShell appends those arguments after the hidden `dotnet` runner
 arguments.
 

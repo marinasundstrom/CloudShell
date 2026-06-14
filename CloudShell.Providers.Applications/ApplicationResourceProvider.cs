@@ -48,6 +48,8 @@ public sealed partial class ApplicationResourceProvider(
     private static readonly JsonSerializerOptions TemplateSerializerOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeSpan StartingStateTimeout = TimeSpan.FromMinutes(5);
     private const string DefaultContainerNetworkName = "cloudshell";
+    private const string AspNetCoreUrlsEnvironmentVariable = "ASPNETCORE_URLS";
+    private const string DotNetWatchRestartOnRudeEditEnvironmentVariable = "DOTNET_WATCH_RESTART_ON_RUDE_EDIT";
     public const string HiddenResourceEnvironmentVariable = "CloudShell__ResourceManager__Hidden";
 
     private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
@@ -1005,9 +1007,21 @@ public sealed partial class ApplicationResourceProvider(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        return urls.Length == 0
-            ? []
-            : [new EnvironmentVariableAssignment("ASPNETCORE_URLS", string.Join(';', urls))];
+        List<EnvironmentVariableAssignment> variables = [];
+
+        if (urls.Length > 0)
+        {
+            variables.Add(new EnvironmentVariableAssignment(
+                AspNetCoreUrlsEnvironmentVariable,
+                string.Join(';', urls)));
+        }
+
+        if (definition.AspNetCoreHotReload)
+        {
+            variables.Add(new EnvironmentVariableAssignment(DotNetWatchRestartOnRudeEditEnvironmentVariable, "true"));
+        }
+
+        return variables;
     }
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveDependencyEnvironmentVariables(
@@ -2908,7 +2922,7 @@ public sealed partial class ApplicationResourceProvider(
             return definition.AspNetCoreHotReload;
         }
 
-        return definition.Arguments?.TrimStart().StartsWith("watch ", StringComparison.OrdinalIgnoreCase) ?? true;
+        return definition.Arguments?.TrimStart().StartsWith("watch ", StringComparison.OrdinalIgnoreCase) ?? false;
     }
 
     private static string? TryExtractProjectPathFromDotNetArguments(string? arguments)
@@ -3096,7 +3110,7 @@ public sealed partial class ApplicationResourceProvider(
         string? applicationArguments)
     {
         var runnerArguments = hotReload
-            ? $"watch --project {QuoteCommandArgument(projectPath)} run --no-launch-profile"
+            ? $"watch --non-interactive --project {QuoteCommandArgument(projectPath)} run --no-launch-profile"
             : $"run --project {QuoteCommandArgument(projectPath)} --no-launch-profile";
 
         return string.IsNullOrWhiteSpace(applicationArguments)
@@ -3835,7 +3849,7 @@ public sealed partial class ApplicationResourceProvider(
         IReadOnlyList<ServicePort>? EndpointPorts = null,
         string? ProjectPath = null,
         string? ProjectArguments = null,
-        bool AspNetCoreHotReload = true,
+        bool AspNetCoreHotReload = false,
         bool ProjectContainerBuild = false);
 
     private sealed record ProjectContainerImageReference(
