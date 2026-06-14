@@ -1589,9 +1589,9 @@ public sealed class PlatformResourceProvider(
     {
         var endpoints = CreateLoadBalancerEndpoints(definition);
         var hasRuntimeProvider = HasRuntimeProvider(definition);
-        var state = hasRuntimeProvider
+        ResourceState? state = hasRuntimeProvider
             ? definition.RuntimeState ?? ResourceState.Stopped
-            : ResourceState.Running;
+            : null;
         return new(
             definition.Id,
             definition.Name,
@@ -1630,7 +1630,7 @@ public sealed class PlatformResourceProvider(
 
     private IReadOnlyList<ResourceAction> CreateLoadBalancerActions(
         LoadBalancerResourceDefinition definition,
-        ResourceState state,
+        ResourceState? state,
         bool hasRuntimeProvider)
     {
         var actions = new List<ResourceAction>();

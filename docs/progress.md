@@ -641,6 +641,11 @@ expectations rather than duplicating the task queue.
 - Docker host resources now advertise the `container.host` resource capability,
   and Resource Manager uses that capability when populating load-balancer
   container-host choices while retaining a fallback for older host resources.
+- Load balancers now expose lifecycle state only when a runtime provider can
+  manage provider-owned infrastructure. File-config/logical load balancers keep
+  their apply action but omit `State` rather than pretending to be `Running`.
+  This keeps the stable user-facing resource distinct from future provider-owned
+  runtime resources that may be inspectable but hidden from normal views.
 - `IResourceManager` publishes coarse `ResourcesChanged` notifications after
   resource-manager mutations. Resource Manager listens for those notifications
   and also polls the inventory so provider-discovered changes, such as runtime

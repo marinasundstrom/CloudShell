@@ -70,6 +70,7 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             null,
             new TestResourceRegistrationStore([]));
         var loadBalancer = provider.GetResources().Single(resource => resource.Id == "load-balancer:public");
+        Assert.Null(loadBalancer.State);
         var resourceManager = new TestResourceManagerStore(
             [
                 loadBalancer,

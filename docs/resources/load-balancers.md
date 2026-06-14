@@ -102,6 +102,16 @@ resolve the configured default container host or provider-preferred host. When
 a provider runs in a container, that implementation container is provider-owned
 runtime state or a child resource, not a user-authored container app.
 
+Load balancers expose lifecycle status only when a runtime provider manages
+provider-owned infrastructure for them. File-provider or logical load balancers
+can still expose apply/configuration actions, but they omit `State` because the
+resource itself is not a running service.
+
+Future provider-owned runtime resources, such as implementation containers or
+replicas created for a stable load balancer, should be inspectable as
+implementation details and can be hidden from the normal Resource Manager view
+by default.
+
 ## Resource Manager
 
 The generated Resource Manager views show:

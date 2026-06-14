@@ -4168,6 +4168,7 @@ public sealed class ResourceDeclarationTests
             resource.Id == "load-balancer:public");
 
         Assert.Equal(PlatformResourceProvider.LoadBalancerResourceType, resource.EffectiveTypeId);
+        Assert.Null(resource.State);
         Assert.Equal(ResourceClass.Network, resource.ResourceClass);
         Assert.Equal("traefik", resource.ResourceAttributes[ResourceAttributeNames.LoadBalancerProvider]);
         Assert.Equal("docker:engine", resource.ResourceAttributes[ResourceAttributeNames.LoadBalancerHostResourceId]);
