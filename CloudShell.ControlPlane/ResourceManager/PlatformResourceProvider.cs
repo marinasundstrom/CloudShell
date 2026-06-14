@@ -177,10 +177,10 @@ public sealed class PlatformResourceProvider(
         CancellationToken cancellationToken = default)
     {
         var normalized = NormalizeLoadBalancer(definition);
+        ValidateLoadBalancerRoutes(normalized);
         ValidatePlatformEndpointAssignments(
             normalized.Id,
             CreateLoadBalancerEndpoints(normalized));
-        ValidateLoadBalancerRoutes(normalized);
         store.SaveLoadBalancer(normalized);
         await registrations.RegisterAsync(
             Id,
@@ -372,10 +372,10 @@ public sealed class PlatformResourceProvider(
                 $"Platform resource declaration '{declaration.ResourceId}' was not found.");
 
         var normalizedLoadBalancer = NormalizeLoadBalancer(declaredLoadBalancer.Definition);
+        ValidateLoadBalancerRoutes(normalizedLoadBalancer);
         ValidatePlatformEndpointAssignments(
             normalizedLoadBalancer.Id,
             CreateLoadBalancerEndpoints(normalizedLoadBalancer));
-        ValidateLoadBalancerRoutes(normalizedLoadBalancer);
         if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
         {
             store.SaveLoadBalancer(
@@ -742,6 +742,22 @@ public sealed class PlatformResourceProvider(
 
     private static void ValidateLoadBalancerRoutes(LoadBalancerResourceDefinition definition)
     {
+        foreach (var duplicate in definition.LoadBalancerEntrypoints
+            .GroupBy(entrypoint => entrypoint.Name, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            throw new InvalidOperationException(
+                $"Load balancer resource '{definition.Id}' has multiple entrypoints named '{duplicate.Key}'.");
+        }
+
+        foreach (var duplicate in definition.LoadBalancerRoutes
+            .GroupBy(route => route.Id, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            throw new InvalidOperationException(
+                $"Load balancer resource '{definition.Id}' has multiple routes with id '{duplicate.Key}'.");
+        }
+
         var entrypoints = definition.LoadBalancerEntrypoints.ToDictionary(
             entrypoint => entrypoint.Name,
             StringComparer.OrdinalIgnoreCase);
@@ -1228,7 +1244,6 @@ public sealed class PlatformResourceProvider(
                     Name = entrypoint.Name.Trim(),
                     Port = Math.Max(1, entrypoint.Port)
                 })
-                .DistinctBy(entrypoint => entrypoint.Name, StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
             Routes = definition.LoadBalancerRoutes
                 .Where(route =>
@@ -1255,7 +1270,6 @@ public sealed class PlatformResourceProvider(
                         Port = route.Target.Port is null ? null : Math.Max(1, route.Target.Port.Value)
                     }
                 })
-                .DistinctBy(route => route.Id, StringComparer.OrdinalIgnoreCase)
                 .ToArray()
         };
 

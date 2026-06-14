@@ -115,9 +115,10 @@ The apply action validates the route targets and delegates to the selected
 `ILoadBalancerProvider`.
 
 Load-balancer setup validates route shape before persisting the resource:
-routes must reference a declared entrypoint, HTTP routes must use HTTP/HTTPS
-entrypoints, TCP routes must use TCP entrypoints, and exact duplicate route
-matches on the same entrypoint are rejected.
+entrypoint names and route IDs must be unique after normalization, routes must
+reference a declared entrypoint, HTTP routes must use HTTP/HTTPS entrypoints,
+TCP routes must use TCP entrypoints, and exact duplicate route matches on the
+same entrypoint are rejected.
 
 Resource action capabilities evaluate the same provider context used by apply
 and lifecycle execution. If the selected provider, host resource, route target,

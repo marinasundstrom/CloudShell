@@ -181,6 +181,61 @@ public sealed class PlatformResourceProviderLoadBalancerTests
     }
 
     [Fact]
+    public async Task SetupLoadBalancerAsync_RejectsDuplicateEntrypointNames()
+    {
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(store, new PlatformResourceOptions());
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Entrypoints =
+            [
+                new LoadBalancerEntrypoint("web", ResourceEndpointProtocol.Http, 8080),
+                new LoadBalancerEntrypoint(" WEB ", ResourceEndpointProtocol.Http, 8081)
+            ]
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.SetupLoadBalancerAsync(
+                definition,
+                null,
+                new TestResourceRegistrationStore([])));
+
+        Assert.Contains("multiple entrypoints named 'web'", exception.Message);
+        Assert.Null(store.GetLoadBalancer(definition.Id));
+    }
+
+    [Fact]
+    public async Task SetupLoadBalancerAsync_RejectsDuplicateRouteIds()
+    {
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(store, new PlatformResourceOptions());
+        var route = CreateRuntimeLoadBalancerDefinition().LoadBalancerRoutes.Single();
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Routes =
+            [
+                route,
+                route with
+                {
+                    Id = " WEB-APP ",
+                    Name = "Other route",
+                    Match = new LoadBalancerRouteMatch("other.local", "/"),
+                    Target = new LoadBalancerRouteTarget("application:other", "http")
+                }
+            ]
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.SetupLoadBalancerAsync(
+                definition,
+                null,
+                new TestResourceRegistrationStore([])));
+
+        Assert.Contains("multiple routes with id 'web-app'", exception.Message);
+        Assert.Null(store.GetLoadBalancer(definition.Id));
+    }
+
+    [Fact]
     public async Task SetupLoadBalancerAsync_RejectsDuplicateRouteMatches()
     {
         var store = CreatePlatformStore();

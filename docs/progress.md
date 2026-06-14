@@ -433,8 +433,9 @@ expectations rather than duplicating the task queue.
   configuration file.
 - Load-balancer setup now validates route references and exact route conflicts
   before persisting the platform resource, so routes must reference compatible
-  entrypoints and duplicate matches on the same entrypoint are rejected before
-  provider configuration is written.
+  entrypoints, entrypoint names and route IDs must be unique after
+  normalization, and duplicate matches on the same entrypoint are rejected
+  before provider configuration is written.
 - Load-balancer apply/start/stop actions now participate in resource action
   availability evaluation. Missing selected providers, host resources, route
   targets, and target endpoints surface as action capability reasons before the
