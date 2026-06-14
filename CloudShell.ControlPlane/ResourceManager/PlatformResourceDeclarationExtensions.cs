@@ -458,11 +458,11 @@ public interface ILoadBalancerResourceBuilder : IResourceBuilder
 {
     ILoadBalancerResourceBuilder UseProvider(string provider);
 
-    ILoadBalancerResourceBuilder UseDefaultHost();
+    ILoadBalancerResourceBuilder UseDefaultContainerHost();
 
-    ILoadBalancerResourceBuilder UseHost(string hostResourceId);
+    ILoadBalancerResourceBuilder UseContainerHost(string hostResourceId);
 
-    ILoadBalancerResourceBuilder UseHost(IResourceBuilder host);
+    ILoadBalancerResourceBuilder UseContainerHost(IResourceBuilder host);
 
     ILoadBalancerResourceBuilder ExposeHttp(
         int port = 80,
@@ -1616,13 +1616,13 @@ internal sealed class LoadBalancerResourceBuilder(
         return this;
     }
 
-    public ILoadBalancerResourceBuilder UseDefaultHost()
+    public ILoadBalancerResourceBuilder UseDefaultContainerHost()
     {
         declared.Definition = declared.Definition with { HostResourceId = null };
         return this;
     }
 
-    public ILoadBalancerResourceBuilder UseHost(string hostResourceId)
+    public ILoadBalancerResourceBuilder UseContainerHost(string hostResourceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(hostResourceId);
         var normalizedHostResourceId = hostResourceId.Trim();
@@ -1634,10 +1634,10 @@ internal sealed class LoadBalancerResourceBuilder(
         return this;
     }
 
-    public ILoadBalancerResourceBuilder UseHost(IResourceBuilder host)
+    public ILoadBalancerResourceBuilder UseContainerHost(IResourceBuilder host)
     {
         ArgumentNullException.ThrowIfNull(host);
-        return UseHost(host.ResourceId);
+        return UseContainerHost(host.ResourceId);
     }
 
     public ILoadBalancerResourceBuilder ExposeHttp(

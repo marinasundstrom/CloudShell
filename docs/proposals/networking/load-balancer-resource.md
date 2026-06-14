@@ -188,7 +188,7 @@ The user-facing API should support the concise shape:
 ```csharp
 var lb = resources.AddLoadBalancer("load-balancer:public", "Public")
     .UseProvider("traefik")
-    .UseHost("docker:engine")
+    .UseContainerHost("docker:engine")
     .ExposeHttp(80)
     .ExposeHttps(443);
 
@@ -229,11 +229,11 @@ The concise API should compile into the explicit route model. The explicit API
 is useful when a route needs a custom ID, entrypoint selection, future TLS
 policy, or provider-owned options.
 
-`UseHost(...)` is optional. When omitted, provider execution should use the
-environment's configured default or preferred host. The Resource Manager
-creation and configuration UI should prompt for this host when more than one
-eligible host is available, using the same host list used by container-backed
-resources and future remote-host support.
+`UseContainerHost(...)` is optional. When omitted, provider execution should
+use the environment's configured default or preferred container host. The
+Resource Manager creation and configuration UI should prompt for this host when
+more than one eligible host is available, using the same host list used by
+container-backed resources and future remote-host support.
 
 ## Relationship to Virtual Networks
 
@@ -351,8 +351,8 @@ mappings.
 
 1. Add load-balancer route and entrypoint definitions to the resource model.
 2. Add `AddLoadBalancer(...)` and fluent route builders.
-3. Add `HostResourceId` and `UseHost(...)` so provider-owned runtime
-   infrastructure is placed on hosts rather than engines.
+3. Add `HostResourceId` and `UseContainerHost(...)` so provider-owned runtime
+   infrastructure is placed on container hosts rather than engines.
 4. Project `cloudshell.loadBalancer` resources from the platform provider.
 5. Add declaration tests for provider selection, host selection, entrypoints,
    HTTP host/path routes, TCP routes, dependencies, and capabilities.

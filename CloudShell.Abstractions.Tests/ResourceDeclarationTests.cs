@@ -4093,7 +4093,7 @@ public sealed class ResourceDeclarationTests
                 var lb = resources
                     .AddLoadBalancer("public")
                     .UseProvider("traefik")
-                    .UseHost(dockerHost)
+                    .UseContainerHost(dockerHost)
                     .ExposeHttp(80)
                     .ExposeHttps(443);
 

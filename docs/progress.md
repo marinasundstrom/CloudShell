@@ -635,6 +635,9 @@ expectations rather than duplicating the task queue.
   and missing route target endpoints. The default host marker is treated as the
   implicit container-host selection and displayed as `Default container host`
   instead of a broken resource reference.
+- The load-balancer fluent API now uses `UseContainerHost(...)` and
+  `UseDefaultContainerHost()` for placement so container-host assignment is
+  explicit in the user-facing declaration model.
 - `IResourceManager` publishes coarse `ResourcesChanged` notifications after
   resource-manager mutations. Resource Manager listens for those notifications
   and also polls the inventory so provider-discovered changes, such as runtime

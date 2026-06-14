@@ -994,7 +994,7 @@ public sealed class RemoteControlPlaneContractTests
                 resources
                     .AddLoadBalancer("public")
                     .UseProvider("traefik")
-                    .UseHost(dockerHost)
+                    .UseContainerHost(dockerHost)
                     .ExposeHttp(8080)
                     .ExposeTcp(5432)
                     .MapHost("app.local", app, endpoint: "http")

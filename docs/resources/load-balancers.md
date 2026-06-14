@@ -69,7 +69,7 @@ var postgres = resources
 var lb = resources
     .AddLoadBalancer("public")
     .UseProvider("traefik")
-    .UseHost(dockerHost)
+    .UseContainerHost(dockerHost)
     .ExposeHttp(80)
     .ExposeHttps(443)
     .ExposeTcp(5432, "postgres");
@@ -92,10 +92,10 @@ Use "container host" for the selectable CloudShell host resource and
 using "engine" as a CloudShell abstraction except for product-specific wording
 such as Docker Engine.
 
-`UseHost(...)` is optional. If omitted, provider execution should resolve the
-configured default container host or provider-preferred host. When a provider
-runs in a container, that implementation container is provider-owned runtime
-state or a child resource, not a user-authored container app.
+`UseContainerHost(...)` is optional. If omitted, provider execution should
+resolve the configured default container host or provider-preferred host. When
+a provider runs in a container, that implementation container is provider-owned
+runtime state or a child resource, not a user-authored container app.
 
 ## Resource Manager
 

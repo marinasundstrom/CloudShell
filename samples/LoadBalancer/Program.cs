@@ -91,7 +91,7 @@ cloudShell.Resources(resources =>
     var lb = resources
         .AddLoadBalancer("public")
         .UseProvider("traefik")
-        .UseHost(dockerHost)
+        .UseContainerHost(dockerHost)
         .ExposeHttp(80)
         .ExposeHttps(443)
         .ExposeTcp(5432, "postgres");
