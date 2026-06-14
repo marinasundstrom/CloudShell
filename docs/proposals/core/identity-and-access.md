@@ -157,15 +157,21 @@ Implemented today:
   an `Oidc` resource identity provider, a resource identity binding, and a
   scoped grant. A sample-scoped `KeycloakResourceIdentityProvisioner`
   translates the provisioning request into Keycloak confidential clients and
-  client roles for declared CloudShell grants.
+  client roles for declared CloudShell grants, assigns those roles to the
+  service-account user, and maps them into access-token
+  `cloudshell.resource-permission` claims.
 
 Not implemented yet:
 
-- Runtime credential delivery and token-claim mapping for third-party
-  resource identities. The next Keycloak-oriented identity slice should make a
-  provisioned Keycloak client usable by a running workload and emit the
-  `cloudshell.resource-permission` claims expected by protected CloudShell
-  service APIs.
+- Runtime credential delivery and end-to-end protected-service validation for
+  third-party resource identities. The next Keycloak-oriented identity slice
+  should make a provisioned Keycloak client usable by a running workload and
+  prove the issued token against Configuration Store or Secrets Vault.
+- Identity provider setup/reconcile hook and endpoint. Provider setup is
+  distinct from resource identity provisioning: setup prepares or validates
+  the provider boundary such as realms, control-plane clients, protocol
+  mappers, app roles, or admin API reachability; provisioning reconciles a
+  specific resource identity and its grants inside that provider.
 
 ## Domain Model
 
@@ -509,9 +515,11 @@ service-principal automation flows.
 3. Managed identity and authority reconciliation.
    The first Keycloak sample validates external user authentication, CloudShell
    role claim mapping, and a sample-scoped resource identity provisioner that
-   creates Keycloak clients and grant roles. Next, wire provisioned
-   credentials and token mappers so workloads can use the external authority
-   for protected service calls.
+   creates Keycloak clients, grant roles, service-account role assignments, and
+   resource-permission token mappers. Next, wire provisioned credentials into
+   workloads so they can use the external authority for protected service
+   calls. Add an identity-provider setup/reconcile hook before pushing provider
+   setup work into individual resource provisioning.
 4. Microsoft Entra ID compatibility.
    Map the same resource identity and grant model to Entra app registrations,
    service principals, app roles or groups, token validation, and automation

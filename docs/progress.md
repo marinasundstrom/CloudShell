@@ -85,10 +85,13 @@ expectations rather than duplicating the task queue.
   CloudShell authorization service and declares the external provisioning
   boundary, resource identity binding, and scoped grant so the provider-neutral
   provisioning path is exercised. The sample-scoped Keycloak provisioner now
-  creates confidential clients and client roles for declared grants. Runtime
-  credential delivery and Keycloak token mappers for
-  `cloudshell.resource-permission` claims remain the next identity-provider
-  validation step.
+  creates confidential clients, client roles for declared grants, service
+  account role assignments, and token mappers for
+  `cloudshell.resource-permission` claims. Runtime credential delivery and
+  end-to-end protected service calls with Keycloak-issued tokens remain the
+  next identity-provider validation step. Identity provider setup/bootstrap is
+  also distinct from resource identity provisioning and should have its own
+  setup/validate operation.
 - The first mountable-volume domain slices are in place: `resources.AddVolume(...)`
   declares a `cloudshell.volume` resource for a local or addressable storage
   allocation, and container apps can declare `WithVolume(...)` mounts that

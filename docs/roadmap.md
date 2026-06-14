@@ -160,7 +160,10 @@ listed here before pulling in broader proposal work.
   sample validates external OIDC sign-in, CloudShell role claim mapping, and
   sample-scoped resource identity provisioning; next identity work should make
   provisioned Keycloak credentials available to workloads and map external
-  tokens back to CloudShell scoped resource-permission claims.
+  tokens back to CloudShell scoped resource-permission claims. Identity
+  provider setup should be modeled as a provider setup/reconcile hook, with an
+  endpoint invoking that hook where available, rather than conflating setup
+  with individual resource identity provisioning.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, and container app

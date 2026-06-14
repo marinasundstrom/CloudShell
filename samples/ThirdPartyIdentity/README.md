@@ -75,12 +75,16 @@ CloudShell provisioning request into Keycloak admin operations:
 
 - creates or reuses a confidential client for the resource identity
 - enables service-account style client credentials for that client
-- creates client roles for declared CloudShell grants
+- creates client roles whose values match CloudShell
+  `cloudshell.resource-permission` claim values
+- assigns those roles to the client's service-account user
+- adds a protocol mapper that emits assigned client roles as
+  `cloudshell.resource-permission` claims in access tokens
 - reports provisioning status by checking whether the Keycloak client exists
 
 This is intentionally still a reference integration. It does not yet wire the
-provisioned Keycloak client secret into a running CloudShell workload, and it
-does not yet configure Keycloak token mappers to emit
-`cloudshell.resource-permission` claims for protected CloudShell service APIs.
-Those two steps are required before the Settings and Secrets resource identity
-flow can use Keycloak instead of the built-in development authority.
+provisioned Keycloak client secret into a running CloudShell workload or
+exercise a protected Configuration Store/Secrets Vault call with the issued
+Keycloak token. That credential delivery and end-to-end service-call validation
+is required before the Settings and Secrets resource identity flow can use
+Keycloak instead of the built-in development authority.

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ThirdPartyIdentity;
@@ -44,16 +45,35 @@ public sealed class KeycloakResourceIdentityProvisioner(
             var grants = request.PermissionGrants
                 .Where(grant => Matches(entry.Identity, grant.Identity))
                 .ToArray();
+            await EnsureResourcePermissionMapperAsync(
+                client,
+                request.Provider,
+                token,
+                keycloakClient.Id,
+                keycloakClient.ClientId,
+                cancellationToken);
 
+            var roles = new List<KeycloakRoleRepresentation>();
             foreach (var grant in grants)
             {
-                await EnsureClientRoleAsync(
+                roles.Add(await EnsureClientRoleAsync(
                     client,
                     request.Provider,
                     token,
                     keycloakClient.Id,
                     CreateGrantRoleName(grant),
                     grant,
+                    cancellationToken));
+            }
+
+            if (roles.Count > 0)
+            {
+                await AssignServiceAccountRolesAsync(
+                    client,
+                    request.Provider,
+                    token,
+                    keycloakClient.Id,
+                    roles,
                     cancellationToken);
             }
 
@@ -213,7 +233,7 @@ public sealed class KeycloakResourceIdentityProvisioner(
             string.Equals(item.ClientId, clientId, StringComparison.Ordinal));
     }
 
-    private static async Task EnsureClientRoleAsync(
+    private static async Task<KeycloakRoleRepresentation> EnsureClientRoleAsync(
         HttpClient client,
         ResourceIdentityProviderDefinition provider,
         string token,
@@ -229,7 +249,9 @@ public sealed class KeycloakResourceIdentityProvisioner(
         using var readResponse = await client.SendAsync(readRequest, cancellationToken);
         if (readResponse.IsSuccessStatusCode)
         {
-            return;
+            return await readResponse.Content.ReadFromJsonAsync<KeycloakRoleRepresentation>(
+                    cancellationToken) ??
+                throw new InvalidOperationException($"Keycloak role '{roleName}' was read but could not be deserialized.");
         }
 
         if (readResponse.StatusCode != System.Net.HttpStatusCode.NotFound)
@@ -245,6 +267,108 @@ public sealed class KeycloakResourceIdentityProvisioner(
             {
                 name = roleName,
                 description = $"CloudShell grant: {grant.TargetResourceId} {grant.Permission}"
+            });
+        using var createResponse = await client.SendAsync(createRequest, cancellationToken);
+        await EnsureSuccessAsync(createResponse, cancellationToken);
+
+        using var createdReadRequest = CreateAuthorizedRequest(
+            HttpMethod.Get,
+            CreateAdminUri(provider, $"clients/{Uri.EscapeDataString(internalClientId)}/roles/{Uri.EscapeDataString(roleName)}"),
+            token);
+        using var createdReadResponse = await client.SendAsync(createdReadRequest, cancellationToken);
+        await EnsureSuccessAsync(createdReadResponse, cancellationToken);
+        return await createdReadResponse.Content.ReadFromJsonAsync<KeycloakRoleRepresentation>(
+                cancellationToken) ??
+            throw new InvalidOperationException($"Keycloak role '{roleName}' was created but could not be read.");
+    }
+
+    private static async Task AssignServiceAccountRolesAsync(
+        HttpClient client,
+        ResourceIdentityProviderDefinition provider,
+        string token,
+        string internalClientId,
+        IReadOnlyList<KeycloakRoleRepresentation> roles,
+        CancellationToken cancellationToken)
+    {
+        var serviceAccount = await GetServiceAccountUserAsync(
+            client,
+            provider,
+            token,
+            internalClientId,
+            cancellationToken);
+        using var request = CreateJsonRequest(
+            HttpMethod.Post,
+            CreateAdminUri(
+                provider,
+                $"users/{Uri.EscapeDataString(serviceAccount.Id)}/role-mappings/clients/{Uri.EscapeDataString(internalClientId)}"),
+            token,
+            roles.Select(role => new
+            {
+                id = role.Id,
+                name = role.Name
+            }).ToArray());
+        using var response = await client.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    private static async Task<KeycloakUserRepresentation> GetServiceAccountUserAsync(
+        HttpClient client,
+        ResourceIdentityProviderDefinition provider,
+        string token,
+        string internalClientId,
+        CancellationToken cancellationToken)
+    {
+        using var request = CreateAuthorizedRequest(
+            HttpMethod.Get,
+            CreateAdminUri(provider, $"clients/{Uri.EscapeDataString(internalClientId)}/service-account-user"),
+            token);
+        using var response = await client.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<KeycloakUserRepresentation>(
+                cancellationToken) ??
+            throw new InvalidOperationException("Keycloak service-account user response could not be read.");
+    }
+
+    private static async Task EnsureResourcePermissionMapperAsync(
+        HttpClient client,
+        ResourceIdentityProviderDefinition provider,
+        string token,
+        string internalClientId,
+        string clientId,
+        CancellationToken cancellationToken)
+    {
+        const string mapperName = "CloudShell resource permissions";
+        using var readRequest = CreateAuthorizedRequest(
+            HttpMethod.Get,
+            CreateAdminUri(provider, $"clients/{Uri.EscapeDataString(internalClientId)}/protocol-mappers/models"),
+            token);
+        using var readResponse = await client.SendAsync(readRequest, cancellationToken);
+        await EnsureSuccessAsync(readResponse, cancellationToken);
+        var mappers = await readResponse.Content.ReadFromJsonAsync<KeycloakProtocolMapperRepresentation[]>(
+            cancellationToken) ?? [];
+        if (mappers.Any(mapper => string.Equals(mapper.Name, mapperName, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        using var createRequest = CreateJsonRequest(
+            HttpMethod.Post,
+            CreateAdminUri(provider, $"clients/{Uri.EscapeDataString(internalClientId)}/protocol-mappers/models"),
+            token,
+            new
+            {
+                name = mapperName,
+                protocol = "openid-connect",
+                protocolMapper = "oidc-usermodel-client-role-mapper",
+                consentRequired = false,
+                config = new Dictionary<string, string>
+                {
+                    ["access.token.claim"] = "true",
+                    ["claim.name"] = CloudShellAuthorizationClaimTypes.ResourcePermission,
+                    ["jsonType.label"] = "String",
+                    ["multivalued"] = "true",
+                    ["usermodel.clientRoleMapping.clientId"] = clientId
+                }
             });
         using var createResponse = await client.SendAsync(createRequest, cancellationToken);
         await EnsureSuccessAsync(createResponse, cancellationToken);
@@ -312,7 +436,9 @@ public sealed class KeycloakResourceIdentityProvisioner(
     }
 
     private static string CreateGrantRoleName(ResourcePermissionGrant grant) =>
-        Sanitize($"{grant.TargetResourceId}-{grant.Permission}");
+        ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+            grant.TargetResourceId,
+            grant.Permission);
 
     private static bool Matches(
         ResourceIdentityReference declaredIdentity,
@@ -361,5 +487,22 @@ public sealed class KeycloakResourceIdentityProvisioner(
         public string Id { get; set; } = string.Empty;
 
         public string ClientId { get; set; } = string.Empty;
+    }
+
+    private sealed class KeycloakRoleRepresentation
+    {
+        public string Id { get; set; } = string.Empty;
+
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class KeycloakUserRepresentation
+    {
+        public string Id { get; set; } = string.Empty;
+    }
+
+    private sealed class KeycloakProtocolMapperRepresentation
+    {
+        public string Name { get; set; } = string.Empty;
     }
 }
