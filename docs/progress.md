@@ -635,6 +635,9 @@ expectations rather than duplicating the task queue.
   and missing route target endpoints. The default host marker is treated as the
   implicit container-host selection and displayed as `Default container host`
   instead of a broken resource reference.
+- Resource Manager generated overview pages and the resource list side blade
+  now show inbound DNS/name mappings for any target resource, aligning generic
+  app-exposure inspection with the provider-specific application overview.
 - Resource Manager generated diagnostics also inspect network endpoint mappings
   and name missing provider resources, missing endpoint-mapper capability, and
   unresolved source or target resources/endpoints before a reconcile action is
