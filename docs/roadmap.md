@@ -171,9 +171,11 @@ listed here before pulling in broader proposal work.
   lacks the publisher capability, and DNS zones/name mappings now have
   inspectable Resource Manager type registrations. Resource Manager can now
   create a DNS Zone with an optional initial name mapping, and add standalone
-  name mappings to existing zones; next it needs provider runtime publish
-  diagnostics and update/delete UI for name mappings owned by existing zones
-  when the MVP management flow needs it.
+  name mappings to existing zones. Name mappings are directly registered
+  platform children so they can be deleted through the normal Resource Manager
+  delete flow while updating the parent zone. Next it needs provider runtime
+  publish diagnostics and update UI for existing name mappings when the MVP
+  management flow needs it.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when

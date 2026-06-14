@@ -3627,6 +3627,114 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task PlatformProvider_DeletesDnsNameMappingFromParentZone()
+    {
+        var options = new PlatformResourceOptions();
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var registrations = new MutableResourceRegistrationStore();
+
+        await provider.SetupDnsZoneAsync(
+            new DnsZoneResourceDefinition(
+                "dns:local",
+                "Local DNS",
+                "local",
+                Mappings:
+                [
+                    new DnsNameMappingDefinition(
+                        "dns:local:name:api-local",
+                        "api.local",
+                        "api.local",
+                        "application:api",
+                        "http"),
+                    new DnsNameMappingDefinition(
+                        "dns:local:name:app-local",
+                        "app.local",
+                        "app.local",
+                        "application:web",
+                        "http")
+                ]),
+            null,
+            registrations);
+        var resources = provider.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        Assert.NotNull(registrations.GetRegistration("dns:local:name:api-local"));
+        Assert.Equal(
+            ["application:api", "application:web"],
+            registrations.GetRegistration("dns:local")?.DependsOn.Order(StringComparer.OrdinalIgnoreCase));
+
+        var result = await provider.DeleteAsync(
+            new ResourceProcedureContext(
+                resources["dns:local:name:api-local"],
+                registrations.GetRegistration("dns:local:name:api-local"),
+                null,
+                registrations,
+                new StaticResourceManagerStore(resources.Values.ToArray(), [provider])));
+
+        Assert.Equal("Name mapping 'api.local' removed from DNS zone 'Local DNS'.", result.Message);
+        Assert.Null(registrations.GetRegistration("dns:local:name:api-local"));
+        Assert.Equal(
+            ["application:web"],
+            registrations.GetRegistration("dns:local")?.DependsOn);
+
+        var updatedResources = provider.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        Assert.False(updatedResources.ContainsKey("dns:local:name:api-local"));
+        Assert.True(updatedResources.ContainsKey("dns:local:name:app-local"));
+        Assert.Equal("1", updatedResources["dns:local"].ResourceAttributes[ResourceAttributeNames.DnsRecordCount]);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_AppliesDnsZoneDeclarationWithNameMappingRegistrations()
+    {
+        var definition = new DnsZoneResourceDefinition(
+            "dns:local",
+            "Local DNS",
+            "local",
+            Mappings:
+            [
+                new DnsNameMappingDefinition(
+                    "dns:local:name:api-local",
+                    "api.local",
+                    "api.local",
+                    "application:api",
+                    "http")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredDnsZones.Add(new DeclaredDnsZoneResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var registrations = new MutableResourceRegistrationStore();
+
+        await provider.ApplyDeclarationAsync(
+            new ResourceDeclaration(
+                PlatformResourceProvider.ProviderId,
+                "dns:local",
+                null,
+                "group:app",
+                DateTimeOffset.UtcNow,
+                ["application:frontend"],
+                ResourceDeclarationPersistence.Transient),
+            registrations);
+
+        var zoneRegistration = registrations.GetRegistration("dns:local");
+        var mappingRegistration = registrations.GetRegistration("dns:local:name:api-local");
+        Assert.NotNull(zoneRegistration);
+        Assert.NotNull(mappingRegistration);
+        Assert.Equal("group:app", zoneRegistration.ResourceGroupId);
+        Assert.Equal("group:app", mappingRegistration.ResourceGroupId);
+        Assert.Equal(
+            ["application:api", "application:frontend"],
+            zoneRegistration.DependsOn.Order(StringComparer.OrdinalIgnoreCase));
+        Assert.Equal(["application:api"], mappingRegistration.DependsOn);
+    }
+
+    [Fact]
     public void PlatformResources_ProjectDnsNameMappingConflicts()
     {
         var services = new ServiceCollection();

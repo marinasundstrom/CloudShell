@@ -130,7 +130,10 @@ expectations rather than duplicating the task queue.
   are registered as inspectable Resource Manager resource types. Resource
   Manager can now create a DNS Zone and optionally include one initial name
   mapping, and it can add standalone name mappings to an existing DNS zone.
-  Update/delete editing for existing name mappings remains deferred.
+  Name mappings are now registered as platform child resources so the normal
+  Resource Manager delete flow can remove a mapping from its parent DNS zone
+  and refresh the zone dependencies. Update editing for existing name mappings
+  remains deferred.
   DNS zones and name mappings do not expose lifecycle status because they are
   logical model resources rather than runtime services. `Resource.State` is
   optional; `null` means no lifecycle status is produced, while `Unknown`

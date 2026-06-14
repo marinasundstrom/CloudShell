@@ -276,12 +276,11 @@ public sealed class PlatformResourceProvider(
     {
         var normalized = NormalizeDnsZone(definition);
         store.SaveDnsZone(normalized);
-        await registrations.RegisterAsync(
-            Id,
-            normalized.Id,
-            NormalizeGroupId(resourceGroupId),
-            CreateDnsZoneDependencies(normalized),
-            cancellationToken);
+        await RegisterDnsZoneAsync(
+            normalized,
+            resourceGroupId,
+            registrations,
+            cancellationToken: cancellationToken);
     }
 
     public async Task SetupNameMappingAsync(
@@ -312,11 +311,18 @@ public sealed class PlatformResourceProvider(
 
         store.SaveDnsZone(updated);
         var existingRegistration = registrations.GetRegistration(updated.Id);
+        var normalizedGroupId = NormalizeGroupId(resourceGroupId) ?? existingRegistration?.ResourceGroupId;
         await registrations.RegisterAsync(
             Id,
             updated.Id,
-            NormalizeGroupId(resourceGroupId) ?? existingRegistration?.ResourceGroupId,
+            normalizedGroupId,
             CreateDnsZoneDependencies(updated),
+            cancellationToken);
+        await registrations.RegisterAsync(
+            Id,
+            mapping.Id,
+            normalizedGroupId,
+            CreateNameMappingDependencies(mapping),
             cancellationToken);
     }
 
@@ -355,6 +361,11 @@ public sealed class PlatformResourceProvider(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
+        if (string.Equals(context.Resource.EffectiveTypeId, NameMappingResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            return await DeleteNameMappingAsync(context, cancellationToken);
+        }
+
         if (string.Equals(context.Resource.EffectiveTypeId, VolumeResourceType, StringComparison.OrdinalIgnoreCase))
         {
             EnsureVolumeIsNotInUse(context);
@@ -377,6 +388,43 @@ public sealed class PlatformResourceProvider(
             cleanupResult is null
                 ? "Platform resource registration removed."
                 : $"{cleanupResult.Message} Platform resource registration removed.");
+    }
+
+    private async Task<ResourceProcedureResult> DeleteNameMappingAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken)
+    {
+        var zoneResourceId = NormalizeNullable(context.Resource.ParentResourceId)
+            ?? throw new InvalidOperationException(
+                $"Name mapping resource '{context.Resource.Id}' does not identify a parent DNS zone.");
+        var zone = store.GetDnsZone(zoneResourceId)
+            ?? throw new InvalidOperationException(
+                $"DNS zone resource '{zoneResourceId}' was not found.");
+        var mappings = zone.DnsNameMappings
+            .Where(mapping => !string.Equals(mapping.Id, context.Resource.Id, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (mappings.Length == zone.DnsNameMappings.Count)
+        {
+            throw new InvalidOperationException(
+                $"Name mapping resource '{context.Resource.Id}' was not found in DNS zone '{zoneResourceId}'.");
+        }
+
+        var updated = NormalizeDnsZone(zone with { Mappings = mappings });
+        store.SaveDnsZone(updated);
+        await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
+        var zoneRegistration = context.Registrations.GetRegistration(updated.Id);
+        if (zoneRegistration is not null)
+        {
+            await context.Registrations.RegisterAsync(
+                Id,
+                updated.Id,
+                zoneRegistration.ResourceGroupId,
+                CreateDnsZoneDependencies(updated),
+                cancellationToken);
+        }
+
+        return ResourceProcedureResult.Completed(
+            $"Name mapping '{context.Resource.Name}' removed from DNS zone '{updated.Name}'.");
     }
 
     private static void EnsureVolumeIsNotInUse(ResourceProcedureContext context)
@@ -674,6 +722,27 @@ public sealed class PlatformResourceProvider(
                 cancellationToken);
         }
 
+        var declaredDnsZone = options.DeclaredDnsZones.FirstOrDefault(zone =>
+            string.Equals(zone.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase));
+
+        if (declaredDnsZone is not null)
+        {
+            var normalized = NormalizeDnsZone(declaredDnsZone.Definition);
+            if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
+            {
+                store.SaveDnsZone(
+                    normalized,
+                    persist: true);
+            }
+
+            return RegisterDnsZoneAsync(
+                normalized,
+                declaration.ResourceGroupId,
+                registrations,
+                declaration.DependsOn,
+                cancellationToken);
+        }
+
         var declaredLoadBalancer = options.DeclaredLoadBalancers.FirstOrDefault(loadBalancer =>
                 string.Equals(loadBalancer.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException(
@@ -700,6 +769,34 @@ public sealed class PlatformResourceProvider(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
             cancellationToken);
+    }
+
+    private async Task RegisterDnsZoneAsync(
+        DnsZoneResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        IReadOnlyList<string>? extraDependencies = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedGroupId = NormalizeGroupId(resourceGroupId);
+        await registrations.RegisterAsync(
+            Id,
+            definition.Id,
+            normalizedGroupId,
+            CreateDnsZoneDependencies(definition)
+                .Concat(extraDependencies ?? [])
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            cancellationToken);
+        foreach (var mapping in definition.DnsNameMappings)
+        {
+            await registrations.RegisterAsync(
+                Id,
+                mapping.Id,
+                normalizedGroupId,
+                CreateNameMappingDependencies(mapping),
+                cancellationToken);
+        }
     }
 
     public bool CanDescribe(Resource resource) =>
