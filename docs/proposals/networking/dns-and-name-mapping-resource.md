@@ -224,6 +224,44 @@ For a name mapping:
 4. The selected provider resource must advertise the required DNS or name-publishing capability.
 5. Provider-owned validation handles runtime-specific constraints.
 
+### Local Development Host Name Publication
+
+CloudShell should support a local development name-publishing provider that
+can materialize host names on the developer machine or local host network. This
+should be modeled as provider-backed DNS/name mapping, not as special behavior
+on application resources.
+
+The recommended default is a CloudShell-owned or environment-owned suffix such
+as `cloudshell.local`, `dev.local`, or a project-specific development suffix,
+with explicit host mappings first:
+
+```csharp
+var dns = resources
+    .AddDnsZone("dns:dev", "Development DNS", "cloudshell.local")
+    .UseProvider("local-hostnames");
+
+dns.MapHost("api.cloudshell.local", api, "http");
+dns.MapHost("app.cloudshell.local", frontend, "http");
+```
+
+Wildcard suffixes such as `*.cloudshell.local` may be useful when a local
+resolver, proxy, or provider-owned DNS service can safely route the whole
+suffix to CloudShell-managed endpoints. Wildcard publication should be
+provider-specific and opt-in, because not every local mechanism can express or
+safely own a wildcard. The provider must be explicit about whether it is
+publishing exact host mappings, a wildcard suffix, or both.
+
+Using `*.local` directly should not be the default. `.local` is commonly used
+by mDNS/Bonjour and may conflict with OS or network resolver behavior. A local
+provider can allow `.local` suffixes when the operator explicitly chooses that
+suffix, but Resource Manager should warn that the suffix may conflict with
+existing local name-resolution behavior. Safer defaults should prefer a
+CloudShell/project suffix beneath a development domain.
+
+The first local provider should focus on exact host mappings and
+`reconcileNameMappings`. Later providers can add wildcard suffix support when
+they have a resolver mechanism that can own the suffix cleanly.
+
 ## Relationship to Load Balancers and Ingress
 
 Load balancers and ingress resources may reference DNS names, but they should not own DNS records directly.
@@ -446,7 +484,10 @@ decides later whether and how a specific name is materialized.
    selected publisher resources, and missing activated publisher
    implementations before delegating to the provider.
 10. Add provider-backed examples for load balancer and virtual network integration.
-11. Add a local development provider for host-based name publication.
+11. Add a local development provider for host-based name publication. Start
+    with exact host mappings under an explicit development suffix, then add
+    provider-specific wildcard suffix support when the provider can safely own
+    that suffix. `*.local` should remain opt-in with a conflict warning.
 12. Add a post-MVP sample that uses network-level service discovery through a
     provider such as a local registry or Eureka-like service.
 
@@ -459,7 +500,9 @@ decides later whether and how a specific name is materialized.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add create/update blocking or guided resolution for duplicate names in the
   same scope when DNS/name mappings are authored through Resource Manager.
-* Add local host-provider implementation for `INamePublishingProvider`.
+* Add local host-provider implementation for `INamePublishingProvider`,
+  including explicit development suffix selection and warnings for `.local`
+  suffixes.
 * Add provider diagnostics for names that cannot be published.
 * Add UI affordances for authoring and resolving name mappings.
 * Add integration examples with virtual networks and ingress resources.

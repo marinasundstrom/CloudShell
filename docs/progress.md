@@ -143,8 +143,12 @@ expectations rather than duplicating the task queue.
   `INamePublishingProvider` contract and DNS zone action are now in place for
   zones with provider intent, including action-availability reasons when the
   selected publisher is invalid or no activated implementation can reconcile
-  it. Concrete host/DNS publisher implementations and observed applied,
-  unknown, drifted, or failed materialization state remain follow-up work.
+  it. The next MVP networking slice is a concrete local development publisher
+  for exact host mappings under an explicit suffix, with `.local` conflict
+  warnings and `reconcileNameMappings` as the re-apply path. Wildcard suffixes,
+  public DNS propagation, provider-backed network-level service registries, and
+  observed applied, unknown, drifted, or failed materialization state remain
+  provider-specific follow-up work.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the

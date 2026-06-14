@@ -88,47 +88,57 @@ listed here before pulling in broader proposal work.
    public endpoints, load-balancer routes, and logical DNS/name mappings form
    one understandable Resource Manager workflow. Keep `cloudshell.service`
    optional for logical facades, imported services, non-application targets,
-   and advanced routing instead of making it a required MVP hop. Do not expand
-   `cloudshell.service` semantics further until the shared deployment and
-   orchestrator service model is clearer.
-2. Stateful application foundation: continue the storage and volume-mapping
+   and advanced routing instead of making it a required MVP hop. The next
+   networking implementation slice is a local development name-publishing
+   provider for exact host mappings under an explicit development suffix,
+   using `reconcileNameMappings`; wildcard suffixes and public DNS propagation
+   stay provider-specific and out of the MVP path unless a sample proves they
+   are required. Do not expand `cloudshell.service` semantics further until the
+   shared deployment and orchestrator service model is clearer.
+2. Resource Manager convergence for the same path: keep the app resource page
+   as the operator entry point for endpoints, discovery, storage, identity,
+   logs, traces, activity, and inbound name mappings. Fix UI consistency and
+   generated details when they block understanding of those resources, but do
+   not start broad new shell areas before the supported samples are stable.
+3. Stateful application foundation: continue the storage and volume-mapping
    path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
-   and container app volume mounts exist. Next slices should materialize mounts
-   in runtime providers, show storage relationships from both the volume and
-   consuming resource, and continue the temporary Local Storage provider as a
-   bridge toward capability-based storage resources where provider-owned
-   storage locations can contain provider-defined volume sub-items. Storage is
-   the resource class, Local Storage is the first concrete storage kind, and
-   `FileSystem` is the medium it announces. Future hosts must validate that
-   they can materialize the medium before accepting a volume mount.
-3. Identity validation beyond the built-in provider: keep the built-in
+   and container app volume mounts exist. Next slices should show storage
+   relationships from both the volume and consuming resource and continue the
+   temporary Local Storage provider as a bridge toward capability-based storage
+   resources where provider-owned storage locations can contain
+   provider-defined volume sub-items. Storage is the resource class, Local
+   Storage is the first concrete storage kind, and `FileSystem` is the medium
+   it announces. Future hosts must validate that they can materialize the
+   medium before accepting a volume mount.
+4. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
-   identity and permission model against one third-party OIDC/OAuth provider.
-4. MVP convergence and Resource Manager reliability: keep supported samples
+   identity and permission model against one third-party OIDC/OAuth provider,
+   with automated smoke coverage before adding broader IAM UI.
+5. MVP convergence and Resource Manager reliability: keep supported samples
    green, tighten generated resource details, lifecycle actions, activity
    records, diagnostics, and state transitions around the flows that already
    work.
-5. Configuration, secrets, and identity polish: finish the visible
+6. Configuration, secrets, and identity polish: finish the visible
    settings/secrets assignment and reference experience, keep identity opt-in
    for early modeling, and close only the built-in access gaps needed by those
    flows.
-6. Lifecycle traceability and audit: harden the common lifecycle procedure,
+7. Lifecycle traceability and audit: harden the common lifecycle procedure,
    dependency-start activity, resource-event filtering, and the first audit
    schemas for MVP operations.
-7. Host and runtime foundation: complete the shared host diagnostics needed by
+8. Host and runtime foundation: complete the shared host diagnostics needed by
    container apps, Docker Compose, and provider-owned runtime infrastructure,
    building on the Resource Manager shutdown path that now stops host-scoped
    workloads while leaving detached workloads recoverable.
-8. Network and routing hardening: tighten host-readiness, provider selection,
+9. Network and routing hardening: tighten host-readiness, provider selection,
    route conflicts, endpoint conflicts, configuration preview, and backend
    diagnostics for the supported samples.
-9. Remote Docker host completion: finish concrete remote-host registration and
+10. Remote Docker host completion: finish concrete remote-host registration and
    credentials if it validates the host model, but do not let it block the
    local/default container-host MVP path.
-10. Runtime-managed resources and deployment model: make only the ownership,
+11. Runtime-managed resources and deployment model: make only the ownership,
    cleanup, current-revision, and diagnostics decisions needed by provider-owned
    runtime and image updates.
-11. Advanced app and environment concepts: defer autoscaling, backend pools,
+12. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection, container
    application environments, and the initial on-premise hosting scenario.
@@ -176,10 +186,11 @@ listed here before pulling in broader proposal work.
   delete flow while updating the parent zone. DNS zones with provider intent
   now expose a permissioned `reconcileNameMappings` action through the initial
   `INamePublishingProvider` contract, with availability reasons for missing
-  activated publisher implementations. Next it needs a concrete local
-  publisher when a sample requires real name publication, provider runtime
-  publish diagnostics, and update UI for existing name mappings when the MVP
-  management flow needs it.
+  activated publisher implementations. The next MVP slice is a concrete local
+  development publisher for exact host mappings under an explicit suffix,
+  including `.local` conflict warnings. Provider runtime publish diagnostics
+  and update UI for existing name mappings should follow when the MVP
+  management flow needs them.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when
@@ -412,9 +423,11 @@ listed here before pulling in broader proposal work.
   name publisher is active. DNS/name resources should remain lifecycle-less,
   and provider-backed DNS publication now has the initial
   `reconcileNameMappings` action and name-publishing provider contract so
-  operators can force re-apply expected records. Concrete publisher
-  implementations and observed external DNS state such as applied, unknown,
-  drifted, or failed remain the next provider-specific work.
+  operators can force re-apply expected records. The next concrete provider
+  work is exact local host-name publication under an explicit development
+  suffix, plus `.local` conflict warnings. Wildcard suffixes, public DNS
+  propagation, and observed external DNS states such as applied, unknown,
+  drifted, or failed remain provider-specific follow-up work.
 - Continue load balancer support beyond the first Traefik file-config provider.
   Generated Resource Manager diagnostics now cover missing selected host
   resources and missing route target resources/endpoints; next add provider
