@@ -513,15 +513,25 @@ public sealed class SampleSmokeTests
 
         var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
         using var resourcesDocument = JsonDocument.Parse(resourcesJson);
-        var loadBalancer = Assert.Single(resourcesDocument.RootElement.EnumerateArray(), resource =>
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var loadBalancer = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "load-balancer:public");
-        var api = Assert.Single(resourcesDocument.RootElement.EnumerateArray(), resource =>
+        var api = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:api");
-        var postgres = Assert.Single(resourcesDocument.RootElement.EnumerateArray(), resource =>
+        var postgres = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:postgres");
+        var dnsZone = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:local");
+        var appName = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:local:name:app-local");
+        var apiName = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:local:name:api-local");
         var attributes = loadBalancer.GetProperty("attributes");
         var apiAttributes = api.GetProperty("attributes");
         var postgresAttributes = postgres.GetProperty("attributes");
+        var dnsAttributes = dnsZone.GetProperty("attributes");
+        var appNameAttributes = appName.GetProperty("attributes");
+        var apiNameAttributes = apiName.GetProperty("attributes");
 
         Assert.Equal("cloudshell.loadBalancer", loadBalancer.GetProperty("typeId").GetString());
         Assert.Equal("traefik", attributes.GetProperty("loadBalancer.provider").GetString());
@@ -531,6 +541,16 @@ public sealed class SampleSmokeTests
         Assert.Equal("traefik/whoami:v1.10", apiAttributes.GetProperty("container.image").GetString());
         Assert.Equal("3", apiAttributes.GetProperty("container.replicas").GetString());
         Assert.Equal("postgres:16-alpine", postgresAttributes.GetProperty("container.image").GetString());
+        Assert.Equal("cloudshell.dnsZone", dnsZone.GetProperty("typeId").GetString());
+        Assert.Equal("2", dnsAttributes.GetProperty("dns.records").GetString());
+        Assert.Equal("cloudshell.nameMapping", appName.GetProperty("typeId").GetString());
+        Assert.Equal("app.local", appNameAttributes.GetProperty("nameMapping.hostName").GetString());
+        Assert.Equal("load-balancer:public", appNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
+        Assert.Equal("http", appNameAttributes.GetProperty("nameMapping.targetEndpointName").GetString());
+        Assert.Equal("LogicalOnly", appNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
+        Assert.Equal("api.local", apiNameAttributes.GetProperty("nameMapping.hostName").GetString());
+        Assert.Equal("load-balancer:public", apiNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
+        Assert.Equal("LogicalOnly", apiNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
 
         var applyAction = loadBalancer
             .GetProperty("resourceActions")

@@ -121,7 +121,10 @@ expectations rather than duplicating the task queue.
   attributes. Name-mapping resources also now project materialization status:
   mappings without a publishing provider are marked as logical-only and shown
   as diagnostics so users know CloudShell is modeling the name but not
-  publishing DNS records for it.
+  publishing DNS records for it. The Load Balancer sample now declares a
+  logical Local DNS zone for `app.local` and `api.local` that targets the
+  public load-balancer frontend, demonstrating the distinction between host
+  routing and DNS/name publication.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the

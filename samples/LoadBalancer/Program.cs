@@ -99,6 +99,11 @@ cloudShell.Resources(resources =>
     lb.MapHost("app.local", webApp, port: 80);
     lb.MapPath("api.local", "/v1", apiService, port: 80);
     lb.MapTcp(5432, postgres, targetPort: 5432);
+
+    resources
+        .AddDnsZone("local", "Local DNS", "local")
+        .MapHost("app.local", lb, "http")
+        .MapHost("api.local", lb, "http");
 });
 
 var app = builder.Build();

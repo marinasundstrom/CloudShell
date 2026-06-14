@@ -376,7 +376,9 @@ decides later whether and how a specific name is materialized.
    materialization status as diagnostics.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
    Done for logical-only DNS name mappings without a selected publisher.
-8. Add sample declarations for local DNS-style mappings.
+8. Add sample declarations for local DNS-style mappings. Done in the Load
+   Balancer sample for `app.local` and `api.local` targeting the public
+   load-balancer frontend.
 9. Add provider-backed examples for load balancer and virtual network integration.
 10. Add a local development provider for host-based name publication.
 11. Add a post-MVP sample that uses network-level service discovery through a
@@ -394,7 +396,7 @@ decides later whether and how a specific name is materialized.
 * Add local host-provider implementation.
 * Add provider diagnostics for names that cannot be published.
 * Add UI affordances for authoring and resolving name mappings.
-* Add integration examples with virtual networks, load balancers, and ingress resources.
+* Add integration examples with virtual networks and ingress resources.
 * Decide the first provider-backed network-level service discovery sample.
 
 ## Open Questions

@@ -165,9 +165,10 @@ listed here before pulling in broader proposal work.
   overview pages for internal names and custom domain names. Initial logical
   conflict status and generated overview diagnostics exist for duplicate names
   in the same zone/scope, and logical-only mappings now warn that no provider
-  will publish DNS records for them; next it needs provider-specific
-  publish/materialization diagnostics and a dedicated create/update UI when the
-  MVP management flow needs UI-authored names.
+  will publish DNS records for them. The Load Balancer sample now declares
+  local DNS-style names that target the load-balancer frontend; next it needs
+  provider-specific publish/materialization diagnostics and a dedicated
+  create/update UI when the MVP management flow needs UI-authored names.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when

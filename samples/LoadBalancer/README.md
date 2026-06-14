@@ -7,6 +7,12 @@ with backend entries for the target container app instances. Starting the
 load-balancer resource starts the provider-owned Traefik container on the
 selected Docker host.
 
+The sample also declares a logical **Local DNS** zone with `app.local` and
+`api.local` name mappings that target the public load balancer frontend. Those
+resources make the intended names visible in Resource Manager. They do not
+publish DNS records yet, so the name-mapping resources show a logical-only
+diagnostic until a DNS publishing provider is selected.
+
 ```bash
 dotnet run --project samples/LoadBalancer/CloudShell.LoadBalancer.csproj -- --urls http://localhost:5011
 ```
@@ -27,7 +33,8 @@ curl http://localhost:5081/
 
 The HTTP routes are host-based, so `http://localhost/` is not a configured
 public load-balancer route. Use the declared hosts after starting the public
-load balancer:
+load balancer. Because the sample only models DNS names, use `--resolve` to
+provide local name resolution:
 
 ```bash
 curl --resolve app.local:80:127.0.0.1 http://app.local/
