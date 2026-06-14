@@ -16,6 +16,13 @@ var dynamicConfigurationDirectory = Path.Combine(
     builder.Environment.ContentRootPath,
     "Data",
     "traefik");
+var localHostsFilePath = Environment.GetEnvironmentVariable("CLOUDSHELL_LOCAL_HOSTS_FILE");
+if (!string.IsNullOrWhiteSpace(localHostsFilePath))
+{
+    builder.Services
+        .GetOrAddPlatformResourceOptions()
+        .LocalHostNameHostsFilePath = localHostsFilePath;
+}
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -96,14 +103,15 @@ cloudShell.Resources(resources =>
         .ExposeHttps(443)
         .ExposeTcp(5432, "postgres");
 
-    lb.MapHost("app.local", webApp, port: 80);
-    lb.MapPath("api.local", "/v1", apiService, port: 80);
+    lb.MapHost("app.cloudshell.local", webApp, port: 80);
+    lb.MapPath("api.cloudshell.local", "/v1", apiService, port: 80);
     lb.MapTcp(5432, postgres, targetPort: 5432);
 
     resources
-        .AddDnsZone("local", "Local DNS", "local")
-        .MapHost("app.local", lb, "http")
-        .MapHost("api.local", lb, "http");
+        .AddDnsZone("cloudshell-local", "CloudShell Local DNS", "cloudshell.local")
+        .UseLocalHostNames()
+        .MapHost("app.cloudshell.local", lb, "http")
+        .MapHost("api.cloudshell.local", lb, "http");
 });
 
 var app = builder.Build();

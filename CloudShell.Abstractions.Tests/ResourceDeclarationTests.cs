@@ -3634,6 +3634,31 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void PlatformResources_DeclareDnsZoneWithLocalHostNameProvider()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var api = resources.Declare("applications", "application:api");
+
+                resources
+                    .AddDnsZone("dev", "Development DNS", "cloudshell.local")
+                    .UseLocalHostNames()
+                    .MapHost("api.cloudshell.local", api, "http");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var declaredZone = Assert.Single(options.DeclaredDnsZones).Definition;
+
+        Assert.Equal(LocalHostNamePublishingProvider.DefaultProviderName, declaredZone.Provider);
+        Assert.Equal("api.cloudshell.local", Assert.Single(declaredZone.DnsNameMappings).HostName);
+    }
+
+    [Fact]
     public async Task PlatformProvider_ReconcilesDnsNameMappingsWithActivatedProvider()
     {
         var definition = new DnsZoneResourceDefinition(

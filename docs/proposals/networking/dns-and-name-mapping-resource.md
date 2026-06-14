@@ -258,8 +258,10 @@ suffix, but Resource Manager should warn that the suffix may conflict with
 existing local name-resolution behavior. Safer defaults should prefer a
 CloudShell/project suffix beneath a development domain.
 
-The first local provider should focus on exact host mappings and
-`reconcileNameMappings`. Later providers can add wildcard suffix support when
+The first local provider supports exact host mappings through
+`local-hostnames` and `reconcileNameMappings`. It writes a CloudShell-managed
+block to a hosts-file style target and can be pointed at a custom file for
+safe development/testing. Later providers can add wildcard suffix support when
 they have a resolver mechanism that can own the suffix cleanly.
 
 ## Relationship to Load Balancers and Ingress
@@ -484,8 +486,9 @@ decides later whether and how a specific name is materialized.
    selected publisher resources, and missing activated publisher
    implementations before delegating to the provider.
 10. Add provider-backed examples for load balancer and virtual network integration.
-11. Add a local development provider for host-based name publication. Start
-    with exact host mappings under an explicit development suffix, then add
+11. Add a local development provider for host-based name publication. Initial
+    support is in place for exact host mappings under an explicit development
+    suffix with `local-hostnames` and `UseLocalHostNames()`. Next add
     provider-specific wildcard suffix support when the provider can safely own
     that suffix. `*.local` should remain opt-in with a conflict warning.
 12. Add a post-MVP sample that uses network-level service discovery through a
@@ -500,11 +503,10 @@ decides later whether and how a specific name is materialized.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add create/update blocking or guided resolution for duplicate names in the
   same scope when DNS/name mappings are authored through Resource Manager.
-* Add local host-provider implementation for `INamePublishingProvider`,
-  including explicit development suffix selection and warnings for `.local`
-  suffixes.
+* Add Resource Manager UI affordances for choosing the local host-name
+  publisher and warning about `.local` suffixes before creation.
 * Add provider diagnostics for names that cannot be published.
-* Add UI affordances for authoring and resolving name mappings.
+* Add richer UI affordances for authoring and resolving name mappings.
 * Add integration examples with virtual networks and ingress resources.
 * Decide the first provider-backed network-level service discovery sample.
 

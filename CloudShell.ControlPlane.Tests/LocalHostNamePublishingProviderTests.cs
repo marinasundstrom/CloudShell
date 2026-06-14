@@ -1,0 +1,317 @@
+using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
+
+namespace CloudShell.ControlPlane.Tests;
+
+public sealed class LocalHostNamePublishingProviderTests
+{
+    [Fact]
+    public async Task PlatformProvider_ReconcileNameMappingsActionPublishesLocalHostNames()
+    {
+        var contentRoot = CreateTempDirectory();
+        var hostsPath = Path.Combine(contentRoot, "hosts");
+        var options = new PlatformResourceOptions
+        {
+            DefinitionsPath = "platform-resources.json",
+            LocalHostNameHostsFilePath = hostsPath
+        };
+        var store = new PlatformResourceStore(options, new TestHostEnvironment(contentRoot));
+        var localPublisher = new LocalHostNamePublishingProvider(options);
+        var platform = new PlatformResourceProvider(
+            store,
+            options,
+            namePublishingProviders: [localPublisher]);
+        await platform.SetupDnsZoneAsync(
+            new DnsZoneResourceDefinition(
+                "dns:dev",
+                "Development DNS",
+                "cloudshell.local",
+                Provider: LocalHostNamePublishingProvider.DefaultProviderName,
+                Mappings:
+                [
+                    new DnsNameMappingDefinition(
+                        "dns:dev:name:api",
+                        "api.cloudshell.local",
+                        "api.cloudshell.local",
+                        "application:api",
+                        "http")
+                ]),
+            null,
+            new TestResourceRegistrationStore([]));
+        var zone = platform.GetResources().Single(resource => resource.Id == "dns:dev");
+        var api = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [ResourceEndpoint.Http("http", "localhost", 5080)],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            []);
+
+        var result = await platform.ExecuteActionAsync(
+            new ResourceProcedureContext(
+                zone,
+                null,
+                null,
+                new TestResourceRegistrationStore([]),
+                new TestResourceManagerStore([zone, api])),
+            zone.ResourceActions.Single(action =>
+                action.Id == PlatformResourceProvider.ReconcileNameMappingsActionId));
+
+        var content = await File.ReadAllTextAsync(hostsPath);
+        Assert.Contains("Published 1 local host name mapping", result.Message);
+        Assert.Contains("127.0.0.1 api.cloudshell.local", content);
+    }
+
+    [Fact]
+    public async Task ReconcileAsync_WritesExactHostMappingsToConfiguredHostsFile()
+    {
+        var contentRoot = CreateTempDirectory();
+        var hostsPath = Path.Combine(contentRoot, "hosts");
+        await File.WriteAllTextAsync(hostsPath, "127.0.0.1 localhost" + Environment.NewLine);
+        var provider = new LocalHostNamePublishingProvider(new PlatformResourceOptions
+        {
+            LocalHostNameHostsFilePath = hostsPath
+        });
+
+        var result = await provider.ReconcileAsync(CreateContext(
+            "cloudshell.local",
+            "api.cloudshell.local",
+            ResourceEndpoint.Http("http", "localhost", 5080)));
+
+        var content = await File.ReadAllTextAsync(hostsPath);
+        Assert.Contains("Published 1 local host name mapping", result.Message);
+        Assert.Contains("127.0.0.1 localhost", content);
+        Assert.Contains("# BEGIN CloudShell local hostnames", content);
+        Assert.Contains("127.0.0.1 api.cloudshell.local", content);
+        Assert.Contains("# END CloudShell local hostnames", content);
+    }
+
+    [Fact]
+    public async Task ReconcileAsync_ReplacesPreviousCloudShellBlock()
+    {
+        var contentRoot = CreateTempDirectory();
+        var hostsPath = Path.Combine(contentRoot, "hosts");
+        await File.WriteAllTextAsync(
+            hostsPath,
+            string.Join(
+                Environment.NewLine,
+                [
+                    "127.0.0.1 localhost",
+                    "# BEGIN CloudShell local hostnames",
+                    "127.0.0.1 old.cloudshell.local",
+                    "# END CloudShell local hostnames",
+                    string.Empty
+                ]));
+        var provider = new LocalHostNamePublishingProvider(new PlatformResourceOptions
+        {
+            LocalHostNameHostsFilePath = hostsPath
+        });
+
+        await provider.ReconcileAsync(CreateContext(
+            "cloudshell.local",
+            "api.cloudshell.local",
+            ResourceEndpoint.Http("http", "127.0.0.1", 5080)));
+
+        var content = await File.ReadAllTextAsync(hostsPath);
+        Assert.DoesNotContain("old.cloudshell.local", content);
+        Assert.Contains("127.0.0.1 localhost", content);
+        Assert.Contains("127.0.0.1 api.cloudshell.local", content);
+    }
+
+    [Fact]
+    public async Task ReconcileAsync_WarnsForLocalSuffix()
+    {
+        var contentRoot = CreateTempDirectory();
+        var hostsPath = Path.Combine(contentRoot, "hosts");
+        var provider = new LocalHostNamePublishingProvider(new PlatformResourceOptions
+        {
+            LocalHostNameHostsFilePath = hostsPath
+        });
+
+        var result = await provider.ReconcileAsync(CreateContext(
+            "local",
+            "api.local",
+            ResourceEndpoint.Http("http", "localhost", 5080)));
+
+        Assert.Contains(".local host names may conflict", result.Message);
+    }
+
+    [Fact]
+    public async Task ReconcileAsync_RejectsWildcardHostMappings()
+    {
+        var contentRoot = CreateTempDirectory();
+        var hostsPath = Path.Combine(contentRoot, "hosts");
+        var provider = new LocalHostNamePublishingProvider(new PlatformResourceOptions
+        {
+            LocalHostNameHostsFilePath = hostsPath
+        });
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.ReconcileAsync(CreateContext(
+                "cloudshell.local",
+                "*.cloudshell.local",
+                ResourceEndpoint.Http("http", "localhost", 5080))));
+
+        Assert.Contains("only supports exact host mappings", exception.Message);
+    }
+
+    [Fact]
+    public async Task ReconcileAsync_RejectsNonLocalEndpointHosts()
+    {
+        var contentRoot = CreateTempDirectory();
+        var hostsPath = Path.Combine(contentRoot, "hosts");
+        var provider = new LocalHostNamePublishingProvider(new PlatformResourceOptions
+        {
+            LocalHostNameHostsFilePath = hostsPath
+        });
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.ReconcileAsync(CreateContext(
+                "cloudshell.local",
+                "api.cloudshell.local",
+                ResourceEndpoint.Http("http", "api.internal", 5080))));
+
+        Assert.Contains("is not a local or IP address", exception.Message);
+    }
+
+    private static DnsNamePublishingContext CreateContext(
+        string zoneName,
+        string hostName,
+        ResourceEndpoint endpoint)
+    {
+        var zone = new DnsZoneResourceDefinition(
+            "dns:dev",
+            "Development DNS",
+            zoneName,
+            Provider: LocalHostNamePublishingProvider.DefaultProviderName,
+            Mappings:
+            [
+                new DnsNameMappingDefinition(
+                    "dns:dev:name:api",
+                    hostName,
+                    hostName,
+                    "application:api",
+                    endpoint.Name)
+            ]);
+        var zoneResource = new Resource(
+            zone.Id,
+            zone.Name,
+            "DNS Zone",
+            "CloudShell",
+            "logical",
+            null,
+            [],
+            zone.ZoneName,
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.DnsZoneResourceType,
+            ResourceClass: ResourceClass.Network);
+        var target = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [endpoint],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            []);
+        var mapping = new DnsNameMappingResolution(
+            zone.DnsNameMappings.Single(),
+            target,
+            endpoint);
+
+        return new DnsNamePublishingContext(
+            zoneResource,
+            zone,
+            [mapping],
+            [],
+            new TestResourceManagerStore([zoneResource, target]));
+    }
+
+    private static string CreateTempDirectory()
+    {
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private sealed class TestResourceManagerStore(IReadOnlyList<Resource> resources) : IResourceManagerStore
+    {
+        public IReadOnlyList<IResourceProvider> Providers => [];
+
+        public IReadOnlyList<ResourceGroup> GetResourceGroups() => [];
+
+        public IReadOnlyList<Resource> GetAvailableResources() => resources;
+
+        public IReadOnlyList<Resource> GetResources() => resources;
+
+        public IReadOnlyList<ResourceModelDiagnostic> GetResourceModelDiagnostics() => [];
+
+        public ResourceClass? GetResourceTypeClass(string resourceType) => null;
+
+        public Resource? GetResource(string id) =>
+            resources.FirstOrDefault(resource => string.Equals(resource.Id, id, StringComparison.OrdinalIgnoreCase));
+
+        public IReadOnlyList<Resource> GetChildren(string resourceId) => [];
+
+        public ResourceGroup? GetGroupForResource(string resourceId) => null;
+
+        public bool IsRegistered(string resourceId) => GetResource(resourceId) is not null;
+    }
+
+    private sealed class TestResourceRegistrationStore(
+        IReadOnlyList<ResourceRegistration> registrations) : IResourceRegistrationStore
+    {
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() => registrations;
+
+        public ResourceRegistration? GetRegistration(string resourceId) =>
+            registrations.FirstOrDefault(registration =>
+                string.Equals(registration.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
+
+        public Task RegisterAsync(
+            string providerId,
+            string resourceId,
+            string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task RemoveAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task AssignToGroupAsync(
+            string resourceId,
+            string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class TestHostEnvironment(string contentRootPath) : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = Environments.Development;
+
+        public string ApplicationName { get; set; } = "CloudShell.Tests";
+
+        public string ContentRootPath { get; set; } = contentRootPath;
+
+        public IFileProvider ContentRootFileProvider { get; set; } =
+            new PhysicalFileProvider(contentRootPath);
+    }
+}

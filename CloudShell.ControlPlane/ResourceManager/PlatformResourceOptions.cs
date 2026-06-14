@@ -10,6 +10,13 @@ public sealed class PlatformResourceOptions
 
     public int AutoLocalPortEnd { get; set; } = 29999;
 
+    public string LocalHostNameProviderName { get; set; } =
+        LocalHostNamePublishingProvider.DefaultProviderName;
+
+    public string? LocalHostNameHostsFilePath { get; set; }
+
+    public string LocalHostNameDefaultAddress { get; set; } = "127.0.0.1";
+
     public List<DeclaredNetworkResource> DeclaredNetworks { get; } = [];
 
     public List<DeclaredServiceResource> DeclaredServices { get; } = [];

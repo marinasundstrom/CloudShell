@@ -260,6 +260,13 @@ public static class PlatformResourceDeclarationExtensions
             });
     }
 
+    public static IDnsZoneResourceBuilder UseLocalHostNames(
+        this IDnsZoneResourceBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.UseProvider(LocalHostNamePublishingProvider.DefaultProviderName);
+    }
+
     public static PlatformResourceOptions GetOrAddPlatformResourceOptions(
         this IServiceCollection services)
     {

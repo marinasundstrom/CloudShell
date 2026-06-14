@@ -186,10 +186,11 @@ listed here before pulling in broader proposal work.
   delete flow while updating the parent zone. DNS zones with provider intent
   now expose a permissioned `reconcileNameMappings` action through the initial
   `INamePublishingProvider` contract, with availability reasons for missing
-  activated publisher implementations. The next MVP slice is a concrete local
-  development publisher for exact host mappings under an explicit suffix,
-  including `.local` conflict warnings. Provider runtime publish diagnostics
-  and update UI for existing name mappings should follow when the MVP
+  activated publisher implementations. A concrete local development publisher
+  now handles exact host mappings under an explicit suffix through
+  `local-hostnames`. Next it needs Resource Manager UI affordances for choosing
+  that publisher and warning about `.local`, provider runtime publish
+  diagnostics, and update UI for existing name mappings when the MVP
   management flow needs them.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
@@ -423,11 +424,12 @@ listed here before pulling in broader proposal work.
   name publisher is active. DNS/name resources should remain lifecycle-less,
   and provider-backed DNS publication now has the initial
   `reconcileNameMappings` action and name-publishing provider contract so
-  operators can force re-apply expected records. The next concrete provider
-  work is exact local host-name publication under an explicit development
-  suffix, plus `.local` conflict warnings. Wildcard suffixes, public DNS
-  propagation, and observed external DNS states such as applied, unknown,
-  drifted, or failed remain provider-specific follow-up work.
+  operators can force re-apply expected records. Exact local host-name
+  publication under an explicit development suffix is now implemented through
+  `local-hostnames`; next add UI selection and `.local` conflict warnings.
+  Wildcard suffixes, public DNS propagation, and observed external DNS states
+  such as applied, unknown, drifted, or failed remain provider-specific
+  follow-up work.
 - Continue load balancer support beyond the first Traefik file-config provider.
   Generated Resource Manager diagnostics now cover missing selected host
   resources and missing route target resources/endpoints; next add provider
