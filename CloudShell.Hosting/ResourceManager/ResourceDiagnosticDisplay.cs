@@ -48,6 +48,7 @@ public static class ResourceDiagnosticDisplay
         }
 
         AddNamePublisherDiagnostics(resource, relatedResources, diagnostics);
+        AddLoadBalancerDiagnostics(resource, relatedResources, diagnostics);
 
         return diagnostics;
     }
@@ -82,6 +83,88 @@ public static class ResourceDiagnosticDisplay
                 "DNS publisher capability missing",
                 $"Provider resource '{provider.Name}' does not advertise the DNS name publisher capability."));
         }
+    }
+
+    private static void AddLoadBalancerDiagnostics(
+        Resource resource,
+        IReadOnlyDictionary<string, Resource>? relatedResources,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        if (!IsLoadBalancerResource(resource))
+        {
+            return;
+        }
+
+        AddLoadBalancerHostDiagnostic(resource, relatedResources, diagnostics);
+        AddLoadBalancerRouteDiagnostics(resource, relatedResources, diagnostics);
+    }
+
+    private static void AddLoadBalancerHostDiagnostic(
+        Resource resource,
+        IReadOnlyDictionary<string, Resource>? relatedResources,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        var hostResourceId = GetLoadBalancerHostResourceId(resource);
+        if (string.IsNullOrWhiteSpace(hostResourceId))
+        {
+            return;
+        }
+
+        if (relatedResources is null ||
+            !relatedResources.TryGetValue(hostResourceId, out _))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Load balancer host unavailable",
+                $"Container host resource '{hostResourceId}' could not be found. Provider-owned load balancer runtime may not be placeable."));
+        }
+    }
+
+    private static void AddLoadBalancerRouteDiagnostics(
+        Resource resource,
+        IReadOnlyDictionary<string, Resource>? relatedResources,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        if (relatedResources is null)
+        {
+            return;
+        }
+
+        foreach (var route in resource.ResourceLoadBalancerRoutes)
+        {
+            if (!relatedResources.TryGetValue(route.Target.ResourceId, out var target))
+            {
+                diagnostics.Add(new ResourceDiagnosticView(
+                    "Warning",
+                    "Load balancer route target unavailable",
+                    $"Route '{route.Name}' targets resource '{route.Target.ResourceId}', but that resource could not be found."));
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(route.Target.EndpointName) &&
+                !target.Endpoints.Any(endpoint =>
+                    string.Equals(endpoint.Name, route.Target.EndpointName, StringComparison.OrdinalIgnoreCase)))
+            {
+                diagnostics.Add(new ResourceDiagnosticView(
+                    "Warning",
+                    "Load balancer route endpoint unavailable",
+                    $"Route '{route.Name}' targets endpoint '{route.Target.EndpointName}' on resource '{target.Name}', but that endpoint could not be found."));
+            }
+        }
+    }
+
+    private static bool IsLoadBalancerResource(Resource resource) =>
+        resource.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer) ||
+        resource.ResourceLoadBalancerRoutes.Count > 0 ||
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.LoadBalancerProvider);
+
+    private static string? GetLoadBalancerHostResourceId(Resource resource)
+    {
+        var hostResourceId = resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.LoadBalancerHostResourceId);
+        return string.IsNullOrWhiteSpace(hostResourceId) ||
+            string.Equals(hostResourceId, "default", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : hostResourceId;
     }
 }
 

@@ -630,6 +630,11 @@ expectations rather than duplicating the task queue.
   availability evaluation. Missing selected providers, host resources, route
   targets, and target endpoints surface as action capability reasons before the
   user invokes the action.
+- Resource Manager generated diagnostics now surface load-balancer readiness
+  issues for missing selected host resources, missing route target resources,
+  and missing route target endpoints. The default host marker is treated as the
+  implicit container-host selection and displayed as `Default container host`
+  instead of a broken resource reference.
 - `IResourceManager` publishes coarse `ResourcesChanged` notifications after
   resource-manager mutations. Resource Manager listens for those notifications
   and also polls the inventory so provider-discovered changes, such as runtime

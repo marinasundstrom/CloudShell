@@ -82,6 +82,106 @@ public sealed class ResourceDiagnosticDisplayTests
         Assert.Empty(diagnostics);
     }
 
+    [Fact]
+    public void GetDiagnostics_WarnsWhenLoadBalancerHostResourceIsMissing()
+    {
+        var loadBalancer = CreateLoadBalancer("docker:missing");
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            loadBalancer,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Load balancer host unavailable", diagnostic.Title);
+        Assert.Equal(
+            "Container host resource 'docker:missing' could not be found. Provider-owned load balancer runtime may not be placeable.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_DoesNotWarnForDefaultLoadBalancerHostMarker()
+    {
+        var loadBalancer = CreateLoadBalancer("default");
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            loadBalancer,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void GetDiagnostics_WarnsWhenLoadBalancerRouteTargetResourceIsMissing()
+    {
+        var loadBalancer = CreateLoadBalancer(
+            hostResourceId: null,
+            routes:
+            [
+                new LoadBalancerRoute(
+                    "api",
+                    "API",
+                    LoadBalancerRouteKind.Http,
+                    "web",
+                    new LoadBalancerRouteMatch("api.local", "/"),
+                    new LoadBalancerRouteTarget("application:api", "http"))
+            ]);
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            loadBalancer,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Load balancer route target unavailable", diagnostic.Title);
+        Assert.Equal(
+            "Route 'API' targets resource 'application:api', but that resource could not be found.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_WarnsWhenLoadBalancerRouteTargetEndpointIsMissing()
+    {
+        var loadBalancer = CreateLoadBalancer(
+            hostResourceId: null,
+            routes:
+            [
+                new LoadBalancerRoute(
+                    "api",
+                    "API",
+                    LoadBalancerRouteKind.Http,
+                    "web",
+                    new LoadBalancerRouteMatch("api.local", "/"),
+                    new LoadBalancerRouteTarget("application:api", "http"))
+            ]);
+        var target = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [ResourceEndpoint.Http("admin", "api.local", 8081)],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            ResourceClass: ResourceClass.Container);
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            loadBalancer,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
+            {
+                [target.Id] = target
+            });
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Load balancer route endpoint unavailable", diagnostic.Title);
+        Assert.Equal(
+            "Route 'API' targets endpoint 'http' on resource 'API', but that endpoint could not be found.",
+            diagnostic.Message);
+    }
+
     private static Resource CreateNameMapping(string providerResourceId) =>
         new(
             "dns:local:name:api-local",
@@ -106,4 +206,35 @@ public sealed class ResourceDiagnosticDisplayTests
                 [ResourceAttributeNames.NameMappingProviderResourceId] = providerResourceId
             },
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
+
+    private static Resource CreateLoadBalancer(
+        string? hostResourceId,
+        IReadOnlyList<LoadBalancerRoute>? routes = null)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.LoadBalancerProvider] = "traefik"
+        };
+        if (!string.IsNullOrWhiteSpace(hostResourceId))
+        {
+            attributes[ResourceAttributeNames.LoadBalancerHostResourceId] = hostResourceId;
+        }
+
+        return new Resource(
+            "load-balancer:public",
+            "Public",
+            "Load Balancer",
+            "CloudShell",
+            "local",
+            ResourceState.Stopped,
+            [ResourceEndpoint.Http("web", "localhost", 8080)],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.LoadBalancerResourceType,
+            ResourceClass: ResourceClass.Network,
+            Attributes: attributes,
+            Capabilities: [new(ResourceCapabilityIds.NetworkingLoadBalancer)],
+            LoadBalancerRoutes: routes);
+    }
 }

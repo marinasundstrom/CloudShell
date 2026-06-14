@@ -1562,8 +1562,14 @@
             : $"{label}:{target.Port.Value}";
     }
 
-    private static string? GetLoadBalancerHostResourceId(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.LoadBalancerHostResourceId);
+    private static string? GetLoadBalancerHostResourceId(Resource resource)
+    {
+        var hostResourceId = resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.LoadBalancerHostResourceId);
+        return string.IsNullOrWhiteSpace(hostResourceId) ||
+            string.Equals(hostResourceId, "default", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : hostResourceId;
+    }
 
     private string FormatResourceName(string resourceId) =>
         ResourceInventory.FirstOrDefault(resource =>

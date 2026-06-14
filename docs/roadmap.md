@@ -388,10 +388,11 @@ listed here before pulling in broader proposal work.
 - Add the first DNS/name mapping resource projection and UI path for local
   development names, with provider-materialization warnings when no capable
   name publisher is active.
-- Continue load balancer support beyond the first Traefik file-config provider
-  by adding provider validation diagnostics, configuration preview, route
-  conflict checks, target resolution diagnostics, and richer host/runtime
-  capability checks.
+- Continue load balancer support beyond the first Traefik file-config provider.
+  Generated Resource Manager diagnostics now cover missing selected host
+  resources and missing route target resources/endpoints; next add provider
+  validation diagnostics, configuration preview, route conflict checks, and
+  richer host/runtime capability checks.
 - Finish the provider-resource selection path so load-balancer
   `UseProvider(...)`, explicit host selection, and UI-created resources behave
   consistently.
