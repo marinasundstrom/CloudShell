@@ -366,7 +366,9 @@ decides later whether and how a specific name is materialized.
 4. Represent mappings as ordinary resources or provider-owned configuration
    with projected target references. Initial child-resource projection is in
    place for DNS zone mappings.
-5. Add validation for target existence and provider capability.
+5. Add validation for target existence and provider capability. Initial
+   logical conflict status is projected for duplicate host/scope mappings in
+   the same DNS zone.
 6. Add UI projection for DNS zones and name mappings. Initial target-side
    application overview projection is in place for inbound name mappings.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
@@ -380,9 +382,10 @@ decides later whether and how a specific name is materialized.
 
 * Add dedicated Resource Manager create/update UI for DNS zones and name
   mappings.
-* Add conflict and provider-materialization diagnostics for name mappings.
+* Add provider-materialization diagnostics for name mappings.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
-* Add conflict detection for duplicate names in the same scope.
+* Add create/update blocking or guided resolution for duplicate names in the
+  same scope when DNS/name mappings are authored through Resource Manager.
 * Add local host-provider implementation.
 * Add provider diagnostics for names that cannot be published.
 * Add UI affordances for name mappings on target resources.

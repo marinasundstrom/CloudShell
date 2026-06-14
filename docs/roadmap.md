@@ -163,8 +163,9 @@ listed here before pulling in broader proposal work.
   first logical slice projects programmatically declared DNS zones and name
   mappings as ordinary resources and shows inbound mappings on application
   overview pages for internal names and custom domain names; next it needs
-  conflict/provider diagnostics and a dedicated create/update UI when the MVP
-  management flow needs UI-authored names.
+  provider-materialization diagnostics and a dedicated create/update UI when
+  the MVP management flow needs UI-authored names. Initial logical conflict
+  status exists for duplicate names in the same zone/scope.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when

@@ -1375,8 +1375,26 @@ public sealed class PlatformResourceProvider(
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
     }
 
-    private Resource CreateDnsZoneResource(DnsZoneResourceDefinition definition) =>
-        new(
+    private Resource CreateDnsZoneResource(DnsZoneResourceDefinition definition)
+    {
+        var conflictCount = GetNameMappingConflictGroups(definition)
+            .Sum(group => group.Count());
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.DnsZoneName] = definition.ZoneName,
+            [ResourceAttributeNames.DnsProvider] =
+                string.IsNullOrWhiteSpace(definition.Provider) ? "logical" : definition.Provider,
+            [ResourceAttributeNames.DnsRecordCount] =
+                definition.DnsNameMappings.Count.ToString(CultureInfo.InvariantCulture)
+        };
+
+        if (conflictCount > 0)
+        {
+            attributes[ResourceAttributeNames.DnsConflictCount] =
+                conflictCount.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return new(
             definition.Id,
             definition.Name,
             "DNS Zone",
@@ -1389,34 +1407,46 @@ public sealed class PlatformResourceProvider(
             CreateDnsZoneDependencies(definition),
             TypeId: DnsZoneResourceType,
             ResourceClass: ResourceClass.Network,
-            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ResourceAttributeNames.DnsZoneName] = definition.ZoneName,
-                [ResourceAttributeNames.DnsProvider] =
-                    string.IsNullOrWhiteSpace(definition.Provider) ? "logical" : definition.Provider,
-                [ResourceAttributeNames.DnsRecordCount] =
-                    definition.DnsNameMappings.Count.ToString(CultureInfo.InvariantCulture)
-            },
+            Attributes: attributes,
             Capabilities: [new(ResourceCapabilityIds.NetworkingDnsZone)]);
+    }
 
     private IReadOnlyList<Resource> CreateNameMappingResources(DnsZoneResourceDefinition zone) =>
+        CreateNameMappingResources(
+            zone,
+            GetConflictingNameMappingIds(zone));
+
+    private IReadOnlyList<Resource> CreateNameMappingResources(
+        DnsZoneResourceDefinition zone,
+        HashSet<string> conflictingMappingIds) =>
         zone.DnsNameMappings
-            .Select(mapping => CreateNameMappingResource(zone, mapping))
+            .Select(mapping => CreateNameMappingResource(
+                zone,
+                mapping,
+                conflictingMappingIds.Contains(mapping.Id)))
             .ToArray();
 
     private Resource CreateNameMappingResource(
         DnsZoneResourceDefinition zone,
-        DnsNameMappingDefinition mapping)
+        DnsNameMappingDefinition mapping,
+        bool hasConflict)
     {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [ResourceAttributeNames.NameMappingHostName] = mapping.HostName,
             [ResourceAttributeNames.NameMappingTargetResourceId] = mapping.TargetResourceId,
             [ResourceAttributeNames.NameMappingExposure] = mapping.Exposure.ToString(),
+            [ResourceAttributeNames.NameMappingStatus] = hasConflict ? "Conflict" : "Ready",
             [ResourceAttributeNames.DnsZoneName] = zone.ZoneName,
             [ResourceAttributeNames.DnsProvider] =
                 string.IsNullOrWhiteSpace(zone.Provider) ? "logical" : zone.Provider
         };
+
+        if (hasConflict)
+        {
+            attributes[ResourceAttributeNames.NameMappingStatusReason] =
+                $"Host name '{mapping.HostName}' is used by multiple {mapping.Exposure} mappings in DNS zone '{zone.ZoneName}'.";
+        }
 
         if (!string.IsNullOrWhiteSpace(mapping.TargetEndpointName))
         {
@@ -1445,6 +1475,24 @@ public sealed class PlatformResourceProvider(
             Attributes: attributes,
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
     }
+
+    private static HashSet<string> GetConflictingNameMappingIds(DnsZoneResourceDefinition zone) =>
+        GetNameMappingConflictGroups(zone)
+            .SelectMany(group => group)
+            .Select(mapping => mapping.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static IEnumerable<IGrouping<string, DnsNameMappingDefinition>> GetNameMappingConflictGroups(
+        DnsZoneResourceDefinition zone) =>
+        zone.DnsNameMappings
+            .Where(mapping => !string.IsNullOrWhiteSpace(mapping.HostName))
+            .GroupBy(
+                mapping => CreateNameMappingConflictKey(mapping),
+                StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Skip(1).Any());
+
+    private static string CreateNameMappingConflictKey(DnsNameMappingDefinition mapping) =>
+        $"{mapping.HostName.Trim().ToLowerInvariant()}|{mapping.Exposure}";
 
     private Resource CreateLoadBalancerResource(LoadBalancerResourceDefinition definition)
     {

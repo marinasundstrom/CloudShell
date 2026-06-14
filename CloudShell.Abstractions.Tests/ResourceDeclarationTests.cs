@@ -3546,7 +3546,56 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("application:api", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingTargetResourceId]);
         Assert.Equal("http", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingTargetEndpointName]);
         Assert.Equal(ResourceExposureScope.Public.ToString(), mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingExposure]);
+        Assert.Equal("Ready", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingStatus]);
         Assert.True(mappingResource.HasCapability(ResourceCapabilityIds.NetworkingNameMapping));
+    }
+
+    [Fact]
+    public void PlatformResources_ProjectDnsNameMappingConflicts()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var api = resources.Declare("applications", "application:api");
+                var frontend = resources.Declare("applications", "application:frontend");
+
+                resources
+                    .AddDnsZone("local", "Local DNS", "local")
+                    .MapHost("app.local", api, "http", id: "dns:local:name:app-api")
+                    .MapHost("app.local", frontend, "http", id: "dns:local:name:app-frontend");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var resources = provider.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        var zone = resources["dns:local"];
+        Assert.Equal("2", zone.ResourceAttributes[ResourceAttributeNames.DnsConflictCount]);
+
+        var mappings = resources.Values
+            .Where(resource => string.Equals(
+                resource.EffectiveTypeId,
+                PlatformResourceProvider.NameMappingResourceType,
+                StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(2, mappings.Length);
+        Assert.All(mappings, mapping =>
+        {
+            Assert.Equal("Conflict", mapping.ResourceAttributes[ResourceAttributeNames.NameMappingStatus]);
+            Assert.Equal(
+                "Host name 'app.local' is used by multiple Public mappings in DNS zone 'local'.",
+                mapping.ResourceAttributes[ResourceAttributeNames.NameMappingStatusReason]);
+        });
     }
 
     [Fact]

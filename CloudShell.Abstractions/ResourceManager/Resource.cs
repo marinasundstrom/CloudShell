@@ -119,11 +119,14 @@ public static class ResourceAttributeNames
     public const string DnsZoneName = "dns.zone";
     public const string DnsProvider = "dns.provider";
     public const string DnsRecordCount = "dns.records";
+    public const string DnsConflictCount = "dns.conflicts";
     public const string NameMappingHostName = "nameMapping.hostName";
     public const string NameMappingTargetResourceId = "nameMapping.targetResourceId";
     public const string NameMappingTargetEndpointName = "nameMapping.targetEndpointName";
     public const string NameMappingExposure = "nameMapping.exposure";
     public const string NameMappingProviderResourceId = "nameMapping.providerResourceId";
+    public const string NameMappingStatus = "nameMapping.status";
+    public const string NameMappingStatusReason = "nameMapping.statusReason";
     public const string LoadBalancerProvider = "loadBalancer.provider";
     public const string LoadBalancerHostResourceId = "loadBalancer.hostResourceId";
     public const string LoadBalancerEntrypointCount = "loadBalancer.entrypoints";
