@@ -48,6 +48,7 @@ public static class ResourceDiagnosticDisplay
         }
 
         AddNamePublisherDiagnostics(resource, relatedResources, diagnostics);
+        AddEndpointMappingDiagnostics(resource, relatedResources, diagnostics);
         AddLoadBalancerDiagnostics(resource, relatedResources, diagnostics);
 
         return diagnostics;
@@ -82,6 +83,85 @@ public static class ResourceDiagnosticDisplay
                 "Warning",
                 "DNS publisher capability missing",
                 $"Provider resource '{provider.Name}' does not advertise the DNS name publisher capability."));
+        }
+    }
+
+    private static void AddEndpointMappingDiagnostics(
+        Resource resource,
+        IReadOnlyDictionary<string, Resource>? relatedResources,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        foreach (var mapping in resource.ResourceEndpointMappings)
+        {
+            AddEndpointMappingProviderDiagnostic(resource, relatedResources, diagnostics, mapping);
+            AddEndpointMappingEndpointDiagnostic(resource, relatedResources, diagnostics, mapping, mapping.Source, "source");
+            AddEndpointMappingEndpointDiagnostic(resource, relatedResources, diagnostics, mapping, mapping.Target, "target");
+        }
+    }
+
+    private static void AddEndpointMappingProviderDiagnostic(
+        Resource resource,
+        IReadOnlyDictionary<string, Resource>? relatedResources,
+        List<ResourceDiagnosticView> diagnostics,
+        ResourceEndpointMappingDefinition mapping)
+    {
+        var providerResourceId = FirstNonEmpty(
+            mapping.ProviderResourceId,
+            mapping.NetworkResourceId,
+            mapping.Source.ResourceId);
+        if (string.IsNullOrWhiteSpace(providerResourceId))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Endpoint mapping provider unavailable",
+                $"Mapping '{mapping.Name}' does not specify a provider resource."));
+            return;
+        }
+
+        var provider = FindResource(resource, relatedResources, providerResourceId);
+        if (provider is null)
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Endpoint mapping provider unavailable",
+                $"Mapping '{mapping.Name}' requires provider resource '{providerResourceId}', but that resource could not be found."));
+            return;
+        }
+
+        if (!provider.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Endpoint mapping provider capability missing",
+                $"Mapping '{mapping.Name}' provider resource '{provider.Name}' does not advertise the endpoint mapper capability."));
+        }
+    }
+
+    private static void AddEndpointMappingEndpointDiagnostic(
+        Resource resource,
+        IReadOnlyDictionary<string, Resource>? relatedResources,
+        List<ResourceDiagnosticView> diagnostics,
+        ResourceEndpointMappingDefinition mapping,
+        ResourceEndpointReference endpointReference,
+        string role)
+    {
+        var endpointResource = FindResource(resource, relatedResources, endpointReference.ResourceId);
+        if (endpointResource is null)
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                $"Endpoint mapping {role} unavailable",
+                $"Mapping '{mapping.Name}' {role} resource '{endpointReference.ResourceId}' could not be found."));
+            return;
+        }
+
+        if (!endpointResource.Endpoints.Any(endpoint =>
+            string.Equals(endpoint.Name, endpointReference.EndpointName, StringComparison.OrdinalIgnoreCase)))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                $"Endpoint mapping {role} endpoint unavailable",
+                $"Mapping '{mapping.Name}' {role} endpoint '{endpointReference.EndpointName}' could not be found on resource '{endpointResource.Name}'."));
         }
     }
 
@@ -166,6 +246,22 @@ public static class ResourceDiagnosticDisplay
                 ? null
                 : hostResourceId;
     }
+
+    private static Resource? FindResource(
+        Resource current,
+        IReadOnlyDictionary<string, Resource>? relatedResources,
+        string resourceId)
+    {
+        if (string.Equals(current.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return current;
+        }
+
+        return relatedResources?.GetValueOrDefault(resourceId);
+    }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 }
 
 public sealed record ResourceDiagnosticView(

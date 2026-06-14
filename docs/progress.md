@@ -635,6 +635,10 @@ expectations rather than duplicating the task queue.
   and missing route target endpoints. The default host marker is treated as the
   implicit container-host selection and displayed as `Default container host`
   instead of a broken resource reference.
+- Resource Manager generated diagnostics also inspect network endpoint mappings
+  and name missing provider resources, missing endpoint-mapper capability, and
+  unresolved source or target resources/endpoints before a reconcile action is
+  invoked.
 - The load-balancer fluent API now uses `UseContainerHost(...)` and
   `UseDefaultContainerHost()` for placement so container-host assignment is
   explicit in the user-facing declaration model.

@@ -380,9 +380,11 @@ listed here before pulling in broader proposal work.
   load-balancer endpoints. Next, host/runtime providers should report richer
   final bind failures and owning process/container diagnostics for dangling
   external processes or containers where they can observe that safely.
-- Expand host-readiness warnings so endpoint mappings can name the specific
-  missing gateway, load balancer, DNS, service mesh, firewall, or cluster
-  network controller capability.
+- Expand host-readiness warnings beyond the current generated endpoint-mapping
+  diagnostics, which now name missing provider resources, missing endpoint
+  mapper capability, and unresolved source/target resources or endpoints. Next
+  add provider-specific wording for missing gateway, load balancer, DNS,
+  service mesh, firewall, or cluster network controller capability.
 - Finish provider-backed endpoint mapping materialization for real host
   networking services, not just logical local networking.
 - Add the first DNS/name mapping resource projection and UI path for local

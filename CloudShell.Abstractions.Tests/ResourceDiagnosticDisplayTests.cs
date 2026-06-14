@@ -83,6 +83,88 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
+    public void GetDiagnostics_WarnsWhenEndpointMappingProviderResourceIsMissing()
+    {
+        var network = CreateNetworkWithEndpointMapping(providerResourceId: "networking:missing");
+        var api = CreateEndpointResource("application:api", "API", ResourceEndpoint.Http("http", "api.local", 8080));
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            network,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
+            {
+                [api.Id] = api
+            });
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Endpoint mapping provider unavailable", diagnostic.Title);
+        Assert.Equal(
+            "Mapping 'API' requires provider resource 'networking:missing', but that resource could not be found.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_WarnsWhenEndpointMappingProviderDoesNotAdvertiseCapability()
+    {
+        var network = CreateNetworkWithEndpointMapping(providerResourceId: "networking:proxy");
+        var api = CreateEndpointResource("application:api", "API", ResourceEndpoint.Http("http", "api.local", 8080));
+        var proxy = CreateEndpointResource("networking:proxy", "Proxy", ResourceEndpoint.Http("proxy", "proxy.local", 8081));
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            network,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
+            {
+                [api.Id] = api,
+                [proxy.Id] = proxy
+            });
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Endpoint mapping provider capability missing", diagnostic.Title);
+        Assert.Equal(
+            "Mapping 'API' provider resource 'Proxy' does not advertise the endpoint mapper capability.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_WarnsWhenEndpointMappingTargetResourceIsMissing()
+    {
+        var network = CreateNetworkWithEndpointMapping(providerResourceId: null);
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            network,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Endpoint mapping target unavailable", diagnostic.Title);
+        Assert.Equal(
+            "Mapping 'API' target resource 'application:api' could not be found.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_WarnsWhenEndpointMappingTargetEndpointIsMissing()
+    {
+        var network = CreateNetworkWithEndpointMapping(providerResourceId: null);
+        var api = CreateEndpointResource("application:api", "API", ResourceEndpoint.Http("admin", "api.local", 8081));
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            network,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
+            {
+                [api.Id] = api
+            });
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Endpoint mapping target endpoint unavailable", diagnostic.Title);
+        Assert.Equal(
+            "Mapping 'API' target endpoint 'http' could not be found on resource 'API'.",
+            diagnostic.Message);
+    }
+
+    [Fact]
     public void GetDiagnostics_WarnsWhenLoadBalancerHostResourceIsMissing()
     {
         var loadBalancer = CreateLoadBalancer("docker:missing");
@@ -206,6 +288,54 @@ public sealed class ResourceDiagnosticDisplayTests
                 [ResourceAttributeNames.NameMappingProviderResourceId] = providerResourceId
             },
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
+
+    private static Resource CreateNetworkWithEndpointMapping(string? providerResourceId) =>
+        new(
+            "network:app",
+            "App Network",
+            "Network",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [ResourceEndpoint.Http("api", "localhost", 5000)],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.NetworkResourceType,
+            ResourceClass: ResourceClass.Network,
+            Capabilities: [
+                new(ResourceCapabilityIds.NetworkingProvider),
+                new(ResourceCapabilityIds.NetworkingEndpointProvider),
+                new(ResourceCapabilityIds.NetworkingEndpointMapper)
+            ],
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "mapping:api",
+                    "API",
+                    new ResourceEndpointReference("network:app", "api"),
+                    new ResourceEndpointReference("application:api", "http"),
+                    "network:app",
+                    providerResourceId)
+            ]);
+
+    private static Resource CreateEndpointResource(
+        string id,
+        string name,
+        ResourceEndpoint endpoint,
+        IReadOnlyList<ResourceCapability>? capabilities = null) =>
+        new(
+            id,
+            name,
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [endpoint],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            Capabilities: capabilities);
 
     private static Resource CreateLoadBalancer(
         string? hostResourceId,
