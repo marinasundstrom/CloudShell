@@ -7,6 +7,8 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Configuration;
+using CloudShell.ThirdPartyIdentity;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -17,6 +19,10 @@ cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
     .AddConfigurationProvider();
+builder.Services.TryAddEnumerable(
+    ServiceDescriptor.Singleton<IResourceIdentityProvisioner, KeycloakResourceIdentityProvisioner>());
+builder.Services.TryAddEnumerable(
+    ServiceDescriptor.Singleton<IResourceIdentityProvisioningStatusProvider, KeycloakResourceIdentityProvisioner>());
 
 cloudShell.Resources(resources =>
 {
@@ -38,8 +44,12 @@ cloudShell.Resources(resources =>
         ResourceIdentityProviderKind.Oidc,
         new Dictionary<string, string>
         {
+            ["Provider"] = "Keycloak",
             ["Authority"] = authority,
-            ["ClientId"] = clientId
+            ["ClientId"] = clientId,
+            ["Realm"] = builder.Configuration["Keycloak:Realm"] ?? "cloudshell",
+            ["AdminBaseAddress"] = builder.Configuration["Keycloak:AdminBaseAddress"] ??
+                "http://localhost:8080"
         },
         provisioningResourceId: provisioningResource.ResourceId,
         useAsDefault: true);

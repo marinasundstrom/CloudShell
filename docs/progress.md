@@ -84,8 +84,10 @@ expectations rather than duplicating the task queue.
   user-facing OIDC sign-in and role claim mapping against the existing
   CloudShell authorization service and declares the external provisioning
   boundary, resource identity binding, and scoped grant so the provider-neutral
-  provisioning path is exercised. A real Keycloak provisioner that reconciles
-  clients, credentials, roles, and grants remains the next identity-provider
+  provisioning path is exercised. The sample-scoped Keycloak provisioner now
+  creates confidential clients and client roles for declared grants. Runtime
+  credential delivery and Keycloak token mappers for
+  `cloudshell.resource-permission` claims remain the next identity-provider
   validation step.
 - The first mountable-volume domain slices are in place: `resources.AddVolume(...)`
   declares a `cloudshell.volume` resource for a local or addressable storage

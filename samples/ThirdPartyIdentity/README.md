@@ -13,8 +13,8 @@ The sample proves:
   reader users
 - Resource Manager access using the same authorization service used by the
   built-in Identity and dashboard-secret modes
-- provider-neutral resource identity provisioning planning against an external
-  `Oidc` identity provider
+- provider-neutral resource identity provisioning against an external `Oidc`
+  identity provider
 
 ## Run
 
@@ -69,14 +69,18 @@ The sample also declares the external resource identity boundary:
 - `configuration:third-party-identity` grants that API identity configuration
   read access.
 
-The application declaration calls `ProvisionIdentityOnStartup()`. Until a
-Keycloak `IResourceIdentityProvisioner` is implemented, startup provisioning is
-expected to report that no provisioner is registered for `identity:keycloak`.
-That warning is intentional: it proves the graph and authorization boundary
-are in place without pretending that CloudShell can already reconcile Keycloak
-clients, secrets, roles, or grants.
+The application declaration calls `ProvisionIdentityOnStartup()`. The sample
+registers `KeycloakResourceIdentityProvisioner`, which translates the
+CloudShell provisioning request into Keycloak admin operations:
 
-The next identity slice should implement a provider that translates the same
-CloudShell identity binding and grants into Keycloak client and role
-configuration. Authored resources should not change when that provisioner is
-added.
+- creates or reuses a confidential client for the resource identity
+- enables service-account style client credentials for that client
+- creates client roles for declared CloudShell grants
+- reports provisioning status by checking whether the Keycloak client exists
+
+This is intentionally still a reference integration. It does not yet wire the
+provisioned Keycloak client secret into a running CloudShell workload, and it
+does not yet configure Keycloak token mappers to emit
+`cloudshell.resource-permission` claims for protected CloudShell service APIs.
+Those two steps are required before the Settings and Secrets resource identity
+flow can use Keycloak instead of the built-in development authority.

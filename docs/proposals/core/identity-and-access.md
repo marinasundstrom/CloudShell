@@ -155,15 +155,17 @@ Implemented today:
   CloudShell authorization service without provider-specific authorization
   code. The sample also declares a Keycloak provisioning-resource boundary,
   an `Oidc` resource identity provider, a resource identity binding, and a
-  scoped grant so startup provisioning reaches the provider-neutral planning
-  path and reports the missing Keycloak provisioner explicitly.
+  scoped grant. A sample-scoped `KeycloakResourceIdentityProvisioner`
+  translates the provisioning request into Keycloak confidential clients and
+  client roles for declared CloudShell grants.
 
 Not implemented yet:
 
-- Resource identity provisioning implementation against a third-party
-  OIDC/OAuth provider. The next Keycloak-oriented identity slice should
-  provision or reconcile a resource identity and scoped grants against the
-  external authority instead of only planning the request.
+- Runtime credential delivery and token-claim mapping for third-party
+  resource identities. The next Keycloak-oriented identity slice should make a
+  provisioned Keycloak client usable by a running workload and emit the
+  `cloudshell.resource-permission` claims expected by protected CloudShell
+  service APIs.
 
 ## Domain Model
 
@@ -506,10 +508,10 @@ service-principal automation flows.
    resource to query status.
 3. Managed identity and authority reconciliation.
    The first Keycloak sample validates external user authentication, CloudShell
-   role claim mapping, and the resource identity provisioning boundary. Next,
-   make providers register or reconcile resource identities and grants with
-   their backing authority instead of only recording CloudShell declarations
-   and reporting a missing provisioner.
+   role claim mapping, and a sample-scoped resource identity provisioner that
+   creates Keycloak clients and grant roles. Next, wire provisioned
+   credentials and token mappers so workloads can use the external authority
+   for protected service calls.
 4. Microsoft Entra ID compatibility.
    Map the same resource identity and grant model to Entra app registrations,
    service principals, app roles or groups, token validation, and automation
