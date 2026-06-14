@@ -266,6 +266,23 @@
         </section>
     }
 
+    @if (GetResourceDiagnostics() is { Count: > 0 } diagnostics)
+    {
+        <section class="generated-section">
+            <h3>@L["Diagnostics"]</h3>
+            <div class="generated-list">
+                @foreach (var diagnostic in diagnostics)
+                {
+                    <div class="@GetDiagnosticClass(diagnostic)">
+                        <strong>@diagnostic.Title</strong>
+                        <span>@diagnostic.Message</span>
+                        <small>@diagnostic.Severity</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     @if (Resource.ResourceAttributes.Count > 0)
     {
         <section class="generated-section">
@@ -539,6 +556,38 @@
 
     private static bool ShouldStartDependencies(ResourceAction action) =>
         action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
+
+    private IReadOnlyList<ResourceDiagnosticView> GetResourceDiagnostics()
+    {
+        var diagnostics = new List<ResourceDiagnosticView>();
+
+        if (Resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.DnsConflictCount, out var conflictCountValue) &&
+            int.TryParse(conflictCountValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var conflictCount) &&
+            conflictCount > 0)
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                L["Warning"].Value,
+                L["DNS name conflict"].Value,
+                L["{0} name mappings in this DNS zone claim the same host name and exposure scope.", conflictCount].Value));
+        }
+
+        if (Resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NameMappingStatus, out var mappingStatus) &&
+            !string.Equals(mappingStatus, "Ready", StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                L["Warning"].Value,
+                string.Equals(mappingStatus, "Conflict", StringComparison.OrdinalIgnoreCase)
+                    ? L["Name mapping conflict"].Value
+                    : L["Name mapping status: {0}", mappingStatus].Value,
+                Resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NameMappingStatusReason) ??
+                    L["This name mapping is not ready."].Value));
+        }
+
+        return diagnostics;
+    }
+
+    private static string GetDiagnosticClass(ResourceDiagnosticView diagnostic) =>
+        $"generated-diagnostic {diagnostic.Severity.ToLowerInvariant()}";
 
     private string FormatNetworkReadiness()
     {
@@ -853,4 +902,9 @@
     private sealed record LoadBalancerRouteView(
         Resource LoadBalancer,
         LoadBalancerRoute Route);
+
+    private sealed record ResourceDiagnosticView(
+        string Severity,
+        string Title,
+        string Message);
 }

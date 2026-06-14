@@ -116,7 +116,9 @@ expectations rather than duplicating the task queue.
   users can see which internal DNS-style names or custom domain names point at
   a target application endpoint. DNS zones and name-mapping resources now
   project logical conflict status when multiple mappings claim the same host
-  name in the same exposure scope.
+  name in the same exposure scope, and generated Resource Manager overviews
+  surface those conflicts as diagnostics instead of leaving them only as raw
+  attributes.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the

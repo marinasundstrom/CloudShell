@@ -939,6 +939,15 @@ h3 {
     background: var(--cloudshell-surface-muted);
 }
 
+.generated-list .generated-diagnostic {
+    border-color: #f2c94c;
+    background: var(--cloudshell-warning-fill);
+}
+
+.generated-list .generated-diagnostic small {
+    color: var(--cloudshell-text-muted);
+}
+
 .generated-list span,
 .generated-list small {
     color: var(--cloudshell-text-muted);

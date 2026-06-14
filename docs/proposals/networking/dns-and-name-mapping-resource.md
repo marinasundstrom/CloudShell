@@ -370,7 +370,8 @@ decides later whether and how a specific name is materialized.
    logical conflict status is projected for duplicate host/scope mappings in
    the same DNS zone.
 6. Add UI projection for DNS zones and name mappings. Initial target-side
-   application overview projection is in place for inbound name mappings.
+   application overview projection is in place for inbound name mappings, and
+   generated resource overviews surface logical name conflicts as diagnostics.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
 8. Add sample declarations for local DNS-style mappings.
 9. Add provider-backed examples for load balancer and virtual network integration.
@@ -388,7 +389,7 @@ decides later whether and how a specific name is materialized.
   same scope when DNS/name mappings are authored through Resource Manager.
 * Add local host-provider implementation.
 * Add provider diagnostics for names that cannot be published.
-* Add UI affordances for name mappings on target resources.
+* Add UI affordances for authoring and resolving name mappings.
 * Add integration examples with virtual networks, load balancers, and ingress resources.
 * Decide the first provider-backed network-level service discovery sample.
 
