@@ -1314,12 +1314,7 @@ public sealed class ResourceDeclarationTests
         var environment = new TestHostEnvironment(contentRoot);
         var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
         var childPidPath = Path.Combine(contentRoot, "child.pid");
-        var definition = new LocalProcessDefinition(
-            $"process:test:{Guid.NewGuid():N}",
-            "/bin/sh",
-            "-c \"sleep 30 & echo $! > child.pid; wait\"",
-            WorkingDirectory: contentRoot,
-            Lifetime: LocalProcessLifetime.ControlPlaneScoped);
+        var definition = CreateProcessTreeDefinition(contentRoot, childPidPath);
         Process? childProcess = null;
 
         try
@@ -1331,6 +1326,66 @@ public sealed class ResourceDeclarationTests
             Assert.False(childProcess.HasExited);
 
             runner.Dispose();
+
+            Assert.True(await WaitForExitAsync(childProcess, TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            if (childProcess is not null)
+            {
+                try
+                {
+                    if (!childProcess.HasExited)
+                    {
+                        childProcess.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                finally
+                {
+                    childProcess.Dispose();
+                }
+            }
+
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LocalProcessRunner_StopAsyncStopsControlPlaneScopedProcessTree()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var options = new LocalProcessOptions
+        {
+            RuntimeStatePath = "application-runtime-state.json",
+            LogDirectory = "application-logs"
+        };
+        var environment = new TestHostEnvironment(contentRoot);
+        var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+        var childPidPath = Path.Combine(contentRoot, "child.pid");
+        var definition = CreateProcessTreeDefinition(contentRoot, childPidPath);
+        Process? childProcess = null;
+
+        try
+        {
+            using var runner = new LocalProcessRunner(runtimeStates, options, environment);
+            await runner.StartAsync(definition);
+            var childPid = await WaitForProcessIdFileAsync(childPidPath, TimeSpan.FromSeconds(5));
+            childProcess = Process.GetProcessById(childPid);
+            Assert.False(childProcess.HasExited);
+
+            await runner.StopAsync(definition);
 
             Assert.True(await WaitForExitAsync(childProcess, TimeSpan.FromSeconds(5)));
         }
@@ -4729,6 +4784,19 @@ public sealed class ResourceDeclarationTests
                 "/bin/sh",
                 "-c \"sleep 30\"",
                 Lifetime: LocalProcessLifetime.ControlPlaneScoped);
+
+    private static LocalProcessDefinition CreateProcessTreeDefinition(
+        string workingDirectory,
+        string childPidPath) =>
+        new(
+            $"process:test:{Guid.NewGuid():N}",
+            "/bin/sh",
+            $"-c \"sleep 30 & echo $! > {QuoteShellArgument(childPidPath)}; wait\"",
+            WorkingDirectory: workingDirectory,
+            Lifetime: LocalProcessLifetime.ControlPlaneScoped);
+
+    private static string QuoteShellArgument(string value) =>
+        $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
 
     private static async Task<bool> WaitForExitAsync(Process process, TimeSpan timeout)
     {

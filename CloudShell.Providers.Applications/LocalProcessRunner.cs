@@ -108,20 +108,20 @@ public sealed partial class LocalProcessRunner(
             logPath);
     }
 
-    public async Task StopAsync(
+    public Task StopAsync(
         LocalProcessDefinition definition,
         bool force = true,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var log = GetProcessLog(definition.Id);
         if (!TryGetRunningProcess(definition, out var process))
         {
-            return;
+            return Task.CompletedTask;
         }
 
         log.Append(force ? "Stopping process." : "Stopping control-plane-scoped process.", "process", "Information");
-        process.Kill(entireProcessTree: true);
-        await process.WaitForExitAsync(cancellationToken);
+        ProcessShutdown.KillProcessTreeAndWait(process);
         runtimeStates.Save(new ApplicationRuntimeState(
             definition.Id,
             process.Id,
@@ -129,6 +129,7 @@ public sealed partial class LocalProcessRunner(
             DateTimeOffset.UtcNow,
             TryGetExitCode(process),
             GetLogPath(definition.Id)));
+        return Task.CompletedTask;
     }
 
     public Task CleanupHostScopedProcessAsync(

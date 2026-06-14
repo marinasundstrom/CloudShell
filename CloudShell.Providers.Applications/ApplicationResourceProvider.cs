@@ -1934,9 +1934,9 @@ public sealed partial class ApplicationResourceProvider(
             return;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         log.Append(force ? "Stopping process." : "Stopping control-plane-scoped process.", "process", "Information");
-        process.Kill(entireProcessTree: true);
-        await process.WaitForExitAsync(cancellationToken);
+        ProcessShutdown.KillProcessTreeAndWait(process);
         runtimeStates.Save(new ApplicationRuntimeState(
             applicationId,
             process.Id,
