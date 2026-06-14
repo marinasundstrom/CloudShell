@@ -13,6 +13,8 @@ The sample proves:
   reader users
 - Resource Manager access using the same authorization service used by the
   built-in Identity and dashboard-secret modes
+- provider-neutral resource identity provisioning planning against an external
+  `Oidc` identity provider
 
 ## Run
 
@@ -56,7 +58,25 @@ CloudShell is configured to read that claim through:
 The role names are not provider-specific. They are CloudShell roles mapped to
 CloudShell permissions in `appsettings.json`.
 
-This sample intentionally validates user-facing authorization first. Resource
-identity provisioning against a third-party authority remains the next identity
-step: the same resource identity and grant model should be mapped to external
-OIDC/OAuth clients or service principals without changing authored resources.
+## Resource Identity Provisioning
+
+The sample also declares the external resource identity boundary:
+
+- `identity-provisioning:keycloak` is the provisioning resource boundary.
+- `identity:keycloak` is the CloudShell resource identity provider definition.
+- `application:keycloak-provisioned-api` declares a resource identity bound to
+  that provider.
+- `configuration:third-party-identity` grants that API identity configuration
+  read access.
+
+The application declaration calls `ProvisionIdentityOnStartup()`. Until a
+Keycloak `IResourceIdentityProvisioner` is implemented, startup provisioning is
+expected to report that no provisioner is registered for `identity:keycloak`.
+That warning is intentional: it proves the graph and authorization boundary
+are in place without pretending that CloudShell can already reconcile Keycloak
+clients, secrets, roles, or grants.
+
+The next identity slice should implement a provider that translates the same
+CloudShell identity binding and grants into Keycloak client and role
+configuration. Authored resources should not change when that provisioner is
+added.

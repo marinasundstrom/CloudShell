@@ -82,8 +82,11 @@ expectations rather than duplicating the task queue.
   OIDC/OAuth provider such as Keycloak, Auth0, or Okta in addition to the
   built-in development provider. The first Keycloak sample now validates
   user-facing OIDC sign-in and role claim mapping against the existing
-  CloudShell authorization service; external resource identity provisioning
-  remains the next identity-provider validation step.
+  CloudShell authorization service and declares the external provisioning
+  boundary, resource identity binding, and scoped grant so the provider-neutral
+  provisioning path is exercised. A real Keycloak provisioner that reconciles
+  clients, credentials, roles, and grants remains the next identity-provider
+  validation step.
 - The first mountable-volume domain slices are in place: `resources.AddVolume(...)`
   declares a `cloudshell.volume` resource for a local or addressable storage
   allocation, and container apps can declare `WithVolume(...)` mounts that
