@@ -157,6 +157,57 @@ public sealed class PlatformResourceProviderLoadBalancerTests
     }
 
     [Fact]
+    public async Task ExecuteActionAsync_ResolvesServiceFacadeRouteTargets()
+    {
+        var store = CreatePlatformStore();
+        var runtimeProvider = new TestLoadBalancerRuntimeProvider();
+        var provider = new PlatformResourceProvider(
+            store,
+            new PlatformResourceOptions(),
+            loadBalancerProviders: [runtimeProvider]);
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Routes =
+            [
+                new LoadBalancerRoute(
+                    "service-api",
+                    "Service API",
+                    LoadBalancerRouteKind.Http,
+                    "web",
+                    new LoadBalancerRouteMatch("api.local", "/"),
+                    new LoadBalancerRouteTarget("service:api", "http"))
+            ]
+        };
+        var registrations = new TestResourceRegistrationStore([]);
+        await provider.SetupLoadBalancerAsync(definition, null, registrations);
+        var loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        var resourceManager = new TestResourceManagerStore(
+            [
+                loadBalancer,
+                CreateResource(
+                    "docker:engine",
+                    "Local Docker",
+                    [ResourceEndpoint.FromAddress("engine", "unix:///var/run/docker.sock", "docker")]),
+                CreateResource(
+                    "service:api",
+                    "API service",
+                    [ResourceEndpoint.Http("http", "api.service.local", 8080)],
+                    resourceClass: ResourceClass.Service)
+            ]);
+
+        var result = await provider.ExecuteActionAsync(
+            new ResourceProcedureContext(loadBalancer, null, null, registrations, resourceManager),
+            loadBalancer.StartAction!);
+
+        Assert.Equal("Started test load balancer runtime.", result.Message);
+        var started = Assert.Single(runtimeProvider.Started);
+        var route = Assert.Single(started.Routes);
+        Assert.Equal("service:api", route.TargetResource.Id);
+        Assert.Equal(ResourceClass.Service, route.TargetResource.ResourceClass);
+        Assert.Equal("http", route.TargetEndpoint?.Name);
+    }
+
+    [Fact]
     public async Task SetupLoadBalancerAsync_RejectsRouteWithMissingEntrypoint()
     {
         var store = CreatePlatformStore();
@@ -404,7 +455,8 @@ public sealed class PlatformResourceProviderLoadBalancerTests
         string name,
         IReadOnlyList<ResourceEndpoint> endpoints,
         IReadOnlyDictionary<string, string>? attributes = null,
-        IReadOnlyList<string>? dependsOn = null) =>
+        IReadOnlyList<string>? dependsOn = null,
+        ResourceClass resourceClass = ResourceClass.Generic) =>
         new(
             id,
             name,
@@ -416,6 +468,7 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             "test",
             DateTimeOffset.UtcNow,
             dependsOn ?? [],
+            ResourceClass: resourceClass,
             Attributes: attributes);
 
     private static PlatformResourceStore CreatePlatformStore()

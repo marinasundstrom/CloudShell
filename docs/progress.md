@@ -77,6 +77,9 @@ expectations rather than duplicating the task queue.
   imported provider-native services, non-application targets, or advanced
   routing. Provider-native service objects, such as Kubernetes Services, are
   materialization details unless explicitly projected by a provider.
+  Load-balancer route resolution and the Resource Manager load-balancer create
+  flow now allow `cloudshell.service` resources as optional facade targets
+  while continuing to make direct application targets the normal path.
   For MVP, DNS/name mapping can start as logical resource projection,
   relationship display, validation, and provider-materialization diagnostics;
   real public DNS propagation and provider-backed network-level service

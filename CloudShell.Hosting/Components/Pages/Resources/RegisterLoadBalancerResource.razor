@@ -184,7 +184,6 @@
     private const string PlatformProviderId = "cloudshell.platform";
     private const string NetworkResourceType = "cloudshell.network";
     private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
-    private const string ServiceResourceType = "cloudshell.service";
     private const string LoadBalancerResourceType = "cloudshell.loadBalancer";
 
     private string ResourceId { get; set; } = string.Empty;
@@ -245,7 +244,7 @@
 
     private IReadOnlyList<Resource> GetTargetCandidates() =>
         Resources
-            .Where(resource => !IsPlatformNetworkResource(resource))
+            .Where(resource => !IsNetworkBoundaryResource(resource))
             .Where(resource => !string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(resource => resource.Endpoints.Count > 0 || resource.HasCapability(ResourceCapabilityIds.EndpointSource))
             .Where(IsInSelectedGroup)
@@ -265,10 +264,9 @@
             : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsPlatformNetworkResource(Resource resource) =>
+    private static bool IsNetworkBoundaryResource(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(resource.EffectiveTypeId, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
+        string.Equals(resource.EffectiveTypeId, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase);
 
     private async Task Register()
     {
