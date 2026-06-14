@@ -122,6 +122,12 @@ utilized by a resource. In the current direct model, a volume can point at any
 folder or provider-addressable location and can be attached to one or more
 resources through a target path.
 
+Resource Manager volume selectors should list mountable volume resources, not
+storage-provider parent resources. The selector may display the volume storage
+medium, such as `FileSystem`, so users can see what kind of mountable storage
+they are attaching while richer host compatibility diagnostics are still being
+defined.
+
 `resources.AddVolume(...)` declares a CloudShell volume resource through the
 default Local Storage provider unless another provider is supplied. Its path is
 the direct relative or absolute folder path for that volume and is not derived

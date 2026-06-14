@@ -160,10 +160,13 @@ expectations rather than duplicating the task queue.
   The default local Docker runner and Docker Compose generator now materialize
   `FileSystem` volume mounts: managed `cloudshell.volume` resources resolve to
   host bind-mount paths, and unmanaged references remain Docker/Compose named
-  volumes. Provider-backed volume resources, richer materialization
-  diagnostics, broader UI management, runtime enforcement, and usage
-  monitoring APIs remain next storage work. The Container Host sample now
-  demonstrates the intended storage graph by declaring a Local Storage
+  volumes. Resource Manager volume selectors now distinguish mountable volume
+  resources from storage-provider resources and show the volume storage medium
+  in application storage flows, so a Local Storage parent is not presented as a
+  directly mountable volume. Provider-backed volume resources, richer
+  materialization diagnostics, broader UI management, runtime enforcement, and
+  usage monitoring APIs remain next storage work. The Container Host sample
+  now demonstrates the intended storage graph by declaring a Local Storage
   resource, a SQL Server data volume owned by that storage resource, and a SQL
   Server container mount at
   `/var/opt/mssql`.

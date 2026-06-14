@@ -81,7 +81,7 @@
                     <FluentOption TOption="string" Value="">No data volume</FluentOption>
                     @foreach (var volume in GetVolumeCandidates())
                     {
-                        <FluentOption TOption="string" Value="@volume.Id">@volume.Name</FluentOption>
+                        <FluentOption TOption="string" Value="@volume.Id">@ApplicationVolumeResourceDisplay.GetVolumeOptionLabel(volume)</FluentOption>
                     }
                 </FluentSelect>
                 <small>Mounts the selected volume at /var/opt/mssql.</small>
@@ -251,9 +251,7 @@
             .ToArray();
 
     private static bool IsVolumeResource(Resource resource) =>
-        resource.ResourceClass == ResourceClass.Storage ||
-        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
-        resource.HasCapability(ResourceCapabilityIds.StorageVolume);
+        ApplicationVolumeResourceDisplay.IsMountableVolumeResource(resource);
 
     private bool IsInSelectedGroup(string resourceId)
     {

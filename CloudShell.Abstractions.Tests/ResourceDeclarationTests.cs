@@ -3433,6 +3433,51 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ApplicationVolumeDisplay_TreatsOnlyVolumeResourcesAsMountableCandidates()
+    {
+        var storage = new Resource(
+            "storage:local",
+            "Local Storage",
+            StorageProviderNames.LocalStorage,
+            StorageProviderNames.LocalStorage,
+            "local",
+            ResourceState.Running,
+            [],
+            StorageMedia.FileSystem,
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.StorageResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.StorageMedium] = StorageMedia.FileSystem
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageMountProvider)]);
+        var volume = new Resource(
+            "volume:postgres-data",
+            "Postgres Data",
+            "Volume",
+            StorageProviderNames.LocalStorage,
+            "local",
+            ResourceState.Running,
+            [],
+            StorageMedia.FileSystem,
+            DateTimeOffset.UtcNow,
+            ["storage:local"],
+            TypeId: PlatformResourceProvider.VolumeResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.VolumeStorageMedium] = StorageMedia.FileSystem
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+
+        Assert.False(ApplicationVolumeResourceDisplay.IsMountableVolumeResource(storage));
+        Assert.True(ApplicationVolumeResourceDisplay.IsMountableVolumeResource(volume));
+        Assert.Equal("Postgres Data (FileSystem)", ApplicationVolumeResourceDisplay.GetVolumeOptionLabel(volume));
+    }
+
+    [Fact]
     public void LocalContainerVolumeArguments_PreserveUnmanagedVolumeReference()
     {
         var arguments = ApplicationResourceProvider.CreateLocalContainerVolumeArguments(

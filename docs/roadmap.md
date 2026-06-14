@@ -164,10 +164,11 @@ listed here before pulling in broader proposal work.
   trivia. The MVP now has basic volume resources and container app volume
   attachments with a dedicated resource Storage tab plus a direct volume
   create/configuration/overview flow, Local Storage resources, and
-  Docker/Docker Compose runtime materialization for `FileSystem` mounts; next
-  it needs host/storage-medium compatibility diagnostics and Resource Manager
-  visibility showing which resources depend on storage and whether the mapping
-  can be materialized.
+  Docker/Docker Compose runtime materialization for `FileSystem` mounts.
+  Resource Manager volume selectors now only offer mountable volume resources
+  and show their storage medium; next it needs host/storage-medium
+  compatibility diagnostics and Resource Manager visibility showing which
+  resources depend on storage and whether the mapping can be materialized.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

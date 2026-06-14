@@ -60,7 +60,7 @@ else
                         <FluentOption TOption="string" Value="">Select volume</FluentOption>
                         @foreach (var volume in GetVolumeCandidates())
                         {
-                            <FluentOption TOption="string" Value="@volume.Id">@volume.Name</FluentOption>
+                            <FluentOption TOption="string" Value="@volume.Id">@ApplicationVolumeResourceDisplay.GetVolumeOptionLabel(volume)</FluentOption>
                         }
                     </FluentSelect>
                     <FluentTextField AriaLabel="Target path"
@@ -217,9 +217,7 @@ else
             : null;
 
     private static bool IsVolumeResource(Resource resource) =>
-        resource.ResourceClass == ResourceClass.Storage ||
-        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
-        resource.HasCapability(ResourceCapabilityIds.StorageVolume);
+        ApplicationVolumeResourceDisplay.IsMountableVolumeResource(resource);
 
     private bool IsManagedVolumeReference(string volumeReference) =>
         GetVolumeCandidates().Any(volume =>
