@@ -381,8 +381,9 @@ decides later whether and how a specific name is materialized.
    materialization status as diagnostics. Generated diagnostics also warn when
    a selected name-publishing provider resource is missing or lacks the DNS
    publisher capability. DNS zones and name mappings are registered as
-   inspectable Resource Manager resource types, with create/update authoring
-   intentionally deferred.
+   inspectable Resource Manager resource types. Resource Manager can now
+   create a DNS Zone and optionally include one initial name mapping; standalone
+   add/update editing for name mappings remains deferred.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
    Done for logical-only DNS name mappings without a selected publisher.
 8. Add sample declarations for local DNS-style mappings. Done in the Load
@@ -395,8 +396,8 @@ decides later whether and how a specific name is materialized.
 
 ## Remaining Tasks
 
-* Add dedicated Resource Manager create/update authoring UI for DNS zones and
-  name mappings.
+* Add standalone Resource Manager add/update authoring UI for name mappings
+  owned by an existing DNS zone.
 * Add provider-specific publish/materialization diagnostics from DNS provider
   runtime state.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.

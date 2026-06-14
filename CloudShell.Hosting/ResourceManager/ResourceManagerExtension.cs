@@ -88,14 +88,14 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
             .AddResourceType<RegisterDnsZoneResource>(
                 "cloudshell.dnsZone",
                 "DNS Zone",
-                "Inspect a logical DNS or name-resolution boundary.",
+                "Create a logical DNS or name-resolution boundary.",
                 "network",
                 10,
                 resourceClass: ResourceClass.Network)
             .AddResourceType<RegisterNameMappingResource>(
                 "cloudshell.nameMapping",
                 "Name Mapping",
-                "Inspect a DNS-style name mapping to a resource endpoint.",
+                "Inspect a DNS-style name mapping owned by a DNS Zone.",
                 "network",
                 11,
                 resourceClass: ResourceClass.Network);

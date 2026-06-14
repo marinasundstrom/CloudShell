@@ -169,9 +169,10 @@ listed here before pulling in broader proposal work.
   local DNS-style names that target the load-balancer frontend. Generated
   diagnostics also warn when a selected DNS publisher resource is missing or
   lacks the publisher capability, and DNS zones/name mappings now have
-  inspectable Resource Manager type registrations; next it needs provider
-  runtime publish diagnostics and a dedicated create/update UI when the MVP
-  management flow needs UI-authored names.
+  inspectable Resource Manager type registrations. Resource Manager can now
+  create a DNS Zone with an optional initial name mapping; next it needs
+  provider runtime publish diagnostics and standalone add/update UI for name
+  mappings owned by existing zones when the MVP management flow needs it.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when
