@@ -287,7 +287,10 @@ expectations rather than duplicating the task queue.
   category, event, trace/span, exception, and attribute fields. Trace-related
   log routes now keep a `traceId` filter, prefer source logs over activity logs
   when no log source is specified, preserve the filter while switching sources,
-  and show a clear trace-filter affordance.
+  and show a clear trace-filter affordance. Trace span details also link to the
+  resource Activity tab with the same `traceId`, and Activity applies that
+  filter so resource lifecycle entries, source logs, and spans can be followed
+  from one trace.
 - Application overview reference rows now evaluate declared resource-permission
   grants for identity-bound configuration and secret references, showing
   granted access separately from missing grant requirements.

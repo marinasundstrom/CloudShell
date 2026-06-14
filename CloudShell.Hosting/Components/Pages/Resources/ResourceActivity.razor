@@ -1,5 +1,6 @@
 @using System.Globalization
 @inject IResourceEventManager ResourceEvents
+@inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -57,6 +58,10 @@
                 }
             </div>
         </div>
+        @if (!string.IsNullOrWhiteSpace(TraceId))
+        {
+            <p class="log-description">@L["Showing activity correlated with trace {0}.", FormatTraceId(TraceId)]</p>
+        }
 
         @if (Events.Count == 0)
         {
@@ -116,6 +121,9 @@
     [Parameter]
     public string? ResourceId { get; set; }
 
+    [Parameter]
+    public string? TraceId { get; set; }
+
     private IReadOnlyList<ResourceEvent> Events { get; set; } = [];
     private bool IsLoading { get; set; }
     private string? EventTypeFilter { get; set; }
@@ -138,6 +146,12 @@
         EventTypeFilter = null;
         TriggeredByFilter = null;
         SelectedTimeRange = TimeRangeAll;
+        if (!string.IsNullOrWhiteSpace(TraceId) && !string.IsNullOrWhiteSpace(ResourceId))
+        {
+            Navigation.NavigateTo(BuildActivityRoute(ResourceId), replace: true);
+            return;
+        }
+
         await LoadEventsAsync();
     }
 
@@ -158,7 +172,8 @@
                     EventType: NormalizeFilter(EventTypeFilter),
                     TriggeredBy: NormalizeFilter(TriggeredByFilter),
                     Since: GetSinceFilter(),
-                    MaxEvents: 100));
+                    MaxEvents: 100,
+                    TraceId: NormalizeFilter(TraceId)));
         }
         finally
         {
@@ -169,6 +184,7 @@
     private bool HasActiveFilters =>
         !string.IsNullOrWhiteSpace(EventTypeFilter) ||
         !string.IsNullOrWhiteSpace(TriggeredByFilter) ||
+        !string.IsNullOrWhiteSpace(TraceId) ||
         !string.Equals(SelectedTimeRange, TimeRangeAll, StringComparison.Ordinal);
 
     private string GetEventCountLabel() =>
@@ -232,6 +248,12 @@
             "/observability/traces",
             query);
     }
+
+    private static string BuildActivityRoute(string resourceId) =>
+        Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            $"/resources/{Uri.EscapeDataString(resourceId)}/details",
+            "tab",
+            "activity");
 
     private static string FormatTraceId(string traceId) =>
         traceId.Length <= 12

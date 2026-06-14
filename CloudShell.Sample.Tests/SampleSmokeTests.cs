@@ -47,6 +47,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("Console logs", relatedLogsHtml);
         Assert.Contains("Showing entries correlated with trace", relatedLogsHtml);
         Assert.Contains("Clear trace filter", relatedLogsHtml);
+
+        var relatedActivityHtml = await host.GetStringAsync(
+            "/resources/application%3Aproject-reference-frontend/details?tab=activity&traceId=4bf92f3577b34da6a3ce929d0e0e4736");
+        Assert.Contains("Activity", relatedActivityHtml);
+        Assert.Contains("Showing activity correlated with trace", relatedActivityHtml);
+        Assert.Contains("Clear", relatedActivityHtml);
     }
 
     [Fact]

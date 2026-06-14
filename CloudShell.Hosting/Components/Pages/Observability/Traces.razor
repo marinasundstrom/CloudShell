@@ -244,6 +244,10 @@
                                             @L["Related logs"]
                                         </FluentButton>
                                         <FluentButton Appearance="Appearance.Neutral"
+                                                      Href="@BuildActivityRoute(selectedSpan.ResourceId, selectedSpan.TraceId)">
+                                            @L["Related activity"]
+                                        </FluentButton>
+                                        <FluentButton Appearance="Appearance.Neutral"
                                                       Href="@BuildResourceRoute(selectedSpan.ResourceId)">
                                             @L["Open resource"]
                                         </FluentButton>
@@ -684,6 +688,15 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             new Dictionary<string, string?>
             {
                 ["resourceId"] = resourceId,
+                ["traceId"] = traceId
+            });
+
+    private static string BuildActivityRoute(string resourceId, string traceId) =>
+        Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            $"/resources/{Uri.EscapeDataString(resourceId)}/details",
+            new Dictionary<string, string?>
+            {
+                ["tab"] = "activity",
                 ["traceId"] = traceId
             });
 

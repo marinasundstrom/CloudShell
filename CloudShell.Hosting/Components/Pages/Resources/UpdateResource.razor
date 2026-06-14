@@ -177,7 +177,7 @@
                 <CascadingValue Value="ConfigurationContext">
                     <DynamicComponent Type="selectedTab.ComponentType"
                                       @key="GetContentKey(resource, selectedTab)"
-                                      Parameters="@(new Dictionary<string, object?> { ["ResourceId"] = resource.Id })" />
+                                      Parameters="@BuildComponentParameters(resource, selectedTab)" />
                 </CascadingValue>
             }
         }
@@ -194,6 +194,9 @@
 
     [SupplyParameterFromQuery(Name = "tab")]
     private string? RequestedQueryTabId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "traceId")]
+    private string? RequestedTraceId { get; set; }
 
     private ResourceConfigurationContext? ConfigurationContext { get; set; }
     private Resource? Resource { get; set; }
@@ -398,6 +401,23 @@
 
     private string GetContentKey(Resource resource, ResourceTabContribution selectedTab) =>
         $"{resource.Id}:{selectedTab.Id}:{ResourceContentVersion}";
+
+    private Dictionary<string, object?> BuildComponentParameters(
+        Resource resource,
+        ResourceTabContribution selectedTab)
+    {
+        var parameters = new Dictionary<string, object?>
+        {
+            ["ResourceId"] = resource.Id
+        };
+
+        if (string.Equals(selectedTab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase))
+        {
+            parameters["TraceId"] = RequestedTraceId;
+        }
+
+        return parameters;
+    }
 
     private static IReadOnlyList<ResourceTabContribution> BuildTabs(
         Resource? resource,
