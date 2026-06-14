@@ -200,6 +200,16 @@ public sealed record DnsNameMappingDefinition(
     ResourceExposureScope Exposure = ResourceExposureScope.Public,
     string? ProviderResourceId = null);
 
+public sealed record DnsNameMappingResourceDefinition(
+    string ZoneResourceId,
+    string Id,
+    string Name,
+    string HostName,
+    string TargetResourceId,
+    string? TargetEndpointName = null,
+    ResourceExposureScope Exposure = ResourceExposureScope.Public,
+    string? ProviderResourceId = null);
+
 public interface ILoadBalancerProvider
 {
     string ProviderName { get; }

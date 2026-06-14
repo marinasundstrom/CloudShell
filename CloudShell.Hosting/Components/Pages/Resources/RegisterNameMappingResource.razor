@@ -1,9 +1,277 @@
-@inject IStringLocalizer<SharedResource> L
+@using System.Text.Json
+@inject IResourceManager ResourceManager
+@inject NavigationManager Navigation
 
 <div class="type-registration">
     <div class="form-panel">
-        <div class="procedure-message compact">
-            @L["Name mappings are owned by DNS Zone resources. Create a DNS Zone and enable the initial name mapping option, or use MapHost(...) in the host declaration for programmatic resources."]
+        <label for="name-mapping-zone">DNS zone</label>
+        <FluentSelect TOption="string"
+                      Id="name-mapping-zone"
+                      @bind-Value="SelectedZoneResourceId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Select a DNS zone</FluentOption>
+            @foreach (var zone in GetDnsZoneCandidates())
+            {
+                <FluentOption TOption="string" Value="@zone.Id">@zone.Name</FluentOption>
+            }
+        </FluentSelect>
+
+        <label for="name-mapping-name">Name</label>
+        <FluentTextField Id="name-mapping-name" @bind-Value="Name" Placeholder="App local" />
+
+        <label for="name-mapping-resource-id">Resource ID</label>
+        <FluentTextField Id="name-mapping-resource-id" @bind-Value="ResourceId" Placeholder="dns:local:name:app-local" />
+
+        <label for="name-mapping-host">Host name</label>
+        <FluentTextField Id="name-mapping-host" @bind-Value="HostName" Placeholder="app.local" />
+
+        <label for="name-mapping-target">Target resource</label>
+        <FluentSelect TOption="string"
+                      Id="name-mapping-target"
+                      @bind-Value="TargetResourceId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Select a target</FluentOption>
+            @foreach (var target in GetTargetCandidates())
+            {
+                <FluentOption TOption="string" Value="@target.Id">@target.Name</FluentOption>
+            }
+        </FluentSelect>
+
+        @if (GetTargetEndpoints(TargetResourceId).Count > 0)
+        {
+            <label for="name-mapping-target-endpoint">Target endpoint</label>
+            <FluentSelect TOption="string"
+                          Id="name-mapping-target-endpoint"
+                          @bind-Value="TargetEndpointName"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Any endpoint</FluentOption>
+                @foreach (var endpoint in GetTargetEndpoints(TargetResourceId))
+                {
+                    <FluentOption TOption="string" Value="@endpoint.Name">@endpoint.Name</FluentOption>
+                }
+            </FluentSelect>
+        }
+
+        <label for="name-mapping-exposure">Exposure</label>
+        <FluentSelect TOption="string"
+                      Id="name-mapping-exposure"
+                      @bind-Value="SelectedExposure"
+                      Appearance="Appearance.Outline">
+            @foreach (var exposure in Enum.GetValues<ResourceExposureScope>())
+            {
+                <FluentOption TOption="string" Value="@exposure.ToString()">@exposure</FluentOption>
+            }
+        </FluentSelect>
+
+        <label for="name-mapping-provider">Publishing provider resource</label>
+        <FluentSelect TOption="string"
+                      Id="name-mapping-provider"
+                      @bind-Value="ProviderResourceId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Use zone provider</FluentOption>
+            @foreach (var provider in GetNamePublisherCandidates())
+            {
+                <FluentOption TOption="string" Value="@provider.Id">@provider.Name</FluentOption>
+            }
+        </FluentSelect>
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
         </div>
     </div>
 </div>
+
+@code {
+    private const string PlatformProviderId = "cloudshell.platform";
+    private const string DnsZoneResourceType = "cloudshell.dnsZone";
+    private const string NameMappingResourceType = "cloudshell.nameMapping";
+    private const string NetworkResourceType = "cloudshell.network";
+    private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
+
+    private string SelectedZoneResourceId { get; set; } = string.Empty;
+    private string ResourceId { get; set; } = string.Empty;
+    private string Name { get; set; } = string.Empty;
+    private string HostName { get; set; } = "app.local";
+    private string TargetResourceId { get; set; } = string.Empty;
+    private string TargetEndpointName { get; set; } = string.Empty;
+    private string SelectedExposure { get; set; } = ResourceExposureScope.Public.ToString();
+    private string ProviderResourceId { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; }
+    private IReadOnlyList<Resource> Resources { get; set; } = [];
+    private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
+        new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Resources = await ResourceManager.ListResourcesAsync();
+
+        var groupsByResourceId = new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in Resources)
+        {
+            var group = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
+            if (group is not null)
+            {
+                groupsByResourceId[resource.Id] = group;
+            }
+        }
+
+        ResourceGroupsByResourceId = groupsByResourceId;
+        SelectedZoneResourceId = GetDnsZoneCandidates().FirstOrDefault()?.Id ?? string.Empty;
+        TargetResourceId = GetTargetCandidates().FirstOrDefault()?.Id ?? string.Empty;
+    }
+
+    private IReadOnlyList<Resource> GetDnsZoneCandidates() =>
+        Resources
+            .Where(resource =>
+                string.Equals(resource.EffectiveTypeId, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase) ||
+                resource.HasCapability(ResourceCapabilityIds.NetworkingDnsZone))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<Resource> GetTargetCandidates() =>
+        Resources
+            .Where(resource => !IsDnsResource(resource))
+            .Where(resource => !IsNetworkBoundaryResource(resource))
+            .Where(resource => resource.Endpoints.Count > 0 || resource.HasCapability(ResourceCapabilityIds.EndpointSource))
+            .Where(IsInSelectedZoneGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<Resource> GetNamePublisherCandidates() =>
+        Resources
+            .Where(resource => resource.HasCapability(ResourceCapabilityIds.NetworkingNamePublisher))
+            .Where(IsInSelectedZoneGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<ResourceEndpoint> GetTargetEndpoints(string resourceId) =>
+        Resources
+            .FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+            ?.Endpoints ?? [];
+
+    private bool IsInSelectedZoneGroup(Resource resource)
+    {
+        var zoneGroup = ResourceGroupsByResourceId.GetValueOrDefault(SelectedZoneResourceId);
+        var group = ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
+        return zoneGroup is null
+            ? group is null
+            : string.Equals(group?.Id, zoneGroup.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsDnsResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resource.EffectiveTypeId, NameMappingResourceType, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsNetworkBoundaryResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resource.EffectiveTypeId, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase);
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(SelectedZoneResourceId))
+        {
+            ErrorMessage = "DNS zone is required.";
+            return;
+        }
+
+        if (!GetDnsZoneCandidates().Any(resource => string.Equals(resource.Id, SelectedZoneResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            ErrorMessage = "DNS zone was not found.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(HostName))
+        {
+            ErrorMessage = "Host name is required.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(TargetResourceId))
+        {
+            ErrorMessage = "Target resource is required.";
+            return;
+        }
+
+        if (!GetTargetCandidates().Any(resource => string.Equals(resource.Id, TargetResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            ErrorMessage = "Target resource must be in the DNS zone group and expose endpoints.";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(ProviderResourceId) &&
+            !GetNamePublisherCandidates().Any(resource => string.Equals(resource.Id, ProviderResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            ErrorMessage = "Publishing provider resource must be in the DNS zone group and support name publishing.";
+            return;
+        }
+
+        var resourceId = string.IsNullOrWhiteSpace(ResourceId)
+            ? CreateMappingId(SelectedZoneResourceId, HostName)
+            : ResourceId.Trim();
+        var name = string.IsNullOrWhiteSpace(Name)
+            ? HostName.Trim()
+            : Name.Trim();
+        var definition = new DnsNameMappingResourceDefinition(
+            SelectedZoneResourceId,
+            resourceId,
+            name,
+            HostName,
+            TargetResourceId,
+            GetTargetEndpointName(),
+            GetExposure(),
+            string.IsNullOrWhiteSpace(ProviderResourceId) ? null : ProviderResourceId);
+        var zoneGroup = ResourceGroupsByResourceId.GetValueOrDefault(SelectedZoneResourceId);
+
+        await ResourceManager.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformProviderId,
+                NameMappingResourceType,
+                resourceId,
+                name,
+                JsonSerializer.SerializeToElement(definition),
+                zoneGroup?.Id));
+
+        Navigation.NavigateTo("/resources");
+    }
+
+    private string? GetTargetEndpointName()
+    {
+        if (string.IsNullOrWhiteSpace(TargetEndpointName))
+        {
+            return null;
+        }
+
+        return GetTargetEndpoints(TargetResourceId)
+            .Any(endpoint => string.Equals(endpoint.Name, TargetEndpointName, StringComparison.OrdinalIgnoreCase))
+                ? TargetEndpointName
+                : null;
+    }
+
+    private ResourceExposureScope GetExposure() =>
+        Enum.TryParse<ResourceExposureScope>(SelectedExposure, out var exposure)
+            ? exposure
+            : ResourceExposureScope.Public;
+
+    private static string CreateMappingId(string zoneResourceId, string hostName) =>
+        $"{zoneResourceId.Trim()}:name:{CreateStableIdentifier(hostName)}";
+
+    private static string CreateStableIdentifier(string value)
+    {
+        var normalized = new string(value
+            .Trim()
+            .ToLowerInvariant()
+            .Select(character => char.IsLetterOrDigit(character) ? character : '-')
+            .ToArray())
+            .Trim('-');
+
+        return string.IsNullOrWhiteSpace(normalized) ? "name" : normalized;
+    }
+}

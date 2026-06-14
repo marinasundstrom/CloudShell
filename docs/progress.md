@@ -129,7 +129,8 @@ expectations rather than duplicating the task queue.
   does not advertise the DNS publisher capability. DNS zones and name mappings
   are registered as inspectable Resource Manager resource types. Resource
   Manager can now create a DNS Zone and optionally include one initial name
-  mapping; standalone add/update editing for name mappings remains deferred.
+  mapping, and it can add standalone name mappings to an existing DNS zone.
+  Update/delete editing for existing name mappings remains deferred.
   DNS zones and name mappings do not expose lifecycle status because they are
   logical model resources rather than runtime services. `Resource.State` is
   optional; `null` means no lifecycle status is produced, while `Unknown`

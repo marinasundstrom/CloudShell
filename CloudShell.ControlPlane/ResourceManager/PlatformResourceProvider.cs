@@ -80,6 +80,7 @@ public sealed class PlatformResourceProvider(
         IsNetworkResourceType(request.ResourceType) ||
         string.Equals(request.ResourceType, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(request.ResourceType, NameMappingResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, StorageResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, VolumeResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
@@ -129,6 +130,22 @@ public sealed class PlatformResourceProvider(
             var definition = request.Configuration.Deserialize<DnsZoneResourceDefinition>(SerializerOptions)
                 ?? throw new InvalidOperationException("DNS zone resource configuration is required.");
             await SetupDnsZoneAsync(
+                definition with
+                {
+                    Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
+                    Name = string.IsNullOrWhiteSpace(definition.Name) ? request.Name : definition.Name
+                },
+                request.ResourceGroupId,
+                context.Registrations,
+                cancellationToken);
+            return;
+        }
+
+        if (string.Equals(request.ResourceType, NameMappingResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            var definition = request.Configuration.Deserialize<DnsNameMappingResourceDefinition>(SerializerOptions)
+                ?? throw new InvalidOperationException("Name mapping resource configuration is required.");
+            await SetupNameMappingAsync(
                 definition with
                 {
                     Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
@@ -262,6 +279,42 @@ public sealed class PlatformResourceProvider(
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
             CreateDnsZoneDependencies(normalized),
+            cancellationToken);
+    }
+
+    public async Task SetupNameMappingAsync(
+        DnsNameMappingResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var zoneResourceId = NormalizeNullable(definition.ZoneResourceId)
+            ?? throw new InvalidOperationException("DNS zone resource is required.");
+        var zone = store.GetDnsZone(zoneResourceId)
+            ?? throw new InvalidOperationException($"DNS zone resource '{zoneResourceId}' was not found.");
+        var mapping = new DnsNameMappingDefinition(
+            definition.Id,
+            definition.Name,
+            definition.HostName,
+            definition.TargetResourceId,
+            definition.TargetEndpointName,
+            definition.Exposure,
+            definition.ProviderResourceId);
+        var updated = NormalizeDnsZone(zone with
+        {
+            Mappings = zone.DnsNameMappings
+                .Where(existing => !string.Equals(existing.Id, mapping.Id, StringComparison.OrdinalIgnoreCase))
+                .Append(mapping)
+                .ToArray()
+        });
+
+        store.SaveDnsZone(updated);
+        var existingRegistration = registrations.GetRegistration(updated.Id);
+        await registrations.RegisterAsync(
+            Id,
+            updated.Id,
+            NormalizeGroupId(resourceGroupId) ?? existingRegistration?.ResourceGroupId,
+            CreateDnsZoneDependencies(updated),
             cancellationToken);
     }
 

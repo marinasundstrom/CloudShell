@@ -154,6 +154,63 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_CreatesNameMappingInExistingDnsZone()
+    {
+        await using var app = await CreateAppAsync();
+        var controlPlane = CreateClient(app);
+        var group = await CreateContractGroupAsync(controlPlane);
+
+        await controlPlane.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformResourceProvider.ProviderId,
+                PlatformResourceProvider.DnsZoneResourceType,
+                "dns:contract",
+                "Contract DNS",
+                JsonSerializer.SerializeToElement(
+                    new DnsZoneResourceDefinition(
+                        "dns:contract",
+                        "Contract DNS",
+                        "contract.local"),
+                    SerializerOptions),
+                group.Id));
+
+        await controlPlane.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformResourceProvider.ProviderId,
+                PlatformResourceProvider.NameMappingResourceType,
+                "dns:contract:name:api-contract-local",
+                "api.contract.local",
+                JsonSerializer.SerializeToElement(
+                    new DnsNameMappingResourceDefinition(
+                        "dns:contract",
+                        "dns:contract:name:api-contract-local",
+                        "api.contract.local",
+                        "api.contract.local",
+                        "network:contract",
+                        Exposure: ResourceExposureScope.Private),
+                    SerializerOptions),
+                group.Id));
+
+        var zone = await controlPlane.GetResourceAsync("dns:contract");
+        var mapping = await controlPlane.GetResourceAsync("dns:contract:name:api-contract-local");
+        var registration = await controlPlane.GetResourceRegistrationAsync("dns:contract");
+
+        Assert.NotNull(zone);
+        Assert.Equal("1", zone.ResourceAttributes[ResourceAttributeNames.DnsRecordCount]);
+
+        Assert.NotNull(mapping);
+        Assert.Equal(PlatformResourceProvider.NameMappingResourceType, mapping.EffectiveTypeId);
+        Assert.Equal(zone.Id, mapping.ParentResourceId);
+        Assert.Equal("api.contract.local", mapping.ResourceAttributes[ResourceAttributeNames.NameMappingHostName]);
+        Assert.Equal("network:contract", mapping.ResourceAttributes[ResourceAttributeNames.NameMappingTargetResourceId]);
+        Assert.Equal(ResourceExposureScope.Private.ToString(), mapping.ResourceAttributes[ResourceAttributeNames.NameMappingExposure]);
+
+        Assert.NotNull(registration);
+        Assert.Equal(group.Id, registration.ResourceGroupId);
+        Assert.Equal(["network:contract"], registration.DependsOn);
+    }
+
+    [Fact]
     public async Task ControlPlaneApi_FiltersResourcesByClass()
     {
         await using var app = await CreateAppAsync();
