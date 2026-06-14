@@ -487,10 +487,54 @@ public sealed class SampleSmokeTests
         Assert.Equal("providerRequired", attributes.GetProperty("network.hostReadiness").GetString());
         Assert.Equal("networking:host-macos", attributes.GetProperty("network.mappingProviders").GetString());
 
+        var endpoint = Assert.Single(network.GetProperty("endpoints").EnumerateArray());
+        Assert.Equal("api-public", endpoint.GetProperty("name").GetString());
+        Assert.Equal("http://localhost:5290", endpoint.GetProperty("address").GetString());
+        Assert.True(endpoint.GetProperty("isExternal").GetBoolean());
+
+        var mapping = Assert.Single(network.GetProperty("endpointMappings").EnumerateArray());
+        Assert.Equal("mapping:api-public", mapping.GetProperty("id").GetString());
+        Assert.Equal("network:sample-vnet", mapping.GetProperty("source").GetProperty("resourceId").GetString());
+        Assert.Equal("api-public", mapping.GetProperty("source").GetProperty("endpointName").GetString());
+        Assert.Equal("application:vnet-api", mapping.GetProperty("target").GetProperty("resourceId").GetString());
+        Assert.Equal("http", mapping.GetProperty("target").GetProperty("endpointName").GetString());
+        Assert.Equal("networking:host-macos", mapping.GetProperty("providerResourceId").GetString());
+
+        var reconcileAction = network
+            .GetProperty("resourceActions")
+            .GetProperty("reconcileEndpointMappings");
+        Assert.Equal("Reconcile endpoint mappings", reconcileAction.GetProperty("displayName").GetString());
+
+        var capabilitiesJson = await host.SendJsonAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/capabilities",
+            """
+            {
+              "resourceIds": [
+                "network:sample-vnet"
+              ]
+            }
+            """);
+        using var capabilitiesDocument = JsonDocument.Parse(capabilitiesJson);
+        var networkCapabilities = Assert.Single(capabilitiesDocument.RootElement.EnumerateArray());
+        var reconcileCapability = Assert.Single(
+            networkCapabilities.GetProperty("resourceActionCapabilities").EnumerateArray(),
+            capability => capability.GetProperty("actionId").GetString() == "reconcileEndpointMappings");
+
         if (OperatingSystem.IsMacOS())
         {
             Assert.Contains(resources, resource =>
                 resource.GetProperty("id").GetString() == "networking:host-macos");
+            Assert.True(reconcileCapability.GetProperty("canExecute").GetBoolean());
+            Assert.Equal(JsonValueKind.Null, reconcileCapability.GetProperty("reason").ValueKind);
+        }
+        else
+        {
+            Assert.False(reconcileCapability.GetProperty("canExecute").GetBoolean());
+            Assert.Contains(
+                "provider resource 'networking:host-macos' could not be found",
+                reconcileCapability.GetProperty("reason").GetString(),
+                StringComparison.Ordinal);
         }
     }
 

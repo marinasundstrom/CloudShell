@@ -648,6 +648,9 @@ expectations rather than duplicating the task queue.
   `network.provisionedMappings` attribute for its active local proxy count, and
   Resource Manager generated networking details display that count when
   available.
+- The host virtual-network sample smoke test now verifies the projected public
+  endpoint, endpoint mapping, reconcile action, and reconcile capability state
+  so the sample catches API/action drift across macOS and non-macOS hosts.
 - The load-balancer fluent API now uses `UseContainerHost(...)` and
   `UseDefaultContainerHost()` for placement so container-host assignment is
   explicit in the user-facing declaration model.
