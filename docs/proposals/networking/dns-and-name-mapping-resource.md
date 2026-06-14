@@ -336,6 +336,48 @@ Expected API surface:
 * diagnostics and action capability reasons
 * reconcile or publish actions when provided by a provider
 
+DNS and name-mapping resources should not expose normal lifecycle state just
+because a provider can publish records. DNS usually lives outside the
+CloudShell host process, and published state can survive host restarts,
+Control Plane crashes, or provider restarts. The correct operation is a
+provider-backed reconcile/apply action, not Start or Stop.
+
+The first standardized action should be:
+
+```text
+reconcileNameMappings
+```
+
+Display name: `Reconcile name mappings`.
+
+This action can be advertised on DNS zone resources, name-publishing provider
+resources, or both, depending on provider ownership. The action should:
+
+* validate selected publisher resources and name-mapping conflicts
+* ask the selected provider to publish or re-apply expected records
+* remove or mark provider-owned stale records when the provider can safely own
+  that scope
+* return structured diagnostics for records that cannot be published
+* refresh projected materialization state after the provider observes the
+  external system
+
+The provider contract should be explicit, for example a future
+`INamePublishingProvider` or equivalent provider-owned API. Until that exists,
+CloudShell should keep logical-only mappings honest by showing that no
+publisher is selected rather than exposing a no-op apply button.
+
+Projected DNS materialization should distinguish:
+
+* logical-only: CloudShell models the name but no provider will publish it
+* provider selected: a provider is responsible but applied state is unknown
+* applied: the provider observed the expected external record
+* drifted or failed: the provider observed missing, stale, or invalid external
+  state
+
+This lets Resource Manager answer the operational question: "Are the DNS
+settings applied now?" without requiring the DNS zone or name mapping to be a
+running resource.
+
 The UI should show:
 
 * DNS zones

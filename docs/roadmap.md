@@ -405,7 +405,11 @@ listed here before pulling in broader proposal work.
   networking services, not just logical local networking.
 - Add the first DNS/name mapping resource projection and UI path for local
   development names, with provider-materialization warnings when no capable
-  name publisher is active.
+  name publisher is active. DNS/name resources should remain lifecycle-less,
+  but provider-backed DNS publication needs an explicit
+  `reconcileNameMappings` action and name-publishing provider contract so
+  operators can force re-apply expected records and see whether external DNS
+  state is applied, unknown, drifted, or failed after host restarts.
 - Continue load balancer support beyond the first Traefik file-config provider.
   Generated Resource Manager diagnostics now cover missing selected host
   resources and missing route target resources/endpoints; next add provider

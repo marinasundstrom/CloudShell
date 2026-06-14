@@ -138,7 +138,10 @@ expectations rather than duplicating the task queue.
   logical model resources rather than runtime services. `Resource.State` is
   optional; `null` means no lifecycle status is produced, while `Unknown`
   remains the value for lifecycle-aware resources whose provider cannot
-  determine current status.
+  determine current status. Provider-backed DNS publication should instead use
+  an explicit `reconcileNameMappings` action and a name-publishing provider
+  contract so operators can re-apply external DNS settings after host restarts
+  and inspect applied, unknown, drifted, or failed materialization state.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the
