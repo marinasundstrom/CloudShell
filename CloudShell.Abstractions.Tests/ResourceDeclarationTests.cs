@@ -4690,7 +4690,8 @@ public sealed class ResourceDeclarationTests
             [
                 new[] { service },
                 Array.Empty<ServiceResourceDefinition>(),
-                new[] { new NetworkResourceDefinition("network:app", "App Network") }
+                new[] { new NetworkResourceDefinition("network:app", "App Network") },
+                null
             ]));
 
         Assert.Contains("name: \"sample\"", yaml);
@@ -4715,6 +4716,94 @@ public sealed class ResourceDeclarationTests
         Assert.Contains("      - target: 5080", yaml);
         Assert.Contains("        published: 5080", yaml);
         Assert.Contains("      - \"/var/run/docker.sock:/var/run/docker.sock:ro\"", yaml);
+    }
+
+    [Fact]
+    public void DockerComposeOrchestrator_RendersLocalStorageBackedVolumeMount()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var orchestrator = new DockerComposeResourceOrchestrator(
+            new DockerComposeOrchestratorOptions
+            {
+                ProjectName = "sample",
+                WorkingDirectory = workingDirectory
+            },
+            [],
+            new TestContainerHostResolver(
+                new ContainerHostDescriptor(
+                    "docker",
+                    "Docker",
+                    ContainerHostKind.Docker,
+                    "unix:///var/run/docker.sock")));
+        var render = typeof(DockerComposeResourceOrchestrator).GetMethod(
+            "RenderComposeDocument",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        var storage = new Resource(
+            "storage:local",
+            "Local Storage",
+            StorageProviderNames.LocalStorage,
+            StorageProviderNames.LocalStorage,
+            "local",
+            ResourceState.Running,
+            [],
+            StorageMedia.FileSystem,
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "cloudshell.storage",
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.StorageMedium] = StorageMedia.FileSystem,
+                [ResourceAttributeNames.StorageLocation] = "./Data/storage"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageMountProvider)]);
+        var volume = new Resource(
+            "volume:sql-data",
+            "SQL Data",
+            "Volume",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [],
+            StorageProviderNames.LocalStorage,
+            DateTimeOffset.UtcNow,
+            ["storage:local"],
+            TypeId: "cloudshell.volume",
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.VolumeStorageMedium] = StorageMedia.FileSystem,
+                [ResourceAttributeNames.VolumeStorageResourceId] = "storage:local",
+                [ResourceAttributeNames.VolumeSubPath] = "sql-server"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+        var resourceManager = new StaticResourceManagerStore([storage, volume]);
+        var service = new ResourceOrchestratorService(
+            "application:sql",
+            "sql",
+            new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerImage,
+                "SQL Server",
+                Image: "mcr.microsoft.com/mssql/server:2022-latest",
+                VolumeMounts:
+                [
+                    new ResourceVolumeMount("volume:sql-data", "/var/opt/mssql", false, "data")
+                ]));
+
+        Assert.NotNull(render);
+        var yaml = Assert.IsType<string>(render.Invoke(
+            orchestrator,
+            [
+                new[] { service },
+                Array.Empty<ServiceResourceDefinition>(),
+                Array.Empty<NetworkResourceDefinition>(),
+                resourceManager
+            ]));
+        var expectedPath = Path.GetFullPath(Path.Combine(workingDirectory, "Data/storage/sql-server"));
+
+        Assert.Contains("    volumes:", yaml);
+        Assert.Contains($"      - \"{expectedPath}:/var/opt/mssql\"", yaml);
+        Assert.True(Directory.Exists(expectedPath));
     }
 
     [Fact]

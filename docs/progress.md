@@ -108,14 +108,15 @@ expectations rather than duplicating the task queue.
   semantics until storage capabilities are formalized, and container hosts
   should eventually validate whether they can materialize a volume's storage
   medium before accepting it.
-  The default local Docker runner now materializes `FileSystem` volume mounts:
-  managed `cloudshell.volume` resources resolve to host bind-mount paths, and
-  unmanaged references remain Docker named volumes. Provider-backed volume
-  resources, Docker Compose volume mapping, richer materialization diagnostics,
-  broader UI management, runtime enforcement, and usage monitoring APIs remain
-  next storage work. The Container Host sample now demonstrates the intended
-  storage graph by declaring a Local Storage resource, a SQL Server data volume
-  owned by that storage resource, and a SQL Server container mount at
+  The default local Docker runner and Docker Compose generator now materialize
+  `FileSystem` volume mounts: managed `cloudshell.volume` resources resolve to
+  host bind-mount paths, and unmanaged references remain Docker/Compose named
+  volumes. Provider-backed volume resources, richer materialization
+  diagnostics, broader UI management, runtime enforcement, and usage
+  monitoring APIs remain next storage work. The Container Host sample now
+  demonstrates the intended storage graph by declaring a Local Storage
+  resource, a SQL Server data volume owned by that storage resource, and a SQL
+  Server container mount at
   `/var/opt/mssql`.
 - The first post-MVP target is an initial on-premise hosting scenario. It
   should prove acceptable Resource Manager operations, provider-backed

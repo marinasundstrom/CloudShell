@@ -150,10 +150,11 @@ listed here before pulling in broader proposal work.
 - Treat storage as part of the same app-environment path, not as deployment
   trivia. The MVP now has basic volume resources and container app volume
   attachments with a dedicated resource Storage tab plus a direct volume
-  create/configuration/overview flow; next it needs runtime materialization,
-  the temporary Local Storage provider story, host/storage-medium compatibility
-  diagnostics, and Resource Manager visibility showing which resources depend
-  on storage and whether the mapping can be materialized.
+  create/configuration/overview flow, Local Storage resources, and
+  Docker/Docker Compose runtime materialization for `FileSystem` mounts; next
+  it needs host/storage-medium compatibility diagnostics and Resource Manager
+  visibility showing which resources depend on storage and whether the mapping
+  can be materialized.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. Add a validation
   sample with a third-party OIDC/OAuth authority such as Keycloak once the

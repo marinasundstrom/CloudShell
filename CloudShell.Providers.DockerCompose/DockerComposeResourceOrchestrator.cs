@@ -278,7 +278,7 @@ public sealed partial class DockerComposeResourceOrchestrator(
             .ToArray();
 
         var orchestratorServices = CreateOrchestratorServices(workloads, platformServices);
-        return RenderComposeDocument(orchestratorServices, platformServices, networks);
+        return RenderComposeDocument(orchestratorServices, platformServices, networks, context.ResourceManager);
     }
 
     private static bool IsSameGroup(
@@ -433,9 +433,11 @@ public sealed partial class DockerComposeResourceOrchestrator(
     private string RenderComposeDocument(
         IReadOnlyList<ResourceOrchestratorService> orchestratorServices,
         IReadOnlyList<ServiceResourceDefinition> platformServices,
-        IReadOnlyList<NetworkResourceDefinition> networkDefinitions)
+        IReadOnlyList<NetworkResourceDefinition> networkDefinitions,
+        IResourceManagerStore? resourceManager = null)
     {
         var builder = new StringBuilder();
+        var workingDirectory = ResolveWorkingDirectory();
         builder.AppendLine($"name: {QuoteYaml(string.IsNullOrWhiteSpace(options.ProjectName) ? "cloudshell" : options.ProjectName.Trim())}");
         builder.AppendLine("services:");
 
@@ -518,6 +520,15 @@ public sealed partial class DockerComposeResourceOrchestrator(
                 }
             }
 
+            if (service.ServiceVolumeMounts.Count > 0)
+            {
+                builder.AppendLine("    volumes:");
+                foreach (var mount in service.ServiceVolumeMounts)
+                {
+                    builder.AppendLine($"      - {QuoteYaml(CreateComposeVolumeMount(mount, resourceManager, workingDirectory))}");
+                }
+            }
+
             if (service.Replicas > 1)
             {
                 builder.AppendLine("    deploy:");
@@ -591,6 +602,136 @@ public sealed partial class DockerComposeResourceOrchestrator(
             }
         }
     }
+
+    private static string CreateComposeVolumeMount(
+        ResourceVolumeMount mount,
+        IResourceManagerStore? resourceManager,
+        string workingDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(mount.VolumeReference) ||
+            string.IsNullOrWhiteSpace(mount.TargetPath))
+        {
+            throw new InvalidOperationException("Docker Compose volume mounts require a volume reference and target path.");
+        }
+
+        var source = ResolveComposeVolumeSource(
+            mount.NormalizedVolumeReference,
+            resourceManager,
+            workingDirectory);
+        return mount.ReadOnly
+            ? $"{source}:{mount.NormalizedTargetPath}:ro"
+            : $"{source}:{mount.NormalizedTargetPath}";
+    }
+
+    private static string ResolveComposeVolumeSource(
+        string volumeReference,
+        IResourceManagerStore? resourceManager,
+        string workingDirectory)
+    {
+        var volume = resourceManager?.GetResource(volumeReference);
+        if (volume is null)
+        {
+            return volumeReference;
+        }
+
+        if (!IsVolumeResource(volume))
+        {
+            throw new InvalidOperationException(
+                $"Volume reference '{volumeReference}' points to resource '{volume.Name}', which is not a volume resource.");
+        }
+
+        var medium = GetAttribute(volume, ResourceAttributeNames.VolumeStorageMedium);
+        if (!string.IsNullOrWhiteSpace(medium) &&
+            !string.Equals(medium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Volume resource '{volume.Id}' uses storage medium '{medium}', which cannot be mounted by Docker Compose.");
+        }
+
+        var path = GetAttribute(volume, ResourceAttributeNames.VolumeLocation);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            path = ResolveStorageOwnedComposeVolumePath(volume, resourceManager, workingDirectory);
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            path = Path.Combine(
+                workingDirectory,
+                "Data",
+                "storage",
+                CreateStableIdentifier(volume.Id));
+        }
+
+        var fullPath = ResolveWorkingDirectoryPath(path, workingDirectory);
+        Directory.CreateDirectory(fullPath);
+        return fullPath;
+    }
+
+    private static string ResolveStorageOwnedComposeVolumePath(
+        Resource volume,
+        IResourceManagerStore? resourceManager,
+        string workingDirectory)
+    {
+        var storageResourceId = GetAttribute(volume, ResourceAttributeNames.VolumeStorageResourceId);
+        var subPath = GetAttribute(volume, ResourceAttributeNames.VolumeSubPath);
+        if (string.IsNullOrWhiteSpace(storageResourceId))
+        {
+            return string.Empty;
+        }
+
+        var storage = resourceManager?.GetResource(storageResourceId)
+            ?? throw new InvalidOperationException(
+                $"Volume resource '{volume.Id}' references storage resource '{storageResourceId}', but that storage resource was not found.");
+        var storageMedium = GetAttribute(storage, ResourceAttributeNames.StorageMedium);
+        if (!string.IsNullOrWhiteSpace(storageMedium) &&
+            !string.Equals(storageMedium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Storage resource '{storage.Id}' uses storage medium '{storageMedium}', which cannot be mounted by Docker Compose.");
+        }
+
+        var storageRoot = GetAttribute(storage, ResourceAttributeNames.StorageLocation);
+        if (string.IsNullOrWhiteSpace(storageRoot) ||
+            string.Equals(storageRoot, "provider default", StringComparison.OrdinalIgnoreCase))
+        {
+            storageRoot = Path.Combine(
+                workingDirectory,
+                "Data",
+                "storage",
+                CreateStableIdentifier(storage.Id));
+        }
+
+        var fullStorageRoot = ResolveWorkingDirectoryPath(storageRoot, workingDirectory);
+        if (string.IsNullOrWhiteSpace(subPath))
+        {
+            return Path.Combine(fullStorageRoot, CreateStableIdentifier(volume.Id));
+        }
+
+        if (Path.IsPathRooted(subPath))
+        {
+            throw new InvalidOperationException(
+                $"Volume resource '{volume.Id}' uses an absolute storage sub-path, which is not allowed for a storage-owned volume.");
+        }
+
+        return Path.GetFullPath(Path.Combine(fullStorageRoot, subPath));
+    }
+
+    private static bool IsVolumeResource(Resource resource) =>
+        resource.EffectiveTypeId.Equals("cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
+        resource.HasCapability(ResourceCapabilityIds.StorageVolume);
+
+    private static string GetAttribute(Resource resource, string name) =>
+        resource.ResourceAttributes.TryGetValue(name, out var value)
+            ? value
+            : string.Empty;
+
+    private static string ResolveWorkingDirectoryPath(
+        string path,
+        string workingDirectory) =>
+        Path.IsPathRooted(path)
+            ? Path.GetFullPath(path)
+            : Path.GetFullPath(path, workingDirectory);
 
     private bool ShouldUseComposeIngress(ResourceOrchestratorService service) =>
         options.EnableReplicatedContainerAppIngress &&
