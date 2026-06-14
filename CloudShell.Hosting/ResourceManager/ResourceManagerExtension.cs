@@ -84,6 +84,20 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "Create provider-backed HTTP, HTTPS, or TCP routes to registered resources.",
                 "network",
                 9,
+                resourceClass: ResourceClass.Network)
+            .AddResourceType<RegisterDnsZoneResource>(
+                "cloudshell.dnsZone",
+                "DNS Zone",
+                "Inspect a logical DNS or name-resolution boundary.",
+                "network",
+                10,
+                resourceClass: ResourceClass.Network)
+            .AddResourceType<RegisterNameMappingResource>(
+                "cloudshell.nameMapping",
+                "Name Mapping",
+                "Inspect a DNS-style name mapping to a resource endpoint.",
+                "network",
+                11,
                 resourceClass: ResourceClass.Network);
 
         if (includeSettings)

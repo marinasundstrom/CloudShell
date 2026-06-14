@@ -126,7 +126,9 @@ expectations rather than duplicating the task queue.
   public load-balancer frontend, demonstrating the distinction between host
   routing and DNS/name publication. Resource Manager generated diagnostics now
   also warn when a selected name-publishing provider resource is missing or
-  does not advertise the DNS publisher capability.
+  does not advertise the DNS publisher capability. DNS zones and name mappings
+  are registered as inspectable Resource Manager resource types; dedicated
+  create/update authoring remains deferred.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the

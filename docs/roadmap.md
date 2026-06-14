@@ -168,9 +168,10 @@ listed here before pulling in broader proposal work.
   will publish DNS records for them. The Load Balancer sample now declares
   local DNS-style names that target the load-balancer frontend. Generated
   diagnostics also warn when a selected DNS publisher resource is missing or
-  lacks the publisher capability; next it needs provider runtime publish
-  diagnostics and a dedicated create/update UI when the MVP management flow
-  needs UI-authored names.
+  lacks the publisher capability, and DNS zones/name mappings now have
+  inspectable Resource Manager type registrations; next it needs provider
+  runtime publish diagnostics and a dedicated create/update UI when the MVP
+  management flow needs UI-authored names.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when

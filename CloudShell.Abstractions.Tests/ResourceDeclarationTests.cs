@@ -1002,6 +1002,35 @@ public sealed class ResourceDeclarationTests
         Assert.True(configuration.ShowsApplyButton);
     }
 
+    [Fact]
+    public void ResourceManagerExtension_RegistersDnsResourceTypes()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddExtension<ResourceManagerExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var registry = serviceProvider.GetRequiredService<CloudShellExtensionRegistry>();
+        var resourceTypes = registry.Extensions
+            .SelectMany(extension => extension.ResourceTypes)
+            .ToDictionary(resourceType => resourceType.Id, StringComparer.OrdinalIgnoreCase);
+
+        var dnsZoneType = resourceTypes["cloudshell.dnsZone"];
+        var nameMappingType = resourceTypes["cloudshell.nameMapping"];
+
+        Assert.Equal("DNS Zone", dnsZoneType.DisplayName);
+        Assert.Equal(ResourceClass.Network, dnsZoneType.ResourceClass);
+        Assert.Equal(typeof(RegisterDnsZoneResource), dnsZoneType.RegistrationComponentType);
+        Assert.Empty(dnsZoneType.ResourceTabs);
+
+        Assert.Equal("Name Mapping", nameMappingType.DisplayName);
+        Assert.Equal(ResourceClass.Network, nameMappingType.ResourceClass);
+        Assert.Equal(typeof(RegisterNameMappingResource), nameMappingType.RegistrationComponentType);
+        Assert.Empty(nameMappingType.ResourceTabs);
+    }
+
     private static void AssertStorageTab(ResourceTypeContribution resourceType)
     {
         var storageTab = Assert.Single(
