@@ -179,6 +179,7 @@ public sealed class PlatformResourceProvider(
         ValidatePlatformEndpointAssignments(
             normalized.Id,
             CreateLoadBalancerEndpoints(normalized));
+        ValidateLoadBalancerRoutes(normalized);
         store.SaveLoadBalancer(normalized);
         await registrations.RegisterAsync(
             Id,
@@ -320,6 +321,7 @@ public sealed class PlatformResourceProvider(
         ValidatePlatformEndpointAssignments(
             normalizedLoadBalancer.Id,
             CreateLoadBalancerEndpoints(normalizedLoadBalancer));
+        ValidateLoadBalancerRoutes(normalizedLoadBalancer);
         if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
         {
             store.SaveLoadBalancer(
@@ -679,6 +681,57 @@ public sealed class PlatformResourceProvider(
 
         return targetResource.Endpoints.FirstOrDefault(endpoint =>
             TryGetEndpointPort(endpoint, out var port) && port == route.Target.Port);
+    }
+
+    private static void ValidateLoadBalancerRoutes(LoadBalancerResourceDefinition definition)
+    {
+        var entrypoints = definition.LoadBalancerEntrypoints.ToDictionary(
+            entrypoint => entrypoint.Name,
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var route in definition.LoadBalancerRoutes)
+        {
+            if (!entrypoints.TryGetValue(route.EntrypointName, out var entrypoint))
+            {
+                throw new InvalidOperationException(
+                    $"Load balancer resource '{definition.Id}' route '{route.Id}' references entrypoint '{route.EntrypointName}', but no matching entrypoint is declared.");
+            }
+
+            if (!IsLoadBalancerRouteCompatibleWithEntrypoint(route, entrypoint))
+            {
+                throw new InvalidOperationException(
+                    $"Load balancer resource '{definition.Id}' route '{route.Id}' is a {route.Kind.ToString().ToLowerInvariant()} route but entrypoint '{entrypoint.Name}' uses protocol '{entrypoint.Protocol}'.");
+            }
+        }
+
+        foreach (var duplicate in definition.LoadBalancerRoutes
+            .GroupBy(CreateLoadBalancerRouteConflictKey, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            var routeIds = string.Join(", ", duplicate.Select(route => route.Id));
+            throw new InvalidOperationException(
+                $"Load balancer resource '{definition.Id}' has conflicting route match '{duplicate.Key}' on routes: {routeIds}.");
+        }
+    }
+
+    private static bool IsLoadBalancerRouteCompatibleWithEntrypoint(
+        LoadBalancerRoute route,
+        LoadBalancerEntrypoint entrypoint) =>
+        route.Kind switch
+        {
+            LoadBalancerRouteKind.Http => entrypoint.Protocol is ResourceEndpointProtocol.Http or ResourceEndpointProtocol.Https,
+            LoadBalancerRouteKind.Tcp => entrypoint.Protocol == ResourceEndpointProtocol.Tcp,
+            _ => false
+        };
+
+    private static string CreateLoadBalancerRouteConflictKey(LoadBalancerRoute route)
+    {
+        var host = NormalizeNullable(route.Match.Host)?.ToLowerInvariant() ?? "*";
+        var pathPrefix = NormalizeNullable(route.Match.PathPrefix) ?? "/";
+        var port = route.Match.Port?.ToString(CultureInfo.InvariantCulture) ?? "*";
+        return route.Kind == LoadBalancerRouteKind.Tcp
+            ? $"{route.Kind}:{route.EntrypointName}:{port}"
+            : $"{route.Kind}:{route.EntrypointName}:{host}:{pathPrefix}";
     }
 
     private async Task<bool> TryProvisionEndpointMappingAsync(

@@ -431,6 +431,10 @@ expectations rather than duplicating the task queue.
   container-app targets, and a Traefik-backed public load balancer. Its smoke
   test invokes the advertised apply action and verifies the generated dynamic
   configuration file.
+- Load-balancer setup now validates route references and exact route conflicts
+  before persisting the platform resource, so routes must reference compatible
+  entrypoints and duplicate matches on the same entrypoint are rejected before
+  provider configuration is written.
 - `IResourceManager` publishes coarse `ResourcesChanged` notifications after
   resource-manager mutations. Resource Manager listens for those notifications
   and also polls the inventory so provider-discovered changes, such as runtime

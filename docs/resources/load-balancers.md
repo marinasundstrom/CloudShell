@@ -114,6 +114,11 @@ routes to an existing resource endpoint or raw target port.
 The apply action validates the route targets and delegates to the selected
 `ILoadBalancerProvider`.
 
+Load-balancer setup validates route shape before persisting the resource:
+routes must reference a declared entrypoint, HTTP routes must use HTTP/HTTPS
+entrypoints, TCP routes must use TCP entrypoints, and exact duplicate route
+matches on the same entrypoint are rejected.
+
 ## API Projection
 
 Load balancer routes are part of the normal resource response:
@@ -197,7 +202,7 @@ not yet provide:
 
 - provider configuration preview in the UI
 - editing multiple load-balancer routes after creation
-- structured validation diagnostics before applying routes
+- full structured validation diagnostics before applying routes
 - full provider-managed stop/delete lifecycle for the Traefik runtime container
 - TLS certificate resources or certificate binding
 - weighted backend pools, traffic splitting, provider-observed replica health,

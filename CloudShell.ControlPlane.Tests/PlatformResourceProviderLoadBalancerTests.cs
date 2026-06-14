@@ -157,6 +157,62 @@ public sealed class PlatformResourceProviderLoadBalancerTests
     }
 
     [Fact]
+    public async Task SetupLoadBalancerAsync_RejectsRouteWithMissingEntrypoint()
+    {
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(store, new PlatformResourceOptions());
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Entrypoints = [],
+            Routes =
+            [
+                CreateRuntimeLoadBalancerDefinition().LoadBalancerRoutes.Single()
+            ]
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.SetupLoadBalancerAsync(
+                definition,
+                null,
+                new TestResourceRegistrationStore([])));
+
+        Assert.Contains("references entrypoint 'web'", exception.Message);
+        Assert.Null(store.GetLoadBalancer(definition.Id));
+    }
+
+    [Fact]
+    public async Task SetupLoadBalancerAsync_RejectsDuplicateRouteMatches()
+    {
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(store, new PlatformResourceOptions());
+        var route = CreateRuntimeLoadBalancerDefinition().LoadBalancerRoutes.Single();
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Routes =
+            [
+                route,
+                route with
+                {
+                    Id = "web-app-copy",
+                    Name = "Web app copy",
+                    Target = new LoadBalancerRouteTarget("application:web-copy", "http")
+                }
+            ]
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.SetupLoadBalancerAsync(
+                definition,
+                null,
+                new TestResourceRegistrationStore([])));
+
+        Assert.Contains("conflicting route match", exception.Message);
+        Assert.Contains("web-app", exception.Message);
+        Assert.Contains("web-app-copy", exception.Message);
+        Assert.Null(store.GetLoadBalancer(definition.Id));
+    }
+
+    [Fact]
     public async Task DeleteAsync_CleansLoadBalancerRuntimeBeforeRemovingRegistration()
     {
         var store = CreatePlatformStore();
