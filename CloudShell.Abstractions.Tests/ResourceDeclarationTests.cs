@@ -15,6 +15,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 
 namespace CloudShell.Abstractions.Tests;
@@ -1174,6 +1176,69 @@ public sealed class ResourceDeclarationTests
         Assert.Contains("Setting 'SAMPLE_API_KEY' references 'secrets-vault:app'", reason);
         Assert.Contains("identity 'application:api/api-service' is not allowed to read secrets", reason);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, reason);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_ReportsOccupiedLocalEndpointAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var services = new ServiceCollection();
+
+        try
+        {
+            services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+            services
+                .AddControlPlane()
+                .AddApplicationProvider(options =>
+                {
+                    options.DefinitionsPath = "application-resources.json";
+                    options.RuntimeStatePath = "application-runtime-state.json";
+                    options.LogDirectory = "application-logs";
+                })
+                .Resources(resources =>
+                {
+                    resources
+                        .AddExecutableApplication(
+                            "application:api",
+                            "API",
+                            executablePath: "dotnet")
+                        .WithEndpoint($"http://127.0.0.1:{port}");
+                });
+
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+            var registrations = new TestResourceRegistrationStore(
+                [
+                    new ResourceRegistration(
+                        resource.Id,
+                        provider.Id,
+                        null,
+                        DateTimeOffset.UtcNow,
+                        [])
+                ]);
+            var resourceManager = new StaticResourceManagerStore([resource], [provider]);
+
+            var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                ResourceAction.Start);
+
+            Assert.Equal(
+                $"Endpoint 'application' for application resource 'application:api' cannot use http://127.0.0.1:{port} because the address is already in use.",
+                reason);
+        }
+        finally
+        {
+            listener.Stop();
+        }
     }
 
     [Fact]

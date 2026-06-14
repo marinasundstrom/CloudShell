@@ -5,6 +5,8 @@ using CloudShell.Client.Authentication;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -277,7 +279,15 @@ public sealed partial class ApplicationResourceProvider(
             return Task.FromResult<string?>(null);
         }
 
-        return Task.FromResult(GetReferenceUnavailableReason(application, context));
+        var referenceReason = GetReferenceUnavailableReason(application, context);
+        if (!string.IsNullOrWhiteSpace(referenceReason))
+        {
+            return Task.FromResult<string?>(referenceReason);
+        }
+
+        return Task.FromResult(action.Kind == ResourceActionKind.Start
+            ? GetLocalProcessEndpointUnavailableReason(application)
+            : null);
     }
 
     public bool CanExecuteOrchestratorService(
@@ -2578,6 +2588,83 @@ public sealed partial class ApplicationResourceProvider(
             : "tcp";
 
         return [ResourceEndpoint.FromAddress("application", endpoint, protocol, ResourceExposureScope.Public)];
+    }
+
+    private string? GetLocalProcessEndpointUnavailableReason(ApplicationResourceDefinition application)
+    {
+        if (IsContainerBacked(application))
+        {
+            return null;
+        }
+
+        foreach (var endpoint in CreateEndpoints(application))
+        {
+            if (!TryGetLoopbackEndpoint(endpoint, out var addresses, out var port))
+            {
+                continue;
+            }
+
+            if (addresses.Any(address => !IsTcpPortAvailable(address, port)))
+            {
+                return
+                    $"Endpoint '{endpoint.Name}' for application resource '{application.Id}' cannot use {endpoint.Address} because the address is already in use.";
+            }
+        }
+
+        return null;
+    }
+
+    private static bool TryGetLoopbackEndpoint(
+        ResourceEndpoint endpoint,
+        out IReadOnlyList<IPAddress> addresses,
+        out int port)
+    {
+        addresses = [];
+        port = 0;
+        if (!Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) ||
+            uri.Port <= 0)
+        {
+            return false;
+        }
+
+        if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            addresses = [IPAddress.Loopback, IPAddress.IPv6Loopback];
+        }
+        else if (IPAddress.TryParse(uri.Host, out var address) &&
+            IPAddress.IsLoopback(address))
+        {
+            addresses = [address];
+        }
+        else
+        {
+            return false;
+        }
+
+        port = uri.Port;
+        return true;
+    }
+
+    private static bool IsTcpPortAvailable(IPAddress address, int port)
+    {
+        try
+        {
+            var listener = new TcpListener(address, port)
+            {
+                ExclusiveAddressUse = true
+            };
+            listener.Start();
+            listener.Stop();
+            return true;
+        }
+        catch (SocketException exception) when (exception.SocketErrorCode == SocketError.AddressAlreadyInUse)
+        {
+            return false;
+        }
+        catch (SocketException)
+        {
+            return true;
+        }
     }
 
     private static ProcessStartInfo CreateScopedStartInfo(ApplicationResourceDefinition definition)

@@ -106,6 +106,11 @@ expectations rather than duplicating the task queue.
   processes after terminating the process tree. This prevents wrappers such as
   `dotnet run` from exiting while the actual ASP.NET Core child process keeps a
   development port bound.
+- Local process Start action availability now preflights loopback endpoint
+  ports for non-container application resources. If a dangling process already
+  owns a configured development port, Resource Manager can show a stable
+  "address already in use" reason before the provider attempts to start the
+  process.
 - ASP.NET Core project endpoints have an explicit source order: programmatic
   endpoint declarations win, `launchSettings.json` is used only when
   `WithLaunchSettingsEndpoints()` is declared, and the provider otherwise
