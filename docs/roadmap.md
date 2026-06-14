@@ -379,16 +379,16 @@ listed here before pulling in broader proposal work.
 
 ### Next: Network and Routing Hardening
 
-- Harden macOS host-provided virtual networking by deciding how reconciled
+- Harden local host-provided virtual networking by deciding how reconciled
   mappings should be persisted or stopped. Reconcile actions now report
   endpoint-mapping validation and missing provisioner reasons through action
-  capability evaluation before execution, and the macOS provider has direct
-  Control Plane coverage for forwarding traffic through a real local proxy.
-- Generalize host-provided virtual networking as an OS-specific provider model:
-  macOS is the first implementation, while Linux, Windows, and runtime-specific
-  hosts should advertise equivalent capabilities and diagnostics through the
-  same provider boundary instead of leaking OS assumptions into Resource
-  Manager.
+  capability evaluation before execution, and the portable
+  `networking:host-local` provider has direct Control Plane coverage for
+  forwarding traffic through a real local proxy on macOS, Linux, and Windows.
+- Generalize host-provided virtual networking as a provider model beyond the
+  portable local proxy baseline: Linux, Windows, macOS, and runtime-specific
+  hosts should advertise native capabilities and diagnostics through the same
+  provider boundary instead of leaking OS assumptions into Resource Manager.
 - Make app-owned exposure first-class in the networking UI flow: create and
   inspect application endpoints, expose ports, connect them to virtual
   networks, load-balancer routes, and name mappings, and show inbound/outbound
@@ -492,8 +492,8 @@ workload-to-platform calls, but broad IAM work is no longer the front of the
 queue unless it blocks the current settings, secrets, lifecycle, or
 resource-action flows.
 
-Several first slices are already in place: virtual-network resources, macOS
-host-networking, load-balancer resources, Traefik file-provider output,
+Several first slices are already in place: virtual-network resources, portable
+local host networking, load-balancer resources, Traefik file-provider output,
 Docker host projection, Secrets Vault resources, app-owned container ingress,
 and explicit container-app replica counts. The remaining roadmap turns those
 slices into coherent security, host, networking, and deployment foundations.

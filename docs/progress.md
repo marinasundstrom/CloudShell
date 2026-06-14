@@ -122,9 +122,10 @@ expectations rather than duplicating the task queue.
   mappings without a publishing provider are marked as logical-only and shown
   as diagnostics so users know CloudShell is modeling the name but not
   publishing DNS records for it. The Load Balancer sample now declares a
-  logical Local DNS zone for `app.local` and `api.local` that targets the
-  public load-balancer frontend, demonstrating the distinction between host
-  routing and DNS/name publication. Resource Manager generated diagnostics now
+  logical Local DNS zone for `app.cloudshell.local` and
+  `api.cloudshell.local` that targets the public load-balancer frontend,
+  demonstrating the distinction between host routing and DNS/name publication.
+  Resource Manager generated diagnostics now
   also warn when a selected name-publishing provider resource is missing or
   does not advertise the DNS publisher capability. DNS zones and name mappings
   are registered as inspectable Resource Manager resource types. Resource
@@ -595,13 +596,15 @@ expectations rather than duplicating the task queue.
   container-workload validation and Docker Compose materialization require the
   shared resolver instead of keeping provider-local or engine-compatible host
   lookup paths.
-- Host-provided virtual networking starts with macOS. The built-in macOS host
-  networking provider is an activated resource that can materialize virtual
-  endpoint mappings as local TCP proxies for HTTP, HTTPS, and TCP endpoints.
-  This is now documented as the first OS-specific host networking provider
-  path; Linux, Windows, and runtime-specific hosts should plug in through the
-  same capability/diagnostic boundary rather than becoming Resource Manager
-  special cases.
+- Host-provided virtual networking now has a portable local host networking
+  provider. `networking:host-local` is an activated resource on macOS, Linux,
+  and Windows that can materialize virtual endpoint mappings as local TCP
+  proxies for HTTP, HTTPS, and TCP endpoints. This is the MVP baseline for
+  cross-platform development and team-owned hosts; OS-native Linux, Windows,
+  macOS, and runtime-specific providers should plug in through the same
+  capability/diagnostic boundary rather than becoming Resource Manager special
+  cases. The older `networking:host-macos` helper remains as a macOS-specific
+  alias while samples move to the portable provider.
 - Network resources project endpoint mappings as first-class resource data.
   Resource Manager shows mappings on the network resource and read-only network
   exposure on mapped target resources, instead of treating exposure as a
@@ -672,11 +675,11 @@ expectations rather than duplicating the task queue.
   unavailable mapping providers, missing endpoint-mapper capability, and
   unavailable host-networking provisioners surface as disabled-action reasons
   before the user invokes reconcile.
-- The macOS host-networking provider now uses the standard
+- The local host-networking provider now uses the standard
   `network.provisionedMappings` attribute for its active local proxy count, and
   Resource Manager generated networking details display that count when
   available.
-- The macOS host-networking provider now has direct Control Plane test coverage
+- The local host-networking provider now has direct Control Plane test coverage
   that provisions a real localhost endpoint mapping and verifies TCP traffic is
   forwarded through the local proxy.
 - The host virtual-network sample smoke test now verifies the projected public
@@ -933,7 +936,7 @@ expectations rather than duplicating the task queue.
 - Added host-readiness projection for default virtual networks and Resource
   Manager settings warnings when a virtual network is running in logical-only
   host-local mode.
-- Added a macOS host networking provider resource, endpoint-mapping
+- Added a portable local host networking provider resource, endpoint-mapping
   provisioner contract, Resource Manager UI readiness/provider display, and a
   Host Virtual Network sample.
 - Added the first settings/reference implementation slice: public

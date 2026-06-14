@@ -4,12 +4,12 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
-public sealed class MacOSHostNetworkProvisioner : IResourceEndpointMappingProvisioner, IAsyncDisposable
+public sealed class LocalHostNetworkProvisioner : IResourceEndpointMappingProvisioner, IAsyncDisposable
 {
     private readonly object gate = new();
     private readonly Dictionary<string, EndpointMappingProxy> proxies = new(StringComparer.OrdinalIgnoreCase);
 
-    public bool IsSupported => OperatingSystem.IsMacOS();
+    public bool IsSupported => true;
 
     public int ProvisionedMappingCount
     {
@@ -24,7 +24,7 @@ public sealed class MacOSHostNetworkProvisioner : IResourceEndpointMappingProvis
 
     public bool CanProvisionEndpointMapping(ResourceEndpointMappingProvisioningContext context) =>
         IsSupported &&
-        string.Equals(context.ProviderResource.Id, MacOSHostNetworkProvider.ResourceId, StringComparison.OrdinalIgnoreCase) &&
+        IsSupportedProviderResource(context.ProviderResource.Id) &&
         IsSupportedProtocol(context.SourceEndpoint.Protocol) &&
         IsSupportedProtocol(context.TargetEndpoint.Protocol);
 
@@ -35,13 +35,13 @@ public sealed class MacOSHostNetworkProvisioner : IResourceEndpointMappingProvis
         if (!IsSupported)
         {
             throw new InvalidOperationException(
-                "The macOS host networking provider can only provision endpoint mappings on macOS.");
+                "The local host networking provider is not supported on this host.");
         }
 
         if (!CanProvisionEndpointMapping(context))
         {
             throw new InvalidOperationException(
-                $"Endpoint mapping '{context.Mapping.Id}' cannot be provisioned by the macOS host networking provider.");
+                $"Endpoint mapping '{context.Mapping.Id}' cannot be provisioned by the local host networking provider.");
         }
 
         var source = ParseEndpoint(context.SourceEndpoint, "source", context.Mapping.Id);
@@ -71,7 +71,7 @@ public sealed class MacOSHostNetworkProvisioner : IResourceEndpointMappingProvis
         }
 
         return ResourceProcedureResult.Completed(
-            $"Provisioned endpoint mapping '{context.Mapping.Id}' through the macOS host networking provider.");
+            $"Provisioned endpoint mapping '{context.Mapping.Id}' through the local host networking provider.");
     }
 
     public async ValueTask DisposeAsync()
@@ -93,6 +93,10 @@ public sealed class MacOSHostNetworkProvisioner : IResourceEndpointMappingProvis
         protocol.Equals("http", StringComparison.OrdinalIgnoreCase) ||
         protocol.Equals("https", StringComparison.OrdinalIgnoreCase) ||
         protocol.Equals("tcp", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsSupportedProviderResource(string resourceId) =>
+        string.Equals(resourceId, LocalHostNetworkProvider.ResourceId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resourceId, MacOSHostNetworkProvider.ResourceId, StringComparison.OrdinalIgnoreCase);
 
     private static HostEndpoint ParseEndpoint(
         ResourceEndpoint endpoint,

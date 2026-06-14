@@ -4803,7 +4803,7 @@ public sealed class ResourceDeclarationTests
                     new ResourceEndpointReference("network:app", "api"),
                     new ResourceEndpointReference("application:api", "http"),
                     "network:app",
-                    "networking:host-macos")
+                    "networking:host-local")
             ],
             Kind: NetworkResourceKind.Virtual);
         var options = new PlatformResourceOptions();
@@ -4821,7 +4821,7 @@ public sealed class ResourceDeclarationTests
             [
                 network,
                 CreateEndpointResource("application:api", "http", "http://localhost:8080"),
-                CreateNetworkingProviderResource("networking:host-macos")
+                CreateNetworkingProviderResource("networking:host-local")
             ],
             [provider]);
 
@@ -4839,7 +4839,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("mapping:api", provisioner.Context.Mapping.Id);
         Assert.Equal("network:app", provisioner.Context.NetworkResource.Id);
         Assert.Equal("application:api", provisioner.Context.TargetResource.Id);
-        Assert.Equal("networking:host-macos", provisioner.Context.ProviderResource.Id);
+        Assert.Equal("networking:host-local", provisioner.Context.ProviderResource.Id);
     }
 
     [Fact]
@@ -4866,7 +4866,7 @@ public sealed class ResourceDeclarationTests
                     new ResourceEndpointReference("network:app", "api"),
                     new ResourceEndpointReference("application:api", "http"),
                     "network:app",
-                    "networking:host-macos")
+                    "networking:host-local")
             ],
             Kind: NetworkResourceKind.Virtual);
         var options = new PlatformResourceOptions();
@@ -4880,7 +4880,7 @@ public sealed class ResourceDeclarationTests
             [
                 network,
                 CreateEndpointResource("application:api", "http", "http://localhost:8080"),
-                CreateNetworkingProviderResource("networking:host-macos")
+                CreateNetworkingProviderResource("networking:host-local")
             ],
             [provider]);
 
@@ -4921,7 +4921,7 @@ public sealed class ResourceDeclarationTests
                     new ResourceEndpointReference("network:app", "api"),
                     new ResourceEndpointReference("application:api", "http"),
                     "network:app",
-                    "networking:host-macos")
+                    "networking:host-local")
             ],
             Kind: NetworkResourceKind.Virtual);
         var options = new PlatformResourceOptions();
@@ -4935,7 +4935,7 @@ public sealed class ResourceDeclarationTests
             [
                 network,
                 CreateEndpointResource("application:api", "http", "http://localhost:8080"),
-                CreateNetworkingProviderResource("networking:host-macos")
+                CreateNetworkingProviderResource("networking:host-local")
             ],
             [provider]);
 
@@ -4949,7 +4949,7 @@ public sealed class ResourceDeclarationTests
             network.ResourceActions.Single());
 
         Assert.Equal(
-            "Endpoint mapping 'mapping:api' requires provider resource 'networking:host-macos', but no activated host networking service can materialize it.",
+            "Endpoint mapping 'mapping:api' requires provider resource 'networking:host-local', but no activated host networking service can materialize it.",
             reason);
     }
 

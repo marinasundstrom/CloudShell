@@ -74,18 +74,21 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.TryAddSingleton<IHostLocalNetworkEnvironment, HostLocalNetworkEnvironment>();
         builder.Services.TryAddSingleton<PlatformResourceStore>();
         builder.Services.TryAddSingleton<LocalHostNamePublishingProvider>();
-        builder.Services.TryAddSingleton<MacOSHostNetworkProvisioner>();
+        builder.Services.TryAddSingleton<LocalHostNetworkProvisioner>();
+        builder.Services.TryAddSingleton<LocalHostNetworkProvider>();
         builder.Services.TryAddSingleton<PlatformResourceProvider>();
         builder.Services.AddSingleton<INamePublishingProvider>(
             serviceProvider => serviceProvider.GetRequiredService<LocalHostNamePublishingProvider>());
         builder.Services.AddSingleton<IResourceEndpointMappingProvisioner>(
-            serviceProvider => serviceProvider.GetRequiredService<MacOSHostNetworkProvisioner>());
+            serviceProvider => serviceProvider.GetRequiredService<LocalHostNetworkProvisioner>());
         builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
             serviceProvider => serviceProvider.GetRequiredService<PlatformResourceProvider>());
         builder.Services.AddSingleton<IResourceActionAvailabilityProvider>(
             serviceProvider => serviceProvider.GetRequiredService<PlatformResourceProvider>());
         builder.Services.AddSingleton<IResourceProvider>(
             serviceProvider => serviceProvider.GetRequiredService<PlatformResourceProvider>());
+        builder.Services.AddSingleton<IResourceProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<LocalHostNetworkProvider>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceProvider, MacOSHostNetworkProvider>());
         builder.Services.TryAddEnumerable(

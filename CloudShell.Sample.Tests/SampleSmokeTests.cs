@@ -485,7 +485,7 @@ public sealed class SampleSmokeTests
 
         Assert.Equal("cloudshell.virtualNetwork", network.GetProperty("typeId").GetString());
         Assert.Equal("providerRequired", attributes.GetProperty("network.hostReadiness").GetString());
-        Assert.Equal("networking:host-macos", attributes.GetProperty("network.mappingProviders").GetString());
+        Assert.Equal("networking:host-local", attributes.GetProperty("network.mappingProviders").GetString());
 
         var endpoint = Assert.Single(network.GetProperty("endpoints").EnumerateArray());
         Assert.Equal("api-public", endpoint.GetProperty("name").GetString());
@@ -498,7 +498,7 @@ public sealed class SampleSmokeTests
         Assert.Equal("api-public", mapping.GetProperty("source").GetProperty("endpointName").GetString());
         Assert.Equal("application:vnet-api", mapping.GetProperty("target").GetProperty("resourceId").GetString());
         Assert.Equal("http", mapping.GetProperty("target").GetProperty("endpointName").GetString());
-        Assert.Equal("networking:host-macos", mapping.GetProperty("providerResourceId").GetString());
+        Assert.Equal("networking:host-local", mapping.GetProperty("providerResourceId").GetString());
 
         var reconcileAction = network
             .GetProperty("resourceActions")
@@ -521,21 +521,10 @@ public sealed class SampleSmokeTests
             networkCapabilities.GetProperty("resourceActionCapabilities").EnumerateArray(),
             capability => capability.GetProperty("actionId").GetString() == "reconcileEndpointMappings");
 
-        if (OperatingSystem.IsMacOS())
-        {
-            Assert.Contains(resources, resource =>
-                resource.GetProperty("id").GetString() == "networking:host-macos");
-            Assert.True(reconcileCapability.GetProperty("canExecute").GetBoolean());
-            Assert.Equal(JsonValueKind.Null, reconcileCapability.GetProperty("reason").ValueKind);
-        }
-        else
-        {
-            Assert.False(reconcileCapability.GetProperty("canExecute").GetBoolean());
-            Assert.Contains(
-                "provider resource 'networking:host-macos' could not be found",
-                reconcileCapability.GetProperty("reason").GetString(),
-                StringComparison.Ordinal);
-        }
+        Assert.Contains(resources, resource =>
+            resource.GetProperty("id").GetString() == "networking:host-local");
+        Assert.True(reconcileCapability.GetProperty("canExecute").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, reconcileCapability.GetProperty("reason").ValueKind);
     }
 
     [Fact]

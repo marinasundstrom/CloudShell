@@ -457,9 +457,11 @@ those projected facts to warn that real virtual-network configuration requires
 an activated host networking service such as a gateway, load balancer, DNS
 publisher, service mesh, firewall manager, or cluster network controller.
 
-The first built-in host networking provider targets macOS. It projects
-`networking:host-macos` when running on macOS and can materialize HTTP, HTTPS,
-and TCP endpoint mappings as local TCP proxies.
+The first built-in host networking provider is the portable local host
+networking provider. It projects `networking:host-local` on macOS, Linux, and
+Windows and can materialize HTTP, HTTPS, and TCP endpoint mappings as local TCP
+proxies. OS-native providers can later materialize the same endpoint mapping
+model through Linux, Windows, macOS, or runtime-specific networking facilities.
 
 When endpoint mappings are declared, the network resource exposes a reconcile
 action. The Control Plane action validates that the source endpoint exists, the

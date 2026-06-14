@@ -241,6 +241,25 @@ public static class PlatformResourceDeclarationExtensions
         return new VolumeResourceBuilder(resource, declared);
     }
 
+    public static IResourceBuilder AddLocalHostNetworking(
+        this IResourceDeclarationBuilder builder,
+        string? resourceGroupId = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return builder.Declare(
+            LocalHostNetworkProvider.ProviderId,
+            LocalHostNetworkProvider.ResourceId,
+            resourceGroupId: resourceGroupId,
+            resourceClass: ResourceClass.Infrastructure,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.InfrastructureKind] = "hostNetworking",
+                ["host.os"] = "cross-platform",
+                ["networking.mode"] = "localProxy"
+            });
+    }
+
     public static IResourceBuilder AddMacOSHostNetworking(
         this IResourceDeclarationBuilder builder,
         string? resourceGroupId = null)

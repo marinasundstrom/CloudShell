@@ -3,22 +3,22 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
-public sealed class MacOSHostNetworkProvider(
+public sealed class LocalHostNetworkProvider(
     LocalHostNetworkProvisioner provisioner) :
     IResourceProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider
 {
-    public const string ProviderId = "cloudshell.hostNetworking";
-    public const string ResourceId = "networking:host-macos";
-    public const string ResourceType = "cloudshell.hostNetworking.macos";
+    public const string ProviderId = MacOSHostNetworkProvider.ProviderId;
+    public const string ResourceId = "networking:host-local";
+    public const string ResourceType = "cloudshell.hostNetworking.local";
 
     public string Id => ProviderId;
 
     public string DisplayName => "CloudShell Host Networking";
 
     public IReadOnlyList<Resource> GetResources() =>
-        IsSupported ? [CreateResource(provisioner.ProvisionedMappingCount)] : [];
+        [CreateResource(provisioner.ProvisionedMappingCount)];
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase) &&
@@ -27,21 +27,13 @@ public sealed class MacOSHostNetworkProvider(
     public Task ApplyDeclarationAsync(
         ResourceDeclaration declaration,
         IResourceRegistrationStore registrations,
-        CancellationToken cancellationToken = default)
-    {
-        if (!IsSupported)
-        {
-            throw new InvalidOperationException(
-                "The macOS host networking provider can only be activated on macOS.");
-        }
-
-        return registrations.RegisterAsync(
+        CancellationToken cancellationToken = default) =>
+        registrations.RegisterAsync(
             Id,
             ResourceId,
             string.IsNullOrWhiteSpace(declaration.ResourceGroupId) ? null : declaration.ResourceGroupId.Trim(),
             declaration.DependsOn,
             cancellationToken);
-    }
 
     public bool CanEvaluateAutoStartPolicy(ResourceDeclaration declaration) =>
         CanApplyDeclaration(declaration);
@@ -55,7 +47,7 @@ public sealed class MacOSHostNetworkProvider(
     private static Resource CreateResource(int provisionedMappingCount) =>
         new(
             ResourceId,
-            "macOS Host Networking",
+            "Local Host Networking",
             "Host Networking",
             "CloudShell",
             "host",
@@ -70,7 +62,7 @@ public sealed class MacOSHostNetworkProvider(
             {
                 [ResourceAttributeNames.InfrastructureKind] = "hostNetworking",
                 [ResourceAttributeNames.NetworkHostReadiness] = "ready",
-                ["host.os"] = "macos",
+                ["host.os"] = "cross-platform",
                 ["networking.mode"] = "localProxy",
                 [ResourceAttributeNames.NetworkProvisionedMappingCount] =
                     provisionedMappingCount.ToString(CultureInfo.InvariantCulture)
@@ -83,6 +75,4 @@ public sealed class MacOSHostNetworkProvider(
                 new(ResourceCapabilityIds.NetworkingIngress),
                 new(ResourceCapabilityIds.NetworkingHostNetwork)
             ]);
-
-    private static bool IsSupported => OperatingSystem.IsMacOS();
 }

@@ -23,7 +23,7 @@ cloudShell
 
 cloudShell.Resources(resources =>
 {
-    var hostNetworking = resources.AddMacOSHostNetworking();
+    var hostNetworking = resources.AddLocalHostNetworking();
 
     var api = resources
         .AddAspNetCoreProject(

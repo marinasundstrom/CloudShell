@@ -5,22 +5,17 @@ using CloudShell.ControlPlane.ResourceManager;
 
 namespace CloudShell.ControlPlane.Tests;
 
-public sealed class MacOSHostNetworkProvisionerTests
+public sealed class LocalHostNetworkProvisionerTests
 {
     [Fact]
-    public async Task ProvisionEndpointMappingAsync_ForwardsTcpTrafficOnMacOS()
+    public async Task ProvisionEndpointMappingAsync_ForwardsTcpTrafficThroughLocalHostNetworking()
     {
-        if (!OperatingSystem.IsMacOS())
-        {
-            return;
-        }
-
         var sourcePort = GetFreePort();
         var targetListener = new TcpListener(IPAddress.Loopback, 0);
         targetListener.Start();
         var targetPort = ((IPEndPoint)targetListener.LocalEndpoint).Port;
         var targetTask = AcceptOneConnectionAsync(targetListener);
-        await using var provisioner = new MacOSHostNetworkProvisioner();
+        await using var provisioner = new LocalHostNetworkProvisioner();
 
         var context = CreateContext(sourcePort, targetPort);
         Assert.True(provisioner.CanProvisionEndpointMapping(context));
@@ -69,8 +64,8 @@ public sealed class MacOSHostNetworkProvisionerTests
             DateTimeOffset.UtcNow,
             []);
         var provider = new Resource(
-            MacOSHostNetworkProvider.ResourceId,
-            "macOS Host Networking",
+            LocalHostNetworkProvider.ResourceId,
+            "Local Host Networking",
             "Host Networking",
             "CloudShell",
             "host",

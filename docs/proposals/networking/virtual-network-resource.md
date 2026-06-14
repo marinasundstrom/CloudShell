@@ -273,13 +273,14 @@ reason. It should not silently imply isolation or routing that does not exist.
 ## Default Orchestrator Implementation
 
 The default orchestrator should implement virtual networks as logical
-host-local networks. The first host-provided implementation targets macOS by
-activating `networking:host-macos`, which materializes selected endpoint
-mappings as local TCP proxies. That macOS provider is the first OS-specific
-implementation, not the abstraction boundary. Linux, Windows, and future
-runtime-specific hosts should provide equivalent capabilities through their own
-host networking providers and diagnostics instead of making Resource Manager
-depend on macOS behavior.
+host-local networks. The first host-provided implementation is the portable
+`networking:host-local` provider, which materializes selected endpoint
+mappings as local TCP proxies on macOS, Linux, and Windows. This provider is
+the MVP baseline for cross-platform development and team-owned hosts, not a
+claim of OS-native virtual networking. Linux, Windows, macOS, and future
+runtime-specific hosts should provide richer native capabilities through their
+own host networking providers and diagnostics instead of making Resource
+Manager depend on an operating-system-specific behavior.
 
 Supported behavior:
 
@@ -290,10 +291,11 @@ Supported behavior:
 - Treat provider-default endpoint requests as auto-assigned localhost endpoints
   unless a selected provider overrides them.
 - Validate endpoint mappings through `reconcileEndpointMappings`.
-- Materialize HTTP, HTTPS, and TCP mappings through the activated macOS host
-  networking provider when a mapping selects `networking:host-macos`.
-- Allow other OS-specific host networking providers to advertise the same
-  mapping capabilities when they can materialize equivalent local behavior.
+- Materialize HTTP, HTTPS, and TCP mappings through the activated local host
+  networking provider when a mapping selects `networking:host-local`.
+- Allow OS-specific host networking providers to advertise the same mapping
+  capabilities when they can materialize equivalent or stronger native
+  behavior.
 - Represent load-balanced mappings logically by validating the source endpoint,
   target endpoint or backend pool, and selected provider capabilities.
 - Allow provider-backed local load balancers to run as ordinary resources when

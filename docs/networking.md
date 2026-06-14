@@ -94,32 +94,37 @@ model. Without an activated provider, virtual networks are still useful for
 declaring intent and validating the graph, but they do not imply real network
 isolation or routing.
 
-## macOS Host Networking
+## Local Host Networking
 
-The first host-provided virtual networking implementation targets macOS.
+The first host-provided virtual networking implementation is portable local
+host networking for macOS, Linux, and Windows.
 
-The built-in macOS host networking resource is:
+The built-in local host networking resource is:
 
 ```text
-networking:host-macos
+networking:host-local
 ```
 
 It advertises `networking.provider`, `networking.endpointMapper`,
 `networking.gateway`, `networking.ingress`, and `networking.hostNetwork`.
 
-When a virtual network mapping selects `networking:host-macos`, the Control
+When a virtual network mapping selects `networking:host-local`, the Control
 Plane validates the source endpoint, target endpoint, and provider capability.
-The macOS provisioner then materializes the mapping as a local TCP proxy from
-the network-owned endpoint to the target endpoint. This supports HTTP, HTTPS,
-and TCP endpoints without requiring privileged packet-filter or virtual-adapter
-configuration for the first implementation.
+The local host networking provisioner then materializes the mapping as a local
+TCP proxy from the network-owned endpoint to the target endpoint. This supports
+HTTP, HTTPS, and TCP endpoints without requiring privileged packet-filter,
+NAT, firewall, or virtual-adapter configuration for the first implementation.
+
+The older `networking:host-macos` provider remains as a macOS-specific alias.
+New samples and declarations should prefer `networking:host-local` unless they
+are intentionally validating a macOS-specific provider path.
 
 The authoring shape is:
 
 ```csharp
 cloudShell.Resources(resources =>
 {
-    var hostNetworking = resources.AddMacOSHostNetworking();
+    var hostNetworking = resources.AddLocalHostNetworking();
     var api = resources.Declare("applications", "application:api");
 
     var network = resources.AddVirtualNetwork(
@@ -148,10 +153,45 @@ dependencies: a resource can be exposed through a network without the resource
 owning or configuring that network. The settings page warns when a virtual
 network requires a provider that is not active on the current host.
 
-The macOS host networking provider also projects the number of currently
+The local host networking provider also projects the number of currently
 provisioned endpoint mappings through `network.provisionedMappings`, so the
 provider resource can show whether local proxy mappings have been materialized
 after reconciliation.
+
+## DNS and Name Mapping
+
+DNS and name mapping are modeled separately from virtual networks and load
+balancers. A DNS zone resource defines the naming boundary, and name-mapping
+resources point a host name at a target resource endpoint. This lets Resource
+Manager show which names point at an application, load balancer, or other
+endpoint without hiding name resolution inside routing configuration.
+
+Name mappings can be logical-only or provider-backed. Logical-only mappings
+record the intended name and target but do not publish DNS records. When a DNS
+zone selects a publishing provider, the zone exposes a
+`reconcileNameMappings` action so operators can apply or re-apply the expected
+records.
+
+The first local publishing provider is `local-hostnames`. It supports exact
+host mappings and writes a CloudShell-managed block to a hosts-file style
+target. The provider can be pointed at a custom file for safe development and
+testing, and Resource Manager warns before creating `.local` names because
+that suffix can conflict with mDNS/Bonjour on some hosts or networks.
+
+Programmatic declarations can use:
+
+```csharp
+resources
+    .AddDnsZone("dns:cloudshell-local", "CloudShell Local DNS", "cloudshell.local")
+    .UseLocalHostNames()
+    .MapHost("app.cloudshell.local", app, "http");
+```
+
+Network-level service discovery remains a separate provider capability. The
+current Aspire-compatible service discovery path is documented in
+[Service discovery](service-discovery.md); future providers can add
+DNS-backed or registry-backed discovery without changing the resource endpoint
+or name-mapping model.
 
 ## Load Balancing and Clustering
 
@@ -174,8 +214,10 @@ endpoint yet.
 
 ## References
 
-- [Virtual Network Resource Proposal](proposals/virtual-network-resource.md)
-- [Load Balancer Resource Proposal](proposals/load-balancer-resource.md)
+- [Virtual Network Resource Proposal](proposals/networking/virtual-network-resource.md)
+- [Load Balancer Resource Proposal](proposals/networking/load-balancer-resource.md)
+- [DNS and name mapping proposal](proposals/networking/dns-and-name-mapping-resource.md)
+- [Service discovery](service-discovery.md)
 - [Programmatic resources](programmatic-resources.md)
 - [Domain model](domain-model.md)
 - [Roadmap](roadmap.md)
