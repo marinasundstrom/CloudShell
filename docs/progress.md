@@ -582,9 +582,14 @@ expectations rather than duplicating the task queue.
   exposure on mapped target resources, instead of treating exposure as a
   dependency or encoded attribute.
 - Platform-owned network, service, and load-balancer endpoint assignments are
-  validated for concrete protocol/host/port conflicts before registration.
-  Endpoint mapping reconciliation also validates that mapping sources belong to
-  the reconciled network and are not reused across multiple mappings.
+  validated for concrete host/port socket conflicts before registration,
+  including conflicts where two endpoints use different protocol labels for
+  the same local socket. The same create path now runs an advisory local
+  host-port availability preflight so dangling external processes or
+  containers fail fast with a stable Resource Manager error instead of
+  surfacing only as a later bind failure. Endpoint mapping reconciliation also
+  validates that mapping sources belong to the reconciled network and are not
+  reused across multiple mappings.
 - Load balancing should be modeled as a resource abstraction over providers.
   Traefik is the proposed first provider target, with routes mapped to stable
   resource endpoints and raw ports treated as authoring convenience.
@@ -601,11 +606,12 @@ expectations rather than duplicating the task queue.
   while `container.host` remains the future generic resource-type direction for
   non-Docker providers.
 - Endpoint ownership is split between Resource Manager and providers. Resource
-  Manager should prevent CloudShell-owned resources from claiming the same
-  concrete endpoint assignment, while host/runtime providers own advisory port
-  availability preflights and final bind/publish failures. Dangling external
-  processes or containers should surface as diagnostics, not as platform-owned
-  endpoint reservations.
+  Manager prevents CloudShell-owned platform resources from claiming the same
+  concrete host/port assignment and now runs advisory local host-port
+  availability preflights for platform-owned network, service, and
+  load-balancer endpoints. Host/runtime providers still own final bind/publish
+  failures. Dangling external processes or containers surface as diagnostics,
+  not as platform-owned endpoint reservations.
 - The first load-balancer implementation slice adds a platform load-balancer
   resource model, fluent route declarations, API/client projection, generated
   Resource Manager route display, an apply-configuration resource action, and a

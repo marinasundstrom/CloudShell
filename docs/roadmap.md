@@ -374,10 +374,12 @@ listed here before pulling in broader proposal work.
   networks, load-balancer routes, and name mappings, and show inbound/outbound
   discovery relationships. Keep `cloudshell.service` as an optional facade or
   imported-provider concept until a concrete scenario needs it.
-- Define the first endpoint reservation/preflight contract: Resource Manager
-  tracks CloudShell-owned assignments, while host/runtime providers report
-  advisory port availability and final bind failures for dangling external
-  processes or containers.
+- Continue the endpoint reservation/preflight contract: Resource Manager now
+  tracks CloudShell-owned host/port assignments and runs advisory local
+  host-port availability checks for platform-owned network, service, and
+  load-balancer endpoints. Next, host/runtime providers should report richer
+  final bind failures and owning process/container diagnostics for dangling
+  external processes or containers where they can observe that safely.
 - Expand host-readiness warnings so endpoint mappings can name the specific
   missing gateway, load balancer, DNS, service mesh, firewall, or cluster
   network controller capability.
@@ -607,9 +609,9 @@ against real host and provider behavior.
 The core model is now established: network resources own endpoint requests and
 mappings; load balancers own provider-neutral routes; replicated container
 apps own normal app ingress. The next step is validation and diagnostics:
-host-readiness warnings, provider selection, route and endpoint conflict
-reporting, configuration preview, backend resolution, and richer action
-capability reasons.
+host-readiness warnings, provider selection, richer route and endpoint
+conflict reporting, configuration preview, backend resolution, and richer
+action capability reasons.
 
 Backend pools, health-aware target selection, TLS binding, and traffic
 splitting should wait until the current routing and host-readiness paths are

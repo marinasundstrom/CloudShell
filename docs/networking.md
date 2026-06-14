@@ -16,19 +16,21 @@ predefined by a provider.
 
 Platform-owned endpoint assignments are validated before the platform saves a
 network, service, or load-balancer resource. Concrete assignments are compared
-by normalized protocol, host, and port so one host-local address cannot be
-assigned to two platform resources. Logical endpoints and provider-projected
-runtime endpoints are not part of that first validation pass.
+by normalized host and port so one host-local socket cannot be assigned to two
+platform resources, even when the endpoint protocol labels differ. Logical
+endpoints and provider-projected runtime endpoints are not part of that first
+validation pass.
 
 Endpoint ownership and runtime port availability are related but separate.
 Resource Manager should track CloudShell-owned endpoint intent and concrete
 assignments so CloudShell resources do not knowingly reuse the same
 host/protocol/port assignment. Host and runtime providers still own the final
-bind or publish operation. For local host ports, the Control Plane may run an
-advisory availability preflight before allocation or start, but that check is
-not authoritative because another process can bind the port between the
-preflight and the actual start. Providers must translate final bind failures
-into stable resource action diagnostics.
+bind or publish operation. For local host ports, the Control Plane runs an
+advisory availability preflight before saving platform-owned network, service,
+and load-balancer endpoint assignments, and application providers run similar
+preflights before start. These checks are not authoritative because another
+process can bind the port between the preflight and the actual start. Providers
+must translate final bind failures into stable resource action diagnostics.
 
 Dangling external processes are therefore diagnostics, not platform-owned
 state. When a port is occupied by a process or container CloudShell does not

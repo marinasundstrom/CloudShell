@@ -412,8 +412,11 @@ only introduce a richer ingress editor once routing fields become standardized.
   networks can express stable clustered routing behavior.
 - Add host-readiness diagnostics and warnings for missing networking
   capabilities, especially when the current host cannot materialize a mapping.
-- Extend UI and API validation coverage for provider selection, conflict
-  reporting, and reconcile action outcomes.
+- Extend UI and API validation coverage for provider selection, richer
+  conflict reporting, advisory port availability, and reconcile action
+  outcomes. The first platform-owned host/port conflict and local port
+  availability preflight is in place for network, service, and load-balancer
+  endpoint assignments.
 
 ## Open Questions
 

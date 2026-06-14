@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Providers.Traefik;
@@ -36,8 +38,8 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             HostResourceId: "docker:engine",
             Entrypoints:
             [
-                new LoadBalancerEntrypoint("web", ResourceEndpointProtocol.Http, 80),
-                new LoadBalancerEntrypoint("postgres", ResourceEndpointProtocol.Tcp, 5432)
+                new LoadBalancerEntrypoint("web", ResourceEndpointProtocol.Http, 18080),
+                new LoadBalancerEntrypoint("postgres", ResourceEndpointProtocol.Tcp, 15432)
             ],
             Routes:
             [
@@ -60,7 +62,7 @@ public sealed class PlatformResourceProviderLoadBalancerTests
                     "Postgres",
                     LoadBalancerRouteKind.Tcp,
                     "postgres",
-                    new LoadBalancerRouteMatch(Port: 5432),
+                    new LoadBalancerRouteMatch(Port: 15432),
                     new LoadBalancerRouteTarget("application:postgres", Port: 5432))
             ]);
         await provider.SetupLoadBalancerAsync(
@@ -347,6 +349,64 @@ public sealed class PlatformResourceProviderLoadBalancerTests
         Assert.Contains("web-app", exception.Message);
         Assert.Contains("web-app-copy", exception.Message);
         Assert.Null(store.GetLoadBalancer(definition.Id));
+    }
+
+    [Fact]
+    public async Task SetupLoadBalancerAsync_RejectsDuplicateHostPortEntrypoints()
+    {
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(store, new PlatformResourceOptions());
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Entrypoints =
+            [
+                new LoadBalancerEntrypoint("http", ResourceEndpointProtocol.Http, 18082),
+                new LoadBalancerEntrypoint("https", ResourceEndpointProtocol.Https, 18082)
+            ],
+            Routes = []
+        };
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.SetupLoadBalancerAsync(
+                definition,
+                null,
+                new TestResourceRegistrationStore([])));
+
+        Assert.Contains("conflicting endpoint assignment", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("localhost:18082", exception.Message, StringComparison.Ordinal);
+        Assert.Null(store.GetLoadBalancer(definition.Id));
+    }
+
+    [Fact]
+    public async Task SetupLoadBalancerAsync_RejectsOccupiedHostPort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(store, new PlatformResourceOptions());
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Entrypoints = [new LoadBalancerEntrypoint("web", ResourceEndpointProtocol.Http, port)],
+            Routes = []
+        };
+
+        try
+        {
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                provider.SetupLoadBalancerAsync(
+                    definition,
+                    null,
+                    new TestResourceRegistrationStore([])));
+
+            Assert.Contains("address is already in use", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains($"http://localhost:{port}", exception.Message, StringComparison.Ordinal);
+            Assert.Null(store.GetLoadBalancer(definition.Id));
+        }
+        finally
+        {
+            listener.Stop();
+        }
     }
 
     [Fact]

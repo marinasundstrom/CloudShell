@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
@@ -1723,17 +1725,37 @@ public sealed class PlatformResourceProvider(
                 $"Resource '{ownerResourceId}' has conflicting endpoint assignment '{duplicate.Key}' on endpoints: {endpointNames}.");
         }
 
+        foreach (var duplicate in candidates
+            .GroupBy(assignment => assignment.SocketIdentity, StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1))
+        {
+            var endpointNames = string.Join(", ", duplicate.Select(assignment => assignment.EndpointName));
+            throw new InvalidOperationException(
+                $"Resource '{ownerResourceId}' has conflicting endpoint assignment '{duplicate.Key}' on endpoints: {endpointNames}.");
+        }
+
         foreach (var candidate in candidates)
         {
             var conflict = occupied.FirstOrDefault(assignment =>
-                string.Equals(assignment.Identity, candidate.Identity, StringComparison.OrdinalIgnoreCase));
+                string.Equals(assignment.SocketIdentity, candidate.SocketIdentity, StringComparison.OrdinalIgnoreCase));
             if (conflict is null)
             {
                 continue;
             }
 
             throw new InvalidOperationException(
-                $"Resource '{ownerResourceId}' endpoint '{candidate.EndpointName}' uses endpoint assignment '{candidate.Identity}', which is already assigned to resource '{conflict.ResourceId}' endpoint '{conflict.EndpointName}'.");
+                $"Resource '{ownerResourceId}' endpoint '{candidate.EndpointName}' uses endpoint assignment '{candidate.Identity}', which conflicts with resource '{conflict.ResourceId}' endpoint '{conflict.EndpointName}' assignment '{conflict.Identity}'.");
+        }
+
+        foreach (var candidate in candidates)
+        {
+            if (IsHostPortAvailable(candidate.Host, candidate.Port))
+            {
+                continue;
+            }
+
+            throw new InvalidOperationException(
+                $"Resource '{ownerResourceId}' endpoint '{candidate.EndpointName}' cannot use endpoint assignment '{candidate.Identity}' because the address is already in use by another process or container.");
         }
     }
 
@@ -1814,7 +1836,75 @@ public sealed class PlatformResourceProvider(
         return new EndpointAssignment(
             resourceId,
             endpoint.Name,
-            $"{protocol.ToLowerInvariant()}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}");
+            $"{protocol.ToLowerInvariant()}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
+            $"{CreateSocketHostIdentity(host)}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
+            host,
+            port.Value);
+    }
+
+    private static string CreateSocketHostIdentity(string host)
+    {
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return "localhost";
+        }
+
+        return IPAddress.TryParse(host, out var address) &&
+            (IPAddress.IsLoopback(address) || IsAnyAddress(address))
+                ? "localhost"
+                : host;
+    }
+
+    private static bool IsHostPortAvailable(string host, int port)
+    {
+        var addresses = GetHostPortProbeAddresses(host);
+        return addresses.Count == 0 || addresses.All(address => IsTcpPortAvailable(address, port));
+    }
+
+    private static IReadOnlyList<IPAddress> GetHostPortProbeAddresses(string host)
+    {
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return [IPAddress.Any, IPAddress.IPv6Any, IPAddress.Loopback, IPAddress.IPv6Loopback];
+        }
+
+        if (!IPAddress.TryParse(host, out var address))
+        {
+            return [];
+        }
+
+        if (IPAddress.IsLoopback(address) || IsAnyAddress(address))
+        {
+            return [address];
+        }
+
+        return [];
+    }
+
+    private static bool IsAnyAddress(IPAddress address) =>
+        address.Equals(IPAddress.Any) ||
+        address.Equals(IPAddress.IPv6Any);
+
+    private static bool IsTcpPortAvailable(IPAddress address, int port)
+    {
+        try
+        {
+            var listener = new TcpListener(address, port)
+            {
+                ExclusiveAddressUse = true
+            };
+            listener.Start();
+            listener.Stop();
+            return true;
+        }
+        catch (SocketException exception) when (exception.SocketErrorCode == SocketError.AddressAlreadyInUse)
+        {
+            return false;
+        }
+        catch (SocketException)
+        {
+            return true;
+        }
     }
 
     private static int? GetEndpointPort(Uri uri)
@@ -2254,5 +2344,8 @@ public sealed class PlatformResourceProvider(
     private sealed record EndpointAssignment(
         string ResourceId,
         string EndpointName,
-        string Identity);
+        string Identity,
+        string SocketIdentity,
+        string Host,
+        int Port);
 }
