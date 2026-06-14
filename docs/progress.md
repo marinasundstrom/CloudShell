@@ -124,7 +124,9 @@ expectations rather than duplicating the task queue.
   publishing DNS records for it. The Load Balancer sample now declares a
   logical Local DNS zone for `app.local` and `api.local` that targets the
   public load-balancer frontend, demonstrating the distinction between host
-  routing and DNS/name publication.
+  routing and DNS/name publication. Resource Manager generated diagnostics now
+  also warn when a selected name-publishing provider resource is missing or
+  does not advertise the DNS publisher capability.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the
