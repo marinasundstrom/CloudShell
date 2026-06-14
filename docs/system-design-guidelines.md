@@ -127,8 +127,8 @@ owner, expected change surface, and path to stability should be explicit.
 ## Resource model
 
 `Resource` is the projected domain artifact. It describes what exists now:
-identity, type, state, endpoints, dependencies, parentage, details, health, and
-provider-declared resource actions.
+identity, type, optional lifecycle state, endpoints, dependencies, parentage,
+details, health, and provider-declared resource actions.
 
 Resources are composition-based. Do not introduce container, executable,
 project, service, or infrastructure subclasses for the projected domain entity.
@@ -198,7 +198,13 @@ the reusable model rule should be expressible without throwing.
 State-specific behavior belongs in the Control Plane service boundary, not in
 individual UI components.
 
-The current lifecycle policy is:
+Not every resource exposes lifecycle state. Logical model resources, such as
+DNS zones and name mappings, can omit `State` because they do not represent a
+running service or process. `null` state means no lifecycle status is produced;
+`Unknown` means the resource participates in lifecycle status but the provider
+cannot currently determine the value.
+
+The current lifecycle policy for resources that expose lifecycle state is:
 
 - `Start`: executable for stopped, paused, or unknown resources.
 - `Stop`: executable for running, starting, paused, or degraded resources.
@@ -207,7 +213,8 @@ The current lifecycle policy is:
 
 Providers may expose action sets based on state, but the Control Plane should
 still validate execution against the domain policy before dispatching to the
-provider.
+provider. A standard lifecycle action on a resource without lifecycle state is
+not executable until the provider projects lifecycle state.
 
 When an action is unavailable, return a capability reason suitable for display
 or diagnostics. Do not force consumers to infer disabled states from missing

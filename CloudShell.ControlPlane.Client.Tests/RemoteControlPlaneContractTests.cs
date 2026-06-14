@@ -136,6 +136,26 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_MapsResourcesWithoutLifecycleState()
+    {
+        await using var app = await CreateAppAsync(includeStatelessResource: true);
+        var controlPlane = CreateClient(app);
+
+        var resource = await controlPlane.GetResourceAsync(ContractStatelessResourceProvider.ResourceId);
+
+        Assert.NotNull(resource);
+        Assert.Null(resource.State);
+
+        var client = app.GetTestClient();
+        var response = await client.GetAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(ContractStatelessResourceProvider.ResourceId)}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("state").ValueKind);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_ListsAndEvaluatesResourcePermissionGrants()
     {
         await using var app = await CreateAppAsync();
@@ -781,6 +801,7 @@ public sealed class RemoteControlPlaneContractTests
         bool includeImageResource = false,
         bool includeMappedNetwork = false,
         bool includeLoadBalancer = false,
+        bool includeStatelessResource = false,
         bool includeResolutionFailureResource = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -817,6 +838,10 @@ public sealed class RemoteControlPlaneContractTests
         if (includeMappedNetwork)
         {
             builder.Services.AddSingleton<IResourceProvider, ContractNetworkingResourceProvider>();
+        }
+        if (includeStatelessResource)
+        {
+            builder.Services.AddSingleton<IResourceProvider, ContractStatelessResourceProvider>();
         }
         if (includeResolutionFailureResource)
         {
@@ -896,6 +921,14 @@ public sealed class RemoteControlPlaneContractTests
             await registrations.RegisterAsync(
                 ContractResolutionFailureProvider.ProviderId,
                 ContractResolutionFailureProvider.ResourceId);
+        }
+        if (includeStatelessResource)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var registrations = scope.ServiceProvider.GetRequiredService<IResourceRegistrationStore>();
+            await registrations.RegisterAsync(
+                ContractStatelessResourceProvider.ProviderId,
+                ContractStatelessResourceProvider.ResourceId);
         }
 
         return app;
@@ -1034,6 +1067,33 @@ public sealed class RemoteControlPlaneContractTests
                     ResourceAction.Stop,
                     ResourceAction.Restart
                 ])
+        ];
+    }
+
+    private sealed class ContractStatelessResourceProvider : IResourceProvider
+    {
+        public const string ProviderId = "contract.stateless";
+        public const string ResourceId = "contract:stateless";
+
+        public string Id => ProviderId;
+
+        public string DisplayName => "Contract Stateless";
+
+        public IReadOnlyList<Resource> GetResources() =>
+        [
+            new(
+                ResourceId,
+                "Contract Stateless",
+                "Logical Model",
+                DisplayName,
+                "local",
+                null,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                TypeId: "contract.stateless",
+                ResourceClass: ResourceClass.Infrastructure)
         ];
     }
 
