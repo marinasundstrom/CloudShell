@@ -71,6 +71,10 @@ expectations rather than duplicating the task queue.
   container applications, app-owned exposure and application-level discovery,
   virtual networks, public endpoint exposure, load-balancer routes, and
   DNS/name mapping. The UI should make this path understandable and operable.
+  Container applications are now tracked by a dedicated proposal so
+  `application.container-app` remains the managed-service resource while host
+  placement, deployment/revision history, storage, identity, networking, and
+  DNS each keep their own focused proposal boundaries.
   Normal container app exposure should not require a `cloudshell.service`
   resource in the MVP; container apps are the stable deployment, replica, and
   exposure artifacts. Keep `cloudshell.service` optional for logical facades,

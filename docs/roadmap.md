@@ -21,6 +21,7 @@ Useful references:
 - [Programmatic resources](programmatic-resources.md)
 - [Control Plane API](control-plane-api.md)
 - [CloudShell and Aspire](cloudshell-and-aspire.md)
+- [Container applications proposal](proposals/containers/container-applications.md)
 
 ## Authoritative Milestones
 
@@ -37,7 +38,7 @@ MVP scope:
 
 | Area | Required outcome |
 | --- | --- |
-| Container Apps, Version 1 | Container app resources can be declared, inspected, started, stopped, updated by image/revision, configured with replicas, and connected to the default container-host path. |
+| Container Apps, Version 1 | Container app resources can be declared, inspected, started, stopped, updated by image/revision, configured with replicas, connected to the default container-host path, and treated as the managed-service configuration surface described in the [Container applications proposal](proposals/containers/container-applications.md). |
 | Application exposure, discovery, and names | Application resources, application-level discovery, and the first logical DNS/name-mapping projection make resource-to-resource and user-to-endpoint access understandable from Resource Manager. `cloudshell.service` remains optional for logical facades, imported services, or advanced routing instead of being required for normal container app exposure. |
 | Network primitives | Virtual networks, endpoint requests, endpoint mappings, load-balancer routes, public endpoint exposure, and host-local networking provide enough routing to expose common container app scenarios with clear diagnostics. |
 | Storage and volume mappings | Mountable volume resources and app volume attachments can be modeled, inspected, and mapped into container apps or executables through provider-neutral storage intent, without forcing object storage, databases, or backups into the same abstraction. |

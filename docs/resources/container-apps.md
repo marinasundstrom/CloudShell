@@ -16,6 +16,8 @@ see [Executable applications](executable-applications.md) and
 container-backed authored resource with its own storage guidance; see
 [SQL Server resources](sql-server.md). To route traffic to container apps
 through a stable provider-neutral routing resource, see [Load balancers](load-balancers.md).
+For the tracked product proposal and remaining MVP work, see
+[Container applications](../proposals/containers/container-applications.md).
 
 ## Host Binding
 
