@@ -16,7 +16,8 @@ public sealed class PlatformResourceProvider(
     IResourceProcedureProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
-    IResourceOrchestrationDescriptorProvider
+    IResourceOrchestrationDescriptorProvider,
+    IResourceActionAvailabilityProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -242,6 +243,59 @@ public sealed class PlatformResourceProvider(
 
         throw new NotSupportedException(
             $"CloudShell platform resources do not support action '{action.DisplayName}'.");
+    }
+
+    public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
+        string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) &&
+        (string.Equals(action.Id, ApplyLoadBalancerConfigurationActionId, StringComparison.OrdinalIgnoreCase) ||
+            action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop);
+
+    public Task<string?> GetActionUnavailableReasonAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!string.Equals(context.Resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult<string?>(null);
+        }
+
+        var definition = store.GetLoadBalancer(context.Resource.Id);
+        if (definition is null)
+        {
+            return Task.FromResult<string?>(
+                $"Load balancer resource '{context.Resource.Id}' is not configured.");
+        }
+
+        if (!string.Equals(action.Id, ApplyLoadBalancerConfigurationActionId, StringComparison.OrdinalIgnoreCase) &&
+            action.Kind is not (ResourceActionKind.Start or ResourceActionKind.Stop))
+        {
+            return Task.FromResult<string?>(null);
+        }
+
+        LoadBalancerProviderContext providerContext;
+        try
+        {
+            providerContext = CreateLoadBalancerProviderContext(context);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Task.FromResult<string?>(exception.Message);
+        }
+
+        if (string.Equals(action.Id, ApplyLoadBalancerConfigurationActionId, StringComparison.OrdinalIgnoreCase))
+        {
+            var provider = GetApplyProvider(providerContext);
+            return Task.FromResult(provider is null
+                ? $"No activated load balancer provider can apply provider '{definition.Provider}' for resource '{context.Resource.Id}'."
+                : null);
+        }
+
+        var runtimeProvider = GetRuntimeProvider(providerContext);
+        return Task.FromResult(runtimeProvider is null
+            ? $"No activated load balancer provider can manage runtime for provider '{definition.Provider}' on resource '{context.Resource.Id}'."
+            : null);
     }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
@@ -506,9 +560,7 @@ public sealed class PlatformResourceProvider(
         CancellationToken cancellationToken)
     {
         var providerContext = CreateLoadBalancerProviderContext(context);
-        var provider = loadBalancerProviders.FirstOrDefault(candidate =>
-            string.Equals(candidate.ProviderName, providerContext.Definition.Provider, StringComparison.OrdinalIgnoreCase) &&
-            candidate.CanApply(providerContext));
+        var provider = GetApplyProvider(providerContext);
         if (provider is null)
         {
             throw new InvalidOperationException(
@@ -517,6 +569,11 @@ public sealed class PlatformResourceProvider(
 
         return await provider.ApplyAsync(providerContext, cancellationToken);
     }
+
+    private ILoadBalancerProvider? GetApplyProvider(LoadBalancerProviderContext context) =>
+        loadBalancerProviders.FirstOrDefault(candidate =>
+            string.Equals(candidate.ProviderName, context.Definition.Provider, StringComparison.OrdinalIgnoreCase) &&
+            candidate.CanApply(context));
 
     private async Task<ResourceProcedureResult> ExecuteLoadBalancerLifecycleAsync(
         ResourceProcedureContext context,

@@ -119,6 +119,11 @@ routes must reference a declared entrypoint, HTTP routes must use HTTP/HTTPS
 entrypoints, TCP routes must use TCP entrypoints, and exact duplicate route
 matches on the same entrypoint are rejected.
 
+Resource action capabilities evaluate the same provider context used by apply
+and lifecycle execution. If the selected provider, host resource, route target,
+or target endpoint cannot be resolved, Resource Manager can show the reason
+before the action is invoked.
+
 ## API Projection
 
 Load balancer routes are part of the normal resource response:
@@ -203,7 +208,7 @@ not yet provide:
 - provider configuration preview in the UI
 - editing multiple load-balancer routes after creation
 - full structured validation diagnostics before applying routes
-- full provider-managed stop/delete lifecycle for the Traefik runtime container
+- provider-managed runtime probes and richer host diagnostics
 - TLS certificate resources or certificate binding
 - weighted backend pools, traffic splitting, provider-observed replica health,
   or dynamic backend membership beyond the current desired replica count

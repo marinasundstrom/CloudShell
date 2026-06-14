@@ -213,6 +213,53 @@ public sealed class PlatformResourceProviderLoadBalancerTests
     }
 
     [Fact]
+    public async Task GetActionUnavailableReasonAsync_ReturnsMissingProviderReasonForApply()
+    {
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(store, new PlatformResourceOptions());
+        var definition = CreateRuntimeLoadBalancerDefinition() with
+        {
+            Provider = "missing-provider"
+        };
+        var registrations = new TestResourceRegistrationStore([]);
+        await provider.SetupLoadBalancerAsync(definition, null, registrations);
+        var loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        var resourceManager = CreateRuntimeResourceManager(loadBalancer);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(loadBalancer, null, null, registrations, resourceManager),
+            loadBalancer.ResourceActions.Single(action => action.Id == PlatformResourceProvider.ApplyLoadBalancerConfigurationActionId));
+
+        Assert.Equal(
+            "No activated load balancer provider can apply provider 'missing-provider' for resource 'load-balancer:runtime'.",
+            reason);
+    }
+
+    [Fact]
+    public async Task GetActionUnavailableReasonAsync_ReturnsRouteResolutionReasonForApply()
+    {
+        var store = CreatePlatformStore();
+        var runtimeProvider = new TestLoadBalancerRuntimeProvider();
+        var provider = new PlatformResourceProvider(
+            store,
+            new PlatformResourceOptions(),
+            loadBalancerProviders: [runtimeProvider]);
+        var definition = CreateRuntimeLoadBalancerDefinition();
+        var registrations = new TestResourceRegistrationStore([]);
+        await provider.SetupLoadBalancerAsync(definition, null, registrations);
+        var loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        var resourceManager = new TestResourceManagerStore([loadBalancer]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(loadBalancer, null, null, registrations, resourceManager),
+            loadBalancer.ResourceActions.Single(action => action.Id == PlatformResourceProvider.ApplyLoadBalancerConfigurationActionId));
+
+        Assert.Equal(
+            "Load balancer resource 'load-balancer:runtime' host resource 'docker:engine' could not be found.",
+            reason);
+    }
+
+    [Fact]
     public async Task DeleteAsync_CleansLoadBalancerRuntimeBeforeRemovingRegistration()
     {
         var store = CreatePlatformStore();
