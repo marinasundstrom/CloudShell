@@ -61,6 +61,14 @@ public sealed class PlatformResourceStore
                 persist: false,
                 replaceExisting: !loadBalancer.Persist || loadBalancer.OverwritePersistedState);
         }
+
+        foreach (var dnsZone in options.DeclaredDnsZones)
+        {
+            UpsertDnsZone(
+                dnsZone.Definition,
+                persist: false,
+                replaceExisting: !dnsZone.Persist || dnsZone.OverwritePersistedState);
+        }
     }
 
     public IReadOnlyList<NetworkResourceDefinition> GetNetworks()
@@ -158,6 +166,25 @@ public sealed class PlatformResourceStore
         }
     }
 
+    public IReadOnlyList<DnsZoneResourceDefinition> GetDnsZones()
+    {
+        lock (_gate)
+        {
+            return (_definitions.DnsZones ?? [])
+                .OrderBy(zone => zone.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+    }
+
+    public DnsZoneResourceDefinition? GetDnsZone(string id)
+    {
+        lock (_gate)
+        {
+            return (_definitions.DnsZones ?? []).FirstOrDefault(zone =>
+                string.Equals(zone.Id, id, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public void SaveNetwork(NetworkResourceDefinition definition, bool persist = true)
     {
         lock (_gate)
@@ -198,6 +225,14 @@ public sealed class PlatformResourceStore
         }
     }
 
+    public void SaveDnsZone(DnsZoneResourceDefinition definition, bool persist = true)
+    {
+        lock (_gate)
+        {
+            UpsertDnsZone(definition, persist, replaceExisting: true);
+        }
+    }
+
     public void Remove(string id)
     {
         lock (_gate)
@@ -218,6 +253,9 @@ public sealed class PlatformResourceStore
                     .ToArray(),
                 LoadBalancers = _definitions.LoadBalancers
                     .Where(loadBalancer => !string.Equals(loadBalancer.Id, id, StringComparison.OrdinalIgnoreCase))
+                    .ToArray(),
+                DnsZones = (_definitions.DnsZones ?? [])
+                    .Where(zone => !string.Equals(zone.Id, id, StringComparison.OrdinalIgnoreCase))
                     .ToArray()
             };
             Persist();
@@ -241,7 +279,8 @@ public sealed class PlatformResourceStore
             Services = (definitions.Services ?? []).Select(NormalizeService).ToArray(),
             Volumes = (definitions.Volumes ?? []).Select(NormalizeVolume).ToArray(),
             Storages = (definitions.Storages ?? definitions.LocalStorages ?? []).Select(NormalizeStorage).ToArray(),
-            LoadBalancers = (definitions.LoadBalancers ?? []).Select(NormalizeLoadBalancer).ToArray()
+            LoadBalancers = (definitions.LoadBalancers ?? []).Select(NormalizeLoadBalancer).ToArray(),
+            DnsZones = (definitions.DnsZones ?? []).Select(NormalizeDnsZone).ToArray()
         };
     }
 
@@ -380,6 +419,33 @@ public sealed class PlatformResourceStore
         }
     }
 
+    private void UpsertDnsZone(
+        DnsZoneResourceDefinition definition,
+        bool persist,
+        bool replaceExisting)
+    {
+        var normalized = NormalizeDnsZone(definition);
+        var existing = (_definitions.DnsZones ?? []).FirstOrDefault(zone =>
+            string.Equals(zone.Id, normalized.Id, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null && !replaceExisting)
+        {
+            return;
+        }
+
+        _definitions = _definitions with
+        {
+            DnsZones = (_definitions.DnsZones ?? [])
+                .Where(zone => !string.Equals(zone.Id, normalized.Id, StringComparison.OrdinalIgnoreCase))
+                .Append(normalized)
+                .ToArray()
+        };
+
+        if (persist)
+        {
+            Persist();
+        }
+    }
+
     private void Persist()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_definitionsPath)!);
@@ -486,6 +552,31 @@ public sealed class PlatformResourceStore
             Provider = NormalizeNullable(definition.Provider) ?? StorageProviderNames.LocalStorage,
             Medium = NormalizeNullable(definition.Medium) ?? StorageMedia.FileSystem,
             Location = NormalizeNullable(definition.Location)
+        };
+
+    private static DnsZoneResourceDefinition NormalizeDnsZone(DnsZoneResourceDefinition definition) =>
+        definition with
+        {
+            Id = NormalizeId(definition.Id, "dns", definition.Name),
+            Name = definition.Name.Trim(),
+            ZoneName = NormalizeNullable(definition.ZoneName) ?? definition.Name.Trim().ToLowerInvariant(),
+            Provider = NormalizeNullable(definition.Provider),
+            Mappings = definition.DnsNameMappings
+                .Where(mapping =>
+                    !string.IsNullOrWhiteSpace(mapping.Id) &&
+                    !string.IsNullOrWhiteSpace(mapping.HostName) &&
+                    !string.IsNullOrWhiteSpace(mapping.TargetResourceId))
+                .Select(mapping => mapping with
+                {
+                    Id = mapping.Id.Trim(),
+                    Name = string.IsNullOrWhiteSpace(mapping.Name) ? mapping.Id.Trim() : mapping.Name.Trim(),
+                    HostName = mapping.HostName.Trim().ToLowerInvariant(),
+                    TargetResourceId = mapping.TargetResourceId.Trim(),
+                    TargetEndpointName = NormalizeNullable(mapping.TargetEndpointName),
+                    ProviderResourceId = NormalizeNullable(mapping.ProviderResourceId)
+                })
+                .DistinctBy(mapping => mapping.Id, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
         };
 
     private static ResourceState? NormalizeLoadBalancerRuntimeState(ResourceState? state) =>
@@ -602,5 +693,6 @@ public sealed class PlatformResourceStore
         IReadOnlyList<VolumeResourceDefinition> Volumes,
         IReadOnlyList<LoadBalancerResourceDefinition> LoadBalancers,
         IReadOnlyList<StorageResourceDefinition>? Storages = null,
-        IReadOnlyList<StorageResourceDefinition>? LocalStorages = null);
+        IReadOnlyList<StorageResourceDefinition>? LocalStorages = null,
+        IReadOnlyList<DnsZoneResourceDefinition>? DnsZones = null);
 }

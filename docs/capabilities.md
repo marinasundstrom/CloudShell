@@ -125,6 +125,29 @@ The resource can publish or participate in service-discovery records. Workload
 providers can use this with dependencies and references while keeping concrete
 service-discovery implementation details provider-owned.
 
+### `networking.dnsZone`
+
+The resource represents a DNS or DNS-like naming boundary. The MVP logical
+projection uses this to show zones that contain host/name mappings even when no
+provider is publishing records yet.
+
+### `networking.nameMapping`
+
+The resource represents a logical name-to-target relationship, such as a host
+name mapped to a resource endpoint. Providers may later materialize these
+mappings through DNS, host files, service registries, ingress host rules, or
+platform-native naming systems.
+
+### `networking.namePublisher`
+
+The resource can publish names through a provider-owned mechanism such as DNS,
+local resolver configuration, host files, or a service registry.
+
+### `networking.nameResolver`
+
+The resource can resolve names for a network or environment boundary. This is
+separate from application-level environment-variable service discovery.
+
 ### `networking.policy`
 
 The resource can apply network policy. Policy configuration and enforcement

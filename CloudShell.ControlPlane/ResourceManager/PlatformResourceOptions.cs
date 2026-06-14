@@ -19,6 +19,8 @@ public sealed class PlatformResourceOptions
     public List<DeclaredStorageResource> DeclaredStorages { get; } = [];
 
     public List<DeclaredLoadBalancerResource> DeclaredLoadBalancers { get; } = [];
+
+    public List<DeclaredDnsZoneResource> DeclaredDnsZones { get; } = [];
 }
 
 public sealed class DeclaredNetworkResource(NetworkResourceDefinition definition)
@@ -60,6 +62,15 @@ public sealed class DeclaredStorageResource(StorageResourceDefinition definition
 public sealed class DeclaredLoadBalancerResource(LoadBalancerResourceDefinition definition)
 {
     public LoadBalancerResourceDefinition Definition { get; set; } = definition;
+
+    public bool Persist { get; set; }
+
+    public bool OverwritePersistedState { get; set; }
+}
+
+public sealed class DeclaredDnsZoneResource(DnsZoneResourceDefinition definition)
+{
+    public DnsZoneResourceDefinition Definition { get; set; } = definition;
 
     public bool Persist { get; set; }
 

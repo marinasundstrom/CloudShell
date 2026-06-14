@@ -154,7 +154,11 @@ listed here before pulling in broader proposal work.
   Manager experience. MVP does not require CloudShell to publish real public
   DNS records, run an authoritative DNS server, or implement a provider-backed
   service registry, but users should be able to model names, see what endpoint
-  they refer to, and understand whether a provider can materialize them.
+  they refer to, and understand whether a provider can materialize them. The
+  first logical slice projects programmatically declared DNS zones and name
+  mappings as ordinary resources; next it needs target-resource visibility,
+  conflict/provider diagnostics, and a dedicated create/update UI when the
+  MVP management flow needs UI-authored names.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when

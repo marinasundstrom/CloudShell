@@ -3433,6 +3433,63 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void PlatformResources_DeclareDnsZoneWithNameMapping()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var api = resources.Declare("applications", "application:api");
+
+                resources
+                    .AddDnsZone("local", "Local DNS", "local")
+                    .MapHost("api.local", api, "http");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>()
+            .GetDeclarations()
+            .ToDictionary(declaration => declaration.ResourceId, StringComparer.OrdinalIgnoreCase);
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var declaredZone = Assert.Single(options.DeclaredDnsZones).Definition;
+        var declaredMapping = Assert.Single(declaredZone.DnsNameMappings);
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var resources = provider.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal("dns:local", declaredZone.Id);
+        Assert.Equal("local", declaredZone.ZoneName);
+        Assert.Equal("api.local", declaredMapping.HostName);
+        Assert.Equal("application:api", declaredMapping.TargetResourceId);
+        Assert.Equal("http", declaredMapping.TargetEndpointName);
+        Assert.Equal(["application:api"], declarations["dns:local"].DependsOn);
+
+        var zoneResource = resources["dns:local"];
+        Assert.Equal(PlatformResourceProvider.DnsZoneResourceType, zoneResource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Network, zoneResource.ResourceClass);
+        Assert.Equal("local", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsZoneName]);
+        Assert.Equal("logical", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsProvider]);
+        Assert.Equal("1", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsRecordCount]);
+        Assert.True(zoneResource.HasCapability(ResourceCapabilityIds.NetworkingDnsZone));
+
+        var mappingResource = resources["dns:local:name:api-local"];
+        Assert.Equal(PlatformResourceProvider.NameMappingResourceType, mappingResource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Network, mappingResource.ResourceClass);
+        Assert.Equal("dns:local", mappingResource.ParentResourceId);
+        Assert.Equal(["application:api"], mappingResource.DependsOn);
+        Assert.Equal("api.local", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingHostName]);
+        Assert.Equal("application:api", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingTargetResourceId]);
+        Assert.Equal("http", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingTargetEndpointName]);
+        Assert.Equal(ResourceExposureScope.Public.ToString(), mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingExposure]);
+        Assert.True(mappingResource.HasCapability(ResourceCapabilityIds.NetworkingNameMapping));
+    }
+
+    [Fact]
     public void ApplicationVolumeDisplay_TreatsOnlyVolumeResourcesAsMountableCandidates()
     {
         var storage = new Resource(

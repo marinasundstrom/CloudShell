@@ -116,6 +116,14 @@ public static class ResourceAttributeNames
     public const string NetworkKind = "network.kind";
     public const string NetworkHostReadiness = "network.hostReadiness";
     public const string NetworkMappingProviders = "network.mappingProviders";
+    public const string DnsZoneName = "dns.zone";
+    public const string DnsProvider = "dns.provider";
+    public const string DnsRecordCount = "dns.records";
+    public const string NameMappingHostName = "nameMapping.hostName";
+    public const string NameMappingTargetResourceId = "nameMapping.targetResourceId";
+    public const string NameMappingTargetEndpointName = "nameMapping.targetEndpointName";
+    public const string NameMappingExposure = "nameMapping.exposure";
+    public const string NameMappingProviderResourceId = "nameMapping.providerResourceId";
     public const string LoadBalancerProvider = "loadBalancer.provider";
     public const string LoadBalancerHostResourceId = "loadBalancer.hostResourceId";
     public const string LoadBalancerEntrypointCount = "loadBalancer.entrypoints";
@@ -164,6 +172,10 @@ public static class ResourceCapabilityIds
     public const string NetworkingHealthProbe = "networking.healthProbe";
     public const string NetworkingTrafficSplit = "networking.trafficSplit";
     public const string NetworkingServiceDiscovery = "networking.serviceDiscovery";
+    public const string NetworkingDnsZone = "networking.dnsZone";
+    public const string NetworkingNameMapping = "networking.nameMapping";
+    public const string NetworkingNamePublisher = "networking.namePublisher";
+    public const string NetworkingNameResolver = "networking.nameResolver";
     public const string NetworkingPolicy = "networking.policy";
     public const string NetworkingEgress = "networking.egress";
     public const string NetworkingTls = "networking.tls";

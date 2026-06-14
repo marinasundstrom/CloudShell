@@ -103,7 +103,11 @@ expectations rather than duplicating the task queue.
   For MVP, DNS/name mapping can start as logical resource projection,
   relationship display, validation, and provider-materialization diagnostics;
   real public DNS propagation and provider-backed network-level service
-  registries remain post-MVP unless a concrete sample needs them sooner.
+  registries remain post-MVP unless a concrete sample needs them sooner. The
+  first logical projection slice is now in place: programmatic declarations can
+  add `cloudshell.dnsZone` resources and child `cloudshell.nameMapping`
+  resources that record host names, target resources, target endpoint names,
+  exposure scope, and provider intent for Resource Manager inspection.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the

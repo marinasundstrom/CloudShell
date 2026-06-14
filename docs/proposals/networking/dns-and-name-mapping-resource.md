@@ -4,7 +4,13 @@
 
 ## Status
 
-Proposed.
+In progress.
+
+The first MVP slice projects logical `cloudshell.dnsZone` resources and child
+`cloudshell.nameMapping` resources from programmatic declarations. This gives
+Resource Manager an inspectable model for host names, target resources,
+endpoint names, exposure scope, and provider intent without requiring
+CloudShell to publish DNS records yet.
 
 ## Problem
 
@@ -292,6 +298,8 @@ The default orchestrator should treat DNS as logical name mapping unless a provi
 Supported behavior:
 
 * Project DNS zones and name mappings as ordinary resources.
+* Programmatically declare DNS zones and host mappings with `AddDnsZone(...)`
+  and `MapHost(...)`.
 * Project service discovery providers and discovery names as ordinary
   resources or provider-owned projected data when a provider owns the registry.
 * Validate that mapping targets exist.
@@ -345,10 +353,15 @@ api
 
 ## Implementation Plan
 
-1. Add DNS and name-mapping resource type identifiers.
-2. Add DNS/name-publishing capability identifiers.
-3. Add builder APIs for DNS zones and host mappings.
-4. Represent mappings as ordinary resources or provider-owned configuration with projected target references.
+1. Add DNS and name-mapping resource type identifiers. Done for
+   `cloudshell.dnsZone` and `cloudshell.nameMapping`.
+2. Add DNS/name-publishing capability identifiers. Done for logical DNS zone,
+   name mapping, name publisher, and name resolver capabilities.
+3. Add builder APIs for DNS zones and host mappings. Done for
+   `AddDnsZone(...)` and `MapHost(...)`.
+4. Represent mappings as ordinary resources or provider-owned configuration
+   with projected target references. Initial child-resource projection is in
+   place for DNS zone mappings.
 5. Add validation for target existence and provider capability.
 6. Add UI projection for DNS zones and name mappings.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
@@ -360,6 +373,9 @@ api
 
 ## Remaining Tasks
 
+* Add dedicated Resource Manager create/update UI for DNS zones and name
+  mappings.
+* Show inbound name mappings on target resource overview pages.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add conflict detection for duplicate names in the same scope.
 * Add local host-provider implementation.

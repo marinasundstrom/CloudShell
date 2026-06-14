@@ -127,6 +127,45 @@ public static class PlatformResourceDeclarationExtensions
         return new LoadBalancerResourceBuilder(resource, declared);
     }
 
+    public static IDnsZoneResourceBuilder AddDnsZone(
+        this IResourceDeclarationBuilder builder,
+        string id,
+        string? name = null,
+        string? zoneName = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+
+        var normalizedId = NormalizeDnsZoneId(id);
+        var displayName = string.IsNullOrWhiteSpace(name) ? CreateDisplayName(normalizedId) : name.Trim();
+        var definition = new DnsZoneResourceDefinition(
+            normalizedId,
+            displayName,
+            string.IsNullOrWhiteSpace(zoneName) ? CreateZoneName(normalizedId) : zoneName.Trim().ToLowerInvariant());
+        var declared = new DeclaredDnsZoneResource(definition);
+        builder.Services
+            .GetOrAddPlatformResourceOptions()
+            .DeclaredDnsZones
+            .Add(declared);
+
+        var resource = builder.Declare(
+            PlatformResourceProvider.ProviderId,
+            definition.Id,
+            resourceClass: ResourceClass.Network,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.DnsZoneName] = definition.ZoneName,
+                [ResourceAttributeNames.DnsProvider] = "logical"
+            },
+            onChanged: declaration =>
+            {
+                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
+                declared.OverwritePersistedState = declaration.OverwritePersistedState;
+            });
+
+        return new DnsZoneResourceBuilder(resource, declared);
+    }
+
     public static IStorageResourceBuilder AddLocalStorage(
         this IResourceDeclarationBuilder builder,
         string id,
@@ -264,6 +303,14 @@ public static class PlatformResourceDeclarationExtensions
             : $"storage:{normalized}";
     }
 
+    private static string NormalizeDnsZoneId(string id)
+    {
+        var normalized = id.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : $"dns:{normalized}";
+    }
+
     private static string CreateDisplayName(string resourceId)
     {
         var name = resourceId.Contains(':', StringComparison.Ordinal)
@@ -274,6 +321,11 @@ public static class PlatformResourceDeclarationExtensions
             name.Split(['-', '_', '.', ':'], StringSplitOptions.RemoveEmptyEntries)
                 .Select(segment => string.Concat(segment[..1].ToUpperInvariant(), segment[1..])));
     }
+
+    private static string CreateZoneName(string resourceId) =>
+        resourceId.Contains(':', StringComparison.Ordinal)
+            ? resourceId[(resourceId.IndexOf(':', StringComparison.Ordinal) + 1)..].Trim().ToLowerInvariant()
+            : resourceId.Trim().ToLowerInvariant();
 }
 
 public interface INetworkResourceBuilder : IResourceBuilder
@@ -558,6 +610,239 @@ public interface IStorageResourceBuilder : IResourceBuilder
     new IStorageResourceBuilder WithReferences(IEnumerable<string> resourceIds);
 
     new IStorageResourceBuilder Persist(bool overwrite = false);
+}
+
+public interface IDnsZoneResourceBuilder : IResourceBuilder
+{
+    IDnsZoneResourceBuilder UseProvider(string provider);
+
+    IDnsZoneResourceBuilder MapHost(
+        string hostName,
+        IResourceBuilder target,
+        string? endpointName = null,
+        string? id = null,
+        string? name = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Public,
+        string? providerResourceId = null);
+
+    IDnsZoneResourceBuilder MapHost(
+        string hostName,
+        ResourceEndpointReference target,
+        string? id = null,
+        string? name = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Public,
+        string? providerResourceId = null);
+
+    new IDnsZoneResourceBuilder DependsOn(string resourceId);
+
+    new IDnsZoneResourceBuilder DependsOn(IResourceBuilder resource);
+
+    new IDnsZoneResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IDnsZoneResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
+
+    new IDnsZoneResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IDnsZoneResourceBuilder WithParent(string? parentResourceId);
+
+    new IDnsZoneResourceBuilder WithParent(IResourceBuilder resource);
+
+    new IDnsZoneResourceBuilder WithReference(string resourceId);
+
+    new IDnsZoneResourceBuilder WithReference(IResourceBuilder resource);
+
+    new IDnsZoneResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+
+    new IDnsZoneResourceBuilder Persist(bool overwrite = false);
+}
+
+internal sealed class DnsZoneResourceBuilder(
+    IResourceBuilder inner,
+    DeclaredDnsZoneResource declared) : IDnsZoneResourceBuilder
+{
+    public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
+
+    public string ResourceId => inner.ResourceId;
+
+    public ResourceIdentityReference Identity => inner.Identity;
+
+    public IDnsZoneResourceBuilder UseProvider(string provider)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        var normalized = provider.Trim();
+        declared.Definition = declared.Definition with { Provider = normalized };
+        inner.WithResourceAttribute(ResourceAttributeNames.DnsProvider, normalized);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder MapHost(
+        string hostName,
+        IResourceBuilder target,
+        string? endpointName = null,
+        string? id = null,
+        string? name = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Public,
+        string? providerResourceId = null)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        return MapHost(
+            hostName,
+            new ResourceEndpointReference(target.ResourceId, string.IsNullOrWhiteSpace(endpointName) ? "http" : endpointName.Trim()),
+            id,
+            name,
+            exposure,
+            providerResourceId);
+    }
+
+    public IDnsZoneResourceBuilder MapHost(
+        string hostName,
+        ResourceEndpointReference target,
+        string? id = null,
+        string? name = null,
+        ResourceExposureScope exposure = ResourceExposureScope.Public,
+        string? providerResourceId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(hostName);
+        ArgumentNullException.ThrowIfNull(target);
+
+        var normalizedHost = hostName.Trim().ToLowerInvariant();
+        var mappingId = string.IsNullOrWhiteSpace(id)
+            ? $"{ResourceId}:name:{CreateStableIdentifier(normalizedHost)}"
+            : id.Trim();
+        declared.Definition = declared.Definition with
+        {
+            Mappings = declared.Definition.DnsNameMappings
+                .Where(mapping => !string.Equals(mapping.Id, mappingId, StringComparison.OrdinalIgnoreCase))
+                .Append(new DnsNameMappingDefinition(
+                    mappingId,
+                    string.IsNullOrWhiteSpace(name) ? normalizedHost : name.Trim(),
+                    normalizedHost,
+                    target.ResourceId.Trim(),
+                    string.IsNullOrWhiteSpace(target.EndpointName) ? null : target.EndpointName.Trim(),
+                    exposure,
+                    string.IsNullOrWhiteSpace(providerResourceId) ? null : providerResourceId.Trim()))
+                .ToArray()
+        };
+
+        inner.DependsOn(target.ResourceId);
+        if (!string.IsNullOrWhiteSpace(providerResourceId))
+        {
+            inner.DependsOn(providerResourceId.Trim());
+        }
+
+        return this;
+    }
+
+    private static string CreateStableIdentifier(string value)
+    {
+        var builder = new System.Text.StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            builder.Append(char.IsLetterOrDigit(character) ? character : '-');
+        }
+
+        var identifier = builder.ToString().Trim('-');
+        return string.IsNullOrWhiteSpace(identifier) ? "name" : identifier;
+    }
+
+    public IDnsZoneResourceBuilder WithResourceGroup(string? resourceGroupId)
+    {
+        inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder WithParent(IResourceBuilder resource)
+    {
+        inner.WithParent(resource);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder DependsOn(string resourceId)
+    {
+        inner.DependsOn(resourceId);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder DependsOn(IResourceBuilder resource)
+    {
+        inner.DependsOn(resource);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    {
+        inner.DependsOn(resourceIds);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources)
+    {
+        inner.DependsOn(resources);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder WithReference(string resourceId)
+    {
+        inner.WithReference(resourceId);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder WithReference(IResourceBuilder resource)
+    {
+        inner.WithReference(resource);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder WithReferences(IEnumerable<string> resourceIds)
+    {
+        inner.WithReferences(resourceIds);
+        return this;
+    }
+
+    public IDnsZoneResourceBuilder Persist(bool overwrite = false)
+    {
+        inner.Persist(overwrite);
+        return this;
+    }
+
+    IResourceBuilder IResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
+        WithResourceGroup(resourceGroupId);
+
+    IResourceBuilder IResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    IResourceBuilder IResourceBuilder.WithParent(IResourceBuilder resource) =>
+        WithParent(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(string resourceId) =>
+        DependsOn(resourceId);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IResourceBuilder resource) =>
+        DependsOn(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+        DependsOn(resourceIds);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<IResourceBuilder> resources) =>
+        DependsOn(resources);
+
+    IResourceBuilder IResourceBuilder.WithReference(string resourceId) =>
+        WithReference(resourceId);
+
+    IResourceBuilder IResourceBuilder.WithReference(IResourceBuilder resource) =>
+        WithReference(resource);
+
+    IResourceBuilder IResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
+        WithReferences(resourceIds);
+
+    IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
+        Persist(overwrite);
 }
 
 internal sealed class NetworkResourceBuilder(

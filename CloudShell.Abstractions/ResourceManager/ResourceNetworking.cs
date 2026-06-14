@@ -181,6 +181,25 @@ public sealed record LoadBalancerProviderContext(
     IReadOnlyList<LoadBalancerRouteResolution> Routes,
     IResourceManagerStore ResourceManager);
 
+public sealed record DnsZoneResourceDefinition(
+    string Id,
+    string Name,
+    string ZoneName,
+    string? Provider = null,
+    IReadOnlyList<DnsNameMappingDefinition>? Mappings = null)
+{
+    public IReadOnlyList<DnsNameMappingDefinition> DnsNameMappings => Mappings ?? [];
+}
+
+public sealed record DnsNameMappingDefinition(
+    string Id,
+    string Name,
+    string HostName,
+    string TargetResourceId,
+    string? TargetEndpointName = null,
+    ResourceExposureScope Exposure = ResourceExposureScope.Public,
+    string? ProviderResourceId = null);
+
 public interface ILoadBalancerProvider
 {
     string ProviderName { get; }

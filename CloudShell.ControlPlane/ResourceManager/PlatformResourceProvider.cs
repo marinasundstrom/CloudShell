@@ -29,6 +29,8 @@ public sealed class PlatformResourceProvider(
     public const string StorageResourceType = "cloudshell.storage";
     public const string VolumeResourceType = "cloudshell.volume";
     public const string LoadBalancerResourceType = "cloudshell.loadBalancer";
+    public const string DnsZoneResourceType = "cloudshell.dnsZone";
+    public const string NameMappingResourceType = "cloudshell.nameMapping";
     public const string ReconcileEndpointMappingsActionId = "reconcileEndpointMappings";
     public const string ApplyLoadBalancerConfigurationActionId = "applyLoadBalancerConfiguration";
     private readonly IHostLocalNetworkEnvironment hostLocalNetwork =
@@ -68,13 +70,16 @@ public sealed class PlatformResourceProvider(
             .. store.GetServices().Select(CreateServiceResource),
             .. store.GetStorages().Select(CreateStorageResource),
             .. store.GetVolumes().Select(CreateVolumeResource),
-            .. store.GetLoadBalancers().Select(CreateLoadBalancerResource)
+            .. store.GetLoadBalancers().Select(CreateLoadBalancerResource),
+            .. store.GetDnsZones().Select(CreateDnsZoneResource),
+            .. store.GetDnsZones().SelectMany(CreateNameMappingResources)
         ];
     }
 
     public bool CanCreate(ResourceCreationRequest request) =>
         IsNetworkResourceType(request.ResourceType) ||
         string.Equals(request.ResourceType, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(request.ResourceType, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, StorageResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, VolumeResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
@@ -108,6 +113,22 @@ public sealed class PlatformResourceProvider(
             var definition = request.Configuration.Deserialize<ServiceResourceDefinition>(SerializerOptions)
                 ?? throw new InvalidOperationException("Service resource configuration is required.");
             await SetupServiceAsync(
+                definition with
+                {
+                    Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
+                    Name = string.IsNullOrWhiteSpace(definition.Name) ? request.Name : definition.Name
+                },
+                request.ResourceGroupId,
+                context.Registrations,
+                cancellationToken);
+            return;
+        }
+
+        if (string.Equals(request.ResourceType, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            var definition = request.Configuration.Deserialize<DnsZoneResourceDefinition>(SerializerOptions)
+                ?? throw new InvalidOperationException("DNS zone resource configuration is required.");
+            await SetupDnsZoneAsync(
                 definition with
                 {
                     Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
@@ -225,6 +246,22 @@ public sealed class PlatformResourceProvider(
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
             CreateLoadBalancerDependencies(normalized),
+            cancellationToken);
+    }
+
+    public async Task SetupDnsZoneAsync(
+        DnsZoneResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeDnsZone(definition);
+        store.SaveDnsZone(normalized);
+        await registrations.RegisterAsync(
+            Id,
+            normalized.Id,
+            NormalizeGroupId(resourceGroupId),
+            CreateDnsZoneDependencies(normalized),
             cancellationToken);
     }
 
@@ -1338,6 +1375,77 @@ public sealed class PlatformResourceProvider(
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
     }
 
+    private Resource CreateDnsZoneResource(DnsZoneResourceDefinition definition) =>
+        new(
+            definition.Id,
+            definition.Name,
+            "DNS Zone",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [],
+            definition.ZoneName,
+            DateTimeOffset.UtcNow,
+            CreateDnsZoneDependencies(definition),
+            TypeId: DnsZoneResourceType,
+            ResourceClass: ResourceClass.Network,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.DnsZoneName] = definition.ZoneName,
+                [ResourceAttributeNames.DnsProvider] =
+                    string.IsNullOrWhiteSpace(definition.Provider) ? "logical" : definition.Provider,
+                [ResourceAttributeNames.DnsRecordCount] =
+                    definition.DnsNameMappings.Count.ToString(CultureInfo.InvariantCulture)
+            },
+            Capabilities: [new(ResourceCapabilityIds.NetworkingDnsZone)]);
+
+    private IReadOnlyList<Resource> CreateNameMappingResources(DnsZoneResourceDefinition zone) =>
+        zone.DnsNameMappings
+            .Select(mapping => CreateNameMappingResource(zone, mapping))
+            .ToArray();
+
+    private Resource CreateNameMappingResource(
+        DnsZoneResourceDefinition zone,
+        DnsNameMappingDefinition mapping)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.NameMappingHostName] = mapping.HostName,
+            [ResourceAttributeNames.NameMappingTargetResourceId] = mapping.TargetResourceId,
+            [ResourceAttributeNames.NameMappingExposure] = mapping.Exposure.ToString(),
+            [ResourceAttributeNames.DnsZoneName] = zone.ZoneName,
+            [ResourceAttributeNames.DnsProvider] =
+                string.IsNullOrWhiteSpace(zone.Provider) ? "logical" : zone.Provider
+        };
+
+        if (!string.IsNullOrWhiteSpace(mapping.TargetEndpointName))
+        {
+            attributes[ResourceAttributeNames.NameMappingTargetEndpointName] = mapping.TargetEndpointName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(mapping.ProviderResourceId))
+        {
+            attributes[ResourceAttributeNames.NameMappingProviderResourceId] = mapping.ProviderResourceId;
+        }
+
+        return new(
+            mapping.Id,
+            mapping.Name,
+            "Name Mapping",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [],
+            mapping.HostName,
+            DateTimeOffset.UtcNow,
+            CreateNameMappingDependencies(mapping),
+            ParentResourceId: zone.Id,
+            TypeId: NameMappingResourceType,
+            ResourceClass: ResourceClass.Network,
+            Attributes: attributes,
+            Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
+    }
+
     private Resource CreateLoadBalancerResource(LoadBalancerResourceDefinition definition)
     {
         var endpoints = CreateLoadBalancerEndpoints(definition);
@@ -1617,6 +1725,19 @@ public sealed class PlatformResourceProvider(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+    private static IReadOnlyList<string> CreateDnsZoneDependencies(DnsZoneResourceDefinition definition) =>
+        definition.DnsNameMappings
+            .SelectMany(CreateNameMappingDependencies)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyList<string> CreateNameMappingDependencies(DnsNameMappingDefinition mapping) =>
+        new[] { mapping.TargetResourceId, mapping.ProviderResourceId }
+            .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+            .Select(dependency => dependency!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
     private static IReadOnlyList<string> CreateVolumeDependencies(VolumeResourceDefinition definition) =>
         string.IsNullOrWhiteSpace(definition.StorageResourceId)
             ? []
@@ -1751,6 +1872,31 @@ public sealed class PlatformResourceProvider(
             Provider = NormalizeNullable(definition.Provider) ?? StorageProviderNames.LocalStorage,
             Medium = NormalizeNullable(definition.Medium) ?? StorageMedia.FileSystem,
             Location = NormalizeNullable(definition.Location)
+        };
+
+    private static DnsZoneResourceDefinition NormalizeDnsZone(DnsZoneResourceDefinition definition) =>
+        definition with
+        {
+            Id = NormalizeResourceId(definition.Id, "dns", definition.Name),
+            Name = definition.Name.Trim(),
+            ZoneName = NormalizeNullable(definition.ZoneName) ?? definition.Name.Trim().ToLowerInvariant(),
+            Provider = NormalizeNullable(definition.Provider),
+            Mappings = definition.DnsNameMappings
+                .Where(mapping =>
+                    !string.IsNullOrWhiteSpace(mapping.Id) &&
+                    !string.IsNullOrWhiteSpace(mapping.HostName) &&
+                    !string.IsNullOrWhiteSpace(mapping.TargetResourceId))
+                .Select(mapping => mapping with
+                {
+                    Id = mapping.Id.Trim(),
+                    Name = string.IsNullOrWhiteSpace(mapping.Name) ? mapping.Id.Trim() : mapping.Name.Trim(),
+                    HostName = mapping.HostName.Trim().ToLowerInvariant(),
+                    TargetResourceId = mapping.TargetResourceId.Trim(),
+                    TargetEndpointName = NormalizeNullable(mapping.TargetEndpointName),
+                    ProviderResourceId = NormalizeNullable(mapping.ProviderResourceId)
+                })
+                .DistinctBy(mapping => mapping.Id, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
         };
 
     private static ResourceState? NormalizeLoadBalancerRuntimeState(ResourceState? state) =>
