@@ -11,16 +11,24 @@ public static class SqlServerResourceBuilderExtensions
     public static IContainerResourceBuilder AddSqlServer(
         this IResourceDeclarationBuilder resources,
         string name,
-        string? password = null)
+        string? password = null,
+        IResourceBuilder? dataVolume = null)
     {
         ArgumentNullException.ThrowIfNull(resources);
 
-        return resources
+        var sqlServer = resources
             .AddContainer(name, DefaultSqlServerImage)
             .WithEndpoint("tds", targetPort: 1433, port: 14333, protocol: "tcp")
             .WithEnvironment("ACCEPT_EULA", "Y")
             .WithEnvironment("MSSQL_SA_PASSWORD", string.IsNullOrWhiteSpace(password)
                 ? DefaultPassword
                 : password);
+
+        if (dataVolume is not null)
+        {
+            sqlServer.WithVolume(dataVolume, "/var/opt/mssql", name: "data");
+        }
+
+        return sqlServer;
     }
 }

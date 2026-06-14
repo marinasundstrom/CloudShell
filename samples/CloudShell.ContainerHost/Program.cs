@@ -20,12 +20,7 @@ cloudShell
     .AddApplicationProvider()
     .UseLocalDevelopmentDefaults();
 
-cloudShell.Resources(resources =>
-{
-    resources
-        .AddSqlServer("sql-server")
-        .WithImage("mcr.microsoft.com/mssql/server:2022-latest");
-});
+cloudShell.Resources(ContainerHostSampleResources.AddResources);
 
 var app = builder.Build();
 

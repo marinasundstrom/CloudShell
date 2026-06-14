@@ -110,7 +110,10 @@ expectations rather than duplicating the task queue.
   medium before accepting it.
   Runtime materialization, provider-backed volume resources, richer
   materialization diagnostics, broader UI management, runtime enforcement, and
-  usage monitoring APIs remain next storage work.
+  usage monitoring APIs remain next storage work. The Container Host sample
+  now demonstrates the intended storage graph by declaring a Local Storage
+  resource, a SQL Server data volume owned by that storage resource, and a SQL
+  Server container mount at `/var/opt/mssql`.
 - The first post-MVP target is an initial on-premise hosting scenario. It
   should prove acceptable Resource Manager operations, provider-backed
   cross-platform networking, virtual networks, ingress/public endpoint mapping,
