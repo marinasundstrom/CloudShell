@@ -195,6 +195,7 @@ operations through `IResourceManager` and the HTTP API:
 ```text
 GET /api/control-plane/v1/resource-permission-grants
 POST /api/control-plane/v1/resource-permission-grants/evaluate
+POST /api/control-plane/v1/identity-providers/{providerId}/setup
 POST /api/control-plane/v1/resources/{resourceId}/identity/provision
 GET /api/control-plane/v1/resources/{resourceId}/identity/provisioning-status
 ```
@@ -271,6 +272,17 @@ assignments, or a provisioning service database. Providers that cannot report
 status return `Unknown` with a diagnostic. The built-in development provider
 reports whether its in-memory client registration currently exists.
 
+`SetupResourceIdentityProviderAsync(providerId)` is separate from resource
+identity provisioning. It asks a provider-level setup handler to reconcile or
+validate provider-owned bootstrap such as OIDC client mappers, trust metadata,
+admin API reachability, or provider-specific registration prerequisites. Setup
+returns diagnostics and does not write provider-specific state into resource
+metadata. When the provider names a provisioning resource, callers need
+`CloudShell.Identity/provisioningServices/identities/provision/action` or
+`resources.manage` on that provisioning resource. Providers without a setup
+handler return a warning diagnostic so hosts can expose setup as an optional
+operation without requiring every provider to implement it.
+
 The first built-in provider implementation is development-oriented: it
 registers an in-memory client-credentials client with the built-in authority
 and projects declared grants as scoped resource-permission token claims. The
@@ -322,10 +334,11 @@ when the selected provider names a provisioning resource,
 `resources.manage` on that provisioning resource.
 
 Provisioning starts from the provider-neutral `IResourceIdentityProvisioner`
-contract. The Control Plane can build provisioning requests from declared
-resource identities and matching permission grants, grouped by resolved
-resource identity provider. A concrete provisioner translates that request into
-its backing authority.
+contract. Provider setup starts from the separate provider-neutral
+`IResourceIdentityProviderSetupHandler` contract. The Control Plane can build
+provisioning requests from declared resource identities and matching permission
+grants, grouped by resolved resource identity provider. A concrete provisioner
+or setup handler translates that request into its backing authority.
 
 ## Operation Permissions
 

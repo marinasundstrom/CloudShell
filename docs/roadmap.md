@@ -158,12 +158,10 @@ listed here before pulling in broader proposal work.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and
-  sample-scoped resource identity provisioning; next identity work should make
+  sample-scoped resource identity provisioning, and a provider setup/reconcile
+  hook with a Control Plane endpoint; next identity work should make
   provisioned Keycloak credentials available to workloads and map external
-  tokens back to CloudShell scoped resource-permission claims. Identity
-  provider setup should be modeled as a provider setup/reconcile hook, with an
-  endpoint invoking that hook where available, rather than conflating setup
-  with individual resource identity provisioning.
+  tokens back to CloudShell scoped resource-permission claims.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, and container app

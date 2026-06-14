@@ -69,6 +69,13 @@ The sample also declares the external resource identity boundary:
 - `configuration:third-party-identity` grants that API identity configuration
   read access.
 
+The sample registers `KeycloakResourceIdentityProvisioner` as both the
+resource identity provisioner and the provider setup handler. Provider setup is
+separate from individual resource identity provisioning: it uses the Keycloak
+admin API to ensure the `cloudshell-ui` client emits realm roles in the
+configured `roles` claim so CloudShell user authorization can read the same
+claim shape after realm import or manual client changes.
+
 The application declaration calls `ProvisionIdentityOnStartup()`. The sample
 registers `KeycloakResourceIdentityProvisioner`, which translates the
 CloudShell provisioning request into Keycloak admin operations:

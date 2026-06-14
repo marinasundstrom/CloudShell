@@ -234,6 +234,19 @@ public sealed class RemoteControlPlane : IControlPlane
             .ToResourceIdentityProvisioningStatusResult();
     }
 
+    public async Task<ResourceIdentityProviderSetupResult> SetupResourceIdentityProviderAsync(
+        string providerId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync(
+            BuildUri($"identity-providers/{Escape(providerId)}/setup"),
+            null,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await ReadRequiredAsync<ResourceIdentityProviderSetupResponse>(response, cancellationToken))
+            .ToResourceIdentityProviderSetupResult();
+    }
+
     public async Task RegisterResourceAsync(
         RegisterResourceCommand command,
         CancellationToken cancellationToken = default)
@@ -769,6 +782,10 @@ file sealed record ResourceIdentityProvisioningResponse(
     string ProviderId,
     IReadOnlyList<ResourceIdentityProvisioningDiagnosticResponse>? Diagnostics);
 
+file sealed record ResourceIdentityProviderSetupResponse(
+    string ProviderId,
+    IReadOnlyList<ResourceIdentityProvisioningDiagnosticResponse>? Diagnostics);
+
 file sealed record ResourceIdentityProvisioningStatusResponse(
     ResourceIdentityReferenceResponse Identity,
     ResourceIdentityProvisioningState State,
@@ -1023,6 +1040,14 @@ file static class RemoteControlPlaneMapper
             response.Message,
             response.Identity?.ToResourceIdentityReference(),
             response.ProviderId);
+
+    public static ResourceIdentityProviderSetupResult ToResourceIdentityProviderSetupResult(
+        this ResourceIdentityProviderSetupResponse response) =>
+        new(
+            response.ProviderId,
+            response.Diagnostics?
+                .Select(diagnostic => diagnostic.ToResourceIdentityProvisioningDiagnostic())
+                .ToArray());
 
     public static ResourceIdentityProvisioningStatusResult ToResourceIdentityProvisioningStatusResult(
         this ResourceIdentityProvisioningStatusResultResponse response) =>

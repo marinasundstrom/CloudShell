@@ -23,6 +23,8 @@ builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProvisioner, KeycloakResourceIdentityProvisioner>());
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProvisioningStatusProvider, KeycloakResourceIdentityProvisioner>());
+builder.Services.TryAddEnumerable(
+    ServiceDescriptor.Singleton<IResourceIdentityProviderSetupHandler, KeycloakResourceIdentityProvisioner>());
 
 cloudShell.Resources(resources =>
 {
@@ -47,6 +49,7 @@ cloudShell.Resources(resources =>
             ["Provider"] = "Keycloak",
             ["Authority"] = authority,
             ["ClientId"] = clientId,
+            ["RoleClaimType"] = builder.Configuration["Authentication:RoleClaimType"] ?? "roles",
             ["Realm"] = builder.Configuration["Keycloak:Realm"] ?? "cloudshell",
             ["AdminBaseAddress"] = builder.Configuration["Keycloak:AdminBaseAddress"] ??
                 "http://localhost:8080"

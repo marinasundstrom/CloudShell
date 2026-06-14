@@ -69,6 +69,13 @@ public static class CloudShellControlPlaneApiExtensions
             .Produces<ResourcePermissionEvaluationResponse>(StatusCodes.Status200OK)
             .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
 
+        api.MapPost("/identity-providers/{providerId}/setup", SetupResourceIdentityProvider)
+            .WithName("CloudShellControlPlane_SetupResourceIdentityProvider")
+            .Produces<ResourceIdentityProviderSetupResponse>(StatusCodes.Status200OK)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
+
         api.MapGet("/resources/{resourceId}", GetResource)
             .WithName("CloudShellControlPlane_GetResource")
             .Produces<ResourceResponse>(StatusCodes.Status200OK)
@@ -363,6 +370,24 @@ public static class CloudShellControlPlaneApiExtensions
         {
             var result = await resourceManager.GetResourceIdentityProvisioningStatusAsync(
                 resourceId,
+                cancellationToken);
+            return Results.Ok(result.ToResponse());
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> SetupResourceIdentityProvider(
+        string providerId,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await resourceManager.SetupResourceIdentityProviderAsync(
+                providerId,
                 cancellationToken);
             return Results.Ok(result.ToResponse());
         }

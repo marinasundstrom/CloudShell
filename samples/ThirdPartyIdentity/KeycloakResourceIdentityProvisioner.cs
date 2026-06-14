@@ -10,7 +10,8 @@ public sealed class KeycloakResourceIdentityProvisioner(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration) :
     IResourceIdentityProvisioner,
-    IResourceIdentityProvisioningStatusProvider
+    IResourceIdentityProvisioningStatusProvider,
+    IResourceIdentityProviderSetupHandler
 {
     public string ProviderId => "keycloak";
 
@@ -19,6 +20,62 @@ public sealed class KeycloakResourceIdentityProvisioner(
 
     public bool CanGetProvisioningStatus(ResourceIdentityProviderDefinition provider) =>
         IsKeycloakProvider(provider);
+
+    public bool CanSetup(ResourceIdentityProviderDefinition provider) =>
+        IsKeycloakProvider(provider);
+
+    public async Task<ResourceIdentityProviderSetupResult> SetupAsync(
+        ResourceIdentityProviderSetupRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var diagnostics = new List<ResourceIdentityProvisioningDiagnostic>();
+        var client = httpClientFactory.CreateClient();
+
+        try
+        {
+            var token = await GetAdminAccessTokenAsync(client, request.Provider, cancellationToken);
+            var clientId = ResolveSetting(request.Provider, "ClientId") ??
+                configuration["Authentication:OpenIdConnect:ClientId"] ??
+                "cloudshell-ui";
+            var keycloakClient = await FindClientAsync(
+                client,
+                request.Provider,
+                token,
+                clientId,
+                cancellationToken);
+            if (keycloakClient is null)
+            {
+                diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
+                    ResourceIdentityProvisioningDiagnosticSeverity.Warning,
+                    $"Keycloak client '{clientId}' was not found. Import the sample realm or create the UI client before setup.",
+                    ProviderId: request.Provider.Id));
+            }
+            else
+            {
+                await EnsureRealmRoleMapperAsync(
+                    client,
+                    request.Provider,
+                    token,
+                    keycloakClient.Id,
+                    cancellationToken);
+                diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
+                    ResourceIdentityProvisioningDiagnosticSeverity.Information,
+                    $"Keycloak client '{clientId}' is configured to emit realm roles for CloudShell authorization.",
+                    ProviderId: request.Provider.Id));
+            }
+        }
+        catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
+        {
+            diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
+                ResourceIdentityProvisioningDiagnosticSeverity.Error,
+                exception.Message,
+                ProviderId: request.Provider.Id));
+        }
+
+        return new ResourceIdentityProviderSetupResult(request.Provider.Id, diagnostics);
+    }
 
     public async Task<ResourceIdentityProvisioningResult> ProvisionAsync(
         ResourceIdentityProvisioningRequest request,
@@ -368,6 +425,51 @@ public sealed class KeycloakResourceIdentityProvisioner(
                     ["jsonType.label"] = "String",
                     ["multivalued"] = "true",
                     ["usermodel.clientRoleMapping.clientId"] = clientId
+                }
+            });
+        using var createResponse = await client.SendAsync(createRequest, cancellationToken);
+        await EnsureSuccessAsync(createResponse, cancellationToken);
+    }
+
+    private static async Task EnsureRealmRoleMapperAsync(
+        HttpClient client,
+        ResourceIdentityProviderDefinition provider,
+        string token,
+        string internalClientId,
+        CancellationToken cancellationToken)
+    {
+        const string mapperName = "realm roles";
+        using var readRequest = CreateAuthorizedRequest(
+            HttpMethod.Get,
+            CreateAdminUri(provider, $"clients/{Uri.EscapeDataString(internalClientId)}/protocol-mappers/models"),
+            token);
+        using var readResponse = await client.SendAsync(readRequest, cancellationToken);
+        await EnsureSuccessAsync(readResponse, cancellationToken);
+        var mappers = await readResponse.Content.ReadFromJsonAsync<KeycloakProtocolMapperRepresentation[]>(
+            cancellationToken) ?? [];
+        if (mappers.Any(mapper => string.Equals(mapper.Name, mapperName, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        using var createRequest = CreateJsonRequest(
+            HttpMethod.Post,
+            CreateAdminUri(provider, $"clients/{Uri.EscapeDataString(internalClientId)}/protocol-mappers/models"),
+            token,
+            new
+            {
+                name = mapperName,
+                protocol = "openid-connect",
+                protocolMapper = "oidc-usermodel-realm-role-mapper",
+                consentRequired = false,
+                config = new Dictionary<string, string>
+                {
+                    ["access.token.claim"] = "true",
+                    ["claim.name"] = ResolveSetting(provider, "RoleClaimType") ?? "roles",
+                    ["id.token.claim"] = "true",
+                    ["jsonType.label"] = "String",
+                    ["multivalued"] = "true",
+                    ["userinfo.token.claim"] = "true"
                 }
             });
         using var createResponse = await client.SendAsync(createRequest, cancellationToken);

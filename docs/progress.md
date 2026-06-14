@@ -87,11 +87,12 @@ expectations rather than duplicating the task queue.
   provisioning path is exercised. The sample-scoped Keycloak provisioner now
   creates confidential clients, client roles for declared grants, service
   account role assignments, and token mappers for
-  `cloudshell.resource-permission` claims. Runtime credential delivery and
-  end-to-end protected service calls with Keycloak-issued tokens remain the
-  next identity-provider validation step. Identity provider setup/bootstrap is
-  also distinct from resource identity provisioning and should have its own
-  setup/validate operation.
+  `cloudshell.resource-permission` claims. Identity provider setup/bootstrap is
+  now distinct from resource identity provisioning through a provider-neutral
+  setup hook and Control Plane endpoint; the Keycloak sample uses it to
+  reconcile the UI client's realm-role claim mapper. Runtime credential
+  delivery and end-to-end protected service calls with Keycloak-issued tokens
+  remain the next identity-provider validation step.
 - The first mountable-volume domain slices are in place: `resources.AddVolume(...)`
   declares a `cloudshell.volume` resource for a local or addressable storage
   allocation, and container apps can declare `WithVolume(...)` mounts that

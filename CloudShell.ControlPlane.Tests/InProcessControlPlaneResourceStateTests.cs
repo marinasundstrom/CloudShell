@@ -481,6 +481,59 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task SetupResourceIdentityProviderAsync_RequiresPermissionOnProvisioningResource()
+    {
+        var setupHandler = new TestResourceIdentityProviderSetupHandler("identity:dev");
+        var controlPlane = CreateControlPlane(
+            [CreateResource("identity:dev", ResourceState.Running)],
+            authorization: new ResourceScopedAuthorizationService(
+                ("identity:dev", CloudShellPermissions.Resources.Read)),
+            identityProviders:
+            [
+                new(
+                    "identity:dev",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    ProvisioningResourceId: "identity:dev")
+            ],
+            identityProviderSetupHandlers: [setupHandler]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.SetupResourceIdentityProviderAsync("identity:dev"));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Equal(
+            "The 'CloudShell.Identity/provisioningServices/identities/provision/action' or 'resources.manage' permission is required for resource 'identity:dev'.",
+            exception.Message);
+        Assert.Empty(setupHandler.Requests);
+    }
+
+    [Fact]
+    public async Task SetupResourceIdentityProviderAsync_AllowsProvisioningResourcePermission()
+    {
+        var setupHandler = new TestResourceIdentityProviderSetupHandler("identity:dev");
+        var controlPlane = CreateControlPlane(
+            [CreateResource("identity:dev", ResourceState.Running)],
+            authorization: new ResourceScopedAuthorizationService(
+                ("identity:dev", ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities)),
+            identityProviders:
+            [
+                new(
+                    "identity:dev",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    ProvisioningResourceId: "identity:dev")
+            ],
+            identityProviderSetupHandlers: [setupHandler]);
+
+        var result = await controlPlane.SetupResourceIdentityProviderAsync("identity:dev");
+
+        Assert.Equal("identity:dev", result.ProviderId);
+        var request = Assert.Single(setupHandler.Requests);
+        Assert.Equal("identity:dev", request.Provider.Id);
+    }
+
+    [Fact]
     public async Task GetResourceIdentityProvisioningStatusAsync_RequiresReadPermissionOnTargetResource()
     {
         var controlPlane = CreateControlPlane(
@@ -1195,6 +1248,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<ResourcePermissionGrant>? permissionGrants = null,
         IReadOnlyList<ResourceIdentityProviderDefinition>? identityProviders = null,
         IReadOnlyList<IResourceIdentityProvisioner>? identityProvisioners = null,
+        IReadOnlyList<IResourceIdentityProviderSetupHandler>? identityProviderSetupHandlers = null,
         IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,
         IReadOnlyList<IContainerHostProvider>? containerHostProviders = null,
         IReadOnlyList<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
@@ -1228,6 +1282,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             declarations,
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityProvisioners ?? []);
+        var identityProviderSetup = new ResourceIdentityProviderSetupService(
+            declarations,
+            new ResourceIdentityProviderCatalog(identityProviders ?? []),
+            identityProviderSetupHandlers ?? []);
         var orchestration = new ResourceOrchestrationService(
             [new DefaultResourceOrchestrator()],
             descriptorProviders ?? [],
@@ -1246,6 +1304,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             declarations,
             orchestration,
             identityProvisioning,
+            identityProviderSetup,
             templates,
             new EmptyLogStore(),
             new EmptyTraceStore(),
@@ -1386,6 +1445,25 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             Requests.Add(request);
             return Task.FromResult(new ResourceIdentityProvisioningResult(request.Provider.Id));
+        }
+    }
+
+    private sealed class TestResourceIdentityProviderSetupHandler(string providerId) :
+        IResourceIdentityProviderSetupHandler
+    {
+        public List<ResourceIdentityProviderSetupRequest> Requests { get; } = [];
+
+        public string ProviderId => providerId;
+
+        public bool CanSetup(ResourceIdentityProviderDefinition provider) =>
+            string.Equals(provider.Id, ProviderId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceIdentityProviderSetupResult> SetupAsync(
+            ResourceIdentityProviderSetupRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new ResourceIdentityProviderSetupResult(request.Provider.Id));
         }
     }
 

@@ -64,6 +64,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<ResourceOrchestrationService>();
         builder.Services.AddScoped<ResourceDeclarationStartupService>();
         builder.Services.AddScoped<ResourceIdentityProvisioningService>();
+        builder.Services.AddScoped<ResourceIdentityProviderSetupService>();
         builder.Services.TryAddSingleton<BuiltInResourceIdentityRegistry>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceIdentityProvisioner, BuiltInResourceIdentityProvisioner>());

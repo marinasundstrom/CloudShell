@@ -164,6 +164,23 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_SetsUpResourceIdentityProvider()
+    {
+        await using var app = await CreateAppAsync();
+        var controlPlane = CreateClient(app);
+
+        var result = await controlPlane.SetupResourceIdentityProviderAsync("identity:contract");
+
+        Assert.Equal("identity:contract", result.ProviderId);
+        var diagnostic = Assert.Single(result.SetupDiagnostics);
+        Assert.Equal(ResourceIdentityProvisioningDiagnosticSeverity.Information, diagnostic.Severity);
+        Assert.Equal("identity:contract", diagnostic.ProviderId);
+        var setupHandler = app.Services.GetRequiredService<ContractIdentityProviderSetupHandler>();
+        var request = Assert.Single(setupHandler.Requests);
+        Assert.Equal("identity:contract", request.Provider.Id);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_ExecutesResourceActionWithActingIdentityGrant()
     {
         await using var app = await CreateAppAsync(includeMappedNetwork: true);
@@ -784,6 +801,9 @@ public sealed class RemoteControlPlaneContractTests
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();
+        builder.Services.AddSingleton<ContractIdentityProviderSetupHandler>();
+        builder.Services.AddSingleton<IResourceIdentityProviderSetupHandler>(serviceProvider =>
+            serviceProvider.GetRequiredService<ContractIdentityProviderSetupHandler>());
         if (includeLifecycleResource)
         {
             builder.Services.AddSingleton<IResourceProvider, ContractLifecycleResourceProvider>();
@@ -805,6 +825,10 @@ public sealed class RemoteControlPlaneContractTests
 
         controlPlane.Resources(resources =>
         {
+            resources.AddIdentityProvider(
+                "identity:contract",
+                "Contract identity",
+                ResourceIdentityProviderKind.Custom);
             var network = resources
                 .AddNetwork("network:contract", "Contract Network", isDefault: true)
                 .Persist()
@@ -891,6 +915,31 @@ public sealed class RemoteControlPlaneContractTests
     private static bool HasAttribute(LogEntry entry, string key, string value) =>
         entry.Attributes?.TryGetValue(key, out var actual) is true &&
         string.Equals(actual, value, StringComparison.Ordinal);
+
+    private sealed class ContractIdentityProviderSetupHandler : IResourceIdentityProviderSetupHandler
+    {
+        public List<ResourceIdentityProviderSetupRequest> Requests { get; } = [];
+
+        public string ProviderId => "contract";
+
+        public bool CanSetup(ResourceIdentityProviderDefinition provider) =>
+            string.Equals(provider.Id, "identity:contract", StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceIdentityProviderSetupResult> SetupAsync(
+            ResourceIdentityProviderSetupRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new ResourceIdentityProviderSetupResult(
+                request.Provider.Id,
+                [
+                    new ResourceIdentityProvisioningDiagnostic(
+                        ResourceIdentityProvisioningDiagnosticSeverity.Information,
+                        "Contract identity provider setup completed.",
+                        ProviderId: request.Provider.Id)
+                ]));
+        }
+    }
 
     private sealed class ContractNetworkingResourceProvider : IResourceProvider
     {

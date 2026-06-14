@@ -15,6 +15,7 @@ public sealed class InProcessControlPlane(
     ResourceDeclarationStore declarations,
     ResourceOrchestrationService orchestration,
     ResourceIdentityProvisioningService resourceIdentityProvisioning,
+    ResourceIdentityProviderSetupService resourceIdentityProviderSetup,
     ResourceTemplateService templates,
     ILogStore logs,
     ITraceStore traces,
@@ -232,6 +233,19 @@ public sealed class InProcessControlPlane(
 
         return await resourceIdentityProvisioning.GetResourceStatusAsync(
             resource.Id,
+            cancellationToken);
+    }
+
+    public async Task<ResourceIdentityProviderSetupResult> SetupResourceIdentityProviderAsync(
+        string providerId,
+        CancellationToken cancellationToken = default)
+    {
+        providerId = RequireValue(providerId, nameof(providerId));
+        var provider = resourceIdentityProviderSetup.ResolveProvider(providerId);
+        AuthorizeResourceIdentityProviderSetup(provider);
+
+        return await resourceIdentityProviderSetup.SetupAsync(
+            provider.Id,
             cancellationToken);
     }
 
@@ -743,6 +757,38 @@ public sealed class InProcessControlPlane(
                     provisioningResource.Id,
                     FormatPermissionRequirement(CloudShellPermissions.Resources.Read));
             }
+        }
+    }
+
+    private void AuthorizeResourceIdentityProviderSetup(ResourceIdentityProviderDefinition provider)
+    {
+        if (string.IsNullOrWhiteSpace(provider.ProvisioningResourceId))
+        {
+            if (!authorization.HasPermission(CloudShellPermissions.Resources.Manage))
+            {
+                throw new ControlPlaneAccessDeniedException(new ControlPlaneError(
+                    ControlPlaneErrorCodes.InsufficientPermission,
+                    $"The '{CloudShellPermissions.Resources.Manage}' permission is required to set up resource identity provider '{provider.Id}'."));
+            }
+
+            return;
+        }
+
+        var provisioningResource = resourceManager.GetResource(provider.ProvisioningResourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(provider.ProvisioningResourceId));
+        var group = resourceManager.GetGroupForResource(provisioningResource.Id);
+        if (!authorization.CanAccessResource(
+                provisioningResource.Id,
+                group?.Id,
+                ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities) &&
+            !authorization.CanAccessResource(
+                provisioningResource.Id,
+                group?.Id,
+                CloudShellPermissions.Resources.Manage))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                provisioningResource.Id,
+                FormatPermissionRequirement(ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities));
         }
     }
 

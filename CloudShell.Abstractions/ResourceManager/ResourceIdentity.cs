@@ -69,6 +69,28 @@ public interface IResourceIdentityProvisioningStatusProvider
         CancellationToken cancellationToken = default);
 }
 
+public interface IResourceIdentityProviderSetupHandler
+{
+    string ProviderId { get; }
+
+    bool CanSetup(ResourceIdentityProviderDefinition provider);
+
+    Task<ResourceIdentityProviderSetupResult> SetupAsync(
+        ResourceIdentityProviderSetupRequest request,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record ResourceIdentityProviderSetupRequest(
+    ResourceIdentityProviderDefinition Provider);
+
+public sealed record ResourceIdentityProviderSetupResult(
+    string ProviderId,
+    IReadOnlyList<ResourceIdentityProvisioningDiagnostic>? Diagnostics = null)
+{
+    public IReadOnlyList<ResourceIdentityProvisioningDiagnostic> SetupDiagnostics =>
+        Diagnostics ?? [];
+}
+
 public sealed record ResourceIdentityProvisioningRequest(
     ResourceIdentityProviderDefinition Provider,
     IReadOnlyList<ResourceIdentityProvisioningEntry> Identities,

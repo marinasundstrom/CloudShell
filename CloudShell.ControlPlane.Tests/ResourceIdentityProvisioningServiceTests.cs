@@ -153,6 +153,45 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Empty(result.ProvisioningDiagnostics);
     }
 
+    [Fact]
+    public async Task SetupAsync_InvokesMatchingSetupHandler()
+    {
+        var declarations = new ResourceDeclarationStore();
+        declarations.AddIdentityProvider(new ResourceIdentityProviderDefinition(
+            "identity:dev",
+            "Development",
+            ResourceIdentityProviderKind.BuiltIn));
+        var setupHandler = new RecordingSetupHandler("identity:dev");
+        var service = new ResourceIdentityProviderSetupService(
+            declarations,
+            new ResourceIdentityProviderCatalog(),
+            [setupHandler]);
+
+        var result = await service.SetupAsync("identity:dev");
+
+        Assert.Equal("identity:dev", result.ProviderId);
+        var request = Assert.Single(setupHandler.Requests);
+        Assert.Equal("identity:dev", request.Provider.Id);
+        Assert.Empty(result.SetupDiagnostics);
+    }
+
+    [Fact]
+    public async Task SetupAsync_ReportsMissingSetupHandler()
+    {
+        var service = new ResourceIdentityProviderSetupService(
+            new ResourceDeclarationStore(),
+            new ResourceIdentityProviderCatalog(
+                [new("identity:entra", "Microsoft Entra ID", ResourceIdentityProviderKind.Oidc)]),
+            []);
+
+        var result = await service.SetupAsync("identity:entra");
+
+        Assert.Equal("identity:entra", result.ProviderId);
+        var diagnostic = Assert.Single(result.SetupDiagnostics);
+        Assert.Equal(ResourceIdentityProvisioningDiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Equal("identity:entra", diagnostic.ProviderId);
+    }
+
     private sealed class RecordingProvisioner(string providerId) :
         IResourceIdentityProvisioner,
         IResourceIdentityProvisioningStatusProvider
@@ -189,6 +228,24 @@ public sealed class ResourceIdentityProvisioningServiceTests
                         entry.Identity,
                         ResourceIdentityProvisioningState.Provisioned))
                     .ToArray()));
+        }
+    }
+
+    private sealed class RecordingSetupHandler(string providerId) : IResourceIdentityProviderSetupHandler
+    {
+        public List<ResourceIdentityProviderSetupRequest> Requests { get; } = [];
+
+        public string ProviderId => providerId;
+
+        public bool CanSetup(ResourceIdentityProviderDefinition provider) =>
+            string.Equals(provider.Id, ProviderId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceIdentityProviderSetupResult> SetupAsync(
+            ResourceIdentityProviderSetupRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+            return Task.FromResult(new ResourceIdentityProviderSetupResult(request.Provider.Id));
         }
     }
 
