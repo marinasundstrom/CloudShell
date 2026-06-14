@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.Client.Authentication;
 
 namespace CloudShell.ThirdPartyIdentity;
 
@@ -11,7 +12,8 @@ public sealed class KeycloakResourceIdentityProvisioner(
     IConfiguration configuration) :
     IResourceIdentityProvisioner,
     IResourceIdentityProvisioningStatusProvider,
-    IResourceIdentityProviderSetupHandler
+    IResourceIdentityProviderSetupHandler,
+    IResourceIdentityCredentialEnvironmentProvider
 {
     public string ProviderId => "keycloak";
 
@@ -23,6 +25,38 @@ public sealed class KeycloakResourceIdentityProvisioner(
 
     public bool CanSetup(ResourceIdentityProviderDefinition provider) =>
         IsKeycloakProvider(provider);
+
+    public bool CanCreateEnvironment(ResourceIdentityProviderDefinition provider) =>
+        IsKeycloakProvider(provider);
+
+    public IReadOnlyList<EnvironmentVariableAssignment> CreateEnvironment(
+        ResourceIdentityCredentialEnvironmentRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var clientId = ResolveKeycloakClientId(request.Identity, request.Binding);
+        var tokenEndpoint = ResolveTokenEndpoint(request.Provider);
+        if (string.IsNullOrWhiteSpace(tokenEndpoint))
+        {
+            return [];
+        }
+
+        return
+        [
+            new(
+                EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable,
+                tokenEndpoint),
+            new(
+                EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable,
+                clientId),
+            new(
+                EnvironmentCloudShellResourceCredential.ClientSecretEnvironmentVariable,
+                ResolveKeycloakClientSecret(request.Provider, request.Identity, clientId)),
+            new(
+                EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable,
+                request.DefaultScope)
+        ];
+    }
 
     public async Task<ResourceIdentityProviderSetupResult> SetupAsync(
         ResourceIdentityProviderSetupRequest request,
@@ -92,11 +126,16 @@ public sealed class KeycloakResourceIdentityProvisioner(
             cancellationToken.ThrowIfCancellationRequested();
 
             var keycloakClientId = ResolveKeycloakClientId(entry);
+            var keycloakClientSecret = ResolveKeycloakClientSecret(
+                request.Provider,
+                entry.Identity,
+                keycloakClientId);
             var keycloakClient = await EnsureClientAsync(
                 client,
                 request.Provider,
                 token,
                 keycloakClientId,
+                keycloakClientSecret,
                 entry,
                 cancellationToken);
             var grants = request.PermissionGrants
@@ -240,6 +279,7 @@ public sealed class KeycloakResourceIdentityProvisioner(
         ResourceIdentityProviderDefinition provider,
         string token,
         string clientId,
+        string clientSecret,
         ResourceIdentityProvisioningEntry entry,
         CancellationToken cancellationToken)
     {
@@ -260,6 +300,7 @@ public sealed class KeycloakResourceIdentityProvisioner(
                 enabled = true,
                 protocol = "openid-connect",
                 publicClient = false,
+                secret = clientSecret,
                 serviceAccountsEnabled = true,
                 standardFlowEnabled = false,
                 directAccessGrantsEnabled = false
@@ -524,17 +565,66 @@ public sealed class KeycloakResourceIdentityProvisioner(
     }
 
     private static string ResolveKeycloakClientId(ResourceIdentityProvisioningEntry entry)
+        => ResolveKeycloakClientId(entry.Identity, entry.Binding);
+
+    private static string ResolveKeycloakClientId(
+        ResourceIdentityReference identity,
+        ResourceIdentityBinding binding)
     {
         const string clientPrefix = "client:";
-        if (!string.IsNullOrWhiteSpace(entry.Binding.Subject) &&
-            entry.Binding.Subject.StartsWith(clientPrefix, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(binding.Subject) &&
+            binding.Subject.StartsWith(clientPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            return entry.Binding.Subject[clientPrefix.Length..].Trim();
+            return binding.Subject[clientPrefix.Length..].Trim();
         }
 
-        return string.IsNullOrWhiteSpace(entry.Identity.Name)
-            ? Sanitize(entry.Identity.ResourceId)
-            : Sanitize(entry.Identity.Name);
+        return string.IsNullOrWhiteSpace(identity.Name)
+            ? Sanitize(identity.ResourceId)
+            : Sanitize(identity.Name);
+    }
+
+    private static string ResolveKeycloakClientSecret(
+        ResourceIdentityProviderDefinition provider,
+        ResourceIdentityReference identity,
+        string clientId)
+    {
+        if (provider.ProviderSettings.TryGetValue($"ClientSecret:{clientId}", out var clientSpecificSecret) &&
+            !string.IsNullOrWhiteSpace(clientSpecificSecret))
+        {
+            return clientSpecificSecret.Trim();
+        }
+
+        if (provider.ProviderSettings.TryGetValue("ResourceClientSecret", out var resourceClientSecret) &&
+            !string.IsNullOrWhiteSpace(resourceClientSecret))
+        {
+            return resourceClientSecret.Trim();
+        }
+
+        var secretSeed = string.IsNullOrWhiteSpace(identity.Name)
+            ? identity.ResourceId
+            : $"{identity.ResourceId}-{identity.Name}";
+        return $"local-development-{Sanitize(secretSeed)}-secret";
+    }
+
+    private static string? ResolveTokenEndpoint(ResourceIdentityProviderDefinition provider)
+    {
+        if (ResolveSetting(provider, "TokenEndpoint") is { } configured)
+        {
+            return configured;
+        }
+
+        if (ResolveSetting(provider, "Authority") is { } authority)
+        {
+            return $"{authority.TrimEnd('/')}/protocol/openid-connect/token";
+        }
+
+        if (ResolveSetting(provider, "AdminBaseAddress") is { } adminBaseAddress)
+        {
+            var realm = ResolveSetting(provider, "Realm") ?? "cloudshell";
+            return $"{adminBaseAddress.TrimEnd('/')}/realms/{Uri.EscapeDataString(realm)}/protocol/openid-connect/token";
+        }
+
+        return null;
     }
 
     private static string CreateGrantRoleName(ResourcePermissionGrant grant) =>

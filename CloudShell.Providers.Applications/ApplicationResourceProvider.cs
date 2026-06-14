@@ -25,6 +25,7 @@ public sealed partial class ApplicationResourceProvider(
     ApplicationProviderOptions options,
     IHostEnvironment environment,
     IServiceProvider serviceProvider,
+    IEnumerable<IResourceIdentityCredentialEnvironmentProvider> identityCredentialEnvironmentProviders,
     IEnumerable<IResourceEnvironmentVariableProvider> environmentVariableProviders,
     IEnumerable<IConfigurationEntryReferenceResolver> configurationEntryResolvers,
     IEnumerable<ISecretReferenceResolver> secretResolvers,
@@ -56,6 +57,8 @@ public sealed partial class ApplicationResourceProvider(
 
     private readonly ConcurrentDictionary<string, ApplicationProcessState> _processes =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly IReadOnlyList<IResourceIdentityCredentialEnvironmentProvider> identityCredentialEnvironmentProviders =
+        identityCredentialEnvironmentProviders.ToArray();
     private readonly ILogger<ApplicationResourceProvider> _logger =
         logger ?? NullLogger<ApplicationResourceProvider>.Instance;
 
@@ -1225,12 +1228,6 @@ public sealed partial class ApplicationResourceProvider(
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveResourceIdentityEnvironmentVariables(
         ApplicationResourceDefinition definition)
     {
-        var tokenEndpoint = options.ResourceIdentityTokenEndpoint;
-        if (string.IsNullOrWhiteSpace(tokenEndpoint))
-        {
-            return [];
-        }
-
         var declaration = declarations.GetDeclaration(definition.Id);
         if (declaration?.IdentityBinding is null)
         {
@@ -1240,7 +1237,7 @@ public sealed partial class ApplicationResourceProvider(
         var providerCatalog = declarations.CreateIdentityProviderCatalog(
             new ResourceIdentityProviderCatalog());
         var resolution = providerCatalog.Resolve(declaration.IdentityBinding);
-        if (resolution.Provider?.Kind != ResourceIdentityProviderKind.BuiltIn)
+        if (resolution.Provider is null)
         {
             return [];
         }
@@ -1248,12 +1245,33 @@ public sealed partial class ApplicationResourceProvider(
         var identity = ResourceIdentityReference.ForResource(
             definition.Id,
             declaration.IdentityBinding.Name);
-        var clientId = CreateResourceIdentityClientId(identity);
         var scope = declaration.IdentityBinding.IdentityScopes.Count == 0
             ? string.IsNullOrWhiteSpace(options.ResourceIdentityDefaultScope)
                 ? "ControlPlane.Access"
                 : options.ResourceIdentityDefaultScope
             : declaration.IdentityBinding.IdentityScopes[0];
+        var credentialEnvironmentProvider = identityCredentialEnvironmentProviders.FirstOrDefault(provider =>
+            provider.CanCreateEnvironment(resolution.Provider));
+        if (credentialEnvironmentProvider is not null)
+        {
+            return credentialEnvironmentProvider
+                .CreateEnvironment(new ResourceIdentityCredentialEnvironmentRequest(
+                    resolution.Provider,
+                    identity,
+                    declaration.IdentityBinding,
+                    scope))
+                .Where(variable => !string.IsNullOrWhiteSpace(variable.Name))
+                .ToArray();
+        }
+
+        var tokenEndpoint = options.ResourceIdentityTokenEndpoint;
+        if (resolution.Provider.Kind != ResourceIdentityProviderKind.BuiltIn ||
+            string.IsNullOrWhiteSpace(tokenEndpoint))
+        {
+            return [];
+        }
+
+        var clientId = CreateResourceIdentityClientId(identity);
 
         return
         [

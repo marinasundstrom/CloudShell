@@ -69,12 +69,13 @@ The sample also declares the external resource identity boundary:
 - `configuration:third-party-identity` grants that API identity configuration
   read access.
 
-The sample registers `KeycloakResourceIdentityProvisioner` as both the
-resource identity provisioner and the provider setup handler. Provider setup is
-separate from individual resource identity provisioning: it uses the Keycloak
-admin API to ensure the `cloudshell-ui` client emits realm roles in the
-configured `roles` claim so CloudShell user authorization can read the same
-claim shape after realm import or manual client changes.
+The sample registers `KeycloakResourceIdentityProvisioner` as the resource
+identity provisioner, provider setup handler, and runtime credential
+environment provider. Provider setup is separate from individual resource
+identity provisioning: it uses the Keycloak admin API to ensure the
+`cloudshell-ui` client emits realm roles in the configured `roles` claim so
+CloudShell user authorization can read the same claim shape after realm import
+or manual client changes.
 
 The application declaration calls `ProvisionIdentityOnStartup()`. The sample
 registers `KeycloakResourceIdentityProvisioner`, which translates the
@@ -87,11 +88,14 @@ CloudShell provisioning request into Keycloak admin operations:
 - assigns those roles to the client's service-account user
 - adds a protocol mapper that emits assigned client roles as
   `cloudshell.resource-permission` claims in access tokens
+- exposes the standard `CLOUDSHELL_IDENTITY_*` environment variables for
+  workloads that use the provisioned identity
 - reports provisioning status by checking whether the Keycloak client exists
 
-This is intentionally still a reference integration. It does not yet wire the
-provisioned Keycloak client secret into a running CloudShell workload or
-exercise a protected Configuration Store/Secrets Vault call with the issued
-Keycloak token. That credential delivery and end-to-end service-call validation
-is required before the Settings and Secrets resource identity flow can use
-Keycloak instead of the built-in development authority.
+This is intentionally still a reference integration. The provisioned Keycloak
+client secret is deterministic for sample-created resource clients so the
+application provider can inject it into a running workload. The next gap is
+protected-service validation: Configuration Store and Secrets Vault currently
+validate the built-in bearer token shape, so an end-to-end service call with a
+Keycloak-issued token still needs the backing services to accept external OIDC
+metadata.

@@ -239,6 +239,12 @@ The workload resource provider owns projecting that credential acquisition
 mechanism into the process or container it starts. Authored resources should
 declare an identity binding such as `WithIdentity(...)` and grants; they should
 not normally declare `CLOUDSHELL_IDENTITY_*` variables manually.
+Built-in identity can be projected directly by the application provider. Other
+identity providers can implement `IResourceIdentityCredentialEnvironmentProvider`
+to supply the same runtime environment contract for a resolved resource
+identity. That keeps provider-specific client IDs, secrets, token endpoints,
+files, or future managed-identity endpoints behind the provider while authored
+services continue to use `DefaultCloudShellResourceCredential`.
 
 The Control Plane client supports the same SDK-style credential flow. Authored
 services can pass a `CloudShellResourceCredential` to `RemoteControlPlane` or
@@ -335,10 +341,13 @@ when the selected provider names a provisioning resource,
 
 Provisioning starts from the provider-neutral `IResourceIdentityProvisioner`
 contract. Provider setup starts from the separate provider-neutral
-`IResourceIdentityProviderSetupHandler` contract. The Control Plane can build
-provisioning requests from declared resource identities and matching permission
-grants, grouped by resolved resource identity provider. A concrete provisioner
-or setup handler translates that request into its backing authority.
+`IResourceIdentityProviderSetupHandler` contract. Runtime credential injection
+starts from `IResourceIdentityCredentialEnvironmentProvider` when a selected
+provider needs to supply workload-specific token acquisition settings. The
+Control Plane can build provisioning requests from declared resource identities
+and matching permission grants, grouped by resolved resource identity provider.
+A concrete provisioner, setup handler, or runtime credential provider
+translates that request into its backing authority.
 
 ## Operation Permissions
 

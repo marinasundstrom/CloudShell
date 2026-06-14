@@ -25,6 +25,8 @@ builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProvisioningStatusProvider, KeycloakResourceIdentityProvisioner>());
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProviderSetupHandler, KeycloakResourceIdentityProvisioner>());
+builder.Services.TryAddEnumerable(
+    ServiceDescriptor.Singleton<IResourceIdentityCredentialEnvironmentProvider, KeycloakResourceIdentityProvisioner>());
 
 cloudShell.Resources(resources =>
 {
@@ -50,6 +52,8 @@ cloudShell.Resources(resources =>
             ["Authority"] = authority,
             ["ClientId"] = clientId,
             ["RoleClaimType"] = builder.Configuration["Authentication:RoleClaimType"] ?? "roles",
+            ["TokenEndpoint"] = builder.Configuration["Keycloak:TokenEndpoint"] ??
+                $"{authority.TrimEnd('/')}/protocol/openid-connect/token",
             ["Realm"] = builder.Configuration["Keycloak:Realm"] ?? "cloudshell",
             ["AdminBaseAddress"] = builder.Configuration["Keycloak:AdminBaseAddress"] ??
                 "http://localhost:8080"
@@ -62,7 +66,7 @@ cloudShell.Resources(resources =>
         {
             identity.Name = "keycloak-provisioned-api";
             identity.Subject = "client:cloudshell-keycloak-provisioned-api";
-            identity.Scopes.Add("cloudshell.resource");
+            identity.Scopes.Add(builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid");
             identity.Claims["resource"] = "application:keycloak-provisioned-api";
         })
         .ProvisionIdentityOnStartup();

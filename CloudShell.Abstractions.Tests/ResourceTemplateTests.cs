@@ -414,6 +414,7 @@ public sealed class ResourceTemplateTests
                 [],
                 [],
                 [],
+                [],
                 new ResourceDeclarationStore());
             Group = new ResourceGroup("group-1", "Local Development", "Development resources", ["application:example-web-api"]);
             Registrations = new TestRegistrationStore();

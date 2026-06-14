@@ -91,8 +91,12 @@ expectations rather than duplicating the task queue.
   now distinct from resource identity provisioning through a provider-neutral
   setup hook and Control Plane endpoint; the Keycloak sample uses it to
   reconcile the UI client's realm-role claim mapper. Runtime credential
-  delivery and end-to-end protected service calls with Keycloak-issued tokens
-  remain the next identity-provider validation step.
+  delivery is now separated into a provider-neutral environment hook, and the
+  Keycloak sample uses it to inject the standard `CLOUDSHELL_IDENTITY_*`
+  contract for sample-created resource clients. End-to-end protected service
+  calls with Keycloak-issued tokens remain the next identity-provider
+  validation step because the backing services still validate the built-in
+  bearer token shape.
 - The first mountable-volume domain slices are in place: `resources.AddVolume(...)`
   declares a `cloudshell.volume` resource for a local or addressable storage
   allocation, and container apps can declare `WithVolume(...)` mounts that

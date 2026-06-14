@@ -91,6 +91,31 @@ public sealed record ResourceIdentityProviderSetupResult(
         Diagnostics ?? [];
 }
 
+/// <summary>
+/// Provides runtime credential acquisition environment for resource workloads
+/// that have a resolved resource identity.
+/// </summary>
+/// <remarks>
+/// Public preview API. Providers can use this hook to expose the standard
+/// <c>CLOUDSHELL_IDENTITY_*</c> environment contract without leaking
+/// provider-specific credential storage into the projected resource model.
+/// </remarks>
+public interface IResourceIdentityCredentialEnvironmentProvider
+{
+    string ProviderId { get; }
+
+    bool CanCreateEnvironment(ResourceIdentityProviderDefinition provider);
+
+    IReadOnlyList<EnvironmentVariableAssignment> CreateEnvironment(
+        ResourceIdentityCredentialEnvironmentRequest request);
+}
+
+public sealed record ResourceIdentityCredentialEnvironmentRequest(
+    ResourceIdentityProviderDefinition Provider,
+    ResourceIdentityReference Identity,
+    ResourceIdentityBinding Binding,
+    string DefaultScope);
+
 public sealed record ResourceIdentityProvisioningRequest(
     ResourceIdentityProviderDefinition Provider,
     IReadOnlyList<ResourceIdentityProvisioningEntry> Identities,

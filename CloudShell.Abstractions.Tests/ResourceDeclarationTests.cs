@@ -4518,6 +4518,60 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ContainerApplicationBuilder_UsesExternalResourceIdentityCredentialEnvironmentProvider()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services.AddSingleton<IResourceIdentityCredentialEnvironmentProvider>(
+            new TestResourceIdentityCredentialEnvironmentProvider());
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.ResourceIdentityDefaultScope = "ControlPlane.Access";
+            })
+            .Resources(resources =>
+            {
+                var identityProvider = resources.AddIdentityProvider(
+                    "identity:external",
+                    "External identity",
+                    ResourceIdentityProviderKind.Oidc,
+                    useAsDefault: true);
+
+                resources
+                    .AddContainer("api", "example/api:dev")
+                    .WithIdentity(identityProvider, name: "api-service");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var environment = workload?.WorkloadEnvironmentVariables
+            .ToDictionary(variable => variable.Name, variable => variable.Value);
+
+        Assert.Equal(
+            "https://identity.example.test/token",
+            environment?[EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable]);
+        Assert.Equal(
+            "external-api-service",
+            environment?[EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable]);
+        Assert.Equal(
+            "external-api-secret",
+            environment?[EnvironmentCloudShellResourceCredential.ClientSecretEnvironmentVariable]);
+        Assert.Equal(
+            "ControlPlane.Access",
+            environment?[EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable]);
+    }
+
+    [Fact]
     public async Task ContainerApplicationBuilder_DescribesServiceDiscoveryEnvironment()
     {
         var services = new ServiceCollection();
@@ -5590,6 +5644,32 @@ public sealed class ResourceDeclarationTests
         public bool CanAccessResourceGroup(string? resourceGroupId, string permission) => true;
 
         public bool CanAccessResource(string resourceId, string? resourceGroupId, string permission) => true;
+    }
+
+    private sealed class TestResourceIdentityCredentialEnvironmentProvider :
+        IResourceIdentityCredentialEnvironmentProvider
+    {
+        public string ProviderId => "external";
+
+        public bool CanCreateEnvironment(ResourceIdentityProviderDefinition provider) =>
+            string.Equals(provider.Id, "identity:external", StringComparison.OrdinalIgnoreCase);
+
+        public IReadOnlyList<EnvironmentVariableAssignment> CreateEnvironment(
+            ResourceIdentityCredentialEnvironmentRequest request) =>
+            [
+                new(
+                    EnvironmentCloudShellResourceCredential.TokenEndpointEnvironmentVariable,
+                    "https://identity.example.test/token"),
+                new(
+                    EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable,
+                    "external-api-service"),
+                new(
+                    EnvironmentCloudShellResourceCredential.ClientSecretEnvironmentVariable,
+                    "external-api-secret"),
+                new(
+                    EnvironmentCloudShellResourceCredential.ScopeEnvironmentVariable,
+                    request.DefaultScope)
+            ];
     }
 
     private static string BuildDotNetAspNetCoreProjectArguments(
