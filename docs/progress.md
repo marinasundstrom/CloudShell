@@ -87,6 +87,9 @@ expectations rather than duplicating the task queue.
   The Resource Manager Service registration UI now describes Service resources
   as explicit service units/facades so users do not treat them as required for
   ordinary container app endpoint exposure.
+  Application registration UIs now allow explicitly modeled Service resources
+  as references, so an app can depend on a deliberate service facade without
+  making Service resources mandatory for all app exposure.
   For MVP, DNS/name mapping can start as logical resource projection,
   relationship display, validation, and provider-materialization diagnostics;
   real public DNS propagation and provider-backed network-level service

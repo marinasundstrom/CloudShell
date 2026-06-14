@@ -241,7 +241,6 @@
             .Where(resource => !string.Equals(resource.Id, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
             .Where(IsInSelectedGroup)
             .Where(resource => !string.Equals(resource.EffectiveTypeId, "cloudshell.network", StringComparison.OrdinalIgnoreCase))
-            .Where(resource => !string.Equals(resource.EffectiveTypeId, "cloudshell.service", StringComparison.OrdinalIgnoreCase))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
