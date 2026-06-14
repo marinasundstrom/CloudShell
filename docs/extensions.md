@@ -9,6 +9,17 @@ most user-facing resource providers, but they target different apps. The
 CloudShell UI and the Control Plane may be hosted together in one ASP.NET Core
 process during development, or they may run as separate deployable services.
 
+A CloudShell capability package is the product/package boundary that usually
+groups those pieces. For example, a Docker capability package can include a
+Control Plane provider, resource type definitions, declaration helpers, logs,
+and Resource Manager UI. An identity capability package can be cross-cutting
+and contribute provider behavior, permissions, diagnostics, shell views, and
+SDK helpers. The extension is the in-process registration mechanism; the
+capability package is the installable environment capability. The intended
+distribution model is NuGet: a capability package can ship one or more
+assemblies that expose `ICloudShellExtension` implementations, host
+registration methods, UI components, provider services, and client helpers.
+
 See [shell customization design goals](shell-customization.md) for the broader
 product objectives behind these extension points.
 
@@ -48,6 +59,12 @@ consider the matching CloudShell UI integration. It is not technically required
 for hosts that do not use CloudShell UI, but if the feature is intended for
 interactive users, the Resource Manager UI integration is part of the expected
 product surface.
+
+For split hosting, register the capability package's Control Plane side in the
+Control Plane host and the package's UI side in the CloudShell UI host. UI
+integrations should consume `IControlPlane` and other public domain managers so
+the same UI code works with either an in-process Control Plane or a remote
+adapter.
 
 ## Entry Point
 
@@ -103,6 +120,12 @@ builder
     .AddCloudShell()
     .AddAcme();
 ```
+
+In the intended NuGet distribution flow, the host references the package and
+calls its registration method in the appropriate host application. Split
+hosting may require referencing the package in both the Control Plane host and
+the CloudShell UI host, or referencing separate provider/UI packages when the
+capability is split across assemblies.
 
 ## Activation
 

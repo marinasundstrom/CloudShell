@@ -50,6 +50,27 @@ CloudShell adds value when the team needs more than app composition:
 CloudShell is therefore not just an app launcher. It is a resource shell and
 Control Plane that can use Aspire-like declarations as one entry point.
 
+## Terminology alignment
+
+Aspire separates the AppHost that composes the application from workloads that
+add hosting and resource capabilities. CloudShell has a related but not
+identical separation because the product models a cloud environment, not only a
+distributed application host:
+
+| Aspire-oriented term | CloudShell term | Meaning |
+| --- | --- | --- |
+| AppHost | CloudShell host application | The ASP.NET Core application that chooses deployment shape, configuration, authentication, persistence, and installed capabilities for a CloudShell environment. |
+| Dashboard | CloudShell UI | The Blazor shell surface for Resource Manager, navigation, extension views, and operational UI. |
+| Hosting/resource services | Control Plane | The service boundary that owns resource inventory, provider coordination, lifecycle operations, authorization, logs, templates, and the API. |
+| Workload | CloudShell capability package | The closest equivalent: a NuGet-distributed environment capability that can contribute Control Plane providers, resource types, declarations, provider-owned services, UI integrations, shell views, and client helpers. |
+| Resource | Resource | A projected CloudShell artifact that can be inspected or operated through the resource model. |
+
+Avoid using "CloudShell workload" for package-level extensibility. In
+CloudShell, workloads are things that run inside an environment, such as
+application, process, project, or container-backed resources. Package-level
+extensibility should use "capability package" or a more specific term such as
+provider package, UI extension, or resource provider.
+
 ## Growth path
 
 CloudShell lets a solution grow without forcing the user to choose the full

@@ -1,5 +1,26 @@
 # Hosting Model
 
+CloudShell separates the CloudShell environment from the host applications and
+capability packages that compose it.
+
+A CloudShell environment is the managed local, team-owned, or on-premise
+cloud-like environment that users inspect and operate. It is anchored by
+Control Plane resource state and installed capability packages, and it can be
+served by one combined host or by separate Control Plane and UI hosts.
+
+A CloudShell host application is an ASP.NET Core application owned by the
+integrator. It can host the CloudShell UI, the Control Plane, or both. A
+CloudShell capability package is an installable environment capability that can
+add Control Plane resource providers, resource type definitions, programmatic
+declarations, provider-owned runtime services, Resource Manager UI
+integrations, shell views, and client helpers. Capability packages are
+intended to be distributed as NuGet packages and installed into the host
+application through CloudShell extension registrations.
+
+This mirrors the practical separation between an application host and the
+capabilities it loads: the host chooses the deployment shape and configuration;
+capability packages contribute resource behavior and UI support.
+
 CloudShell supports three registration shapes:
 
 - UI only: host the CloudShell shell and custom UI extensions.
@@ -41,6 +62,11 @@ app.Run();
 In this shape, extension views can contribute routes and navigation through the
 same extension model as a full host. Resource Manager and Control Plane
 endpoints are not registered unless the host adds them separately.
+
+UI-only hosts can install UI-only capability packages or the UI side of a
+broader capability package. The package's Control Plane providers and
+declarations must run in a Control Plane host when the UI needs resource data or
+operations.
 
 UI-only hosts persist CloudShell environment preferences, such as theme and
 collapsed navigation, independently through the local
@@ -98,11 +124,25 @@ In this mode, the UI consumes the same `IControlPlane` abstraction as a split
 host, but the registered implementation is in-process and backed by Control
 Plane services.
 
+Combined local-development hosts do not introduce a separate runner concept.
+When resources are declared programmatically in the combined host, the same
+host process starts the local Control Plane, installs the providers, maps the
+UI, and gives provider implementations the local process context they need to
+start executable, project, or container-backed resources. The local Control
+Plane remains the owner of resource registration, lifecycle policy, dependency
+startup, provider dispatch, logs, and API projection.
+
+Combined hosts can install both sides of a capability package in one process.
+For example, an application-resource package can register Control Plane
+providers and programmatic declaration helpers, while the same package
+contributes Resource Manager UI components for adding, updating, and inspecting
+those resources.
+
 Shell environment preferences still go through
 `ICloudShellUserSettingsProvider`. Combined hosts can keep the default local
 storage backend or set `Shell:EnvironmentSettings:Storage` to `ControlPlane` to store
 them through the in-process Control Plane settings endpoint. These settings are
-not part of the Control Plane workload model or `IControlPlane` domain facade.
+not part of the Control Plane resource model or `IControlPlane` domain facade.
 
 Authentication is shared inside the ASP.NET Core process. The shell and Control
 Plane use the same configured authentication scheme, cookie/session state, and
@@ -162,6 +202,11 @@ The Control Plane host owns:
 - User-scoped CloudShell environment settings for UI hosts that select
   `ControlPlane` settings storage.
 
+Control Plane-only hosts install the Control Plane side of capability packages:
+providers, stores, declarations, provider-owned services, templates, logs,
+actions, and API-backed behavior. They do not need to install Resource Manager
+UI integrations unless the same process also hosts the CloudShell UI.
+
 ## Split Host
 
 For shared on-premise environments, the UI and Control Plane can be hosted
@@ -202,6 +247,10 @@ controlPlane.Resources(resources =>
 The UI host should not declare resources. It should discover resources through
 `IControlPlane` so one shared Control Plane remains the authority for
 checked-in configuration, persisted state, provider actions, and authorization.
+Install cross-cutting capability packages on both sides when they include both
+resource behavior and UI support: the Control Plane host receives the
+provider/runtime registrations, and the UI host receives the shell or Resource
+Manager integrations that talk to the remote Control Plane.
 The remote settings adapter is separate from `IControlPlane`. Set
 `Shell:EnvironmentSettings:Storage` to `ControlPlane` when the split UI should persist
 CloudShell environment settings with the Control Plane instead of in the UI

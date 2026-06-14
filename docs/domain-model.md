@@ -18,6 +18,7 @@ artifact, see [Artifact implementation guidelines](artifact-implementation-guide
 
 | Level | Audience | Purpose | Examples |
 | --- | --- | --- | --- |
+| Host topology | Product integrators and operators | Describe how CloudShell environment capabilities are packaged and deployed | CloudShell environment, host application, CloudShell UI, Control Plane, capability packages |
 | Product concepts | Users and extension authors | Describe what CloudShell manages and shows | resources, resource groups, lifecycle actions, logs |
 | Public domain abstraction | Shell integrations and remote adapters | Cloud-plane client API for the Control Plane domain without caring about transport | `IResourceManager`, `IResourceTemplateManager`, `ILogManager`, `Resource` |
 | Internal Control Plane services | Control Plane implementation | Coordinate state, providers, persistence, authorization, and procedures | `InProcessControlPlane`, `IResourceManagerStore`, `IResourceRegistrationStore`, `ResourceOrchestrationService` |
@@ -30,6 +31,58 @@ less granular than the internal Control Plane implementation while still using
 the same domain concepts. A consumer asks the domain manager to list resources
 or execute a resource action. It should not need to compose registration
 stores, provider stores, route templates, and generated HTTP clients itself.
+
+## Host topology
+
+CloudShell separates the application that hosts the environment from the
+capabilities installed into that environment.
+
+A CloudShell environment is the managed local, team-owned, or on-premise
+cloud-like environment that users inspect and operate. It is anchored by the
+Control Plane's resource state and installed capability packages. It may be
+served by a combined host application or by separate Control Plane and UI host
+applications.
+
+A CloudShell host application is the ASP.NET Core application owned by a
+product integrator or sample. It chooses the deployment shape, configuration,
+authentication, persistence, and installed capabilities. The host can run the
+CloudShell UI, the Control Plane, or both together. In split deployments, the UI
+host discovers resources through a remote Control Plane client instead of
+declaring resources or hosting providers locally. In combined local-development
+deployments, programmatically declared resources may run from the same host
+process that hosts the UI and Control Plane, but they are managed by the same
+local Control Plane that coordinates provider behavior, lifecycle actions, and
+resource projection.
+
+The CloudShell UI and Control Plane are separate application surfaces. The UI
+renders shell experiences and uses public domain managers. The Control Plane
+owns resource inventory, provider coordination, lifecycle operations,
+validation, authorization, logs, templates, and the versioned API.
+
+A CloudShell capability package is an installable capability for the host
+application and environment. It may be vertical, such as Docker support,
+application resources, configuration services, or secrets, or cross-cutting,
+such as networking, identity, observability, deployment, or policy. A
+capability package is intended to be distributed as one or more NuGet packages
+referenced by host applications. It can contribute:
+
+- Control Plane resource providers and provider-owned services.
+- Resource type definitions and programmatic declaration helpers.
+- Resource actions, logs, templates, diagnostics, and capabilities.
+- Resource Manager UI support such as add/update components, tabs, detail
+  routes, and UI actions.
+- Shell-level UI such as navigation, workspaces, and operational dashboards.
+- SDK clients or helper packages for authored services.
+
+Capability packages are packaging and environment boundaries, not resource
+model entities. A capability package can define several resource types, and a
+resource can depend on capabilities from several packages. The runtime
+configuration used to start an application resource remains a workload
+descriptor, for example `ResourceWorkloadConfiguration`; that is distinct from
+a CloudShell capability package. The code-level extension entry points inside a
+capability package, such as `ICloudShellExtension` implementations and
+`AddXyz(...)` registration methods, are how the NuGet package plugs into a host
+application.
 
 ## Core concepts
 

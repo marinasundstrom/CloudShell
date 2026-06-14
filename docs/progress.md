@@ -42,6 +42,24 @@ expectations rather than duplicating the task queue.
 
 ## Recent decisions
 
+- CloudShell now distinguishes host topology from installed environment
+  capabilities. A CloudShell host application is the ASP.NET Core app that
+  hosts the CloudShell UI, the Control Plane, or both. A CloudShell environment
+  is the managed local, team-owned, or on-premise cloud-like environment backed
+  by Control Plane resource state, installed capability packages, and one or
+  more UI hosts. The CloudShell UI and Control Plane remain separate
+  application surfaces even when combined in one process. Use "capability
+  package" for NuGet-distributed installable environment capabilities that can
+  include Control Plane providers, resource type definitions, declaration
+  helpers, provider-owned services, Resource Manager UI integrations, shell
+  views, and client helpers. The extension entry points inside those packages
+  are the in-process registration mechanism used by host applications. Reserve
+  "workload" for runtime application execution concerns such as application,
+  process, project, or container-backed resources.
+  Programmatically declared resources can run from a combined local-development
+  host process, but they are managed by the same local Control Plane, which
+  remains the owner of declarations, lifecycle policy, provider dispatch, and
+  resource projection.
 - MVP work is now prioritized around convergence of the flows that already
   work: reliable samples, Resource Manager detail polish, settings/secrets
   references, opt-in built-in identity, lifecycle actions, activity records,

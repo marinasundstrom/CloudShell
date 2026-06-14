@@ -7,6 +7,14 @@ need in the Control Plane host, then declare provider-specific resources inside
 instead of relying on every developer or operator to add the same resources by
 hand.
 
+For local development, those declarations commonly live in a combined host
+application that runs both the Control Plane and the CloudShell UI in one
+process. In that shape, declared executable, project, and container-backed
+resources can run from the same host process context, but they are still
+managed by the same local Control Plane. The declarations and lifecycle policy
+belong to the Control Plane; the host process composes the environment and gives
+provider implementations local process context to work from.
+
 ```csharp
 var controlPlane = builder
     .AddCloudShell()

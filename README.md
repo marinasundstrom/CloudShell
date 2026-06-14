@@ -4,7 +4,7 @@
 
 CloudShell is an extensible, self-hosted cloud-portal shell for local development and on-premise environments. It uses Blazor, Fluent UI, and .NET 11 preview, with an operational experience inspired by the .NET Aspire Dashboard.
 
-The goal is to make it possible to build your own cloud-platform shell: a place where teams can register resources, group them by project, inspect endpoints and state, and let extensions add focused operational tools. Control-plane services are separate versioned services; shell integrations connect the WebUI to those services.
+The goal is to make it possible to build your own cloud-platform shell: a place where teams can register resources, group them by project, inspect endpoints and state, and let extensions add focused operational tools. The CloudShell UI and Control Plane are separate application surfaces; shell integrations connect the UI to those services through domain-shaped APIs.
 
 <a href="images/resources.png"><img src="images/resources.png" style="max-height: 300px" /></a>
 
@@ -47,6 +47,27 @@ This repository is an early shell prototype. It currently includes:
 - An executable application extension for local dev services, with configurable process lifetime and environment variables.
 
 ## Core Concepts
+
+### CloudShell Environments
+
+A CloudShell environment is the managed cloud-like environment for a local,
+team-owned, or on-premise deployment. It is made up of a Control Plane,
+installed capability packages, resource state, and one or more UI hosts.
+
+### Host Applications
+
+A CloudShell host application is the ASP.NET Core app that composes one
+deployment. It can host the CloudShell UI, the Control Plane, or both. In local
+development, a combined host can run programmatically declared resources
+through the same local Control Plane that manages them.
+
+### Capability Packages
+
+CloudShell capability packages add environment capabilities. They can
+contribute Control Plane resource providers, resource type definitions,
+programmatic declaration helpers, Resource Manager UI support, shell views, and
+client helpers. The intended distribution model is NuGet packages that expose
+CloudShell extension registrations for host applications to install.
 
 ### Resources
 
