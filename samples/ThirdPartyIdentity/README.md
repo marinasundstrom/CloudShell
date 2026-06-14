@@ -15,6 +15,8 @@ The sample proves:
   built-in Identity and dashboard-secret modes
 - provider-neutral resource identity provisioning against an external `Oidc`
   identity provider
+- a Keycloak-provisioned ASP.NET Core workload that uses
+  `DefaultCloudShellResourceCredential` to call a protected Configuration Store
 
 ## Run
 
@@ -104,7 +106,25 @@ set by default because the sample uses Keycloak's local-development token
 shape; production-style hosts should register protected API audiences and set
 `Authentication:ServiceBearer:Audience`.
 
-The remaining gap is end-to-end smoke coverage that starts a workload using
-the provisioned Keycloak identity, acquires a token through
-`DefaultCloudShellResourceCredential`, and reads from Configuration Store or
-Secrets Vault with that Keycloak-issued token.
+## Workload validation
+
+The sample declares `application:keycloak-provisioned-api` as an ASP.NET Core
+project resource. It is not autostarted. After Keycloak and the CloudShell host
+are running, start `Keycloak Provisioned API` from Resource Manager with its
+dependencies. The API listens on `http://localhost:5234` by default.
+
+Open:
+
+```text
+http://localhost:5234/configuration
+```
+
+The endpoint uses `DefaultCloudShellResourceCredential`, reads the injected
+`CLOUDSHELL_IDENTITY_*` settings for the provisioned Keycloak client, requests
+a Keycloak access token, and calls the protected Configuration Store service.
+The expected response has `status` set to `connected` and includes
+`Sample:Message`.
+
+The remaining gap is automated smoke coverage for this Keycloak-backed
+workload path. The sample is ready for manual validation, but the baseline test
+suite does not start Keycloak containers.

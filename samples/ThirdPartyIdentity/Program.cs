@@ -6,15 +6,28 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.ThirdPartyIdentity;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = CloudShellApplication.CreateBuilder(args);
+var repositoryRootPath = FindRepositoryRoot(builder.Environment.ContentRootPath);
+var sampleRootPath = Path.Combine(repositoryRootPath, "samples", "ThirdPartyIdentity");
+var configurationStoreServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.ConfigurationStoreService",
+    "CloudShell.ConfigurationStoreService.csproj");
+var apiProjectPath = Path.Combine(
+    sampleRootPath,
+    "Api",
+    "CloudShell.ThirdPartyIdentity.Api.csproj");
 var authority = builder.Configuration["Authentication:OpenIdConnect:Authority"] ??
     "http://localhost:8080/realms/cloudshell";
 var clientId = builder.Configuration["Authentication:OpenIdConnect:ClientId"] ??
     "cloudshell-ui";
+var apiEndpoint = builder.Configuration["Samples:ThirdPartyIdentity:ApiEndpoint"] ??
+    "http://localhost:5234";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -22,8 +35,13 @@ builder.AddCloudShell();
 cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
+    .AddApplicationProvider()
     .AddConfigurationProvider(options =>
     {
+        options.ServiceProjectPath = configurationStoreServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceBasePort = builder.Configuration.GetValue<int?>(
+            "Samples:ThirdPartyIdentity:ConfigurationServiceBasePort") ?? options.ServiceBasePort;
         options.ServiceBearerAuthority = authority;
         options.ServiceBearerIssuer = authority;
         options.ServiceBearerRequireHttpsMetadata =
@@ -66,8 +84,23 @@ cloudShell.Resources(resources =>
         },
         provisioningResourceId: provisioningResource.ResourceId,
         useAsDefault: true);
+    var settings = resources
+        .AddConfigurationStore(
+            "configuration:third-party-identity",
+            "Third-party Identity Settings")
+        .WithEntries(
+        [
+            new("Authority", authority),
+            new("RoleClaimType", builder.Configuration["Authentication:RoleClaimType"] ?? string.Empty),
+            new("Sample:Message", "Hello from a Keycloak-provisioned resource identity")
+        ]);
+
     var api = resources
-        .Declare("applications", "application:keycloak-provisioned-api")
+        .AddAspNetCoreProject(
+            "application:keycloak-provisioned-api",
+            "Keycloak Provisioned API",
+            apiProjectPath,
+            endpoint: apiEndpoint)
         .WithIdentity(identityProvider, identity =>
         {
             identity.Name = "keycloak-provisioned-api";
@@ -75,18 +108,12 @@ cloudShell.Resources(resources =>
             identity.Scopes.Add(builder.Configuration["Keycloak:ResourceIdentityScope"] ?? "openid");
             identity.Claims["resource"] = "application:keycloak-provisioned-api";
         })
+        .WithReference(settings)
+        .WithServiceDiscovery()
+        .WithAutoStart(false)
         .ProvisionIdentityOnStartup();
 
-    resources
-        .AddConfigurationStore(
-            "configuration:third-party-identity",
-            "Third-party Identity Settings")
-        .WithEntries(
-        [
-            new("Authority", authority),
-            new("RoleClaimType", builder.Configuration["Authentication:RoleClaimType"] ?? string.Empty)
-        ])
-        .Allow(api.Identity, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+    settings.Allow(api.Identity, ConfigurationStoreResourceOperationPermissions.ReadEntries);
 });
 
 var app = builder.Build();
@@ -97,3 +124,19 @@ app.MapCloudShellControlPlane();
 app.MapCloudShell<App>();
 
 app.Run();
+
+static string FindRepositoryRoot(string startPath)
+{
+    var directory = new DirectoryInfo(startPath);
+    while (directory is not null)
+    {
+        if (File.Exists(Path.Combine(directory.FullName, "CloudShell.sln")))
+        {
+            return directory.FullName;
+        }
+
+        directory = directory.Parent;
+    }
+
+    return Path.GetFullPath("../..", startPath);
+}

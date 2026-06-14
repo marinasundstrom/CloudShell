@@ -96,10 +96,11 @@ expectations rather than duplicating the task queue.
   contract for sample-created resource clients. Configuration Store and
   Secrets Vault now use shared bearer validation that can accept built-in
   authority tokens or configured external OIDC/OAuth JWT tokens before applying
-  scoped `cloudshell.resource-permission` claims. The remaining validation
-  step is an end-to-end sample smoke test that starts a Keycloak-provisioned
-  workload and proves a Keycloak-issued token against a protected backing
-  service.
+  scoped `cloudshell.resource-permission` claims. The Third-party Identity
+  sample now declares a Keycloak-provisioned ASP.NET Core workload that uses
+  `DefaultCloudShellResourceCredential` to call Configuration Store with a
+  Keycloak-issued token. The remaining validation step is automated
+  end-to-end smoke coverage for that container-backed identity infrastructure.
 - The first mountable-volume domain slices are in place: `resources.AddVolume(...)`
   declares a `cloudshell.volume` resource for a local or addressable storage
   allocation, and container apps can declare `WithVolume(...)` mounts that

@@ -163,9 +163,10 @@ listed here before pulling in broader proposal work.
   injection now supplies provisioned Keycloak credentials to workloads through
   the standard `CLOUDSHELL_IDENTITY_*` contract, and protected CloudShell
   services can validate configured external OIDC/OAuth bearer tokens before
-  applying CloudShell scoped resource-permission claims. Next identity work
-  should add end-to-end sample smoke coverage for a Keycloak-provisioned
-  workload calling Configuration Store or Secrets Vault.
+  applying CloudShell scoped resource-permission claims. The Third-party
+  Identity sample now includes a Keycloak-provisioned workload path for manual
+  validation; next identity work should add automated end-to-end smoke coverage
+  for that path.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, and container app

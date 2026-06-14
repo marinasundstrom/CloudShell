@@ -168,12 +168,18 @@ Implemented today:
   Secrets Vault. The services can validate built-in authority tokens or
   configured external OIDC/OAuth JWT bearer tokens, then use the same
   `cloudshell.resource-permission` claim evaluator.
+- A Keycloak-provisioned workload path in the Third-party Identity sample. The
+  sample declares an ASP.NET Core project resource, injects the standard
+  `CLOUDSHELL_IDENTITY_*` credential environment, grants it Configuration
+  Store read access, and exposes `/configuration` for manual validation against
+  a Keycloak-issued token.
 
 Not implemented yet:
 
-- End-to-end sample smoke coverage that starts a Keycloak-provisioned workload,
-  acquires a token through `DefaultCloudShellResourceCredential`, and calls
-  Configuration Store or Secrets Vault with the Keycloak-issued token.
+- Automated end-to-end sample smoke coverage that starts Keycloak and the
+  Keycloak-provisioned workload, acquires a token through
+  `DefaultCloudShellResourceCredential`, and calls Configuration Store or
+  Secrets Vault with the Keycloak-issued token.
 - Durable external authority registration for protected API audiences and
   provider-backed client secret storage. The current Keycloak sample keeps
   deterministic local-development client secrets so workload credential
