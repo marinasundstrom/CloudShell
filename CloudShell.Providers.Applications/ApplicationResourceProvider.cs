@@ -288,6 +288,15 @@ public sealed partial class ApplicationResourceProvider(
             return Task.FromResult<string?>(referenceReason);
         }
 
+        var volumeReason = GetVolumeMountUnavailableReason(
+            application.VolumeMounts,
+            context.ResourceManager,
+            environment.ContentRootPath);
+        if (!string.IsNullOrWhiteSpace(volumeReason))
+        {
+            return Task.FromResult<string?>(volumeReason);
+        }
+
         return Task.FromResult(action.Kind == ResourceActionKind.Start
             ? GetLocalProcessEndpointUnavailableReason(application)
             : null);
@@ -3828,6 +3837,110 @@ public sealed partial class ApplicationResourceProvider(
                 !string.IsNullOrWhiteSpace(mount.TargetPath))
             .Select(mount => CreateLocalContainerVolumeArgument(mount, resourceManager, contentRootPath))
             .ToArray();
+
+    internal static string? GetVolumeMountUnavailableReason(
+        IReadOnlyList<ResourceVolumeMount> mounts,
+        IResourceManagerStore? resourceManager,
+        string contentRootPath)
+    {
+        foreach (var mount in mounts.Where(mount =>
+                     !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
+                     !string.IsNullOrWhiteSpace(mount.TargetPath)))
+        {
+            var reason = GetVolumeMountUnavailableReason(
+                mount.NormalizedVolumeReference,
+                resourceManager,
+                contentRootPath);
+            if (!string.IsNullOrWhiteSpace(reason))
+            {
+                return reason;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? GetVolumeMountUnavailableReason(
+        string volumeReference,
+        IResourceManagerStore? resourceManager,
+        string contentRootPath)
+    {
+        var volume = resourceManager?.GetResource(volumeReference);
+        if (volume is null)
+        {
+            return null;
+        }
+
+        if (!IsVolumeResource(volume))
+        {
+            return $"Volume reference '{volumeReference}' points to resource '{volume.Name}', which is not a volume resource.";
+        }
+
+        var medium = GetAttribute(volume, ResourceAttributeNames.VolumeStorageMedium);
+        if (!string.IsNullOrWhiteSpace(medium) &&
+            !string.Equals(medium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Volume resource '{volume.Id}' uses storage medium '{medium}', which cannot be mounted by the current container materializer.";
+        }
+
+        return GetStorageOwnedVolumeUnavailableReason(
+            volume,
+            resourceManager,
+            contentRootPath);
+    }
+
+    private static string? GetStorageOwnedVolumeUnavailableReason(
+        Resource volume,
+        IResourceManagerStore? resourceManager,
+        string contentRootPath)
+    {
+        var storageResourceId = GetAttribute(volume, ResourceAttributeNames.VolumeStorageResourceId);
+        var subPath = GetAttribute(volume, ResourceAttributeNames.VolumeSubPath);
+        if (string.IsNullOrWhiteSpace(storageResourceId))
+        {
+            return null;
+        }
+
+        var storage = resourceManager?.GetResource(storageResourceId);
+        if (storage is null)
+        {
+            return $"Volume resource '{volume.Id}' references storage resource '{storageResourceId}', but that storage resource was not found.";
+        }
+
+        var storageMedium = GetAttribute(storage, ResourceAttributeNames.StorageMedium);
+        if (!string.IsNullOrWhiteSpace(storageMedium) &&
+            !string.Equals(storageMedium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"Storage resource '{storage.Id}' uses storage medium '{storageMedium}', which cannot be mounted by the current container materializer.";
+        }
+
+        if (string.IsNullOrWhiteSpace(subPath))
+        {
+            return null;
+        }
+
+        if (Path.IsPathRooted(subPath))
+        {
+            return $"Volume resource '{volume.Id}' has absolute subpath '{subPath}'. Storage-owned volume subpaths must be relative.";
+        }
+
+        var storageRoot = GetAttribute(storage, ResourceAttributeNames.StorageLocation);
+        if (string.IsNullOrWhiteSpace(storageRoot) ||
+            string.Equals(storageRoot, "provider default", StringComparison.OrdinalIgnoreCase))
+        {
+            storageRoot = Path.Combine(
+                contentRootPath,
+                "Data",
+                "storage",
+                CreateStableIdentifier(storage.Id));
+        }
+
+        var fullStorageRoot = ResolveContentRootPath(storageRoot, contentRootPath);
+        var fullPath = Path.GetFullPath(Path.Combine(fullStorageRoot, subPath));
+        return IsPathWithin(fullPath, fullStorageRoot)
+            ? null
+            : $"Volume resource '{volume.Id}' has subpath '{subPath}' outside storage resource '{storage.Id}'.";
+    }
 
     private static string CreateLocalContainerVolumeArgument(
         ResourceVolumeMount mount,

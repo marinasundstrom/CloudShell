@@ -166,9 +166,11 @@ listed here before pulling in broader proposal work.
   create/configuration/overview flow, Local Storage resources, and
   Docker/Docker Compose runtime materialization for `FileSystem` mounts.
   Resource Manager volume selectors now only offer mountable volume resources
-  and show their storage medium; next it needs host/storage-medium
-  compatibility diagnostics and Resource Manager visibility showing which
-  resources depend on storage and whether the mapping can be materialized.
+  and show their storage medium, and Start/Restart action availability now
+  preflights unsupported volume and storage-parent media for the current
+  container materializers; next it needs host-specific storage capability
+  negotiation and Resource Manager visibility showing which resources depend
+  on storage and whether the mapping can be materialized.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

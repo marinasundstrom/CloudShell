@@ -3544,6 +3544,121 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationActionAvailability_ReturnsUnsupportedVolumeMediumReason()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var registrations = new MutableResourceRegistrationStore();
+        await provider.SetupApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:api",
+                "API",
+                string.Empty,
+                containerImage: "redis:7.2",
+                resourceType: ApplicationResourceTypes.ContainerApp,
+                volumeMounts:
+                [
+                    new ResourceVolumeMount("volume:data", "/data")
+                ]),
+            resourceGroupId: null,
+            registrations);
+        var resource = Assert.Single(provider.GetResources());
+        var volume = new Resource(
+            "volume:data",
+            "Data",
+            "Volume",
+            "Test",
+            "local",
+            ResourceState.Running,
+            [],
+            "NFS",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.VolumeResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.VolumeStorageMedium] = "NFS"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+        var resourceManager = new StaticResourceManagerStore([resource, volume]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            resource.ResourceActions.Single(action => action.Kind == ResourceActionKind.Start));
+
+        Assert.Equal(
+            "Volume resource 'volume:data' uses storage medium 'NFS', which cannot be mounted by the current container materializer.",
+            reason);
+    }
+
+    [Fact]
+    public void VolumeMountValidation_ReturnsUnsupportedStorageMediumReason()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var storage = new Resource(
+            "storage:remote",
+            "Remote Storage",
+            "Remote Storage",
+            "Test",
+            "remote",
+            ResourceState.Running,
+            [],
+            "NFS",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.StorageResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.StorageMedium] = "NFS"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageMountProvider)]);
+        var volume = new Resource(
+            "volume:data",
+            "Data",
+            "Volume",
+            "Test",
+            "remote",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            ["storage:remote"],
+            TypeId: PlatformResourceProvider.VolumeResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.VolumeStorageResourceId] = "storage:remote",
+                [ResourceAttributeNames.VolumeSubPath] = "data"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+        var resourceManager = new StaticResourceManagerStore([storage, volume]);
+
+        var reason = ApplicationResourceProvider.GetVolumeMountUnavailableReason(
+            [new ResourceVolumeMount("volume:data", "/data")],
+            resourceManager,
+            contentRoot);
+
+        Assert.Equal(
+            "Storage resource 'storage:remote' uses storage medium 'NFS', which cannot be mounted by the current container materializer.",
+            reason);
+    }
+
+    [Fact]
     public void Resources_RegisterProgrammaticIdentityProviderAndDefault()
     {
         var services = new ServiceCollection();

@@ -154,21 +154,23 @@ expectations rather than duplicating the task queue.
   `resources.AddVolume(...)` volumes remain the lightweight exception: they use
   their own supplied relative or absolute path and are not affected by a
   storage resource location. Other providers may expose different sub-item
-  semantics until storage capabilities are formalized, and container hosts
-  should eventually validate whether they can materialize a volume's storage
-  medium before accepting it.
+  semantics until storage capabilities are formalized. The application
+  provider now preflights managed volume mounts during Start/Restart action
+  availability and reports an unavailable reason when a referenced volume or
+  storage parent uses a storage medium the current container materializers do
+  not support.
   The default local Docker runner and Docker Compose generator now materialize
   `FileSystem` volume mounts: managed `cloudshell.volume` resources resolve to
   host bind-mount paths, and unmanaged references remain Docker/Compose named
   volumes. Resource Manager volume selectors now distinguish mountable volume
   resources from storage-provider resources and show the volume storage medium
   in application storage flows, so a Local Storage parent is not presented as a
-  directly mountable volume. Provider-backed volume resources, richer
-  materialization diagnostics, broader UI management, runtime enforcement, and
-  usage monitoring APIs remain next storage work. The Container Host sample
-  now demonstrates the intended storage graph by declaring a Local Storage
-  resource, a SQL Server data volume owned by that storage resource, and a SQL
-  Server container mount at
+  directly mountable volume. Provider-backed volume resources, host-specific
+  compatibility negotiation, richer materialization diagnostics, broader UI
+  management, runtime enforcement, and usage monitoring APIs remain next
+  storage work. The Container Host sample now demonstrates the intended
+  storage graph by declaring a Local Storage resource, a SQL Server data
+  volume owned by that storage resource, and a SQL Server container mount at
   `/var/opt/mssql`.
 - The first post-MVP target is an initial on-premise hosting scenario. It
   should prove acceptable Resource Manager operations, provider-backed

@@ -13,8 +13,11 @@ container-backed resources that can map volumes, and a basic Resource Manager
 create/configuration/overview flow for direct `cloudshell.volume` resources.
 SQL Server is the first resource-specific flow that recommends a known data
 mount point and warns when data will not be persisted.
-Runtime provider materialization, provider-defined storage resources,
-provider-backed volume resources, and usage monitoring remain open.
+The current container materializers support `FileSystem` mounts and application
+Start/Restart availability now reports when a managed volume or storage parent
+uses an unsupported medium. Provider-defined storage resources,
+provider-backed volume resources, host-specific capability negotiation, and
+usage monitoring remain open.
 Deletion is guarded for volume resources that are still referenced by another
 resource dependency, and storage mappings cannot be changed while the target
 resource is running.
@@ -125,8 +128,11 @@ resources through a target path.
 Resource Manager volume selectors should list mountable volume resources, not
 storage-provider parent resources. The selector may display the volume storage
 medium, such as `FileSystem`, so users can see what kind of mountable storage
-they are attaching while richer host compatibility diagnostics are still being
-defined.
+they are attaching. Start/Restart action availability should preflight the
+currently selected mappings and report when the provider cannot materialize a
+managed volume medium. Future host providers should advertise storage media or
+mount capabilities explicitly so compatibility can be negotiated per host
+instead of being inferred from the current container materializer.
 
 `resources.AddVolume(...)` declares a CloudShell volume resource through the
 default Local Storage provider unless another provider is supplied. Its path is
