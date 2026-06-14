@@ -67,6 +67,13 @@ expectations rather than duplicating the task queue.
   automation, remote-host completeness, runtime-managed resources, and rich
   deployment history should not move ahead of those release-shaping slices
   unless they block the supported MVP samples.
+- The broad MVP application-topology sample is now forked from
+  `samples/ProjectReference` into `samples/ApplicationTopology`. Keep
+  ProjectReference focused on the small ASP.NET Core project dependency,
+  service discovery, logs, and trace baseline; evolve ApplicationTopology into
+  the full frontend/backend sample that composes SQL Server with mounted
+  storage, configuration, secrets, identity, structured logs, traces,
+  container apps, and networking as those primitives stabilize.
 - The next MVP product focus is the application environment management path:
   container applications, app-owned exposure and application-level discovery,
   virtual networks, public endpoint exposure, load-balancer routes, and

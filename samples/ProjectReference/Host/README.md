@@ -111,27 +111,10 @@ The response includes the resolved API endpoint and the API health payload.
 Runtime state is stored under `samples/ProjectReference/Host/Data/`
 and is ignored by git.
 
-## Future sample direction
+## Sample Direction
 
-This sample should grow into the broad application-topology sample for
-CloudShell. Keep the frontend/backend split: the frontend should stay a
-separate ASP.NET Core project that calls the backend API through CloudShell
-service discovery, while the backend API becomes the place where downstream
-platform services are exercised.
-
-Planned capabilities to demonstrate here:
-
-- SQL Server as a stateful dependency, backed by Local Storage and a mounted
-  data volume.
-- Configuration Store and Secrets Vault references consumed by the backend API.
-- Resource identity and scoped grants for protected configuration and secret
-  access when enforcement is enabled.
-- Structured logs from both projects, including fields that correlate to
-  traces and resources.
-- OpenTelemetry traces across frontend, backend, and downstream service calls,
-  visible in the CloudShell traces experience.
-
-The intent is for `ProjectReference` to become the full-fidelity local
-development sample once the storage, identity, service discovery,
-observability, and Resource Manager primitives are stable enough that the
-sample can focus on composition rather than platform gaps.
+This sample remains the focused ASP.NET Core project-reference baseline for
+service discovery, project dependencies, structured logs, and distributed
+tracing. The broader MVP application-topology work has moved to the forked
+`samples/ApplicationTopology` sample so this baseline can stay small and easy
+to diagnose.

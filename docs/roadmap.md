@@ -224,6 +224,12 @@ listed here before pulling in broader proposal work.
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, and container app
   deployment.
+- Use the forked Application Topology sample as the broad MVP composition
+  sample. ProjectReference remains the focused ASP.NET Core project dependency,
+  service discovery, log, and trace baseline; ApplicationTopology is where SQL
+  Server with mounted storage, configuration, secrets, identity, structured
+  logs, traces, container apps, and networking should converge as those
+  primitives stabilize.
 - Treat the Settings and Secrets sample as the current proof of the developer
   service-integration flow: a resource can model settings and secrets first,
   then opt into identity and resource-scoped grants when access enforcement is
