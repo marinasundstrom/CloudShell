@@ -165,6 +165,12 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             store,
             new PlatformResourceOptions(),
             loadBalancerProviders: [runtimeProvider]);
+        var service = new ServiceResourceDefinition(
+            "service:api",
+            "API service",
+            [new ServiceTarget("application:api-a"), new ServiceTarget("application:api-b")],
+            [new ServicePort("http", 8080, 5080, "http")],
+            []);
         var definition = CreateRuntimeLoadBalancerDefinition() with
         {
             Routes =
@@ -179,20 +185,26 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             ]
         };
         var registrations = new TestResourceRegistrationStore([]);
+        await provider.SetupServiceAsync(service, null, registrations);
         await provider.SetupLoadBalancerAsync(definition, null, registrations);
         var loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        var serviceResource = provider.GetResources().Single(resource => resource.Id == service.Id);
         var resourceManager = new TestResourceManagerStore(
             [
                 loadBalancer,
+                serviceResource,
                 CreateResource(
                     "docker:engine",
                     "Local Docker",
                     [ResourceEndpoint.FromAddress("engine", "unix:///var/run/docker.sock", "docker")]),
                 CreateResource(
-                    "service:api",
-                    "API service",
-                    [ResourceEndpoint.Http("http", "api.service.local", 8080)],
-                    resourceClass: ResourceClass.Service)
+                    "application:api-a",
+                    "API A",
+                    [ResourceEndpoint.Http("http", "api-a.internal", 8080)]),
+                CreateResource(
+                    "application:api-b",
+                    "API B",
+                    [ResourceEndpoint.Http("http", "api-b.internal", 8080)])
             ]);
 
         var result = await provider.ExecuteActionAsync(
@@ -205,6 +217,25 @@ public sealed class PlatformResourceProviderLoadBalancerTests
         Assert.Equal("service:api", route.TargetResource.Id);
         Assert.Equal(ResourceClass.Service, route.TargetResource.ResourceClass);
         Assert.Equal("http", route.TargetEndpoint?.Name);
+        var backends = route.ResolvedBackends
+            .OrderBy(backend => backend.Host, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        Assert.Collection(
+            backends,
+            backend =>
+            {
+                Assert.Equal("api-a.internal", backend.Host);
+                Assert.Equal(8080, backend.Port);
+                Assert.Equal("http", backend.Protocol);
+                Assert.Equal(100, backend.Weight);
+            },
+            backend =>
+            {
+                Assert.Equal("api-b.internal", backend.Host);
+                Assert.Equal(8080, backend.Port);
+                Assert.Equal("http", backend.Protocol);
+                Assert.Equal(100, backend.Weight);
+            });
     }
 
     [Fact]

@@ -835,14 +835,14 @@ public sealed class PlatformResourceProvider(
                 $"Load balancer resource '{definition.Id}' host resource '{definition.HostResourceId}' could not be found.");
     }
 
-    private static IReadOnlyList<LoadBalancerRouteResolution> ResolveLoadBalancerRoutes(
+    private IReadOnlyList<LoadBalancerRouteResolution> ResolveLoadBalancerRoutes(
         IResourceManagerStore resourceManager,
         LoadBalancerResourceDefinition definition) =>
         definition.LoadBalancerRoutes
             .Select(route => ResolveLoadBalancerRoute(resourceManager, definition.Id, route))
             .ToArray();
 
-    private static LoadBalancerRouteResolution ResolveLoadBalancerRoute(
+    private LoadBalancerRouteResolution ResolveLoadBalancerRoute(
         IResourceManagerStore resourceManager,
         string loadBalancerResourceId,
         LoadBalancerRoute route)
@@ -862,14 +862,27 @@ public sealed class PlatformResourceProvider(
             route,
             targetResource,
             targetEndpoint,
-            ResolveLoadBalancerBackends(route, targetResource, targetEndpoint));
+            ResolveLoadBalancerBackends(resourceManager, loadBalancerResourceId, route, targetResource, targetEndpoint));
     }
 
-    private static IReadOnlyList<LoadBalancerBackendTarget> ResolveLoadBalancerBackends(
+    private IReadOnlyList<LoadBalancerBackendTarget> ResolveLoadBalancerBackends(
+        IResourceManagerStore resourceManager,
+        string loadBalancerResourceId,
         LoadBalancerRoute route,
         Resource targetResource,
         ResourceEndpoint? targetEndpoint)
     {
+        if (IsServiceResource(targetResource) &&
+            store.GetService(targetResource.Id) is { } service)
+        {
+            return ResolveServiceLoadBalancerBackends(
+                resourceManager,
+                loadBalancerResourceId,
+                route,
+                service,
+                targetEndpoint);
+        }
+
         if (!targetResource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerReplicas) ||
             route.Target.Port is not { } port)
         {
@@ -892,6 +905,141 @@ public sealed class PlatformResourceProvider(
                 protocol))
             .ToArray();
     }
+
+    private static IReadOnlyList<LoadBalancerBackendTarget> ResolveServiceLoadBalancerBackends(
+        IResourceManagerStore resourceManager,
+        string loadBalancerResourceId,
+        LoadBalancerRoute route,
+        ServiceResourceDefinition service,
+        ResourceEndpoint? serviceEndpoint)
+    {
+        if (service.Targets.Count == 0)
+        {
+            return [];
+        }
+
+        var servicePort = ResolveServiceRoutePort(loadBalancerResourceId, route, service, serviceEndpoint);
+        return service.Targets
+            .Select(target => ResolveServiceLoadBalancerBackend(
+                resourceManager,
+                loadBalancerResourceId,
+                route,
+                service,
+                servicePort,
+                target))
+            .ToArray();
+    }
+
+    private static LoadBalancerBackendTarget ResolveServiceLoadBalancerBackend(
+        IResourceManagerStore resourceManager,
+        string loadBalancerResourceId,
+        LoadBalancerRoute route,
+        ServiceResourceDefinition service,
+        ServicePort servicePort,
+        ServiceTarget target)
+    {
+        var targetResource = resourceManager.GetResource(target.ResourceId)
+            ?? throw new InvalidOperationException(
+                $"Load balancer resource '{loadBalancerResourceId}' route '{route.Id}' service '{service.Id}' target resource '{target.ResourceId}' could not be found.");
+        var targetEndpoint = ResolveServiceTargetEndpoint(targetResource, servicePort);
+        var protocol = string.IsNullOrWhiteSpace(targetEndpoint?.Protocol)
+            ? servicePort.Protocol
+            : targetEndpoint.Protocol;
+        var host = ResolveBackendHost(targetResource, targetEndpoint);
+        var port = ResolveBackendPort(targetEndpoint, servicePort.TargetPort);
+        return new LoadBalancerBackendTarget(host, port, protocol, target.Weight);
+    }
+
+    private static ServicePort ResolveServiceRoutePort(
+        string loadBalancerResourceId,
+        LoadBalancerRoute route,
+        ServiceResourceDefinition service,
+        ResourceEndpoint? serviceEndpoint)
+    {
+        if (!string.IsNullOrWhiteSpace(route.Target.EndpointName))
+        {
+            return service.Ports.FirstOrDefault(port =>
+                    string.Equals(port.Name, route.Target.EndpointName, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException(
+                    $"Load balancer resource '{loadBalancerResourceId}' route '{route.Id}' service '{service.Id}' port '{route.Target.EndpointName}' could not be found.");
+        }
+
+        if (route.Target.Port is { } targetPort)
+        {
+            var matchingPort = service.Ports.FirstOrDefault(port =>
+                port.Port == targetPort ||
+                port.TargetPort == targetPort);
+            if (matchingPort is not null)
+            {
+                return matchingPort;
+            }
+        }
+
+        if (serviceEndpoint is not null)
+        {
+            var matchingPort = service.Ports.FirstOrDefault(port =>
+                string.Equals(port.Name, serviceEndpoint.Name, StringComparison.OrdinalIgnoreCase));
+            if (matchingPort is not null)
+            {
+                return matchingPort;
+            }
+        }
+
+        if (service.Ports.Count == 1)
+        {
+            return service.Ports[0];
+        }
+
+        throw new InvalidOperationException(
+            $"Load balancer resource '{loadBalancerResourceId}' route '{route.Id}' service '{service.Id}' must target a service port by endpoint name or port.");
+    }
+
+    private static ResourceEndpoint? ResolveServiceTargetEndpoint(
+        Resource targetResource,
+        ServicePort servicePort) =>
+        targetResource.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, servicePort.Name, StringComparison.OrdinalIgnoreCase)) ??
+        targetResource.Endpoints.FirstOrDefault(endpoint =>
+            TryGetEndpointPort(endpoint, out var port) && port == servicePort.TargetPort);
+
+    private static string ResolveBackendHost(
+        Resource targetResource,
+        ResourceEndpoint? targetEndpoint)
+    {
+        if (targetEndpoint is not null &&
+            Uri.TryCreate(targetEndpoint.Address, UriKind.Absolute, out var uri) &&
+            !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return NormalizeEndpointHost(uri.Host);
+        }
+
+        return CreateBackendHost(targetResource.Id);
+    }
+
+    private static int ResolveBackendPort(ResourceEndpoint? targetEndpoint, int fallbackPort)
+    {
+        if (targetEndpoint is not null &&
+            TryGetEndpointPort(targetEndpoint, out var port))
+        {
+            return port;
+        }
+
+        return fallbackPort;
+    }
+
+    private static string CreateBackendHost(string resourceId)
+    {
+        var host = new string(resourceId
+            .Trim()
+            .Select(character => char.IsLetterOrDigit(character) ? char.ToLowerInvariant(character) : '-')
+            .ToArray())
+            .Trim('-');
+        return string.IsNullOrWhiteSpace(host) ? "localhost" : host;
+    }
+
+    private static bool IsServiceResource(Resource resource) =>
+        resource.ResourceClass == ResourceClass.Service ||
+        string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
 
     private static int ResolveContainerReplicaCount(Resource resource) =>
         resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.ContainerReplicas, out var replicas) &&

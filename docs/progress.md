@@ -93,7 +93,10 @@ expectations rather than duplicating the task queue.
   Service resources are also documented as a potential shared frontend for
   manually composed service units or replica sets, such as several web
   application instance resources behind one Service endpoint that a load
-  balancer targets.
+  balancer targets. Load-balancer route resolution now expands a
+  `cloudshell.service` target to its configured target resources when a
+  matching Service definition is available, so providers receive concrete
+  backend targets for the manual replica-set pattern.
   For MVP, DNS/name mapping can start as logical resource projection,
   relationship display, validation, and provider-materialization diagnostics;
   real public DNS propagation and provider-backed network-level service

@@ -36,7 +36,10 @@ When a user intentionally models a `cloudshell.service` resource, the load
 balancer can target that Service endpoint as a shared frontend. This supports
 advanced/manual topologies such as a Service over several web application
 instance resources, where the Service represents the replica set or service
-unit and the load balancer owns public routing to it.
+unit and the load balancer owns public routing to it. Load-balancer route
+resolution expands a Service target to its configured target resources when a
+matching Service definition is available, so providers receive concrete backend
+targets instead of only the Service endpoint.
 
 When a provider materializes a container app through Docker Compose,
 Kubernetes, or another runtime, the orchestrator-specific service, ingress, or
