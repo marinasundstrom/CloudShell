@@ -141,20 +141,21 @@ resources
 Applications can depend on any declared resource builder, including sub-resources
 such as containers returned from `resources.AddDocker().AddContainer(...)`.
 
-CloudShell also includes host, logical, virtual network, and service resources.
-If no network has been created, the default network is the host network. A
-logical network is a named orchestration boundary. A virtual network is a
-richer environment boundary for on-premise or provider-backed networking. A
-`cloudshell.service` resource is a stable endpoint over one or more target
-resources, with explicit private, local, network, or public exposure. This is a
-platform exposure resource, not the internal orchestrator service descriptor
-used to maintain container app replicas. With the default orchestrator,
-CloudShell assumes the host environment owns networking and projects
-`cloudshell.service` resources as host-local endpoints through a replaceable
-host-local network abstraction. If a service port omits `port`, CloudShell
-assigns a stable local port automatically. Orchestrator extensions can
-translate the same declarations to Docker Compose networks and published
-ports, on-premise clusters, or another runtime-specific model.
+CloudShell also includes host, logical, virtual network, and optional service
+resources. If no network has been created, the default network is the host
+network. A logical network is a named orchestration boundary. A virtual network
+is a richer environment boundary for on-premise or provider-backed networking.
+Application resources, especially container apps, are the normal stable
+deployment and exposure artifacts for app workloads: they can carry app-owned
+endpoints, discovery names, public exposure intent, load-balancer mappings, and
+DNS/name mappings. A `cloudshell.service` resource is different from the
+internal orchestrator service descriptor used to maintain container app
+replicas. It is an optional CloudShell resource that can model a stable facade
+over non-application targets, multiple targets, imported provider-native
+services, or advanced routing scenarios. Orchestrator extensions can translate
+application and networking declarations to Docker Compose networks and
+published ports, on-premise clusters, or another runtime-specific model without
+requiring a `cloudshell.service` resource for normal container app exposure.
 
 Networks can also reserve or request endpoints. Manual endpoint requests carry
 the concrete host/IP address and port. Auto endpoint requests let the network

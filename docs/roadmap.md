@@ -38,7 +38,7 @@ MVP scope:
 | Area | Required outcome |
 | --- | --- |
 | Container Apps, Version 1 | Container app resources can be declared, inspected, started, stopped, updated by image/revision, configured with replicas, and connected to the default container-host path. |
-| Services, discovery, and names | Service resources, application-level discovery, and the first logical DNS/name-mapping projection make resource-to-resource and user-to-endpoint access understandable from Resource Manager. |
+| Application exposure, discovery, and names | Application resources, application-level discovery, and the first logical DNS/name-mapping projection make resource-to-resource and user-to-endpoint access understandable from Resource Manager. `cloudshell.service` remains optional for logical facades, imported services, or advanced routing instead of being required for normal container app exposure. |
 | Network primitives | Virtual networks, endpoint requests, endpoint mappings, load-balancer routes, public endpoint exposure, and host-local networking provide enough routing to expose common container app scenarios with clear diagnostics. |
 | Storage and volume mappings | Mountable volume resources and app volume attachments can be modeled, inspected, and mapped into container apps or executables through provider-neutral storage intent, without forcing object storage, databases, or backups into the same abstraction. |
 | Identity, Built-in | The built-in identity provider can provision resource identities, issue scoped resource-permission tokens, and enforce those permissions for Control Plane actions, configuration reads, and secret reads. |
@@ -83,9 +83,11 @@ Work the current proposals in this order. For MVP, implement only the slice
 listed here before pulling in broader proposal work.
 
 1. Application environment management path: make container applications,
-   service resources, application-level service discovery, virtual networks,
+   app-owned exposure, application-level service discovery, virtual networks,
    public endpoints, load-balancer routes, and logical DNS/name mappings form
-   one understandable Resource Manager workflow.
+   one understandable Resource Manager workflow. Keep `cloudshell.service`
+   optional for logical facades, imported services, non-application targets,
+   and advanced routing instead of making it a required MVP hop.
 2. Stateful application foundation: continue the storage and volume-mapping
    path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
    and container app volume mounts exist. Next slices should materialize mounts
@@ -131,22 +133,26 @@ listed here before pulling in broader proposal work.
 ### Now: MVP Convergence and Resource Manager Reliability
 
 - Treat the primary MVP management path as:
-  container application -> service/discovery -> virtual network -> public
+  container application -> app endpoint/discovery -> virtual network -> public
   endpoint or load balancer -> DNS/name mapping. The UI should let users see
   and operate that path without requiring programmatic-only sample knowledge.
-- Keep `cloudshell.service` in MVP scope as the stable service exposure
-  resource for UI-managed app topologies. It is separate from internal
-  orchestrator service descriptors and should work with container apps,
-  virtual networks, and future network-level discovery.
+- Do not require `cloudshell.service` for normal container app exposure in the
+  MVP. Container apps are the stable user-facing deployment, replica, and
+  exposure artifacts. Keep `cloudshell.service` optional/deferred for logical
+  facades, imported provider-native services, non-application targets, stable
+  discovery names independent of one app lifecycle, and advanced routing.
+  Kubernetes Service and similar provider-native objects are provider
+  materialization details unless explicitly imported or projected.
 - Bring DNS/name mapping forward as a minimal logical projection and Resource
   Manager experience. MVP does not require CloudShell to publish real public
   DNS records, run an authoritative DNS server, or implement a provider-backed
   service registry, but users should be able to model names, see what endpoint
   they refer to, and understand whether a provider can materialize them.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
-  directly, through a service resource, through a virtual-network mapping, or
-  through a load-balancer route; Resource Manager should show that relationship
-  from both the target resource and the exposure resource.
+  directly, through app-owned ingress, through a virtual-network mapping,
+  through a load-balancer route, or through an optional service facade when
+  that facade is deliberately modeled; Resource Manager should show that
+  relationship from both the target resource and the exposure resource.
 - Treat storage as part of the same app-environment path, not as deployment
   trivia. The MVP now has basic volume resources and container app volume
   attachments with a dedicated resource Storage tab plus a direct volume
@@ -329,9 +335,11 @@ listed here before pulling in broader proposal work.
 - Harden macOS host-provided virtual networking by exercising real local proxy
   mappings end to end, improving action capability reasons, and deciding how
   reconciled mappings should be persisted or stopped.
-- Make service resources first-class in the networking UI flow: create,
-  inspect, expose ports, connect to target resources, and show inbound/outbound
-  discovery relationships.
+- Make app-owned exposure first-class in the networking UI flow: create and
+  inspect application endpoints, expose ports, connect them to virtual
+  networks, load-balancer routes, and name mappings, and show inbound/outbound
+  discovery relationships. Keep `cloudshell.service` as an optional facade or
+  imported-provider concept until a concrete scenario needs it.
 - Define the first endpoint reservation/preflight contract: Resource Manager
   tracks CloudShell-owned assignments, while host/runtime providers report
   advisory port availability and final bind failures for dangling external

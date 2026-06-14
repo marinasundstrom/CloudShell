@@ -177,12 +177,21 @@ Kubernetes-oriented providers can map it to Service/Deployment-style objects,
 and the default local runner uses the container app identity as the implicit
 service identity for convention named replica containers.
 
-This is separate from the `cloudshell.service` resource type. A
-`cloudshell.service` resource is a user-facing platform exposure resource: it
-can provide a stable endpoint over one or more target resources and describe
-ports, networks, and exposure scope. It is useful for Kubernetes-style service
-exposure, gateways, and service discovery, but it is not the internal
-orchestrator service used to maintain a container app's replicas.
+The container app resource is also the normal user-facing deployment and
+exposure artifact for application workloads. It can own the stable application
+endpoint, desired replica count, discovery name, public exposure intent,
+ingress or load-balancer mapping, DNS/name mapping, and health/routing
+diagnostics. Provider-native service objects, such as Kubernetes Services,
+Docker Compose services, or local runtime service descriptors, are
+materialization details unless a provider explicitly imports or projects them.
+
+This is separate from the optional `cloudshell.service` resource type. A
+`cloudshell.service` resource can still model a logical service or facade over
+non-application targets, multiple application targets, imported provider-native
+services, or advanced routing scenarios that need a stable discovery name
+independent of one container app lifecycle. It is not required to expose a
+normal container app in the MVP, and it is not the internal orchestrator
+service used to maintain a container app's replicas.
 
 `Attributes` are not a second provider configuration schema. They are projected
 facts useful for inspection, filtering, diagnostics, and orchestration hints,

@@ -165,7 +165,10 @@ container app's workload configuration, ports, dependencies, networks, and
 replica count. It is consumed by orchestrator providers and is not projected as
 a separate Resource Manager resource. It is also distinct from the
 `cloudshell.service` resource type, which can still be declared when a stable
-platform endpoint should expose one or more target resources.
+CloudShell facade should expose non-application targets, multiple targets,
+imported provider-native services, or advanced routing. A normal container app
+does not require a `cloudshell.service` resource to expose its app-owned
+endpoint.
 
 Runtime replica containers are not Resource Manager targets. When multiple
 local containers are materialized, they are named by convention from the parent
@@ -197,11 +200,12 @@ service replicas. This keeps Compose service DNS and replica management as the
 runtime implementation detail instead of exposing individual containers as
 CloudShell resources.
 
-Load balancers and `cloudshell.service` resources should target the stable
-container app or another stable Resource Manager artifact when the user wants
-gateway-level control beyond a single app's ingress. The replica containers
-themselves still remain runtime artifacts, not separate Resource Manager
-resources.
+Load balancers should target the stable container app or another stable
+Resource Manager artifact when the user wants gateway-level control beyond a
+single app's ingress. Optional `cloudshell.service` resources can be used as
+logical facades for scenarios that need that extra indirection. The replica
+containers themselves still remain runtime artifacts, not separate Resource
+Manager resources.
 
 ## Image Deployment Procedure
 

@@ -147,8 +147,8 @@ The stable user-facing concepts are:
 - a virtual network boundary
 - an ingress or service endpoint owned by that boundary
 - a mapping provider, such as a gateway or load balancer
-- a logical backend target, such as an application resource, service resource,
-  or backend pool resource
+- a logical backend target, such as an application resource, optional service
+  facade, imported provider service, or backend pool resource
 
 The provider-owned concepts are:
 
@@ -166,8 +166,11 @@ For the first version, endpoint mappings should continue to map a network-owned
 endpoint to one logical target endpoint. A clustered or load-balanced mapping
 can use one of these targets:
 
-- a service resource endpoint that represents a stable frontend over one or
-  more backing resources
+- an application endpoint that represents the stable frontend for a container
+  app or other application resource
+- an optional service facade endpoint that represents a stable frontend over
+  non-application targets, multiple backing resources, or imported
+  provider-native services
 - a backend pool resource whose provider owns the target membership
 - a container app or application resource whose provider resolves the current
   replicas behind the stable resource endpoint

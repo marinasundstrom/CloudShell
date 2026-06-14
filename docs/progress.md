@@ -68,9 +68,15 @@ expectations rather than duplicating the task queue.
   deployment history should not move ahead of those release-shaping slices
   unless they block the supported MVP samples.
 - The next MVP product focus is the application environment management path:
-  container applications, service resources and application-level discovery,
+  container applications, app-owned exposure and application-level discovery,
   virtual networks, public endpoint exposure, load-balancer routes, and
   DNS/name mapping. The UI should make this path understandable and operable.
+  Normal container app exposure should not require a `cloudshell.service`
+  resource in the MVP; container apps are the stable deployment, replica, and
+  exposure artifacts. Keep `cloudshell.service` optional for logical facades,
+  imported provider-native services, non-application targets, or advanced
+  routing. Provider-native service objects, such as Kubernetes Services, are
+  materialization details unless explicitly projected by a provider.
   For MVP, DNS/name mapping can start as logical resource projection,
   relationship display, validation, and provider-materialization diagnostics;
   real public DNS propagation and provider-backed network-level service
@@ -637,8 +643,10 @@ expectations rather than duplicating the task queue.
   descriptor for a stable workload. Docker Compose now renders Compose services
   from that descriptor, including replica count, ports, dependencies, and
   networks, instead of treating workload configuration as the service directly.
-  The existing `cloudshell.service` resource remains a separate platform
-  exposure resource for stable endpoints over one or more targets.
+  The existing `cloudshell.service` resource remains a separate optional
+  platform exposure or facade resource for stable endpoints over non-app
+  targets, multiple targets, imported provider-native services, or advanced
+  routing; it is not required for normal container app exposure.
 - The default orchestrator now owns replica instance fan-out for container app
   services, and load-balancer route resolution can expand a port-based route to
   a replicated container app into convention-named backend targets for Traefik
