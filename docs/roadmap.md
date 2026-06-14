@@ -142,7 +142,10 @@ listed here before pulling in broader proposal work.
   facades, imported provider-native services, non-application targets, stable
   discovery names independent of one app lifecycle, and advanced routing.
   Kubernetes Service and similar provider-native objects are provider
-  materialization details unless explicitly imported or projected.
+  materialization details unless explicitly imported or projected. This is a
+  model-layer distinction: a future orchestrator may intentionally materialize
+  an explicitly modeled `cloudshell.service` as its provider-native service
+  primitive when the resource represents the service unit.
 - Bring DNS/name mapping forward as a minimal logical projection and Resource
   Manager experience. MVP does not require CloudShell to publish real public
   DNS records, run an authoritative DNS server, or implement a provider-backed

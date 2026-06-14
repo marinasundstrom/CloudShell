@@ -77,6 +77,10 @@ expectations rather than duplicating the task queue.
   imported provider-native services, non-application targets, or advanced
   routing. Provider-native service objects, such as Kubernetes Services, are
   materialization details unless explicitly projected by a provider.
+  This distinction is model-layer separation, not a permanent ban on mapping:
+  a future orchestrator may materialize an explicitly modeled
+  `cloudshell.service` as its provider-native service primitive, or derive an
+  orchestrator descriptor from it, when it represents a service unit.
   Load-balancer route resolution and the Resource Manager load-balancer create
   flow now allow `cloudshell.service` resources as optional facade targets
   while continuing to make direct application targets the normal path.
@@ -646,10 +650,12 @@ expectations rather than duplicating the task queue.
   descriptor for a stable workload. Docker Compose now renders Compose services
   from that descriptor, including replica count, ports, dependencies, and
   networks, instead of treating workload configuration as the service directly.
-  The existing `cloudshell.service` resource remains a separate optional
+  The existing `cloudshell.service` resource remains a distinct optional
   platform exposure or facade resource for stable endpoints over non-app
   targets, multiple targets, imported provider-native services, or advanced
-  routing; it is not required for normal container app exposure.
+  routing; it is not required for normal container app exposure, but future
+  orchestrators may intentionally map it to provider-native service concepts
+  when the resource is the service unit.
 - The default orchestrator now owns replica instance fan-out for container app
   services, and load-balancer route resolution can expand a port-based route to
   a replicated container app into convention-named backend targets for Traefik

@@ -148,14 +148,18 @@ is a richer environment boundary for on-premise or provider-backed networking.
 Application resources, especially container apps, are the normal stable
 deployment and exposure artifacts for app workloads: they can carry app-owned
 endpoints, discovery names, public exposure intent, load-balancer mappings, and
-DNS/name mappings. A `cloudshell.service` resource is different from the
-internal orchestrator service descriptor used to maintain container app
-replicas. It is an optional CloudShell resource that can model a stable facade
-over non-application targets, multiple targets, imported provider-native
-services, or advanced routing scenarios. Orchestrator extensions can translate
+DNS/name mappings. A `cloudshell.service` resource is a CloudShell model/API
+concept, not automatically the same thing as the internal orchestrator service
+descriptor used to maintain container app replicas. It is an optional
+CloudShell resource that can model a stable service unit or facade over
+non-application targets, multiple targets, imported provider-native services,
+or advanced routing scenarios. Orchestrator extensions can translate
 application and networking declarations to Docker Compose networks and
 published ports, on-premise clusters, or another runtime-specific model without
 requiring a `cloudshell.service` resource for normal container app exposure.
+When a `cloudshell.service` resource is explicitly modeled, a future
+orchestrator may choose to materialize that resource as its provider-native
+Service concept or derive its orchestration descriptor from it.
 
 Networks can also reserve or request endpoints. Manual endpoint requests carry
 the concrete host/IP address and port. Auto endpoint requests let the network

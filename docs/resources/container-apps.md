@@ -163,12 +163,15 @@ Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. The descriptor is built from the
 container app's workload configuration, ports, dependencies, networks, and
 replica count. It is consumed by orchestrator providers and is not projected as
-a separate Resource Manager resource. It is also distinct from the
-`cloudshell.service` resource type, which can still be declared when a stable
-CloudShell facade should expose non-application targets, multiple targets,
+a Resource Manager resource by default. It is also distinct from the
+`cloudshell.service` resource type at the CloudShell model/API layer. A
+`cloudshell.service` resource can still be declared when a stable CloudShell
+service unit or facade should expose non-application targets, multiple targets,
 imported provider-native services, or advanced routing. A normal container app
 does not require a `cloudshell.service` resource to expose its app-owned
-endpoint.
+endpoint, but a future orchestrator may materialize an explicitly modeled
+`cloudshell.service` as its provider-native service primitive when that
+resource represents the service unit.
 
 Runtime replica containers are not Resource Manager targets. When multiple
 local containers are materialized, they are named by convention from the parent
