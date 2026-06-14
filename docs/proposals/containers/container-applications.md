@@ -162,12 +162,15 @@ Implemented pieces include:
 * app-owned ingress for replicated Docker-backed apps
 * inbound virtual-network, load-balancer, and DNS/name-mapping relationship
   display on application overview pages
+* attached volume display on application overview pages, with the Storage tab
+  remaining the edit surface
 * local/default container-host path and host capability diagnostics
 
 ## MVP Implementation Plan
 
 1. Keep the application resource as the default management entry point. Done
-   for overview, configuration, storage, activity, logs, and traces.
+   for overview, configuration, storage, activity, logs, traces, exposure
+   relationships, and attached volume visibility.
 2. Keep container host selection explicit or defaulted through the host
    resolver. Initial resolver and diagnostics exist; richer credential and
    readiness diagnostics continue in the host proposal.

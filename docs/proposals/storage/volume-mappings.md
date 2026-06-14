@@ -421,7 +421,9 @@ through future monitoring APIs.
    volumes. The Docker Compose generator now emits service volume mounts,
    resolves managed `FileSystem` volume resources to host bind-mount paths,
    and preserves unmanaged references as Compose volume names.
-7. Add Resource Manager generated overview support for attached volumes.
+7. Add Resource Manager generated overview support for attached volumes. Done
+   for application overview pages; generic generated-resource projection can
+   still be improved for non-application volume consumers.
 8. Add dedicated create/attach UI for basic volume resources and mappings.
    Direct volume create/configuration/overview UI is in place; richer attach
    flows and storage-resource-owned sub-volume UI remain open.

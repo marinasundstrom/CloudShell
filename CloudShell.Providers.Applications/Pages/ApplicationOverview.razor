@@ -140,6 +140,34 @@ else
         </section>
     }
 
+    @if (VolumeMounts.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Storage mounts</h3>
+            <div class="generated-list">
+                @foreach (var volumeMount in VolumeMounts)
+                {
+                    <div>
+                        <strong>
+                            @if (volumeMount.Volume is null)
+                            {
+                                @ApplicationVolumeResourceDisplay.GetMountSourceLabel(volumeMount.Mount, null)
+                            }
+                            else
+                            {
+                                <a class="resource-link" href="@BuildResourceRoute(volumeMount.Volume.Id)">
+                                    @ApplicationVolumeResourceDisplay.GetMountSourceLabel(volumeMount.Mount, volumeMount.Volume)
+                                </a>
+                            }
+                        </strong>
+                        <span>@ApplicationVolumeResourceDisplay.GetMountSummary(volumeMount.Mount, volumeMount.Volume)</span>
+                        <small>@ApplicationVolumeResourceDisplay.GetMountAccessLabel(volumeMount.Mount)</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     <section class="blade-section">
         <h3>App settings</h3>
         @if (Application.AppSettings.Count == 0)
@@ -220,6 +248,7 @@ else
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
     private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
+    private IReadOnlyList<VolumeMountView> VolumeMounts { get; set; } = [];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -241,6 +270,9 @@ else
         InboundNameMappings = Application is null
             ? []
             : GetInboundNameMappings(Application.Id);
+        VolumeMounts = Application is null
+            ? []
+            : GetVolumeMounts(Application.VolumeMounts);
         PermissionGrantEvaluator = new ResourcePermissionGrantEvaluator(
             await ResourceManagerClient.ListResourcePermissionGrantsAsync());
     }
@@ -309,6 +341,15 @@ else
             .Where(resource => ApplicationNameMappingDisplay.TargetsResource(resource, resourceId))
             .Select(resource => new NameMappingView(ResolveParentResource(resource), resource))
             .OrderBy(mapping => ApplicationNameMappingDisplay.GetHostName(mapping.Mapping), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<VolumeMountView> GetVolumeMounts(IReadOnlyList<ResourceVolumeMount> mounts) =>
+        mounts
+            .Where(mount =>
+                !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
+                !string.IsNullOrWhiteSpace(mount.TargetPath))
+            .Select(mount => new VolumeMountView(mount, ResolveVolumeResource(mount.NormalizedVolumeReference)))
+            .OrderBy(mount => mount.Mount.NormalizedTargetPath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private string FormatMappingSummary(
@@ -438,6 +479,15 @@ else
         }
 
         return ResourceManager.GetResource(resourceId);
+    }
+
+    private Resource? ResolveVolumeResource(string resourceId)
+    {
+        var resource = ResourceManager.GetResource(resourceId);
+        return resource is not null &&
+            ApplicationVolumeResourceDisplay.IsMountableVolumeResource(resource)
+                ? resource
+                : null;
     }
 
     private Resource? ResolveParentResource(Resource resource) =>
@@ -586,4 +636,8 @@ else
     private sealed record NameMappingView(
         Resource? Zone,
         Resource Mapping);
+
+    private sealed record VolumeMountView(
+        ResourceVolumeMount Mount,
+        Resource? Volume);
 }

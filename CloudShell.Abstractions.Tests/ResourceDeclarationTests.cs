@@ -3532,6 +3532,20 @@ public sealed class ResourceDeclarationTests
         Assert.False(ApplicationVolumeResourceDisplay.IsMountableVolumeResource(storage));
         Assert.True(ApplicationVolumeResourceDisplay.IsMountableVolumeResource(volume));
         Assert.Equal("Postgres Data (FileSystem)", ApplicationVolumeResourceDisplay.GetVolumeOptionLabel(volume));
+
+        var mount = new ResourceVolumeMount("volume:postgres-data", "/var/lib/postgresql/data", ReadOnly: true);
+        Assert.Equal(
+            "Postgres Data (FileSystem)",
+            ApplicationVolumeResourceDisplay.GetMountSourceLabel(mount, volume));
+        Assert.Equal(
+            "Postgres Data (FileSystem) -> /var/lib/postgresql/data",
+            ApplicationVolumeResourceDisplay.GetMountSummary(mount, volume));
+        Assert.Equal("Read-only", ApplicationVolumeResourceDisplay.GetMountAccessLabel(mount));
+        Assert.Equal(
+            "docker-volume",
+            ApplicationVolumeResourceDisplay.GetMountSourceLabel(
+                new ResourceVolumeMount("docker-volume", "/data"),
+                null));
     }
 
     [Fact]

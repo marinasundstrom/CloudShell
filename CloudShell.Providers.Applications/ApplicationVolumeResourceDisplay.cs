@@ -16,6 +16,17 @@ internal static class ApplicationVolumeResourceDisplay
             : $"{resource.Name} ({medium})";
     }
 
+    public static string GetMountSourceLabel(ResourceVolumeMount mount, Resource? volume) =>
+        volume is null
+            ? mount.NormalizedVolumeReference
+            : GetVolumeOptionLabel(volume);
+
+    public static string GetMountSummary(ResourceVolumeMount mount, Resource? volume) =>
+        $"{GetMountSourceLabel(mount, volume)} -> {mount.NormalizedTargetPath}";
+
+    public static string GetMountAccessLabel(ResourceVolumeMount mount) =>
+        mount.ReadOnly ? "Read-only" : "Read/write";
+
     private static string GetVolumeStorageMedium(Resource resource) =>
         resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeStorageMedium, out var medium)
             ? medium

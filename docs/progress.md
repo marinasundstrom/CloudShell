@@ -176,13 +176,15 @@ expectations rather than duplicating the task queue.
   volumes. Resource Manager volume selectors now distinguish mountable volume
   resources from storage-provider resources and show the volume storage medium
   in application storage flows, so a Local Storage parent is not presented as a
-  directly mountable volume. Provider-backed volume resources, host-specific
-  compatibility negotiation, richer materialization diagnostics, broader UI
-  management, runtime enforcement, and usage monitoring APIs remain next
-  storage work. The Container Host sample now demonstrates the intended
-  storage graph by declaring a Local Storage resource, a SQL Server data
-  volume owned by that storage resource, and a SQL Server container mount at
-  `/var/opt/mssql`.
+  directly mountable volume. Application overview pages now show attached
+  storage mounts so users can inspect source volumes, target paths, and access
+  mode from the managed service page while using the Storage tab for edits.
+  Provider-backed volume resources, host-specific compatibility negotiation,
+  richer materialization diagnostics, broader UI management, runtime
+  enforcement, and usage monitoring APIs remain next storage work. The
+  Container Host sample now demonstrates the intended storage graph by
+  declaring a Local Storage resource, a SQL Server data volume owned by that
+  storage resource, and a SQL Server container mount at `/var/opt/mssql`.
 - The first post-MVP target is an initial on-premise hosting scenario. It
   should prove acceptable Resource Manager operations, provider-backed
   cross-platform networking, virtual networks, ingress/public endpoint mapping,
