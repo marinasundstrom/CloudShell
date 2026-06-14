@@ -436,14 +436,16 @@ public sealed partial class DockerContainerResourceProvider :
     {
         if (IsHostResource(resource))
         {
+            var hostDefinition = GetHostDefinition(resource.Id);
             var host = new ContainerHostDescriptor(
                 resource.Id,
                 resource.Name,
                 ContainerHostKind.Docker,
-                GetHostDefinition(resource.Id).NormalizedEndpoint,
+                hostDefinition.NormalizedEndpoint,
                 IsDefault: string.Equals(resource.Id, DefaultHostResourceId, StringComparison.OrdinalIgnoreCase),
                 Registry: GetDockerResourceRegistry(resource.Id),
                 RegistryCredentials: GetDockerResourceCredentials(resource.Id),
+                CredentialsAvailable: AreHostCredentialsAvailable(hostDefinition.Credentials),
                 Capabilities:
                 [
                     ContainerHostCapabilityIds.ContainerImage,
@@ -545,6 +547,21 @@ public sealed partial class DockerContainerResourceProvider :
             .FirstOrDefault(host => string.Equals(host.Id, hostResourceId, StringComparison.OrdinalIgnoreCase))
             ?.Host
         ?? DockerHostDefinition.Local(_options.ResolveEndpoint());
+
+    private static bool AreHostCredentialsAvailable(DockerHostCredentials? credentials) =>
+        credentials?.Kind switch
+        {
+            null or DockerHostCredentialKind.None => true,
+            DockerHostCredentialKind.UsernamePasswordEnvironmentVariable =>
+                !string.IsNullOrWhiteSpace(credentials.Username) &&
+                !string.IsNullOrWhiteSpace(credentials.PasswordEnvironmentVariable) &&
+                !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(credentials.PasswordEnvironmentVariable)),
+            DockerHostCredentialKind.TlsCertificateFiles =>
+                File.Exists(credentials.CertificateAuthorityPath) &&
+                File.Exists(credentials.ClientCertificatePath) &&
+                File.Exists(credentials.ClientKeyPath),
+            _ => false
+        };
 
     private string GetHostName(string hostResourceId) =>
         GetConfiguredHosts()

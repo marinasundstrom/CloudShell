@@ -129,6 +129,14 @@ public sealed class ContainerHostResolver(
                 ContainerHostResolutionFailureReason.HostUnavailable);
         }
 
+        if (!host.CredentialsAvailable)
+        {
+            return new ContainerHostResolutionResult(
+                null,
+                $"Container host '{host.Id}' credentials are unavailable.",
+                ContainerHostResolutionFailureReason.CredentialsUnavailable);
+        }
+
         requiredCapability = FirstNonEmpty(requiredCapability);
         if (requiredCapability is not null &&
             !host.HostCapabilities.Contains(requiredCapability, StringComparer.OrdinalIgnoreCase))

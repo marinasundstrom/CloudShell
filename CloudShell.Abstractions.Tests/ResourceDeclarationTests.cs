@@ -2566,6 +2566,41 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task DockerProvider_ReportsUnavailableHostCredentialsInDescriptor()
+    {
+        const string passwordVariable = "CLOUDSHELL_TEST_MISSING_DOCKER_HOST_PASSWORD";
+        Environment.SetEnvironmentVariable(passwordVariable, null);
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddDocker("docker:build-01", "Build Host 01")
+                    .UseRemoteHost(new Uri("tcp://build-01.example.com:2375"))
+                    .WithHostCredentialsFromEnvironment("docker-user", passwordVariable);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        using var provider = new DockerContainerResourceProvider(
+            serviceProvider.GetRequiredService<DockerProviderOptions>());
+        var host = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "docker:build-01");
+
+        var descriptor = await provider.DescribeAsync(
+            host,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var definition = descriptor.Configuration.Deserialize<ContainerHostDescriptor>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.NotNull(definition);
+        Assert.False(definition.CredentialsAvailable);
+        Assert.Equal("tcp://build-01.example.com", definition.Endpoint);
+        Assert.DoesNotContain(passwordVariable, definition.HostMetadata.Values);
+    }
+
+    [Fact]
     public void DockerBuilder_DeclaresRemoteHostWithRedactedProjectedAttributes()
     {
         var services = new ServiceCollection();

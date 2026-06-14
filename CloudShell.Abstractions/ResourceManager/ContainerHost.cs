@@ -38,6 +38,7 @@ public sealed record ContainerHostDescriptor(
     bool IsDefault = false,
     string Registry = ContainerRegistryDefaults.Default,
     ContainerRegistryCredentials? RegistryCredentials = null,
+    bool CredentialsAvailable = true,
     IReadOnlyDictionary<string, string>? Metadata = null,
     IReadOnlyList<string>? Capabilities = null)
 {

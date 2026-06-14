@@ -217,6 +217,34 @@ public sealed class ContainerHostResolverTests
             result.ErrorMessage);
     }
 
+    [Fact]
+    public async Task ResolveAsync_ReturnsDiagnosticForUnavailableCredentials()
+    {
+        var hostResource = CreateResource("docker:remote", "Remote Docker");
+        var host = new ContainerHostDescriptor(
+            "docker:remote",
+            "Remote Docker",
+            ContainerHostKind.Docker,
+            "tcp://docker.example.test:2376",
+            CredentialsAvailable: false,
+            Capabilities: [ContainerHostCapabilityIds.ContainerImage]);
+        var resolver = CreateResolver(
+            [hostResource],
+            descriptorProviders: [new StaticDescriptorProvider(hostResource.Id, host)]);
+
+        var result = await resolver.ResolveAsync(new ContainerHostResolutionRequest(
+            "application:api",
+            "team-a",
+            ExplicitHostResourceId: hostResource.Id,
+            RequiredCapability: ContainerHostCapabilityIds.ContainerImage));
+
+        Assert.False(result.IsResolved);
+        Assert.Equal(ContainerHostResolutionFailureReason.CredentialsUnavailable, result.FailureReason);
+        Assert.Equal(
+            "Container host 'docker:remote' credentials are unavailable.",
+            result.ErrorMessage);
+    }
+
     private static ContainerHostResolver CreateResolver(
         IReadOnlyList<Resource> resources,
         IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,

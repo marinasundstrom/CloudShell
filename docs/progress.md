@@ -475,7 +475,11 @@ expectations rather than duplicating the task queue.
   container-build workloads request matching built-in host capability IDs, and
   Docker hosts advertise those capabilities. Host placement failures now carry
   structured reason codes so API/UI consumers do not need to parse diagnostic
-  text.
+  text. Host descriptors now also carry a non-secret credential readiness flag;
+  the shared resolver reports unavailable credentials as a structured
+  placement failure, and Docker host descriptors mark configured environment or
+  TLS file credential references unavailable when the referenced runtime inputs
+  are missing.
 - Container app replicas can now be updated as an explicit desired count
   through the domain manager and `PUT /api/container-apps/v1/{containerAppId}/replicas`.
   This is not autoscaling: richer replica health, placement, traffic splitting,

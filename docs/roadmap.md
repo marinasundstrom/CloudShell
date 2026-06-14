@@ -229,12 +229,14 @@ listed here before pulling in broader proposal work.
   unavailable host resources and missing required host capabilities, with
   container-image and container-build capability IDs wired into container
   workload validation. These failures now carry structured reason codes for
-  API/UI consumers. Host connection credential readiness remains.
+  API/UI consumers. Host descriptors now carry non-secret credential readiness
+  and Docker reports missing configured credential inputs through the same
+  resolver diagnostics path.
 - Resolver tests now cover explicit host selection, preferred host selection,
   configured default host selection, registered default host descriptors, and
   missing-host, unavailable-host, required-capability diagnostics, and their
-  structured reason codes. Continue tests for host credential diagnostics when
-  that state is implemented.
+  structured reason codes. Resolver tests also cover unavailable host
+  credentials.
 - Add provider-owned Docker runtime support for owner-scoped implementation
   containers after the resolver lands.
 - Continue Traefik container mode beyond apply-time startup by tying the

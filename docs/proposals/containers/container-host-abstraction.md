@@ -446,8 +446,8 @@ not introduce a second out-of-band local management API for the shell.
   explicit/default hosts also feed Start/Restart action capability reasons and
   execution uses the same domain unavailable-action error before provider
   dispatch. Container-image and container-build workloads now request matching
-  host capabilities. Continue extending this diagnostics path to credential
-  unavailable states.
+  host capabilities. Host descriptors now carry non-secret credential readiness,
+  and unavailable host credentials feed the same resolver diagnostics path.
 - Add a provider-owned Docker runtime implementation for owner-scoped
   implementation containers.
 - Continue removing remaining engine naming from provider internals where it is
@@ -457,8 +457,8 @@ not introduce a second out-of-band local management API for the shell.
   container-build capabilities.
 - Resolver tests cover explicit host selection, preferred host selection,
   configured default host selection, registered default host descriptors, and
-  missing host, unavailable host, and missing required-capability diagnostics.
-  Add tests for credential readiness and provider-owned runtime cleanup as those
-  slices land.
+  missing host, unavailable host, missing required-capability, and unavailable
+  credential diagnostics. Add tests for provider-owned runtime cleanup as that
+  slice lands.
 - Update load-balancer container mode to use the runtime contract instead of
   modeling implementation containers as user-authored container apps.
