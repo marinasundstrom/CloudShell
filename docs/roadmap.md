@@ -355,6 +355,11 @@ listed here before pulling in broader proposal work.
 - Harden macOS host-provided virtual networking by exercising real local proxy
   mappings end to end, improving action capability reasons, and deciding how
   reconciled mappings should be persisted or stopped.
+- Generalize host-provided virtual networking as an OS-specific provider model:
+  macOS is the first implementation, while Linux, Windows, and runtime-specific
+  hosts should advertise equivalent capabilities and diagnostics through the
+  same provider boundary instead of leaking OS assumptions into Resource
+  Manager.
 - Make app-owned exposure first-class in the networking UI flow: create and
   inspect application endpoints, expose ports, connect them to virtual
   networks, load-balancer routes, and name mappings, and show inbound/outbound

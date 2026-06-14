@@ -251,6 +251,10 @@ expectations rather than duplicating the task queue.
   owns a configured development port, Resource Manager can show a stable
   "address already in use" reason before the provider attempts to start the
   process.
+- Container app Start action availability now preflights local host-published
+  endpoint ports, including app-owned ingress ports, so Resource Manager can
+  show the same stable occupied-port reason before the Docker-backed runtime
+  path attempts to bind the port.
 - ASP.NET Core project endpoints have an explicit source order: programmatic
   endpoint declarations win, `launchSettings.json` is used only when
   `WithLaunchSettingsEndpoints()` is declared, and the provider otherwise
@@ -548,6 +552,10 @@ expectations rather than duplicating the task queue.
 - Host-provided virtual networking starts with macOS. The built-in macOS host
   networking provider is an activated resource that can materialize virtual
   endpoint mappings as local TCP proxies for HTTP, HTTPS, and TCP endpoints.
+  This is now documented as the first OS-specific host networking provider
+  path; Linux, Windows, and runtime-specific hosts should plug in through the
+  same capability/diagnostic boundary rather than becoming Resource Manager
+  special cases.
 - Network resources project endpoint mappings as first-class resource data.
   Resource Manager shows mappings on the network resource and read-only network
   exposure on mapped target resources, instead of treating exposure as a

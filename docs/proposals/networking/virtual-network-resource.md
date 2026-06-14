@@ -275,7 +275,11 @@ reason. It should not silently imply isolation or routing that does not exist.
 The default orchestrator should implement virtual networks as logical
 host-local networks. The first host-provided implementation targets macOS by
 activating `networking:host-macos`, which materializes selected endpoint
-mappings as local TCP proxies.
+mappings as local TCP proxies. That macOS provider is the first OS-specific
+implementation, not the abstraction boundary. Linux, Windows, and future
+runtime-specific hosts should provide equivalent capabilities through their own
+host networking providers and diagnostics instead of making Resource Manager
+depend on macOS behavior.
 
 Supported behavior:
 
@@ -288,6 +292,8 @@ Supported behavior:
 - Validate endpoint mappings through `reconcileEndpointMappings`.
 - Materialize HTTP, HTTPS, and TCP mappings through the activated macOS host
   networking provider when a mapping selects `networking:host-macos`.
+- Allow other OS-specific host networking providers to advertise the same
+  mapping capabilities when they can materialize equivalent local behavior.
 - Represent load-balanced mappings logically by validating the source endpoint,
   target endpoint or backend pool, and selected provider capabilities.
 - Allow provider-backed local load balancers to run as ordinary resources when

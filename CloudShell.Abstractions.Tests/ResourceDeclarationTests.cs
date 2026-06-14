@@ -1347,6 +1347,66 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ReportsOccupiedContainerEndpointAsActionUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var services = new ServiceCollection();
+
+        try
+        {
+            services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+            services
+                .AddControlPlane()
+                .AddApplicationProvider(options =>
+                {
+                    options.DefinitionsPath = "application-resources.json";
+                    options.RuntimeStatePath = "application-runtime-state.json";
+                    options.LogDirectory = "application-logs";
+                });
+
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var registrations = new MutableResourceRegistrationStore();
+            await provider.SetupApplicationAsync(
+                new ApplicationResourceDefinition(
+                    "application:api",
+                    "API",
+                    string.Empty,
+                    containerImage: "nginx:1.27",
+                    endpointPorts:
+                    [
+                        new ServicePort("http", 80, port, "http")
+                    ],
+                    resourceType: ApplicationResourceTypes.ContainerApp),
+                resourceGroupId: null,
+                registrations);
+
+            var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+            var resourceManager = new StaticResourceManagerStore([resource], [provider]);
+
+            var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                ResourceAction.Start);
+
+            Assert.Equal(
+                $"Endpoint 'http' for container app resource 'application:api' cannot use local port {port} because the address is already in use.",
+                reason);
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
     public async Task LocalProcessRunner_DisposeStopsControlPlaneScopedProcesses()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

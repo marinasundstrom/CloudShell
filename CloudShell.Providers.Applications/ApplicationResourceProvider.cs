@@ -297,9 +297,7 @@ public sealed partial class ApplicationResourceProvider(
             return Task.FromResult<string?>(volumeReason);
         }
 
-        return Task.FromResult(action.Kind == ResourceActionKind.Start
-            ? GetLocalProcessEndpointUnavailableReason(application)
-            : null);
+        return Task.FromResult(GetEndpointUnavailableReason(application, action.Kind));
     }
 
     public bool CanExecuteOrchestratorService(
@@ -2633,13 +2631,23 @@ public sealed partial class ApplicationResourceProvider(
         return [ResourceEndpoint.FromAddress("application", endpoint, protocol, ResourceExposureScope.Public)];
     }
 
-    private string? GetLocalProcessEndpointUnavailableReason(ApplicationResourceDefinition application)
+    private string? GetEndpointUnavailableReason(
+        ApplicationResourceDefinition application,
+        ResourceActionKind actionKind)
     {
-        if (IsContainerBacked(application))
+        if (actionKind == ResourceActionKind.Restart &&
+            IsRunning(application.Id))
         {
             return null;
         }
 
+        return IsContainerBacked(application)
+            ? GetContainerEndpointUnavailableReason(application)
+            : GetLocalProcessEndpointUnavailableReason(application);
+    }
+
+    private string? GetLocalProcessEndpointUnavailableReason(ApplicationResourceDefinition application)
+    {
         foreach (var endpoint in CreateEndpoints(application))
         {
             if (!TryGetLoopbackEndpoint(endpoint, out var addresses, out var port))
@@ -2651,6 +2659,26 @@ public sealed partial class ApplicationResourceProvider(
             {
                 return
                     $"Endpoint '{endpoint.Name}' for application resource '{application.Id}' cannot use {endpoint.Address} because the address is already in use.";
+            }
+        }
+
+        return null;
+    }
+
+    private string? GetContainerEndpointUnavailableReason(ApplicationResourceDefinition application)
+    {
+        var occupiedPorts = new HashSet<int>();
+        foreach (var port in CreateDefaultContainerOrchestratorService(application).ServicePorts)
+        {
+            var localPort = ResolveLocalPort(application.Id, port);
+            if (!occupiedPorts.Add(localPort))
+            {
+                return $"Endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because another endpoint on the resource already uses that port.";
+            }
+
+            if (!IsLocalHostPortAvailable(localPort))
+            {
+                return $"Endpoint '{port.Name}' for container app resource '{application.Id}' cannot use local port {localPort.ToString(CultureInfo.InvariantCulture)} because the address is already in use.";
             }
         }
 
@@ -2709,6 +2737,12 @@ public sealed partial class ApplicationResourceProvider(
             return true;
         }
     }
+
+    private static bool IsLocalHostPortAvailable(int port) =>
+        IsTcpPortAvailable(IPAddress.Any, port) &&
+        IsTcpPortAvailable(IPAddress.IPv6Any, port) &&
+        IsTcpPortAvailable(IPAddress.Loopback, port) &&
+        IsTcpPortAvailable(IPAddress.IPv6Loopback, port);
 
     private static ProcessStartInfo CreateScopedStartInfo(ApplicationResourceDefinition definition)
     {

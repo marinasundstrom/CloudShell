@@ -164,6 +164,7 @@ Implemented pieces include:
   display on application overview pages
 * attached volume display on application overview pages, with the Storage tab
   remaining the edit surface
+* local host-published endpoint preflight before container app start
 * local/default container-host path and host capability diagnostics
 
 ## MVP Implementation Plan
@@ -180,7 +181,9 @@ Implemented pieces include:
    endpoint, internal/virtual exposure, public endpoint, load balancer, and
    DNS/domain mappings.
 5. Add conflict and readiness diagnostics for endpoint ports, load-balancer
-   routes, DNS/name mappings, and unsupported host capabilities.
+   routes, DNS/name mappings, and unsupported host capabilities. Local
+   host-published endpoint preflight is in place for container app start;
+   route, DNS, and provider-backed diagnostics remain open.
 6. Keep image update and explicit replica count as the MVP deployment surface.
    Defer rollout history and traffic splitting to the deployment/revision
    proposal.
@@ -194,8 +197,8 @@ Implemented pieces include:
   runtime paths.
 * Add application-centric UI for internal exposure, public endpoint exposure,
   load-balancer route selection, and DNS/domain mapping authoring.
-* Add endpoint and route conflict diagnostics before start/update where
-  possible.
+* Add route, DNS/name, and provider-backed endpoint conflict diagnostics before
+  start/update where possible.
 * Add host capability diagnostics for unsupported storage media, ingress,
   public endpoint, or DNS/name publication choices.
 * Improve restart/update behavior around image, replica, environment, endpoint,
