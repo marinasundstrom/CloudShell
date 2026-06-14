@@ -127,6 +127,42 @@ public static class PlatformResourceDeclarationExtensions
         return new LoadBalancerResourceBuilder(resource, declared);
     }
 
+    public static IVolumeResourceBuilder AddVolume(
+        this IResourceDeclarationBuilder builder,
+        string id,
+        string? name = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+
+        var normalizedId = NormalizeVolumeId(id);
+        var definition = new VolumeResourceDefinition(
+            normalizedId,
+            string.IsNullOrWhiteSpace(name) ? CreateDisplayName(normalizedId) : name.Trim());
+        var declared = new DeclaredVolumeResource(definition);
+        builder.Services
+            .GetOrAddPlatformResourceOptions()
+            .DeclaredVolumes
+            .Add(declared);
+
+        var resource = builder.Declare(
+            PlatformResourceProvider.ProviderId,
+            definition.Id,
+            resourceClass: ResourceClass.Storage,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.VolumeProvider] = "local",
+                [ResourceAttributeNames.VolumePersistent] = "true"
+            },
+            onChanged: declaration =>
+            {
+                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
+                declared.OverwritePersistedState = declaration.OverwritePersistedState;
+            });
+
+        return new VolumeResourceBuilder(resource, declared);
+    }
+
     public static IResourceBuilder AddMacOSHostNetworking(
         this IResourceDeclarationBuilder builder,
         string? resourceGroupId = null)
@@ -171,6 +207,14 @@ public static class PlatformResourceDeclarationExtensions
         return normalized.Contains(':', StringComparison.Ordinal)
             ? normalized
             : $"load-balancer:{normalized}";
+    }
+
+    private static string NormalizeVolumeId(string id)
+    {
+        var normalized = id.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : $"volume:{normalized}";
     }
 
     private static string CreateDisplayName(string resourceId)
@@ -401,6 +445,41 @@ public interface ILoadBalancerResourceBuilder : IResourceBuilder
     new ILoadBalancerResourceBuilder WithReferences(IEnumerable<string> resourceIds);
 
     new ILoadBalancerResourceBuilder Persist(bool overwrite = false);
+}
+
+public interface IVolumeResourceBuilder : IResourceBuilder
+{
+    IVolumeResourceBuilder UseProvider(string provider);
+
+    IVolumeResourceBuilder UseLocation(string location);
+
+    IVolumeResourceBuilder UseHostPath(string path);
+
+    IVolumeResourceBuilder WithAccessMode(VolumeAccessMode accessMode);
+
+    IVolumeResourceBuilder AsPersistent(bool persistent = true);
+
+    new IVolumeResourceBuilder DependsOn(string resourceId);
+
+    new IVolumeResourceBuilder DependsOn(IResourceBuilder resource);
+
+    new IVolumeResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IVolumeResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
+
+    new IVolumeResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IVolumeResourceBuilder WithParent(string? parentResourceId);
+
+    new IVolumeResourceBuilder WithParent(IResourceBuilder resource);
+
+    new IVolumeResourceBuilder WithReference(string resourceId);
+
+    new IVolumeResourceBuilder WithReference(IResourceBuilder resource);
+
+    new IVolumeResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+
+    new IVolumeResourceBuilder Persist(bool overwrite = false);
 }
 
 internal sealed class NetworkResourceBuilder(
@@ -807,6 +886,167 @@ internal sealed class ServiceResourceBuilder(
     }
 
     public IServiceResourceBuilder Persist(bool overwrite = false)
+    {
+        inner.Persist(overwrite);
+        return this;
+    }
+
+    IResourceBuilder IResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
+        WithResourceGroup(resourceGroupId);
+
+    IResourceBuilder IResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    IResourceBuilder IResourceBuilder.WithParent(IResourceBuilder resource) =>
+        WithParent(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(string resourceId) =>
+        DependsOn(resourceId);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IResourceBuilder resource) =>
+        DependsOn(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+        DependsOn(resourceIds);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<IResourceBuilder> resources) =>
+        DependsOn(resources);
+
+    IResourceBuilder IResourceBuilder.WithReference(string resourceId) =>
+        WithReference(resourceId);
+
+    IResourceBuilder IResourceBuilder.WithReference(IResourceBuilder resource) =>
+        WithReference(resource);
+
+    IResourceBuilder IResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
+        WithReferences(resourceIds);
+
+    IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
+        Persist(overwrite);
+}
+
+internal sealed class VolumeResourceBuilder(
+    IResourceBuilder inner,
+    DeclaredVolumeResource declared) : IVolumeResourceBuilder
+{
+    public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
+
+    public string ResourceId => inner.ResourceId;
+
+    public ResourceIdentityReference Identity => inner.Identity;
+
+    public IVolumeResourceBuilder UseProvider(string provider)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        declared.Definition = declared.Definition with
+        {
+            Provider = provider.Trim()
+        };
+        inner.WithResourceAttribute(ResourceAttributeNames.VolumeProvider, provider.Trim());
+        return this;
+    }
+
+    public IVolumeResourceBuilder UseLocation(string location)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(location);
+        declared.Definition = declared.Definition with
+        {
+            Location = location.Trim()
+        };
+        inner.WithResourceAttribute(ResourceAttributeNames.VolumeLocation, location.Trim());
+        return this;
+    }
+
+    public IVolumeResourceBuilder UseHostPath(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        return UseProvider("local")
+            .UseLocation(path);
+    }
+
+    public IVolumeResourceBuilder WithAccessMode(VolumeAccessMode accessMode)
+    {
+        declared.Definition = declared.Definition with
+        {
+            AccessMode = accessMode
+        };
+        inner.WithResourceAttribute(ResourceAttributeNames.VolumeAccessMode, accessMode.ToString());
+        return this;
+    }
+
+    public IVolumeResourceBuilder AsPersistent(bool persistent = true)
+    {
+        declared.Definition = declared.Definition with
+        {
+            Persistent = persistent
+        };
+        inner.WithResourceAttribute(
+            ResourceAttributeNames.VolumePersistent,
+            persistent.ToString().ToLowerInvariant());
+        return this;
+    }
+
+    public IVolumeResourceBuilder WithResourceGroup(string? resourceGroupId)
+    {
+        inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public IVolumeResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public IVolumeResourceBuilder WithParent(IResourceBuilder resource)
+    {
+        inner.WithParent(resource);
+        return this;
+    }
+
+    public IVolumeResourceBuilder DependsOn(string resourceId)
+    {
+        inner.DependsOn(resourceId);
+        return this;
+    }
+
+    public IVolumeResourceBuilder DependsOn(IResourceBuilder resource)
+    {
+        inner.DependsOn(resource);
+        return this;
+    }
+
+    public IVolumeResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    {
+        inner.DependsOn(resourceIds);
+        return this;
+    }
+
+    public IVolumeResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources)
+    {
+        inner.DependsOn(resources);
+        return this;
+    }
+
+    public IVolumeResourceBuilder WithReference(string resourceId)
+    {
+        inner.WithReference(resourceId);
+        return this;
+    }
+
+    public IVolumeResourceBuilder WithReference(IResourceBuilder resource)
+    {
+        inner.WithReference(resource);
+        return this;
+    }
+
+    public IVolumeResourceBuilder WithReferences(IEnumerable<string> resourceIds)
+    {
+        inner.WithReferences(resourceIds);
+        return this;
+    }
+
+    public IVolumeResourceBuilder Persist(bool overwrite = false)
     {
         inner.Persist(overwrite);
         return this;

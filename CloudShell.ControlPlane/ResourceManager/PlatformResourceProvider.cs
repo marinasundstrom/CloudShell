@@ -26,6 +26,7 @@ public sealed class PlatformResourceProvider(
     public const string NetworkResourceType = "cloudshell.network";
     public const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
     public const string ServiceResourceType = "cloudshell.service";
+    public const string VolumeResourceType = "cloudshell.volume";
     public const string LoadBalancerResourceType = "cloudshell.loadBalancer";
     public const string ReconcileEndpointMappingsActionId = "reconcileEndpointMappings";
     public const string ApplyLoadBalancerConfigurationActionId = "applyLoadBalancerConfiguration";
@@ -64,6 +65,7 @@ public sealed class PlatformResourceProvider(
         [
             .. networks.Select(CreateNetworkResource),
             .. store.GetServices().Select(CreateServiceResource),
+            .. store.GetVolumes().Select(CreateVolumeResource),
             .. store.GetLoadBalancers().Select(CreateLoadBalancerResource)
         ];
     }
@@ -71,6 +73,7 @@ public sealed class PlatformResourceProvider(
     public bool CanCreate(ResourceCreationRequest request) =>
         IsNetworkResourceType(request.ResourceType) ||
         string.Equals(request.ResourceType, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(request.ResourceType, VolumeResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
 
     public async Task CreateAsync(
@@ -118,6 +121,22 @@ public sealed class PlatformResourceProvider(
             var definition = request.Configuration.Deserialize<LoadBalancerResourceDefinition>(SerializerOptions)
                 ?? throw new InvalidOperationException("Load balancer resource configuration is required.");
             await SetupLoadBalancerAsync(
+                definition with
+                {
+                    Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
+                    Name = string.IsNullOrWhiteSpace(definition.Name) ? request.Name : definition.Name
+                },
+                request.ResourceGroupId,
+                context.Registrations,
+                cancellationToken);
+            return;
+        }
+
+        if (string.Equals(request.ResourceType, VolumeResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            var definition = request.Configuration.Deserialize<VolumeResourceDefinition>(SerializerOptions)
+                ?? throw new InvalidOperationException("Volume resource configuration is required.");
+            await SetupVolumeAsync(
                 definition with
                 {
                     Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
@@ -188,6 +207,21 @@ public sealed class PlatformResourceProvider(
             NormalizeGroupId(resourceGroupId),
             CreateLoadBalancerDependencies(normalized),
             cancellationToken);
+    }
+
+    public async Task SetupVolumeAsync(
+        VolumeResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeVolume(definition);
+        store.SaveVolume(normalized);
+        await registrations.RegisterAsync(
+            Id,
+            normalized.Id,
+            NormalizeGroupId(resourceGroupId),
+            cancellationToken: cancellationToken);
     }
 
     public async Task<ResourceProcedureResult> DeleteAsync(
@@ -366,6 +400,27 @@ public sealed class PlatformResourceProvider(
                 cancellationToken);
         }
 
+        var declaredVolume = options.DeclaredVolumes.FirstOrDefault(volume =>
+            string.Equals(volume.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase));
+
+        if (declaredVolume is not null)
+        {
+            var normalized = NormalizeVolume(declaredVolume.Definition);
+            if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
+            {
+                store.SaveVolume(
+                    normalized,
+                    persist: true);
+            }
+
+            return registrations.RegisterAsync(
+                Id,
+                normalized.Id,
+                NormalizeGroupId(declaration.ResourceGroupId),
+                declaration.DependsOn,
+                cancellationToken);
+        }
+
         var declaredLoadBalancer = options.DeclaredLoadBalancers.FirstOrDefault(loadBalancer =>
                 string.Equals(loadBalancer.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException(
@@ -397,6 +452,7 @@ public sealed class PlatformResourceProvider(
     public bool CanDescribe(Resource resource) =>
         IsNetworkResourceType(resource.EffectiveTypeId) ||
         string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resource.EffectiveTypeId, VolumeResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(resource.EffectiveTypeId, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
 
     public Task<ResourceOrchestrationDescriptor> DescribeAsync(
@@ -430,6 +486,20 @@ public sealed class PlatformResourceProvider(
                 resource.Endpoints,
                 "1.0",
                 JsonSerializer.SerializeToElement(loadBalancer, SerializerOptions)));
+        }
+
+        if (string.Equals(resource.EffectiveTypeId, VolumeResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            var volume = store.GetVolume(resource.Id)
+                ?? throw new InvalidOperationException($"Volume resource '{resource.Id}' is not configured.");
+            return Task.FromResult(new ResourceOrchestrationDescriptor(
+                resource.Id,
+                resource.EffectiveTypeId,
+                resource.DependsOn,
+                [],
+                resource.Endpoints,
+                "1.0",
+                JsonSerializer.SerializeToElement(volume, SerializerOptions)));
         }
 
         var service = store.GetService(resource.Id)
@@ -916,6 +986,35 @@ public sealed class PlatformResourceProvider(
             },
             Capabilities: [new(ResourceCapabilityIds.EndpointSource)]);
 
+    private Resource CreateVolumeResource(VolumeResourceDefinition definition) =>
+        new(
+            definition.Id,
+            definition.Name,
+            "Volume",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [],
+            string.IsNullOrWhiteSpace(definition.Provider)
+                ? "local"
+                : definition.Provider,
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: VolumeResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.VolumeProvider] =
+                    string.IsNullOrWhiteSpace(definition.Provider) ? "local" : definition.Provider,
+                [ResourceAttributeNames.VolumeLocation] =
+                    string.IsNullOrWhiteSpace(definition.Location) ? "managed" : definition.Location,
+                [ResourceAttributeNames.VolumeAccessMode] =
+                    definition.AccessMode.ToString(),
+                [ResourceAttributeNames.VolumePersistent] =
+                    definition.Persistent.ToString().ToLowerInvariant()
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+
     private Resource CreateLoadBalancerResource(LoadBalancerResourceDefinition definition)
     {
         var endpoints = CreateLoadBalancerEndpoints(definition);
@@ -1271,6 +1370,15 @@ public sealed class PlatformResourceProvider(
                     }
                 })
                 .ToArray()
+        };
+
+    private static VolumeResourceDefinition NormalizeVolume(VolumeResourceDefinition definition) =>
+        definition with
+        {
+            Id = NormalizeResourceId(definition.Id, "volume", definition.Name),
+            Name = definition.Name.Trim(),
+            Provider = NormalizeNullable(definition.Provider),
+            Location = NormalizeNullable(definition.Location)
         };
 
     private static ResourceState? NormalizeLoadBalancerRuntimeState(ResourceState? state) =>

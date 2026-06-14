@@ -3196,6 +3196,62 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void PlatformResources_DeclareVolume()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddVolume("postgres-data", "Postgres Data")
+                    .UseHostPath("./data/postgres")
+                    .WithAccessMode(VolumeAccessMode.ReadWriteOnce)
+                    .Persist();
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var declaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "volume:postgres-data");
+
+        Assert.Equal(PlatformResourceProvider.ProviderId, declaration.ProviderId);
+        Assert.Equal(ResourceClass.Storage, declaration.ResourceClassOverride);
+        Assert.Equal(ResourceDeclarationPersistence.Persisted, declaration.Persistence);
+        Assert.Equal("local", declaration.ResourceAttributes[ResourceAttributeNames.VolumeProvider]);
+        Assert.Equal("./data/postgres", declaration.ResourceAttributes[ResourceAttributeNames.VolumeLocation]);
+        Assert.Equal("ReadWriteOnce", declaration.ResourceAttributes[ResourceAttributeNames.VolumeAccessMode]);
+
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var definition = Assert.Single(options.DeclaredVolumes).Definition;
+
+        Assert.Equal("volume:postgres-data", definition.Id);
+        Assert.Equal("Postgres Data", definition.Name);
+        Assert.Equal("local", definition.Provider);
+        Assert.Equal("./data/postgres", definition.Location);
+        Assert.True(definition.Persistent);
+        Assert.Equal(VolumeAccessMode.ReadWriteOnce, definition.AccessMode);
+
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "volume:postgres-data");
+
+        Assert.Equal(PlatformResourceProvider.VolumeResourceType, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Storage, resource.ResourceClass);
+        Assert.Equal(ResourceState.Running, resource.State);
+        Assert.Empty(resource.Endpoints);
+        Assert.Equal("local", resource.ResourceAttributes[ResourceAttributeNames.VolumeProvider]);
+        Assert.Equal("./data/postgres", resource.ResourceAttributes[ResourceAttributeNames.VolumeLocation]);
+        Assert.Equal("ReadWriteOnce", resource.ResourceAttributes[ResourceAttributeNames.VolumeAccessMode]);
+        Assert.Equal("true", resource.ResourceAttributes[ResourceAttributeNames.VolumePersistent]);
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.StorageVolume));
+    }
+
+    [Fact]
     public void Resources_RegisterProgrammaticIdentityProviderAndDefault()
     {
         var services = new ServiceCollection();

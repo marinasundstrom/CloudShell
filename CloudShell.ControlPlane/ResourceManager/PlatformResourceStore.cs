@@ -38,6 +38,14 @@ public sealed class PlatformResourceStore
                 replaceExisting: !service.Persist || service.OverwritePersistedState);
         }
 
+        foreach (var volume in options.DeclaredVolumes)
+        {
+            UpsertVolume(
+                volume.Definition,
+                persist: false,
+                replaceExisting: !volume.Persist || volume.OverwritePersistedState);
+        }
+
         foreach (var loadBalancer in options.DeclaredLoadBalancers)
         {
             UpsertLoadBalancer(
@@ -85,6 +93,25 @@ public sealed class PlatformResourceStore
         }
     }
 
+    public IReadOnlyList<VolumeResourceDefinition> GetVolumes()
+    {
+        lock (_gate)
+        {
+            return _definitions.Volumes
+                .OrderBy(volume => volume.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+    }
+
+    public VolumeResourceDefinition? GetVolume(string id)
+    {
+        lock (_gate)
+        {
+            return _definitions.Volumes.FirstOrDefault(volume =>
+                string.Equals(volume.Id, id, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public IReadOnlyList<LoadBalancerResourceDefinition> GetLoadBalancers()
     {
         lock (_gate)
@@ -120,6 +147,14 @@ public sealed class PlatformResourceStore
         }
     }
 
+    public void SaveVolume(VolumeResourceDefinition definition, bool persist = true)
+    {
+        lock (_gate)
+        {
+            UpsertVolume(definition, persist, replaceExisting: true);
+        }
+    }
+
     public void SaveLoadBalancer(LoadBalancerResourceDefinition definition, bool persist = true)
     {
         lock (_gate)
@@ -140,6 +175,9 @@ public sealed class PlatformResourceStore
                 Services = _definitions.Services
                     .Where(service => !string.Equals(service.Id, id, StringComparison.OrdinalIgnoreCase))
                     .ToArray(),
+                Volumes = _definitions.Volumes
+                    .Where(volume => !string.Equals(volume.Id, id, StringComparison.OrdinalIgnoreCase))
+                    .ToArray(),
                 LoadBalancers = _definitions.LoadBalancers
                     .Where(loadBalancer => !string.Equals(loadBalancer.Id, id, StringComparison.OrdinalIgnoreCase))
                     .ToArray()
@@ -152,17 +190,18 @@ public sealed class PlatformResourceStore
     {
         if (!File.Exists(_definitionsPath))
         {
-            return new PlatformResourceDefinitions([], [], []);
+            return new PlatformResourceDefinitions([], [], [], []);
         }
 
         var json = File.ReadAllText(_definitionsPath);
         var definitions = JsonSerializer.Deserialize<PlatformResourceDefinitions>(json, SerializerOptions)
-            ?? new PlatformResourceDefinitions([], [], []);
+            ?? new PlatformResourceDefinitions([], [], [], []);
 
         return definitions with
         {
             Networks = (definitions.Networks ?? []).Select(NormalizeNetwork).ToArray(),
             Services = (definitions.Services ?? []).Select(NormalizeService).ToArray(),
+            Volumes = (definitions.Volumes ?? []).Select(NormalizeVolume).ToArray(),
             LoadBalancers = (definitions.LoadBalancers ?? []).Select(NormalizeLoadBalancer).ToArray()
         };
     }
@@ -211,6 +250,33 @@ public sealed class PlatformResourceStore
         {
             Services = _definitions.Services
                 .Where(service => !string.Equals(service.Id, normalized.Id, StringComparison.OrdinalIgnoreCase))
+                .Append(normalized)
+                .ToArray()
+        };
+
+        if (persist)
+        {
+            Persist();
+        }
+    }
+
+    private void UpsertVolume(
+        VolumeResourceDefinition definition,
+        bool persist,
+        bool replaceExisting)
+    {
+        var normalized = NormalizeVolume(definition);
+        var existing = _definitions.Volumes.FirstOrDefault(volume =>
+            string.Equals(volume.Id, normalized.Id, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null && !replaceExisting)
+        {
+            return;
+        }
+
+        _definitions = _definitions with
+        {
+            Volumes = _definitions.Volumes
+                .Where(volume => !string.Equals(volume.Id, normalized.Id, StringComparison.OrdinalIgnoreCase))
                 .Append(normalized)
                 .ToArray()
         };
@@ -335,6 +401,15 @@ public sealed class PlatformResourceStore
             Routes = NormalizeLoadBalancerRoutes(definition.LoadBalancerRoutes)
         };
 
+    private static VolumeResourceDefinition NormalizeVolume(VolumeResourceDefinition definition) =>
+        definition with
+        {
+            Id = NormalizeId(definition.Id, "volume", definition.Name),
+            Name = definition.Name.Trim(),
+            Provider = NormalizeNullable(definition.Provider),
+            Location = NormalizeNullable(definition.Location)
+        };
+
     private static ResourceState? NormalizeLoadBalancerRuntimeState(ResourceState? state) =>
         state is ResourceState.Running or ResourceState.Starting
             ? ResourceState.Running
@@ -446,5 +521,6 @@ public sealed class PlatformResourceStore
     private sealed record PlatformResourceDefinitions(
         IReadOnlyList<NetworkResourceDefinition> Networks,
         IReadOnlyList<ServiceResourceDefinition> Services,
+        IReadOnlyList<VolumeResourceDefinition> Volumes,
         IReadOnlyList<LoadBalancerResourceDefinition> LoadBalancers);
 }

@@ -14,6 +14,8 @@ public sealed class PlatformResourceOptions
 
     public List<DeclaredServiceResource> DeclaredServices { get; } = [];
 
+    public List<DeclaredVolumeResource> DeclaredVolumes { get; } = [];
+
     public List<DeclaredLoadBalancerResource> DeclaredLoadBalancers { get; } = [];
 }
 
@@ -29,6 +31,15 @@ public sealed class DeclaredNetworkResource(NetworkResourceDefinition definition
 public sealed class DeclaredServiceResource(ServiceResourceDefinition definition)
 {
     public ServiceResourceDefinition Definition { get; set; } = definition;
+
+    public bool Persist { get; set; }
+
+    public bool OverwritePersistedState { get; set; }
+}
+
+public sealed class DeclaredVolumeResource(VolumeResourceDefinition definition)
+{
+    public VolumeResourceDefinition Definition { get; set; } = definition;
 
     public bool Persist { get; set; }
 

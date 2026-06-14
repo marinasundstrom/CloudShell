@@ -76,6 +76,7 @@ public enum ResourceClass
     Container,
     Service,
     Network,
+    Storage,
     Configuration,
     Infrastructure,
     SecretsVault
@@ -97,6 +98,10 @@ public static class ResourceAttributeNames
     public const string ContainerHostId = "container.engineId";
     public const string ContainerReplicas = "container.replicas";
     public const string ContainerRevision = "container.revision";
+    public const string VolumeProvider = "storage.volume.provider";
+    public const string VolumeLocation = "storage.volume.location";
+    public const string VolumeAccessMode = "storage.volume.accessMode";
+    public const string VolumePersistent = "storage.volume.persistent";
     public const string VolumeMountCount = "storage.volumeMounts";
     public const string EndpointCount = "endpoints.count";
     public const string ConfigurationEntryCount = "configuration.entries";

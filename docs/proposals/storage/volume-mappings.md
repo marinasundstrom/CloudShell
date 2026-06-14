@@ -4,11 +4,12 @@
 
 In progress.
 
-Initial domain primitives are in place for container app volume mounts:
-`ResourceVolumeMount`, workload descriptor projection, container declaration
-builder support, application resource mount counts, and a storage volume
-consumer capability. Runtime provider materialization, first-class volume
-resources, Resource Manager create/attach UI, and usage monitoring remain open.
+Initial domain primitives are in place for volume resources and container app
+volume mounts: `cloudshell.volume`, `ResourceVolumeMount`, workload descriptor
+projection, container declaration builder support, application resource mount
+counts, and storage volume/consumer capabilities. Runtime provider
+materialization, Resource Manager create/attach UI, provider-backed volume
+resources, and usage monitoring remain open.
 
 ## Problem
 
@@ -97,9 +98,20 @@ Suggested capability identifiers:
 - `storage.snapshot`
 - `storage.backup`
 
-For MVP, the primary concept is a volume. A volume represents a stable
-mountable storage target that can be attached to one or more resources through
-a target path.
+For MVP, the primary concept is a volume. A volume is an allocated physical
+storage space that can be referenced and utilized by a resource. It represents
+a stable mountable storage target that can be attached to one or more
+resources through a target path.
+
+`resources.AddVolume(...)` declares a CloudShell volume resource and assumes a
+storage allocation somewhere on, or addressable from, the local machine unless
+a provider or location is supplied. This is intentionally lightweight for
+local development: the volume can be tracked as a resource without requiring a
+separate storage-provider resource or storage-control-plane service.
+
+A specific storage resource or provider can later own a specific kind of
+volume. In that case, the provider materializes the allocation and can report
+provider-specific diagnostics and usage metrics for the resource.
 
 A volume projects:
 
@@ -167,7 +179,17 @@ resources
     .WithVolume(data, "/app/uploads");
 ```
 
-Provider-backed mountable storage:
+Provider-backed mountable storage by provider name:
+
+```csharp
+var media = resources
+    .AddVolume("volume:media", "Media")
+    .UseProvider("nas")
+    .UseLocation("team-share/media")
+    .WithAccessMode(VolumeAccessMode.ReadWriteMany);
+```
+
+Future provider-backed storage resource:
 
 ```csharp
 var storage = resources.AddStorageProvider(
@@ -176,8 +198,7 @@ var storage = resources.AddStorageProvider(
 
 var media = resources
     .AddVolume("volume:media", "Media")
-    .UseProvider(storage)
-    .WithClass("shared-file");
+    .UseProvider(storage);
 ```
 
 ## Provider Responsibilities
@@ -284,10 +305,11 @@ through future monitoring APIs.
 
 1. Add storage and volume capability identifiers. Initial storage volume
    consumer capability is in place.
-2. Add the `cloudshell.volume` resource type identifier.
-3. Add declaration builders for volumes and volume mounts. Container app
-   `WithVolume(...)` support is in place for managed volume resource IDs and
-   unmanaged local volume references.
+2. Add the `cloudshell.volume` resource type identifier. Initial platform
+   volume resource projection is in place.
+3. Add declaration builders for volumes and volume mounts. `AddVolume(...)`
+   and container app `WithVolume(...)` support are in place for managed volume
+   resource IDs and unmanaged local volume references.
 4. Project volume attachments on application resources. Mount counts and
    workload descriptor volume mounts are in place.
 5. Map container app volume attachments through the default local and Docker

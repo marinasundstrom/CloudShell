@@ -99,7 +99,7 @@ Important properties:
 - `Id`: stable identifier.
 - `TypeId` / `EffectiveTypeId`: stable resource type.
 - `ResourceClass`: broad resource classification such as executable, project,
-  container, service, network, configuration, or infrastructure.
+  container, service, network, storage, configuration, or infrastructure.
 - `Attributes`: stable, non-secret details that describe the resource's class,
   type, or provider-owned shape.
 - `State`: lifecycle or health-oriented state.
@@ -120,6 +120,12 @@ attributes such as class, type, endpoints, actions, health checks,
 observability, and structural metadata; providers own the configuration and
 runtime behavior behind those attributes. `Resource` does not imply CloudShell
 owns all underlying provider configuration or runtime state.
+
+A storage volume resource represents allocated physical storage that can be
+referenced and mounted by another resource. A simple local volume can be
+declared without a separate storage-provider resource for local development,
+while provider-backed storage can later own materialization, diagnostics, and
+usage metrics for specific volume types.
 
 A container app resource is the top-level deployable workload. It may be bound
 to a specific container host resource, such as Local Docker, or it may omit that

@@ -285,6 +285,7 @@ public sealed class ResourceManagerStore(
             [PlatformResourceProvider.NetworkResourceType] = ResourceClass.Network,
             [PlatformResourceProvider.VirtualNetworkResourceType] = ResourceClass.Network,
             [PlatformResourceProvider.ServiceResourceType] = ResourceClass.Service,
+            [PlatformResourceProvider.VolumeResourceType] = ResourceClass.Storage,
             [PlatformResourceProvider.LoadBalancerResourceType] = ResourceClass.Network
         };
 

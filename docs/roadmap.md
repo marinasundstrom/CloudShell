@@ -86,9 +86,11 @@ listed here before pulling in broader proposal work.
    service resources, application-level service discovery, virtual networks,
    public endpoints, load-balancer routes, and logical DNS/name mappings form
    one understandable Resource Manager workflow.
-2. Stateful application foundation: add the first storage and volume-mapping
-   path so container applications and service resources can persist data
-   without provider-specific mount syntax leaking into the resource model.
+2. Stateful application foundation: continue the storage and volume-mapping
+   path now that `cloudshell.volume`, `AddVolume(...)`, and container app
+   volume mounts exist. Next slices should materialize mounts in runtime
+   providers and show storage relationships in Resource Manager without
+   leaking provider-specific mount syntax into the resource model.
 3. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider.
@@ -141,9 +143,10 @@ listed here before pulling in broader proposal work.
   through a load-balancer route; Resource Manager should show that relationship
   from both the target resource and the exposure resource.
 - Treat storage as part of the same app-environment path, not as deployment
-  trivia. The MVP needs at least basic volume resources and volume attachments
-  for container apps or executable apps, with Resource Manager showing which
-  resources depend on storage and whether the mapping can be materialized.
+  trivia. The MVP now has basic volume resources and container app volume
+  attachments; next it needs runtime materialization and Resource Manager
+  visibility showing which resources depend on storage and whether the mapping
+  can be materialized.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. Add a validation
   sample with a third-party OIDC/OAuth authority such as Keycloak once the
