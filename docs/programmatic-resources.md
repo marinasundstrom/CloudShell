@@ -309,14 +309,26 @@ dotnet run --project samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.c
 
 Set `hotReload: true` when you want `dotnet watch` for a project resource.
 CloudShell runs watch mode as non-interactive and asks `dotnet watch` to restart
-on rude edits instead of prompting. ASP.NET Core project resources get a stable
-local HTTP endpoint automatically when `endpoint` is omitted. Supplying
-`endpoint: "http://localhost:5127"` fixes the port instead. CloudShell injects
-the resolved endpoint into `ASPNETCORE_URLS`, so the project binds to the
-Resource Manager endpoint without relying on launch profiles.
-Use `WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`, or
-`WithEndpointPort(...)` to declare fixed or named endpoints. Named endpoints
-match the Aspire URI shape `https+http://_endpointName.serviceName`.
+on rude edits instead of prompting.
+
+ASP.NET Core project endpoint sources are resolved in a fixed order:
+
+1. Programmatic endpoints declared with `endpoint`, `WithEndpoint(...)`,
+   `WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`, or
+   `WithEndpointPort(...)`.
+2. `Properties/launchSettings.json` only when the declaration explicitly calls
+   `WithLaunchSettingsEndpoints()`.
+3. The ASP.NET project provider default: a stable local HTTP endpoint.
+
+Explicit endpoint declarations always win. If endpoints are declared manually,
+CloudShell ignores launch settings even when launch-settings endpoint loading
+was enabled earlier in the builder chain. CloudShell injects the resolved
+endpoint into `ASPNETCORE_URLS`, so the project binds to the Resource Manager
+endpoint without relying on launch profiles unless that launch-settings source
+was explicitly opted into. Provider defaults are local development bindings, not
+a general exposure mechanism; public or broader resource exposure should be
+declared explicitly. Named endpoints match the Aspire URI shape
+`https+http://_endpointName.serviceName`.
 
 `AddDocker()` declares the default local Docker host resource. The Docker
 resource can specify a registry with `WithRegistry(...)`; the registry defaults

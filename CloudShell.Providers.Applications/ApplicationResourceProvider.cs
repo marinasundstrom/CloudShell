@@ -63,6 +63,7 @@ public sealed partial class ApplicationResourceProvider(
 
     public IReadOnlyList<Resource> GetResources() => store
         .GetApplications()
+        .Select(ResolveDefinition)
         .Where(application => !IsHidden(application))
         .Select(CreateResource)
         .ToArray();
@@ -674,7 +675,8 @@ public sealed partial class ApplicationResourceProvider(
             application.ProjectPath,
             application.ProjectArguments,
             application.AspNetCoreHotReload,
-            application.ProjectContainerBuild);
+            ProjectContainerBuild: application.ProjectContainerBuild,
+            UseLaunchSettingsEndpoints: application.UseLaunchSettingsEndpoints);
 
         return Task.FromResult(new ResourceTemplateDefinition(
             application.Name,
@@ -733,7 +735,8 @@ public sealed partial class ApplicationResourceProvider(
             observability: configuration.Observability,
             projectPath: configuration.ProjectPath,
             projectArguments: configuration.ProjectArguments,
-            aspNetCoreHotReload: configuration.AspNetCoreHotReload);
+            aspNetCoreHotReload: configuration.AspNetCoreHotReload,
+            useLaunchSettingsEndpoints: configuration.UseLaunchSettingsEndpoints);
 
         await SetupApplicationAsync(
             definition,
@@ -746,9 +749,15 @@ public sealed partial class ApplicationResourceProvider(
             $"Imported application resource '{template.Name}'.");
     }
 
-    public ApplicationResourceDefinition? GetApplication(string id) => store.GetApplication(id);
+    public ApplicationResourceDefinition? GetApplication(string id) =>
+        store.GetApplication(id) is { } application
+            ? ResolveDefinition(application)
+            : null;
 
-    public IReadOnlyList<ApplicationResourceDefinition> GetApplications() => store.GetApplications();
+    public IReadOnlyList<ApplicationResourceDefinition> GetApplications() => store
+        .GetApplications()
+        .Select(ResolveDefinition)
+        .ToArray();
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
@@ -787,7 +796,7 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     public bool IsRunning(string applicationId) =>
-        store.GetApplication(applicationId) is { } application &&
+        GetApplication(applicationId) is { } application &&
         (IsContainerBacked(application)
             ? TryGetRunningProcess(application, out _)
             : localProcesses.IsRunning(CreateLocalProcessDefinition(application)));
@@ -798,7 +807,7 @@ public sealed partial class ApplicationResourceProvider(
 
     public async Task CleanupHostScopedResourcesAsync(CancellationToken cancellationToken = default)
     {
-        foreach (var application in store.GetApplications())
+        foreach (var application in GetApplications())
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (application.Lifetime != ApplicationLifetime.ControlPlaneScoped ||
@@ -822,7 +831,7 @@ public sealed partial class ApplicationResourceProvider(
         ResourceOrchestrationDescriptorContext context,
         CancellationToken cancellationToken = default)
     {
-        var application = store.GetApplication(resource.Id)
+        var application = GetApplication(resource.Id)
             ?? throw new InvalidOperationException($"Application resource '{resource.Id}' is not configured.");
 
         var workload = CreateWorkloadConfiguration(
@@ -889,7 +898,7 @@ public sealed partial class ApplicationResourceProvider(
         string? preferredContainerHostId,
         CancellationToken cancellationToken)
     {
-        var definition = store.GetApplication(applicationId)
+        var definition = GetApplication(applicationId)
             ?? throw new InvalidOperationException($"Application resource '{applicationId}' is not configured.");
 
         LogDevelopmentLifecycle(
@@ -2758,7 +2767,7 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
-    private static ApplicationResourceDefinition NormalizeDefinition(ApplicationResourceDefinition definition)
+    private ApplicationResourceDefinition NormalizeDefinition(ApplicationResourceDefinition definition)
     {
         var id = string.IsNullOrWhiteSpace(definition.Id)
             ? CreateId(definition.Name)
@@ -2771,6 +2780,9 @@ public sealed partial class ApplicationResourceProvider(
         var isProjectBacked = isAspNetCoreProject || definition.ProjectContainerBuild;
         var legacyProjectPath = isAspNetCoreProject
             ? TryExtractProjectPathFromDotNetArguments(definition.Arguments)
+            : null;
+        var projectPath = isProjectBacked
+            ? NormalizeNullable(definition.ProjectPath) ?? legacyProjectPath
             : null;
 
         return definition with
@@ -2800,9 +2812,7 @@ public sealed partial class ApplicationResourceProvider(
                 (IsContainerBacked(definition) ? CreateContainerRevision() : null),
             Replicas = Math.Max(1, definition.Replicas),
             ResourceType = resourceType,
-            ProjectPath = isProjectBacked
-                ? NormalizeNullable(definition.ProjectPath) ?? legacyProjectPath
-                : null,
+            ProjectPath = projectPath,
             ProjectArguments = isProjectBacked
                 ? NormalizeNullable(definition.ProjectArguments) ??
                     TryExtractApplicationArgumentsFromDotNetArguments(definition.Arguments)
@@ -2810,14 +2820,183 @@ public sealed partial class ApplicationResourceProvider(
             AspNetCoreHotReload = isProjectBacked
                 ? ResolveAspNetCoreHotReload(definition)
                 : definition.AspNetCoreHotReload,
+            UseLaunchSettingsEndpoints = isAspNetCoreProject &&
+                definition.UseLaunchSettingsEndpoints,
             DependsOn = NormalizeDependencies(definition.DependsOn, id),
             References = NormalizeReferences(definition.References, id),
-            EndpointPorts = NormalizeEndpointPorts(definition.EndpointPorts, resourceType, definition.Endpoint),
+            EndpointPorts = ResolveEndpointPorts(
+                definition.EndpointPorts,
+                resourceType,
+                definition.Endpoint,
+                projectPath,
+                definition.UseLaunchSettingsEndpoints),
             HealthChecks = NormalizeHealthChecks(definition.HealthChecks),
             Observability = NormalizeObservability(definition.Observability),
             AppSettings = NormalizeAppSettings(definition.AppSettings),
             EnvironmentVariables = NormalizeEnvironmentVariables(definition.EnvironmentVariables)
         };
+    }
+
+    private ApplicationResourceDefinition ResolveDefinition(ApplicationResourceDefinition definition)
+    {
+        if (!IsAspNetCoreProject(definition) ||
+            definition.EndpointPorts.Count > 0)
+        {
+            return definition;
+        }
+
+        var endpointPorts = definition.UseLaunchSettingsEndpoints
+            ? TryReadLaunchSettingsEndpointPorts(definition.ProjectPath)
+            : [];
+        return endpointPorts.Count == 0
+            ? definition with
+            {
+                EndpointPorts = CreateAspNetCoreProjectEndpointPorts(definition.Endpoint)
+            }
+            : definition with { EndpointPorts = endpointPorts };
+    }
+
+    private IReadOnlyList<ServicePort> ResolveEndpointPorts(
+        IReadOnlyList<ServicePort> ports,
+        string resourceType,
+        string? endpoint,
+        string? projectPath,
+        bool useLaunchSettingsEndpoints)
+    {
+        var normalized = NormalizeEndpointPorts(ports);
+        if (normalized.Count > 0 ||
+            !string.Equals(resourceType, ApplicationResourceTypes.AspNetCoreProject, StringComparison.OrdinalIgnoreCase))
+        {
+            return normalized;
+        }
+
+        if (useLaunchSettingsEndpoints)
+        {
+            var launchSettingsPorts = TryReadLaunchSettingsEndpointPorts(projectPath);
+            if (launchSettingsPorts.Count > 0)
+            {
+                return launchSettingsPorts;
+            }
+        }
+
+        return CreateAspNetCoreProjectEndpointPorts(endpoint);
+    }
+
+    private IReadOnlyList<ServicePort> TryReadLaunchSettingsEndpointPorts(string? projectPath)
+    {
+        var launchSettingsPath = ResolveLaunchSettingsPath(projectPath);
+        if (launchSettingsPath is null ||
+            !File.Exists(launchSettingsPath))
+        {
+            return [];
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(launchSettingsPath));
+            if (!document.RootElement.TryGetProperty("profiles", out var profiles) ||
+                profiles.ValueKind != JsonValueKind.Object)
+            {
+                return [];
+            }
+
+            var profileElements = profiles
+                .EnumerateObject()
+                .Select(profile => profile.Value)
+                .Where(profile => profile.ValueKind == JsonValueKind.Object)
+                .ToArray();
+            var orderedProfiles = profileElements
+                .Where(IsProjectLaunchProfile)
+                .Concat(profileElements.Where(profile => !IsProjectLaunchProfile(profile)));
+            foreach (var profile in orderedProfiles)
+            {
+                if (!profile.TryGetProperty("applicationUrl", out var applicationUrl) ||
+                    applicationUrl.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+
+                var endpointPorts = CreateLaunchSettingsEndpointPorts(applicationUrl.GetString());
+                if (endpointPorts.Count > 0)
+                {
+                    return endpointPorts;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+        catch (IOException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
+        }
+
+        return [];
+    }
+
+    private string? ResolveLaunchSettingsPath(string? projectPath)
+    {
+        if (string.IsNullOrWhiteSpace(projectPath))
+        {
+            return null;
+        }
+
+        var resolvedProjectPath = Path.IsPathRooted(projectPath)
+            ? projectPath
+            : Path.GetFullPath(projectPath, environment.ContentRootPath);
+        var projectDirectory = Directory.Exists(resolvedProjectPath)
+            ? resolvedProjectPath
+            : Path.GetDirectoryName(resolvedProjectPath);
+        return string.IsNullOrWhiteSpace(projectDirectory)
+            ? null
+            : Path.Combine(projectDirectory, "Properties", "launchSettings.json");
+    }
+
+    private static bool IsProjectLaunchProfile(JsonElement profile) =>
+        profile.TryGetProperty("commandName", out var commandName) &&
+        commandName.ValueKind == JsonValueKind.String &&
+        string.Equals(commandName.GetString(), "Project", StringComparison.OrdinalIgnoreCase);
+
+    private static IReadOnlyList<ServicePort> CreateLaunchSettingsEndpointPorts(string? applicationUrl)
+    {
+        if (string.IsNullOrWhiteSpace(applicationUrl))
+        {
+            return [];
+        }
+
+        var ports = new List<ServicePort>();
+        var names = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var value in applicationUrl.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+                uri.Port <= 0)
+            {
+                continue;
+            }
+
+            var protocol = string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme;
+            var name = CreateLaunchSettingsEndpointName(protocol, names);
+            ports.Add(new ServicePort(name, uri.Port, uri.Port, protocol, ResourceExposureScope.Local));
+        }
+
+        return ports;
+    }
+
+    private static string CreateLaunchSettingsEndpointName(
+        string protocol,
+        Dictionary<string, int> names)
+    {
+        names.TryGetValue(protocol, out var count);
+        count++;
+        names[protocol] = count;
+        return count == 1
+            ? protocol
+            : $"{protocol}-{count.ToString(CultureInfo.InvariantCulture)}";
     }
 
     private static IReadOnlyList<AppSetting> NormalizeAppSettings(
@@ -3850,7 +4029,8 @@ public sealed partial class ApplicationResourceProvider(
         string? ProjectPath = null,
         string? ProjectArguments = null,
         bool AspNetCoreHotReload = false,
-        bool ProjectContainerBuild = false);
+        bool ProjectContainerBuild = false,
+        bool UseLaunchSettingsEndpoints = false);
 
     private sealed record ProjectContainerImageReference(
         string Reference,

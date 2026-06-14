@@ -137,7 +137,9 @@ public static class ApplicationProviderServiceCollectionExtensions
             environmentVariables: environmentVariables,
             lifetime: lifetime,
             useServiceDiscovery: useServiceDiscovery,
-            endpointPorts: CreateAspNetCoreProjectEndpointPorts(endpoint),
+            endpointPorts: string.IsNullOrWhiteSpace(endpoint)
+                ? []
+                : CreateAspNetCoreProjectEndpointPorts(endpoint),
             resourceType: ApplicationResourceTypes.AspNetCoreProject,
             observability: observability,
             projectPath: projectPath,
@@ -453,7 +455,8 @@ internal sealed class ExecutableApplicationResourceBuilder(
             declared.Definition = declared.Definition with
             {
                 Endpoint = null,
-                EndpointPorts = ApplicationProviderServiceCollectionExtensions.CreateAspNetCoreProjectEndpointPorts(endpoint)
+                EndpointPorts = ApplicationProviderServiceCollectionExtensions.CreateAspNetCoreProjectEndpointPorts(endpoint),
+                UseLaunchSettingsEndpoints = false
             };
             return this;
         }
@@ -476,6 +479,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         declared.Definition = declared.Definition with
         {
             Endpoint = null,
+            UseLaunchSettingsEndpoints = false,
             EndpointPorts = declared.Definition.EndpointPorts
                 .Where(endpoint => !string.Equals(endpoint.Name, name, StringComparison.OrdinalIgnoreCase))
                 .Append(new ServicePort(name, targetPort, port, protocol, exposure))
@@ -495,6 +499,15 @@ internal sealed class ExecutableApplicationResourceBuilder(
         int targetPort = 443,
         string name = "https") =>
         WithEndpointPort(name, targetPort, port, "https");
+
+    public IProjectResourceBuilder WithLaunchSettingsEndpoints(bool enabled = true)
+    {
+        declared.Definition = declared.Definition with
+        {
+            UseLaunchSettingsEndpoints = enabled
+        };
+        return this;
+    }
 
     public IExecutableResourceBuilder WithHttpHealthCheck(
         string path,
@@ -990,6 +1003,12 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string name)
     {
         WithHttpsEndpoint(port, targetPort, name);
+        return this;
+    }
+
+    IProjectResourceBuilder IProjectResourceBuilder.WithLaunchSettingsEndpoints(bool enabled)
+    {
+        WithLaunchSettingsEndpoints(enabled);
         return this;
     }
 

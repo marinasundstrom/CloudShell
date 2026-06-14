@@ -102,6 +102,13 @@ expectations rather than duplicating the task queue.
   `dotnet watch --non-interactive` and sets
   `DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true` so rude edits restart instead of
   blocking on the watch prompt.
+- ASP.NET Core project endpoints have an explicit source order: programmatic
+  endpoint declarations win, `launchSettings.json` is used only when
+  `WithLaunchSettingsEndpoints()` is declared, and the provider otherwise
+  assigns a stable local development endpoint. Resource Manager UI create/update
+  flows remain manual and do not read launch settings; if a UI launch-settings
+  option is added later, it should be disabled when explicit endpoints are
+  configured. Broader resource exposure should remain explicit.
 - Public exposure and API stability are separate decisions. Public APIs that
   are not yet stable must be labeled as preview, experimental, or unstable,
   with clear ownership, expected change surface, and path to stability.

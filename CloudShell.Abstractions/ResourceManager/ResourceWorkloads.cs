@@ -196,6 +196,8 @@ public interface IProjectResourceBuilder :
         int targetPort = 443,
         string name = "https");
 
+    IProjectResourceBuilder WithLaunchSettingsEndpoints(bool enabled = true);
+
     IProjectResourceBuilder WithHttpHealthCheck(
         string path,
         string? endpointName = null,

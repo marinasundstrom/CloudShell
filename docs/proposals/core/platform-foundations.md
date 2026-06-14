@@ -124,6 +124,23 @@ Areas include:
 
 This foundation supports orchestration, runtime-managed resources, deployments, and operational tooling.
 
+### Endpoint Sources and Exposure Defaults
+
+CloudShell should keep endpoint source precedence explicit across resource
+types. A simple default order is:
+
+1. explicit resource endpoint declarations
+2. explicit opt-in conventions, such as ASP.NET Core launch settings
+3. provider or resource-type defaults
+
+Provider defaults should be treated as local development bindings unless a
+resource type explicitly documents otherwise. Public exposure, ingress,
+network-level mapping, and DNS naming should be explicit resource declarations
+or operator choices, not surprising side effects of implicit endpoint discovery.
+Future work can decide whether hosts may configure convention-based endpoint
+loading globally, but that should include diagnostics or UI warnings when a
+convention is ignored because explicit endpoints are present.
+
 ### UI Mutability and Read-Only Mode
 
 CloudShell needs a consistent way to decide when the Resource Manager UI can
@@ -154,6 +171,7 @@ Future proposals are expected for:
 * Traceability and Audit
 * Usage Monitoring and Metrics
 * Resource Reconciliation
+* Endpoint Sources and Exposure Defaults
 * UI Mutability and Read-Only Mode
 
 The current foundation order starts with MVP convergence, then uses targeted
@@ -174,6 +192,7 @@ hosting, and deployments.
 * Identify cross-cutting dependencies.
 * Define common terminology.
 * Define shared platform services.
+* Define cross-resource endpoint source precedence and exposure-default policy.
 * Define Resource Manager read-only mode and mutability policy.
 
 ## Open Questions

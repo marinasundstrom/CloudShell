@@ -2309,7 +2309,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public void TypedAspNetCoreProjectBuilder_AssignsEndpointPortWhenOmitted()
+    public void TypedAspNetCoreProjectBuilder_LeavesEndpointPortUnsetWhenOmitted()
     {
         var services = new ServiceCollection();
 
@@ -2335,12 +2335,198 @@ public sealed class ResourceDeclarationTests
                 .GetType()
                 .GetProperty("Definition")!
                 .GetValue(declaredApplication));
-        var port = Assert.Single(application.EndpointPorts);
+        Assert.Empty(application.EndpointPorts);
+    }
 
-        Assert.Equal("http", port.Name);
-        Assert.Equal(80, port.TargetPort);
-        Assert.Null(port.Port);
-        Assert.Equal("http", port.Protocol);
+    [Fact]
+    public void ApplicationProvider_AssignsStableEndpointWhenProjectEndpointIsOmitted()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options => options.DefinitionsPath = "application-resources.json")
+            .Resources(resources =>
+            {
+                resources.AddAspNetCoreProject(
+                    "application:api",
+                    "API",
+                    "src/API/API.csproj");
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var resource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "application:api");
+            var endpoint = Assert.Single(resource.Endpoints);
+
+            Assert.Equal("http", endpoint.Name);
+            Assert.StartsWith("http://localhost:", endpoint.Address, StringComparison.Ordinal);
+            Assert.Equal("http", endpoint.Protocol);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void TypedAspNetCoreProjectBuilder_CanOptIntoLaunchSettingsEndpoints()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "API",
+                        "src/API/API.csproj")
+                    .WithLaunchSettingsEndpoints();
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+
+        Assert.True(application.UseLaunchSettingsEndpoints);
+        Assert.Empty(application.EndpointPorts);
+    }
+
+    [Fact]
+    public void ApplicationProvider_UsesLaunchSettingsEndpointsWhenOptedIn()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        WriteLaunchSettings(
+            contentRoot,
+            "src/API/API.csproj",
+            """
+            {
+              "profiles": {
+                "https": {
+                  "commandName": "Project",
+                  "applicationUrl": "https://localhost:7123;http://localhost:5123"
+                }
+              }
+            }
+            """);
+
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options => options.DefinitionsPath = "application-resources.json")
+            .Resources(resources =>
+            {
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "API",
+                        "src/API/API.csproj")
+                    .WithLaunchSettingsEndpoints();
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var resource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "application:api");
+
+            Assert.Collection(
+                resource.Endpoints.OrderBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase),
+                endpoint =>
+                {
+                    Assert.Equal("http", endpoint.Name);
+                    Assert.Equal("http://localhost:5123", endpoint.Address);
+                    Assert.Equal("http", endpoint.Protocol);
+                },
+                endpoint =>
+                {
+                    Assert.Equal("https", endpoint.Name);
+                    Assert.Equal("https://localhost:7123", endpoint.Address);
+                    Assert.Equal("https", endpoint.Protocol);
+                });
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public void ApplicationProvider_ProgrammaticEndpointsOverrideLaunchSettingsEndpoints()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        WriteLaunchSettings(
+            contentRoot,
+            "src/API/API.csproj",
+            """
+            {
+              "profiles": {
+                "https": {
+                  "commandName": "Project",
+                  "applicationUrl": "http://localhost:5123"
+                }
+              }
+            }
+            """);
+
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options => options.DefinitionsPath = "application-resources.json")
+            .Resources(resources =>
+            {
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "API",
+                        "src/API/API.csproj")
+                    .WithHttpEndpoint(port: 6000)
+                    .WithLaunchSettingsEndpoints();
+            });
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            var resource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "application:api");
+            var endpoint = Assert.Single(resource.Endpoints);
+
+            Assert.Equal("http", endpoint.Name);
+            Assert.Equal("http://localhost:6000", endpoint.Address);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
     }
 
     [Fact]
@@ -4791,6 +4977,19 @@ public sealed class ResourceDeclarationTests
             System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
 
         return Assert.IsType<string>(method!.Invoke(null, [projectPath, hotReload, applicationArguments]));
+    }
+
+    private static void WriteLaunchSettings(
+        string contentRoot,
+        string projectPath,
+        string json)
+    {
+        var resolvedProjectPath = Path.GetFullPath(projectPath, contentRoot);
+        var launchSettingsDirectory = Path.Combine(
+            Path.GetDirectoryName(resolvedProjectPath)!,
+            "Properties");
+        Directory.CreateDirectory(launchSettingsDirectory);
+        File.WriteAllText(Path.Combine(launchSettingsDirectory, "launchSettings.json"), json);
     }
 
     private sealed class TestOptionsMonitor<TOptions>(TOptions currentValue) :

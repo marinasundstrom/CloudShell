@@ -67,11 +67,29 @@ selected container host uses the Dockerfile build path.
 
 ## Endpoints
 
-ASP.NET Core project resources always get an HTTP endpoint. If the declaration
-omits `endpoint`, CloudShell assigns a stable local port. If the declaration
-sets `endpoint`, that URL fixes the displayed port. In both cases CloudShell
-injects the resolved URL into `ASPNETCORE_URLS` when the process starts, so the
-project listens on the same endpoint that Resource Manager displays.
+ASP.NET Core project endpoint sources are resolved in this order:
+
+1. Programmatic endpoints declared with `endpoint`, `WithEndpoint(...)`,
+   `WithHttpEndpoint(...)`, `WithHttpsEndpoint(...)`, or
+   `WithEndpointPort(...)`.
+2. `Properties/launchSettings.json` only when the declaration explicitly calls
+   `WithLaunchSettingsEndpoints()`.
+3. The ASP.NET project provider default: a stable local HTTP endpoint.
+
+Explicit endpoint declarations always win. If endpoints are declared manually,
+CloudShell ignores launch settings even when launch-settings endpoint loading
+was enabled earlier in the builder chain. Resource Manager create and update
+flows configure endpoints manually; they do not read `launchSettings.json`. If a
+future UI exposes launch-settings endpoint loading, that option should be
+disabled whenever explicit endpoints are configured.
+
+Provider defaults are local development bindings, not a general exposure
+mechanism. Public or broader resource exposure should be declared explicitly by
+the resource author or operator.
+
+In all cases CloudShell injects the resolved URL into `ASPNETCORE_URLS` when
+the process starts, so the project listens on the same endpoint that Resource
+Manager displays.
 
 Use endpoint builder methods to model additional or named endpoints:
 
@@ -84,6 +102,18 @@ resources
         applicationArguments: "--seed")
     .WithHttpEndpoint(port: 5127)
     .WithEndpointPort("dashboard", targetPort: 18888, port: 18888, protocol: "http");
+```
+
+Use launch settings only when the project declaration should intentionally take
+its local endpoint shape from the ASP.NET Core development profile:
+
+```csharp
+resources
+    .AddAspNetCoreProject(
+        "application:example-web-api",
+        "Example Web API",
+        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+    .WithLaunchSettingsEndpoints();
 ```
 
 ## Service Discovery

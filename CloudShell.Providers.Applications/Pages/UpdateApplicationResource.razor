@@ -317,6 +317,7 @@ else
             projectPath: CanConfigureProjectSettings ? ProjectPath : Application.ProjectPath,
             projectArguments: CanConfigureProjectSettings ? ApplicationArguments : Application.ProjectArguments,
             aspNetCoreHotReload: CanConfigureProjectSettings ? UseHotReload : Application.AspNetCoreHotReload,
+            useLaunchSettingsEndpoints: CanConfigureEndpoint ? false : Application.UseLaunchSettingsEndpoints,
             containerRevision: Application.ContainerRevision,
             containerRegistry: CanConfigureContainerImage ? NormalizeRegistry(ContainerRegistry) : Application.ContainerRegistry,
             containerRegistryCredentials: CanConfigureContainerImage
@@ -351,6 +352,7 @@ else
             !string.Equals(existing.ProjectPath, updated.ProjectPath, StringComparison.Ordinal) ||
             !string.Equals(existing.ProjectArguments, updated.ProjectArguments, StringComparison.Ordinal) ||
             existing.AspNetCoreHotReload != updated.AspNetCoreHotReload ||
+            existing.UseLaunchSettingsEndpoints != updated.UseLaunchSettingsEndpoints ||
             !string.Equals(existing.Endpoint, updated.Endpoint, StringComparison.Ordinal) ||
             existing.Lifetime != updated.Lifetime ||
             existing.UseServiceDiscovery != updated.UseServiceDiscovery ||

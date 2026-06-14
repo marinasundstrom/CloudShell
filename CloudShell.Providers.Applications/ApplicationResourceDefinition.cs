@@ -28,6 +28,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? projectPath = null,
         string? projectArguments = null,
         bool aspNetCoreHotReload = false,
+        bool useLaunchSettingsEndpoints = false,
         string? containerRevision = null,
         string? containerRegistry = null,
         ContainerRegistryCredentials? containerRegistryCredentials = null,
@@ -62,6 +63,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ProjectPath = projectPath;
         ProjectArguments = projectArguments;
         AspNetCoreHotReload = aspNetCoreHotReload;
+        UseLaunchSettingsEndpoints = useLaunchSettingsEndpoints;
         ContainerRevision = containerRevision;
         ContainerRegistryCredentials = containerRegistryCredentials;
     }
@@ -117,6 +119,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public string? ProjectArguments { get; init; }
 
     public bool AspNetCoreHotReload { get; init; }
+
+    public bool UseLaunchSettingsEndpoints { get; init; }
 
     public string? ContainerRevision { get; init; }
 
