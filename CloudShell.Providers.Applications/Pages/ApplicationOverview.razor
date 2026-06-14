@@ -1,5 +1,6 @@
 @inject ApplicationResourceProvider ApplicationProvider
 @inject IResourceManagerStore ResourceManager
+@inject IResourceManager ResourceManagerClient
 
 @if (Application is null)
 {
@@ -180,11 +181,12 @@ else
 
     private ApplicationResourceDefinition? Application { get; set; }
     private Resource? ProjectedResource { get; set; }
+    private ResourcePermissionGrantEvaluator? PermissionGrantEvaluator { get; set; }
     private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
@@ -201,6 +203,8 @@ else
         InboundLoadBalancerRoutes = Application is null
             ? []
             : GetInboundLoadBalancerRoutes(Application.Id);
+        PermissionGrantEvaluator = new ResourcePermissionGrantEvaluator(
+            await ResourceManagerClient.ListResourcePermissionGrantsAsync());
     }
 
     private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
@@ -362,14 +366,16 @@ else
             setting,
             Application?.Id ?? ResourceId ?? string.Empty,
             ProjectedResource?.IdentityBinding,
-            resourceId => ResolveMappingResource(resourceId));
+            resourceId => ResolveMappingResource(resourceId),
+            PermissionGrantEvaluator);
 
     private ApplicationSettingDisplayRow CreateSettingRow(EnvironmentVariableAssignment assignment) =>
         ApplicationSettingReferenceDisplay.Create(
             assignment,
             Application?.Id ?? ResourceId ?? string.Empty,
             ProjectedResource?.IdentityBinding,
-            resourceId => ResolveMappingResource(resourceId));
+            resourceId => ResolveMappingResource(resourceId),
+            PermissionGrantEvaluator);
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";

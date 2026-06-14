@@ -267,6 +267,9 @@ expectations rather than duplicating the task queue.
   header-level source selector, a structured-only filter, and a structured entry
   details pane so source logs have more horizontal space while still exposing
   category, event, trace/span, exception, and attribute fields.
+- Application overview reference rows now evaluate declared resource-permission
+  grants for identity-bound configuration and secret references, showing
+  granted access separately from missing grant requirements.
 - Resource events can now capture W3C `traceId` and `spanId` from the current
   activity, persist that context, filter activity by trace ID, and project the
   same context into Activity log entries. This gives local distributed-app

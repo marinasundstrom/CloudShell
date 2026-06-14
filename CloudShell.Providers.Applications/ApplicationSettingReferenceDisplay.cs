@@ -9,7 +9,8 @@ internal static class ApplicationSettingReferenceDisplay
         AppSetting setting,
         string applicationResourceId,
         ResourceIdentityBinding? identityBinding,
-        Func<string, Resource?> resolveResource)
+        Func<string, Resource?> resolveResource,
+        ResourcePermissionGrantEvaluator? grantEvaluator = null)
     {
         ArgumentNullException.ThrowIfNull(setting);
         ArgumentException.ThrowIfNullOrWhiteSpace(applicationResourceId);
@@ -22,7 +23,8 @@ internal static class ApplicationSettingReferenceDisplay
                 setting.ConfigurationEntry,
                 applicationResourceId,
                 identityBinding,
-                resolveResource);
+                resolveResource,
+                grantEvaluator);
         }
 
         if (setting.Secret is not null)
@@ -32,7 +34,8 @@ internal static class ApplicationSettingReferenceDisplay
                 setting.Secret,
                 applicationResourceId,
                 identityBinding,
-                resolveResource);
+                resolveResource,
+                grantEvaluator);
         }
 
         return new ApplicationSettingDisplayRow(
@@ -48,7 +51,8 @@ internal static class ApplicationSettingReferenceDisplay
         EnvironmentVariableAssignment assignment,
         string applicationResourceId,
         ResourceIdentityBinding? identityBinding,
-        Func<string, Resource?> resolveResource)
+        Func<string, Resource?> resolveResource,
+        ResourcePermissionGrantEvaluator? grantEvaluator = null)
     {
         ArgumentNullException.ThrowIfNull(assignment);
         ArgumentException.ThrowIfNullOrWhiteSpace(applicationResourceId);
@@ -61,7 +65,8 @@ internal static class ApplicationSettingReferenceDisplay
                 assignment.ConfigurationEntry,
                 applicationResourceId,
                 identityBinding,
-                resolveResource);
+                resolveResource,
+                grantEvaluator);
         }
 
         if (assignment.Secret is not null)
@@ -71,7 +76,8 @@ internal static class ApplicationSettingReferenceDisplay
                 assignment.Secret,
                 applicationResourceId,
                 identityBinding,
-                resolveResource);
+                resolveResource,
+                grantEvaluator);
         }
 
         return new ApplicationSettingDisplayRow(
@@ -88,7 +94,8 @@ internal static class ApplicationSettingReferenceDisplay
         ConfigurationEntryReference reference,
         string applicationResourceId,
         ResourceIdentityBinding? identityBinding,
-        Func<string, Resource?> resolveResource)
+        Func<string, Resource?> resolveResource,
+        ResourcePermissionGrantEvaluator? grantEvaluator)
     {
         var resource = resolveResource(reference.StoreResourceId);
         var detail = FormatReferenceDetail(
@@ -98,7 +105,12 @@ internal static class ApplicationSettingReferenceDisplay
             identityBinding,
             applicationResourceId,
             ConfigurationStoreResourceOperationPermissions.ReadEntries);
-        var status = GetReferenceStatus(resource, identityBinding, grantRequiredStatus: "Grant required");
+        var status = GetReferenceStatus(
+            resource,
+            identityBinding,
+            applicationResourceId,
+            ConfigurationStoreResourceOperationPermissions.ReadEntries,
+            grantEvaluator);
 
         return new ApplicationSettingDisplayRow(
             name,
@@ -114,7 +126,8 @@ internal static class ApplicationSettingReferenceDisplay
         SecretReference reference,
         string applicationResourceId,
         ResourceIdentityBinding? identityBinding,
-        Func<string, Resource?> resolveResource)
+        Func<string, Resource?> resolveResource,
+        ResourcePermissionGrantEvaluator? grantEvaluator)
     {
         var resource = resolveResource(reference.VaultResourceId);
         var detail = FormatReferenceDetail(
@@ -124,7 +137,12 @@ internal static class ApplicationSettingReferenceDisplay
             identityBinding,
             applicationResourceId,
             SecretsVaultResourceOperationPermissions.ReadSecrets);
-        var status = GetReferenceStatus(resource, identityBinding, grantRequiredStatus: "Grant required");
+        var status = GetReferenceStatus(
+            resource,
+            identityBinding,
+            applicationResourceId,
+            SecretsVaultResourceOperationPermissions.ReadSecrets,
+            grantEvaluator);
 
         return new ApplicationSettingDisplayRow(
             name,
@@ -138,16 +156,33 @@ internal static class ApplicationSettingReferenceDisplay
     private static (string Text, string Kind) GetReferenceStatus(
         Resource? resource,
         ResourceIdentityBinding? identityBinding,
-        string grantRequiredStatus)
+        string applicationResourceId,
+        string requiredPermission,
+        ResourcePermissionGrantEvaluator? grantEvaluator)
     {
         if (resource is null)
         {
             return ("Unavailable", "warning");
         }
 
-        return identityBinding is null
-            ? ("Reference", "info")
-            : (grantRequiredStatus, "info");
+        if (identityBinding is null)
+        {
+            return ("Reference", "info");
+        }
+
+        if (grantEvaluator is not null)
+        {
+            var evaluation = grantEvaluator.Evaluate(
+                ResourceIdentityReference.ForResource(applicationResourceId, identityBinding.Name),
+                resource.Id,
+                requiredPermission);
+            if (evaluation.IsAllowed)
+            {
+                return ("Granted", "ok");
+            }
+        }
+
+        return ("Grant required", "warning");
     }
 
     private static string FormatReferenceTarget(
