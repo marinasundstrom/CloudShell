@@ -1232,6 +1232,71 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task LocalProcessRunner_DisposeStopsControlPlaneScopedProcessTree()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var options = new LocalProcessOptions
+        {
+            RuntimeStatePath = "application-runtime-state.json",
+            LogDirectory = "application-logs"
+        };
+        var environment = new TestHostEnvironment(contentRoot);
+        var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+        var childPidPath = Path.Combine(contentRoot, "child.pid");
+        var definition = new LocalProcessDefinition(
+            $"process:test:{Guid.NewGuid():N}",
+            "/bin/sh",
+            "-c \"sleep 30 & echo $! > child.pid; wait\"",
+            WorkingDirectory: contentRoot,
+            Lifetime: LocalProcessLifetime.ControlPlaneScoped);
+        Process? childProcess = null;
+
+        try
+        {
+            var runner = new LocalProcessRunner(runtimeStates, options, environment);
+            await runner.StartAsync(definition);
+            var childPid = await WaitForProcessIdFileAsync(childPidPath, TimeSpan.FromSeconds(5));
+            childProcess = Process.GetProcessById(childPid);
+            Assert.False(childProcess.HasExited);
+
+            runner.Dispose();
+
+            Assert.True(await WaitForExitAsync(childProcess, TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            if (childProcess is not null)
+            {
+                try
+                {
+                    if (!childProcess.HasExited)
+                    {
+                        childProcess.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                finally
+                {
+                    childProcess.Dispose();
+                }
+            }
+
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task LocalProcessRunner_CleanupHostScopedProcessStopsRecoveredProcess()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -4621,6 +4686,23 @@ public sealed class ResourceDeclarationTests
         }
 
         return process.HasExited;
+    }
+
+    private static async Task<int> WaitForProcessIdFileAsync(string path, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (File.Exists(path) &&
+                int.TryParse(await File.ReadAllTextAsync(path), out var processId))
+            {
+                return processId;
+            }
+
+            await Task.Delay(50);
+        }
+
+        throw new TimeoutException($"Timed out waiting for process id file '{path}'.");
     }
 
     private static Resource CreateNetworkingProviderResource(string id) =>

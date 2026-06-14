@@ -102,6 +102,10 @@ expectations rather than duplicating the task queue.
   `dotnet watch --non-interactive` and sets
   `DOTNET_WATCH_RESTART_ON_RUDE_EDIT=true` so rude edits restart instead of
   blocking on the watch prompt.
+- Control-plane-scoped local process cleanup now waits for captured child
+  processes after terminating the process tree. This prevents wrappers such as
+  `dotnet run` from exiting while the actual ASP.NET Core child process keeps a
+  development port bound.
 - ASP.NET Core project endpoints have an explicit source order: programmatic
   endpoint declarations win, `launchSettings.json` is used only when
   `WithLaunchSettingsEndpoints()` is declared, and the provider otherwise
