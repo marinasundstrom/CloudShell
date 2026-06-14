@@ -3535,6 +3535,43 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ApplicationNameMappingDisplay_TreatsNameMappingsAsInboundApplicationExposure()
+    {
+        var mapping = new Resource(
+            "dns:local:name:api-local",
+            "api.local",
+            "Name mapping",
+            "cloudshell.platform",
+            "local",
+            ResourceState.Running,
+            [],
+            "api.local",
+            DateTimeOffset.UtcNow,
+            ["application:api"],
+            TypeId: PlatformResourceProvider.NameMappingResourceType,
+            ResourceClass: ResourceClass.Network,
+            ParentResourceId: "dns:local",
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.NameMappingHostName] = "api.local",
+                [ResourceAttributeNames.NameMappingTargetResourceId] = "application:api",
+                [ResourceAttributeNames.NameMappingTargetEndpointName] = "http",
+                [ResourceAttributeNames.NameMappingExposure] = ResourceExposureScope.Public.ToString(),
+                [ResourceAttributeNames.DnsProvider] = "logical"
+            },
+            Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
+
+        Assert.True(ApplicationNameMappingDisplay.IsNameMappingResource(mapping));
+        Assert.True(ApplicationNameMappingDisplay.TargetsResource(mapping, "application:api"));
+        Assert.False(ApplicationNameMappingDisplay.TargetsResource(mapping, "application:worker"));
+        Assert.Equal("api.local", ApplicationNameMappingDisplay.GetHostName(mapping));
+        Assert.Equal("http", ApplicationNameMappingDisplay.GetTargetEndpointName(mapping));
+        Assert.Equal(ResourceExposureScope.Public.ToString(), ApplicationNameMappingDisplay.GetExposureLabel(mapping));
+        Assert.Equal("logical", ApplicationNameMappingDisplay.GetProviderLabel(mapping));
+        Assert.Equal("api.local -> API/http", ApplicationNameMappingDisplay.GetSummary(mapping, "API"));
+    }
+
+    [Fact]
     public void LocalContainerVolumeArguments_PreserveUnmanagedVolumeReference()
     {
         var arguments = ApplicationResourceProvider.CreateLocalContainerVolumeArguments(

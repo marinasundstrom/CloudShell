@@ -351,6 +351,10 @@ api
     └── api.local -> api:http
 ```
 
+Those mappings may represent internal DNS-style names or custom domain names.
+The resource model records the relationship first; provider-backed publication
+decides later whether and how a specific name is materialized.
+
 ## Implementation Plan
 
 1. Add DNS and name-mapping resource type identifiers. Done for
@@ -363,7 +367,8 @@ api
    with projected target references. Initial child-resource projection is in
    place for DNS zone mappings.
 5. Add validation for target existence and provider capability.
-6. Add UI projection for DNS zones and name mappings.
+6. Add UI projection for DNS zones and name mappings. Initial target-side
+   application overview projection is in place for inbound name mappings.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
 8. Add sample declarations for local DNS-style mappings.
 9. Add provider-backed examples for load balancer and virtual network integration.
@@ -375,7 +380,7 @@ api
 
 * Add dedicated Resource Manager create/update UI for DNS zones and name
   mappings.
-* Show inbound name mappings on target resource overview pages.
+* Add conflict and provider-materialization diagnostics for name mappings.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add conflict detection for duplicate names in the same scope.
 * Add local host-provider implementation.

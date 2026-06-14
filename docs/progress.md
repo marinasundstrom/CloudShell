@@ -108,6 +108,9 @@ expectations rather than duplicating the task queue.
   add `cloudshell.dnsZone` resources and child `cloudshell.nameMapping`
   resources that record host names, target resources, target endpoint names,
   exposure scope, and provider intent for Resource Manager inspection.
+  Application overview pages now also surface inbound logical name mappings so
+  users can see which internal DNS-style names or custom domain names point at
+  a target application endpoint.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the

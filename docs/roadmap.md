@@ -137,12 +137,16 @@ listed here before pulling in broader proposal work.
 - Treat the primary MVP management path as:
   container application -> app endpoint/discovery -> virtual network -> public
   endpoint or load balancer -> DNS/name mapping. The UI should let users see
-  and operate that path without requiring programmatic-only sample knowledge.
+  and operate that path from the application resource configuration experience
+  without requiring programmatic-only sample knowledge.
 - Do not require `cloudshell.service` for normal container app exposure in the
   MVP. Container apps are the stable user-facing deployment, replica, and
-  exposure artifacts. Keep `cloudshell.service` optional/deferred for logical
-  facades, imported provider-native services, non-application targets, stable
-  discovery names independent of one app lifecycle, and advanced routing.
+  exposure artifacts: they represent managed services that can be exposed
+  internally on the host or a virtual network, through public endpoints, and
+  through internal DNS-style names or custom domain mappings. Keep
+  `cloudshell.service` optional/deferred for logical facades, imported
+  provider-native services, non-application targets, stable discovery names
+  independent of one app lifecycle, and advanced routing.
   Kubernetes Service and similar provider-native objects are provider
   materialization details unless explicitly imported or projected. This is a
   model-layer distinction: a future orchestrator may intentionally materialize
@@ -156,9 +160,10 @@ listed here before pulling in broader proposal work.
   service registry, but users should be able to model names, see what endpoint
   they refer to, and understand whether a provider can materialize them. The
   first logical slice projects programmatically declared DNS zones and name
-  mappings as ordinary resources; next it needs target-resource visibility,
-  conflict/provider diagnostics, and a dedicated create/update UI when the
-  MVP management flow needs UI-authored names.
+  mappings as ordinary resources and shows inbound mappings on application
+  overview pages for internal names and custom domain names; next it needs
+  conflict/provider diagnostics and a dedicated create/update UI when the MVP
+  management flow needs UI-authored names.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when

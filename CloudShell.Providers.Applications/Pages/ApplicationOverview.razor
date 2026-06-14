@@ -119,6 +119,27 @@ else
         </section>
     }
 
+    @if (InboundNameMappings.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>DNS and domain names</h3>
+            <div class="generated-list">
+                @foreach (var exposure in InboundNameMappings)
+                {
+                    <div>
+                        <strong>
+                            <a class="resource-link" href="@BuildResourceRoute(exposure.Mapping.Id)">
+                                @ApplicationNameMappingDisplay.GetHostName(exposure.Mapping)
+                            </a>
+                        </strong>
+                        <span>@ApplicationNameMappingDisplay.GetSummary(exposure.Mapping, Application.Name)</span>
+                        <small>@FormatNameMappingMetadata(exposure)</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     <section class="blade-section">
         <h3>App settings</h3>
         @if (Application.AppSettings.Count == 0)
@@ -198,6 +219,7 @@ else
     private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
+    private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -216,6 +238,9 @@ else
         InboundLoadBalancerRoutes = Application is null
             ? []
             : GetInboundLoadBalancerRoutes(Application.Id);
+        InboundNameMappings = Application is null
+            ? []
+            : GetInboundNameMappings(Application.Id);
         PermissionGrantEvaluator = new ResourcePermissionGrantEvaluator(
             await ResourceManagerClient.ListResourcePermissionGrantsAsync());
     }
@@ -276,6 +301,14 @@ else
                 .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
             .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<NameMappingView> GetInboundNameMappings(string resourceId) =>
+        ResourceManager.GetResources()
+            .Where(resource => ApplicationNameMappingDisplay.IsNameMappingResource(resource))
+            .Where(resource => ApplicationNameMappingDisplay.TargetsResource(resource, resourceId))
+            .Select(resource => new NameMappingView(ResolveParentResource(resource), resource))
+            .OrderBy(mapping => ApplicationNameMappingDisplay.GetHostName(mapping.Mapping), StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private string FormatMappingSummary(
@@ -361,6 +394,36 @@ else
             : $"{label}:{target.Port.Value}";
     }
 
+    private string FormatNameMappingMetadata(NameMappingView view)
+    {
+        var parts = new List<string>
+        {
+            $"Exposure: {ApplicationNameMappingDisplay.GetExposureLabel(view.Mapping)}",
+            FormatNameMappingProvider(view.Mapping)
+        };
+
+        if (view.Zone is not null)
+        {
+            parts.Insert(0, $"Zone: {view.Zone.Name}");
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    private string FormatNameMappingProvider(Resource mapping)
+    {
+        var providerResourceId = ApplicationNameMappingDisplay.GetProviderResourceId(mapping);
+        if (!string.IsNullOrWhiteSpace(providerResourceId))
+        {
+            var provider = ResolveMappingResource(providerResourceId);
+            return provider is null
+                ? $"Provider: {providerResourceId}"
+                : $"Provider: {provider.Name}";
+        }
+
+        return $"Provider: {ApplicationNameMappingDisplay.GetProviderLabel(mapping)}";
+    }
+
     private static bool IsLoadBalancerResource(Resource resource) =>
         resource.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer) ||
         resource.ResourceLoadBalancerRoutes.Count > 0 ||
@@ -376,6 +439,11 @@ else
 
         return ResourceManager.GetResource(resourceId);
     }
+
+    private Resource? ResolveParentResource(Resource resource) =>
+        string.IsNullOrWhiteSpace(resource.ParentResourceId)
+            ? null
+            : ResourceManager.GetResource(resource.ParentResourceId);
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
@@ -514,4 +582,8 @@ else
     private sealed record LoadBalancerRouteView(
         Resource LoadBalancer,
         LoadBalancerRoute Route);
+
+    private sealed record NameMappingView(
+        Resource? Zone,
+        Resource Mapping);
 }
