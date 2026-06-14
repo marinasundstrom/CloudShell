@@ -3682,7 +3682,11 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("dns:local", namePublisher.Context.Definition.Id);
         Assert.Equal("dns:local", namePublisher.Context.DnsZoneResource.Id);
         Assert.Empty(namePublisher.Context.PublisherResources);
-        Assert.Equal("application:api", Assert.Single(namePublisher.Context.Definition.DnsNameMappings).TargetResourceId);
+        var mapping = Assert.Single(namePublisher.Context.Mappings);
+        Assert.Equal("dns:local:name:api-local", mapping.Mapping.Id);
+        Assert.Equal("application:api", mapping.TargetResource.Id);
+        Assert.Equal("http", mapping.TargetEndpoint?.Name);
+        Assert.Null(mapping.PublisherResource);
     }
 
     [Fact]

@@ -1071,9 +1071,11 @@ public sealed class PlatformResourceProvider(
         var definition = store.GetDnsZone(context.Resource.Id)
             ?? throw new InvalidOperationException($"DNS zone resource '{context.Resource.Id}' is not configured.");
         var publisherResources = ResolveNamePublisherResources(resourceManager, definition);
+        var mappings = ResolveNameMappings(resourceManager, definition, publisherResources);
         return new DnsNamePublishingContext(
             context.Resource,
             definition,
+            mappings,
             publisherResources,
             resourceManager);
     }
@@ -1106,6 +1108,51 @@ public sealed class PlatformResourceProvider(
         return publisherResources;
     }
 
+    private static IReadOnlyList<DnsNameMappingResolution> ResolveNameMappings(
+        IResourceManagerStore resourceManager,
+        DnsZoneResourceDefinition definition,
+        IReadOnlyList<Resource> publisherResources) =>
+        definition.DnsNameMappings
+            .Select(mapping => ResolveNameMapping(resourceManager, definition, mapping, publisherResources))
+            .ToArray();
+
+    private static DnsNameMappingResolution ResolveNameMapping(
+        IResourceManagerStore resourceManager,
+        DnsZoneResourceDefinition definition,
+        DnsNameMappingDefinition mapping,
+        IReadOnlyList<Resource> publisherResources)
+    {
+        var target = resourceManager.GetResource(mapping.TargetResourceId)
+            ?? throw new InvalidOperationException(
+                $"DNS zone resource '{definition.Id}' name mapping '{mapping.Id}' target resource '{mapping.TargetResourceId}' could not be found.");
+        var targetEndpoint = ResolveNameMappingTargetEndpoint(definition, mapping, target);
+        var publisherResource = string.IsNullOrWhiteSpace(mapping.ProviderResourceId)
+            ? null
+            : publisherResources.First(resource =>
+                string.Equals(resource.Id, mapping.ProviderResourceId, StringComparison.OrdinalIgnoreCase));
+        return new DnsNameMappingResolution(
+            mapping,
+            target,
+            targetEndpoint,
+            publisherResource);
+    }
+
+    private static ResourceEndpoint? ResolveNameMappingTargetEndpoint(
+        DnsZoneResourceDefinition definition,
+        DnsNameMappingDefinition mapping,
+        Resource target)
+    {
+        if (string.IsNullOrWhiteSpace(mapping.TargetEndpointName))
+        {
+            return null;
+        }
+
+        return target.Endpoints.FirstOrDefault(endpoint =>
+                string.Equals(endpoint.Name, mapping.TargetEndpointName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException(
+                $"DNS zone resource '{definition.Id}' name mapping '{mapping.Id}' target endpoint '{mapping.TargetEndpointName}' could not be found on resource '{mapping.TargetResourceId}'.");
+    }
+
     private static void ValidateNamePublishingContext(DnsNamePublishingContext context)
     {
         if (context.Definition.DnsNameMappings.Count == 0)
@@ -1120,20 +1167,6 @@ public sealed class PlatformResourceProvider(
             var mappingIds = string.Join(", ", conflict.Select(mapping => mapping.Id));
             throw new InvalidOperationException(
                 $"DNS zone resource '{context.Definition.Id}' has conflicting name mappings for host '{conflict.First().HostName}' in exposure scope '{conflict.First().Exposure}': {mappingIds}.");
-        }
-
-        foreach (var mapping in context.Definition.DnsNameMappings)
-        {
-            var target = context.ResourceManager.GetResource(mapping.TargetResourceId)
-                ?? throw new InvalidOperationException(
-                    $"DNS zone resource '{context.Definition.Id}' name mapping '{mapping.Id}' target resource '{mapping.TargetResourceId}' could not be found.");
-            if (!string.IsNullOrWhiteSpace(mapping.TargetEndpointName) &&
-                !target.Endpoints.Any(endpoint =>
-                    string.Equals(endpoint.Name, mapping.TargetEndpointName, StringComparison.OrdinalIgnoreCase)))
-            {
-                throw new InvalidOperationException(
-                    $"DNS zone resource '{context.Definition.Id}' name mapping '{mapping.Id}' target endpoint '{mapping.TargetEndpointName}' could not be found on resource '{mapping.TargetResourceId}'.");
-            }
         }
     }
 

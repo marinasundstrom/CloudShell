@@ -210,9 +210,16 @@ public sealed record DnsNameMappingResourceDefinition(
     ResourceExposureScope Exposure = ResourceExposureScope.Public,
     string? ProviderResourceId = null);
 
+public sealed record DnsNameMappingResolution(
+    DnsNameMappingDefinition Mapping,
+    Resource TargetResource,
+    ResourceEndpoint? TargetEndpoint,
+    Resource? PublisherResource = null);
+
 public sealed record DnsNamePublishingContext(
     Resource DnsZoneResource,
     DnsZoneResourceDefinition Definition,
+    IReadOnlyList<DnsNameMappingResolution> Mappings,
     IReadOnlyList<Resource> PublisherResources,
     IResourceManagerStore ResourceManager);
 

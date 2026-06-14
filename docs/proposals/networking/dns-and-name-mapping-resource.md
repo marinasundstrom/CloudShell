@@ -368,7 +368,10 @@ The provider contract is explicit through `INamePublishingProvider`. Logical
 zones without a selected publisher stay honest by showing that no publisher is
 selected rather than exposing a no-op apply button. Provider-backed zones can
 surface `reconcileNameMappings`; action availability reports missing provider
-implementations or invalid publisher resources.
+implementations or invalid publisher resources. The publishing context carries
+resolved name mappings, including the target resource, optional target
+endpoint, and optional selected publisher resource, so providers do not need to
+re-implement the Resource Manager lookup rules.
 
 Projected DNS materialization should distinguish:
 
