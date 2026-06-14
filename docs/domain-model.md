@@ -166,13 +166,16 @@ projected on the container app resource and changes when the deployable image
 is updated. Runtime container instances/replicas are implementations of a
 revision; they are not themselves the revision identity.
 
-Orchestrators materialize a container app through a provider-owned workload
-service shape. In CloudShell's orchestration contracts this is represented by
-`ResourceOrchestratorService`: a runtime service descriptor derived from the
+Orchestrators materialize a container app by producing an orchestration-level
+service artifact. In CloudShell's orchestration contracts this is represented
+by `ResourceOrchestratorService`: a runtime service descriptor derived from the
 stable resource id, workload configuration, desired replica count, ports,
-networks, and dependencies. It is not a projected Resource Manager resource.
-It groups the runtime implementation artifacts for one stable workload, not
-multiple CloudShell resources. Docker Compose maps it to a Compose service,
+networks, and dependencies. A container app produces one of these descriptors
+today. It is the provider-facing grouping used to keep track of the runtime
+implementation for that service unit: replicas, endpoint bindings, dependency
+ordering, network membership, and related provider-owned runtime services such
+as app ingress. It is not a projected Resource Manager resource by default.
+Docker Compose maps it to a Compose service where replicas can be declared,
 Kubernetes-oriented providers can map it to Service/Deployment-style objects,
 and the default local runner uses the container app identity as the implicit
 service identity for convention named replica containers.

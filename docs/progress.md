@@ -647,9 +647,13 @@ expectations rather than duplicating the task queue.
   another runtime without exposing those implementation objects as Resource
   Manager targets.
 - Added `ResourceOrchestratorService` as the orchestration-layer service
-  descriptor for a stable workload. Docker Compose now renders Compose services
-  from that descriptor, including replica count, ports, dependencies, and
-  networks, instead of treating workload configuration as the service directly.
+  artifact for a stable workload. Container apps produce this descriptor today.
+  It groups the provider-facing implementation for a service unit, including
+  replicas, ports, dependencies, networks, endpoint bindings, and related
+  provider-owned runtime services such as app ingress. Docker Compose now
+  renders Compose services from that descriptor, including replica count,
+  ports, dependencies, and networks, instead of treating workload configuration
+  as the service directly.
   The existing `cloudshell.service` resource remains a distinct optional
   platform exposure or facade resource for stable endpoints over non-app
   targets, multiple targets, imported provider-native services, or advanced

@@ -160,18 +160,23 @@ with the app's current image or revision and desired replica count, then
 creates, updates, inspects, or replaces individual runtime containers as needed.
 
 Inside the orchestration layer, CloudShell represents this management group as
-a `ResourceOrchestratorService` descriptor. The descriptor is built from the
-container app's workload configuration, ports, dependencies, networks, and
-replica count. It is consumed by orchestrator providers and is not projected as
-a Resource Manager resource by default. It is also distinct from the
-`cloudshell.service` resource type at the CloudShell model/API layer. A
-`cloudshell.service` resource can still be declared when a stable CloudShell
-service unit or facade should expose non-application targets, multiple targets,
-imported provider-native services, or advanced routing. A normal container app
-does not require a `cloudshell.service` resource to expose its app-owned
-endpoint, but a future orchestrator may materialize an explicitly modeled
-`cloudshell.service` as its provider-native service primitive when that
-resource represents the service unit.
+a `ResourceOrchestratorService` descriptor. Container apps produce this
+descriptor today. It is built from the container app's workload configuration,
+ports, dependencies, networks, and replica count, and it is the
+orchestrator-facing service unit used to group replicas, endpoint bindings,
+dependency ordering, network membership, and related provider-owned runtime
+services such as app ingress. Docker Compose maps this descriptor to a Compose
+service where `deploy.replicas` can be declared. The descriptor is consumed by
+orchestrator providers and is not projected as a Resource Manager resource by
+default. It is also distinct from the `cloudshell.service` resource type at
+the CloudShell model/API layer. A `cloudshell.service` resource can still be
+declared when a stable CloudShell service unit or facade should expose
+non-application targets, multiple targets, imported provider-native services,
+or advanced routing. A normal container app does not require a
+`cloudshell.service` resource to expose its app-owned endpoint, but a future
+orchestrator may materialize an explicitly modeled `cloudshell.service` as its
+provider-native service primitive when that resource represents the service
+unit.
 
 Runtime replica containers are not Resource Manager targets. When multiple
 local containers are materialized, they are named by convention from the parent
