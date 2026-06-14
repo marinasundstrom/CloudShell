@@ -362,8 +362,10 @@ listed here before pulling in broader proposal work.
 ### Next: Network and Routing Hardening
 
 - Harden macOS host-provided virtual networking by exercising real local proxy
-  mappings end to end, improving action capability reasons, and deciding how
-  reconciled mappings should be persisted or stopped.
+  mappings end to end and deciding how reconciled mappings should be persisted
+  or stopped. Reconcile actions now report endpoint-mapping validation and
+  missing provisioner reasons through action capability evaluation before
+  execution.
 - Generalize host-provided virtual networking as an OS-specific provider model:
   macOS is the first implementation, while Linux, Windows, and runtime-specific
   hosts should advertise equivalent capabilities and diagnostics through the

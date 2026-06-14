@@ -459,9 +459,11 @@ public sealed class PlatformResourceProvider(
     }
 
     public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
-        string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) &&
-        (string.Equals(action.Id, ApplyLoadBalancerConfigurationActionId, StringComparison.OrdinalIgnoreCase) ||
-            action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop);
+        (string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) &&
+            (string.Equals(action.Id, ApplyLoadBalancerConfigurationActionId, StringComparison.OrdinalIgnoreCase) ||
+                action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop)) ||
+        (IsNetworkResourceType(resource.EffectiveTypeId) &&
+            string.Equals(action.Id, ReconcileEndpointMappingsActionId, StringComparison.OrdinalIgnoreCase));
 
     public Task<string?> GetActionUnavailableReasonAsync(
         ResourceProcedureContext context,
@@ -469,6 +471,12 @@ public sealed class PlatformResourceProvider(
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (IsNetworkResourceType(context.Resource.EffectiveTypeId) &&
+            string.Equals(action.Id, ReconcileEndpointMappingsActionId, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(GetEndpointMappingUnavailableReason(context));
+        }
+
         if (!string.Equals(context.Resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
         {
             return Task.FromResult<string?>(null);
@@ -509,6 +517,48 @@ public sealed class PlatformResourceProvider(
         return Task.FromResult(runtimeProvider is null
             ? $"No activated load balancer provider can manage runtime for provider '{definition.Provider}' on resource '{context.Resource.Id}'."
             : null);
+    }
+
+    private string? GetEndpointMappingUnavailableReason(ResourceProcedureContext context)
+    {
+        var resourceManager = context.ResourceManager;
+        if (resourceManager is null)
+        {
+            return "Resource Manager is required to reconcile endpoint mappings.";
+        }
+
+        var network = GetNetworkDefinition(context.Resource.Id);
+        if (network is null)
+        {
+            return $"Network resource '{context.Resource.Id}' is not configured.";
+        }
+
+        if (network.NetworkEndpointMappings.Count == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            ValidateEndpointMappings(context.Resource.Id, network);
+            foreach (var mapping in network.NetworkEndpointMappings)
+            {
+                var source = ResolveEndpointReference(resourceManager, mapping.Id, mapping.Source, "source");
+                var target = ResolveEndpointReference(resourceManager, mapping.Id, mapping.Target, "target");
+                var provider = ValidateMappingProvider(resourceManager, mapping);
+                if (RequiresEndpointMappingProvisioner(context.Resource, network, provider) &&
+                    !CanProvisionEndpointMapping(context.Resource, network, mapping, source, target, provider, resourceManager))
+                {
+                    return $"Endpoint mapping '{mapping.Id}' requires provider resource '{provider.Id}', but no activated host networking service can materialize it.";
+                }
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            return exception.Message;
+        }
+
+        return null;
     }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
@@ -1238,12 +1288,7 @@ public sealed class PlatformResourceProvider(
         IResourceManagerStore resourceManager,
         CancellationToken cancellationToken)
     {
-        if (string.Equals(provider.Id, networkResource.Id, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (network.Kind != NetworkResourceKind.Virtual)
+        if (!RequiresEndpointMappingProvisioner(networkResource, network, provider))
         {
             return false;
         }
@@ -1268,6 +1313,35 @@ public sealed class PlatformResourceProvider(
         await provisioner.ProvisionEndpointMappingAsync(provisioningContext, cancellationToken);
         return true;
     }
+
+    private bool CanProvisionEndpointMapping(
+        Resource networkResource,
+        NetworkResourceDefinition network,
+        ResourceEndpointMappingDefinition mapping,
+        ResolvedEndpoint source,
+        ResolvedEndpoint target,
+        Resource provider,
+        IResourceManagerStore resourceManager)
+    {
+        var provisioningContext = new ResourceEndpointMappingProvisioningContext(
+            networkResource,
+            network,
+            mapping,
+            source.Endpoint,
+            target.Resource,
+            target.Endpoint,
+            provider,
+            resourceManager);
+        return endpointMappingProvisioners.Any(candidate =>
+            candidate.CanProvisionEndpointMapping(provisioningContext));
+    }
+
+    private static bool RequiresEndpointMappingProvisioner(
+        Resource networkResource,
+        NetworkResourceDefinition network,
+        Resource provider) =>
+        network.Kind == NetworkResourceKind.Virtual &&
+        !string.Equals(provider.Id, networkResource.Id, StringComparison.OrdinalIgnoreCase);
 
     private static ResolvedEndpoint ResolveEndpointReference(
         IResourceManagerStore resourceManager,

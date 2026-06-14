@@ -639,6 +639,11 @@ expectations rather than duplicating the task queue.
   and name missing provider resources, missing endpoint-mapper capability, and
   unresolved source or target resources/endpoints before a reconcile action is
   invoked.
+- Network endpoint-mapping reconcile actions now participate in action
+  availability evaluation. Invalid mapping sources, missing target endpoints,
+  unavailable mapping providers, missing endpoint-mapper capability, and
+  unavailable host-networking provisioners surface as disabled-action reasons
+  before the user invokes reconcile.
 - The load-balancer fluent API now uses `UseContainerHost(...)` and
   `UseDefaultContainerHost()` for placement so container-host assignment is
   explicit in the user-facing declaration model.

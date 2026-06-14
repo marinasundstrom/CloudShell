@@ -4609,6 +4609,113 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task PlatformProvider_ReturnsUnavailableReasonWhenVirtualEndpointMappingProviderIsNotActivated()
+    {
+        var definition = new NetworkResourceDefinition(
+            "network:app",
+            "App Network",
+            IsDefault: true,
+            Endpoints:
+            [
+                new ResourceEndpointRequest(
+                    "api",
+                    ResourceEndpointProtocol.Http,
+                    Host: "localhost",
+                    Port: 5090,
+                    Assignment: ResourceEndpointAssignment.Manual)
+            ],
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "mapping:api",
+                    "API",
+                    new ResourceEndpointReference("network:app", "api"),
+                    new ResourceEndpointReference("application:api", "http"),
+                    "network:app",
+                    "networking:host-macos")
+            ],
+            Kind: NetworkResourceKind.Virtual);
+        var options = new PlatformResourceOptions();
+        options.DeclaredNetworks.Add(new DeclaredNetworkResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var network = Assert.Single(provider.GetResources(), resource => resource.Id == "network:app");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                network,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080"),
+                CreateNetworkingProviderResource("networking:host-macos")
+            ],
+            [provider]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                network,
+                new ResourceRegistration(network.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                null,
+                new TestResourceRegistrationStore([]),
+                resourceManager),
+            network.ResourceActions.Single());
+
+        Assert.Equal(
+            "Endpoint mapping 'mapping:api' requires provider resource 'networking:host-macos', but no activated host networking service can materialize it.",
+            reason);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_ReturnsUnavailableReasonWhenEndpointMappingTargetEndpointIsMissing()
+    {
+        var definition = new NetworkResourceDefinition(
+            "network:app",
+            "App Network",
+            Endpoints:
+            [
+                new ResourceEndpointRequest(
+                    "api",
+                    ResourceEndpointProtocol.Http,
+                    Host: "localhost",
+                    Assignment: ResourceEndpointAssignment.Auto)
+            ],
+            EndpointMappings:
+            [
+                new ResourceEndpointMappingDefinition(
+                    "mapping:api",
+                    "API",
+                    new ResourceEndpointReference("network:app", "api"),
+                    new ResourceEndpointReference("application:api", "http"),
+                    "network:app")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredNetworks.Add(new DeclaredNetworkResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var network = Assert.Single(provider.GetResources(), resource => resource.Id == "network:app");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                network,
+                CreateEndpointResource("application:api", "admin", "http://localhost:8080")
+            ],
+            [provider]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                network,
+                new ResourceRegistration(network.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                null,
+                new TestResourceRegistrationStore([]),
+                resourceManager),
+            network.ResourceActions.Single());
+
+        Assert.Equal(
+            "Endpoint mapping 'mapping:api' target endpoint 'http' could not be found on resource 'application:api'.",
+            reason);
+    }
+
+    [Fact]
     public async Task PlatformProvider_RejectsEndpointMappingProviderWithoutMapperCapability()
     {
         var definition = new NetworkResourceDefinition(

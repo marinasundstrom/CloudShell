@@ -55,6 +55,12 @@ belongs to the reconciled network resource and that a source endpoint is mapped
 only once. The selected provider then validates and materializes any
 runtime-specific behavior it owns.
 
+The reconcile action uses the same validation path for action availability.
+Resource Manager can disable the action and show a reason when a mapping
+references a missing source or target endpoint, selects a provider without the
+`networking.endpointMapper` capability, or requires a host-networking
+provisioner that is not active on the current host.
+
 Network resources have three current kinds:
 
 - Host: the implicit default network when no network has been created.
