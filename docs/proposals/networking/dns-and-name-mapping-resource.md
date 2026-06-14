@@ -368,11 +368,14 @@ decides later whether and how a specific name is materialized.
    place for DNS zone mappings.
 5. Add validation for target existence and provider capability. Initial
    logical conflict status is projected for duplicate host/scope mappings in
-   the same DNS zone.
+   the same DNS zone, and mappings now project whether a publishing provider
+   is selected or the mapping is logical-only.
 6. Add UI projection for DNS zones and name mappings. Initial target-side
    application overview projection is in place for inbound name mappings, and
-   generated resource overviews surface logical name conflicts as diagnostics.
+   generated resource overviews surface logical name conflicts and logical-only
+   materialization status as diagnostics.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
+   Done for logical-only DNS name mappings without a selected publisher.
 8. Add sample declarations for local DNS-style mappings.
 9. Add provider-backed examples for load balancer and virtual network integration.
 10. Add a local development provider for host-based name publication.
@@ -383,7 +386,8 @@ decides later whether and how a specific name is materialized.
 
 * Add dedicated Resource Manager create/update UI for DNS zones and name
   mappings.
-* Add provider-materialization diagnostics for name mappings.
+* Add provider-specific publish/materialization diagnostics for selected DNS
+  providers.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add create/update blocking or guided resolution for duplicate names in the
   same scope when DNS/name mappings are authored through Resource Manager.

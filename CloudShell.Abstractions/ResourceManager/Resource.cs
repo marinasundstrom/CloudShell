@@ -127,6 +127,8 @@ public static class ResourceAttributeNames
     public const string NameMappingProviderResourceId = "nameMapping.providerResourceId";
     public const string NameMappingStatus = "nameMapping.status";
     public const string NameMappingStatusReason = "nameMapping.statusReason";
+    public const string NameMappingMaterializationStatus = "nameMapping.materializationStatus";
+    public const string NameMappingMaterializationStatusReason = "nameMapping.materializationStatusReason";
     public const string LoadBalancerProvider = "loadBalancer.provider";
     public const string LoadBalancerHostResourceId = "loadBalancer.hostResourceId";
     public const string LoadBalancerEntrypointCount = "loadBalancer.entrypoints";

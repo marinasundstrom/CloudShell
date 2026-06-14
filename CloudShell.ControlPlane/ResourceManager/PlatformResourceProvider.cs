@@ -1437,6 +1437,10 @@ public sealed class PlatformResourceProvider(
             [ResourceAttributeNames.NameMappingTargetResourceId] = mapping.TargetResourceId,
             [ResourceAttributeNames.NameMappingExposure] = mapping.Exposure.ToString(),
             [ResourceAttributeNames.NameMappingStatus] = hasConflict ? "Conflict" : "Ready",
+            [ResourceAttributeNames.NameMappingMaterializationStatus] =
+                GetNameMappingMaterializationStatus(zone, mapping),
+            [ResourceAttributeNames.NameMappingMaterializationStatusReason] =
+                GetNameMappingMaterializationStatusReason(zone, mapping),
             [ResourceAttributeNames.DnsZoneName] = zone.ZoneName,
             [ResourceAttributeNames.DnsProvider] =
                 string.IsNullOrWhiteSpace(zone.Provider) ? "logical" : zone.Provider
@@ -1493,6 +1497,38 @@ public sealed class PlatformResourceProvider(
 
     private static string CreateNameMappingConflictKey(DnsNameMappingDefinition mapping) =>
         $"{mapping.HostName.Trim().ToLowerInvariant()}|{mapping.Exposure}";
+
+    private static string GetNameMappingMaterializationStatus(
+        DnsZoneResourceDefinition zone,
+        DnsNameMappingDefinition mapping) =>
+        HasNameMappingProvider(zone, mapping) ? "ProviderSelected" : "LogicalOnly";
+
+    private static string GetNameMappingMaterializationStatusReason(
+        DnsZoneResourceDefinition zone,
+        DnsNameMappingDefinition mapping)
+    {
+        if (!string.IsNullOrWhiteSpace(mapping.ProviderResourceId))
+        {
+            return $"Provider resource '{mapping.ProviderResourceId}' is responsible for publishing this name.";
+        }
+
+        if (!IsLogicalDnsProvider(zone.Provider))
+        {
+            return $"DNS provider '{zone.Provider}' is responsible for publishing this name.";
+        }
+
+        return "No DNS publishing provider is selected. CloudShell models the name mapping, but it will not publish DNS records for this host.";
+    }
+
+    private static bool HasNameMappingProvider(
+        DnsZoneResourceDefinition zone,
+        DnsNameMappingDefinition mapping) =>
+        !string.IsNullOrWhiteSpace(mapping.ProviderResourceId) ||
+        !IsLogicalDnsProvider(zone.Provider);
+
+    private static bool IsLogicalDnsProvider(string? provider) =>
+        string.IsNullOrWhiteSpace(provider) ||
+        string.Equals(provider, "logical", StringComparison.OrdinalIgnoreCase);
 
     private Resource CreateLoadBalancerResource(LoadBalancerResourceDefinition definition)
     {

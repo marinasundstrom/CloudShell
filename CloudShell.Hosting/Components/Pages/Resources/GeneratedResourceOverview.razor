@@ -583,6 +583,18 @@
                     L["This name mapping is not ready."].Value));
         }
 
+        if (Resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingMaterializationStatus,
+                out var materializationStatus) &&
+            string.Equals(materializationStatus, "LogicalOnly", StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                L["Warning"].Value,
+                L["Name mapping is logical only"].Value,
+                Resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NameMappingMaterializationStatusReason) ??
+                    L["No DNS publishing provider is selected for this name mapping."].Value));
+        }
+
         return diagnostics;
     }
 

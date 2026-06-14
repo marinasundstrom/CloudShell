@@ -3547,7 +3547,51 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("http", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingTargetEndpointName]);
         Assert.Equal(ResourceExposureScope.Public.ToString(), mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingExposure]);
         Assert.Equal("Ready", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingStatus]);
+        Assert.Equal(
+            "LogicalOnly",
+            mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatus]);
+        Assert.Equal(
+            "No DNS publishing provider is selected. CloudShell models the name mapping, but it will not publish DNS records for this host.",
+            mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatusReason]);
         Assert.True(mappingResource.HasCapability(ResourceCapabilityIds.NetworkingNameMapping));
+    }
+
+    [Fact]
+    public void PlatformResources_ProjectDnsNameMappingMaterializationProvider()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var api = resources.Declare("applications", "application:api");
+
+                resources
+                    .AddDnsZone("local", "Local DNS", "local")
+                    .UseProvider("hosts-file")
+                    .MapHost("api.local", api, "http");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var resources = provider.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        var zoneResource = resources["dns:local"];
+        Assert.Equal("hosts-file", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsProvider]);
+
+        var mappingResource = resources["dns:local:name:api-local"];
+        Assert.Equal(
+            "ProviderSelected",
+            mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatus]);
+        Assert.Equal(
+            "DNS provider 'hosts-file' is responsible for publishing this name.",
+            mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatusReason]);
     }
 
     [Fact]

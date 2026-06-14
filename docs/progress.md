@@ -118,7 +118,10 @@ expectations rather than duplicating the task queue.
   project logical conflict status when multiple mappings claim the same host
   name in the same exposure scope, and generated Resource Manager overviews
   surface those conflicts as diagnostics instead of leaving them only as raw
-  attributes.
+  attributes. Name-mapping resources also now project materialization status:
+  mappings without a publishing provider are marked as logical-only and shown
+  as diagnostics so users know CloudShell is modeling the name but not
+  publishing DNS records for it.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the
