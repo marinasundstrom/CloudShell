@@ -400,6 +400,9 @@
     [Parameter]
     public ResourceTypeContribution? ResourceType { get; set; }
 
+    [Parameter]
+    public EventCallback<Resource> ResourceUpdated { get; set; }
+
     private IReadOnlyList<Resource> ChildResources { get; set; } = [];
     private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
@@ -510,7 +513,16 @@
                     StartDependencies: ShouldStartDependencies(action),
                     IgnoreDependentWarning: true));
             ProcedureMessage = result.Message;
-            Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
+            var resource = await ResourceManager.GetResourceAsync(Resource.Id);
+            if (resource is not null)
+            {
+                await ResourceUpdated.InvokeAsync(resource);
+                Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
+            }
+            else
+            {
+                Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
+            }
         }
         catch (Exception exception)
         {
