@@ -392,6 +392,13 @@ not introduce a second out-of-band local management API for the shell.
   Windows should get explicit consideration because Hyper-V, WSL, Containers,
   firewall, networking, and Docker-compatible runtime prerequisites may need to
   be enabled before a host can run or expose workloads.
+- Include default container-host selection in the broader environment setup
+  experience. Operators should be able to choose the default host for container
+  apps and provider-owned runtime infrastructure, see whether that host is
+  ready, and understand which resources will inherit it. Resource-level host
+  selectors remain useful for explicit placement, but the environment setup
+  view should make the default hosting posture visible before resources are
+  created.
 
 ## Example Flows
 

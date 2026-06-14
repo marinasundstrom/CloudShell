@@ -214,6 +214,12 @@ expectations rather than duplicating the task queue.
   available as the `ResourceManager:ReadOnly` UI host setting so
   local-development or programmatic-declaration environments can be inspected
   without letting UI writes override the declared graph.
+- Host setup should grow into a broader environment setup experience for
+  platform operators. The setup flow should cover missing OS/runtime
+  prerequisites and environment-level choices such as the default identity
+  provider, default container host, default networking/DNS/service-discovery
+  providers, and related readiness checks. Per-resource prompts remain useful
+  when one resource requires a disabled or unconfigured capability.
 - CloudShell is an open platform. Built-in services and samples should dogfood
   the same public integration points, identity model, service APIs, lifecycle
   contracts, diagnostics, and authorization surfaces that extension authors and

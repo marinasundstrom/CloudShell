@@ -387,13 +387,18 @@ listed here before pulling in broader proposal work.
   mapper capability, and unresolved source/target resources or endpoints. Next
   add provider-specific wording for missing gateway, load balancer, DNS,
   service mesh, firewall, or cluster network controller capability.
-- Add a host system setup UX plan that combines global host setup views with
-  per-resource setup prompts. A host setup view should summarize missing or
+- Add a host and environment setup UX plan that combines global setup views
+  with per-resource setup prompts. A setup view should summarize missing or
   disabled OS/runtime capabilities for the current machine or selected host,
-  while resource pages should prompt when the resource needs a feature that is
-  not enabled. This is especially important for Windows, where container,
-  virtualization, networking, firewall, DNS, and optional OS features may need
-  explicit activation before a provider can materialize the requested resource.
+  and it should also guide environment-level platform choices such as selecting
+  and configuring an identity provider, choosing the default container host,
+  selecting default networking/DNS providers, and preparing other environment
+  services needed when CloudShell is used as a hosting platform rather than
+  only a local developer shell. Resource pages should still prompt when a
+  specific resource needs a feature that is not enabled. This is especially
+  important for Windows, where container, virtualization, networking, firewall,
+  DNS, and optional OS features may need explicit activation before a provider
+  can materialize the requested resource.
 - Finish provider-backed endpoint mapping materialization for real host
   networking services, not just logical local networking.
 - Add the first DNS/name mapping resource projection and UI path for local

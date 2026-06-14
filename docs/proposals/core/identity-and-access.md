@@ -539,6 +539,12 @@ service-principal automation flows.
 5. UI management.
    Expand the generated Identity tab into guided identity binding, grant
    editing, diagnostics, provisioning, and provider-resource management.
+   The broader environment setup experience should also let an operator choose
+   and configure the default identity provider for the CloudShell environment,
+   run provider setup/reconcile hooks, and show whether the selected provider
+   is ready for user sign-in, resource identity provisioning, and protected
+   service-bearer validation. Per-resource Identity tabs can then focus on the
+   binding, grant, and provisioning state for that specific resource.
 6. Audit integration.
    Persist authorization decision events and connect identity/access decisions
    to the platform traceability stream.

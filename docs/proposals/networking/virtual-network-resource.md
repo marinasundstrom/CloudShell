@@ -418,6 +418,12 @@ only introduce a richer ingress editor once routing fields become standardized.
   load balancer requires a disabled feature. Windows should be treated as a
   first-class case because networking, container, virtualization, firewall,
   DNS, and optional OS components may need explicit activation.
+- Include networking provider choices in the broader environment setup
+  experience. Operators should be able to select default networking, ingress,
+  load-balancer, DNS/name-publishing, and service-discovery providers for an
+  environment, inspect whether those providers are ready, and understand which
+  resource flows will inherit those defaults. Resource-level provider
+  selection still remains the escape hatch for explicit placement or routing.
 - Extend UI and API validation coverage for provider selection, richer
   conflict reporting, advisory port availability, and reconcile action
   outcomes. The first platform-owned host/port conflict and local port
