@@ -60,8 +60,11 @@ else
         </div>
 
         <dl class="detail-list">
-            <dt>State</dt>
-            <dd>@resource.State</dd>
+            @if (resource.State is { } state)
+            {
+                <dt>State</dt>
+                <dd>@state</dd>
+            }
             <dt>Containers</dt>
             <dd>@containers.Count</dd>
             <dt>Version</dt>
@@ -92,7 +95,7 @@ else
                                 </td>
                                 <td>@container.Version</td>
                                 <td>
-                                    <span class="state-pill @GetStateClass(container.State)">@container.State</span>
+                                    <span class="state-pill @GetStateClass(container.State)">@GetStateLabel(container)</span>
                                 </td>
                                 <td>
                                     @ContainerActionControls(container)
@@ -396,7 +399,10 @@ else
     private static string ShortId(string value) =>
         value.Length <= 24 ? value : value[^12..];
 
-    private static string GetStateClass(ResourceState state) => state switch
+    private static string GetStateLabel(Resource resource) =>
+        resource.State?.ToString() ?? ResourceState.Unknown.ToString();
+
+    private static string GetStateClass(ResourceState? state) => state switch
     {
         ResourceState.Running => "state-running",
         ResourceState.Starting => "state-starting",

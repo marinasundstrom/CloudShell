@@ -6,7 +6,7 @@ public sealed record Resource(
     string Kind,
     string Provider,
     string Region,
-    ResourceState State,
+    ResourceState? State,
     IReadOnlyList<ResourceEndpoint> Endpoints,
     string Version,
     DateTimeOffset LastUpdated,

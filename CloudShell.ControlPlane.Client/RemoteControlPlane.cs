@@ -673,7 +673,7 @@ file sealed record ResourceResponse(
     ResourceClass ResourceClass,
     string Provider,
     string Region,
-    ResourceState State,
+    ResourceState? State,
     IReadOnlyList<ResourceEndpointResponse> Endpoints,
     string PrimaryEndpoint,
     string Version,

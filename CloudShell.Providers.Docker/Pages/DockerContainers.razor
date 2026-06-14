@@ -120,7 +120,7 @@ else
                             </td>
                             <td>@container.Version</td>
                             <td>
-                                <span class="state-pill @GetStateClass(container.State)">@container.State</span>
+                                <span class="state-pill @GetStateClass(container.State)">@GetStateLabel(container)</span>
                             </td>
                             <td class="endpoint">@EndpointLink(container.PrimaryEndpoint)</td>
                             <td>
@@ -443,7 +443,10 @@ else
     private static string ShortId(string value) =>
         value.Length <= 24 ? value : value[^12..];
 
-    private static string GetStateClass(ResourceState state) => state switch
+    private static string GetStateLabel(Resource resource) =>
+        resource.State?.ToString() ?? ResourceState.Unknown.ToString();
+
+    private static string GetStateClass(ResourceState? state) => state switch
     {
         ResourceState.Running => "state-running",
         ResourceState.Starting => "state-starting",

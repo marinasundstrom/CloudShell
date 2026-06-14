@@ -225,7 +225,12 @@
                     </div>
                     <span>@resource.Kind</span>
                     <span>@(group?.Name ?? L["Default group"])</span>
-                    <span><span class="state-pill @GetStateClass(resource.State)">@resource.State</span></span>
+                    <span>
+                        @if (ResourceLifecycleDisplay.ShouldShowStatus(resource))
+                        {
+                            <span class="state-pill @GetStateClass(resource.State)">@resource.State</span>
+                        }
+                    </span>
                     <span>@HealthIndicator(resource)</span>
                     <span class="endpoint">@EndpointLink(resource.PrimaryEndpoint)</span>
                     <span class="resource-row-actions" @onclick:stopPropagation="true">
@@ -325,11 +330,14 @@
                 </button>
             </div>
 
-            <div class="blade-status">
-                <span class="state-dot @GetStateClass(selected.State)"></span>
-                <strong>@selected.State</strong>
-                <span>@L["Updated {0}", selected.LastUpdated.ToLocalTime().ToString("HH:mm:ss")]</span>
-            </div>
+            @if (ResourceLifecycleDisplay.ShouldShowStatus(selected))
+            {
+                <div class="blade-status">
+                    <span class="state-dot @GetStateClass(selected.State)"></span>
+                    <strong>@selected.State</strong>
+                    <span>@L["Updated {0}", selected.LastUpdated.ToLocalTime().ToString("HH:mm:ss")]</span>
+                </div>
+            }
 
             @if (selected.ResourceHealthChecks.Count > 0)
             {
@@ -426,7 +434,10 @@
                                     <strong>@child.Name</strong>
                                     <small>@child.Kind</small>
                                 </span>
-                                <span class="state-dot @GetStateClass(child.State)"></span>
+                                @if (ResourceLifecycleDisplay.ShouldShowStatus(child))
+                                {
+                                    <span class="state-dot @GetStateClass(child.State)"></span>
+                                }
                             </button>
                         }
                     </div>
@@ -1815,8 +1826,8 @@
     private static bool ShouldWarnDependents(ResourceAction action) =>
         action.Kind is ResourceActionKind.Stop or ResourceActionKind.Restart;
 
-    private static bool IsActiveDependencyState(ResourceState state) =>
-        state is not ResourceState.Stopped and not ResourceState.Unknown;
+    private static bool IsActiveDependencyState(ResourceState? state) =>
+        state is not null and not ResourceState.Stopped and not ResourceState.Unknown;
 
     private string GetLogsActionLabel(int logCount) =>
         logCount == 1 ? L["Logs"].Value : L["Logs ({0})", logCount].Value;
@@ -1865,7 +1876,7 @@
         kind.Contains("Broker", StringComparison.OrdinalIgnoreCase) ? "Q" :
         "S";
 
-    private static string GetStateClass(ResourceState state) => state switch
+    private static string GetStateClass(ResourceState? state) => state switch
     {
         ResourceState.Running => "state-running",
         ResourceState.Starting => "state-starting",

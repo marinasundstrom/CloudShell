@@ -128,7 +128,11 @@ expectations rather than duplicating the task queue.
   also warn when a selected name-publishing provider resource is missing or
   does not advertise the DNS publisher capability. DNS zones and name mappings
   are registered as inspectable Resource Manager resource types; dedicated
-  create/update authoring remains deferred.
+  create/update authoring remains deferred. DNS zones and name mappings do not
+  expose lifecycle status because they are logical model resources rather than
+  runtime services. `Resource.State` is optional; `null` means no lifecycle
+  status is produced, while `Unknown` remains the value for lifecycle-aware
+  resources whose provider cannot determine current status.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the

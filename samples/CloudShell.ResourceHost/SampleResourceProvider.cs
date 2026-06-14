@@ -67,7 +67,7 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
             ResourceActionKind.Start or ResourceActionKind.Restart => ResourceState.Running,
             ResourceActionKind.Stop => ResourceState.Stopped,
             ResourceActionKind.Pause => ResourceState.Paused,
-            _ => context.Resource.State
+            _ => context.Resource.State ?? ResourceState.Unknown
         };
 
         lock (gate)

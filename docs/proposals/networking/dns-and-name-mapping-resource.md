@@ -43,6 +43,11 @@ Without a common name-mapping model, DNS-like behavior risks becoming hidden ins
 ## Resource Model
 
 DNS and name mapping should be modeled through ordinary CloudShell resources.
+They are logical model resources by default and do not need to expose
+lifecycle status. A DNS zone or name mapping can report diagnostics,
+materialization status, conflicts, and provider intent without projecting a
+`ResourceState`; absence of state means the resource does not produce
+lifecycle status, not that the status is unknown.
 
 Suggested resource types:
 

@@ -53,7 +53,10 @@
             @foreach (var resource in Resources.Take(8))
             {
                 <div class="activity-row">
-                    <span class="state-dot @GetStateClass(resource.State)"></span>
+                    @if (ResourceLifecycleDisplay.ShouldShowStatus(resource))
+                    {
+                        <span class="state-dot @GetStateClass(resource.State)"></span>
+                    }
                     <div>
                         <strong>@resource.Name</strong>
                         <span>@resource.Kind</span>
@@ -72,7 +75,7 @@
         Resources = await ResourceManager.ListResourcesAsync();
     }
 
-    private static string GetStateClass(ResourceState state) => state switch
+    private static string GetStateClass(ResourceState? state) => state switch
     {
         ResourceState.Running => "state-running",
         ResourceState.Starting => "state-starting",

@@ -53,7 +53,7 @@
             <div class="panel-header log-viewer-header">
                 <div>
                     <h2>@selected.Name</h2>
-                    <p>@selected.Kind / @selected.Provider / @GetStateLabel(selected.State)</p>
+                    <p>@selected.Kind / @selected.Provider@GetStateSuffix(selected)</p>
                 </div>
                 <div class="log-viewer-actions">
                     <label class="trace-source-filter" for="trace-source-filter">
@@ -453,8 +453,8 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         SelectedSpanId = span.SpanId;
     }
 
-    private static string GetStateLabel(ResourceState state) =>
-        state.ToString();
+    private static string GetStateSuffix(Resource resource) =>
+        resource.State is { } state ? $" / {state}" : string.Empty;
 
     private string GetSpanSummary(int spanCount) =>
         string.IsNullOrWhiteSpace(TraceId)

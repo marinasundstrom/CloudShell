@@ -102,7 +102,8 @@ Important properties:
   container, service, network, storage, configuration, or infrastructure.
 - `Attributes`: stable, non-secret details that describe the resource's class,
   type, or provider-owned shape.
-- `State`: lifecycle or health-oriented state.
+- `State`: optional lifecycle or health-oriented state produced by resources
+  that expose lifecycle status.
 - `Endpoints`: addresses exposed by the resource.
 - `DependsOn`: resource dependencies.
 - `ParentResourceId`: parent/child hierarchy.
@@ -120,6 +121,16 @@ attributes such as class, type, endpoints, actions, health checks,
 observability, and structural metadata; providers own the configuration and
 runtime behavior behind those attributes. `Resource` does not imply CloudShell
 owns all underlying provider configuration or runtime state.
+
+Not every resource exposes lifecycle status. Runtime resources such as
+applications, container hosts, containers, configuration services, secrets
+vaults, load balancers with runtime providers, and other managed services can
+produce `State`. Logical model resources such as DNS zones and DNS name
+mappings can omit `State` entirely because they describe configuration,
+relationships, or materialization intent rather than a running process or
+service. `null` state means "no lifecycle status is produced"; it is not the
+same as `Unknown`, which means the resource participates in lifecycle status
+but the provider cannot currently determine the value.
 
 A storage volume resource represents allocated physical storage that can be
 referenced and mounted by another resource. A simple local volume can be

@@ -3561,6 +3561,7 @@ public sealed class ResourceDeclarationTests
         var zoneResource = resources["dns:local"];
         Assert.Equal(PlatformResourceProvider.DnsZoneResourceType, zoneResource.EffectiveTypeId);
         Assert.Equal(ResourceClass.Network, zoneResource.ResourceClass);
+        Assert.Null(zoneResource.State);
         Assert.Equal("local", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsZoneName]);
         Assert.Equal("logical", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsProvider]);
         Assert.Equal("1", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsRecordCount]);
@@ -3571,6 +3572,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceClass.Network, mappingResource.ResourceClass);
         Assert.Equal("dns:local", mappingResource.ParentResourceId);
         Assert.Equal(["application:api"], mappingResource.DependsOn);
+        Assert.Null(mappingResource.State);
         Assert.Equal("api.local", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingHostName]);
         Assert.Equal("application:api", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingTargetResourceId]);
         Assert.Equal("http", mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingTargetEndpointName]);

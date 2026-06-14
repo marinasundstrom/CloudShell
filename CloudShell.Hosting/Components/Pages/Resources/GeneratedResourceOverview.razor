@@ -33,8 +33,11 @@
                 <dt>@L["Parent"]</dt>
                 <dd>@ResourceLink(Resource.ParentResourceId)</dd>
             }
-            <dt>@L["State"]</dt>
-            <dd>@Resource.State</dd>
+            @if (ResourceLifecycleDisplay.ShouldShowStatus(Resource))
+            {
+                <dt>@L["State"]</dt>
+                <dd>@Resource.State</dd>
+            }
             <dt>@L["Version"]</dt>
             <dd>@Resource.Version</dd>
             <dt>@L["Updated"]</dt>

@@ -836,8 +836,8 @@ public sealed class InProcessControlPlane(
             _ => null
         };
 
-    private static string FormatState(ResourceState state) =>
-        state.ToString().ToLowerInvariant();
+    private static string FormatState(ResourceState? state) =>
+        state?.ToString().ToLowerInvariant() ?? "no lifecycle status";
 
     private IResourceProcedureProvider? GetProcedureProvider(Resource resource)
     {
