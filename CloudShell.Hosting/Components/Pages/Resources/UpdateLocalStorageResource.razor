@@ -1,0 +1,156 @@
+@using System.Text.Json
+@inject IResourceManager ResourceManager
+
+@if (Storage is null)
+{
+    <div class="empty-state">
+        <strong>Storage unavailable</strong>
+        <span>The storage resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    @if (IsStorageShapeLocked)
+    {
+        <div class="procedure-message compact">
+            Provider location cannot be changed while this storage resource owns volumes. Remove or move the volumes first.
+        </div>
+    }
+
+    <div class="type-registration">
+        <div class="form-panel">
+            <label for="local-storage-update-name">Name</label>
+            <FluentTextField Id="local-storage-update-name" @bind-Value="Name" />
+
+            <label for="local-storage-update-group">Resource group</label>
+            <FluentSelect TOption="string"
+                          Id="local-storage-update-group"
+                          @bind-Value="SelectedGroupId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Default group</FluentOption>
+                @foreach (var group in ResourceGroups)
+                {
+                    <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
+                }
+            </FluentSelect>
+
+            <label for="local-storage-update-location">Provider location</label>
+            <FluentTextField Id="local-storage-update-location"
+                             Disabled="@IsStorageShapeLocked"
+                             @bind-Value="Location"
+                             Placeholder="Optional local storage root" />
+        </div>
+    </div>
+}
+
+@code {
+    private const string PlatformProviderId = "cloudshell.platform";
+    private const string StorageResourceType = "cloudshell.storage";
+
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Storage { get; set; }
+    private ResourceGroup? ResourceGroup { get; set; }
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+    private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+    private IReadOnlyList<Resource> Volumes { get; set; } = [];
+    private string Name { get; set; } = string.Empty;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string Location { get; set; } = string.Empty;
+
+    private bool IsStorageShapeLocked => Volumes.Count > 0;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+        Storage = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        ResourceGroup = Storage is null
+            ? null
+            : await ResourceManager.GetResourceGroupForResourceAsync(Storage.Id);
+
+        if (Storage is not null)
+        {
+            var resources = await ResourceManager.ListResourcesAsync();
+            Volumes = resources
+                .Where(IsOwnedVolume)
+                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            Name = Storage.Name;
+            SelectedGroupId = ResourceGroup?.Id ?? string.Empty;
+            Location = GetEditableLocation();
+        }
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        if (Storage is null)
+        {
+            return ResourceProcedureResult.Completed("Storage resource is unavailable.");
+        }
+
+        var location = IsStorageShapeLocked
+            ? GetAttribute(ResourceAttributeNames.StorageLocation, string.Empty)
+            : NormalizeNullable(Location);
+        if (string.Equals(location, "provider default", StringComparison.OrdinalIgnoreCase))
+        {
+            location = null;
+        }
+
+        var definition = new StorageResourceDefinition(
+            Storage.Id,
+            string.IsNullOrWhiteSpace(Name) ? Storage.Name : Name,
+            StorageProviderNames.LocalStorage,
+            StorageMedia.FileSystem,
+            location);
+
+        await ResourceManager.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformProviderId,
+                StorageResourceType,
+                Storage.Id,
+                definition.Name,
+                JsonSerializer.SerializeToElement(definition),
+                string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId,
+                ResourceClass.Storage),
+            cancellationToken);
+
+        return IsStorageShapeLocked
+            ? ResourceProcedureResult.Completed("Storage metadata updated. Provider location was kept because the storage resource owns volumes.")
+            : ResourceProcedureResult.Completed("Storage updated.");
+    }
+
+    private bool IsOwnedVolume(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) &&
+        resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeStorageResourceId, out var storageResourceId) &&
+        string.Equals(storageResourceId, Storage?.Id, StringComparison.OrdinalIgnoreCase);
+
+    private string GetAttribute(string name, string fallback) =>
+        Storage?.ResourceAttributes.TryGetValue(name, out var value) == true &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private string GetEditableLocation()
+    {
+        var location = GetAttribute(ResourceAttributeNames.StorageLocation, string.Empty);
+        return string.Equals(location, "provider default", StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : location;
+    }
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}

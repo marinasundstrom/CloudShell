@@ -46,6 +46,14 @@ public sealed class PlatformResourceStore
                 replaceExisting: !volume.Persist || volume.OverwritePersistedState);
         }
 
+        foreach (var storage in options.DeclaredStorages)
+        {
+            UpsertStorage(
+                storage.Definition,
+                persist: false,
+                replaceExisting: !storage.Persist || storage.OverwritePersistedState);
+        }
+
         foreach (var loadBalancer in options.DeclaredLoadBalancers)
         {
             UpsertLoadBalancer(
@@ -103,6 +111,25 @@ public sealed class PlatformResourceStore
         }
     }
 
+    public IReadOnlyList<StorageResourceDefinition> GetStorages()
+    {
+        lock (_gate)
+        {
+            return (_definitions.Storages ?? [])
+                .OrderBy(storage => storage.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+    }
+
+    public StorageResourceDefinition? GetStorage(string id)
+    {
+        lock (_gate)
+        {
+            return (_definitions.Storages ?? []).FirstOrDefault(storage =>
+                string.Equals(storage.Id, id, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public VolumeResourceDefinition? GetVolume(string id)
     {
         lock (_gate)
@@ -155,6 +182,14 @@ public sealed class PlatformResourceStore
         }
     }
 
+    public void SaveStorage(StorageResourceDefinition definition, bool persist = true)
+    {
+        lock (_gate)
+        {
+            UpsertStorage(definition, persist, replaceExisting: true);
+        }
+    }
+
     public void SaveLoadBalancer(LoadBalancerResourceDefinition definition, bool persist = true)
     {
         lock (_gate)
@@ -178,6 +213,9 @@ public sealed class PlatformResourceStore
                 Volumes = _definitions.Volumes
                     .Where(volume => !string.Equals(volume.Id, id, StringComparison.OrdinalIgnoreCase))
                     .ToArray(),
+                Storages = (_definitions.Storages ?? [])
+                    .Where(storage => !string.Equals(storage.Id, id, StringComparison.OrdinalIgnoreCase))
+                    .ToArray(),
                 LoadBalancers = _definitions.LoadBalancers
                     .Where(loadBalancer => !string.Equals(loadBalancer.Id, id, StringComparison.OrdinalIgnoreCase))
                     .ToArray()
@@ -190,18 +228,19 @@ public sealed class PlatformResourceStore
     {
         if (!File.Exists(_definitionsPath))
         {
-            return new PlatformResourceDefinitions([], [], [], []);
+            return new PlatformResourceDefinitions([], [], [], [], []);
         }
 
         var json = File.ReadAllText(_definitionsPath);
         var definitions = JsonSerializer.Deserialize<PlatformResourceDefinitions>(json, SerializerOptions)
-            ?? new PlatformResourceDefinitions([], [], [], []);
+            ?? new PlatformResourceDefinitions([], [], [], [], []);
 
         return definitions with
         {
             Networks = (definitions.Networks ?? []).Select(NormalizeNetwork).ToArray(),
             Services = (definitions.Services ?? []).Select(NormalizeService).ToArray(),
             Volumes = (definitions.Volumes ?? []).Select(NormalizeVolume).ToArray(),
+            Storages = (definitions.Storages ?? definitions.LocalStorages ?? []).Select(NormalizeStorage).ToArray(),
             LoadBalancers = (definitions.LoadBalancers ?? []).Select(NormalizeLoadBalancer).ToArray()
         };
     }
@@ -277,6 +316,33 @@ public sealed class PlatformResourceStore
         {
             Volumes = _definitions.Volumes
                 .Where(volume => !string.Equals(volume.Id, normalized.Id, StringComparison.OrdinalIgnoreCase))
+                .Append(normalized)
+                .ToArray()
+        };
+
+        if (persist)
+        {
+            Persist();
+        }
+    }
+
+    private void UpsertStorage(
+        StorageResourceDefinition definition,
+        bool persist,
+        bool replaceExisting)
+    {
+        var normalized = NormalizeStorage(definition);
+        var existing = (_definitions.Storages ?? []).FirstOrDefault(storage =>
+            string.Equals(storage.Id, normalized.Id, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null && !replaceExisting)
+        {
+            return;
+        }
+
+        _definitions = _definitions with
+        {
+            Storages = (_definitions.Storages ?? [])
+                .Where(storage => !string.Equals(storage.Id, normalized.Id, StringComparison.OrdinalIgnoreCase))
                 .Append(normalized)
                 .ToArray()
         };
@@ -407,6 +473,18 @@ public sealed class PlatformResourceStore
             Id = NormalizeId(definition.Id, "volume", definition.Name),
             Name = definition.Name.Trim(),
             Provider = NormalizeNullable(definition.Provider),
+            Location = NormalizeNullable(definition.Location),
+            StorageResourceId = NormalizeNullable(definition.StorageResourceId),
+            SubPath = NormalizeNullable(definition.SubPath)
+        };
+
+    private static StorageResourceDefinition NormalizeStorage(StorageResourceDefinition definition) =>
+        definition with
+        {
+            Id = NormalizeId(definition.Id, "storage", definition.Name),
+            Name = definition.Name.Trim(),
+            Provider = NormalizeNullable(definition.Provider) ?? StorageProviderNames.LocalStorage,
+            Medium = NormalizeNullable(definition.Medium) ?? StorageMedia.FileSystem,
             Location = NormalizeNullable(definition.Location)
         };
 
@@ -522,5 +600,7 @@ public sealed class PlatformResourceStore
         IReadOnlyList<NetworkResourceDefinition> Networks,
         IReadOnlyList<ServiceResourceDefinition> Services,
         IReadOnlyList<VolumeResourceDefinition> Volumes,
-        IReadOnlyList<LoadBalancerResourceDefinition> LoadBalancers);
+        IReadOnlyList<LoadBalancerResourceDefinition> LoadBalancers,
+        IReadOnlyList<StorageResourceDefinition>? Storages = null,
+        IReadOnlyList<StorageResourceDefinition>? LocalStorages = null);
 }

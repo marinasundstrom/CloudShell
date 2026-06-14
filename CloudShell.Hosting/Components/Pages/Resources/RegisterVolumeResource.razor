@@ -23,10 +23,27 @@
         </FluentSelect>
 
         <label for="volume-provider">Provider</label>
-        <FluentTextField Id="volume-provider" @bind-Value="Provider" Placeholder="local" />
+        <FluentTextField Id="volume-provider"
+                         Disabled="@HasSelectedStorage"
+                         @bind-Value="Provider"
+                         Placeholder="Local Storage" />
+
+        <label for="volume-storage">Storage resource</label>
+        <FluentSelect TOption="string"
+                      Id="volume-storage"
+                      @bind-Value="SelectedStorageResourceId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Direct filesystem path</FluentOption>
+            @foreach (var storage in StorageResources)
+            {
+                <FluentOption TOption="string" Value="@storage.Id">@storage.Name</FluentOption>
+            }
+        </FluentSelect>
 
         <label for="volume-location">Volume path</label>
-        <FluentTextField Id="volume-location" @bind-Value="Location" Placeholder="./data/postgres or //nas/share/postgres" />
+        <FluentTextField Id="volume-location"
+                         @bind-Value="Location"
+                         Placeholder="@GetLocationPlaceholder()" />
 
         <label for="volume-access-mode">Access mode</label>
         <FluentSelect TOption="string"
@@ -59,20 +76,30 @@
 @code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string VolumeResourceType = "cloudshell.volume";
+    private const string StorageResourceType = "cloudshell.storage";
 
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string SelectedGroupId { get; set; } = string.Empty;
+    private string SelectedStorageResourceId { get; set; } = string.Empty;
     private string Provider { get; set; } = string.Empty;
     private string Location { get; set; } = string.Empty;
     private string SelectedAccessMode { get; set; } = VolumeAccessMode.ReadWriteOnce.ToString();
     private bool Persistent { get; set; } = true;
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+    private IReadOnlyList<Resource> StorageResources { get; set; } = [];
+
+    private bool HasSelectedStorage =>
+        !string.IsNullOrWhiteSpace(SelectedStorageResourceId);
 
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+        StorageResources = (await ResourceManager.ListResourcesAsync())
+            .Where(resource => string.Equals(resource.EffectiveTypeId, StorageResourceType, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private async Task Register()
@@ -84,13 +111,21 @@
             return;
         }
 
+        if (HasSelectedStorage && string.IsNullOrWhiteSpace(Location))
+        {
+            ErrorMessage = "Storage-owned volumes require a subpath.";
+            return;
+        }
+
         var definition = new VolumeResourceDefinition(
             ResourceId,
             Name,
-            NormalizeNullable(Provider),
-            NormalizeNullable(Location),
+            HasSelectedStorage ? StorageProviderNames.LocalStorage : NormalizeNullable(Provider),
+            HasSelectedStorage ? null : NormalizeNullable(Location),
             Persistent,
-            ParseAccessMode());
+            ParseAccessMode(),
+            NormalizeNullable(SelectedStorageResourceId),
+            HasSelectedStorage ? NormalizeNullable(Location) : null);
 
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
@@ -112,6 +147,9 @@
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private string GetLocationPlaceholder() =>
+        HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";
 
     private static string GetAccessModeLabel(VolumeAccessMode mode) =>
         mode switch

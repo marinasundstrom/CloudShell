@@ -967,6 +967,41 @@ public sealed class ResourceDeclarationTests
         Assert.True(configuration.ShowsApplyButton);
     }
 
+    [Fact]
+    public void ResourceManagerExtension_RegistersStorageResourceTypeAndTabs()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddExtension<ResourceManagerExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var registry = serviceProvider.GetRequiredService<CloudShellExtensionRegistry>();
+        var resourceTypes = registry.Extensions
+            .SelectMany(extension => extension.ResourceTypes)
+            .ToDictionary(resourceType => resourceType.Id, StringComparer.OrdinalIgnoreCase);
+
+        var storageType = resourceTypes["cloudshell.storage"];
+
+        Assert.Equal("Local Storage", storageType.DisplayName);
+        Assert.Equal(ResourceClass.Storage, storageType.ResourceClass);
+        Assert.Equal(typeof(RegisterLocalStorageResource), storageType.RegistrationComponentType);
+        Assert.Equal(typeof(UpdateLocalStorageResource), storageType.UpdateComponentType);
+
+        var overview = Assert.Single(
+            storageType.ResourceTabs,
+            tab => string.Equals(tab.Id, "overview", StringComparison.OrdinalIgnoreCase));
+        var configuration = Assert.Single(
+            storageType.ResourceTabs,
+            tab => string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(typeof(LocalStorageOverview), overview.ComponentType);
+        Assert.False(overview.ShowsApplyButton);
+        Assert.Equal(typeof(UpdateLocalStorageResource), configuration.ComponentType);
+        Assert.True(configuration.ShowsApplyButton);
+    }
+
     private static void AssertStorageTab(ResourceTypeContribution resourceType)
     {
         var storageTab = Assert.Single(
@@ -3291,7 +3326,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(PlatformResourceProvider.ProviderId, declaration.ProviderId);
         Assert.Equal(ResourceClass.Storage, declaration.ResourceClassOverride);
         Assert.Equal(ResourceDeclarationPersistence.Persisted, declaration.Persistence);
-        Assert.Equal("local", declaration.ResourceAttributes[ResourceAttributeNames.VolumeProvider]);
+        Assert.Equal(StorageProviderNames.LocalStorage, declaration.ResourceAttributes[ResourceAttributeNames.VolumeProvider]);
+        Assert.Equal(StorageMedia.FileSystem, declaration.ResourceAttributes[ResourceAttributeNames.VolumeStorageMedium]);
         Assert.Equal("./data/postgres", declaration.ResourceAttributes[ResourceAttributeNames.VolumeLocation]);
         Assert.Equal("ReadWriteOnce", declaration.ResourceAttributes[ResourceAttributeNames.VolumeAccessMode]);
 
@@ -3300,7 +3336,7 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal("volume:postgres-data", definition.Id);
         Assert.Equal("Postgres Data", definition.Name);
-        Assert.Equal("local", definition.Provider);
+        Assert.Equal(StorageProviderNames.LocalStorage, definition.Provider);
         Assert.Equal("./data/postgres", definition.Location);
         Assert.True(definition.Persistent);
         Assert.Equal(VolumeAccessMode.ReadWriteOnce, definition.AccessMode);
@@ -3316,7 +3352,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceClass.Storage, resource.ResourceClass);
         Assert.Equal(ResourceState.Running, resource.State);
         Assert.Empty(resource.Endpoints);
-        Assert.Equal("local", resource.ResourceAttributes[ResourceAttributeNames.VolumeProvider]);
+        Assert.Equal(StorageProviderNames.LocalStorage, resource.ResourceAttributes[ResourceAttributeNames.VolumeProvider]);
+        Assert.Equal(StorageMedia.FileSystem, resource.ResourceAttributes[ResourceAttributeNames.VolumeStorageMedium]);
         Assert.Equal("./data/postgres", resource.ResourceAttributes[ResourceAttributeNames.VolumeLocation]);
         Assert.Equal("ReadWriteOnce", resource.ResourceAttributes[ResourceAttributeNames.VolumeAccessMode]);
         Assert.Equal("true", resource.ResourceAttributes[ResourceAttributeNames.VolumePersistent]);
@@ -3328,6 +3365,71 @@ public sealed class ResourceDeclarationTests
             StorageVolumeResourceOperationPermissions.MountWrite);
 
         Assert.True(evaluation.IsAllowed);
+    }
+
+    [Fact]
+    public void PlatformResources_DeclareLocalStorageWithOwnedVolume()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                var storage = resources
+                    .AddLocalStorage("local", "Local Storage")
+                    .UseLocation("./storage");
+
+                resources
+                    .AddVolume("postgres-data", "Postgres Data")
+                    .UseStorage(storage, "postgres")
+                    .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var store = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var storageDeclaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "storage:local");
+        var volumeDeclaration = Assert.Single(store.GetDeclarations(), declaration =>
+            declaration.ResourceId == "volume:postgres-data");
+        var options = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+        var declaredStorage = Assert.Single(options.DeclaredStorages).Definition;
+        var declaredVolume = Assert.Single(options.DeclaredVolumes).Definition;
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var resources = provider.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal(ResourceClass.Storage, storageDeclaration.ResourceClassOverride);
+        Assert.Equal(StorageProviderNames.LocalStorage, declaredStorage.Provider);
+        Assert.Equal(StorageMedia.FileSystem, declaredStorage.Medium);
+        Assert.Equal("./storage", declaredStorage.Location);
+        Assert.Equal("storage:local", declaredVolume.StorageResourceId);
+        Assert.Equal("postgres", declaredVolume.SubPath);
+        Assert.Null(declaredVolume.Location);
+        Assert.Equal(["storage:local"], volumeDeclaration.DependsOn);
+        Assert.Equal("storage:local", volumeDeclaration.ParentResourceId);
+
+        var storageResource = resources["storage:local"];
+        Assert.Equal(PlatformResourceProvider.StorageResourceType, storageResource.EffectiveTypeId);
+        Assert.Equal(StorageProviderNames.LocalStorage, storageResource.Kind);
+        Assert.Equal(StorageProviderNames.LocalStorage, storageResource.Provider);
+        Assert.Equal(StorageMedia.FileSystem, storageResource.Version);
+        Assert.Equal(StorageProviderNames.LocalStorage, storageResource.ResourceAttributes[ResourceAttributeNames.StorageProvider]);
+        Assert.Equal(StorageMedia.FileSystem, storageResource.ResourceAttributes[ResourceAttributeNames.StorageMedium]);
+        Assert.Equal("./storage", storageResource.ResourceAttributes[ResourceAttributeNames.StorageLocation]);
+        Assert.Equal("1", storageResource.ResourceAttributes[ResourceAttributeNames.StorageVolumeCount]);
+        Assert.True(storageResource.HasCapability(ResourceCapabilityIds.StorageProvider));
+        Assert.True(storageResource.HasCapability(ResourceCapabilityIds.StorageMountProvider));
+
+        var volumeResource = resources["volume:postgres-data"];
+        Assert.Equal("storage:local", volumeResource.ResourceAttributes[ResourceAttributeNames.VolumeStorageResourceId]);
+        Assert.Equal(StorageProviderNames.LocalStorage, volumeResource.ResourceAttributes[ResourceAttributeNames.VolumeProvider]);
+        Assert.Equal(StorageMedia.FileSystem, volumeResource.ResourceAttributes[ResourceAttributeNames.VolumeStorageMedium]);
+        Assert.Equal("postgres", volumeResource.ResourceAttributes[ResourceAttributeNames.VolumeSubPath]);
+        Assert.Equal(["storage:local"], volumeResource.DependsOn);
     }
 
     [Fact]

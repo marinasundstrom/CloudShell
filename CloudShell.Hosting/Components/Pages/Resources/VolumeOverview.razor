@@ -13,9 +13,22 @@ else
         <h3>Volume</h3>
         <dl class="detail-list">
             <dt>Provider</dt>
-            <dd>@GetAttribute(ResourceAttributeNames.VolumeProvider, "local")</dd>
+            <dd>@GetAttribute(ResourceAttributeNames.VolumeProvider, StorageProviderNames.LocalStorage)</dd>
+            <dt>Storage medium</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.VolumeStorageMedium, "provider managed")</dd>
+            @if (TryGetStorageResourceId(out var storageResourceId))
+            {
+                <dt>Storage resource</dt>
+                <dd>
+                    <a class="resource-link" href="@BuildResourceRoute(storageResourceId)">
+                        @storageResourceId
+                    </a>
+                </dd>
+                <dt>Volume subpath</dt>
+                <dd>@GetAttribute(ResourceAttributeNames.VolumeSubPath, "provider default")</dd>
+            }
             <dt>Volume path</dt>
-            <dd>@GetAttribute(ResourceAttributeNames.VolumeLocation, "managed")</dd>
+            <dd>@GetAttribute(ResourceAttributeNames.VolumeLocation, "provider managed")</dd>
             <dt>Access mode</dt>
             <dd>@GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString())</dd>
             <dt>Persistent</dt>
@@ -81,6 +94,19 @@ else
         !string.IsNullOrWhiteSpace(value)
             ? value
             : fallback;
+
+    private bool TryGetStorageResourceId(out string storageResourceId)
+    {
+        storageResourceId = string.Empty;
+        if (Volume?.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeStorageResourceId, out var value) != true ||
+            string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        storageResourceId = value;
+        return true;
+    }
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";

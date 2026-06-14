@@ -1,0 +1,96 @@
+@inject IResourceManager ResourceManager
+
+@if (Storage is null)
+{
+    <div class="empty-state">
+        <strong>Storage unavailable</strong>
+        <span>The storage resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <section class="blade-section">
+        <h3>Storage</h3>
+        <dl class="detail-list">
+            <dt>Provider</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.StorageProvider, StorageProviderNames.LocalStorage)</dd>
+            <dt>Storage medium</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.StorageMedium, StorageMedia.FileSystem)</dd>
+            <dt>Provider location</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.StorageLocation, "provider default")</dd>
+            <dt>Volumes</dt>
+            <dd>@Volumes.Count</dd>
+            <dt>Delete status</dt>
+            <dd>@(Volumes.Count == 0 ? "not in use" : "blocked while volumes exist")</dd>
+        </dl>
+    </section>
+
+    <section class="blade-section">
+        <h3>Volumes</h3>
+        @if (Volumes.Count == 0)
+        {
+            <p class="muted">No volumes are owned by this storage resource.</p>
+        }
+        else
+        {
+            <div class="procedure-message compact">
+                This Storage resource cannot be deleted while it owns volumes.
+            </div>
+            <div class="generated-list">
+                @foreach (var volume in Volumes)
+                {
+                    <div>
+                        <strong>
+                            <a class="resource-link" href="@BuildResourceRoute(volume.Id)">
+                                @volume.Name
+                            </a>
+                        </strong>
+                        <span>@GetVolumeSubPath(volume)</span>
+                        <small>@volume.Id</small>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Storage { get; set; }
+    private IReadOnlyList<Resource> Volumes { get; set; } = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Storage = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        Volumes = Storage is null
+            ? []
+            : (await ResourceManager.ListResourcesAsync())
+                .Where(IsOwnedVolume)
+                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+    }
+
+    private bool IsOwnedVolume(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) &&
+        resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeStorageResourceId, out var storageResourceId) &&
+        string.Equals(storageResourceId, Storage?.Id, StringComparison.OrdinalIgnoreCase);
+
+    private string GetAttribute(string name, string fallback) =>
+        Storage?.ResourceAttributes.TryGetValue(name, out var value) == true &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static string GetVolumeSubPath(Resource volume) =>
+        volume.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeSubPath, out var subPath) &&
+        !string.IsNullOrWhiteSpace(subPath)
+            ? subPath
+            : "provider default";
+
+    private static string BuildResourceRoute(string resourceId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+}

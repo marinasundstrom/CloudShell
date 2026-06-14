@@ -26,6 +26,7 @@ public sealed class PlatformResourceProvider(
     public const string NetworkResourceType = "cloudshell.network";
     public const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
     public const string ServiceResourceType = "cloudshell.service";
+    public const string StorageResourceType = "cloudshell.storage";
     public const string VolumeResourceType = "cloudshell.volume";
     public const string LoadBalancerResourceType = "cloudshell.loadBalancer";
     public const string ReconcileEndpointMappingsActionId = "reconcileEndpointMappings";
@@ -65,6 +66,7 @@ public sealed class PlatformResourceProvider(
         [
             .. networks.Select(CreateNetworkResource),
             .. store.GetServices().Select(CreateServiceResource),
+            .. store.GetStorages().Select(CreateStorageResource),
             .. store.GetVolumes().Select(CreateVolumeResource),
             .. store.GetLoadBalancers().Select(CreateLoadBalancerResource)
         ];
@@ -73,6 +75,7 @@ public sealed class PlatformResourceProvider(
     public bool CanCreate(ResourceCreationRequest request) =>
         IsNetworkResourceType(request.ResourceType) ||
         string.Equals(request.ResourceType, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(request.ResourceType, StorageResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, VolumeResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(request.ResourceType, ServiceResourceType, StringComparison.OrdinalIgnoreCase);
 
@@ -137,6 +140,22 @@ public sealed class PlatformResourceProvider(
             var definition = request.Configuration.Deserialize<VolumeResourceDefinition>(SerializerOptions)
                 ?? throw new InvalidOperationException("Volume resource configuration is required.");
             await SetupVolumeAsync(
+                definition with
+                {
+                    Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
+                    Name = string.IsNullOrWhiteSpace(definition.Name) ? request.Name : definition.Name
+                },
+                request.ResourceGroupId,
+                context.Registrations,
+                cancellationToken);
+            return;
+        }
+
+        if (string.Equals(request.ResourceType, StorageResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            var definition = request.Configuration.Deserialize<StorageResourceDefinition>(SerializerOptions)
+                ?? throw new InvalidOperationException("Storage resource configuration is required.");
+            await SetupStorageAsync(
                 definition with
                 {
                     Id = string.IsNullOrWhiteSpace(definition.Id) ? request.ResourceId : definition.Id,
@@ -221,6 +240,22 @@ public sealed class PlatformResourceProvider(
             Id,
             normalized.Id,
             NormalizeGroupId(resourceGroupId),
+            CreateVolumeDependencies(normalized),
+            cancellationToken);
+    }
+
+    public async Task SetupStorageAsync(
+        StorageResourceDefinition definition,
+        string? resourceGroupId,
+        IResourceRegistrationStore registrations,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = NormalizeStorage(definition);
+        store.SaveStorage(normalized);
+        await registrations.RegisterAsync(
+            Id,
+            normalized.Id,
+            NormalizeGroupId(resourceGroupId),
             cancellationToken: cancellationToken);
     }
 
@@ -231,6 +266,11 @@ public sealed class PlatformResourceProvider(
         if (string.Equals(context.Resource.EffectiveTypeId, VolumeResourceType, StringComparison.OrdinalIgnoreCase))
         {
             EnsureVolumeIsNotInUse(context);
+        }
+
+        if (string.Equals(context.Resource.EffectiveTypeId, StorageResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            EnsureStorageIsNotInUse(context);
         }
 
         ResourceProcedureResult? cleanupResult = null;
@@ -267,6 +307,26 @@ public sealed class PlatformResourceProvider(
         var dependentNames = string.Join(", ", dependents.Select(resource => resource.Name));
         throw new InvalidOperationException(
             $"Volume resource '{context.Resource.Id}' cannot be deleted because it is used by: {dependentNames}.");
+    }
+
+    private void EnsureStorageIsNotInUse(ResourceProcedureContext context)
+    {
+        var volumes = store.GetVolumes()
+            .Where(volume => string.Equals(
+                volume.StorageResourceId,
+                context.Resource.Id,
+                StringComparison.OrdinalIgnoreCase))
+            .OrderBy(volume => volume.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (volumes.Length == 0)
+        {
+            return;
+        }
+
+        var volumeNames = string.Join(", ", volumes.Select(volume => volume.Name));
+        throw new InvalidOperationException(
+            $"Storage resource '{context.Resource.Id}' cannot be deleted because it owns volumes: {volumeNames}.");
     }
 
     public Task<ResourceProcedureResult> ExecuteActionAsync(
@@ -436,6 +496,30 @@ public sealed class PlatformResourceProvider(
             if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
             {
                 store.SaveVolume(
+                    normalized,
+                    persist: true);
+            }
+
+            return registrations.RegisterAsync(
+                Id,
+                normalized.Id,
+                NormalizeGroupId(declaration.ResourceGroupId),
+                CreateVolumeDependencies(normalized)
+                    .Concat(declaration.DependsOn)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+                cancellationToken);
+        }
+
+        var declaredStorage = options.DeclaredStorages.FirstOrDefault(storage =>
+            string.Equals(storage.Definition.Id, declaration.ResourceId, StringComparison.OrdinalIgnoreCase));
+
+        if (declaredStorage is not null)
+        {
+            var normalized = NormalizeStorage(declaredStorage.Definition);
+            if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
+            {
+                store.SaveStorage(
                     normalized,
                     persist: true);
             }
@@ -1013,8 +1097,83 @@ public sealed class PlatformResourceProvider(
             },
             Capabilities: [new(ResourceCapabilityIds.EndpointSource)]);
 
-    private Resource CreateVolumeResource(VolumeResourceDefinition definition) =>
-        new(
+    private Resource CreateStorageResource(StorageResourceDefinition definition)
+    {
+        var volumeCount = store.GetVolumes().Count(volume =>
+            string.Equals(volume.StorageResourceId, definition.Id, StringComparison.OrdinalIgnoreCase));
+        return new(
+            definition.Id,
+            definition.Name,
+            definition.Provider,
+            definition.Provider,
+            "local",
+            ResourceState.Running,
+            [],
+            definition.Medium,
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: StorageResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.StorageProvider] = definition.Provider,
+                [ResourceAttributeNames.StorageMedium] = definition.Medium,
+                [ResourceAttributeNames.StorageLocation] =
+                    string.IsNullOrWhiteSpace(definition.Location) ? "provider default" : definition.Location,
+                [ResourceAttributeNames.StorageVolumeCount] =
+                    volumeCount.ToString(CultureInfo.InvariantCulture)
+            },
+            Capabilities:
+            [
+                new(
+                    ResourceCapabilityIds.StorageProvider,
+                    new Dictionary<string, string>
+                    {
+                        [ResourceAttributeNames.StorageMedium] = definition.Medium
+                    }),
+                new(
+                    ResourceCapabilityIds.StorageMountProvider,
+                    new Dictionary<string, string>
+                    {
+                        [ResourceAttributeNames.StorageMedium] = definition.Medium
+                    })
+            ]);
+    }
+
+    private Resource CreateVolumeResource(VolumeResourceDefinition definition)
+    {
+        var providerName = GetVolumeProviderName(definition);
+        var storageMedium = GetVolumeStorageMedium(definition);
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.VolumeProvider] = providerName,
+            [ResourceAttributeNames.VolumeAccessMode] =
+                definition.AccessMode.ToString(),
+            [ResourceAttributeNames.VolumePersistent] =
+                definition.Persistent.ToString().ToLowerInvariant()
+        };
+
+        if (!string.IsNullOrWhiteSpace(storageMedium))
+        {
+            attributes[ResourceAttributeNames.VolumeStorageMedium] = storageMedium;
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.Location))
+        {
+            attributes[ResourceAttributeNames.VolumeLocation] = definition.Location;
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.StorageResourceId))
+        {
+            attributes[ResourceAttributeNames.VolumeStorageResourceId] = definition.StorageResourceId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.SubPath))
+        {
+            attributes[ResourceAttributeNames.VolumeSubPath] = definition.SubPath;
+        }
+
+        return new(
             definition.Id,
             definition.Name,
             "Volume",
@@ -1022,25 +1181,14 @@ public sealed class PlatformResourceProvider(
             "logical",
             ResourceState.Running,
             [],
-            string.IsNullOrWhiteSpace(definition.Provider)
-                ? "local"
-                : definition.Provider,
+            providerName,
             DateTimeOffset.UtcNow,
-            [],
+            CreateVolumeDependencies(definition),
             TypeId: VolumeResourceType,
             ResourceClass: ResourceClass.Storage,
-            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ResourceAttributeNames.VolumeProvider] =
-                    string.IsNullOrWhiteSpace(definition.Provider) ? "local" : definition.Provider,
-                [ResourceAttributeNames.VolumeLocation] =
-                    string.IsNullOrWhiteSpace(definition.Location) ? "managed" : definition.Location,
-                [ResourceAttributeNames.VolumeAccessMode] =
-                    definition.AccessMode.ToString(),
-                [ResourceAttributeNames.VolumePersistent] =
-                    definition.Persistent.ToString().ToLowerInvariant()
-            },
+            Attributes: attributes,
             Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+    }
 
     private Resource CreateLoadBalancerResource(LoadBalancerResourceDefinition definition)
     {
@@ -1321,6 +1469,43 @@ public sealed class PlatformResourceProvider(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+    private static IReadOnlyList<string> CreateVolumeDependencies(VolumeResourceDefinition definition) =>
+        string.IsNullOrWhiteSpace(definition.StorageResourceId)
+            ? []
+            : [definition.StorageResourceId.Trim()];
+
+    private static string GetStorageProviderName(string? provider) =>
+        IsLocalStorageProvider(provider) ? StorageProviderNames.LocalStorage : provider!.Trim();
+
+    private string GetVolumeProviderName(VolumeResourceDefinition definition)
+    {
+        if (!string.IsNullOrWhiteSpace(definition.StorageResourceId))
+        {
+            var storage = store.GetStorage(definition.StorageResourceId);
+            if (storage is not null)
+            {
+                return storage.Provider;
+            }
+        }
+
+        return GetStorageProviderName(definition.Provider);
+    }
+
+    private string? GetVolumeStorageMedium(VolumeResourceDefinition definition)
+    {
+        if (!string.IsNullOrWhiteSpace(definition.StorageResourceId))
+        {
+            return store.GetStorage(definition.StorageResourceId)?.Medium;
+        }
+
+        return IsLocalStorageProvider(definition.Provider) ? StorageMedia.FileSystem : null;
+    }
+
+    private static bool IsLocalStorageProvider(string? provider) =>
+        string.IsNullOrWhiteSpace(provider) ||
+        string.Equals(provider, "local", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(provider, StorageProviderNames.LocalStorage, StringComparison.OrdinalIgnoreCase);
+
     private static IReadOnlyList<ResourceCapability> CreateLoadBalancerCapabilities(
         LoadBalancerResourceDefinition definition)
     {
@@ -1405,6 +1590,18 @@ public sealed class PlatformResourceProvider(
             Id = NormalizeResourceId(definition.Id, "volume", definition.Name),
             Name = definition.Name.Trim(),
             Provider = NormalizeNullable(definition.Provider),
+            Location = NormalizeNullable(definition.Location),
+            StorageResourceId = NormalizeNullable(definition.StorageResourceId),
+            SubPath = NormalizeNullable(definition.SubPath)
+        };
+
+    private static StorageResourceDefinition NormalizeStorage(StorageResourceDefinition definition) =>
+        definition with
+        {
+            Id = NormalizeResourceId(definition.Id, "storage", definition.Name),
+            Name = definition.Name.Trim(),
+            Provider = NormalizeNullable(definition.Provider) ?? StorageProviderNames.LocalStorage,
+            Medium = NormalizeNullable(definition.Medium) ?? StorageMedia.FileSystem,
             Location = NormalizeNullable(definition.Location)
         };
 

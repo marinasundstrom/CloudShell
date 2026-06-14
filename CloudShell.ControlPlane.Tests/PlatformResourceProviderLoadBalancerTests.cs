@@ -365,6 +365,40 @@ public sealed class PlatformResourceProviderLoadBalancerTests
         Assert.NotNull(registrations.GetRegistration(definition.Id));
     }
 
+    [Fact]
+    public async Task DeleteAsync_RejectsStorageOwningVolumes()
+    {
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(
+            store,
+            new PlatformResourceOptions());
+        var registrations = new TestResourceRegistrationStore([]);
+        var storage = new StorageResourceDefinition(
+            "storage:local",
+            "Storage",
+            StorageProviderNames.LocalStorage,
+            StorageMedia.FileSystem,
+            "./storage");
+        var volume = new VolumeResourceDefinition(
+            "volume:data",
+            "Data",
+            "local",
+            StorageResourceId: storage.Id,
+            SubPath: "data");
+        await provider.SetupStorageAsync(storage, null, registrations);
+        await provider.SetupVolumeAsync(volume, null, registrations);
+        var storageResource = provider.GetResources().Single(resource => resource.Id == storage.Id);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.DeleteAsync(
+                new ResourceProcedureContext(storageResource, null, null, registrations, null)));
+
+        Assert.Contains("cannot be deleted because it owns volumes: Data", exception.Message, StringComparison.Ordinal);
+        Assert.NotNull(store.GetStorage(storage.Id));
+        Assert.NotNull(store.GetVolume(volume.Id));
+        Assert.NotNull(registrations.GetRegistration(storage.Id));
+    }
+
     private static Resource CreateResource(
         string id,
         string name,

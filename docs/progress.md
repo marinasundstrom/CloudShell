@@ -96,13 +96,18 @@ expectations rather than duplicating the task queue.
   cannot be changed while the target resource is running, and volume deletion
   is blocked while another resource depends on the volume. SQL Server now
   documents and surfaces its known `/var/opt/mssql` data mount point with a
-  persistence warning when no data volume is configured. A future storage
-  resource is provider-defined: the temporary LocalStorage resource provider
-  can treat storage-owned volumes as subfolders of its managed storage root,
-  while direct `resources.AddVolume(...)` volumes use their own supplied
-  relative or absolute path and are not affected by a storage resource
-  location. Other providers may expose different sub-item semantics until
-  storage capabilities are formalized.
+  persistence warning when no data volume is configured. `cloudshell.storage`
+  now provides the first Local Storage resource kind using
+  `ResourceClass.Storage`: the resource class defines portable storage
+  expectations, the Local Storage kind/provider announces and honors the
+  `FileSystem` medium, and storage-owned volumes are modeled as sub-items of
+  the provider-managed storage root. Direct
+  `resources.AddVolume(...)` volumes remain the lightweight exception: they use
+  their own supplied relative or absolute path and are not affected by a
+  storage resource location. Other providers may expose different sub-item
+  semantics until storage capabilities are formalized, and container hosts
+  should eventually validate whether they can materialize a volume's storage
+  medium before accepting it.
   Runtime materialization, provider-backed volume resources, richer
   materialization diagnostics, broader UI management, runtime enforcement, and
   usage monitoring APIs remain next storage work.

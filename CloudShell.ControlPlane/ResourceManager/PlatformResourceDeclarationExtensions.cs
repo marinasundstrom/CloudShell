@@ -127,6 +127,44 @@ public static class PlatformResourceDeclarationExtensions
         return new LoadBalancerResourceBuilder(resource, declared);
     }
 
+    public static IStorageResourceBuilder AddLocalStorage(
+        this IResourceDeclarationBuilder builder,
+        string id,
+        string? name = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+
+        var normalizedId = NormalizeStorageId(id);
+        var definition = new StorageResourceDefinition(
+            normalizedId,
+            string.IsNullOrWhiteSpace(name) ? CreateDisplayName(normalizedId) : name.Trim(),
+            StorageProviderNames.LocalStorage,
+            StorageMedia.FileSystem);
+        var declared = new DeclaredStorageResource(definition);
+        builder.Services
+            .GetOrAddPlatformResourceOptions()
+            .DeclaredStorages
+            .Add(declared);
+
+        var resource = builder.Declare(
+            PlatformResourceProvider.ProviderId,
+            definition.Id,
+            resourceClass: ResourceClass.Storage,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.StorageProvider] = StorageProviderNames.LocalStorage,
+                [ResourceAttributeNames.StorageMedium] = StorageMedia.FileSystem
+            },
+            onChanged: declaration =>
+            {
+                declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
+                declared.OverwritePersistedState = declaration.OverwritePersistedState;
+            });
+
+        return new StorageResourceBuilder(resource, declared);
+    }
+
     public static IVolumeResourceBuilder AddVolume(
         this IResourceDeclarationBuilder builder,
         string id,
@@ -151,7 +189,8 @@ public static class PlatformResourceDeclarationExtensions
             resourceClass: ResourceClass.Storage,
             attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                [ResourceAttributeNames.VolumeProvider] = "local",
+                [ResourceAttributeNames.VolumeProvider] = StorageProviderNames.LocalStorage,
+                [ResourceAttributeNames.VolumeStorageMedium] = StorageMedia.FileSystem,
                 [ResourceAttributeNames.VolumePersistent] = "true"
             },
             onChanged: declaration =>
@@ -215,6 +254,14 @@ public static class PlatformResourceDeclarationExtensions
         return normalized.Contains(':', StringComparison.Ordinal)
             ? normalized
             : $"volume:{normalized}";
+    }
+
+    private static string NormalizeStorageId(string id)
+    {
+        var normalized = id.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : $"storage:{normalized}";
     }
 
     private static string CreateDisplayName(string resourceId)
@@ -455,6 +502,10 @@ public interface IVolumeResourceBuilder : IResourceBuilder
 
     IVolumeResourceBuilder UseHostPath(string path);
 
+    IVolumeResourceBuilder UseStorage(string storageResourceId, string subPath);
+
+    IVolumeResourceBuilder UseStorage(IStorageResourceBuilder storage, string subPath);
+
     IVolumeResourceBuilder WithAccessMode(VolumeAccessMode accessMode);
 
     IVolumeResourceBuilder AsPersistent(bool persistent = true);
@@ -480,6 +531,33 @@ public interface IVolumeResourceBuilder : IResourceBuilder
     new IVolumeResourceBuilder WithReferences(IEnumerable<string> resourceIds);
 
     new IVolumeResourceBuilder Persist(bool overwrite = false);
+}
+
+public interface IStorageResourceBuilder : IResourceBuilder
+{
+    IStorageResourceBuilder UseLocation(string location);
+
+    new IStorageResourceBuilder DependsOn(string resourceId);
+
+    new IStorageResourceBuilder DependsOn(IResourceBuilder resource);
+
+    new IStorageResourceBuilder DependsOn(IEnumerable<string> resourceIds);
+
+    new IStorageResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources);
+
+    new IStorageResourceBuilder WithResourceGroup(string? resourceGroupId);
+
+    new IStorageResourceBuilder WithParent(string? parentResourceId);
+
+    new IStorageResourceBuilder WithParent(IResourceBuilder resource);
+
+    new IStorageResourceBuilder WithReference(string resourceId);
+
+    new IStorageResourceBuilder WithReference(IResourceBuilder resource);
+
+    new IStorageResourceBuilder WithReferences(IEnumerable<string> resourceIds);
+
+    new IStorageResourceBuilder Persist(bool overwrite = false);
 }
 
 internal sealed class NetworkResourceBuilder(
@@ -960,8 +1038,34 @@ internal sealed class VolumeResourceBuilder(
     public IVolumeResourceBuilder UseHostPath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        return UseProvider("local")
+        return UseProvider(StorageProviderNames.LocalStorage)
             .UseLocation(path);
+    }
+
+    public IVolumeResourceBuilder UseStorage(string storageResourceId, string subPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(storageResourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(subPath);
+        declared.Definition = declared.Definition with
+        {
+            Provider = StorageProviderNames.LocalStorage,
+            Location = null,
+            StorageResourceId = storageResourceId.Trim(),
+            SubPath = subPath.Trim()
+        };
+        inner.WithResourceAttribute(ResourceAttributeNames.VolumeProvider, StorageProviderNames.LocalStorage);
+        inner.WithResourceAttribute(ResourceAttributeNames.VolumeStorageMedium, StorageMedia.FileSystem);
+        inner.WithResourceAttribute(ResourceAttributeNames.VolumeStorageResourceId, storageResourceId.Trim());
+        inner.WithResourceAttribute(ResourceAttributeNames.VolumeSubPath, subPath.Trim());
+        inner.DependsOn(storageResourceId.Trim());
+        inner.WithParent(storageResourceId.Trim());
+        return this;
+    }
+
+    public IVolumeResourceBuilder UseStorage(IStorageResourceBuilder storage, string subPath)
+    {
+        ArgumentNullException.ThrowIfNull(storage);
+        return UseStorage(storage.ResourceId, subPath);
     }
 
     public IVolumeResourceBuilder WithAccessMode(VolumeAccessMode accessMode)
@@ -1047,6 +1151,127 @@ internal sealed class VolumeResourceBuilder(
     }
 
     public IVolumeResourceBuilder Persist(bool overwrite = false)
+    {
+        inner.Persist(overwrite);
+        return this;
+    }
+
+    IResourceBuilder IResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
+        WithResourceGroup(resourceGroupId);
+
+    IResourceBuilder IResourceBuilder.WithParent(string? parentResourceId) =>
+        WithParent(parentResourceId);
+
+    IResourceBuilder IResourceBuilder.WithParent(IResourceBuilder resource) =>
+        WithParent(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(string resourceId) =>
+        DependsOn(resourceId);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IResourceBuilder resource) =>
+        DependsOn(resource);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<string> resourceIds) =>
+        DependsOn(resourceIds);
+
+    IResourceBuilder IResourceBuilder.DependsOn(IEnumerable<IResourceBuilder> resources) =>
+        DependsOn(resources);
+
+    IResourceBuilder IResourceBuilder.WithReference(string resourceId) =>
+        WithReference(resourceId);
+
+    IResourceBuilder IResourceBuilder.WithReference(IResourceBuilder resource) =>
+        WithReference(resource);
+
+    IResourceBuilder IResourceBuilder.WithReferences(IEnumerable<string> resourceIds) =>
+        WithReferences(resourceIds);
+
+    IResourceBuilder IResourceBuilder.Persist(bool overwrite) =>
+        Persist(overwrite);
+}
+
+internal sealed class StorageResourceBuilder(
+    IResourceBuilder inner,
+    DeclaredStorageResource declared) : IStorageResourceBuilder
+{
+    public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
+
+    public string ResourceId => inner.ResourceId;
+
+    public ResourceIdentityReference Identity => inner.Identity;
+
+    public IStorageResourceBuilder UseLocation(string location)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(location);
+        declared.Definition = declared.Definition with
+        {
+            Location = location.Trim()
+        };
+        inner.WithResourceAttribute(ResourceAttributeNames.StorageLocation, location.Trim());
+        return this;
+    }
+
+    public IStorageResourceBuilder WithResourceGroup(string? resourceGroupId)
+    {
+        inner.WithResourceGroup(resourceGroupId);
+        return this;
+    }
+
+    public IStorageResourceBuilder WithParent(string? parentResourceId)
+    {
+        inner.WithParent(parentResourceId);
+        return this;
+    }
+
+    public IStorageResourceBuilder WithParent(IResourceBuilder resource)
+    {
+        inner.WithParent(resource);
+        return this;
+    }
+
+    public IStorageResourceBuilder DependsOn(string resourceId)
+    {
+        inner.DependsOn(resourceId);
+        return this;
+    }
+
+    public IStorageResourceBuilder DependsOn(IResourceBuilder resource)
+    {
+        inner.DependsOn(resource);
+        return this;
+    }
+
+    public IStorageResourceBuilder DependsOn(IEnumerable<string> resourceIds)
+    {
+        inner.DependsOn(resourceIds);
+        return this;
+    }
+
+    public IStorageResourceBuilder DependsOn(IEnumerable<IResourceBuilder> resources)
+    {
+        inner.DependsOn(resources);
+        return this;
+    }
+
+    public IStorageResourceBuilder WithReference(string resourceId)
+    {
+        inner.WithReference(resourceId);
+        return this;
+    }
+
+    public IStorageResourceBuilder WithReference(IResourceBuilder resource)
+    {
+        inner.WithReference(resource);
+        return this;
+    }
+
+    public IStorageResourceBuilder WithReferences(IEnumerable<string> resourceIds)
+    {
+        inner.WithReferences(resourceIds);
+        return this;
+    }
+
+    public IStorageResourceBuilder Persist(bool overwrite = false)
     {
         inner.Persist(overwrite);
         return this;

@@ -87,12 +87,15 @@ listed here before pulling in broader proposal work.
    public endpoints, load-balancer routes, and logical DNS/name mappings form
    one understandable Resource Manager workflow.
 2. Stateful application foundation: continue the storage and volume-mapping
-   path now that `cloudshell.volume`, `AddVolume(...)`, and container app
-   volume mounts exist. Next slices should materialize mounts in runtime
-   providers, show storage relationships from both the volume and consuming
-   resource, and define the temporary LocalStorage provider as a bridge toward
-   capability-based storage resources where provider-owned storage locations
-   can contain provider-defined volume sub-items.
+   path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
+   and container app volume mounts exist. Next slices should materialize mounts
+   in runtime providers, show storage relationships from both the volume and
+   consuming resource, and continue the temporary Local Storage provider as a
+   bridge toward capability-based storage resources where provider-owned
+   storage locations can contain provider-defined volume sub-items. Storage is
+   the resource class, Local Storage is the first concrete storage kind, and
+   `FileSystem` is the medium it announces. Future hosts must validate that
+   they can materialize the medium before accepting a volume mount.
 3. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider.
@@ -148,9 +151,9 @@ listed here before pulling in broader proposal work.
   trivia. The MVP now has basic volume resources and container app volume
   attachments with a dedicated resource Storage tab plus a direct volume
   create/configuration/overview flow; next it needs runtime materialization,
-  a temporary LocalStorage provider story, and Resource Manager visibility
-  showing which resources depend on storage and whether the mapping can be
-  materialized.
+  the temporary Local Storage provider story, host/storage-medium compatibility
+  diagnostics, and Resource Manager visibility showing which resources depend
+  on storage and whether the mapping can be materialized.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. Add a validation
   sample with a third-party OIDC/OAuth authority such as Keycloak once the

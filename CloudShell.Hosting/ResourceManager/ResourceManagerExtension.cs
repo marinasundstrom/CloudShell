@@ -42,12 +42,30 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "service",
                 6,
                 resourceClass: ResourceClass.Service)
+            .AddResourceType<RegisterLocalStorageResource, UpdateLocalStorageResource>(
+                "cloudshell.storage",
+                "Local Storage",
+                "Create a filesystem-backed Storage resource.",
+                "storage",
+                7,
+                resourceClass: ResourceClass.Storage)
+            .AddResourceTab<LocalStorageOverview>(
+                "cloudshell.storage",
+                "overview",
+                "Overview",
+                10)
+            .AddResourceTab<UpdateLocalStorageResource>(
+                "cloudshell.storage",
+                "configuration",
+                "Configuration",
+                20,
+                showsApplyButton: true)
             .AddResourceType<RegisterVolumeResource, UpdateVolumeResource>(
                 "cloudshell.volume",
                 "Volume",
                 "Create mountable storage that resources can attach as a volume.",
                 "storage",
-                7,
+                8,
                 resourceClass: ResourceClass.Storage)
             .AddResourceTab<VolumeOverview>(
                 "cloudshell.volume",
@@ -65,7 +83,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "Load Balancer",
                 "Create provider-backed HTTP, HTTPS, or TCP routes to registered resources.",
                 "network",
-                8,
+                9,
                 resourceClass: ResourceClass.Network);
 
         if (includeSettings)

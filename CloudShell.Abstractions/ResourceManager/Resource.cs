@@ -99,10 +99,17 @@ public static class ResourceAttributeNames
     public const string ContainerReplicas = "container.replicas";
     public const string ContainerRevision = "container.revision";
     public const string VolumeProvider = "storage.volume.provider";
+    public const string VolumeStorageMedium = "storage.volume.medium";
     public const string VolumeLocation = "storage.volume.location";
+    public const string VolumeStorageResourceId = "storage.volume.storageResourceId";
+    public const string VolumeSubPath = "storage.volume.subPath";
     public const string VolumeAccessMode = "storage.volume.accessMode";
     public const string VolumePersistent = "storage.volume.persistent";
     public const string VolumeMountCount = "storage.volumeMounts";
+    public const string StorageProvider = "storage.provider";
+    public const string StorageMedium = "storage.medium";
+    public const string StorageLocation = "storage.location";
+    public const string StorageVolumeCount = "storage.volumes";
     public const string EndpointCount = "endpoints.count";
     public const string ConfigurationEntryCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";
@@ -161,6 +168,7 @@ public static class ResourceCapabilityIds
     public const string NetworkingEgress = "networking.egress";
     public const string NetworkingTls = "networking.tls";
     public const string StorageVolume = "storage.volume";
+    public const string StorageProvider = "storage.provider";
     public const string StorageVolumeConsumer = "storage.volumeConsumer";
     public const string StorageMountProvider = "storage.mountProvider";
 }

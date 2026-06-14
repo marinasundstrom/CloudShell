@@ -36,15 +36,28 @@ else
 
             <label for="volume-update-provider">Provider</label>
             <FluentTextField Id="volume-update-provider"
-                             Disabled="@IsStorageShapeLocked"
+                             Disabled="@(IsStorageShapeLocked || HasSelectedStorage)"
                              @bind-Value="Provider"
-                             Placeholder="local" />
+                             Placeholder="Local Storage" />
+
+            <label for="volume-update-storage">Storage resource</label>
+            <FluentSelect TOption="string"
+                          Id="volume-update-storage"
+                          Disabled="@IsStorageShapeLocked"
+                          @bind-Value="SelectedStorageResourceId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Direct filesystem path</FluentOption>
+                @foreach (var storage in StorageResources)
+                {
+                    <FluentOption TOption="string" Value="@storage.Id">@storage.Name</FluentOption>
+                }
+            </FluentSelect>
 
             <label for="volume-update-location">Volume path</label>
             <FluentTextField Id="volume-update-location"
                              Disabled="@IsStorageShapeLocked"
                              @bind-Value="Location"
-                             Placeholder="./data/postgres or //nas/share/postgres" />
+                             Placeholder="@GetLocationPlaceholder()" />
 
             <label for="volume-update-access-mode">Access mode</label>
             <FluentSelect TOption="string"
@@ -68,6 +81,7 @@ else
 @code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string VolumeResourceType = "cloudshell.volume";
+    private const string StorageResourceType = "cloudshell.storage";
 
     [CascadingParameter]
     public ResourceConfigurationContext? Configuration { get; set; }
@@ -79,9 +93,11 @@ else
     private ResourceGroup? ResourceGroup { get; set; }
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+    private IReadOnlyList<Resource> StorageResources { get; set; } = [];
     private IReadOnlyList<Resource> Consumers { get; set; } = [];
     private string Name { get; set; } = string.Empty;
     private string SelectedGroupId { get; set; } = string.Empty;
+    private string SelectedStorageResourceId { get; set; } = string.Empty;
     private string Provider { get; set; } = string.Empty;
     private string Location { get; set; } = string.Empty;
     private string SelectedAccessMode { get; set; } = VolumeAccessMode.ReadWriteOnce.ToString();
@@ -89,9 +105,16 @@ else
 
     private bool IsStorageShapeLocked => Consumers.Count > 0;
 
+    private bool HasSelectedStorage =>
+        !string.IsNullOrWhiteSpace(SelectedStorageResourceId);
+
     protected override async Task OnParametersSetAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+        StorageResources = (await ResourceManager.ListResourcesAsync())
+            .Where(resource => string.Equals(resource.EffectiveTypeId, StorageResourceType, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         Volume = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
@@ -110,8 +133,11 @@ else
                 .ToArray();
             Name = Volume.Name;
             SelectedGroupId = ResourceGroup?.Id ?? string.Empty;
+            SelectedStorageResourceId = GetAttribute(ResourceAttributeNames.VolumeStorageResourceId, string.Empty);
             Provider = GetAttribute(ResourceAttributeNames.VolumeProvider, string.Empty);
-            Location = GetAttribute(ResourceAttributeNames.VolumeLocation, string.Empty);
+            Location = HasSelectedStorage
+                ? GetAttribute(ResourceAttributeNames.VolumeSubPath, string.Empty)
+                : GetAttribute(ResourceAttributeNames.VolumeLocation, string.Empty);
             SelectedAccessMode = GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString());
             Persistent = bool.TryParse(GetAttribute(ResourceAttributeNames.VolumePersistent, "true"), out var persistent)
                 ? persistent
@@ -135,10 +161,16 @@ else
 
         var provider = IsStorageShapeLocked
             ? GetAttribute(ResourceAttributeNames.VolumeProvider, string.Empty)
-            : NormalizeNullable(Provider);
+            : HasSelectedStorage ? StorageProviderNames.LocalStorage : NormalizeNullable(Provider);
         var location = IsStorageShapeLocked
             ? GetAttribute(ResourceAttributeNames.VolumeLocation, string.Empty)
-            : NormalizeNullable(Location);
+            : HasSelectedStorage ? null : NormalizeNullable(Location);
+        var storageResourceId = IsStorageShapeLocked
+            ? GetAttribute(ResourceAttributeNames.VolumeStorageResourceId, string.Empty)
+            : NormalizeNullable(SelectedStorageResourceId);
+        var subPath = IsStorageShapeLocked
+            ? GetAttribute(ResourceAttributeNames.VolumeSubPath, string.Empty)
+            : HasSelectedStorage ? NormalizeNullable(Location) : null;
         var accessMode = IsStorageShapeLocked
             ? ParseAccessMode(GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString()))
             : ParseAccessMode(SelectedAccessMode);
@@ -152,7 +184,9 @@ else
             provider,
             location,
             persistent,
-            accessMode);
+            accessMode,
+            NormalizeNullable(storageResourceId),
+            NormalizeNullable(subPath));
 
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
@@ -183,6 +217,9 @@ else
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private string GetLocationPlaceholder() =>
+        HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";
 
     private static string GetAccessModeLabel(VolumeAccessMode mode) =>
         mode switch

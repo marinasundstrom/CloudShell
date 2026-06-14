@@ -85,8 +85,9 @@ storage resource types when their contracts are clear.
 Mountable storage should use ordinary CloudShell resources and projected
 attachments.
 
-MVP resource type:
+MVP resource types:
 
+- `cloudshell.storage`
 - `cloudshell.volume`
 
 Possible later resource types, intentionally not part of the first volume
@@ -106,30 +107,41 @@ Suggested capability identifiers:
 - `storage.snapshot`
 - `storage.backup`
 
-For MVP, the primary concept is a volume. A volume is an allocated physical
-storage space that can be referenced and utilized by a resource. In the
-current direct model, a volume can point at any folder or provider-addressable
-location and can be attached to one or more resources through a target path.
+For MVP, the primary storage concepts are a storage resource and a volume. The
+first concrete storage kind is Local Storage. A Local Storage resource is a
+`ResourceClass.Storage` resource that projects class-level attributes such as
+storage provider, storage medium, provider location, and owned volume count.
+The class describes the portable resource shape CloudShell can reason about;
+the concrete kind/provider announces which medium it supports and should
+report diagnostics when a requested shape cannot be materialized. Local Storage
+supports the `FileSystem` medium and can use a local filesystem location as
+the root for owned volumes.
+
+A volume is an allocated physical storage space that can be referenced and
+utilized by a resource. In the current direct model, a volume can point at any
+folder or provider-addressable location and can be attached to one or more
+resources through a target path.
 
 `resources.AddVolume(...)` declares a CloudShell volume resource through the
-default LocalStorage provider unless another provider is supplied. Its path is
+default Local Storage provider unless another provider is supplied. Its path is
 the direct relative or absolute folder path for that volume and is not derived
 from, appended to, or otherwise affected by a separate storage resource
 location. This is intentionally lightweight for local development: the volume
 can be tracked as a resource without requiring a separate storage-provider
 resource or storage-control-plane service.
 
-A storage resource is a separate future boundary whose behavior depends on the
-provider. A storage resource may represent a local storage provider, NAS share,
-remote host, appliance, cloud storage account, Kubernetes storage class, or
-another provider-defined storage boundary. For the default LocalStorage
-resource provider, volumes created under that storage resource are expected to
-be sub-items, typically subfolders, of the provider-managed storage location.
+A storage resource is a boundary whose behavior depends on the concrete
+resource kind/provider. It may represent local storage, a NAS share, remote
+host, appliance, cloud storage account, Kubernetes storage class, or another
+provider-defined storage boundary. For the default Local Storage kind, the
+resource class is Storage and the storage medium is `FileSystem`. Volumes
+created under that storage resource are expected to be sub-items, typically
+subfolders, of the provider-managed storage location.
 Direct volumes created with `resources.AddVolume(...)` are the exception: they
 carry their own supplied path and do not use a storage resource `Location`;
 that storage resource location remains null. Other providers may use different
 sub-item semantics as long as the projected CloudShell volume remains a
-mountable target. The LocalStorage resource provider is a temporary default
+mountable target. The Local Storage provider is a temporary default
 until storage capabilities are formalized. After storage capabilities are
 defined, the provider should materialize the allocation and report
 provider-specific diagnostics and usage metrics for the resource.
@@ -236,15 +248,20 @@ var media = resources
 Future provider-defined storage resource with provider-owned sub-volumes:
 
 ```csharp
-var storage = resources.AddStorageProvider(
+var storage = resources.AddLocalStorage(
     "storage:local",
-    "Local Storage");
+    "Local Storage")
+    .UseLocation("./storage");
 
 var media = resources
     .AddVolume("volume:media", "Media")
-    .UseStorage(storage)
-    .UseSubPath("media");
+    .UseStorage(storage, "media");
 ```
+
+The exact builder names may evolve, but the model split is stable: Storage is
+the resource class, Local Storage is the concrete storage kind/provider,
+`FileSystem` is the medium it announces, and a volume is the mountable
+sub-item that should project compatible medium information for consumers.
 
 ## Provider Responsibilities
 
@@ -264,9 +281,19 @@ Providers should report:
 
 - whether the volume exists
 - whether it can be mounted into the target resource
+- whether the target host or runtime can handle the storage medium
 - whether credentials or host capabilities are missing
 - whether a requested path conflicts with another mount
 - whether a volume is persistent, ephemeral, shared, or read-only
+
+Not every storage medium can be mounted by every resource runtime. Docker-style
+containers can handle `FileSystem` mounts, so Local Storage volumes are a
+generally supported first path. Later storage providers may expose media that
+need provider-specific materialization or cannot be accepted by a given
+container host. Runtime providers and container hosts must be able to reject or
+diagnose unsupported volume media instead of treating every `cloudshell.volume`
+as universally mountable. A resource may mount a volume only when the target
+runtime and storage provider agree on the storage medium.
 
 ## Resource Manager
 
@@ -401,8 +428,10 @@ through future monitoring APIs.
 - Extend deletion safety from dependency-based blocking to explicit attachment
   state once runtime materialization records mounted volumes.
 - Define backup/snapshot as future capabilities, not MVP requirements.
-- Define the temporary LocalStorage provider shape and replace it with
+- Define the temporary Local Storage provider shape and replace it with
   capability-based storage resources once storage capabilities are stable.
+- Add provider/host compatibility diagnostics so container hosts only accept
+  volumes whose storage medium they can materialize.
 - Add on-premise storage provider sample after the local/Docker path works.
 
 ## Open Questions

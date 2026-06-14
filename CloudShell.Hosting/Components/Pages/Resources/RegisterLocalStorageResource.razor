@@ -1,0 +1,90 @@
+@using System.Text.Json
+@inject IResourceManager ResourceManager
+@inject NavigationManager Navigation
+
+<div class="type-registration">
+    <div class="form-panel">
+        <label for="local-storage-name">Name</label>
+        <FluentTextField Id="local-storage-name" @bind-Value="Name" />
+
+        <label for="local-storage-resource-id">Resource ID</label>
+        <FluentTextField Id="local-storage-resource-id" @bind-Value="ResourceId" Placeholder="storage:local" />
+
+        <label for="local-storage-group">Resource group</label>
+        <FluentSelect TOption="string"
+                      Id="local-storage-group"
+                      @bind-Value="SelectedGroupId"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="">Default group</FluentOption>
+            @foreach (var group in ResourceGroups)
+            {
+                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
+            }
+        </FluentSelect>
+
+        <label for="local-storage-location">Provider location</label>
+        <FluentTextField Id="local-storage-location"
+                         @bind-Value="Location"
+                         Placeholder="Optional local storage root" />
+
+        @if (ErrorMessage is not null)
+        {
+            <div class="provider-error">@ErrorMessage</div>
+        }
+
+        <div class="form-actions">
+            <FluentButton Appearance="Appearance.Accent" OnClick="Register">
+                Add
+            </FluentButton>
+        </div>
+    </div>
+</div>
+
+@code {
+    private const string PlatformProviderId = "cloudshell.platform";
+    private const string StorageResourceType = "cloudshell.storage";
+
+    private string ResourceId { get; set; } = string.Empty;
+    private string Name { get; set; } = string.Empty;
+    private string Location { get; set; } = string.Empty;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; }
+    private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+    }
+
+    private async Task Register()
+    {
+        ErrorMessage = null;
+        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(ResourceId))
+        {
+            ErrorMessage = "Name and resource ID are required.";
+            return;
+        }
+
+        var definition = new StorageResourceDefinition(
+            ResourceId,
+            Name,
+            StorageProviderNames.LocalStorage,
+            StorageMedia.FileSystem,
+            NormalizeNullable(Location));
+
+        await ResourceManager.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformProviderId,
+                StorageResourceType,
+                ResourceId,
+                Name,
+                JsonSerializer.SerializeToElement(definition),
+                string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId,
+                ResourceClass.Storage));
+
+        Navigation.NavigateTo("/resources");
+    }
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
