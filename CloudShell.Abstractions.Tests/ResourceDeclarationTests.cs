@@ -909,6 +909,39 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ApplicationProviderExtension_RegistersStorageTabsForVolumeMountResources()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var registry = serviceProvider.GetRequiredService<CloudShellExtensionRegistry>();
+        var resourceTypes = registry.Extensions
+            .SelectMany(extension => extension.ResourceTypes)
+            .ToDictionary(resourceType => resourceType.Id, StringComparer.OrdinalIgnoreCase);
+
+        AssertStorageTab(resourceTypes[ApplicationResourceTypes.ContainerApp]);
+        AssertStorageTab(resourceTypes[ApplicationResourceTypes.SqlServer]);
+        Assert.DoesNotContain(
+            resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
+            tab => string.Equals(tab.Id, "storage", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void AssertStorageTab(ResourceTypeContribution resourceType)
+    {
+        var storageTab = Assert.Single(
+            resourceType.ResourceTabs,
+            tab => string.Equals(tab.Id, "storage", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal("Storage", storageTab.Title);
+        Assert.True(storageTab.ShowsApplyButton);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationStorage), storageTab.ComponentType);
+    }
+
+    [Fact]
     public async Task SecretsVaultProvider_ResolvesSecretsFromMultipleVaults()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -3204,11 +3237,13 @@ public sealed class ResourceDeclarationTests
             .AddControlPlane()
             .Resources(resources =>
             {
+                var app = resources.Declare("applications", "application:postgres");
                 resources
                     .AddVolume("postgres-data", "Postgres Data")
                     .UseHostPath("./data/postgres")
                     .WithAccessMode(VolumeAccessMode.ReadWriteOnce)
-                    .Persist();
+                    .Persist()
+                    .Allow(app, StorageVolumeResourceOperationPermissions.MountWrite);
             });
 
         using var serviceProvider = services.BuildServiceProvider();
@@ -3249,6 +3284,13 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("ReadWriteOnce", resource.ResourceAttributes[ResourceAttributeNames.VolumeAccessMode]);
         Assert.Equal("true", resource.ResourceAttributes[ResourceAttributeNames.VolumePersistent]);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.StorageVolume));
+
+        var evaluation = store.CreatePermissionGrantEvaluator().Evaluate(
+            ResourceIdentityReference.ForResource("application:postgres"),
+            "volume:postgres-data",
+            StorageVolumeResourceOperationPermissions.MountWrite);
+
+        Assert.True(evaluation.IsAllowed);
     }
 
     [Fact]
@@ -4139,6 +4181,7 @@ public sealed class ResourceDeclarationTests
             .AddExtension<ApplicationProviderExtension>()
             .Resources(resources =>
             {
+                var volume = resources.AddVolume("volume:sql-data", "SQL Data");
                 var container = resources
                     .AddContainer(
                         "sql",
@@ -4148,7 +4191,7 @@ public sealed class ResourceDeclarationTests
                     .WithRegistry("https://registry.example.com")
                     .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
                     .WithEndpoint("tds", targetPort: 1433, port: 14333)
-                    .WithVolume("postgres-data", "/var/opt/mssql", name: "data")
+                    .WithVolume(volume, "/var/opt/mssql", name: "data")
                     .WithContainerHost("docker:dev")
                     .WithLifetime(ResourceLifetime.Detached);
 
@@ -4170,7 +4213,7 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal("applications", declaration.ProviderId);
         Assert.Null(declaration.ParentResourceId);
-        Assert.Empty(declaration.DependsOn);
+        Assert.Equal(["volume:sql-data"], declaration.DependsOn);
         Assert.Equal(ApplicationResourceTypes.ContainerApp, resource.EffectiveTypeId);
         Assert.Equal(ResourceClass.Container, resource.ResourceClass);
         Assert.Equal(
@@ -4196,10 +4239,11 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("docker:dev", workload?.ContainerHostId);
         Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
         var mount = Assert.Single(workload?.WorkloadVolumeMounts ?? []);
-        Assert.Equal("postgres-data", mount.VolumeReference);
+        Assert.Equal("volume:sql-data", mount.VolumeReference);
         Assert.Equal("/var/opt/mssql", mount.TargetPath);
         Assert.False(mount.ReadOnly);
         Assert.Equal("data", mount.Name);
+        Assert.Equal(StorageVolumeResourceOperationPermissions.MountWrite, mount.RequiredPermission);
         var port = Assert.Single(workload?.WorkloadPorts ?? []);
         Assert.Equal("tds", port.Name);
         Assert.Equal(1433, port.TargetPort);
@@ -4381,6 +4425,9 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(3, service.Replicas);
         Assert.Equal(workload.WorkloadPorts, service.ServicePorts);
         Assert.Equal(workload.WorkloadVolumeMounts, service.ServiceVolumeMounts);
+        Assert.Equal(
+            StorageVolumeResourceOperationPermissions.MountRead,
+            service.ServiceVolumeMounts.Single().RequiredPermission);
         Assert.Empty(service.ServiceDependencies);
         Assert.Empty(service.ServiceNetworks);
     }

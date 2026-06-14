@@ -812,6 +812,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string? name = null)
     {
         ArgumentNullException.ThrowIfNull(volume);
+        DependsOn(volume);
         return WithVolume(volume.ResourceId, targetPath, readOnly, name);
     }
 

@@ -1,3 +1,5 @@
+using CloudShell.Abstractions.Authorization;
+
 namespace CloudShell.Abstractions.ResourceManager;
 
 public enum ResourceWorkloadKind
@@ -25,6 +27,11 @@ public sealed record ResourceVolumeMount(
     public string NormalizedTargetPath => TargetPath.Trim();
 
     public string? NormalizedName => string.IsNullOrWhiteSpace(Name) ? null : Name.Trim();
+
+    public string RequiredPermission =>
+        ReadOnly
+            ? StorageVolumeResourceOperationPermissions.MountRead
+            : StorageVolumeResourceOperationPermissions.MountWrite;
 }
 
 public sealed record ResourceWorkloadConfiguration(

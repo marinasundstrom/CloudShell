@@ -1,6 +1,8 @@
+@using Microsoft.JSInterop
 @inject ApplicationResourceProvider ApplicationProvider
 @inject IResourceManagerStore ResourceManager
 @inject IResourceManager ResourceManagerClient
+@inject IJSRuntime JS
 
 @if (Application is null)
 {
@@ -47,6 +49,25 @@ else
             }
             <dt>Endpoint</dt>
             <dd>@EndpointLink(GetEndpointAddress(Application))</dd>
+            @if (IsSqlServer(Application) && GetSqlServerConnectionString(Application) is { } connectionString)
+            {
+                <dt>Connection string</dt>
+                <dd>
+                    <span>@connectionString</span>
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Title="Copy connection string"
+                                  OnClick="() => CopyText(connectionString)">
+                        Copy
+                    </FluentButton>
+                </dd>
+                <dt>SA password</dt>
+                <dd>
+                    <SensitiveLiteralValue Value="@GetSqlServerPassword(Application)"
+                                           RevealTitle="Reveal password"
+                                           HideTitle="Hide password"
+                                           CopyTitle="Copy password" />
+                </dd>
+            }
             <dt>Lifetime</dt>
             <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
             <dt>Dependencies</dt>
@@ -123,11 +144,7 @@ else
                         <td>@row.Source</td>
                         <td><span class="@row.StatusCssClass">@row.Status</span></td>
                         <td>
-                            <span>@row.Target</span>
-                            @if (!string.IsNullOrWhiteSpace(row.Detail))
-                            {
-                                <small>@row.Detail</small>
-                            }
+                            <ApplicationSettingValueCell Row="row" />
                         </td>
                     </tr>
                 }
@@ -161,11 +178,7 @@ else
                         <td>@row.Source</td>
                         <td><span class="@row.StatusCssClass">@row.Status</span></td>
                         <td>
-                            <span>@row.Target</span>
-                            @if (!string.IsNullOrWhiteSpace(row.Detail))
-                            {
-                                <small>@row.Detail</small>
-                            }
+                            <ApplicationSettingValueCell Row="row" />
                         </td>
                     </tr>
                 }
@@ -230,6 +243,12 @@ else
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
         !string.IsNullOrWhiteSpace(application.ContainerImage) ||
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
+
+    private static bool IsSqlServer(ApplicationResourceDefinition application) =>
+        string.Equals(
+            application.ResourceType,
+            ApplicationResourceTypes.SqlServer,
+            StringComparison.OrdinalIgnoreCase);
 
     private static string NormalizeRegistry(string? value) =>
         string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Default : value.Trim();
@@ -382,6 +401,11 @@ else
 
     private static string? GetEndpointAddress(ApplicationResourceDefinition application)
     {
+        if (IsSqlServer(application))
+        {
+            return GetSqlServerEndpointAddress(application);
+        }
+
         if (!IsAspNetCoreProject(application))
         {
             return application.Endpoint;
@@ -394,6 +418,36 @@ else
             ? null
             : $"{port.Protocol}://localhost:{port.Port.Value}";
     }
+
+    private static string? GetSqlServerConnectionString(ApplicationResourceDefinition application)
+    {
+        var address = GetSqlServerEndpointAddress(application);
+        if (string.IsNullOrWhiteSpace(address) ||
+            !Uri.TryCreate(address, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        var server = uri.Port > 0
+            ? $"{uri.Host},{uri.Port}"
+            : uri.Host;
+        var password = GetSqlServerPassword(application) ?? "<SA password>";
+        return $"Server={server};User Id=sa;Password={password};TrustServerCertificate=True;";
+    }
+
+    private static string? GetSqlServerEndpointAddress(ApplicationResourceDefinition application)
+    {
+        var endpoint = application.EndpointPorts.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, "tds", StringComparison.OrdinalIgnoreCase)) ??
+            application.EndpointPorts.FirstOrDefault();
+        return endpoint?.Port is null
+            ? null
+            : $"{endpoint.Protocol}://localhost:{endpoint.Port.Value}";
+    }
+
+    private static string? GetSqlServerPassword(ApplicationResourceDefinition application) =>
+        application.EnvironmentVariables.FirstOrDefault(variable =>
+            string.Equals(variable.Name, "MSSQL_SA_PASSWORD", StringComparison.OrdinalIgnoreCase))?.Value;
 
     private static string GetObservabilityLabel(ResourceObservability? observability)
     {
@@ -444,6 +498,14 @@ else
         Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
         (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
          uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
+
+    private async Task CopyText(string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+        }
+    }
 
     private sealed record NetworkEndpointMappingView(
         Resource Network,

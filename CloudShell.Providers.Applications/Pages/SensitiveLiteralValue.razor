@@ -1,0 +1,70 @@
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+@if (string.IsNullOrWhiteSpace(Value))
+{
+    <span>@EmptyLabel</span>
+}
+else
+{
+    <span>@DisplayedValue</span>
+    <FluentButton Appearance="Appearance.Neutral"
+                  Title="@(IsRevealed ? HideTitle : RevealTitle)"
+                  OnClick="ToggleRevealed">
+        @(IsRevealed ? HideText : RevealText)
+    </FluentButton>
+    <FluentButton Appearance="Appearance.Neutral"
+                  Title="@CopyTitle"
+                  OnClick="CopyValue">
+        @CopyText
+    </FluentButton>
+}
+
+@code {
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public string EmptyLabel { get; set; } = "not configured";
+
+    [Parameter]
+    public string RevealText { get; set; } = "Reveal";
+
+    [Parameter]
+    public string HideText { get; set; } = "Hide";
+
+    [Parameter]
+    public string CopyText { get; set; } = "Copy";
+
+    [Parameter]
+    public string RevealTitle { get; set; } = "Reveal value";
+
+    [Parameter]
+    public string HideTitle { get; set; } = "Hide value";
+
+    [Parameter]
+    public string CopyTitle { get; set; } = "Copy value";
+
+    private bool IsRevealed { get; set; }
+
+    private string DisplayedValue =>
+        IsRevealed
+            ? Value ?? EmptyLabel
+            : MaskValue(Value);
+
+    private void ToggleRevealed() =>
+        IsRevealed = !IsRevealed;
+
+    private async Task CopyValue()
+    {
+        if (!string.IsNullOrWhiteSpace(Value))
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", Value);
+        }
+    }
+
+    private static string MaskValue(string? value) =>
+        string.IsNullOrEmpty(value) || string.Equals(value, "empty", StringComparison.Ordinal)
+            ? "empty"
+            : new string('•', Math.Min(value.Length, 12));
+}

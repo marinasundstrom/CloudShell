@@ -43,8 +43,9 @@ internal static class ApplicationSettingReferenceDisplay
             "Literal value",
             string.IsNullOrEmpty(setting.Value) ? "empty" : setting.Value,
             null,
-            "Visible",
-            "ok");
+            IsSensitiveLiteralName(setting.Name) ? "Hidden" : "Visible",
+            IsSensitiveLiteralName(setting.Name) ? "info" : "ok",
+            IsSensitiveLiteralName(setting.Name));
     }
 
     public static ApplicationSettingDisplayRow Create(
@@ -85,8 +86,9 @@ internal static class ApplicationSettingReferenceDisplay
             "Literal value",
             string.IsNullOrEmpty(assignment.Value) ? "empty" : assignment.Value,
             null,
-            "Visible",
-            "ok");
+            IsSensitiveLiteralName(assignment.Name) ? "Hidden" : "Visible",
+            IsSensitiveLiteralName(assignment.Name) ? "info" : "ok",
+            IsSensitiveLiteralName(assignment.Name));
     }
 
     private static ApplicationSettingDisplayRow CreateConfigurationReferenceRow(
@@ -221,15 +223,19 @@ internal static class ApplicationSettingReferenceDisplay
         string.IsNullOrWhiteSpace(identityBinding.Name)
             ? applicationResourceId
             : $"{applicationResourceId}/{identityBinding.Name}";
+
+    private static bool IsSensitiveLiteralName(string name) =>
+        name.Contains("password", StringComparison.OrdinalIgnoreCase);
 }
 
-internal sealed record ApplicationSettingDisplayRow(
+public sealed record ApplicationSettingDisplayRow(
     string Name,
     string Source,
     string Target,
     string? Detail,
     string Status,
-    string StatusKind)
+    string StatusKind,
+    bool IsSensitiveLiteral = false)
 {
     public string StatusCssClass => $"reference-status reference-status-{StatusKind}";
 }

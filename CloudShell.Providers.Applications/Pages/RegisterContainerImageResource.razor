@@ -117,6 +117,45 @@
             Start referenced resources first
         </FluentCheckbox>
 
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Volume mounts</strong>
+                <FluentButton Appearance="Appearance.Neutral" OnClick="AddVolumeMount">
+                    Add mount
+                </FluentButton>
+            </div>
+
+            @if (GetVolumeCandidates().Count == 0)
+            {
+                <span>No volume resources are available in this group.</span>
+            }
+            else
+            {
+                @foreach (var mount in VolumeMounts)
+                {
+                    <div class="environment-row">
+                        <FluentSelect TOption="string"
+                                      AriaLabel="Volume resource"
+                                      @bind-Value="mount.VolumeReference"
+                                      Appearance="Appearance.Outline">
+                            <FluentOption TOption="string" Value="">Select volume</FluentOption>
+                            @foreach (var volume in GetVolumeCandidates())
+                            {
+                                <FluentOption TOption="string" Value="@volume.Id">@volume.Name</FluentOption>
+                            }
+                        </FluentSelect>
+                        <FluentTextField AriaLabel="Target path" @bind-Value="mount.TargetPath" Placeholder="/data" />
+                        <FluentCheckbox @bind-Value="mount.ReadOnly">
+                            Read-only
+                        </FluentCheckbox>
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveVolumeMount(mount)">
+                            Remove
+                        </FluentButton>
+                    </div>
+                }
+            }
+        </div>
+
         <FluentCheckbox @bind-Value="EnableObservability">
             Enable observability
         </FluentCheckbox>
@@ -179,6 +218,7 @@
     private bool StartAfterCreate { get; set; } = true;
     private string? ErrorMessage { get; set; }
     private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
+    private List<VolumeMountInput> VolumeMounts { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     private bool IsManualEndpointAssignment =>
@@ -225,13 +265,21 @@
         }
 
         var references = SelectedReferenceIds.ToArray();
+        var volumeMounts = BuildVolumeMounts();
+        var volumeReferences = volumeMounts
+            .Where(mount => IsManagedVolumeReference(mount.VolumeReference))
+            .Select(mount => mount.VolumeReference)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
             Name,
             executablePath: string.Empty,
             environmentVariables: BuildEnvironmentVariables(),
             lifetime: ParseLifetime(),
-            dependsOn: WaitForReferences ? references : [],
+            dependsOn: WaitForReferences
+                ? references.Concat(volumeReferences).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+                : volumeReferences,
             references: references,
             useServiceDiscovery: references.Length > 0,
             containerImage: Image.Trim(),
@@ -240,7 +288,8 @@
             containerHostId: NormalizeNullable(SelectedHostId),
             endpointPorts: BuildEndpointPorts(),
             resourceType: ApplicationResourceTypes.ContainerApp,
-            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None);
+            observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
+            volumeMounts: volumeMounts);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         if (StartAfterCreate)
@@ -290,14 +339,43 @@
             .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
             .ToArray();
 
+    private IReadOnlyList<ResourceVolumeMount> BuildVolumeMounts() =>
+        VolumeMounts
+            .Where(mount =>
+                !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
+                !string.IsNullOrWhiteSpace(mount.TargetPath))
+            .Select(mount => new ResourceVolumeMount(
+                mount.VolumeReference!.Trim(),
+                mount.TargetPath!.Trim(),
+                mount.ReadOnly))
+            .ToArray();
+
     private IReadOnlyList<Resource> GetReferenceCandidates() =>
         ResourceManager.GetResources()
             .Where(resource => !string.Equals(resource.Id, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
             .Where(IsInSelectedGroup)
             .Where(resource => !string.Equals(resource.EffectiveTypeId, "cloudshell.network", StringComparison.OrdinalIgnoreCase))
             .Where(resource => !string.Equals(resource.EffectiveTypeId, "cloudshell.service", StringComparison.OrdinalIgnoreCase))
+            .Where(resource => !IsVolumeResource(resource))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private IReadOnlyList<Resource> GetVolumeCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => !string.Equals(resource.Id, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
+            .Where(IsInSelectedGroup)
+            .Where(IsVolumeResource)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static bool IsVolumeResource(Resource resource) =>
+        resource.ResourceClass == ResourceClass.Storage ||
+        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
+        resource.HasCapability(ResourceCapabilityIds.StorageVolume);
+
+    private bool IsManagedVolumeReference(string volumeReference) =>
+        GetVolumeCandidates().Any(volume =>
+            string.Equals(volume.Id, volumeReference, StringComparison.OrdinalIgnoreCase));
 
     private bool IsInSelectedGroup(Resource resource)
     {
@@ -429,6 +507,17 @@
         }
     }
 
+    private void AddVolumeMount() => VolumeMounts.Add(new());
+
+    private void RemoveVolumeMount(VolumeMountInput mount)
+    {
+        VolumeMounts.Remove(mount);
+        if (VolumeMounts.Count == 0)
+        {
+            VolumeMounts.Add(new());
+        }
+    }
+
     private void ToggleReference(string resourceId, bool selected)
     {
         if (selected)
@@ -448,5 +537,17 @@
         public string? Name { get; set; } = name;
 
         public string? Value { get; set; } = value;
+    }
+
+    private sealed class VolumeMountInput(
+        string? volumeReference = null,
+        string? targetPath = null,
+        bool readOnly = false)
+    {
+        public string? VolumeReference { get; set; } = volumeReference;
+
+        public string? TargetPath { get; set; } = targetPath;
+
+        public bool ReadOnly { get; set; } = readOnly;
     }
 }

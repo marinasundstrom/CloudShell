@@ -114,6 +114,12 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "Configuration",
                 20,
                 showsApplyButton: true)
+            .AddResourceTab<Pages.ApplicationStorage>(
+                ApplicationResourceTypes.ContainerApp,
+                "storage",
+                "Storage",
+                30,
+                showsApplyButton: true)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.SqlServer,
                 "overview",
@@ -124,6 +130,12 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "configuration",
                 "Configuration",
                 20,
+                showsApplyButton: true)
+            .AddResourceTab<Pages.ApplicationStorage>(
+                ApplicationResourceTypes.SqlServer,
+                "storage",
+                "Storage",
+                30,
                 showsApplyButton: true);
     }
 }

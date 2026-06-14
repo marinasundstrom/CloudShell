@@ -7,9 +7,16 @@ In progress.
 Initial domain primitives are in place for volume resources and container app
 volume mounts: `cloudshell.volume`, `ResourceVolumeMount`, workload descriptor
 projection, container declaration builder support, application resource mount
-counts, and storage volume/consumer capabilities. Runtime provider
-materialization, Resource Manager create/attach UI, provider-backed volume
-resources, and usage monitoring remain open.
+counts, storage volume/consumer capabilities, standard volume mount
+permissions, and first Resource Manager selectors plus a dedicated Storage tab
+for container-backed resources that can map volumes. SQL Server is the first
+resource-specific flow that recommends a known data mount point and warns when
+data will not be persisted.
+Runtime provider materialization, dedicated Resource Manager volume create UI,
+provider-backed volume resources, and usage monitoring remain open.
+Deletion is guarded for volume resources that are still referenced by another
+resource dependency, and storage mappings cannot be changed while the target
+resource is running.
 
 ## Problem
 
@@ -134,6 +141,29 @@ public sealed record ResourceVolumeMount(
     string? Name = null);
 ```
 
+The mount's required access permission is derived from `ReadOnly`:
+
+- read-only mount: `CloudShell.Storage/volumes/mount/read/action`
+- read/write mount: `CloudShell.Storage/volumes/mount/write/action`
+
+Resource identity grants use the existing CloudShell resource-permission model:
+
+```csharp
+var data = resources.AddVolume("volume:postgres-data", "Postgres Data");
+var postgres = resources
+    .AddContainerApplication("application:postgres", "Postgres", "postgres:16")
+    .RequireIdentity()
+    .WithVolume(data, "/var/lib/postgresql/data");
+
+data.Allow(postgres, CloudShellPermissions.Storage.Actions.MountWrite);
+```
+
+Authored resource types can also define meaningful storage attachment points.
+For example, the SQL Server resource recommends a writable data volume mounted
+at `/var/opt/mssql` and can warn when no such mount is configured. This lets a
+provider expose resource-specific storage intent without leaking the rest of
+its container implementation into the public resource model.
+
 The exact public abstraction may differ, but the important split is stable:
 CloudShell owns the relationship between resource and volume; providers own how
 that relationship becomes a bind mount, Docker volume, Kubernetes persistent
@@ -234,13 +264,16 @@ Resource Manager should show storage from both sides:
 MVP UI should support:
 
 - creating a basic local or provider-backed volume
-- attaching a volume to a container app or executable app
+- attaching a volume to a container app or executable app; the first container
+  app registration selector and resource Storage tab are in place for
+  container-backed resources that can map volumes
 - showing both managed volume resources and unmanaged/local volume references
   used by applications
 - showing unresolved provider/host diagnostics
 - leaving room for provider-owned usage monitoring data such as capacity,
   consumed bytes, inode/file counts, IOPS, throughput, or quota status
-- warning before deleting a volume that has active attachments
+- preventing storage mapping changes while the target resource is running
+- blocking deletion of a volume that is still referenced by another resource
 
 ## Relationship to Container Apps and Services
 
@@ -283,6 +316,18 @@ permissions. Provider-backed storage that exposes protected APIs or credentials
 must keep credential material provider-owned and should use resource identity
 where possible.
 
+Volume data-plane access should use resource identity grants. Runtime
+materializers should evaluate the target resource identity against the volume
+resource and the mount's required permission before attaching the volume. A
+read-only mount requires the storage mount read permission; a writable mount
+requires the storage mount write permission. Local development hosts can
+initially warn instead of blocking unmanaged volume references because those
+references may intentionally not resolve to a CloudShell volume resource.
+
+Volume control-plane deletion is blocked while another resource depends on the
+volume. Providers should keep this rule even after richer attachment tracking
+exists: a volume with active attachments should be detached first, then deleted.
+
 ## API and UI Projection
 
 The HTTP API should project volume resources as ordinary resources and project
@@ -312,14 +357,20 @@ through future monitoring APIs.
    resource IDs and unmanaged local volume references.
 4. Project volume attachments on application resources. Mount counts and
    workload descriptor volume mounts are in place.
-5. Map container app volume attachments through the default local and Docker
+5. Add first Resource Manager volume selector for resources that can reference
+   volumes. Container app create selectors and a dedicated resource Storage tab
+   for container-backed resources are in place.
+6. Map container app volume attachments through the default local and Docker
    Compose orchestrator paths.
-6. Add Resource Manager generated overview support for attached volumes.
-7. Add create/attach UI for basic volume mappings.
-8. Add action capability reasons and diagnostics for missing providers,
+7. Add Resource Manager generated overview support for attached volumes.
+8. Add dedicated create/attach UI for basic volume resources and mappings.
+9. Add action capability reasons and diagnostics for missing providers,
    missing host paths, unsupported mounts, and conflicting target paths.
-9. Add sample coverage with a stateful container application.
-10. Add provider-backed examples for Docker volumes and a future on-premise
+10. Extend deletion safety from dependency-based guard to explicit attachment
+   tracking once mount materialization records attachment state. Initial
+   dependency-based deletion blocking is in place.
+11. Add sample coverage with a stateful container application.
+12. Add provider-backed examples for Docker volumes and a future on-premise
     storage provider.
 
 ## Remaining Tasks
@@ -329,7 +380,8 @@ through future monitoring APIs.
   shape.
 - Decide first-class support for host paths versus named volumes in local
   development.
-- Add deletion safety rules for volumes with active attachments.
+- Extend deletion safety from dependency-based blocking to explicit attachment
+  state once runtime materialization records mounted volumes.
 - Define backup/snapshot as future capabilities, not MVP requirements.
 - Add on-premise storage provider sample after the local/Docker path works.
 

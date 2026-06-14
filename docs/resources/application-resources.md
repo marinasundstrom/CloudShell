@@ -12,6 +12,8 @@ Resource-type-specific guidance:
   `application.aspnet-core-project` project resources.
 - [Container apps](container-apps.md) for `application.container-app` deployable
   container workloads.
+- [SQL Server resources](sql-server.md) for `application.sql-server`
+  container-backed database resources.
 
 Application resources are primarily intended for local development:
 ASP.NET Core APIs, frontend dev servers, emulators, workers, containerized
@@ -68,6 +70,7 @@ configuration, such as:
 - executable path, arguments, and working directory
 - project path, project application arguments, and ASP.NET Core hot reload mode
 - container image, registry, host binding, endpoints, and environment variables
+- SQL Server image, TDS endpoint, and data-volume mount
 - lifetime and service discovery opt-in where supported
 
 Import creates a new application definition in the provider's configuration
@@ -162,6 +165,12 @@ CloudShell emits names based on both the referenced resource name and resource
 ID, normalized for environment variables. Explicit application environment
 variables are applied last, so they can override generated service discovery
 variables.
+
+The Resource Manager overview hides raw literal app setting and environment
+variable values whose name contains `password`, case-insensitively. Those rows
+render with reveal and copy actions. Configuration-entry references and secret
+references remain references; the overview does not resolve or display their
+plain values.
 
 Endpoint variables are generated from the application's referenced resources,
 not from its wait dependencies. For declarative application resources,

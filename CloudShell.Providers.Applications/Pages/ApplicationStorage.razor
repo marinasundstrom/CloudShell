@@ -1,0 +1,271 @@
+@inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceRegistrationStore Registrations
+
+@if (Application is null)
+{
+    <div class="empty-state">
+        <strong>Storage is unavailable</strong>
+        <span>The resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else if (!SupportsVolumeMounts(Application))
+{
+    <div class="empty-state">
+        <strong>Storage is not supported</strong>
+        <span>This resource type does not support volume mappings.</span>
+    </div>
+}
+else
+{
+    @if (IsStorageLocked)
+    {
+        <div class="procedure-message compact">
+            Storage mappings cannot be changed while this resource is running. Stop the resource before changing mounted storage.
+        </div>
+    }
+
+    @if (GetRecommendedMount(Application) is { } recommendation &&
+        !HasMountAt(recommendation.TargetPath))
+    {
+        <div class="procedure-message compact">
+            @recommendation.Warning
+        </div>
+    }
+
+    <div class="environment-editor">
+        <div class="environment-header">
+            <strong>Volume mounts</strong>
+            <FluentButton Appearance="Appearance.Neutral"
+                          Disabled="@IsStorageLocked"
+                          OnClick="AddVolumeMount">
+                Add mount
+            </FluentButton>
+        </div>
+
+        @if (GetVolumeCandidates().Count == 0)
+        {
+            <span>No volume resources are available in this group.</span>
+        }
+        else
+        {
+            @foreach (var mount in VolumeMounts)
+            {
+                <div class="environment-row">
+                    <FluentSelect TOption="string"
+                                  AriaLabel="Volume resource"
+                                  Disabled="@IsStorageLocked"
+                                  @bind-Value="mount.VolumeReference"
+                                  Appearance="Appearance.Outline">
+                        <FluentOption TOption="string" Value="">Select volume</FluentOption>
+                        @foreach (var volume in GetVolumeCandidates())
+                        {
+                            <FluentOption TOption="string" Value="@volume.Id">@volume.Name</FluentOption>
+                        }
+                    </FluentSelect>
+                    <FluentTextField AriaLabel="Target path"
+                                     Disabled="@IsStorageLocked"
+                                     @bind-Value="mount.TargetPath"
+                                     Placeholder="@GetTargetPathPlaceholder()" />
+                    <FluentCheckbox Disabled="@IsStorageLocked" @bind-Value="mount.ReadOnly">
+                        Read-only
+                    </FluentCheckbox>
+                    <FluentButton Appearance="Appearance.Neutral"
+                                  Disabled="@IsStorageLocked"
+                                  OnClick="() => RemoveVolumeMount(mount)">
+                        Remove
+                    </FluentButton>
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private ApplicationResourceDefinition? Application { get; set; }
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+    private List<VolumeMountInput> VolumeMounts { get; } = [];
+
+    private bool IsStorageLocked =>
+        Application is not null &&
+        (IsActive(ResourceManager.GetResource(Application.Id)?.State) ||
+            ApplicationProvider.IsRunning(Application.Id));
+
+    protected override void OnParametersSet()
+    {
+        Application = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ApplicationProvider.GetApplication(ResourceId);
+
+        VolumeMounts.Clear();
+        if (Application is not null)
+        {
+            VolumeMounts.AddRange(Application.VolumeMounts.Select(VolumeMountInput.FromMount));
+        }
+
+        if (VolumeMounts.Count == 0)
+        {
+            VolumeMounts.Add(new());
+        }
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        if (Application is null)
+        {
+            return ResourceProcedureResult.Completed("Application resource is unavailable.");
+        }
+
+        if (!SupportsVolumeMounts(Application))
+        {
+            return ResourceProcedureResult.Completed("Storage mappings are not supported for this resource.");
+        }
+
+        if (IsStorageLocked)
+        {
+            return ResourceProcedureResult.Completed(
+                "Storage mappings cannot be changed while the resource is running. Stop the resource before changing mounted storage.");
+        }
+
+        var volumeMounts = BuildVolumeMounts();
+        var definition = Application with
+        {
+            DependsOn = BuildDependencies(volumeMounts),
+            VolumeMounts = volumeMounts
+        };
+
+        await ApplicationProvider.UpdateApplicationAsync(
+            definition,
+            ResourceManager.GetGroupForResource(Application.Id)?.Id ?? string.Empty,
+            Registrations,
+            cancellationToken);
+
+        return ResourceProcedureResult.Completed("Storage mappings updated.");
+    }
+
+    private IReadOnlyList<string> BuildDependencies(IReadOnlyList<ResourceVolumeMount> volumeMounts)
+    {
+        var currentDependencies = ResourceManager.GetResource(Application!.Id)?.DependsOn ?? Application.DependsOn;
+        var existingManagedVolumeReferences = Application.VolumeMounts
+            .Where(mount => IsManagedVolumeReference(mount.VolumeReference))
+            .Select(mount => mount.VolumeReference);
+        var newManagedVolumeReferences = volumeMounts
+            .Where(mount => IsManagedVolumeReference(mount.VolumeReference))
+            .Select(mount => mount.VolumeReference);
+        var managedVolumeReferences = existingManagedVolumeReferences
+            .Concat(newManagedVolumeReferences)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return currentDependencies
+            .Where(dependency => !managedVolumeReferences.Contains(dependency))
+            .Concat(newManagedVolumeReferences)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private IReadOnlyList<ResourceVolumeMount> BuildVolumeMounts() =>
+        VolumeMounts
+            .Where(mount =>
+                !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
+                !string.IsNullOrWhiteSpace(mount.TargetPath))
+            .Select(mount => new ResourceVolumeMount(
+                mount.VolumeReference!.Trim(),
+                mount.TargetPath!.Trim(),
+                mount.ReadOnly))
+            .ToArray();
+
+    private IReadOnlyList<Resource> GetVolumeCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => Application is null ||
+                !string.Equals(resource.Id, Application.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => IsInSelectedGroup(resource.Id))
+            .Where(IsVolumeResource)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static bool SupportsVolumeMounts(ApplicationResourceDefinition application) =>
+        ApplicationResourceTypes.IsContainerApp(application.ResourceType) ||
+        string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase);
+
+    private string GetTargetPathPlaceholder() =>
+        Application is not null && GetRecommendedMount(Application) is { } recommendation
+            ? recommendation.TargetPath
+            : "/data";
+
+    private bool HasMountAt(string targetPath) =>
+        BuildVolumeMounts().Any(mount =>
+            string.Equals(mount.TargetPath, targetPath, StringComparison.OrdinalIgnoreCase));
+
+    private static ResourceMountRecommendation? GetRecommendedMount(ApplicationResourceDefinition application) =>
+        string.Equals(application.ResourceType, ApplicationResourceTypes.SqlServer, StringComparison.OrdinalIgnoreCase)
+            ? new ResourceMountRecommendation(
+                "/var/opt/mssql",
+                "Data will not be persisted unless a volume is mounted at /var/opt/mssql.")
+            : null;
+
+    private static bool IsVolumeResource(Resource resource) =>
+        resource.ResourceClass == ResourceClass.Storage ||
+        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
+        resource.HasCapability(ResourceCapabilityIds.StorageVolume);
+
+    private bool IsManagedVolumeReference(string volumeReference) =>
+        GetVolumeCandidates().Any(volume =>
+            string.Equals(volume.Id, volumeReference, StringComparison.OrdinalIgnoreCase));
+
+    private bool IsInSelectedGroup(string resourceId)
+    {
+        var selectedGroup = Application is null
+            ? null
+            : ResourceManager.GetGroupForResource(Application.Id);
+        var group = ResourceManager.GetGroupForResource(resourceId);
+        return selectedGroup is null
+            ? group is null
+            : string.Equals(group?.Id, selectedGroup.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsActive(ResourceState? state) =>
+        state is ResourceState.Running or ResourceState.Starting or ResourceState.Degraded;
+
+    private void AddVolumeMount() => VolumeMounts.Add(new());
+
+    private void RemoveVolumeMount(VolumeMountInput mount)
+    {
+        VolumeMounts.Remove(mount);
+        if (VolumeMounts.Count == 0)
+        {
+            VolumeMounts.Add(new());
+        }
+    }
+
+    private sealed class VolumeMountInput(
+        string? volumeReference = null,
+        string? targetPath = null,
+        bool readOnly = false)
+    {
+        public string? VolumeReference { get; set; } = volumeReference;
+
+        public string? TargetPath { get; set; } = targetPath;
+
+        public bool ReadOnly { get; set; } = readOnly;
+
+        public static VolumeMountInput FromMount(ResourceVolumeMount mount) =>
+            new(mount.VolumeReference, mount.TargetPath, mount.ReadOnly);
+    }
+
+    private sealed record ResourceMountRecommendation(
+        string TargetPath,
+        string Warning);
+}

@@ -12,9 +12,10 @@ deployment automation should target the container app.
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For related resource types,
 see [Executable applications](executable-applications.md) and
-[ASP.NET Core applications](aspnet-core-applications.md). To route traffic to
-container apps through a stable provider-neutral routing resource, see
-[Load balancers](load-balancers.md).
+[ASP.NET Core applications](aspnet-core-applications.md). SQL Server is a
+container-backed authored resource with its own storage guidance; see
+[SQL Server resources](sql-server.md). To route traffic to container apps
+through a stable provider-neutral routing resource, see [Load balancers](load-balancers.md).
 
 ## Host Binding
 

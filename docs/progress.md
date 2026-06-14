@@ -87,10 +87,17 @@ expectations rather than duplicating the task queue.
   reference either that managed volume resource or an unmanaged local volume
   reference. Application resources project a mount count and storage volume
   consumer capability, volume resources project storage capability and safe
-  allocation attributes, and workload descriptors carry the mounts for runtime
-  providers to materialize next. Provider-backed volume resources, richer
-  materialization diagnostics, UI management, and usage monitoring APIs remain
-  next storage work.
+  allocation attributes, and workload descriptors carry each mount plus its
+  derived read/write mount permission for runtime providers to materialize and
+  enforce. Resource Manager now has the first volume selector UI for container
+  app create flows and a dedicated Storage tab for container-backed resources
+  that can map volumes. Storage mappings cannot be changed while the target
+  resource is running, and volume deletion is blocked while another resource
+  depends on the volume. SQL Server now documents and surfaces its known
+  `/var/opt/mssql` data mount point with a persistence warning when no data
+  volume is configured. Provider-backed volume resources, richer materialization
+  diagnostics, broader UI management, runtime enforcement, and usage monitoring
+  APIs remain next storage work.
 - The first post-MVP target is an initial on-premise hosting scenario. It
   should prove acceptable Resource Manager operations, provider-backed
   cross-platform networking, virtual networks, ingress/public endpoint mapping,

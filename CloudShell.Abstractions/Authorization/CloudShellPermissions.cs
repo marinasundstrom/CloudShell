@@ -30,6 +30,15 @@ public static class LoadBalancerResourceOperationPermissions
         "CloudShell.Network/loadBalancers/applyConfiguration/action";
 }
 
+public static class StorageVolumeResourceOperationPermissions
+{
+    public const string MountRead =
+        "CloudShell.Storage/volumes/mount/read/action";
+
+    public const string MountWrite =
+        "CloudShell.Storage/volumes/mount/write/action";
+}
+
 public static class ConfigurationStoreResourceOperationPermissions
 {
     public const string ReadEntries =
@@ -86,6 +95,17 @@ public static class CloudShellPermissions
                 NetworkResourceOperationPermissions.ReconcileEndpointMappings;
             public const string ApplyLoadBalancerConfiguration =
                 LoadBalancerResourceOperationPermissions.ApplyConfiguration;
+        }
+    }
+
+    public static class Storage
+    {
+        public static class Actions
+        {
+            public const string MountRead =
+                StorageVolumeResourceOperationPermissions.MountRead;
+            public const string MountWrite =
+                StorageVolumeResourceOperationPermissions.MountWrite;
         }
     }
 

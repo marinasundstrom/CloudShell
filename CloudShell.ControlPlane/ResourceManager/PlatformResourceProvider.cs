@@ -228,6 +228,11 @@ public sealed class PlatformResourceProvider(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
+        if (string.Equals(context.Resource.EffectiveTypeId, VolumeResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            EnsureVolumeIsNotInUse(context);
+        }
+
         ResourceProcedureResult? cleanupResult = null;
         if (string.Equals(context.Resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
         {
@@ -240,6 +245,28 @@ public sealed class PlatformResourceProvider(
             cleanupResult is null
                 ? "Platform resource registration removed."
                 : $"{cleanupResult.Message} Platform resource registration removed.");
+    }
+
+    private static void EnsureVolumeIsNotInUse(ResourceProcedureContext context)
+    {
+        var resourceManager = context.ResourceManager
+            ?? throw new InvalidOperationException("Resource Manager is required to delete volume resources.");
+        var dependents = resourceManager
+            .GetResources()
+            .Where(resource => !string.Equals(resource.Id, context.Resource.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => resource.DependsOn.Any(dependency =>
+                string.Equals(dependency, context.Resource.Id, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (dependents.Length == 0)
+        {
+            return;
+        }
+
+        var dependentNames = string.Join(", ", dependents.Select(resource => resource.Name));
+        throw new InvalidOperationException(
+            $"Volume resource '{context.Resource.Id}' cannot be deleted because it is used by: {dependentNames}.");
     }
 
     public Task<ResourceProcedureResult> ExecuteActionAsync(

@@ -60,6 +60,41 @@
             }
         </FluentSelect>
 
+        <div class="environment-editor">
+            <div class="environment-header">
+                <strong>Storage</strong>
+            </div>
+
+            @if (GetVolumeCandidates().Count == 0)
+            {
+                <div class="procedure-message compact">
+                    No volume resources are available in this group. SQL Server data will not be persisted if the container is recreated.
+                </div>
+            }
+            else
+            {
+                <label for="sql-data-volume">Data volume</label>
+                <FluentSelect TOption="string"
+                              Id="sql-data-volume"
+                              @bind-Value="SelectedDataVolumeId"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">No data volume</FluentOption>
+                    @foreach (var volume in GetVolumeCandidates())
+                    {
+                        <FluentOption TOption="string" Value="@volume.Id">@volume.Name</FluentOption>
+                    }
+                </FluentSelect>
+                <small>Mounts the selected volume at /var/opt/mssql.</small>
+            }
+
+            @if (string.IsNullOrWhiteSpace(SelectedDataVolumeId))
+            {
+                <div class="procedure-message compact">
+                    Data will not be persisted unless a volume is mounted at /var/opt/mssql.
+                </div>
+            }
+        </div>
+
         @if (ErrorMessage is not null)
         {
             <div class="provider-error">@ErrorMessage</div>
@@ -89,6 +124,7 @@
     private ResourceEndpointAssignment EndpointAssignment { get; set; } = ResourceEndpointAssignment.Manual;
     private int? LocalPort { get; set; } = 14333;
     private string SelectedGroupId { get; set; } = string.Empty;
+    private string SelectedDataVolumeId { get; set; } = string.Empty;
     private bool StartAfterCreate { get; set; } = true;
     private string? ErrorMessage { get; set; }
 
@@ -129,6 +165,7 @@
             return;
         }
 
+        var volumeMounts = BuildVolumeMounts();
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
             Name,
@@ -139,6 +176,7 @@
                 new EnvironmentVariableAssignment("MSSQL_SA_PASSWORD", Password)
             ],
             lifetime: ApplicationLifetime.ControlPlaneScoped,
+            dependsOn: volumeMounts.Select(mount => mount.VolumeReference).ToArray(),
             containerImage: Image.Trim(),
             containerHostId: NormalizeNullable(SelectedHostId),
             endpointPorts:
@@ -150,7 +188,8 @@
                     "tcp",
                     ResourceExposureScope.Local)
             ],
-            resourceType: ApplicationResourceTypes.SqlServer);
+            resourceType: ApplicationResourceTypes.SqlServer,
+            volumeMounts: volumeMounts);
 
         await ApplicationProvider.SetupApplicationAsync(definition, SelectedGroupId, Registrations);
         if (StartAfterCreate)
@@ -192,6 +231,37 @@
 
     private bool HasImplicitContainerHost() =>
         GetContainerHosts().Any(host => host.IsDefault);
+
+    private IReadOnlyList<ResourceVolumeMount> BuildVolumeMounts() =>
+        string.IsNullOrWhiteSpace(SelectedDataVolumeId)
+            ? []
+            :
+            [
+                new ResourceVolumeMount(
+                    SelectedDataVolumeId.Trim(),
+                    "/var/opt/mssql",
+                    Name: "data")
+            ];
+
+    private IReadOnlyList<Resource> GetVolumeCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => IsInSelectedGroup(resource.Id))
+            .Where(IsVolumeResource)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static bool IsVolumeResource(Resource resource) =>
+        resource.ResourceClass == ResourceClass.Storage ||
+        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
+        resource.HasCapability(ResourceCapabilityIds.StorageVolume);
+
+    private bool IsInSelectedGroup(string resourceId)
+    {
+        var group = ResourceManager.GetGroupForResource(resourceId);
+        return string.IsNullOrWhiteSpace(SelectedGroupId)
+            ? group is null
+            : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
+    }
 
     private IReadOnlyList<ContainerHostDescriptor> GetContainerHosts()
     {

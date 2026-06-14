@@ -322,7 +322,8 @@ else
             containerRegistry: CanConfigureContainerImage ? NormalizeRegistry(ContainerRegistry) : Application.ContainerRegistry,
             containerRegistryCredentials: CanConfigureContainerImage
                 ? BuildRegistryCredentials()
-                : Application.ContainerRegistryCredentials);
+                : Application.ContainerRegistryCredentials,
+            volumeMounts: Application.VolumeMounts);
 
         var restartRequired =
             ApplicationProvider.IsRunning(Application.Id) &&
@@ -365,6 +366,7 @@ else
             existing.Replicas != updated.Replicas ||
             !HasSameObservabilitySignals(existing.Observability, updated.Observability) ||
             !existing.EnvironmentVariables.SequenceEqual(updated.EnvironmentVariables) ||
+            !existing.VolumeMounts.SequenceEqual(updated.VolumeMounts) ||
             !existing.EndpointPorts.SequenceEqual(updated.EndpointPorts))
         {
             return true;
@@ -422,6 +424,7 @@ else
             .Where(IsInSelectedGroup)
             .Where(dependency => Application is null ||
                 !string.Equals(dependency, Application.Id, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
     private IReadOnlyList<Resource> GetDependencyCandidates() =>
@@ -429,8 +432,14 @@ else
             .Where(resource => Application is null ||
                 !string.Equals(resource.Id, Application.Id, StringComparison.OrdinalIgnoreCase))
             .Where(resource => IsInSelectedGroup(resource.Id))
+            .Where(resource => !IsVolumeResource(resource))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private static bool IsVolumeResource(Resource resource) =>
+        resource.ResourceClass == ResourceClass.Storage ||
+        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
+        resource.HasCapability(ResourceCapabilityIds.StorageVolume);
 
     private IReadOnlyList<NetworkEndpointMappingView> GetInboundNetworkMappings(string resourceId) =>
         ResourceManager.GetResources()

@@ -338,11 +338,39 @@ public sealed class PlatformResourceProviderLoadBalancerTests
         Assert.Single(runtimeProvider.Deleted);
     }
 
+    [Fact]
+    public async Task DeleteAsync_RejectsVolumeUsedByResource()
+    {
+        var store = CreatePlatformStore();
+        var provider = new PlatformResourceProvider(
+            store,
+            new PlatformResourceOptions());
+        var registrations = new TestResourceRegistrationStore([]);
+        var definition = new VolumeResourceDefinition("volume:data", "Data");
+        await provider.SetupVolumeAsync(definition, null, registrations);
+        var volume = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        var app = CreateResource(
+            "application:api",
+            "API",
+            [],
+            dependsOn: [volume.Id]);
+        var resourceManager = new TestResourceManagerStore([volume, app]);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.DeleteAsync(
+                new ResourceProcedureContext(volume, null, null, registrations, resourceManager)));
+
+        Assert.Contains("cannot be deleted because it is used by: API", exception.Message, StringComparison.Ordinal);
+        Assert.NotNull(store.GetVolume(definition.Id));
+        Assert.NotNull(registrations.GetRegistration(definition.Id));
+    }
+
     private static Resource CreateResource(
         string id,
         string name,
         IReadOnlyList<ResourceEndpoint> endpoints,
-        IReadOnlyDictionary<string, string>? attributes = null) =>
+        IReadOnlyDictionary<string, string>? attributes = null,
+        IReadOnlyList<string>? dependsOn = null) =>
         new(
             id,
             name,
@@ -353,7 +381,7 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             endpoints,
             "test",
             DateTimeOffset.UtcNow,
-            [],
+            dependsOn ?? [],
             Attributes: attributes);
 
     private static PlatformResourceStore CreatePlatformStore()
