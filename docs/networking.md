@@ -148,6 +148,11 @@ dependencies: a resource can be exposed through a network without the resource
 owning or configuring that network. The settings page warns when a virtual
 network requires a provider that is not active on the current host.
 
+The macOS host networking provider also projects the number of currently
+provisioned endpoint mappings through `network.provisionedMappings`, so the
+provider resource can show whether local proxy mappings have been materialized
+after reconciliation.
+
 ## Load Balancing and Clustering
 
 Load balancing should build on virtual networking rather than replacing it. A

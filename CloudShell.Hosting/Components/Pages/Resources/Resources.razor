@@ -493,6 +493,11 @@
                         <dd>@GetAttributeValue(selected, ResourceAttributeNames.NetworkKind, selected.Kind)</dd>
                         <dt>@L["Host readiness"]</dt>
                         <dd>@FormatNetworkReadiness(selected)</dd>
+                        @if (selected.ResourceAttributes.ContainsKey(ResourceAttributeNames.NetworkProvisionedMappingCount))
+                        {
+                            <dt>@L["Provisioned mappings"]</dt>
+                            <dd>@GetAttributeValue(selected, ResourceAttributeNames.NetworkProvisionedMappingCount, "0")</dd>
+                        }
                         @if (GetMappingProviderIds(selected).Length > 0)
                         {
                             <dt>@L["Mapping providers"]</dt>

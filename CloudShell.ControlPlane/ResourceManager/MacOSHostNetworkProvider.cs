@@ -72,7 +72,7 @@ public sealed class MacOSHostNetworkProvider(
                 [ResourceAttributeNames.NetworkHostReadiness] = "ready",
                 ["host.os"] = "macos",
                 ["networking.mode"] = "localProxy",
-                ["networking.provisionedMappings"] =
+                [ResourceAttributeNames.NetworkProvisionedMappingCount] =
                     provisionedMappingCount.ToString(CultureInfo.InvariantCulture)
             },
             Capabilities:

@@ -116,6 +116,7 @@ public static class ResourceAttributeNames
     public const string NetworkKind = "network.kind";
     public const string NetworkHostReadiness = "network.hostReadiness";
     public const string NetworkMappingProviders = "network.mappingProviders";
+    public const string NetworkProvisionedMappingCount = "network.provisionedMappings";
     public const string DnsZoneName = "dns.zone";
     public const string DnsProvider = "dns.provider";
     public const string DnsRecordCount = "dns.records";

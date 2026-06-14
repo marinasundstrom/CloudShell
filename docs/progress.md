@@ -644,6 +644,10 @@ expectations rather than duplicating the task queue.
   unavailable mapping providers, missing endpoint-mapper capability, and
   unavailable host-networking provisioners surface as disabled-action reasons
   before the user invokes reconcile.
+- The macOS host-networking provider now uses the standard
+  `network.provisionedMappings` attribute for its active local proxy count, and
+  Resource Manager generated networking details display that count when
+  available.
 - The load-balancer fluent API now uses `UseContainerHost(...)` and
   `UseDefaultContainerHost()` for placement so container-host assignment is
   explicit in the user-facing declaration model.
