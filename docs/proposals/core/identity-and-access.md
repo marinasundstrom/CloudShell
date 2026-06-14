@@ -160,18 +160,24 @@ Implemented today:
   client roles for declared CloudShell grants, assigns those roles to the
   service-account user, and maps them into access-token
   `cloudshell.resource-permission` claims.
+- Provider-neutral runtime credential delivery through
+  `IResourceIdentityCredentialEnvironmentProvider`. The Keycloak sample uses
+  this hook to expose the same `CLOUDSHELL_IDENTITY_*` contract as the
+  built-in identity path for provisioned resource clients.
+- Shared protected-service bearer validation for Configuration Store and
+  Secrets Vault. The services can validate built-in authority tokens or
+  configured external OIDC/OAuth JWT bearer tokens, then use the same
+  `cloudshell.resource-permission` claim evaluator.
 
 Not implemented yet:
 
-- Runtime credential delivery and end-to-end protected-service validation for
-  third-party resource identities. The next Keycloak-oriented identity slice
-  should make a provisioned Keycloak client usable by a running workload and
-  prove the issued token against Configuration Store or Secrets Vault.
-- Identity provider setup/reconcile hook and endpoint. Provider setup is
-  distinct from resource identity provisioning: setup prepares or validates
-  the provider boundary such as realms, control-plane clients, protocol
-  mappers, app roles, or admin API reachability; provisioning reconciles a
-  specific resource identity and its grants inside that provider.
+- End-to-end sample smoke coverage that starts a Keycloak-provisioned workload,
+  acquires a token through `DefaultCloudShellResourceCredential`, and calls
+  Configuration Store or Secrets Vault with the Keycloak-issued token.
+- Durable external authority registration for protected API audiences and
+  provider-backed client secret storage. The current Keycloak sample keeps
+  deterministic local-development client secrets so workload credential
+  injection can be exercised without adding a secret database.
 
 ## Domain Model
 

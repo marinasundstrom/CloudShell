@@ -93,10 +93,13 @@ expectations rather than duplicating the task queue.
   reconcile the UI client's realm-role claim mapper. Runtime credential
   delivery is now separated into a provider-neutral environment hook, and the
   Keycloak sample uses it to inject the standard `CLOUDSHELL_IDENTITY_*`
-  contract for sample-created resource clients. End-to-end protected service
-  calls with Keycloak-issued tokens remain the next identity-provider
-  validation step because the backing services still validate the built-in
-  bearer token shape.
+  contract for sample-created resource clients. Configuration Store and
+  Secrets Vault now use shared bearer validation that can accept built-in
+  authority tokens or configured external OIDC/OAuth JWT tokens before applying
+  scoped `cloudshell.resource-permission` claims. The remaining validation
+  step is an end-to-end sample smoke test that starts a Keycloak-provisioned
+  workload and proves a Keycloak-issued token against a protected backing
+  service.
 - The first mountable-volume domain slices are in place: `resources.AddVolume(...)`
   declares a `cloudshell.volume` resource for a local or addressable storage
   allocation, and container apps can declare `WithVolume(...)` mounts that
@@ -153,7 +156,11 @@ expectations rather than duplicating the task queue.
   used by built-in services. The Configuration Store and Secrets Vault backing
   services now use the shared built-in bearer middleware plus that public
   preview claim evaluator instead of validating resource tokens directly in
-  each endpoint handler. `DefaultCloudShellResourceCredential` is now the
+  each endpoint handler. The same middleware now supports service-bearer
+  validation for external OIDC/OAuth JWTs through `Authentication:ServiceBearer`
+  settings so built-in and third-party identity providers use the same
+  protected-service authorization path. `DefaultCloudShellResourceCredential`
+  is now the
   public-preview resource credential chain for authored and built-in services;
   its first source dogfoods the injected `CLOUDSHELL_IDENTITY_*` environment
   contract. Application and container resource providers own injecting that

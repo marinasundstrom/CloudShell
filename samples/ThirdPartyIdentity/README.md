@@ -94,8 +94,17 @@ CloudShell provisioning request into Keycloak admin operations:
 
 This is intentionally still a reference integration. The provisioned Keycloak
 client secret is deterministic for sample-created resource clients so the
-application provider can inject it into a running workload. The next gap is
-protected-service validation: Configuration Store and Secrets Vault currently
-validate the built-in bearer token shape, so an end-to-end service call with a
-Keycloak-issued token still needs the backing services to accept external OIDC
-metadata.
+application provider can inject it into a running workload.
+
+The sample configures the Configuration Store backing service with
+`Authentication:ServiceBearer` settings derived from the Keycloak authority.
+That lets the service validate Keycloak-issued JWT bearer tokens before it
+checks the `cloudshell.resource-permission` claim. Audience validation is not
+set by default because the sample uses Keycloak's local-development token
+shape; production-style hosts should register protected API audiences and set
+`Authentication:ServiceBearer:Audience`.
+
+The remaining gap is end-to-end smoke coverage that starts a workload using
+the provisioned Keycloak identity, acquires a token through
+`DefaultCloudShellResourceCredential`, and reads from Configuration Store or
+Secrets Vault with that Keycloak-issued token.

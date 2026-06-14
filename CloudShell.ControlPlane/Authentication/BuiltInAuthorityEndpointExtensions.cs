@@ -75,25 +75,22 @@ public static class BuiltInAuthorityEndpointExtensions
     public static IApplicationBuilder UseCloudShellBuiltInBearerAuthentication(
         this IApplicationBuilder app)
     {
+        return app.UseCloudShellServiceBearerAuthentication();
+    }
+
+    public static IApplicationBuilder UseCloudShellServiceBearerAuthentication(
+        this IApplicationBuilder app)
+    {
         return app.Use(async (context, next) =>
         {
-            var options = context.RequestServices
-                .GetRequiredService<IOptions<CloudShellAuthenticationOptions>>()
-                .Value;
-            if (!options.BuiltInAuthority.Enabled)
-            {
-                await next();
-                return;
-            }
-
             var authorization = context.Request.Headers.Authorization.ToString();
             const string bearerPrefix = "Bearer ";
             if (authorization.StartsWith(bearerPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 var token = authorization[bearerPrefix.Length..].Trim();
-                var principal = context.RequestServices
-                    .GetRequiredService<BuiltInAuthorityTokenService>()
-                    .ValidateToken(token);
+                var principal = await context.RequestServices
+                    .GetRequiredService<CloudShellBearerTokenValidationService>()
+                    .ValidateTokenAsync(token, context.RequestAborted);
                 if (principal is not null)
                 {
                     context.User = principal;

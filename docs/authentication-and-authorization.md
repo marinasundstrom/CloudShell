@@ -25,7 +25,9 @@ Implemented today:
 - Remote Control Plane credentials for no-auth, static bearer tokens, and
   client-credentials tokens.
 - Configuration Store and Secrets Vault runtime APIs protected by resource
-  identity bearer tokens and resource-permission claims.
+  identity bearer tokens and resource-permission claims. These service APIs
+  accept built-in authority tokens and can be configured to validate external
+  OIDC/OAuth JWT bearer tokens through service-bearer validation settings.
 - A public-preview `DefaultCloudShellResourceCredential` chain for authored and
   built-in services that need to acquire authentication evidence for their own
   resource identity. See [SDK clients](sdk-clients.md) for the lightweight
@@ -339,8 +341,30 @@ protect arbitrary HTTP endpoints running inside a resource container.
 
 This section describes the direction for resources that expose their own direct
 APIs. Today, CloudShell applies its built-in authorization at the Control Plane
-boundary, and configuration service APIs use their generated resource-token
-model.
+boundary. Configuration Store and Secrets Vault use the shared
+`cloudshell.resource-permission` claim evaluator after bearer-token
+authentication. Hosts can keep using the built-in authority or configure the
+service APIs to trust an external OIDC/OAuth issuer:
+
+```json
+{
+  "Authentication": {
+    "ServiceBearer": {
+      "Enabled": true,
+      "Authority": "http://localhost:8080/realms/cloudshell",
+      "Issuer": "http://localhost:8080/realms/cloudshell",
+      "Audience": "cloudshell-services",
+      "RequireHttpsMetadata": false
+    }
+  }
+}
+```
+
+`Audience` is optional for local or provider-default token shapes, but shared
+and production hosts should configure it so the protected service validates
+that the token was issued for the intended API resource. `SigningKeyPem` can
+be used for local development and tests when OIDC discovery metadata is not
+available.
 
 ## Roles and permissions
 

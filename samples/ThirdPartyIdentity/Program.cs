@@ -11,6 +11,10 @@ using CloudShell.ThirdPartyIdentity;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = CloudShellApplication.CreateBuilder(args);
+var authority = builder.Configuration["Authentication:OpenIdConnect:Authority"] ??
+    "http://localhost:8080/realms/cloudshell";
+var clientId = builder.Configuration["Authentication:OpenIdConnect:ClientId"] ??
+    "cloudshell-ui";
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -18,7 +22,13 @@ builder.AddCloudShell();
 cloudShell
     .AddExtension<ResourceManagerExtension>()
     .AddExtension<ObservabilityExtension>()
-    .AddConfigurationProvider();
+    .AddConfigurationProvider(options =>
+    {
+        options.ServiceBearerAuthority = authority;
+        options.ServiceBearerIssuer = authority;
+        options.ServiceBearerRequireHttpsMetadata =
+            builder.Configuration.GetValue("Authentication:OpenIdConnect:RequireHttpsMetadata", true);
+    });
 builder.Services.TryAddEnumerable(
     ServiceDescriptor.Singleton<IResourceIdentityProvisioner, KeycloakResourceIdentityProvisioner>());
 builder.Services.TryAddEnumerable(
@@ -30,10 +40,6 @@ builder.Services.TryAddEnumerable(
 
 cloudShell.Resources(resources =>
 {
-    var authority = builder.Configuration["Authentication:OpenIdConnect:Authority"] ??
-        "http://localhost:8080/realms/cloudshell";
-    var clientId = builder.Configuration["Authentication:OpenIdConnect:ClientId"] ??
-        "cloudshell-ui";
     var provisioningResource = resources
         .Declare("identity.provisioning", "identity-provisioning:keycloak")
         .WithResourceClass(ResourceClass.Infrastructure)

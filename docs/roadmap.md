@@ -161,9 +161,11 @@ listed here before pulling in broader proposal work.
   sample-scoped resource identity provisioning, and a provider setup/reconcile
   hook with a Control Plane endpoint. Provider-specific runtime credential
   injection now supplies provisioned Keycloak credentials to workloads through
-  the standard `CLOUDSHELL_IDENTITY_*` contract; next identity work should let
-  protected CloudShell services validate external OIDC tokens and map them
-  back to CloudShell scoped resource-permission claims.
+  the standard `CLOUDSHELL_IDENTITY_*` contract, and protected CloudShell
+  services can validate configured external OIDC/OAuth bearer tokens before
+  applying CloudShell scoped resource-permission claims. Next identity work
+  should add end-to-end sample smoke coverage for a Keycloak-provisioned
+  workload calling Configuration Store or Secrets Vault.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, and container app

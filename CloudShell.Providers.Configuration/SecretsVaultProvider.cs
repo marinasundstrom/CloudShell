@@ -499,6 +499,61 @@ public sealed partial class SecretsVaultProvider(
                 "Authentication__BuiltInAuthority__SigningKeyPem",
                 options.ServiceAuthenticationSigningKeyPem));
         }
+
+        AddServiceBearerEnvironment(environmentVariables);
+    }
+
+    private void AddServiceBearerEnvironment(List<EnvironmentVariableAssignment> environmentVariables)
+    {
+        if (string.IsNullOrWhiteSpace(options.ServiceBearerAuthority) &&
+            string.IsNullOrWhiteSpace(options.ServiceBearerMetadataAddress) &&
+            string.IsNullOrWhiteSpace(options.ServiceBearerSigningKeyPem))
+        {
+            return;
+        }
+
+        environmentVariables.Add(new(
+            "Authentication__ServiceBearer__Enabled",
+            "true"));
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceBearerAuthority))
+        {
+            environmentVariables.Add(new(
+                "Authentication__ServiceBearer__Authority",
+                options.ServiceBearerAuthority));
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceBearerMetadataAddress))
+        {
+            environmentVariables.Add(new(
+                "Authentication__ServiceBearer__MetadataAddress",
+                options.ServiceBearerMetadataAddress));
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceBearerIssuer))
+        {
+            environmentVariables.Add(new(
+                "Authentication__ServiceBearer__Issuer",
+                options.ServiceBearerIssuer));
+        }
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceBearerAudience))
+        {
+            environmentVariables.Add(new(
+                "Authentication__ServiceBearer__Audience",
+                options.ServiceBearerAudience));
+        }
+
+        environmentVariables.Add(new(
+            "Authentication__ServiceBearer__RequireHttpsMetadata",
+            options.ServiceBearerRequireHttpsMetadata ? "true" : "false"));
+
+        if (!string.IsNullOrWhiteSpace(options.ServiceBearerSigningKeyPem))
+        {
+            environmentVariables.Add(new(
+                "Authentication__ServiceBearer__SigningKeyPem",
+                options.ServiceBearerSigningKeyPem));
+        }
     }
 
     private string CreateServiceArguments(string endpoint)

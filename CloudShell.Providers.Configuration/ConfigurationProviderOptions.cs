@@ -43,6 +43,18 @@ public sealed class ConfigurationProviderOptions
 
     public string? ServiceAuthenticationSigningKeyPem { get; set; }
 
+    public string? ServiceBearerAuthority { get; set; }
+
+    public string? ServiceBearerMetadataAddress { get; set; }
+
+    public string? ServiceBearerIssuer { get; set; }
+
+    public string? ServiceBearerAudience { get; set; }
+
+    public bool ServiceBearerRequireHttpsMetadata { get; set; } = true;
+
+    public string? ServiceBearerSigningKeyPem { get; set; }
+
     public IList<ConfigurationStoreDefinition> InitialStores { get; } = [];
 
     public IList<SecretsVaultDefinition> InitialSecretsVaults { get; } = [];

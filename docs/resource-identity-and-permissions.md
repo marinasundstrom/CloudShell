@@ -246,6 +246,15 @@ identity. That keeps provider-specific client IDs, secrets, token endpoints,
 files, or future managed-identity endpoints behind the provider while authored
 services continue to use `DefaultCloudShellResourceCredential`.
 
+Protected CloudShell service APIs validate runtime credentials separately from
+credential acquisition. Configuration Store and Secrets Vault use the shared
+CloudShell bearer middleware to accept either built-in authority tokens or
+configured external OIDC/OAuth JWT bearer tokens, then apply
+`ResourcePermissionClaimAuthorization` to the resulting principal. The token
+issuer owns signing keys, client credentials, and claim mapping. CloudShell
+only requires the validated principal to carry scoped
+`cloudshell.resource-permission` claims for the target resource operation.
+
 The Control Plane client supports the same SDK-style credential flow. Authored
 services can pass a `CloudShellResourceCredential` to `RemoteControlPlane` or
 to `AddRemoteControlPlane(...)` and use the domain-shaped `IControlPlane` or
@@ -307,8 +316,10 @@ the Web API receives a credential acquisition endpoint and identity client
 credential, requests a bearer token from the built-in authority, and calls the
 configuration and secrets backing services with scoped
 `cloudshell.resource-permission` claims. The backing services no longer accept
-configuration-store or vault-specific service tokens. External authority
-registration and durable provider-backed client storage remain future work.
+configuration-store or vault-specific service tokens. External OIDC/OAuth
+providers can be trusted by configuring the backing services'
+`Authentication:ServiceBearer` settings. External authority registration for
+API audiences and durable provider-backed client storage remain future work.
 
 The built-in provider MVP is verified at the Control Plane API boundary. A
 provisioned resource identity token can call an action on a resource only when

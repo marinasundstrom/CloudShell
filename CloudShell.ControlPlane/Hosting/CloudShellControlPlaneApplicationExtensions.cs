@@ -46,7 +46,7 @@ public static class CloudShellControlPlaneApplicationExtensions
         extensionRegistry.Validate(app.Services.GetRequiredService<ICloudShellExtensionActivationStore>());
 
         app.UseAuthentication();
-        app.UseCloudShellBuiltInBearerAuthentication();
+        app.UseCloudShellServiceBearerAuthentication();
         app.UseAuthorization();
 
         return app;

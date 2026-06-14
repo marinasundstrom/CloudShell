@@ -35,6 +35,8 @@ public sealed class CloudShellAuthenticationOptions
 
     public BuiltInAuthorityOptions BuiltInAuthority { get; set; } = new();
 
+    public ServiceBearerAuthenticationOptions ServiceBearer { get; set; } = new();
+
     public Dictionary<string, string[]> RolePermissions { get; set; } =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -102,6 +104,23 @@ public sealed class BuiltInAuthorityResourcePermissionOptions
     public string ResourceId { get; set; } = string.Empty;
 
     public string Permission { get; set; } = string.Empty;
+}
+
+public sealed class ServiceBearerAuthenticationOptions
+{
+    public bool Enabled { get; set; }
+
+    public string? Authority { get; set; }
+
+    public string? MetadataAddress { get; set; }
+
+    public string? Issuer { get; set; }
+
+    public string? Audience { get; set; }
+
+    public bool RequireHttpsMetadata { get; set; } = true;
+
+    public string? SigningKeyPem { get; set; }
 }
 
 public sealed class OpenIdConnectProviderOptions

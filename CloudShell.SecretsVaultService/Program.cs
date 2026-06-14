@@ -11,6 +11,7 @@ builder.Services.Configure<CloudShellAuthenticationOptions>(
     builder.Configuration.GetSection(CloudShellAuthenticationOptions.SectionName));
 builder.Services.AddSingleton<SecretsVaultServiceStore>();
 builder.Services.AddSingleton<BuiltInAuthorityTokenService>();
+builder.Services.AddSingleton<CloudShellBearerTokenValidationService>();
 
 var app = builder.Build();
 
@@ -21,7 +22,7 @@ app.MapGet("/healthz", () => Results.Ok(new
 }))
 .AllowAnonymous();
 
-app.UseCloudShellBuiltInBearerAuthentication();
+app.UseCloudShellServiceBearerAuthentication();
 
 var api = app
     .MapGroup("/api/secrets")

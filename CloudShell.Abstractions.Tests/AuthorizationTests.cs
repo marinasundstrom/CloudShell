@@ -1,7 +1,9 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.ControlPlane.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace CloudShell.Abstractions.Tests;
@@ -68,6 +70,64 @@ public sealed class AuthorizationTests
             (token.AccessToken[^1] == 'a' ? 'b' : 'a');
 
         Assert.Null(tokens.ValidateToken(tampered));
+    }
+
+    [Fact]
+    public async Task ServiceBearerToken_AcceptsExternalResourcePermissionClaim()
+    {
+        using var rsa = RSA.Create(2048);
+        var signingKeyPem = rsa.ExportRSAPrivateKeyPem();
+        const string issuer = "https://identity.example.test/realms/cloudshell";
+        const string audience = "cloudshell-services";
+        const string resourceId = "configuration:third-party-identity";
+        const string permission = "CloudShell.Configuration/stores/entries/read/action";
+        using var issuerTokens = new BuiltInAuthorityTokenService(Options.Create(
+            new CloudShellAuthenticationOptions
+            {
+                BuiltInAuthority =
+                {
+                    Enabled = true,
+                    Issuer = issuer,
+                    Audience = audience,
+                    SigningKeyPem = signingKeyPem
+                }
+            }));
+        var token = issuerTokens.IssueToken(
+            [
+                new Claim(
+                    CloudShellAuthenticationOptions.ResourcePermissionClaimType,
+                    ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+                        resourceId,
+                        permission))
+            ],
+            audience,
+            ["openid"]);
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var validator = new CloudShellBearerTokenValidationService(
+            Options.Create(new CloudShellAuthenticationOptions
+            {
+                BuiltInAuthority =
+                {
+                    Enabled = false
+                },
+                ServiceBearer =
+                {
+                    Enabled = true,
+                    Issuer = issuer,
+                    Audience = audience,
+                    SigningKeyPem = signingKeyPem
+                }
+            }),
+            services);
+
+        var principal = await validator.ValidateTokenAsync(token.AccessToken);
+
+        Assert.NotNull(principal);
+        Assert.True(ResourcePermissionClaimAuthorization.HasResourcePermission(
+            principal,
+            resourceId,
+            permission));
     }
 
     [Fact]
