@@ -412,6 +412,12 @@ only introduce a richer ingress editor once routing fields become standardized.
   networks can express stable clustered routing behavior.
 - Add host-readiness diagnostics and warnings for missing networking
   capabilities, especially when the current host cannot materialize a mapping.
+- Define host system setup surfaces for missing OS/runtime features: a global
+  host setup view for the current machine or selected host, plus per-resource
+  prompts when a virtual network, endpoint mapping, gateway, DNS publisher, or
+  load balancer requires a disabled feature. Windows should be treated as a
+  first-class case because networking, container, virtualization, firewall,
+  DNS, and optional OS components may need explicit activation.
 - Extend UI and API validation coverage for provider selection, richer
   conflict reporting, advisory port availability, and reconcile action
   outcomes. The first platform-owned host/port conflict and local port

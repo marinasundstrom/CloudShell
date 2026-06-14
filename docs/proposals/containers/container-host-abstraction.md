@@ -386,6 +386,12 @@ not introduce a second out-of-band local management API for the shell.
   host missing, default missing, unavailable host, and required-capability
   cases. Credential readiness remains tied to the provider-owned host
   credential model.
+- Add host system setup affordances for missing runtime prerequisites. The UI
+  should support both a global host setup view and per-resource prompts when a
+  container app or runtime-managed resource needs a disabled OS/runtime feature.
+  Windows should get explicit consideration because Hyper-V, WSL, Containers,
+  firewall, networking, and Docker-compatible runtime prerequisites may need to
+  be enabled before a host can run or expose workloads.
 
 ## Example Flows
 
