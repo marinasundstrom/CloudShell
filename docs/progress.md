@@ -84,6 +84,9 @@ expectations rather than duplicating the task queue.
   Load-balancer route resolution and the Resource Manager load-balancer create
   flow now allow `cloudshell.service` resources as optional facade targets
   while continuing to make direct application targets the normal path.
+  The Resource Manager Service registration UI now describes Service resources
+  as explicit service units/facades so users do not treat them as required for
+  ordinary container app endpoint exposure.
   For MVP, DNS/name mapping can start as logical resource projection,
   relationship display, validation, and provider-materialization diagnostics;
   real public DNS propagation and provider-backed network-level service

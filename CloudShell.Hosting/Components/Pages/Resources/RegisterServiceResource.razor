@@ -4,6 +4,11 @@
 
 <div class="type-registration">
     <div class="form-panel">
+        <p class="muted">
+            Use a Service when you need an explicit service unit or facade over target resources.
+            Container apps can expose app-owned endpoints without a Service resource.
+        </p>
+
         <label for="service-name">Name</label>
         <FluentTextField Id="service-name" @bind-Value="Name" />
 

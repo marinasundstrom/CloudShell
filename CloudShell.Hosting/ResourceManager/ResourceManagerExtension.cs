@@ -38,7 +38,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
             .AddResourceType<RegisterServiceResource>(
                 "cloudshell.service",
                 "Service",
-                "Create a stable internal or public endpoint over one or more resources.",
+                "Create an explicit service unit or facade over one or more target resources.",
                 "service",
                 6,
                 resourceClass: ResourceClass.Service)
