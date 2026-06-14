@@ -6,6 +6,8 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
 using CloudShell.ControlPlane.ResourceManager;
+using CloudShell.Hosting.Components.Pages.Resources;
+using CloudShell.Hosting.ResourceManager;
 using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
@@ -928,6 +930,41 @@ public sealed class ResourceDeclarationTests
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => string.Equals(tab.Id, "storage", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void ResourceManagerExtension_RegistersVolumeResourceTypeAndTabs()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddExtension<ResourceManagerExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var registry = serviceProvider.GetRequiredService<CloudShellExtensionRegistry>();
+        var resourceTypes = registry.Extensions
+            .SelectMany(extension => extension.ResourceTypes)
+            .ToDictionary(resourceType => resourceType.Id, StringComparer.OrdinalIgnoreCase);
+
+        var volumeType = resourceTypes["cloudshell.volume"];
+
+        Assert.Equal("Volume", volumeType.DisplayName);
+        Assert.Equal(ResourceClass.Storage, volumeType.ResourceClass);
+        Assert.Equal(typeof(RegisterVolumeResource), volumeType.RegistrationComponentType);
+        Assert.Equal(typeof(UpdateVolumeResource), volumeType.UpdateComponentType);
+
+        var overview = Assert.Single(
+            volumeType.ResourceTabs,
+            tab => string.Equals(tab.Id, "overview", StringComparison.OrdinalIgnoreCase));
+        var configuration = Assert.Single(
+            volumeType.ResourceTabs,
+            tab => string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(typeof(VolumeOverview), overview.ComponentType);
+        Assert.False(overview.ShowsApplyButton);
+        Assert.Equal(typeof(UpdateVolumeResource), configuration.ComponentType);
+        Assert.True(configuration.ShowsApplyButton);
     }
 
     private static void AssertStorageTab(ResourceTypeContribution resourceType)

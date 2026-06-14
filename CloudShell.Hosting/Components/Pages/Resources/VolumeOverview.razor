@@ -1,0 +1,87 @@
+@inject IResourceManager ResourceManager
+
+@if (Volume is null)
+{
+    <div class="empty-state">
+        <strong>Volume unavailable</strong>
+        <span>The volume resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <section class="blade-section">
+        <h3>Volume</h3>
+        <dl class="detail-list">
+            <dt>Provider</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.VolumeProvider, "local")</dd>
+            <dt>Volume path</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.VolumeLocation, "managed")</dd>
+            <dt>Access mode</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString())</dd>
+            <dt>Persistent</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.VolumePersistent, "true")</dd>
+            <dt>Delete status</dt>
+            <dd>@(Consumers.Count == 0 ? "not in use" : "blocked while in use")</dd>
+        </dl>
+    </section>
+
+    <section class="blade-section">
+        <h3>Consumers</h3>
+        @if (Consumers.Count == 0)
+        {
+            <p class="muted">No resources currently depend on this volume.</p>
+        }
+        else
+        {
+            <div class="procedure-message compact">
+                This volume cannot be deleted while another resource depends on it. Detach the volume from each consumer first.
+            </div>
+            <div class="generated-list">
+                @foreach (var consumer in Consumers)
+                {
+                    <div>
+                        <strong>
+                            <a class="resource-link" href="@BuildResourceRoute(consumer.Id)">
+                                @consumer.Name
+                            </a>
+                        </strong>
+                        <span>@consumer.Kind</span>
+                        <small>@consumer.Id</small>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Volume { get; set; }
+    private IReadOnlyList<Resource> Consumers { get; set; } = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Volume = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        Consumers = Volume is null
+            ? []
+            : (await ResourceManager.ListResourcesAsync())
+                .Where(resource => !string.Equals(resource.Id, Volume.Id, StringComparison.OrdinalIgnoreCase))
+                .Where(resource => resource.DependsOn.Any(dependency =>
+                    string.Equals(dependency, Volume.Id, StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+    }
+
+    private string GetAttribute(string name, string fallback) =>
+        Volume?.ResourceAttributes.TryGetValue(name, out var value) == true &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static string BuildResourceRoute(string resourceId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+}

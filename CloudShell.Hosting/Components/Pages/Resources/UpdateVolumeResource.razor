@@ -1,0 +1,194 @@
+@using System.Text.Json
+@inject IResourceManager ResourceManager
+
+@if (Volume is null)
+{
+    <div class="empty-state">
+        <strong>Volume unavailable</strong>
+        <span>The volume resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    @if (IsStorageShapeLocked)
+    {
+        <div class="procedure-message compact">
+            Storage shape cannot be changed while resources depend on this volume. Detach the volume from its consumers first.
+        </div>
+    }
+
+    <div class="type-registration">
+        <div class="form-panel">
+            <label for="volume-update-name">Name</label>
+            <FluentTextField Id="volume-update-name" @bind-Value="Name" />
+
+            <label for="volume-update-group">Resource group</label>
+            <FluentSelect TOption="string"
+                          Id="volume-update-group"
+                          @bind-Value="SelectedGroupId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Default group</FluentOption>
+                @foreach (var group in ResourceGroups)
+                {
+                    <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
+                }
+            </FluentSelect>
+
+            <label for="volume-update-provider">Provider</label>
+            <FluentTextField Id="volume-update-provider"
+                             Disabled="@IsStorageShapeLocked"
+                             @bind-Value="Provider"
+                             Placeholder="local" />
+
+            <label for="volume-update-location">Volume path</label>
+            <FluentTextField Id="volume-update-location"
+                             Disabled="@IsStorageShapeLocked"
+                             @bind-Value="Location"
+                             Placeholder="./data/postgres or //nas/share/postgres" />
+
+            <label for="volume-update-access-mode">Access mode</label>
+            <FluentSelect TOption="string"
+                          Id="volume-update-access-mode"
+                          Disabled="@IsStorageShapeLocked"
+                          @bind-Value="SelectedAccessMode"
+                          Appearance="Appearance.Outline">
+                @foreach (var mode in Enum.GetValues<VolumeAccessMode>())
+                {
+                    <FluentOption TOption="string" Value="@mode.ToString()">@GetAccessModeLabel(mode)</FluentOption>
+                }
+            </FluentSelect>
+
+            <FluentCheckbox Disabled="@IsStorageShapeLocked" @bind-Value="Persistent">
+                Persistent
+            </FluentCheckbox>
+        </div>
+    </div>
+}
+
+@code {
+    private const string PlatformProviderId = "cloudshell.platform";
+    private const string VolumeResourceType = "cloudshell.volume";
+
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Volume { get; set; }
+    private ResourceGroup? ResourceGroup { get; set; }
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+    private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+    private IReadOnlyList<Resource> Consumers { get; set; } = [];
+    private string Name { get; set; } = string.Empty;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string Provider { get; set; } = string.Empty;
+    private string Location { get; set; } = string.Empty;
+    private string SelectedAccessMode { get; set; } = VolumeAccessMode.ReadWriteOnce.ToString();
+    private bool Persistent { get; set; } = true;
+
+    private bool IsStorageShapeLocked => Consumers.Count > 0;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+        Volume = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        ResourceGroup = Volume is null
+            ? null
+            : await ResourceManager.GetResourceGroupForResourceAsync(Volume.Id);
+
+        if (Volume is not null)
+        {
+            var resources = await ResourceManager.ListResourcesAsync();
+            Consumers = resources
+                .Where(resource => !string.Equals(resource.Id, Volume.Id, StringComparison.OrdinalIgnoreCase))
+                .Where(resource => resource.DependsOn.Any(dependency =>
+                    string.Equals(dependency, Volume.Id, StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            Name = Volume.Name;
+            SelectedGroupId = ResourceGroup?.Id ?? string.Empty;
+            Provider = GetAttribute(ResourceAttributeNames.VolumeProvider, string.Empty);
+            Location = GetAttribute(ResourceAttributeNames.VolumeLocation, string.Empty);
+            SelectedAccessMode = GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString());
+            Persistent = bool.TryParse(GetAttribute(ResourceAttributeNames.VolumePersistent, "true"), out var persistent)
+                ? persistent
+                : true;
+        }
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        if (Volume is null)
+        {
+            return ResourceProcedureResult.Completed("Volume resource is unavailable.");
+        }
+
+        var provider = IsStorageShapeLocked
+            ? GetAttribute(ResourceAttributeNames.VolumeProvider, string.Empty)
+            : NormalizeNullable(Provider);
+        var location = IsStorageShapeLocked
+            ? GetAttribute(ResourceAttributeNames.VolumeLocation, string.Empty)
+            : NormalizeNullable(Location);
+        var accessMode = IsStorageShapeLocked
+            ? ParseAccessMode(GetAttribute(ResourceAttributeNames.VolumeAccessMode, VolumeAccessMode.ReadWriteOnce.ToString()))
+            : ParseAccessMode(SelectedAccessMode);
+        var persistent = IsStorageShapeLocked
+            ? bool.TryParse(GetAttribute(ResourceAttributeNames.VolumePersistent, "true"), out var existingPersistent) && existingPersistent
+            : Persistent;
+
+        var definition = new VolumeResourceDefinition(
+            Volume.Id,
+            string.IsNullOrWhiteSpace(Name) ? Volume.Name : Name,
+            provider,
+            location,
+            persistent,
+            accessMode);
+
+        await ResourceManager.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformProviderId,
+                VolumeResourceType,
+                Volume.Id,
+                definition.Name,
+                JsonSerializer.SerializeToElement(definition),
+                string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId,
+                ResourceClass.Storage),
+            cancellationToken);
+
+        return IsStorageShapeLocked
+            ? ResourceProcedureResult.Completed("Volume metadata updated. Storage shape was kept because the volume is in use.")
+            : ResourceProcedureResult.Completed("Volume updated.");
+    }
+
+    private string GetAttribute(string name, string fallback) =>
+        Volume?.ResourceAttributes.TryGetValue(name, out var value) == true &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static VolumeAccessMode ParseAccessMode(string value) =>
+        Enum.TryParse<VolumeAccessMode>(value, out var mode)
+            ? mode
+            : VolumeAccessMode.ReadWriteOnce;
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string GetAccessModeLabel(VolumeAccessMode mode) =>
+        mode switch
+        {
+            VolumeAccessMode.ReadOnlyMany => "Read-only many",
+            VolumeAccessMode.ReadWriteMany => "Read/write many",
+            _ => "Read/write once"
+        };
+}

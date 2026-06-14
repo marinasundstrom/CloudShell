@@ -8,11 +8,12 @@ Initial domain primitives are in place for volume resources and container app
 volume mounts: `cloudshell.volume`, `ResourceVolumeMount`, workload descriptor
 projection, container declaration builder support, application resource mount
 counts, storage volume/consumer capabilities, standard volume mount
-permissions, and first Resource Manager selectors plus a dedicated Storage tab
-for container-backed resources that can map volumes. SQL Server is the first
-resource-specific flow that recommends a known data mount point and warns when
-data will not be persisted.
-Runtime provider materialization, dedicated Resource Manager volume create UI,
+permissions, first Resource Manager selectors plus a dedicated Storage tab for
+container-backed resources that can map volumes, and a basic Resource Manager
+create/configuration/overview flow for direct `cloudshell.volume` resources.
+SQL Server is the first resource-specific flow that recommends a known data
+mount point and warns when data will not be persisted.
+Runtime provider materialization, provider-defined storage resources,
 provider-backed volume resources, and usage monitoring remain open.
 Deletion is guarded for volume resources that are still referenced by another
 resource dependency, and storage mappings cannot be changed while the target
@@ -106,18 +107,31 @@ Suggested capability identifiers:
 - `storage.backup`
 
 For MVP, the primary concept is a volume. A volume is an allocated physical
-storage space that can be referenced and utilized by a resource. It represents
-a stable mountable storage target that can be attached to one or more
-resources through a target path.
+storage space that can be referenced and utilized by a resource. In the
+current direct model, a volume can point at any folder or provider-addressable
+location and can be attached to one or more resources through a target path.
 
-`resources.AddVolume(...)` declares a CloudShell volume resource and assumes a
-storage allocation somewhere on, or addressable from, the local machine unless
-a provider or location is supplied. This is intentionally lightweight for
-local development: the volume can be tracked as a resource without requiring a
-separate storage-provider resource or storage-control-plane service.
+`resources.AddVolume(...)` declares a CloudShell volume resource through the
+default LocalStorage provider unless another provider is supplied. Its path is
+the direct relative or absolute folder path for that volume and is not derived
+from, appended to, or otherwise affected by a separate storage resource
+location. This is intentionally lightweight for local development: the volume
+can be tracked as a resource without requiring a separate storage-provider
+resource or storage-control-plane service.
 
-A specific storage resource or provider can later own a specific kind of
-volume. In that case, the provider materializes the allocation and can report
+A storage resource is a separate future boundary whose behavior depends on the
+provider. A storage resource may represent a local storage provider, NAS share,
+remote host, appliance, cloud storage account, Kubernetes storage class, or
+another provider-defined storage boundary. For the default LocalStorage
+resource provider, volumes created under that storage resource are expected to
+be sub-items, typically subfolders, of the provider-managed storage location.
+Direct volumes created with `resources.AddVolume(...)` are the exception: they
+carry their own supplied path and do not use a storage resource `Location`;
+that storage resource location remains null. Other providers may use different
+sub-item semantics as long as the projected CloudShell volume remains a
+mountable target. The LocalStorage resource provider is a temporary default
+until storage capabilities are formalized. After storage capabilities are
+defined, the provider should materialize the allocation and report
 provider-specific diagnostics and usage metrics for the resource.
 
 A volume projects:
@@ -219,16 +233,17 @@ var media = resources
     .WithAccessMode(VolumeAccessMode.ReadWriteMany);
 ```
 
-Future provider-backed storage resource:
+Future provider-defined storage resource with provider-owned sub-volumes:
 
 ```csharp
 var storage = resources.AddStorageProvider(
-    "storage:nas",
-    "Team NAS");
+    "storage:local",
+    "Local Storage");
 
 var media = resources
     .AddVolume("volume:media", "Media")
-    .UseProvider(storage);
+    .UseStorage(storage)
+    .UseSubPath("media");
 ```
 
 ## Provider Responsibilities
@@ -263,7 +278,8 @@ Resource Manager should show storage from both sides:
 
 MVP UI should support:
 
-- creating a basic local or provider-backed volume
+- creating a basic direct local or provider-addressable volume; the first
+  direct volume create/configuration/overview flow is in place
 - attaching a volume to a container app or executable app; the first container
   app registration selector and resource Storage tab are in place for
   container-backed resources that can map volumes
@@ -364,6 +380,8 @@ through future monitoring APIs.
    Compose orchestrator paths.
 7. Add Resource Manager generated overview support for attached volumes.
 8. Add dedicated create/attach UI for basic volume resources and mappings.
+   Direct volume create/configuration/overview UI is in place; richer attach
+   flows and storage-resource-owned sub-volume UI remain open.
 9. Add action capability reasons and diagnostics for missing providers,
    missing host paths, unsupported mounts, and conflicting target paths.
 10. Extend deletion safety from dependency-based guard to explicit attachment
@@ -383,6 +401,8 @@ through future monitoring APIs.
 - Extend deletion safety from dependency-based blocking to explicit attachment
   state once runtime materialization records mounted volumes.
 - Define backup/snapshot as future capabilities, not MVP requirements.
+- Define the temporary LocalStorage provider shape and replace it with
+  capability-based storage resources once storage capabilities are stable.
 - Add on-premise storage provider sample after the local/Docker path works.
 
 ## Open Questions

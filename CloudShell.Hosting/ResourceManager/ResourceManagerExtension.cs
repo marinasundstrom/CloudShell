@@ -42,12 +42,30 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "service",
                 6,
                 resourceClass: ResourceClass.Service)
+            .AddResourceType<RegisterVolumeResource, UpdateVolumeResource>(
+                "cloudshell.volume",
+                "Volume",
+                "Create mountable storage that resources can attach as a volume.",
+                "storage",
+                7,
+                resourceClass: ResourceClass.Storage)
+            .AddResourceTab<VolumeOverview>(
+                "cloudshell.volume",
+                "overview",
+                "Overview",
+                10)
+            .AddResourceTab<UpdateVolumeResource>(
+                "cloudshell.volume",
+                "configuration",
+                "Configuration",
+                20,
+                showsApplyButton: true)
             .AddResourceType<RegisterLoadBalancerResource>(
                 "cloudshell.loadBalancer",
                 "Load Balancer",
                 "Create provider-backed HTTP, HTTPS, or TCP routes to registered resources.",
                 "network",
-                7,
+                8,
                 resourceClass: ResourceClass.Network);
 
         if (includeSettings)

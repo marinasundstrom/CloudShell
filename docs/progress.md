@@ -90,14 +90,22 @@ expectations rather than duplicating the task queue.
   allocation attributes, and workload descriptors carry each mount plus its
   derived read/write mount permission for runtime providers to materialize and
   enforce. Resource Manager now has the first volume selector UI for container
-  app create flows and a dedicated Storage tab for container-backed resources
-  that can map volumes. Storage mappings cannot be changed while the target
-  resource is running, and volume deletion is blocked while another resource
-  depends on the volume. SQL Server now documents and surfaces its known
-  `/var/opt/mssql` data mount point with a persistence warning when no data
-  volume is configured. Provider-backed volume resources, richer materialization
-  diagnostics, broader UI management, runtime enforcement, and usage monitoring
-  APIs remain next storage work.
+  app create flows, a dedicated Storage tab for container-backed resources
+  that can map volumes, and a basic Resource Manager create/configuration/
+  overview flow for direct `cloudshell.volume` resources. Storage mappings
+  cannot be changed while the target resource is running, and volume deletion
+  is blocked while another resource depends on the volume. SQL Server now
+  documents and surfaces its known `/var/opt/mssql` data mount point with a
+  persistence warning when no data volume is configured. A future storage
+  resource is provider-defined: the temporary LocalStorage resource provider
+  can treat storage-owned volumes as subfolders of its managed storage root,
+  while direct `resources.AddVolume(...)` volumes use their own supplied
+  relative or absolute path and are not affected by a storage resource
+  location. Other providers may expose different sub-item semantics until
+  storage capabilities are formalized.
+  Runtime materialization, provider-backed volume resources, richer
+  materialization diagnostics, broader UI management, runtime enforcement, and
+  usage monitoring APIs remain next storage work.
 - The first post-MVP target is an initial on-premise hosting scenario. It
   should prove acceptable Resource Manager operations, provider-backed
   cross-platform networking, virtual networks, ingress/public endpoint mapping,

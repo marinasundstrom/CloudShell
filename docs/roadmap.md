@@ -90,8 +90,9 @@ listed here before pulling in broader proposal work.
    path now that `cloudshell.volume`, `AddVolume(...)`, and container app
    volume mounts exist. Next slices should materialize mounts in runtime
    providers, show storage relationships from both the volume and consuming
-   resource, and keep storage edits guarded while resources are running
-   without leaking provider-specific mount syntax into the resource model.
+   resource, and define the temporary LocalStorage provider as a bridge toward
+   capability-based storage resources where provider-owned storage locations
+   can contain provider-defined volume sub-items.
 3. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider.
@@ -145,9 +146,11 @@ listed here before pulling in broader proposal work.
   from both the target resource and the exposure resource.
 - Treat storage as part of the same app-environment path, not as deployment
   trivia. The MVP now has basic volume resources and container app volume
-  attachments with a dedicated resource Storage tab; next it needs runtime
-  materialization and Resource Manager visibility showing which resources
-  depend on storage and whether the mapping can be materialized.
+  attachments with a dedicated resource Storage tab plus a direct volume
+  create/configuration/overview flow; next it needs runtime materialization,
+  a temporary LocalStorage provider story, and Resource Manager visibility
+  showing which resources depend on storage and whether the mapping can be
+  materialized.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. Add a validation
   sample with a third-party OIDC/OAuth authority such as Keycloak once the
