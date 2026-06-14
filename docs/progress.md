@@ -284,7 +284,10 @@ expectations rather than duplicating the task queue.
   related resource logs and the trace waterfall. The Logs view now uses a
   header-level source selector, a structured-only filter, and a structured entry
   details pane so source logs have more horizontal space while still exposing
-  category, event, trace/span, exception, and attribute fields.
+  category, event, trace/span, exception, and attribute fields. Trace-related
+  log routes now keep a `traceId` filter, prefer source logs over activity logs
+  when no log source is specified, preserve the filter while switching sources,
+  and show a clear trace-filter affordance.
 - Application overview reference rows now evaluate declared resource-permission
   grants for identity-bound configuration and secret references, showing
   granted access separately from missing grant requirements.

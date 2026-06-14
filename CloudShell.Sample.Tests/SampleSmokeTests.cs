@@ -40,6 +40,13 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:project-reference-api");
         Assert.Contains(resources, resource =>
             resource.GetProperty("id").GetString() == "application:project-reference-frontend");
+
+        var relatedLogsHtml = await host.GetStringAsync(
+            "/logs?resourceId=application%3Aproject-reference-frontend&traceId=4bf92f3577b34da6a3ce929d0e0e4736");
+        Assert.Contains("Project Reference Frontend", relatedLogsHtml);
+        Assert.Contains("Console logs", relatedLogsHtml);
+        Assert.Contains("Showing entries correlated with trace", relatedLogsHtml);
+        Assert.Contains("Clear trace filter", relatedLogsHtml);
     }
 
     [Fact]

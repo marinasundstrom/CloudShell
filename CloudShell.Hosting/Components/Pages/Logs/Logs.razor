@@ -29,6 +29,12 @@
                 @L["All logs"]
             </FluentButton>
         }
+        @if (!string.IsNullOrWhiteSpace(TraceId))
+        {
+            <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
+                @L["Clear trace filter"]
+            </FluentButton>
+        }
         <FluentButton Appearance="Appearance.Neutral" OnClick="RefreshSelectedLog">
             @L["Refresh"]
         </FluentButton>
@@ -91,6 +97,11 @@
                 <p class="log-description">@selected.Description</p>
             }
 
+            @if (!string.IsNullOrWhiteSpace(TraceId))
+            {
+                <p class="log-description">@L["Showing entries correlated with trace {0}.", FormatTraceId(TraceId)]</p>
+            }
+
             @if (IsLoading)
             {
                 <div class="empty-state compact">
@@ -129,8 +140,8 @@
                 @if (visibleEntryItems.Count == 0)
                 {
                     <div class="empty-state compact">
-                        <strong>@L["No structured entries"]</strong>
-                        <span>@L["This log source has entries, but none contain structured metadata."]</span>
+                        <strong>@GetEmptyFilteredTitle()</strong>
+                        <span>@GetEmptyFilteredMessage()</span>
                     </div>
                 }
                 else
@@ -260,6 +271,9 @@
     [SupplyParameterFromQuery]
     public string? LogId { get; set; }
 
+    [SupplyParameterFromQuery]
+    public string? TraceId { get; set; }
+
     private IReadOnlyList<LogEntry> Entries { get; set; } = [];
     private string? LoadedLogId { get; set; }
     private string? StreamingLogId { get; set; }
@@ -335,10 +349,22 @@
     private IReadOnlyList<LogDescriptor> GetVisibleLogs() =>
         VisibleLogs;
 
-    private IReadOnlyList<LogEntry> GetVisibleEntries() =>
-        ShowStructuredOnly
-            ? Entries.Where(HasStructuredMetadata).ToArray()
-            : Entries;
+    private IReadOnlyList<LogEntry> GetVisibleEntries()
+    {
+        var entries = Entries.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(TraceId))
+        {
+            entries = entries.Where(entry =>
+                string.Equals(entry.TraceId, TraceId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (ShowStructuredOnly)
+        {
+            entries = entries.Where(HasStructuredMetadata);
+        }
+
+        return entries.ToArray();
+    }
 
     private IReadOnlyList<LogEntryDisplayItem> GetVisibleEntryItems()
     {
@@ -430,6 +456,15 @@
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(TraceId))
+        {
+            var traceSource = logs.FirstOrDefault(log => log.SupportsStreaming);
+            if (traceSource is not null)
+            {
+                return traceSource;
+            }
+        }
+
         return logs.FirstOrDefault();
     }
 
@@ -445,11 +480,28 @@
             string.Equals(candidate.Id, logId, StringComparison.OrdinalIgnoreCase));
         if (log is not null)
         {
-            Navigation.NavigateTo(BuildLogRoute(log));
+            Navigation.NavigateTo(BuildLogRoute(log, TraceId));
         }
     }
 
     private void ShowAllLogs() => Navigation.NavigateTo("/logs");
+
+    private void ClearTraceFilter()
+    {
+        var selected = GetSelectedLog(VisibleLogs);
+        if (selected is null)
+        {
+            Navigation.NavigateTo(string.IsNullOrWhiteSpace(ResourceId)
+                ? "/logs"
+                : Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                    "/logs",
+                    "resourceId",
+                    ResourceId));
+            return;
+        }
+
+        Navigation.NavigateTo(BuildLogRoute(selected));
+    }
 
     private async Task RefreshSelectedLog()
     {
@@ -786,7 +838,7 @@
             entry.TraceId,
             entry.SpanId);
 
-    private static string BuildLogRoute(LogDescriptor log)
+    private static string BuildLogRoute(LogDescriptor log, string? traceId = null)
     {
         var query = new Dictionary<string, string?>
         {
@@ -798,8 +850,23 @@
             query["resourceId"] = log.ResourceId;
         }
 
+        if (!string.IsNullOrWhiteSpace(traceId))
+        {
+            query["traceId"] = traceId.Trim();
+        }
+
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
     }
+
+    private string GetEmptyFilteredTitle() =>
+        !string.IsNullOrWhiteSpace(TraceId)
+            ? L["No related log entries"].Value
+            : L["No structured entries"].Value;
+
+    private string GetEmptyFilteredMessage() =>
+        !string.IsNullOrWhiteSpace(TraceId)
+            ? L["This log source has entries, but none are correlated with the selected trace."].Value
+            : L["This log source has entries, but none contain structured metadata."].Value;
 
     private static bool IsTraceMetadata(KeyValuePair<string, string> item) =>
         string.Equals(item.Key, "traceId", StringComparison.OrdinalIgnoreCase);
