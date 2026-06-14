@@ -671,7 +671,8 @@ public sealed partial class ApplicationResourceProvider(
             application.EndpointPorts,
             application.ProjectPath,
             application.ProjectArguments,
-            application.AspNetCoreHotReload);
+            application.AspNetCoreHotReload,
+            application.ProjectContainerBuild);
 
         return Task.FromResult(new ResourceTemplateDefinition(
             application.Name,
@@ -722,6 +723,7 @@ public sealed partial class ApplicationResourceProvider(
             containerRegistry: configuration.ContainerRegistry,
             containerBuildContext: configuration.ContainerBuildContext,
             containerDockerfile: configuration.ContainerDockerfile,
+            projectContainerBuild: configuration.ProjectContainerBuild,
             containerHostId: configuration.ContainerHostId,
             replicas: configuration.Replicas,
             endpointPorts: configuration.EndpointPorts,
@@ -2233,14 +2235,14 @@ public sealed partial class ApplicationResourceProvider(
             [ResourceAttributeNames.EndpointCount] = application.EndpointPorts.Count.ToString(CultureInfo.InvariantCulture)
         };
 
-        if (IsAspNetCoreProject(application))
+        if (IsProjectBacked(application))
         {
             AddIfNotEmpty(attributes, ResourceAttributeNames.ProjectPath, application.ProjectPath);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ProjectArguments, application.ProjectArguments);
             attributes[ResourceAttributeNames.ProjectHotReload] =
                 application.AspNetCoreHotReload.ToString(CultureInfo.InvariantCulture).ToLowerInvariant();
         }
-        else if (IsContainerBacked(application))
+        if (IsContainerBacked(application))
         {
             attributes[ResourceAttributeNames.ContainerReplicas] =
                 Math.Max(1, application.Replicas).ToString(CultureInfo.InvariantCulture);
@@ -2251,7 +2253,8 @@ public sealed partial class ApplicationResourceProvider(
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerHostId, application.ContainerHostId);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerRevision, GetEffectiveContainerRevision(application));
         }
-        else
+
+        if (!IsProjectBacked(application) && !IsContainerBacked(application))
         {
             AddIfNotEmpty(attributes, ResourceAttributeNames.ExecutablePath, application.ExecutablePath);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ExecutableArguments, application.Arguments);
@@ -2263,19 +2266,20 @@ public sealed partial class ApplicationResourceProvider(
 
     private static string CreateWorkloadKind(ApplicationResourceDefinition application)
     {
-        if (IsAspNetCoreProject(application))
-        {
-            return ResourceWorkloadKind.AspNetCoreProject.ToString();
-        }
-
         if (!string.IsNullOrWhiteSpace(application.ContainerImage))
         {
             return ResourceWorkloadKind.ContainerImage.ToString();
         }
 
-        if (!string.IsNullOrWhiteSpace(application.ContainerBuildContext))
+        if (application.ProjectContainerBuild ||
+            !string.IsNullOrWhiteSpace(application.ContainerBuildContext))
         {
             return ResourceWorkloadKind.ContainerBuild.ToString();
+        }
+
+        if (IsAspNetCoreProject(application))
+        {
+            return ResourceWorkloadKind.AspNetCoreProject.ToString();
         }
 
         return ResourceWorkloadKind.LocalExecutable.ToString();
@@ -2309,6 +2313,10 @@ public sealed partial class ApplicationResourceProvider(
             application.ResourceType,
             ApplicationResourceTypes.AspNetCoreProject,
             StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsProjectBacked(ApplicationResourceDefinition application) =>
+        IsAspNetCoreProject(application) ||
+        !string.IsNullOrWhiteSpace(application.ProjectPath);
 
     private static string GetResourceKind(ApplicationResourceDefinition application) =>
         application.ResourceType switch
@@ -2599,6 +2607,7 @@ public sealed partial class ApplicationResourceProvider(
             resourceType,
             ApplicationResourceTypes.AspNetCoreProject,
             StringComparison.OrdinalIgnoreCase);
+        var isProjectBacked = isAspNetCoreProject || definition.ProjectContainerBuild;
         var legacyProjectPath = isAspNetCoreProject
             ? TryExtractProjectPathFromDotNetArguments(definition.Arguments)
             : null;
@@ -2607,8 +2616,8 @@ public sealed partial class ApplicationResourceProvider(
         {
             Id = id,
             Name = definition.Name.Trim(),
-            ExecutablePath = isAspNetCoreProject ? string.Empty : definition.ExecutablePath.Trim(),
-            Arguments = isAspNetCoreProject ? null : NormalizeNullable(definition.Arguments),
+            ExecutablePath = isProjectBacked ? string.Empty : definition.ExecutablePath.Trim(),
+            Arguments = isProjectBacked ? null : NormalizeNullable(definition.Arguments),
             WorkingDirectory = NormalizeNullable(definition.WorkingDirectory),
             Endpoint = NormalizeNullable(definition.Endpoint),
             Lifetime = definition.Lifetime,
@@ -2622,19 +2631,22 @@ public sealed partial class ApplicationResourceProvider(
                 : null,
             ContainerBuildContext = NormalizeNullable(definition.ContainerBuildContext),
             ContainerDockerfile = NormalizeNullable(definition.ContainerDockerfile),
+            ProjectContainerBuild = isProjectBacked &&
+                string.IsNullOrWhiteSpace(definition.ContainerImage) &&
+                definition.ProjectContainerBuild,
             ContainerHostId = NormalizeNullable(definition.ContainerHostId),
             ContainerRevision = NormalizeNullable(definition.ContainerRevision) ??
                 (IsContainerBacked(definition) ? CreateContainerRevision() : null),
             Replicas = Math.Max(1, definition.Replicas),
             ResourceType = resourceType,
-            ProjectPath = isAspNetCoreProject
+            ProjectPath = isProjectBacked
                 ? NormalizeNullable(definition.ProjectPath) ?? legacyProjectPath
                 : null,
-            ProjectArguments = isAspNetCoreProject
+            ProjectArguments = isProjectBacked
                 ? NormalizeNullable(definition.ProjectArguments) ??
                     TryExtractApplicationArgumentsFromDotNetArguments(definition.Arguments)
                 : null,
-            AspNetCoreHotReload = isAspNetCoreProject
+            AspNetCoreHotReload = isProjectBacked
                 ? ResolveAspNetCoreHotReload(definition)
                 : definition.AspNetCoreHotReload,
             DependsOn = NormalizeDependencies(definition.DependsOn, id),
@@ -2957,23 +2969,6 @@ public sealed partial class ApplicationResourceProvider(
         string? resourceGroupId = null,
         IResourceManagerStore? resourceManager = null)
     {
-        if (IsAspNetCoreProject(application))
-        {
-            return new ResourceWorkloadConfiguration(
-                ResourceWorkloadKind.AspNetCoreProject,
-                application.Name,
-                WorkingDirectory: application.WorkingDirectory,
-                ProjectPath: application.ProjectPath,
-                ProjectArguments: application.ProjectArguments,
-                AspNetCoreHotReload: application.AspNetCoreHotReload,
-                Replicas: Math.Max(1, application.Replicas),
-                AppSettings: application.AppSettings,
-                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
-                Ports: application.EndpointPorts,
-                Lifetime: ToResourceLifetime(application.Lifetime),
-                Observability: GetEffectiveObservability(application));
-        }
-
         if (!string.IsNullOrWhiteSpace(application.ContainerImage))
         {
             return new ResourceWorkloadConfiguration(
@@ -2997,8 +2992,45 @@ public sealed partial class ApplicationResourceProvider(
                 application.Name,
                 BuildContext: application.ContainerBuildContext,
                 Dockerfile: application.ContainerDockerfile,
+                ProjectPath: application.ProjectPath,
+                ProjectArguments: application.ProjectArguments,
                 Registry: GetEffectiveContainerRegistry(application),
                 ContainerHostId: application.ContainerHostId,
+                Replicas: Math.Max(1, application.Replicas),
+                AppSettings: application.AppSettings,
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
+                Ports: application.EndpointPorts,
+                Lifetime: ToResourceLifetime(application.Lifetime),
+                Observability: GetEffectiveObservability(application));
+        }
+
+        if (application.ProjectContainerBuild)
+        {
+            return new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.ContainerBuild,
+                application.Name,
+                Dockerfile: application.ContainerDockerfile,
+                ProjectPath: application.ProjectPath,
+                ProjectArguments: application.ProjectArguments,
+                Registry: GetEffectiveContainerRegistry(application),
+                ContainerHostId: application.ContainerHostId,
+                Replicas: Math.Max(1, application.Replicas),
+                AppSettings: application.AppSettings,
+                EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
+                Ports: application.EndpointPorts,
+                Lifetime: ToResourceLifetime(application.Lifetime),
+                Observability: GetEffectiveObservability(application));
+        }
+
+        if (IsAspNetCoreProject(application))
+        {
+            return new ResourceWorkloadConfiguration(
+                ResourceWorkloadKind.AspNetCoreProject,
+                application.Name,
+                WorkingDirectory: application.WorkingDirectory,
+                ProjectPath: application.ProjectPath,
+                ProjectArguments: application.ProjectArguments,
+                AspNetCoreHotReload: application.AspNetCoreHotReload,
                 Replicas: Math.Max(1, application.Replicas),
                 AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
@@ -3340,6 +3372,7 @@ public sealed partial class ApplicationResourceProvider(
 
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
         !string.IsNullOrWhiteSpace(application.ContainerImage) ||
+        application.ProjectContainerBuild ||
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
 
     private static string GetEffectiveContainerRevision(ApplicationResourceDefinition application) =>
@@ -3642,5 +3675,6 @@ public sealed partial class ApplicationResourceProvider(
         IReadOnlyList<ServicePort>? EndpointPorts = null,
         string? ProjectPath = null,
         string? ProjectArguments = null,
-        bool AspNetCoreHotReload = true);
+        bool AspNetCoreHotReload = true,
+        bool ProjectContainerBuild = false);
 }

@@ -3523,6 +3523,94 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ProjectResourceBuilder_AsContainerConvertsProjectToContainerBuildWorkload()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.ResourceIdentityTokenEndpoint = "http://localhost:5011/api/auth/token";
+                options.ResourceIdentityDefaultScope = "ControlPlane.Access";
+            })
+            .Resources(resources =>
+            {
+                var identityProvider = resources.AddIdentityProvider(
+                    "identity:development",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    new Dictionary<string, string>
+                    {
+                        ["clientSecret"] = "local-development-api-secret"
+                    },
+                    useAsDefault: true);
+
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "API",
+                        "src/API/API.csproj")
+                    .WithIdentity(identityProvider, name: "api-service")
+                    .AsContainer(registry: "registry.local:5000", replicas: 2)
+                    .WithContainerHost("docker:dev");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:api");
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var environment = workload?.WorkloadEnvironmentVariables
+            .ToDictionary(variable => variable.Name, variable => variable.Value);
+
+        Assert.Equal(ApplicationResourceTypes.ContainerApp, application.ResourceType);
+        Assert.True(application.ProjectContainerBuild);
+        Assert.Equal("src/API/API.csproj", application.ProjectPath);
+        Assert.Null(application.ContainerImage);
+        Assert.Null(application.ContainerBuildContext);
+        Assert.Null(application.ContainerDockerfile);
+        Assert.Equal("docker:dev", application.ContainerHostId);
+        Assert.Equal(ApplicationResourceTypes.ContainerApp, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Container, resource.ResourceClass);
+        Assert.Equal(ResourceWorkloadKind.ContainerBuild.ToString(), resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
+        Assert.Equal("src/API/API.csproj", resource.ResourceAttributes[ResourceAttributeNames.ProjectPath]);
+        Assert.Equal("2", resource.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
+        Assert.Equal("registry.local:5000", resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+        Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerHostId]);
+        Assert.Equal(ResourceWorkloadKind.ContainerBuild, workload?.Kind);
+        Assert.Equal("src/API/API.csproj", workload?.ProjectPath);
+        Assert.Null(workload?.BuildContext);
+        Assert.Null(workload?.Dockerfile);
+        Assert.Equal("registry.local:5000", workload?.Registry);
+        Assert.Equal("docker:dev", workload?.ContainerHostId);
+        Assert.Equal(2, workload?.Replicas);
+        Assert.Equal(
+            "application:api/api-service",
+            environment?[EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable]);
+        Assert.Equal(
+            "local-development-api-secret",
+            environment?[EnvironmentCloudShellResourceCredential.ClientSecretEnvironmentVariable]);
+    }
+
+    [Fact]
     public async Task ContainerApplicationBuilder_DeclaresTopLevelContainerWorkload()
     {
         var services = new ServiceCollection();

@@ -31,7 +31,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? containerRevision = null,
         string? containerRegistry = null,
         ContainerRegistryCredentials? containerRegistryCredentials = null,
-        IReadOnlyList<AppSetting>? appSettings = null)
+        IReadOnlyList<AppSetting>? appSettings = null,
+        bool projectContainerBuild = false)
     {
         Id = id;
         Name = name;
@@ -49,6 +50,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ContainerRegistry = containerRegistry;
         ContainerBuildContext = containerBuildContext;
         ContainerDockerfile = containerDockerfile;
+        ProjectContainerBuild = projectContainerBuild;
         ContainerHostId = containerHostId;
         Replicas = replicas;
         EndpointPorts = endpointPorts ?? [];
@@ -95,6 +97,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public string? ContainerBuildContext { get; init; }
 
     public string? ContainerDockerfile { get; init; }
+
+    public bool ProjectContainerBuild { get; init; }
 
     public string? ContainerHostId { get; init; }
 

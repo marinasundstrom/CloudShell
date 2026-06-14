@@ -47,6 +47,24 @@ resources
 This is intentionally different from `resources.AddDocker().AddContainer(...)`,
 which creates a Docker container sub-resource parented under a Docker resource.
 
+ASP.NET Core projects can be converted into container apps with
+`AsContainer(...)`:
+
+```csharp
+resources
+    .AddAspNetCoreProject(
+        "application:api",
+        "API",
+        "src/API/API.csproj")
+    .AsContainer()
+    .WithContainerHost("docker:dev");
+```
+
+The converted resource projects as `application.container-app`, but its
+workload descriptor retains `ProjectPath`. Orchestrators can use that shape to
+build the container image with the .NET SDK when no Dockerfile is supplied, or
+with the project's Dockerfile when one is specified.
+
 ## Lifetime
 
 Programmatic container app declarations default to `ControlPlaneScoped` for

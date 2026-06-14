@@ -166,6 +166,70 @@ public static class ApplicationProviderServiceCollectionExtensions
         return new ExecutableApplicationResourceBuilder(resource, declared);
     }
 
+    public static IProjectResourceBuilder AsContainer(
+        this IProjectResourceBuilder builder,
+        string? image = null,
+        string? buildContext = null,
+        string? dockerfile = null,
+        string? registry = null,
+        int? replicas = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (string.IsNullOrWhiteSpace(image))
+        {
+            if (builder is IProjectContainerBuildResourceBuilder containerBuildBuilder)
+            {
+                containerBuildBuilder.AsProjectContainerBuild(buildContext, dockerfile);
+            }
+            else
+            {
+                builder.WithContainerBuild(buildContext, dockerfile);
+            }
+        }
+        else
+        {
+            builder.AsContainerImage(image);
+        }
+
+        if (!string.IsNullOrWhiteSpace(registry))
+        {
+            builder.WithRegistry(registry);
+        }
+
+        if (replicas.HasValue)
+        {
+            builder.WithReplicas(replicas.Value);
+        }
+
+        return builder;
+    }
+
+    public static IProjectResourceBuilder WithContainerHost(
+        this IProjectResourceBuilder builder,
+        string containerHostId)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(containerHostId);
+
+        if (builder is not IContainerResourceBuilder containerBuilder)
+        {
+            throw new InvalidOperationException(
+                "This project resource builder does not support container host binding.");
+        }
+
+        containerBuilder.WithContainerHost(containerHostId);
+        return builder;
+    }
+
+    public static IProjectResourceBuilder WithContainerHost(
+        this IProjectResourceBuilder builder,
+        IResourceBuilder containerHost)
+    {
+        ArgumentNullException.ThrowIfNull(containerHost);
+        return builder.WithContainerHost(containerHost.ResourceId);
+    }
+
     /// <summary>
     /// Declares a container app resource using an Aspire-compatible shorthand
     /// name.
@@ -344,12 +408,20 @@ public static class ApplicationProviderServiceCollectionExtensions
     }
 }
 
+internal interface IProjectContainerBuildResourceBuilder
+{
+    IProjectResourceBuilder AsProjectContainerBuild(
+        string? buildContext,
+        string? dockerfile = null);
+}
+
 internal sealed class ExecutableApplicationResourceBuilder(
     IResourceBuilder inner,
     DeclaredApplicationResource declared) :
     IExecutableResourceBuilder,
     IProjectResourceBuilder,
-    IContainerResourceBuilder
+    IContainerResourceBuilder,
+    IProjectContainerBuildResourceBuilder
 {
     public ICloudShellBuilder CloudShellBuilder => inner.CloudShellBuilder;
 
@@ -643,7 +715,8 @@ internal sealed class ExecutableApplicationResourceBuilder(
         {
             ContainerImage = image,
             ContainerBuildContext = null,
-            ContainerDockerfile = null
+            ContainerDockerfile = null,
+            ProjectContainerBuild = false
         };
         return this;
     }
@@ -710,7 +783,8 @@ internal sealed class ExecutableApplicationResourceBuilder(
         {
             ContainerBuildContext = buildContext,
             ContainerDockerfile = dockerfile,
-            ContainerImage = null
+            ContainerImage = null,
+            ProjectContainerBuild = false
         };
         return this;
     }
@@ -719,6 +793,29 @@ internal sealed class ExecutableApplicationResourceBuilder(
         string? buildContext,
         string? dockerfile = null) =>
         WithContainerBuild(buildContext, dockerfile);
+
+    public IProjectResourceBuilder AsProjectContainerBuild(
+        string? buildContext,
+        string? dockerfile = null)
+    {
+        if (!string.Equals(
+                declared.Definition.ResourceType,
+                ApplicationResourceTypes.AspNetCoreProject,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return WithContainerBuild(buildContext, dockerfile);
+        }
+
+        declared.Definition = declared.Definition with
+        {
+            ContainerBuildContext = NormalizeNullable(buildContext),
+            ContainerDockerfile = NormalizeNullable(dockerfile),
+            ContainerImage = null,
+            ProjectContainerBuild = true,
+            ResourceType = ApplicationResourceTypes.ContainerApp
+        };
+        return this;
+    }
 
     public IProjectResourceBuilder WithReplicas(int replicas)
     {

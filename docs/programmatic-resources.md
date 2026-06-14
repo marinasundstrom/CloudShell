@@ -282,7 +282,7 @@ resources
         "application:example-web-api",
         "Example Web API",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
-    .AsContainerImage("example-web-api:dev")
+    .AsContainer()
     .WithReference(configuration)
     .WithReference(redis)
     .DependsOn(redis);
@@ -480,15 +480,25 @@ default container host and enables Docker Compose orchestration without adding
 Docker to the resource graph. `UseContainerHost(...)` can register an explicit
 configured host when the app should target a non-default host.
 
-When a project uses `AsContainerImage(...)` or `WithContainerBuild(...)`, or a
-resource is declared through `AddContainer(...)`, it can be materialized into
-generated Compose YAML. A plain local executable without container image or
-build metadata remains a default-orchestrator workload. Container-backed
-resource builders expose `WithImage(...)` so provider-specific resources such as
-`AddSqlServer(...)` can let callers override their default image without
-exposing Docker in the logical graph. The Resource Manager settings can record a
-preferred container host, but application and service declarations do not need
-to be tied to a specific runtime implementation in the user-facing graph.
+`AsContainer(...)` is the project-to-container hook for ASP.NET Core project
+resources. It converts the projected resource to an `application.container-app`
+while preserving project metadata in the workload descriptor. If no Dockerfile
+is supplied, orchestrators should use the .NET SDK container publish path
+(`dotnet publish /t:PublishContainer`) for the project. If the project owns a
+Dockerfile, pass it through `AsContainer(dockerfile: "Dockerfile")` and let the
+selected container host or orchestrator perform the Dockerfile build.
+
+Low-level project builders still expose `AsContainerImage(...)` and
+`WithContainerBuild(...)` for advanced provider code that wants to set image or
+build metadata directly. A resource declared through `AddContainer(...)` is
+already a top-level container app. A plain local executable without container
+image or build metadata remains a default-orchestrator workload.
+Container-backed resource builders expose `WithImage(...)` so provider-specific
+resources such as `AddSqlServer(...)` can let callers override their default
+image without exposing Docker in the logical graph. The Resource Manager
+settings can record a preferred container host, but application and service
+declarations do not need to be tied to a specific runtime implementation in the
+user-facing graph.
 
 The explicit Docker resource model remains available separately. Use
 `AddDockerProvider()` plus `resources.AddDocker()` when Docker itself should

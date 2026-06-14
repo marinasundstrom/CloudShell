@@ -40,6 +40,26 @@ Pass `applicationArguments` when the hosted app should receive command-line
 arguments. CloudShell appends those arguments after the hidden `dotnet` runner
 arguments.
 
+Use `AsContainer(...)` when the project should be modeled as a container app
+instead of a process-backed ASP.NET Core project:
+
+```csharp
+resources
+    .AddAspNetCoreProject(
+        "application:example-web-api",
+        "Example Web API",
+        "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+    .AsContainer(registry: "registry.local:5000")
+    .WithContainerHost("docker:dev");
+```
+
+`AsContainer(...)` converts the projected resource to
+`application.container-app` while keeping the project path in the workload
+descriptor. When no Dockerfile is supplied, the intended build path is the .NET
+SDK container publisher (`dotnet publish /t:PublishContainer`). When the
+project owns a Dockerfile, pass it as `dockerfile: "Dockerfile"` and the
+selected container host or orchestrator can use the Dockerfile build path.
+
 ## Endpoints
 
 ASP.NET Core project resources always get an HTTP endpoint. If the declaration
