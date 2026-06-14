@@ -20,6 +20,24 @@ by normalized protocol, host, and port so one host-local address cannot be
 assigned to two platform resources. Logical endpoints and provider-projected
 runtime endpoints are not part of that first validation pass.
 
+Endpoint ownership and runtime port availability are related but separate.
+Resource Manager should track CloudShell-owned endpoint intent and concrete
+assignments so CloudShell resources do not knowingly reuse the same
+host/protocol/port assignment. Host and runtime providers still own the final
+bind or publish operation. For local host ports, the Control Plane may run an
+advisory availability preflight before allocation or start, but that check is
+not authoritative because another process can bind the port between the
+preflight and the actual start. Providers must translate final bind failures
+into stable resource action diagnostics.
+
+Dangling external processes are therefore diagnostics, not platform-owned
+state. When a port is occupied by a process or container CloudShell does not
+own, CloudShell should report that the endpoint assignment is unavailable and,
+when the provider can observe it safely, include the owning process/container
+identity. It should not claim the endpoint reservation unless the assignment is
+part of CloudShell's resource graph or a persisted provider-owned runtime
+artifact being recovered.
+
 Endpoint mappings connect one source endpoint to one target endpoint. A mapping
 can be validated by the network resource itself or materialized by a selected
 networking provider resource.

@@ -422,6 +422,12 @@ expectations rather than duplicating the task queue.
   `docker.host` container host resources. UI language uses container host,
   while `container.host` remains the future generic resource-type direction for
   non-Docker providers.
+- Endpoint ownership is split between Resource Manager and providers. Resource
+  Manager should prevent CloudShell-owned resources from claiming the same
+  concrete endpoint assignment, while host/runtime providers own advisory port
+  availability preflights and final bind/publish failures. Dangling external
+  processes or containers should surface as diagnostics, not as platform-owned
+  endpoint reservations.
 - The first load-balancer implementation slice adds a platform load-balancer
   resource model, fluent route declarations, API/client projection, generated
   Resource Manager route display, an apply-configuration resource action, and a

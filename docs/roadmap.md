@@ -272,6 +272,10 @@ listed here before pulling in broader proposal work.
 - Harden macOS host-provided virtual networking by exercising real local proxy
   mappings end to end, improving action capability reasons, and deciding how
   reconciled mappings should be persisted or stopped.
+- Define the first endpoint reservation/preflight contract: Resource Manager
+  tracks CloudShell-owned assignments, while host/runtime providers report
+  advisory port availability and final bind failures for dangling external
+  processes or containers.
 - Expand host-readiness warnings so endpoint mappings can name the specific
   missing gateway, load balancer, DNS, service mesh, firewall, or cluster
   network controller capability.
