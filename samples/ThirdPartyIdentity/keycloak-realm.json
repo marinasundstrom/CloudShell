@@ -1,0 +1,112 @@
+{
+  "realm": "cloudshell",
+  "enabled": true,
+  "displayName": "CloudShell",
+  "roles": {
+    "realm": [
+      {
+        "name": "CloudShell.Administrator",
+        "description": "CloudShell administrator role"
+      },
+      {
+        "name": "CloudShell.Contributor",
+        "description": "CloudShell contributor role"
+      },
+      {
+        "name": "CloudShell.Reader",
+        "description": "CloudShell reader role"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "cloudshell-ui",
+      "name": "CloudShell UI",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "local-development-cloudshell-ui-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5011/signin-oidc"
+      ],
+      "webOrigins": [
+        "http://localhost:5011"
+      ],
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "CloudShell",
+      "lastName": "Admin",
+      "email": "admin@cloudshell.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "local-development-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "CloudShell.Administrator"
+      ]
+    },
+    {
+      "username": "contributor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "CloudShell",
+      "lastName": "Contributor",
+      "email": "contributor@cloudshell.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "local-development-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "CloudShell.Contributor"
+      ]
+    },
+    {
+      "username": "reader",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "CloudShell",
+      "lastName": "Reader",
+      "email": "reader@cloudshell.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "local-development-password",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "CloudShell.Reader"
+      ]
+    }
+  ]
+}

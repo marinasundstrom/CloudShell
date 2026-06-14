@@ -100,6 +100,31 @@ public sealed class AuthorizationTests
     }
 
     [Fact]
+    public void ExternalOidcRoleClaim_UsesConfiguredRoleClaimType()
+    {
+        var options = new CloudShellAuthenticationOptions
+        {
+            RoleClaimType = "roles",
+            RolePermissions = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["CloudShell.Contributor"] = [CloudShellPermissions.Resources.Manage]
+            },
+            RoleResourceGroups = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["CloudShell.Contributor"] = [CloudShellPermissions.All]
+            }
+        };
+        var authorization = CreateAuthorization(
+            options,
+            new Claim("roles", "CloudShell.Contributor"));
+
+        Assert.True(authorization.HasPermission(CloudShellPermissions.Resources.Manage));
+        Assert.True(authorization.CanAccessResourceGroup(
+            "group-a",
+            CloudShellPermissions.Resources.Manage));
+    }
+
+    [Fact]
     public void DirectPermissionAndScopeClaims_GrantResourceAccess()
     {
         var authorization = CreateAuthorization(

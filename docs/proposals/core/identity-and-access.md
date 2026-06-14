@@ -149,13 +149,18 @@ Implemented today:
 - Opt-in mock-principal permission-boundary evaluation for
   authentication-disabled local hosts and tests through
   `Authentication:EvaluateClaimsWhenDisabled`.
+- Third-party user authentication validation with Keycloak. The
+  `samples/ThirdPartyIdentity` host uses standard OIDC sign-in, maps Keycloak
+  realm roles into CloudShell role claims, and exercises the existing
+  CloudShell authorization service without provider-specific authorization
+  code.
 
 Not implemented yet:
 
-- End-to-end validation with a third-party OIDC/OAuth provider. Keycloak is
-  the preferred first sample target because it can run locally in a container
-  and exercises standard discovery metadata, client credentials, token
-  validation, and claim mapping without depending on a public cloud tenant.
+- Resource identity provisioning against a third-party OIDC/OAuth provider.
+  The next Keycloak-oriented identity slice should provision or reconcile a
+  resource identity and scoped grants against the external authority instead of
+  only validating user sign-in and role claim mapping.
 
 ## Domain Model
 
@@ -497,8 +502,10 @@ service-principal automation flows.
    and callers must have read permission on the target and provisioning
    resource to query status.
 3. Managed identity and authority reconciliation.
-   Make providers register or reconcile identities and grants with their
-   backing authority instead of only recording CloudShell declarations.
+   The first Keycloak sample validates external user authentication and
+   CloudShell role claim mapping. Next, make providers register or reconcile
+   resource identities and grants with their backing authority instead of only
+   recording CloudShell declarations.
 4. Microsoft Entra ID compatibility.
    Map the same resource identity and grant model to Entra app registrations,
    service principals, app roles or groups, token validation, and automation

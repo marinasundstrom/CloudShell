@@ -156,9 +156,10 @@ listed here before pulling in broader proposal work.
   visibility showing which resources depend on storage and whether the mapping
   can be materialized.
 - Identity remains a product differentiator, but it should be proven with a
-  standards-based provider instead of staying built-in only. Add a validation
-  sample with a third-party OIDC/OAuth authority such as Keycloak once the
-  built-in local identity flow is stable enough to compare against.
+  standards-based provider instead of staying built-in only. The first Keycloak
+  sample validates external OIDC sign-in and CloudShell role claim mapping;
+  next identity work should validate resource identity provisioning and scoped
+  grants against an external authority.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, and container app

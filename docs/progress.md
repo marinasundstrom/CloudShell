@@ -78,9 +78,12 @@ expectations rather than duplicating the task queue.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the
-  resource identity model should be validated against at least one third-party
+  identity model should be validated against at least one third-party
   OIDC/OAuth provider such as Keycloak, Auth0, or Okta in addition to the
-  built-in development provider.
+  built-in development provider. The first Keycloak sample now validates
+  user-facing OIDC sign-in and role claim mapping against the existing
+  CloudShell authorization service; external resource identity provisioning
+  remains the next identity-provider validation step.
 - The first mountable-volume domain slices are in place: `resources.AddVolume(...)`
   declares a `cloudshell.volume` resource for a local or addressable storage
   allocation, and container apps can declare `WithVolume(...)` mounts that
