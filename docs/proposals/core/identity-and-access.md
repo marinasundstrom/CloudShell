@@ -77,6 +77,10 @@ audit trails cannot reliably explain who or what changed a resource.
   group, and RBAC implementation details.
 - Preserve compatibility with OpenID Connect and OAuth 2.0 identity providers,
   including Microsoft Entra ID.
+- Prove the resource identity model against at least one third-party
+  standards-compliant OIDC/OAuth provider, such as Keycloak, Auth0, or Okta,
+  so the model is not accidentally coupled to the built-in development
+  authority.
 - Provide diagnostics and audit inputs for allow and deny decisions.
 - Keep local development possible before a production authority is configured.
 
@@ -145,6 +149,13 @@ Implemented today:
 - Opt-in mock-principal permission-boundary evaluation for
   authentication-disabled local hosts and tests through
   `Authentication:EvaluateClaimsWhenDisabled`.
+
+Not implemented yet:
+
+- End-to-end validation with a third-party OIDC/OAuth provider. Keycloak is
+  the preferred first sample target because it can run locally in a container
+  and exercises standard discovery metadata, client credentials, token
+  validation, and claim mapping without depending on a public cloud tenant.
 
 ## Domain Model
 

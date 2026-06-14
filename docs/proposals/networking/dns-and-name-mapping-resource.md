@@ -263,7 +263,9 @@ uses a service registry instead of DNS-style names.
 ## Network-Level Service Discovery
 
 CloudShell should support service discovery at the network layer after the MVP
-local workflow is stable.
+local workflow is stable. The MVP should still model names and show
+relationships in Resource Manager so users can understand how public and
+private endpoints are intended to be reached.
 
 This should be provider-backed and boundary-aware:
 
@@ -350,9 +352,9 @@ api
 5. Add validation for target existence and provider capability.
 6. Add UI projection for DNS zones and name mappings.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
-8. Add a local development provider for host-based name publication.
-9. Add sample declarations for local DNS-style mappings.
-10. Add provider-backed examples for load balancer and virtual network integration.
+8. Add sample declarations for local DNS-style mappings.
+9. Add provider-backed examples for load balancer and virtual network integration.
+10. Add a local development provider for host-based name publication.
 11. Add a post-MVP sample that uses network-level service discovery through a
     provider such as a local registry or Eureka-like service.
 

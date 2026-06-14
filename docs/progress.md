@@ -67,6 +67,20 @@ expectations rather than duplicating the task queue.
   automation, remote-host completeness, runtime-managed resources, and rich
   deployment history should not move ahead of those release-shaping slices
   unless they block the supported MVP samples.
+- The next MVP product focus is the application environment management path:
+  container applications, service resources and application-level discovery,
+  virtual networks, public endpoint exposure, load-balancer routes, and
+  DNS/name mapping. The UI should make this path understandable and operable.
+  For MVP, DNS/name mapping can start as logical resource projection,
+  relationship display, validation, and provider-materialization diagnostics;
+  real public DNS propagation and provider-backed network-level service
+  registries remain post-MVP unless a concrete sample needs them sooner.
+- Storage and identity are also MVP differentiators from Aspire-style local
+  orchestration. CloudShell should model volume resources and volume mappings
+  so stateful services can be managed through Resource Manager, and the
+  resource identity model should be validated against at least one third-party
+  OIDC/OAuth provider such as Keycloak, Auth0, or Okta in addition to the
+  built-in development provider.
 - The first post-MVP target is an initial on-premise hosting scenario. It
   should prove acceptable Resource Manager operations, provider-backed
   cross-platform networking, virtual networks, ingress/public endpoint mapping,

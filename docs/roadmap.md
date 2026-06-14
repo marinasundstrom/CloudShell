@@ -38,8 +38,11 @@ MVP scope:
 | Area | Required outcome |
 | --- | --- |
 | Container Apps, Version 1 | Container app resources can be declared, inspected, started, stopped, updated by image/revision, configured with replicas, and connected to the default container-host path. |
-| Network primitives | Network resources, endpoint requests, endpoint mappings, load-balancer routes, and host-local networking provide enough routing to expose common container app scenarios with clear diagnostics. |
+| Services, discovery, and names | Service resources, application-level discovery, and the first logical DNS/name-mapping projection make resource-to-resource and user-to-endpoint access understandable from Resource Manager. |
+| Network primitives | Virtual networks, endpoint requests, endpoint mappings, load-balancer routes, public endpoint exposure, and host-local networking provide enough routing to expose common container app scenarios with clear diagnostics. |
+| Storage and volume mappings | Mountable volume resources and app volume attachments can be modeled, inspected, and mapped into container apps or executables through provider-neutral storage intent, without forcing object storage, databases, or backups into the same abstraction. |
 | Identity, Built-in | The built-in identity provider can provision resource identities, issue scoped resource-permission tokens, and enforce those permissions for Control Plane actions, configuration reads, and secret reads. |
+| Identity, external OIDC validation | The identity model is proven against at least one standards-compliant third-party OIDC/OAuth provider, such as Keycloak, without changing the CloudShell resource identity contract. |
 | App settings and secrets integrations | App settings, configuration-entry references, and secret references work through programmatic declarations, Resource Manager assignment flows, runtime transfer, redaction, and authorization. |
 | UX polish | Resource Manager common workflows are understandable, diagnostics are actionable, generated details are useful, and identity, configuration, secrets, networking, and app controls are discoverable without bespoke sample code. |
 | Samples should work | Supported samples build and smoke-test, including combined hosting, split hosting, container host, settings and secrets, host virtual networking, load balancer, project references, and container app deployment. |
@@ -79,37 +82,72 @@ trackers, and [Progress](progress.md) remains the completed-work tracker.
 Work the current proposals in this order. For MVP, implement only the slice
 listed here before pulling in broader proposal work.
 
-1. MVP convergence and Resource Manager reliability: keep supported samples
+1. Application environment management path: make container applications,
+   service resources, application-level service discovery, virtual networks,
+   public endpoints, load-balancer routes, and logical DNS/name mappings form
+   one understandable Resource Manager workflow.
+2. Stateful application foundation: add the first storage and volume-mapping
+   path so container applications and service resources can persist data
+   without provider-specific mount syntax leaking into the resource model.
+3. Identity validation beyond the built-in provider: keep the built-in
+   identity provider for local development, but prove the same resource
+   identity and permission model against one third-party OIDC/OAuth provider.
+4. MVP convergence and Resource Manager reliability: keep supported samples
    green, tighten generated resource details, lifecycle actions, activity
    records, diagnostics, and state transitions around the flows that already
    work.
-2. Configuration, secrets, and identity polish: finish the visible
+5. Configuration, secrets, and identity polish: finish the visible
    settings/secrets assignment and reference experience, keep identity opt-in
    for early modeling, and close only the built-in access gaps needed by those
    flows.
-3. Lifecycle traceability and audit: harden the common lifecycle procedure,
+6. Lifecycle traceability and audit: harden the common lifecycle procedure,
    dependency-start activity, resource-event filtering, and the first audit
    schemas for MVP operations.
-4. Host and runtime foundation: complete the shared host diagnostics needed by
+7. Host and runtime foundation: complete the shared host diagnostics needed by
    container apps, Docker Compose, and provider-owned runtime infrastructure,
    building on the Resource Manager shutdown path that now stops host-scoped
    workloads while leaving detached workloads recoverable.
-5. Network and routing hardening: tighten host-readiness, provider selection,
+8. Network and routing hardening: tighten host-readiness, provider selection,
    route conflicts, endpoint conflicts, configuration preview, and backend
    diagnostics for the supported samples.
-6. Remote Docker host completion: finish concrete remote-host registration and
+9. Remote Docker host completion: finish concrete remote-host registration and
    credentials if it validates the host model, but do not let it block the
    local/default container-host MVP path.
-7. Runtime-managed resources and deployment model: make only the ownership,
+10. Runtime-managed resources and deployment model: make only the ownership,
    cleanup, current-revision, and diagnostics decisions needed by provider-owned
    runtime and image updates.
-8. Advanced app and environment concepts: defer autoscaling, backend pools,
-   traffic splitting, `cloudshell.service`, DNS/name mapping, external
-   deployment projection, container application environments, and the initial
-   on-premise hosting scenario.
+11. Advanced app and environment concepts: defer autoscaling, backend pools,
+   traffic splitting, provider-backed network-level service discovery,
+   provider-backed DNS propagation, external deployment projection, container
+   application environments, and the initial on-premise hosting scenario.
 
 ### Now: MVP Convergence and Resource Manager Reliability
 
+- Treat the primary MVP management path as:
+  container application -> service/discovery -> virtual network -> public
+  endpoint or load balancer -> DNS/name mapping. The UI should let users see
+  and operate that path without requiring programmatic-only sample knowledge.
+- Keep `cloudshell.service` in MVP scope as the stable service exposure
+  resource for UI-managed app topologies. It is separate from internal
+  orchestrator service descriptors and should work with container apps,
+  virtual networks, and future network-level discovery.
+- Bring DNS/name mapping forward as a minimal logical projection and Resource
+  Manager experience. MVP does not require CloudShell to publish real public
+  DNS records, run an authoritative DNS server, or implement a provider-backed
+  service registry, but users should be able to model names, see what endpoint
+  they refer to, and understand whether a provider can materialize them.
+- Keep public endpoint exposure explicit. A resource can expose an endpoint
+  directly, through a service resource, through a virtual-network mapping, or
+  through a load-balancer route; Resource Manager should show that relationship
+  from both the target resource and the exposure resource.
+- Treat storage as part of the same app-environment path, not as deployment
+  trivia. The MVP needs at least basic volume resources and volume attachments
+  for container apps or executable apps, with Resource Manager showing which
+  resources depend on storage and whether the mapping can be materialized.
+- Identity remains a product differentiator, but it should be proven with a
+  standards-based provider instead of staying built-in only. Add a validation
+  sample with a third-party OIDC/OAuth authority such as Keycloak once the
+  built-in local identity flow is stable enough to compare against.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, and container app
@@ -272,6 +310,9 @@ listed here before pulling in broader proposal work.
 - Harden macOS host-provided virtual networking by exercising real local proxy
   mappings end to end, improving action capability reasons, and deciding how
   reconciled mappings should be persisted or stopped.
+- Make service resources first-class in the networking UI flow: create,
+  inspect, expose ports, connect to target resources, and show inbound/outbound
+  discovery relationships.
 - Define the first endpoint reservation/preflight contract: Resource Manager
   tracks CloudShell-owned assignments, while host/runtime providers report
   advisory port availability and final bind failures for dangling external
@@ -281,6 +322,9 @@ listed here before pulling in broader proposal work.
   network controller capability.
 - Finish provider-backed endpoint mapping materialization for real host
   networking services, not just logical local networking.
+- Add the first DNS/name mapping resource projection and UI path for local
+  development names, with provider-materialization warnings when no capable
+  name publisher is active.
 - Continue load balancer support beyond the first Traefik file-config provider
   by adding provider validation diagnostics, configuration preview, route
   conflict checks, target resolution diagnostics, and richer host/runtime
