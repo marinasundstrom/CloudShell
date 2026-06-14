@@ -2388,10 +2388,11 @@ public sealed partial class ApplicationResourceProvider(
             Observability: GetEffectiveObservability(application),
             ResourceClass: GetResourceClass(application),
             Attributes: CreateAttributes(application),
-            Capabilities: CreateCapabilities(endpoints));
+            Capabilities: CreateCapabilities(application, endpoints));
     }
 
     private static IReadOnlyList<ResourceCapability> CreateCapabilities(
+        ApplicationResourceDefinition application,
         IReadOnlyList<ResourceEndpoint> endpoints)
     {
         var capabilities = new List<ResourceCapability>
@@ -2404,6 +2405,11 @@ public sealed partial class ApplicationResourceProvider(
             capabilities.Add(new(ResourceCapabilityIds.EndpointSource));
         }
 
+        if (application.VolumeMounts.Count > 0)
+        {
+            capabilities.Add(new(ResourceCapabilityIds.StorageVolumeConsumer));
+        }
+
         return capabilities;
     }
 
@@ -2412,7 +2418,8 @@ public sealed partial class ApplicationResourceProvider(
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [ResourceAttributeNames.WorkloadKind] = CreateWorkloadKind(application),
-            [ResourceAttributeNames.EndpointCount] = application.EndpointPorts.Count.ToString(CultureInfo.InvariantCulture)
+            [ResourceAttributeNames.EndpointCount] = application.EndpointPorts.Count.ToString(CultureInfo.InvariantCulture),
+            [ResourceAttributeNames.VolumeMountCount] = application.VolumeMounts.Count.ToString(CultureInfo.InvariantCulture)
         };
 
         if (IsProjectBacked(application))
@@ -2920,7 +2927,8 @@ public sealed partial class ApplicationResourceProvider(
             HealthChecks = NormalizeHealthChecks(definition.HealthChecks),
             Observability = NormalizeObservability(definition.Observability),
             AppSettings = NormalizeAppSettings(definition.AppSettings),
-            EnvironmentVariables = NormalizeEnvironmentVariables(definition.EnvironmentVariables)
+            EnvironmentVariables = NormalizeEnvironmentVariables(definition.EnvironmentVariables),
+            VolumeMounts = NormalizeVolumeMounts(definition.VolumeMounts)
         };
     }
 
@@ -3409,7 +3417,8 @@ public sealed partial class ApplicationResourceProvider(
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
-                Observability: GetEffectiveObservability(application));
+                Observability: GetEffectiveObservability(application),
+                VolumeMounts: application.VolumeMounts);
         }
 
         if (!string.IsNullOrWhiteSpace(application.ContainerBuildContext))
@@ -3428,7 +3437,8 @@ public sealed partial class ApplicationResourceProvider(
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
-                Observability: GetEffectiveObservability(application));
+                Observability: GetEffectiveObservability(application),
+                VolumeMounts: application.VolumeMounts);
         }
 
         if (application.ProjectContainerBuild)
@@ -3446,7 +3456,8 @@ public sealed partial class ApplicationResourceProvider(
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
-                Observability: GetEffectiveObservability(application));
+                Observability: GetEffectiveObservability(application),
+                VolumeMounts: application.VolumeMounts);
         }
 
         if (IsAspNetCoreProject(application))
@@ -3463,7 +3474,8 @@ public sealed partial class ApplicationResourceProvider(
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
                 Lifetime: ToResourceLifetime(application.Lifetime),
-                Observability: GetEffectiveObservability(application));
+                Observability: GetEffectiveObservability(application),
+                VolumeMounts: application.VolumeMounts);
         }
 
         return new ResourceWorkloadConfiguration(
@@ -3476,7 +3488,8 @@ public sealed partial class ApplicationResourceProvider(
             AppSettings: application.AppSettings,
             EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
             Lifetime: ToResourceLifetime(application.Lifetime),
-            Observability: GetEffectiveObservability(application));
+            Observability: GetEffectiveObservability(application),
+            VolumeMounts: application.VolumeMounts);
     }
 
     private ResourceOrchestratorService CreateDefaultContainerOrchestratorService(
@@ -3680,6 +3693,20 @@ public sealed partial class ApplicationResourceProvider(
     private static IReadOnlyList<ServicePort> NormalizeEndpointPorts(
         IReadOnlyList<ServicePort> ports) =>
         NormalizeEndpointPorts(ports, ApplicationResourceTypes.ExecutableApplication);
+
+    private static IReadOnlyList<ResourceVolumeMount> NormalizeVolumeMounts(
+        IReadOnlyList<ResourceVolumeMount> volumeMounts) =>
+        volumeMounts
+            .Where(mount =>
+                !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
+                !string.IsNullOrWhiteSpace(mount.TargetPath))
+            .Select(mount => mount with
+            {
+                VolumeReference = mount.NormalizedVolumeReference,
+                TargetPath = mount.NormalizedTargetPath,
+                Name = mount.NormalizedName
+            })
+            .ToArray();
 
     private static IReadOnlyList<ServicePort> CreateAspNetCoreProjectEndpointPorts(string? endpoint)
     {

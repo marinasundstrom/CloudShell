@@ -81,6 +81,11 @@ expectations rather than duplicating the task queue.
   resource identity model should be validated against at least one third-party
   OIDC/OAuth provider such as Keycloak, Auth0, or Okta in addition to the
   built-in development provider.
+- The first mountable-volume domain slice is in place: container apps can
+  declare `WithVolume(...)` mounts that reference either a future managed
+  volume resource or an unmanaged local volume reference. Application resources
+  project a mount count and storage volume consumer capability, and workload
+  descriptors carry the mounts for runtime providers to materialize next.
 - The first post-MVP target is an initial on-premise hosting scenario. It
   should prove acceptable Resource Manager operations, provider-backed
   cross-platform networking, virtual networks, ingress/public endpoint mapping,

@@ -2,7 +2,13 @@
 
 ## Status
 
-Proposed.
+In progress.
+
+Initial domain primitives are in place for container app volume mounts:
+`ResourceVolumeMount`, workload descriptor projection, container declaration
+builder support, application resource mount counts, and a storage volume
+consumer capability. Runtime provider materialization, first-class volume
+resources, Resource Manager create/attach UI, and usage monitoring remain open.
 
 ## Problem
 
@@ -110,7 +116,7 @@ A volume mapping connects a source volume to a target resource path:
 
 ```csharp
 public sealed record ResourceVolumeMount(
-    string VolumeResourceId,
+    string VolumeReference,
     string TargetPath,
     bool ReadOnly = false,
     string? Name = null);
@@ -120,6 +126,13 @@ The exact public abstraction may differ, but the important split is stable:
 CloudShell owns the relationship between resource and volume; providers own how
 that relationship becomes a bind mount, Docker volume, Kubernetes persistent
 volume claim, SMB mount, NFS mount, or platform-native storage attachment.
+
+`VolumeReference` can point at a first-class `cloudshell.volume` resource, but
+it does not have to. Local development should allow simple named or host-local
+volumes without requiring every mount source to become a managed resource.
+On-premise and team-managed environments should prefer first-class volume
+resources so Resource Manager can track ownership, usage, lifecycle,
+diagnostics, usage monitoring, and deletion safety across resources.
 
 Do not use `ResourceVolumeMount` for non-mounted service access. For example,
 an S3-compatible bucket, Azure Blob container, database, queue, or object-store
@@ -201,7 +214,11 @@ MVP UI should support:
 
 - creating a basic local or provider-backed volume
 - attaching a volume to a container app or executable app
+- showing both managed volume resources and unmanaged/local volume references
+  used by applications
 - showing unresolved provider/host diagnostics
+- leaving room for provider-owned usage monitoring data such as capacity,
+  consumed bytes, inode/file counts, IOPS, throughput, or quota status
 - warning before deleting a volume that has active attachments
 
 ## Relationship to Container Apps and Services
@@ -258,12 +275,21 @@ Expected projection:
 - provider/host references
 - action capabilities and diagnostics
 
+Usage monitoring should be modeled as observed provider data, not as required
+fields on every mount. A local development volume may have no monitoring data,
+while a provider-backed on-premise volume can report capacity, usage, and quota
+through future monitoring APIs.
+
 ## Implementation Plan
 
-1. Add storage and volume capability identifiers.
+1. Add storage and volume capability identifiers. Initial storage volume
+   consumer capability is in place.
 2. Add the `cloudshell.volume` resource type identifier.
-3. Add declaration builders for volumes and volume mounts.
-4. Project volume attachments on application resources.
+3. Add declaration builders for volumes and volume mounts. Container app
+   `WithVolume(...)` support is in place for managed volume resource IDs and
+   unmanaged local volume references.
+4. Project volume attachments on application resources. Mount counts and
+   workload descriptor volume mounts are in place.
 5. Map container app volume attachments through the default local and Docker
    Compose orchestrator paths.
 6. Add Resource Manager generated overview support for attached volumes.

@@ -97,6 +97,7 @@ public static class ResourceAttributeNames
     public const string ContainerHostId = "container.engineId";
     public const string ContainerReplicas = "container.replicas";
     public const string ContainerRevision = "container.revision";
+    public const string VolumeMountCount = "storage.volumeMounts";
     public const string EndpointCount = "endpoints.count";
     public const string ConfigurationEntryCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";
@@ -154,4 +155,7 @@ public static class ResourceCapabilityIds
     public const string NetworkingPolicy = "networking.policy";
     public const string NetworkingEgress = "networking.egress";
     public const string NetworkingTls = "networking.tls";
+    public const string StorageVolume = "storage.volume";
+    public const string StorageVolumeConsumer = "storage.volumeConsumer";
+    public const string StorageMountProvider = "storage.mountProvider";
 }

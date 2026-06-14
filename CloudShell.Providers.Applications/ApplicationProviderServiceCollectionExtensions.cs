@@ -788,6 +788,33 @@ internal sealed class ExecutableApplicationResourceBuilder(
         return this;
     }
 
+    public IContainerResourceBuilder WithVolume(
+        string volumeReference,
+        string targetPath,
+        bool readOnly = false,
+        string? name = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(volumeReference);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
+        declared.Definition = declared.Definition with
+        {
+            VolumeMounts = declared.Definition.VolumeMounts
+                .Append(new ResourceVolumeMount(volumeReference, targetPath, readOnly, name))
+                .ToArray()
+        };
+        return this;
+    }
+
+    public IContainerResourceBuilder WithVolume(
+        IResourceBuilder volume,
+        string targetPath,
+        bool readOnly = false,
+        string? name = null)
+    {
+        ArgumentNullException.ThrowIfNull(volume);
+        return WithVolume(volume.ResourceId, targetPath, readOnly, name);
+    }
+
     public IProjectResourceBuilder WithContainerBuild(
         string? buildContext,
         string? dockerfile = null)
@@ -1344,6 +1371,20 @@ internal sealed class ExecutableApplicationResourceBuilder(
         WithHttpProbe(type, path, endpointName, name, timeout);
         return this;
     }
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithVolume(
+        string volumeReference,
+        string targetPath,
+        bool readOnly,
+        string? name) =>
+        WithVolume(volumeReference, targetPath, readOnly, name);
+
+    IContainerResourceBuilder IContainerResourceBuilder.WithVolume(
+        IResourceBuilder volume,
+        string targetPath,
+        bool readOnly,
+        string? name) =>
+        WithVolume(volume, targetPath, readOnly, name);
 
     IContainerResourceBuilder IContainerResourceBuilder.WithReplicas(int replicas)
     {

@@ -167,6 +167,11 @@ public sealed class ApplicationResourceStore
                 .Where(reference => !string.IsNullOrWhiteSpace(reference))
                 .Select(reference => reference.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            VolumeMounts = existing.VolumeMounts
+                .Concat(initial.VolumeMounts
+                    .Where(initialMount => existing.VolumeMounts.All(existingMount =>
+                        !string.Equals(existingMount.TargetPath, initialMount.TargetPath, StringComparison.OrdinalIgnoreCase))))
                 .ToArray()
         };
 }

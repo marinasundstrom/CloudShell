@@ -14,6 +14,19 @@ public enum ResourceLifetime
     ControlPlaneScoped
 }
 
+public sealed record ResourceVolumeMount(
+    string VolumeReference,
+    string TargetPath,
+    bool ReadOnly = false,
+    string? Name = null)
+{
+    public string NormalizedVolumeReference => VolumeReference.Trim();
+
+    public string NormalizedTargetPath => TargetPath.Trim();
+
+    public string? NormalizedName => string.IsNullOrWhiteSpace(Name) ? null : Name.Trim();
+}
+
 public sealed record ResourceWorkloadConfiguration(
     ResourceWorkloadKind Kind,
     string Name,
@@ -33,7 +46,8 @@ public sealed record ResourceWorkloadConfiguration(
     IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null,
     IReadOnlyList<ServicePort>? Ports = null,
     ResourceLifetime Lifetime = ResourceLifetime.ControlPlaneScoped,
-    ResourceObservability? Observability = null)
+    ResourceObservability? Observability = null,
+    IReadOnlyList<ResourceVolumeMount>? VolumeMounts = null)
 {
     public IReadOnlyList<EnvironmentVariableAssignment> WorkloadEnvironmentVariables =>
         EnvironmentVariables ?? [];
@@ -42,6 +56,8 @@ public sealed record ResourceWorkloadConfiguration(
         AppSettings ?? [];
 
     public IReadOnlyList<ServicePort> WorkloadPorts => Ports ?? [];
+
+    public IReadOnlyList<ResourceVolumeMount> WorkloadVolumeMounts => VolumeMounts ?? [];
 
     public ResourceObservability EffectiveObservability => Observability ?? ResourceObservability.None;
 }
@@ -54,7 +70,8 @@ public sealed record ResourceOrchestratorService(
     ResourceWorkloadConfiguration Workload,
     IReadOnlyList<string>? DependsOn = null,
     IReadOnlyList<string>? Networks = null,
-    IReadOnlyList<ServicePort>? Ports = null)
+    IReadOnlyList<ServicePort>? Ports = null,
+    IReadOnlyList<ResourceVolumeMount>? VolumeMounts = null)
 {
     public int Replicas => Math.Max(1, Workload.Replicas);
 
@@ -63,6 +80,8 @@ public sealed record ResourceOrchestratorService(
     public IReadOnlyList<string> ServiceNetworks => Networks ?? [];
 
     public IReadOnlyList<ServicePort> ServicePorts => Ports ?? Workload.WorkloadPorts;
+
+    public IReadOnlyList<ResourceVolumeMount> ServiceVolumeMounts => VolumeMounts ?? Workload.WorkloadVolumeMounts;
 }
 
 public interface ILifetimeBoundResourceBuilder<out TBuilder> : IResourceBuilder
@@ -329,6 +348,18 @@ public interface IContainerResourceBuilder :
         int? port = null,
         string protocol = "tcp",
         ResourceExposureScope exposure = ResourceExposureScope.Local);
+
+    IContainerResourceBuilder WithVolume(
+        string volumeReference,
+        string targetPath,
+        bool readOnly = false,
+        string? name = null);
+
+    IContainerResourceBuilder WithVolume(
+        IResourceBuilder volume,
+        string targetPath,
+        bool readOnly = false,
+        string? name = null);
 
     IContainerResourceBuilder WithHttpHealthCheck(
         string path,

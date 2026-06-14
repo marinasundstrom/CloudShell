@@ -33,7 +33,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         string? containerRegistry = null,
         ContainerRegistryCredentials? containerRegistryCredentials = null,
         IReadOnlyList<AppSetting>? appSettings = null,
-        bool projectContainerBuild = false)
+        bool projectContainerBuild = false,
+        IReadOnlyList<ResourceVolumeMount>? volumeMounts = null)
     {
         Id = id;
         Name = name;
@@ -66,6 +67,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         UseLaunchSettingsEndpoints = useLaunchSettingsEndpoints;
         ContainerRevision = containerRevision;
         ContainerRegistryCredentials = containerRegistryCredentials;
+        VolumeMounts = volumeMounts ?? [];
     }
 
     public string Id { get; init; }
@@ -125,6 +127,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public string? ContainerRevision { get; init; }
 
     public ContainerRegistryCredentials? ContainerRegistryCredentials { get; init; }
+
+    public IReadOnlyList<ResourceVolumeMount> VolumeMounts { get; init; }
 }
 
 public enum ApplicationLifetime

@@ -4092,6 +4092,7 @@ public sealed class ResourceDeclarationTests
                     .WithRegistry("https://registry.example.com")
                     .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
                     .WithEndpoint("tds", targetPort: 1433, port: 14333)
+                    .WithVolume("postgres-data", "/var/opt/mssql", name: "data")
                     .WithContainerHost("docker:dev")
                     .WithLifetime(ResourceLifetime.Detached);
 
@@ -4130,12 +4131,19 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("https://registry.example.com", workload?.Registry);
         Assert.Equal(3, workload?.Replicas);
         Assert.Equal("3", resource.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
+        Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
         Assert.Equal("registry-user", provider.GetApplication("application:sql")?.ContainerRegistryCredentials?.Username);
         Assert.Equal(
             "REGISTRY_PASSWORD",
             provider.GetApplication("application:sql")?.ContainerRegistryCredentials?.PasswordEnvironmentVariable);
         Assert.Equal("docker:dev", workload?.ContainerHostId);
         Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
+        var mount = Assert.Single(workload?.WorkloadVolumeMounts ?? []);
+        Assert.Equal("postgres-data", mount.VolumeReference);
+        Assert.Equal("/var/opt/mssql", mount.TargetPath);
+        Assert.False(mount.ReadOnly);
+        Assert.Equal("data", mount.Name);
         var port = Assert.Single(workload?.WorkloadPorts ?? []);
         Assert.Equal("tds", port.Name);
         Assert.Equal(1433, port.TargetPort);
@@ -4301,6 +4309,10 @@ public sealed class ResourceDeclarationTests
             Ports:
             [
                 new ServicePort("http", 8080, 5080, "http")
+            ],
+            VolumeMounts:
+            [
+                new ResourceVolumeMount("volume:data", "/data", ReadOnly: true)
             ]);
         var service = new ResourceOrchestratorService(
             "application:api",
@@ -4312,6 +4324,7 @@ public sealed class ResourceDeclarationTests
         Assert.Same(workload, service.Workload);
         Assert.Equal(3, service.Replicas);
         Assert.Equal(workload.WorkloadPorts, service.ServicePorts);
+        Assert.Equal(workload.WorkloadVolumeMounts, service.ServiceVolumeMounts);
         Assert.Empty(service.ServiceDependencies);
         Assert.Empty(service.ServiceNetworks);
     }
