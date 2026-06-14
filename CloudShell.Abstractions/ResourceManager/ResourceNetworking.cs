@@ -125,7 +125,8 @@ public sealed record LoadBalancerResourceDefinition(
     string Provider,
     string? HostResourceId = null,
     IReadOnlyList<LoadBalancerEntrypoint>? Entrypoints = null,
-    IReadOnlyList<LoadBalancerRoute>? Routes = null)
+    IReadOnlyList<LoadBalancerRoute>? Routes = null,
+    ResourceState? RuntimeState = null)
 {
     public IReadOnlyList<LoadBalancerEntrypoint> LoadBalancerEntrypoints =>
         Entrypoints ?? [];
@@ -187,6 +188,23 @@ public interface ILoadBalancerProvider
     bool CanApply(LoadBalancerProviderContext context);
 
     Task<ResourceProcedureResult> ApplyAsync(
+        LoadBalancerProviderContext context,
+        CancellationToken cancellationToken = default);
+}
+
+public interface ILoadBalancerRuntimeProvider : ILoadBalancerProvider
+{
+    bool CanManageRuntime(LoadBalancerResourceDefinition definition);
+
+    Task<ResourceProcedureResult> StartAsync(
+        LoadBalancerProviderContext context,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceProcedureResult> StopAsync(
+        LoadBalancerProviderContext context,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceProcedureResult> DeleteAsync(
         LoadBalancerProviderContext context,
         CancellationToken cancellationToken = default);
 }

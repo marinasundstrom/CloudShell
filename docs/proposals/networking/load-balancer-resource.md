@@ -367,7 +367,9 @@ mappings.
 
 - Finish the provider-resource selection path so `UseProvider(...)` and host
   resolution behave consistently across declared and UI-created resources.
-- Complete Traefik file-config and container-mode apply behavior, including
-  diagnostics for missing hosts, invalid routes, and provider capability gaps.
+- Complete Traefik diagnostics for missing hosts, invalid routes, provider
+  capability gaps, and runtime probes. File-config apply is in place; managed
+  container mode now uses load-balancer Start/Stop and Delete cleanup rather
+  than starting as a side effect of Apply.
 - Add end-to-end validation for TLS, route conflicts, and backend target
   resolution before the design is considered production-ready.

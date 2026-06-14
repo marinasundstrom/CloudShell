@@ -523,8 +523,12 @@ expectations rather than duplicating the task queue.
 - The default Docker-backed container app runner now places app instances on a
   shared user-defined Docker network so convention-named replica containers can
   be resolved by provider-owned runtime infrastructure such as Traefik. The
-  Traefik provider can optionally start a provider-owned runtime container on
-  the selected Docker host when applying load-balancer configuration.
+  Traefik provider can optionally manage a provider-owned runtime container on
+  the selected Docker host. Managed load-balancer resources now expose standard
+  Start/Stop lifecycle actions, persist provider-owned runtime state, apply the
+  latest dynamic configuration during Start, and ask the provider to clean
+  runtime state during resource Delete. Apply remains the configuration
+  reconciliation action.
 - Replicated container apps now own app-specific ingress for the default path.
   The default Docker runner starts a provider-owned Traefik ingress container
   automatically during app start/restart for replicated HTTP/TCP endpoints, and

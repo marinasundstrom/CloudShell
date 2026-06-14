@@ -5,12 +5,18 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Providers.Traefik;
 
-public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) : ILoadBalancerProvider
+public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) :
+    ILoadBalancerProvider,
+    ILoadBalancerRuntimeProvider
 {
     public string ProviderName => "traefik";
 
     public bool CanApply(LoadBalancerProviderContext context) =>
         string.Equals(context.Definition.Provider, ProviderName, StringComparison.OrdinalIgnoreCase);
+
+    public bool CanManageRuntime(LoadBalancerResourceDefinition definition) =>
+        options.ManageRuntimeContainer &&
+        string.Equals(definition.Provider, ProviderName, StringComparison.OrdinalIgnoreCase);
 
     public async Task<ResourceProcedureResult> ApplyAsync(
         LoadBalancerProviderContext context,
@@ -18,26 +24,64 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var configuration = TraefikDynamicConfigurationWriter.Write(context);
-        Directory.CreateDirectory(options.DynamicConfigurationDirectory);
-        var path = Path.Combine(
-            options.DynamicConfigurationDirectory,
-            $"{CreateFileName(context.Definition.Id)}.dynamic.yml");
-        await File.WriteAllTextAsync(path, configuration, Encoding.UTF8, cancellationToken);
+        var path = await WriteDynamicConfigurationAsync(context, cancellationToken);
+        return ResourceProcedureResult.Completed(
+            $"Applied Traefik configuration for {context.Definition.LoadBalancerRoutes.Count.ToString(CultureInfo.InvariantCulture)} route(s) to {path}.");
+    }
 
-        if (options.ManageRuntimeContainer)
+    public async Task<ResourceProcedureResult> StartAsync(
+        LoadBalancerProviderContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var path = await WriteDynamicConfigurationAsync(context, cancellationToken);
+        await StartRuntimeContainerAsync(
+            context,
+            Path.GetFullPath(options.DynamicConfigurationDirectory),
+            cancellationToken);
+
+        return ResourceProcedureResult.Completed(
+            $"Started Traefik container '{CreateContainerName(context.Definition.Id)}' with configuration from {path}.");
+    }
+
+    public async Task<ResourceProcedureResult> StopAsync(
+        LoadBalancerProviderContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        await StopRuntimeContainerAsync(context, cancellationToken);
+        return ResourceProcedureResult.Completed(
+            $"Stopped Traefik container '{CreateContainerName(context.Definition.Id)}'.");
+    }
+
+    public async Task<ResourceProcedureResult> DeleteAsync(
+        LoadBalancerProviderContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        await StopRuntimeContainerAsync(context, cancellationToken);
+        var path = CreateDynamicConfigurationPath(context.Definition.Id);
+        if (File.Exists(path))
         {
-            await StartRuntimeContainerAsync(
-                context,
-                Path.GetFullPath(options.DynamicConfigurationDirectory),
-                cancellationToken);
-
-            return ResourceProcedureResult.Completed(
-                $"Applied Traefik configuration for {context.Definition.LoadBalancerRoutes.Count.ToString(CultureInfo.InvariantCulture)} route(s) to {path} and started Traefik container '{CreateContainerName(context.Definition.Id)}'.");
+            File.Delete(path);
         }
 
         return ResourceProcedureResult.Completed(
-            $"Applied Traefik configuration for {context.Definition.LoadBalancerRoutes.Count.ToString(CultureInfo.InvariantCulture)} route(s) to {path}.");
+            $"Deleted Traefik runtime container '{CreateContainerName(context.Definition.Id)}' and dynamic configuration.");
+    }
+
+    private async Task<string> WriteDynamicConfigurationAsync(
+        LoadBalancerProviderContext context,
+        CancellationToken cancellationToken)
+    {
+        var configuration = TraefikDynamicConfigurationWriter.Write(context);
+        Directory.CreateDirectory(options.DynamicConfigurationDirectory);
+        var path = CreateDynamicConfigurationPath(context.Definition.Id);
+        await File.WriteAllTextAsync(path, configuration, Encoding.UTF8, cancellationToken);
+        return path;
     }
 
     private async Task StartRuntimeContainerAsync(
@@ -87,6 +131,15 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
             arguments,
             cancellationToken);
     }
+
+    private Task StopRuntimeContainerAsync(
+        LoadBalancerProviderContext context,
+        CancellationToken cancellationToken) =>
+        RunDockerCommandAsync(
+            context.HostResource,
+            ["rm", "-f", CreateContainerName(context.Definition.Id)],
+            cancellationToken,
+            ignoreErrorContaining: "No such container");
 
     private static async Task RunDockerCommandAsync(
         Resource? hostResource,
@@ -148,6 +201,11 @@ public sealed class TraefikLoadBalancerProvider(TraefikProviderOptions options) 
 
     private static string CreateContainerName(string resourceId) =>
         $"cloudshell-{CreateFileName(resourceId)}";
+
+    private string CreateDynamicConfigurationPath(string resourceId) =>
+        Path.Combine(
+            options.DynamicConfigurationDirectory,
+            $"{CreateFileName(resourceId)}.dynamic.yml");
 
     private static string CreateFileName(string resourceId)
     {

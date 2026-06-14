@@ -192,9 +192,18 @@ public sealed class PlatformResourceProvider(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default)
     {
+        ResourceProcedureResult? cleanupResult = null;
+        if (string.Equals(context.Resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            cleanupResult = await DeleteLoadBalancerRuntimeAsync(context, cancellationToken);
+        }
+
         store.Remove(context.Resource.Id);
         await context.Registrations.RemoveAsync(context.Resource.Id, cancellationToken);
-        return ResourceProcedureResult.Completed("Platform resource registration removed.");
+        return ResourceProcedureResult.Completed(
+            cleanupResult is null
+                ? "Platform resource registration removed."
+                : $"{cleanupResult.Message} Platform resource registration removed.");
     }
 
     public Task<ResourceProcedureResult> ExecuteActionAsync(
@@ -222,6 +231,12 @@ public sealed class PlatformResourceProvider(
             }
 
             return ApplyLoadBalancerConfigurationAsync(context, cancellationToken);
+        }
+
+        if (string.Equals(context.Resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) &&
+            action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop)
+        {
+            return ExecuteLoadBalancerLifecycleAsync(context, action, cancellationToken);
         }
 
         throw new NotSupportedException(
@@ -488,28 +503,83 @@ public sealed class PlatformResourceProvider(
         ResourceProcedureContext context,
         CancellationToken cancellationToken)
     {
+        var providerContext = CreateLoadBalancerProviderContext(context);
+        var provider = loadBalancerProviders.FirstOrDefault(candidate =>
+            string.Equals(candidate.ProviderName, providerContext.Definition.Provider, StringComparison.OrdinalIgnoreCase) &&
+            candidate.CanApply(providerContext));
+        if (provider is null)
+        {
+            throw new InvalidOperationException(
+                $"No activated load balancer provider can apply provider '{providerContext.Definition.Provider}' for resource '{context.Resource.Id}'.");
+        }
+
+        return await provider.ApplyAsync(providerContext, cancellationToken);
+    }
+
+    private async Task<ResourceProcedureResult> ExecuteLoadBalancerLifecycleAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        var providerContext = CreateLoadBalancerProviderContext(context);
+        var provider = GetRuntimeProvider(providerContext)
+            ?? throw new InvalidOperationException(
+                $"No activated load balancer provider can manage runtime for provider '{providerContext.Definition.Provider}' on resource '{context.Resource.Id}'.");
+
+        var result = action.Kind switch
+        {
+            ResourceActionKind.Start => await provider.StartAsync(providerContext, cancellationToken),
+            ResourceActionKind.Stop => await provider.StopAsync(providerContext, cancellationToken),
+            _ => throw new NotSupportedException(
+                $"Load balancer lifecycle action '{action.DisplayName}' is not supported.")
+        };
+
+        store.SaveLoadBalancer(
+            providerContext.Definition with
+            {
+                RuntimeState = action.Kind == ResourceActionKind.Start
+                    ? ResourceState.Running
+                    : ResourceState.Stopped
+            });
+
+        return result;
+    }
+
+    private async Task<ResourceProcedureResult?> DeleteLoadBalancerRuntimeAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken)
+    {
+        var providerContext = CreateLoadBalancerProviderContext(context);
+        var provider = GetRuntimeProvider(providerContext);
+        if (provider is null)
+        {
+            return null;
+        }
+
+        return await provider.DeleteAsync(providerContext, cancellationToken);
+    }
+
+    private LoadBalancerProviderContext CreateLoadBalancerProviderContext(ResourceProcedureContext context)
+    {
         var resourceManager = context.ResourceManager
             ?? throw new InvalidOperationException("Resource Manager is required to apply load balancer configuration.");
         var definition = store.GetLoadBalancer(context.Resource.Id)
             ?? throw new InvalidOperationException($"Load balancer resource '{context.Resource.Id}' is not configured.");
         var host = ResolveLoadBalancerHost(resourceManager, definition);
-        var providerContext = new LoadBalancerProviderContext(
+        return new LoadBalancerProviderContext(
             context.Resource,
             definition,
             host,
             ResolveLoadBalancerRoutes(resourceManager, definition),
             resourceManager);
-        var provider = loadBalancerProviders.FirstOrDefault(candidate =>
-            string.Equals(candidate.ProviderName, definition.Provider, StringComparison.OrdinalIgnoreCase) &&
-            candidate.CanApply(providerContext));
-        if (provider is null)
-        {
-            throw new InvalidOperationException(
-                $"No activated load balancer provider can apply provider '{definition.Provider}' for resource '{context.Resource.Id}'.");
-        }
-
-        return await provider.ApplyAsync(providerContext, cancellationToken);
     }
+
+    private ILoadBalancerRuntimeProvider? GetRuntimeProvider(LoadBalancerProviderContext context) =>
+        loadBalancerProviders
+            .OfType<ILoadBalancerRuntimeProvider>()
+            .FirstOrDefault(candidate =>
+                string.Equals(candidate.ProviderName, context.Definition.Provider, StringComparison.OrdinalIgnoreCase) &&
+                candidate.CanManageRuntime(context.Definition));
 
     private static Resource? ResolveLoadBalancerHost(
         IResourceManagerStore resourceManager,
@@ -723,21 +793,23 @@ public sealed class PlatformResourceProvider(
     private Resource CreateLoadBalancerResource(LoadBalancerResourceDefinition definition)
     {
         var endpoints = CreateLoadBalancerEndpoints(definition);
+        var hasRuntimeProvider = HasRuntimeProvider(definition);
+        var state = hasRuntimeProvider
+            ? definition.RuntimeState ?? ResourceState.Stopped
+            : ResourceState.Running;
         return new(
             definition.Id,
             definition.Name,
             "Load Balancer",
             "CloudShell",
             "logical",
-            ResourceState.Running,
+            state,
             endpoints,
             $"{definition.Provider} {definition.LoadBalancerRoutes.Count} route(s)",
             DateTimeOffset.UtcNow,
             CreateLoadBalancerDependencies(definition),
             TypeId: LoadBalancerResourceType,
-            Actions: definition.LoadBalancerRoutes.Count > 0
-                ? [ApplyLoadBalancerConfigurationAction]
-                : null,
+            Actions: CreateLoadBalancerActions(definition, state, hasRuntimeProvider),
             ResourceClass: ResourceClass.Network,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -760,6 +832,34 @@ public sealed class PlatformResourceProvider(
             Capabilities: CreateLoadBalancerCapabilities(definition),
             LoadBalancerRoutes: definition.LoadBalancerRoutes);
     }
+
+    private IReadOnlyList<ResourceAction> CreateLoadBalancerActions(
+        LoadBalancerResourceDefinition definition,
+        ResourceState state,
+        bool hasRuntimeProvider)
+    {
+        var actions = new List<ResourceAction>();
+        if (hasRuntimeProvider)
+        {
+            actions.Add(state is ResourceState.Running or ResourceState.Starting
+                ? ResourceAction.Stop
+                : ResourceAction.Start);
+        }
+
+        if (definition.LoadBalancerRoutes.Count > 0)
+        {
+            actions.Add(ApplyLoadBalancerConfigurationAction);
+        }
+
+        return actions;
+    }
+
+    private bool HasRuntimeProvider(LoadBalancerResourceDefinition definition) =>
+        loadBalancerProviders
+            .OfType<ILoadBalancerRuntimeProvider>()
+            .Any(provider =>
+                string.Equals(provider.ProviderName, definition.Provider, StringComparison.OrdinalIgnoreCase) &&
+                provider.CanManageRuntime(definition));
 
     private IReadOnlyList<ResourceEndpoint> CreateNetworkEndpoints(NetworkResourceDefinition definition)
     {
@@ -1010,6 +1110,7 @@ public sealed class PlatformResourceProvider(
                 ? "traefik"
                 : definition.Provider.Trim().ToLowerInvariant(),
             HostResourceId = NormalizeNullable(definition.HostResourceId),
+            RuntimeState = NormalizeLoadBalancerRuntimeState(definition.RuntimeState),
             Entrypoints = definition.LoadBalancerEntrypoints
                 .Where(entrypoint => !string.IsNullOrWhiteSpace(entrypoint.Name))
                 .Select(entrypoint => entrypoint with
@@ -1047,6 +1148,13 @@ public sealed class PlatformResourceProvider(
                 .DistinctBy(route => route.Id, StringComparer.OrdinalIgnoreCase)
                 .ToArray()
         };
+
+    private static ResourceState? NormalizeLoadBalancerRuntimeState(ResourceState? state) =>
+        state is ResourceState.Running or ResourceState.Starting
+            ? ResourceState.Running
+            : state is ResourceState.Stopped
+                ? ResourceState.Stopped
+                : state;
 
     private static string GetNetworkResourceType(NetworkResourceDefinition definition) =>
         definition.Kind == NetworkResourceKind.Virtual

@@ -322,6 +322,7 @@ public sealed class PlatformResourceStore
                 ? "traefik"
                 : definition.Provider.Trim().ToLowerInvariant(),
             HostResourceId = NormalizeNullable(definition.HostResourceId),
+            RuntimeState = NormalizeLoadBalancerRuntimeState(definition.RuntimeState),
             Entrypoints = definition.LoadBalancerEntrypoints
                 .Where(entrypoint => !string.IsNullOrWhiteSpace(entrypoint.Name))
                 .Select(entrypoint => entrypoint with
@@ -333,6 +334,13 @@ public sealed class PlatformResourceStore
                 .ToArray(),
             Routes = NormalizeLoadBalancerRoutes(definition.LoadBalancerRoutes)
         };
+
+    private static ResourceState? NormalizeLoadBalancerRuntimeState(ResourceState? state) =>
+        state is ResourceState.Running or ResourceState.Starting
+            ? ResourceState.Running
+            : state is ResourceState.Stopped
+                ? ResourceState.Stopped
+                : state;
 
     private static IReadOnlyList<LoadBalancerRoute> NormalizeLoadBalancerRoutes(
         IReadOnlyList<LoadBalancerRoute> routes) =>

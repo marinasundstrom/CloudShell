@@ -116,6 +116,70 @@ public sealed class PlatformResourceProviderLoadBalancerTests
         Assert.Contains("address: \"postgres.internal:5432\"", config);
     }
 
+    [Fact]
+    public async Task ExecuteActionAsync_StartsAndStopsLoadBalancerRuntimeThroughProvider()
+    {
+        var store = CreatePlatformStore();
+        var runtimeProvider = new TestLoadBalancerRuntimeProvider();
+        var provider = new PlatformResourceProvider(
+            store,
+            new PlatformResourceOptions(),
+            loadBalancerProviders: [runtimeProvider]);
+        var definition = CreateRuntimeLoadBalancerDefinition();
+        var registrations = new TestResourceRegistrationStore([]);
+        await provider.SetupLoadBalancerAsync(definition, null, registrations);
+
+        var loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        Assert.Equal(ResourceState.Stopped, loadBalancer.State);
+        Assert.Contains(loadBalancer.ResourceActions, action => action.Id == ResourceActionIds.Start);
+
+        var resourceManager = CreateRuntimeResourceManager(loadBalancer);
+        var startResult = await provider.ExecuteActionAsync(
+            new ResourceProcedureContext(loadBalancer, null, null, registrations, resourceManager),
+            loadBalancer.StartAction!);
+
+        Assert.Equal("Started test load balancer runtime.", startResult.Message);
+        var started = Assert.Single(runtimeProvider.Started);
+        Assert.Single(started.Routes);
+        Assert.Equal(ResourceState.Running, store.GetLoadBalancer(definition.Id)!.RuntimeState);
+
+        loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        Assert.Equal(ResourceState.Running, loadBalancer.State);
+        Assert.Contains(loadBalancer.ResourceActions, action => action.Id == ResourceActionIds.Stop);
+
+        var stopResult = await provider.ExecuteActionAsync(
+            new ResourceProcedureContext(loadBalancer, null, null, registrations, resourceManager),
+            loadBalancer.StopAction!);
+
+        Assert.Equal("Stopped test load balancer runtime.", stopResult.Message);
+        Assert.Single(runtimeProvider.Stopped);
+        Assert.Equal(ResourceState.Stopped, store.GetLoadBalancer(definition.Id)!.RuntimeState);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_CleansLoadBalancerRuntimeBeforeRemovingRegistration()
+    {
+        var store = CreatePlatformStore();
+        var runtimeProvider = new TestLoadBalancerRuntimeProvider();
+        var provider = new PlatformResourceProvider(
+            store,
+            new PlatformResourceOptions(),
+            loadBalancerProviders: [runtimeProvider]);
+        var definition = CreateRuntimeLoadBalancerDefinition();
+        var registrations = new TestResourceRegistrationStore([]);
+        await provider.SetupLoadBalancerAsync(definition, null, registrations);
+        var loadBalancer = provider.GetResources().Single(resource => resource.Id == definition.Id);
+        var resourceManager = CreateRuntimeResourceManager(loadBalancer);
+
+        var result = await provider.DeleteAsync(
+            new ResourceProcedureContext(loadBalancer, null, null, registrations, resourceManager));
+
+        Assert.Contains("Deleted test load balancer runtime.", result.Message);
+        Assert.Null(store.GetLoadBalancer(definition.Id));
+        Assert.Null(registrations.GetRegistration(definition.Id));
+        Assert.Single(runtimeProvider.Deleted);
+    }
+
     private static Resource CreateResource(
         string id,
         string name,
@@ -133,6 +197,49 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             DateTimeOffset.UtcNow,
             [],
             Attributes: attributes);
+
+    private static PlatformResourceStore CreatePlatformStore()
+    {
+        var contentRoot = CreateTempDirectory();
+        return new PlatformResourceStore(
+            new PlatformResourceOptions
+            {
+                DefinitionsPath = "platform-resources.json"
+            },
+            new TestHostEnvironment(contentRoot));
+    }
+
+    private static LoadBalancerResourceDefinition CreateRuntimeLoadBalancerDefinition() =>
+        new(
+            "load-balancer:runtime",
+            "Runtime",
+            "test-runtime",
+            HostResourceId: "docker:engine",
+            Entrypoints: [new LoadBalancerEntrypoint("web", ResourceEndpointProtocol.Http, 8080)],
+            Routes:
+            [
+                new LoadBalancerRoute(
+                    "web-app",
+                    "Web app",
+                    LoadBalancerRouteKind.Http,
+                    "web",
+                    new LoadBalancerRouteMatch("app.local", "/"),
+                    new LoadBalancerRouteTarget("application:web", "http"))
+            ]);
+
+    private static IResourceManagerStore CreateRuntimeResourceManager(Resource loadBalancer) =>
+        new TestResourceManagerStore(
+            [
+                loadBalancer,
+                CreateResource(
+                    "docker:engine",
+                    "Local Docker",
+                    [ResourceEndpoint.FromAddress("engine", "unix:///var/run/docker.sock", "docker")]),
+                CreateResource(
+                    "application:web",
+                    "Web",
+                    [ResourceEndpoint.Http("http", "web.internal", 8080)])
+            ]);
 
     private static string CreateTempDirectory()
     {
@@ -225,5 +332,49 @@ public sealed class PlatformResourceProviderLoadBalancerTests
 
         public IFileProvider ContentRootFileProvider { get; set; } =
             new PhysicalFileProvider(contentRootPath);
+    }
+
+    private sealed class TestLoadBalancerRuntimeProvider : ILoadBalancerRuntimeProvider
+    {
+        public List<LoadBalancerProviderContext> Started { get; } = [];
+
+        public List<LoadBalancerProviderContext> Stopped { get; } = [];
+
+        public List<LoadBalancerProviderContext> Deleted { get; } = [];
+
+        public string ProviderName => "test-runtime";
+
+        public bool CanApply(LoadBalancerProviderContext context) => true;
+
+        public bool CanManageRuntime(LoadBalancerResourceDefinition definition) => true;
+
+        public Task<ResourceProcedureResult> ApplyAsync(
+            LoadBalancerProviderContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ResourceProcedureResult.Completed("Applied test load balancer configuration."));
+
+        public Task<ResourceProcedureResult> StartAsync(
+            LoadBalancerProviderContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Started.Add(context);
+            return Task.FromResult(ResourceProcedureResult.Completed("Started test load balancer runtime."));
+        }
+
+        public Task<ResourceProcedureResult> StopAsync(
+            LoadBalancerProviderContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Stopped.Add(context);
+            return Task.FromResult(ResourceProcedureResult.Completed("Stopped test load balancer runtime."));
+        }
+
+        public Task<ResourceProcedureResult> DeleteAsync(
+            LoadBalancerProviderContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Deleted.Add(context);
+            return Task.FromResult(ResourceProcedureResult.Completed("Deleted test load balancer runtime."));
+        }
     }
 }

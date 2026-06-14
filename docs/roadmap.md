@@ -239,9 +239,11 @@ listed here before pulling in broader proposal work.
   credentials.
 - Add provider-owned Docker runtime support for owner-scoped implementation
   containers after the resolver lands.
-- Continue Traefik container mode beyond apply-time startup by tying the
-  implementation container to load-balancer start, stop, delete, probe, and
-  cleanup on the selected host resource.
+- Continue Traefik container mode beyond apply-time startup. Load-balancer
+  resources now expose provider-owned Start/Stop lifecycle when the selected
+  provider manages a runtime container, persist the runtime state, and ask the
+  provider to clean runtime state during Delete. Remaining work is probe,
+  shutdown cleanup, and richer diagnostics on the selected host resource.
 - Extend app-owned ingress infrastructure with stop/delete lifecycle
   projection, provider-owned status, and diagnostics for replicated HTTP/TCP
   endpoints.
