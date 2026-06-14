@@ -3567,6 +3567,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("logical", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsProvider]);
         Assert.Equal("1", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsRecordCount]);
         Assert.True(zoneResource.HasCapability(ResourceCapabilityIds.NetworkingDnsZone));
+        Assert.Empty(zoneResource.ResourceActions);
 
         var mappingResource = resources["dns:local:name:api-local"];
         Assert.Equal(PlatformResourceProvider.NameMappingResourceType, mappingResource.EffectiveTypeId);
@@ -3616,6 +3617,12 @@ public sealed class ResourceDeclarationTests
 
         var zoneResource = resources["dns:local"];
         Assert.Equal("hosts-file", zoneResource.ResourceAttributes[ResourceAttributeNames.DnsProvider]);
+        var action = Assert.Single(zoneResource.ResourceActions);
+        Assert.Equal(PlatformResourceProvider.ReconcileNameMappingsActionId, action.Id);
+        Assert.Equal("Reconcile name mappings", action.DisplayName);
+        Assert.Equal(
+            NetworkResourceOperationPermissions.ReconcileNameMappings,
+            action.RequiredPermission);
 
         var mappingResource = resources["dns:local:name:api-local"];
         Assert.Equal(
@@ -3624,6 +3631,151 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             "DNS provider 'hosts-file' is responsible for publishing this name.",
             mappingResource.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatusReason]);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_ReconcilesDnsNameMappingsWithActivatedProvider()
+    {
+        var definition = new DnsZoneResourceDefinition(
+            "dns:local",
+            "Local DNS",
+            "local",
+            Provider: "hosts-file",
+            Mappings:
+            [
+                new DnsNameMappingDefinition(
+                    "dns:local:name:api-local",
+                    "api.local",
+                    "api.local",
+                    "application:api",
+                    "http")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredDnsZones.Add(new DeclaredDnsZoneResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var namePublisher = new TestNamePublishingProvider("hosts-file");
+        var provider = new PlatformResourceProvider(
+            store,
+            options,
+            namePublishingProviders: [namePublisher]);
+        var zone = Assert.Single(provider.GetResources(), resource => resource.Id == "dns:local");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                zone,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080")
+            ],
+            [provider]);
+
+        var result = await provider.ExecuteActionAsync(
+            new ResourceProcedureContext(
+                zone,
+                new ResourceRegistration(zone.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                null,
+                new TestResourceRegistrationStore([]),
+                resourceManager),
+            zone.ResourceActions.Single());
+
+        Assert.Equal("Reconciled name mappings.", result.Message);
+        Assert.NotNull(namePublisher.Context);
+        Assert.Equal("dns:local", namePublisher.Context.Definition.Id);
+        Assert.Equal("dns:local", namePublisher.Context.DnsZoneResource.Id);
+        Assert.Empty(namePublisher.Context.PublisherResources);
+        Assert.Equal("application:api", Assert.Single(namePublisher.Context.Definition.DnsNameMappings).TargetResourceId);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_ReturnsUnavailableReasonWhenDnsPublisherIsMissing()
+    {
+        var definition = new DnsZoneResourceDefinition(
+            "dns:local",
+            "Local DNS",
+            "local",
+            Provider: "hosts-file",
+            Mappings:
+            [
+                new DnsNameMappingDefinition(
+                    "dns:local:name:api-local",
+                    "api.local",
+                    "api.local",
+                    "application:api",
+                    "http")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredDnsZones.Add(new DeclaredDnsZoneResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var zone = Assert.Single(provider.GetResources(), resource => resource.Id == "dns:local");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                zone,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080")
+            ],
+            [provider]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                zone,
+                new ResourceRegistration(zone.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                null,
+                new TestResourceRegistrationStore([]),
+                resourceManager),
+            zone.ResourceActions.Single());
+
+        Assert.Equal(
+            "No activated DNS publishing provider can reconcile name mappings for DNS zone resource 'dns:local'.",
+            reason);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_ReturnsUnavailableReasonWhenDnsNameTargetEndpointIsMissing()
+    {
+        var definition = new DnsZoneResourceDefinition(
+            "dns:local",
+            "Local DNS",
+            "local",
+            Provider: "hosts-file",
+            Mappings:
+            [
+                new DnsNameMappingDefinition(
+                    "dns:local:name:api-local",
+                    "api.local",
+                    "api.local",
+                    "application:api",
+                    "https")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredDnsZones.Add(new DeclaredDnsZoneResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(
+            store,
+            options,
+            namePublishingProviders: [new TestNamePublishingProvider("hosts-file")]);
+        var zone = Assert.Single(provider.GetResources(), resource => resource.Id == "dns:local");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                zone,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080")
+            ],
+            [provider]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                zone,
+                new ResourceRegistration(zone.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                null,
+                new TestResourceRegistrationStore([]),
+                resourceManager),
+            zone.ResourceActions.Single());
+
+        Assert.Equal(
+            "DNS zone resource 'dns:local' name mapping 'dns:local:name:api-local' target endpoint 'https' could not be found on resource 'application:api'.",
+            reason);
     }
 
     [Fact]
@@ -6036,6 +6188,25 @@ public sealed class ResourceDeclarationTests
         {
             Context = context;
             return Task.FromResult(ResourceProcedureResult.Completed("Provisioned."));
+        }
+    }
+
+    private sealed class TestNamePublishingProvider(string providerName) : INamePublishingProvider
+    {
+        public string ProviderName => providerName;
+
+        public DnsNamePublishingContext? Context { get; private set; }
+
+        public bool CanPublish(DnsNamePublishingContext context) =>
+            string.Equals(context.Definition.Provider, ProviderName, StringComparison.OrdinalIgnoreCase) ||
+            context.PublisherResources.Count > 0;
+
+        public Task<ResourceProcedureResult> ReconcileAsync(
+            DnsNamePublishingContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Context = context;
+            return Task.FromResult(ResourceProcedureResult.Completed("Reconciled name mappings."));
         }
     }
 

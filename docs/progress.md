@@ -139,9 +139,12 @@ expectations rather than duplicating the task queue.
   optional; `null` means no lifecycle status is produced, while `Unknown`
   remains the value for lifecycle-aware resources whose provider cannot
   determine current status. Provider-backed DNS publication should instead use
-  an explicit `reconcileNameMappings` action and a name-publishing provider
-  contract so operators can re-apply external DNS settings after host restarts
-  and inspect applied, unknown, drifted, or failed materialization state.
+  an explicit `reconcileNameMappings` action. The initial
+  `INamePublishingProvider` contract and DNS zone action are now in place for
+  zones with provider intent, including action-availability reasons when the
+  selected publisher is invalid or no activated implementation can reconcile
+  it. Concrete host/DNS publisher implementations and observed applied,
+  unknown, drifted, or failed materialization state remain follow-up work.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the

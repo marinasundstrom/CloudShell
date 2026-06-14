@@ -173,8 +173,12 @@ listed here before pulling in broader proposal work.
   create a DNS Zone with an optional initial name mapping, and add standalone
   name mappings to existing zones. Name mappings are directly registered
   platform children so they can be deleted through the normal Resource Manager
-  delete flow while updating the parent zone. Next it needs provider runtime
-  publish diagnostics and update UI for existing name mappings when the MVP
+  delete flow while updating the parent zone. DNS zones with provider intent
+  now expose a permissioned `reconcileNameMappings` action through the initial
+  `INamePublishingProvider` contract, with availability reasons for missing
+  activated publisher implementations. Next it needs a concrete local
+  publisher when a sample requires real name publication, provider runtime
+  publish diagnostics, and update UI for existing name mappings when the MVP
   management flow needs it.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
@@ -406,10 +410,11 @@ listed here before pulling in broader proposal work.
 - Add the first DNS/name mapping resource projection and UI path for local
   development names, with provider-materialization warnings when no capable
   name publisher is active. DNS/name resources should remain lifecycle-less,
-  but provider-backed DNS publication needs an explicit
+  and provider-backed DNS publication now has the initial
   `reconcileNameMappings` action and name-publishing provider contract so
-  operators can force re-apply expected records and see whether external DNS
-  state is applied, unknown, drifted, or failed after host restarts.
+  operators can force re-apply expected records. Concrete publisher
+  implementations and observed external DNS state such as applied, unknown,
+  drifted, or failed remain the next provider-specific work.
 - Continue load balancer support beyond the first Traefik file-config provider.
   Generated Resource Manager diagnostics now cover missing selected host
   resources and missing route target resources/endpoints; next add provider

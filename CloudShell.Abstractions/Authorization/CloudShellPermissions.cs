@@ -22,6 +22,9 @@ public static class NetworkResourceOperationPermissions
 {
     public const string ReconcileEndpointMappings =
         "CloudShell.Network/networks/reconcileEndpointMappings/action";
+
+    public const string ReconcileNameMappings =
+        "CloudShell.Network/dnsZones/reconcileNameMappings/action";
 }
 
 public static class LoadBalancerResourceOperationPermissions
@@ -93,6 +96,8 @@ public static class CloudShellPermissions
         {
             public const string ReconcileEndpointMappings =
                 NetworkResourceOperationPermissions.ReconcileEndpointMappings;
+            public const string ReconcileNameMappings =
+                NetworkResourceOperationPermissions.ReconcileNameMappings;
             public const string ApplyLoadBalancerConfiguration =
                 LoadBalancerResourceOperationPermissions.ApplyConfiguration;
         }

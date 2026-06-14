@@ -10,7 +10,10 @@ The first MVP slice projects logical `cloudshell.dnsZone` resources and child
 `cloudshell.nameMapping` resources from programmatic declarations. This gives
 Resource Manager an inspectable model for host names, target resources,
 endpoint names, exposure scope, and provider intent without requiring
-CloudShell to publish DNS records yet.
+CloudShell to publish DNS records yet. DNS zones with provider intent now
+advertise a provider-backed `reconcileNameMappings` action through the initial
+`INamePublishingProvider` contract, but no built-in DNS publisher has been
+selected as the default implementation.
 
 ## Problem
 
@@ -361,10 +364,11 @@ resources, or both, depending on provider ownership. The action should:
 * refresh projected materialization state after the provider observes the
   external system
 
-The provider contract should be explicit, for example a future
-`INamePublishingProvider` or equivalent provider-owned API. Until that exists,
-CloudShell should keep logical-only mappings honest by showing that no
-publisher is selected rather than exposing a no-op apply button.
+The provider contract is explicit through `INamePublishingProvider`. Logical
+zones without a selected publisher stay honest by showing that no publisher is
+selected rather than exposing a no-op apply button. Provider-backed zones can
+surface `reconcileNameMappings`; action availability reports missing provider
+implementations or invalid publisher resources.
 
 Projected DNS materialization should distinguish:
 
@@ -425,28 +429,34 @@ decides later whether and how a specific name is materialized.
    publisher capability. DNS zones and name mappings are registered as
    inspectable Resource Manager resource types. Resource Manager can now
    create a DNS Zone, optionally include one initial name mapping, and add
-   standalone name mappings to existing zones; update/delete editing remains
+   standalone name mappings to existing zones; name mappings can be deleted
+   through the normal Resource Manager delete flow; update editing remains
    deferred.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
    Done for logical-only DNS name mappings without a selected publisher.
 8. Add sample declarations for local DNS-style mappings. Done in the Load
    Balancer sample for `app.local` and `api.local` targeting the public
    load-balancer frontend.
-9. Add provider-backed examples for load balancer and virtual network integration.
-10. Add a local development provider for host-based name publication.
-11. Add a post-MVP sample that uses network-level service discovery through a
+9. Add provider-backed reconciliation infrastructure. Initial
+   `INamePublishingProvider` and `reconcileNameMappings` action support is in
+   place for DNS zones with provider intent. The action validates conflicts,
+   selected publisher resources, and missing activated publisher
+   implementations before delegating to the provider.
+10. Add provider-backed examples for load balancer and virtual network integration.
+11. Add a local development provider for host-based name publication.
+12. Add a post-MVP sample that uses network-level service discovery through a
     provider such as a local registry or Eureka-like service.
 
 ## Remaining Tasks
 
-* Add Resource Manager update/delete authoring UI for existing name mappings
-  owned by a DNS zone.
+* Add Resource Manager update authoring UI for existing name mappings owned by
+  a DNS zone.
 * Add provider-specific publish/materialization diagnostics from DNS provider
   runtime state.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add create/update blocking or guided resolution for duplicate names in the
   same scope when DNS/name mappings are authored through Resource Manager.
-* Add local host-provider implementation.
+* Add local host-provider implementation for `INamePublishingProvider`.
 * Add provider diagnostics for names that cannot be published.
 * Add UI affordances for authoring and resolving name mappings.
 * Add integration examples with virtual networks and ingress resources.

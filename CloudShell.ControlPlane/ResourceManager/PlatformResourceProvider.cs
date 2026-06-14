@@ -12,7 +12,8 @@ public sealed class PlatformResourceProvider(
     PlatformResourceOptions options,
     IHostLocalNetworkEnvironment? hostLocalNetworkEnvironment = null,
     IEnumerable<IResourceEndpointMappingProvisioner>? endpointMappingProvisioners = null,
-    IEnumerable<ILoadBalancerProvider>? loadBalancerProviders = null) :
+    IEnumerable<ILoadBalancerProvider>? loadBalancerProviders = null,
+    IEnumerable<INamePublishingProvider>? namePublishingProviders = null) :
     IResourceProvider,
     IResourceCreationProvider,
     IResourceProcedureProvider,
@@ -34,6 +35,7 @@ public sealed class PlatformResourceProvider(
     public const string DnsZoneResourceType = "cloudshell.dnsZone";
     public const string NameMappingResourceType = "cloudshell.nameMapping";
     public const string ReconcileEndpointMappingsActionId = "reconcileEndpointMappings";
+    public const string ReconcileNameMappingsActionId = "reconcileNameMappings";
     public const string ApplyLoadBalancerConfigurationActionId = "applyLoadBalancerConfiguration";
     private readonly IHostLocalNetworkEnvironment hostLocalNetwork =
         hostLocalNetworkEnvironment ?? new HostLocalNetworkEnvironment();
@@ -41,6 +43,8 @@ public sealed class PlatformResourceProvider(
         endpointMappingProvisioners?.ToArray() ?? [];
     private readonly IReadOnlyList<ILoadBalancerProvider> loadBalancerProviders =
         loadBalancerProviders?.ToArray() ?? [];
+    private readonly IReadOnlyList<INamePublishingProvider> namePublishingProviders =
+        namePublishingProviders?.ToArray() ?? [];
 
     private static readonly ResourceAction ReconcileEndpointMappingsAction = new(
         ReconcileEndpointMappingsActionId,
@@ -53,6 +57,12 @@ public sealed class PlatformResourceProvider(
         "Apply load balancer configuration",
         Description: "Validate and materialize load balancer routes for the selected provider.",
         RequiredPermission: LoadBalancerResourceOperationPermissions.ApplyConfiguration);
+
+    private static readonly ResourceAction ReconcileNameMappingsAction = new(
+        ReconcileNameMappingsActionId,
+        "Reconcile name mappings",
+        Description: "Validate and apply name mappings for the DNS zone.",
+        RequiredPermission: NetworkResourceOperationPermissions.ReconcileNameMappings);
 
     public string Id => ProviderId;
 
@@ -496,6 +506,17 @@ public sealed class PlatformResourceProvider(
             return ApplyLoadBalancerConfigurationAsync(context, cancellationToken);
         }
 
+        if (string.Equals(action.Id, ReconcileNameMappingsActionId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.Equals(context.Resource.EffectiveTypeId, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Name mappings can only be reconciled for DNS zone resources.");
+            }
+
+            return ReconcileNameMappingsAsync(context, cancellationToken);
+        }
+
         if (string.Equals(context.Resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) &&
             action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop)
         {
@@ -510,6 +531,8 @@ public sealed class PlatformResourceProvider(
         (string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase) &&
             (string.Equals(action.Id, ApplyLoadBalancerConfigurationActionId, StringComparison.OrdinalIgnoreCase) ||
                 action.Kind is ResourceActionKind.Start or ResourceActionKind.Stop)) ||
+        (string.Equals(resource.EffectiveTypeId, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(action.Id, ReconcileNameMappingsActionId, StringComparison.OrdinalIgnoreCase)) ||
         (IsNetworkResourceType(resource.EffectiveTypeId) &&
             string.Equals(action.Id, ReconcileEndpointMappingsActionId, StringComparison.OrdinalIgnoreCase));
 
@@ -523,6 +546,12 @@ public sealed class PlatformResourceProvider(
             string.Equals(action.Id, ReconcileEndpointMappingsActionId, StringComparison.OrdinalIgnoreCase))
         {
             return Task.FromResult(GetEndpointMappingUnavailableReason(context));
+        }
+
+        if (string.Equals(context.Resource.EffectiveTypeId, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(action.Id, ReconcileNameMappingsActionId, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(GetNameMappingUnavailableReason(context));
         }
 
         if (!string.Equals(context.Resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
@@ -988,6 +1017,137 @@ public sealed class PlatformResourceProvider(
         }
 
         return await provider.ApplyAsync(providerContext, cancellationToken);
+    }
+
+    private async Task<ResourceProcedureResult> ReconcileNameMappingsAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken)
+    {
+        var providerContext = CreateNamePublishingContext(context);
+        if (providerContext.Definition.DnsNameMappings.Count == 0)
+        {
+            return ResourceProcedureResult.Completed("No name mappings to reconcile.");
+        }
+
+        ValidateNamePublishingContext(providerContext);
+        var provider = GetNamePublishingProvider(providerContext);
+        if (provider is null)
+        {
+            throw new InvalidOperationException(
+                $"No activated DNS publishing provider can reconcile name mappings for DNS zone resource '{context.Resource.Id}'.");
+        }
+
+        return await provider.ReconcileAsync(providerContext, cancellationToken);
+    }
+
+    private string? GetNameMappingUnavailableReason(ResourceProcedureContext context)
+    {
+        DnsNamePublishingContext providerContext;
+        try
+        {
+            providerContext = CreateNamePublishingContext(context);
+            ValidateNamePublishingContext(providerContext);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return exception.Message;
+        }
+
+        if (providerContext.Definition.DnsNameMappings.Count == 0 ||
+            !ShouldOfferNameMappingReconcile(providerContext.Definition))
+        {
+            return null;
+        }
+
+        return GetNamePublishingProvider(providerContext) is null
+            ? $"No activated DNS publishing provider can reconcile name mappings for DNS zone resource '{context.Resource.Id}'."
+            : null;
+    }
+
+    private DnsNamePublishingContext CreateNamePublishingContext(ResourceProcedureContext context)
+    {
+        var resourceManager = context.ResourceManager
+            ?? throw new InvalidOperationException("Resource Manager is required to reconcile name mappings.");
+        var definition = store.GetDnsZone(context.Resource.Id)
+            ?? throw new InvalidOperationException($"DNS zone resource '{context.Resource.Id}' is not configured.");
+        var publisherResources = ResolveNamePublisherResources(resourceManager, definition);
+        return new DnsNamePublishingContext(
+            context.Resource,
+            definition,
+            publisherResources,
+            resourceManager);
+    }
+
+    private static IReadOnlyList<Resource> ResolveNamePublisherResources(
+        IResourceManagerStore resourceManager,
+        DnsZoneResourceDefinition definition)
+    {
+        var publisherIds = definition.DnsNameMappings
+            .Select(mapping => mapping.ProviderResourceId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var publisherResources = new List<Resource>();
+        foreach (var publisherId in publisherIds)
+        {
+            var resource = resourceManager.GetResource(publisherId)
+                ?? throw new InvalidOperationException(
+                    $"DNS zone resource '{definition.Id}' references name publishing provider resource '{publisherId}', but the resource could not be found.");
+            if (!resource.HasCapability(ResourceCapabilityIds.NetworkingNamePublisher))
+            {
+                throw new InvalidOperationException(
+                    $"DNS zone resource '{definition.Id}' references provider resource '{publisherId}', but it does not advertise capability '{ResourceCapabilityIds.NetworkingNamePublisher}'.");
+            }
+
+            publisherResources.Add(resource);
+        }
+
+        return publisherResources;
+    }
+
+    private static void ValidateNamePublishingContext(DnsNamePublishingContext context)
+    {
+        if (context.Definition.DnsNameMappings.Count == 0)
+        {
+            return;
+        }
+
+        var conflict = GetNameMappingConflictGroups(context.Definition)
+            .FirstOrDefault();
+        if (conflict is not null)
+        {
+            var mappingIds = string.Join(", ", conflict.Select(mapping => mapping.Id));
+            throw new InvalidOperationException(
+                $"DNS zone resource '{context.Definition.Id}' has conflicting name mappings for host '{conflict.First().HostName}' in exposure scope '{conflict.First().Exposure}': {mappingIds}.");
+        }
+
+        foreach (var mapping in context.Definition.DnsNameMappings)
+        {
+            var target = context.ResourceManager.GetResource(mapping.TargetResourceId)
+                ?? throw new InvalidOperationException(
+                    $"DNS zone resource '{context.Definition.Id}' name mapping '{mapping.Id}' target resource '{mapping.TargetResourceId}' could not be found.");
+            if (!string.IsNullOrWhiteSpace(mapping.TargetEndpointName) &&
+                !target.Endpoints.Any(endpoint =>
+                    string.Equals(endpoint.Name, mapping.TargetEndpointName, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException(
+                    $"DNS zone resource '{context.Definition.Id}' name mapping '{mapping.Id}' target endpoint '{mapping.TargetEndpointName}' could not be found on resource '{mapping.TargetResourceId}'.");
+            }
+        }
+    }
+
+    private INamePublishingProvider? GetNamePublishingProvider(DnsNamePublishingContext context)
+    {
+        if (!IsLogicalDnsProvider(context.Definition.Provider))
+        {
+            return namePublishingProviders.FirstOrDefault(candidate =>
+                string.Equals(candidate.ProviderName, context.Definition.Provider, StringComparison.OrdinalIgnoreCase) &&
+                candidate.CanPublish(context));
+        }
+
+        return namePublishingProviders.FirstOrDefault(candidate =>
+            candidate.CanPublish(context));
     }
 
     private ILoadBalancerProvider? GetApplyProvider(LoadBalancerProviderContext context) =>
@@ -1632,6 +1792,9 @@ public sealed class PlatformResourceProvider(
             DateTimeOffset.UtcNow,
             CreateDnsZoneDependencies(definition),
             TypeId: DnsZoneResourceType,
+            Actions: ShouldOfferNameMappingReconcile(definition)
+                ? [ReconcileNameMappingsAction]
+                : null,
             ResourceClass: ResourceClass.Network,
             Attributes: attributes,
             Capabilities: [new(ResourceCapabilityIds.NetworkingDnsZone)]);
@@ -1751,6 +1914,9 @@ public sealed class PlatformResourceProvider(
         DnsNameMappingDefinition mapping) =>
         !string.IsNullOrWhiteSpace(mapping.ProviderResourceId) ||
         !IsLogicalDnsProvider(zone.Provider);
+
+    private static bool ShouldOfferNameMappingReconcile(DnsZoneResourceDefinition zone) =>
+        zone.DnsNameMappings.Any(mapping => HasNameMappingProvider(zone, mapping));
 
     private static bool IsLogicalDnsProvider(string? provider) =>
         string.IsNullOrWhiteSpace(provider) ||

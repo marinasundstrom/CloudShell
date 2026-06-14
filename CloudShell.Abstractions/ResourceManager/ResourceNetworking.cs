@@ -210,6 +210,23 @@ public sealed record DnsNameMappingResourceDefinition(
     ResourceExposureScope Exposure = ResourceExposureScope.Public,
     string? ProviderResourceId = null);
 
+public sealed record DnsNamePublishingContext(
+    Resource DnsZoneResource,
+    DnsZoneResourceDefinition Definition,
+    IReadOnlyList<Resource> PublisherResources,
+    IResourceManagerStore ResourceManager);
+
+public interface INamePublishingProvider
+{
+    string ProviderName { get; }
+
+    bool CanPublish(DnsNamePublishingContext context);
+
+    Task<ResourceProcedureResult> ReconcileAsync(
+        DnsNamePublishingContext context,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ILoadBalancerProvider
 {
     string ProviderName { get; }
