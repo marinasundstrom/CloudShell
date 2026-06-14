@@ -58,15 +58,17 @@
                 <div class="log-viewer-actions">
                     <label class="trace-source-filter" for="trace-source-filter">
                         <span>@L["Trace source"]</span>
-                        <FluentSelect TOption="Resource"
+                        <FluentSelect TOption="string"
                                       Id="trace-source-filter"
                                       Class="trace-source-select"
-                                      Items="@resources"
-                                      OptionText="@(resource => resource.Name)"
-                                      OptionValue="@(resource => resource.Id)"
-                                      SelectedOption="@selected"
-                                      SelectedOptionChanged="SelectResource"
-                                      Appearance="Appearance.Neutral" />
+                                      Value="@selected.Id"
+                                      ValueChanged="SelectResource"
+                                      Appearance="Appearance.Neutral">
+                            @foreach (var resource in resources)
+                            {
+                                <FluentOption TOption="string" Value="@resource.Id">@resource.Name</FluentOption>
+                            }
+                        </FluentSelect>
                     </label>
                     <FluentButton Appearance="Appearance.Neutral"
                                   OnClick="() => OpenResource(selected)">
@@ -323,11 +325,19 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     private IReadOnlyList<Resource> TraceResources { get; set; } = [];
     private IReadOnlyList<TraceSpan> RecentSpans { get; set; } = [];
     private string? SelectedSpanId { get; set; }
+    private bool IsDisposed { get; set; }
+    private bool IsRefreshingSpans { get; set; }
 
     protected override void OnInitialized()
     {
         refreshTimer = new System.Threading.Timer(
-            _ => _ = InvokeAsync(RefreshSpansAsync),
+            _ =>
+            {
+                if (!IsDisposed)
+                {
+                    _ = InvokeAsync(RefreshSpansAsync);
+                }
+            },
             null,
             TimeSpan.FromSeconds(2),
             TimeSpan.FromSeconds(2));
@@ -345,6 +355,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     public void Dispose()
     {
+        IsDisposed = true;
         refreshTimer?.Dispose();
     }
 
@@ -365,31 +376,52 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 
     private async Task RefreshSpansAsync()
     {
-        var selected = GetSelectedResource(TraceResources);
-        RecentSpans = selected is null
-            ? []
-            : await TraceManager.ListTraceSpansAsync(new TraceQuery(
-                ResourceId: string.IsNullOrWhiteSpace(TraceId) ? selected.Id : null,
-                TraceId: NormalizeFilter(TraceId),
-                MaxSpans: 200));
-
-        if (!RecentSpans.Any(span => string.Equals(span.SpanId, SelectedSpanId, StringComparison.OrdinalIgnoreCase)))
+        if (IsRefreshingSpans || IsDisposed)
         {
-            SelectedSpanId = RecentSpans
-                .OrderBy(span => span.StartTime)
-                .FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId))
-                ?.SpanId
-                ?? RecentSpans.OrderBy(span => span.StartTime).FirstOrDefault()?.SpanId;
+            return;
         }
 
-        await InvokeAsync(StateHasChanged);
+        IsRefreshingSpans = true;
+        var selected = GetSelectedResource(TraceResources);
+        try
+        {
+            RecentSpans = selected is null
+                ? []
+                : await TraceManager.ListTraceSpansAsync(new TraceQuery(
+                    ResourceId: string.IsNullOrWhiteSpace(TraceId) ? selected.Id : null,
+                    TraceId: NormalizeFilter(TraceId),
+                    MaxSpans: 200));
+
+            if (!RecentSpans.Any(span => string.Equals(span.SpanId, SelectedSpanId, StringComparison.OrdinalIgnoreCase)))
+            {
+                SelectedSpanId = RecentSpans
+                    .OrderBy(span => span.StartTime)
+                    .FirstOrDefault(span => string.IsNullOrWhiteSpace(span.ParentSpanId))
+                    ?.SpanId
+                    ?? RecentSpans.OrderBy(span => span.StartTime).FirstOrDefault()?.SpanId;
+            }
+
+            await InvokeAsync(StateHasChanged);
+        }
+        finally
+        {
+            IsRefreshingSpans = false;
+        }
     }
 
-    private void SelectResource(Resource resource) =>
+    private void SelectResource(string? resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId) ||
+            string.Equals(resourceId, ResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         Navigation.NavigateTo(
             Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
                 "/observability/traces",
-                BuildTraceQuery(resource.Id, TraceId)));
+                BuildTraceQuery(resourceId, TraceId)));
+    }
 
     private void ShowAllResources() => Navigation.NavigateTo("/observability/traces");
 

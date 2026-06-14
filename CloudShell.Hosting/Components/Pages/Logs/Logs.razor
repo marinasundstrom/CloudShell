@@ -54,15 +54,17 @@
                 <div class="log-viewer-actions">
                     <label class="trace-source-filter" for="log-source-filter">
                         <span>@L["Log source"]</span>
-                        <FluentSelect TOption="LogDescriptor"
+                        <FluentSelect TOption="string"
                                       Id="log-source-filter"
                                       Class="trace-source-select"
-                                      Items="@logs"
-                                      OptionText="@(log => $"{log.SourceName} / {log.Name}")"
-                                      OptionValue="@(log => log.Id)"
-                                      SelectedOption="@selected"
-                                      SelectedOptionChanged="SelectLog"
-                                      Appearance="Appearance.Neutral" />
+                                      Value="@selected.Id"
+                                      ValueChanged="SelectLog"
+                                      Appearance="Appearance.Neutral">
+                            @foreach (var log in logs)
+                            {
+                                <FluentOption TOption="string" Value="@log.Id">@($"{log.SourceName} / {log.Name}")</FluentOption>
+                            }
+                        </FluentSelect>
                     </label>
                     <FluentCheckbox Class="log-wrap-toggle" @bind-Value="WrapLogMessages">
                         @L["Wrap"]
@@ -216,7 +218,7 @@
                                     @if (!string.IsNullOrWhiteSpace(selectedStructuredEntry.TraceId))
                                     {
                                         <FluentButton Appearance="Appearance.Neutral"
-                                                      Href="@BuildTraceRoute(selected.ResourceId, selectedStructuredEntry.TraceId)">
+                                                      OnClick="() => OpenTrace(selected.ResourceId, selectedStructuredEntry.TraceId)">
                                             @L["Open trace"]
                                         </FluentButton>
                                     }
@@ -431,8 +433,21 @@
         return logs.FirstOrDefault();
     }
 
-    private void SelectLog(LogDescriptor log) =>
-        Navigation.NavigateTo(BuildLogRoute(log));
+    private void SelectLog(string? logId)
+    {
+        if (string.IsNullOrWhiteSpace(logId) ||
+            string.Equals(logId, LogId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var log = VisibleLogs.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, logId, StringComparison.OrdinalIgnoreCase));
+        if (log is not null)
+        {
+            Navigation.NavigateTo(BuildLogRoute(log));
+        }
+    }
 
     private void ShowAllLogs() => Navigation.NavigateTo("/logs");
 
@@ -805,6 +820,9 @@
             "/observability/traces",
             query);
     }
+
+    private void OpenTrace(string? resourceId, string traceId) =>
+        Navigation.NavigateTo(BuildTraceRoute(resourceId, traceId));
 
     private static string FormatTraceId(string traceId) =>
         traceId.Length <= 12
