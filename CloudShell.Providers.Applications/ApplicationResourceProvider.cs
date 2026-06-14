@@ -1538,10 +1538,16 @@ public sealed partial class ApplicationResourceProvider(
                 service),
             ResourceAction.Start,
             cancellationToken);
+
+        var runtimeDefinition = await MaterializeProjectContainerImageAsync(
+            definition,
+            resourceManager,
+            preferredContainerHostId,
+            cancellationToken);
         foreach (var instance in CreateDefaultContainerServiceInstances(service))
         {
             await StartContainerApplicationInstanceAsync(
-                definition,
+                runtimeDefinition,
                 dependsOn,
                 resourceGroupId,
                 registrations,
@@ -1551,6 +1557,60 @@ public sealed partial class ApplicationResourceProvider(
                 instance,
                 cancellationToken);
         }
+    }
+
+    private async Task<ApplicationResourceDefinition> MaterializeProjectContainerImageAsync(
+        ApplicationResourceDefinition definition,
+        IResourceManagerStore resourceManager,
+        string? preferredContainerHostId,
+        CancellationToken cancellationToken)
+    {
+        if (!definition.ProjectContainerBuild)
+        {
+            return definition;
+        }
+
+        if (string.IsNullOrWhiteSpace(definition.ProjectPath))
+        {
+            throw new InvalidOperationException(
+                $"Container resource '{definition.Name}' cannot be built from a project because it does not specify a project path.");
+        }
+
+        var engine = await ResolveRequiredContainerHostAsync(
+            definition,
+            resourceManager,
+            preferredContainerHostId,
+            cancellationToken);
+        var log = GetProcessLog(definition.Id);
+        var imageReference = CreateProjectContainerImageReference(definition);
+
+        if (string.IsNullOrWhiteSpace(definition.ContainerDockerfile))
+        {
+            await PublishProjectContainerImageAsync(
+                definition,
+                imageReference.Repository,
+                imageReference.Tag,
+                log,
+                cancellationToken);
+        }
+        else
+        {
+            var buildContext = NormalizeNullable(definition.ContainerBuildContext) ??
+                Path.GetDirectoryName(definition.ProjectPath) ??
+                ".";
+            await BuildDockerfileContainerImageAsync(
+                engine,
+                imageReference.Reference,
+                buildContext,
+                definition.ContainerDockerfile,
+                log,
+                cancellationToken);
+        }
+
+        return definition with
+        {
+            ContainerImage = imageReference.Reference
+        };
     }
 
     private async Task StartContainerApplicationInstanceAsync(
@@ -1639,9 +1699,11 @@ public sealed partial class ApplicationResourceProvider(
         startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
         startInfo.ArgumentList.Add("-e");
         startInfo.ArgumentList.Add($"CLOUDSHELL_REPLICA_ORDINAL={instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}");
-        startInfo.ArgumentList.Add(CreateRegistryImageReference(
-            GetEffectiveContainerRegistry(definition),
-            definition.ContainerImage));
+        startInfo.ArgumentList.Add(definition.ProjectContainerBuild
+            ? definition.ContainerImage
+            : CreateRegistryImageReference(
+                GetEffectiveContainerRegistry(definition),
+                definition.ContainerImage));
 
         var process = new Process
         {
@@ -2178,6 +2240,91 @@ public sealed partial class ApplicationResourceProvider(
         {
             log.Append(exception.Message, "process", "Warning");
             return -1;
+        }
+    }
+
+    private async Task PublishProjectContainerImageAsync(
+        ApplicationResourceDefinition definition,
+        string repository,
+        string tag,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "dotnet",
+            WorkingDirectory = Environment.CurrentDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        startInfo.ArgumentList.Add("publish");
+        startInfo.ArgumentList.Add(definition.ProjectPath!);
+        startInfo.ArgumentList.Add("--os");
+        startInfo.ArgumentList.Add("linux");
+        startInfo.ArgumentList.Add("--arch");
+        startInfo.ArgumentList.Add("x64");
+        startInfo.ArgumentList.Add("/t:PublishContainer");
+        startInfo.ArgumentList.Add($"-p:ContainerRepository={repository}");
+        startInfo.ArgumentList.Add($"-p:ContainerImageTag={tag}");
+
+        var registry = GetImageRegistryAddress(GetEffectiveContainerRegistry(definition));
+        if (!IsDockerHubRegistry(registry))
+        {
+            startInfo.ArgumentList.Add($"-p:ContainerRegistry={registry}");
+        }
+
+        log.Append(
+            $"Publishing project '{definition.ProjectPath}' as container image '{CreateProjectContainerImageReference(definition).Reference}'.",
+            "process",
+            "Information");
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Project container publish could not be started.");
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        var output = await outputTask;
+        var error = await errorTask;
+
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            log.Append(output.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
+        }
+
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            log.Append(error.Trim(), "process", process.ExitCode == 0 ? "Information" : "Warning");
+        }
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"Project container publish failed for '{definition.Name}' with exit code {process.ExitCode.ToString(CultureInfo.InvariantCulture)}.");
+        }
+    }
+
+    private static async Task BuildDockerfileContainerImageAsync(
+        ContainerHostDescriptor engine,
+        string imageReference,
+        string buildContext,
+        string dockerfile,
+        ApplicationProcessLog log,
+        CancellationToken cancellationToken)
+    {
+        log.Append(
+            $"Building Dockerfile '{dockerfile}' as container image '{imageReference}'.",
+            "process",
+            "Information");
+        var exitCode = await RunContainerHostCommandAsync(
+            engine,
+            ["build", "-t", imageReference, "-f", dockerfile, buildContext],
+            log,
+            cancellationToken);
+        if (exitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"Dockerfile build failed with exit code {exitCode.ToString(CultureInfo.InvariantCulture)}.");
         }
     }
 
@@ -3384,6 +3531,18 @@ public sealed partial class ApplicationResourceProvider(
     private static string NormalizeContainerRegistry(string? registry) =>
         NormalizeNullable(registry) ?? ContainerRegistryDefaults.Default;
 
+    private static ProjectContainerImageReference CreateProjectContainerImageReference(
+        ApplicationResourceDefinition definition)
+    {
+        var repository = GetContainerServiceName(definition.Id);
+        var tag = GetEffectiveContainerRevision(definition);
+        var registry = GetImageRegistryAddress(GetEffectiveContainerRegistry(definition));
+        var reference = IsDockerHubRegistry(registry)
+            ? $"{repository}:{tag}"
+            : $"{registry}/{repository}:{tag}";
+        return new ProjectContainerImageReference(reference, repository, tag);
+    }
+
     private static string CreateRegistryImageReference(string registry, string image)
     {
         var imageRegistry = GetImageRegistryAddress(registry);
@@ -3398,7 +3557,8 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private static string GetImageRegistryAddress(string registry) =>
-        Uri.TryCreate(registry, UriKind.Absolute, out var uri)
+        Uri.TryCreate(registry, UriKind.Absolute, out var uri) &&
+            !string.IsNullOrWhiteSpace(uri.Authority)
             ? uri.Authority
             : registry.Trim().TrimEnd('/');
 
@@ -3677,4 +3837,9 @@ public sealed partial class ApplicationResourceProvider(
         string? ProjectArguments = null,
         bool AspNetCoreHotReload = true,
         bool ProjectContainerBuild = false);
+
+    private sealed record ProjectContainerImageReference(
+        string Reference,
+        string Repository,
+        string Tag);
 }

@@ -3610,6 +3610,36 @@ public sealed class ResourceDeclarationTests
             environment?[EnvironmentCloudShellResourceCredential.ClientSecretEnvironmentVariable]);
     }
 
+    [Theory]
+    [InlineData(null, "cloudshell-application-api:rev-test")]
+    [InlineData("registry.local:5000", "registry.local:5000/cloudshell-application-api:rev-test")]
+    public void ProjectContainerImageReference_UsesLocalReferenceForDefaultRegistry(
+        string? registry,
+        string expectedReference)
+    {
+        var method = typeof(ApplicationResourceProvider).GetMethod(
+            "CreateProjectContainerImageReference",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var application = new ApplicationResourceDefinition(
+            "application:api",
+            "API",
+            executablePath: string.Empty,
+            resourceType: ApplicationResourceTypes.ContainerApp,
+            projectPath: "src/API/API.csproj",
+            containerRegistry: registry,
+            containerRevision: "rev-test",
+            projectContainerBuild: true);
+
+        Assert.NotNull(method);
+        var imageReference = method.Invoke(null, [application]);
+        var reference = imageReference
+            ?.GetType()
+            .GetProperty("Reference")
+            ?.GetValue(imageReference);
+
+        Assert.Equal(expectedReference, reference);
+    }
+
     [Fact]
     public async Task ContainerApplicationBuilder_DeclaresTopLevelContainerWorkload()
     {

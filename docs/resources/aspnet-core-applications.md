@@ -55,10 +55,11 @@ resources
 
 `AsContainer(...)` converts the projected resource to
 `application.container-app` while keeping the project path in the workload
-descriptor. When no Dockerfile is supplied, the intended build path is the .NET
-SDK container publisher (`dotnet publish /t:PublishContainer`). When the
+descriptor. When no Dockerfile is supplied, the default local runner publishes
+the project through the .NET SDK container publisher
+(`dotnet publish /t:PublishContainer`) before running the image. When the
 project owns a Dockerfile, pass it as `dockerfile: "Dockerfile"` and the
-selected container host or orchestrator can use the Dockerfile build path.
+selected container host uses the Dockerfile build path.
 
 ## Endpoints
 

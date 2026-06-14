@@ -94,9 +94,9 @@ expectations rather than duplicating the task queue.
 - ASP.NET Core project declarations now have an explicit `AsContainer(...)`
   hook for conversion into `application.container-app` resources. The
   converted resource keeps project metadata in the workload descriptor and
-  projects as a container build workload; orchestrators can use the .NET SDK
-  container publish path when no Dockerfile is supplied, or a Dockerfile build
-  path when the project declares one.
+  projects as a container build workload; the default local runner uses the
+  .NET SDK container publish path when no Dockerfile is supplied, or a
+  Dockerfile build path when the project declares one.
 - Public exposure and API stability are separate decisions. Public APIs that
   are not yet stable must be labeled as preview, experimental, or unstable,
   with clear ownership, expected change surface, and path to stability.
