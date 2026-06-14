@@ -695,7 +695,7 @@
         ResourcePollingCancellation = new CancellationTokenSource();
         ResourcePollingTask = PollResourcesAsync(ResourcePollingCancellation.Token);
 
-        await RefreshResourceHealthAsync();
+        await RefreshResourceHealthAsync(ResourcePollingCancellation.Token);
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -1156,7 +1156,6 @@
         }
 
         ResourcePollingCancellation?.Dispose();
-        HealthRefreshLock.Dispose();
     }
 
     private void OpenResourceDetails(Resource resource) =>
