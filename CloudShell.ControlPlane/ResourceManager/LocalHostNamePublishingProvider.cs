@@ -5,7 +5,8 @@ using CloudShell.Abstractions.ResourceManager;
 namespace CloudShell.ControlPlane.ResourceManager;
 
 public sealed class LocalHostNamePublishingProvider(
-    PlatformResourceOptions options) : INamePublishingProvider
+    PlatformResourceOptions options,
+    ILocalHostNameResolverCacheRefresher? resolverCacheRefresher = null) : INamePublishingProvider
 {
     private const string BeginMarker = "# BEGIN CloudShell local hostnames";
     private const string EndMarker = "# END CloudShell local hostnames";
@@ -31,20 +32,21 @@ public sealed class LocalHostNamePublishingProvider(
             .Select(CreateHostsEntry)
             .OrderBy(entry => entry.HostName, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        var path = ResolveHostsFilePath();
+        var hostsFile = ResolveHostsFile();
         try
         {
-            await UpdateHostsFileAsync(path, entries, cancellationToken).ConfigureAwait(false);
+            await UpdateHostsFileAsync(hostsFile.Path, entries, cancellationToken).ConfigureAwait(false);
         }
         catch (UnauthorizedAccessException exception)
         {
             throw new InvalidOperationException(
-                $"Local host name mappings could not be written to '{path}'. Configure '{nameof(PlatformResourceOptions.LocalHostNameHostsFilePath)}' or run the host with permission to update the selected hosts file.",
+                $"Local host name mappings could not be written to '{hostsFile.Path}'. Configure '{nameof(PlatformResourceOptions.LocalHostNameHostsFilePath)}' or run the host with permission to update the selected hosts file.",
                 exception);
         }
 
         var message =
-            $"Published {entries.Length.ToString(CultureInfo.InvariantCulture)} local host name mapping(s) to '{path}'.";
+            $"Published {entries.Length.ToString(CultureInfo.InvariantCulture)} local host name mapping(s) to '{hostsFile.Path}'.";
+        message += " " + await GetResolverRefreshMessageAsync(hostsFile, cancellationToken).ConfigureAwait(false);
         if (entries.Any(entry => IsLocalDomain(entry.HostName)))
         {
             message += " Warning: .local host names may conflict with mDNS/Bonjour on the host network.";
@@ -100,20 +102,43 @@ public sealed class LocalHostNamePublishingProvider(
             $"Name mapping '{mappingId}' target endpoint '{endpoint.Name}' host '{host}' is not a local or IP address that can be published through provider '{ProviderName}'.");
     }
 
-    private string ResolveHostsFilePath()
+    private async Task<string> GetResolverRefreshMessageAsync(
+        HostsFileTarget hostsFile,
+        CancellationToken cancellationToken)
+    {
+        if (options.LocalHostNameResolverRefreshMode == LocalHostNameResolverRefreshMode.Disabled)
+        {
+            return "Resolver cache refresh is disabled.";
+        }
+
+        if (!hostsFile.IsSystemHostsFile)
+        {
+            return "Resolver cache was not refreshed because a custom hosts-file target is configured.";
+        }
+
+        if (resolverCacheRefresher is null)
+        {
+            return "Resolver cache was not refreshed because no refresh service is registered.";
+        }
+
+        var result = await resolverCacheRefresher.RefreshAsync(cancellationToken).ConfigureAwait(false);
+        return result.Message;
+    }
+
+    private HostsFileTarget ResolveHostsFile()
     {
         if (!string.IsNullOrWhiteSpace(options.LocalHostNameHostsFilePath))
         {
-            return Path.GetFullPath(options.LocalHostNameHostsFilePath);
+            return new HostsFileTarget(Path.GetFullPath(options.LocalHostNameHostsFilePath), false);
         }
 
         if (OperatingSystem.IsWindows())
         {
             var system = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            return Path.Combine(system, "drivers", "etc", "hosts");
+            return new HostsFileTarget(Path.Combine(system, "drivers", "etc", "hosts"), true);
         }
 
-        return "/etc/hosts";
+        return new HostsFileTarget("/etc/hosts", true);
     }
 
     private static async Task UpdateHostsFileAsync(
@@ -209,4 +234,6 @@ public sealed class LocalHostNamePublishingProvider(
         hostName.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
 
     private sealed record HostsEntry(string Address, string HostName);
+
+    private sealed record HostsFileTarget(string Path, bool IsSystemHostsFile);
 }

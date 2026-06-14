@@ -43,8 +43,11 @@ curl --resolve api.cloudshell.local:80:127.0.0.1 http://api.cloudshell.local/v1/
 
 By default the local host-name publisher targets the system hosts file when
 you invoke **Reconcile name mappings**, which may require elevated
-permissions. To inspect the generated entries without changing the system
-hosts file, set `CLOUDSHELL_LOCAL_HOSTS_FILE` before running the sample:
+permissions. After writing the system hosts file, CloudShell attempts a
+best-effort resolver cache refresh for the current OS. To inspect the
+generated entries without changing the system hosts file or refreshing the
+host resolver cache, set `CLOUDSHELL_LOCAL_HOSTS_FILE` before running the
+sample:
 
 ```bash
 CLOUDSHELL_LOCAL_HOSTS_FILE=samples/LoadBalancer/Data/cloudshell.hosts \

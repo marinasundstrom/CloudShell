@@ -178,6 +178,14 @@ target. The provider can be pointed at a custom file for safe development and
 testing, and Resource Manager warns before creating `.local` names because
 that suffix can conflict with mDNS/Bonjour on some hosts or networks.
 
+When the provider writes to the system hosts file, it also attempts a
+best-effort resolver cache refresh using fixed platform commands:
+`dscacheutil -flushcache` and `killall -HUP mDNSResponder` on macOS,
+`ipconfig /flushdns` on Windows, and `resolvectl flush-caches`,
+`systemd-resolve --flush-caches`, or `nscd -i hosts` on Linux. Custom
+hosts-file targets skip resolver refresh because they are normally used for
+safe inspection and tests rather than host name resolution.
+
 Programmatic declarations can use:
 
 ```csharp

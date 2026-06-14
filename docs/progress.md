@@ -147,11 +147,14 @@ expectations rather than duplicating the task queue.
   it. The first concrete local development publisher now supports exact host
   mappings through `local-hostnames`, `UseLocalHostNames()`, and
   `reconcileNameMappings`, writing a CloudShell-managed block to a hosts-file
-  style target. The Load Balancer sample now uses the explicit
-  `cloudshell.local` suffix and documents `CLOUDSHELL_LOCAL_HOSTS_FILE` for
-  safe inspection without modifying the system hosts file. Resource Manager
-  DNS zone and name-mapping create flows can now choose the local host-name
-  publisher and warn about `.local` suffixes before creation. Wildcard
+  style target. System hosts-file reconciliation now attempts a best-effort
+  resolver cache refresh with fixed platform commands, while custom
+  hosts-file targets skip refresh for safe testing and inspection. The Load
+  Balancer sample now uses the explicit `cloudshell.local` suffix and
+  documents `CLOUDSHELL_LOCAL_HOSTS_FILE` for safe inspection without
+  modifying the system hosts file. Resource Manager DNS zone and name-mapping
+  create flows can now choose the local host-name publisher and warn about
+  `.local` suffixes before creation. Wildcard
   suffixes, public DNS propagation, provider-backed network-level service
   registries, provider runtime publish diagnostics, and observed applied,
   unknown, drifted, or failed materialization state remain provider-specific

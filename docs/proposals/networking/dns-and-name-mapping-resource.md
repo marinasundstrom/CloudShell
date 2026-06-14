@@ -261,8 +261,14 @@ CloudShell/project suffix beneath a development domain.
 The first local provider supports exact host mappings through
 `local-hostnames` and `reconcileNameMappings`. It writes a CloudShell-managed
 block to a hosts-file style target and can be pointed at a custom file for
-safe development/testing. Later providers can add wildcard suffix support when
-they have a resolver mechanism that can own the suffix cleanly.
+safe development/testing. When it writes to the system hosts file it attempts
+a best-effort resolver cache refresh using fixed platform commands:
+`dscacheutil -flushcache` and `killall -HUP mDNSResponder` on macOS,
+`ipconfig /flushdns` on Windows, and `resolvectl flush-caches`,
+`systemd-resolve --flush-caches`, or `nscd -i hosts` on Linux. Custom
+hosts-file targets do not refresh the host resolver cache. Later providers can
+add wildcard suffix support when they have a resolver mechanism that can own
+the suffix cleanly.
 
 ## Relationship to Load Balancers and Ingress
 
@@ -490,9 +496,11 @@ decides later whether and how a specific name is materialized.
     support is in place for exact host mappings under an explicit development
     suffix with `local-hostnames` and `UseLocalHostNames()`. Resource Manager
     create flows can choose the local publisher and warn before creating
-    `.local` suffixes. Next add provider-specific wildcard suffix support when
-    the provider can safely own that suffix. `*.local` should remain opt-in
-    with a conflict warning.
+    `.local` suffixes. System hosts-file reconciliation attempts a best-effort
+    resolver cache refresh with fixed platform commands; custom hosts-file
+    targets skip refresh. Next add provider-specific wildcard suffix support
+    when the provider can safely own that suffix. `*.local` should remain
+    opt-in with a conflict warning.
 12. Add a post-MVP sample that uses network-level service discovery through a
     provider such as a local registry or Eureka-like service.
 
@@ -506,8 +514,8 @@ decides later whether and how a specific name is materialized.
 * Add create/update blocking or guided resolution for duplicate names in the
   same scope when DNS/name mappings are authored through Resource Manager.
 * Add provider runtime publish diagnostics for local host-name reconciliation
-  failures, permissions, generated hosts-file targets, and names that cannot
-  be published.
+  failures, permissions, generated hosts-file targets, resolver-cache refresh
+  outcomes, and names that cannot be published.
 * Add richer UI affordances for authoring and resolving name mappings.
 * Add integration examples with virtual networks and ingress resources.
 * Decide the first provider-backed network-level service discovery sample.

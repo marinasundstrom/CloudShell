@@ -385,6 +385,9 @@ listed here before pulling in broader proposal work.
   capability evaluation before execution, and the portable
   `networking:host-local` provider has direct Control Plane coverage for
   forwarding traffic through a real local proxy on macOS, Linux, and Windows.
+  Local host-name reconciliation writes a managed hosts-file block and now
+  attempts a best-effort resolver cache refresh for system hosts-file targets;
+  custom hosts-file targets skip refresh for safe inspection and tests.
 - Generalize host-provided virtual networking as a provider model beyond the
   portable local proxy baseline: Linux, Windows, macOS, and runtime-specific
   hosts should advertise native capabilities and diagnostics through the same

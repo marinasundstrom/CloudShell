@@ -17,6 +17,9 @@ public sealed class PlatformResourceOptions
 
     public string LocalHostNameDefaultAddress { get; set; } = "127.0.0.1";
 
+    public LocalHostNameResolverRefreshMode LocalHostNameResolverRefreshMode { get; set; } =
+        LocalHostNameResolverRefreshMode.BestEffort;
+
     public List<DeclaredNetworkResource> DeclaredNetworks { get; } = [];
 
     public List<DeclaredServiceResource> DeclaredServices { get; } = [];
@@ -28,6 +31,12 @@ public sealed class PlatformResourceOptions
     public List<DeclaredLoadBalancerResource> DeclaredLoadBalancers { get; } = [];
 
     public List<DeclaredDnsZoneResource> DeclaredDnsZones { get; } = [];
+}
+
+public enum LocalHostNameResolverRefreshMode
+{
+    Disabled,
+    BestEffort
 }
 
 public sealed class DeclaredNetworkResource(NetworkResourceDefinition definition)

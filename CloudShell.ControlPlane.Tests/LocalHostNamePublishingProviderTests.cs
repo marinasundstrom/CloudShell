@@ -143,6 +143,55 @@ public sealed class LocalHostNamePublishingProviderTests
     }
 
     [Fact]
+    public async Task ReconcileAsync_SkipsResolverRefreshForConfiguredHostsFile()
+    {
+        var contentRoot = CreateTempDirectory();
+        var hostsPath = Path.Combine(contentRoot, "hosts");
+        var refresher = new TestResolverCacheRefresher();
+        var provider = new LocalHostNamePublishingProvider(
+            new PlatformResourceOptions
+            {
+                LocalHostNameHostsFilePath = hostsPath
+            },
+            refresher);
+
+        var result = await provider.ReconcileAsync(CreateContext(
+            "cloudshell.local",
+            "api.cloudshell.local",
+            ResourceEndpoint.Http("http", "localhost", 5080)));
+
+        Assert.False(refresher.Called);
+        Assert.Contains("custom hosts-file target", result.Message);
+    }
+
+    [Fact]
+    public async Task ResolverCacheRefresher_RunsPlatformCommandsUntilOneSucceeds()
+    {
+        var runner = new TestResolverCacheRefreshCommandRunner(failCount: 1);
+        var refresher = new LocalHostNameResolverCacheRefresher(runner);
+
+        var result = await refresher.RefreshAsync(LocalHostNameResolverRefreshPlatform.MacOS);
+
+        Assert.True(result.Attempted);
+        Assert.Equal(2, runner.Commands.Count);
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public void ResolverCacheRefresher_DefinesPlatformRefreshCommands()
+    {
+        Assert.Contains(
+            LocalHostNameResolverCacheRefresher.GetPlatformCommands(LocalHostNameResolverRefreshPlatform.MacOS),
+            command => command.FileName == "dscacheutil" && command.Arguments.SequenceEqual(["-flushcache"]));
+        Assert.Contains(
+            LocalHostNameResolverCacheRefresher.GetPlatformCommands(LocalHostNameResolverRefreshPlatform.Windows),
+            command => command.FileName == "ipconfig" && command.Arguments.SequenceEqual(["/flushdns"]));
+        Assert.Contains(
+            LocalHostNameResolverCacheRefresher.GetPlatformCommands(LocalHostNameResolverRefreshPlatform.Linux),
+            command => command.FileName == "resolvectl" && command.Arguments.SequenceEqual(["flush-caches"]));
+    }
+
+    [Fact]
     public async Task ReconcileAsync_RejectsWildcardHostMappings()
     {
         var contentRoot = CreateTempDirectory();
@@ -241,6 +290,34 @@ public sealed class LocalHostNamePublishingProviderTests
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    private sealed class TestResolverCacheRefresher : ILocalHostNameResolverCacheRefresher
+    {
+        public bool Called { get; private set; }
+
+        public Task<LocalHostNameResolverRefreshResult> RefreshAsync(
+            CancellationToken cancellationToken = default)
+        {
+            Called = true;
+            return Task.FromResult(LocalHostNameResolverRefreshResult.Success("Refreshed resolver cache."));
+        }
+    }
+
+    private sealed class TestResolverCacheRefreshCommandRunner(int failCount) :
+        ILocalHostNameResolverCacheRefreshCommandRunner
+    {
+        public List<LocalHostNameResolverCacheRefreshCommand> Commands { get; } = [];
+
+        public Task<LocalHostNameResolverCacheRefreshCommandResult> RunAsync(
+            LocalHostNameResolverCacheRefreshCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            Commands.Add(command);
+            return Task.FromResult(Commands.Count <= failCount
+                ? LocalHostNameResolverCacheRefreshCommandResult.Failed($"`{command.DisplayName}` failed.")
+                : LocalHostNameResolverCacheRefreshCommandResult.Success($"`{command.DisplayName}` succeeded."));
+        }
     }
 
     private sealed class TestResourceManagerStore(IReadOnlyList<Resource> resources) : IResourceManagerStore

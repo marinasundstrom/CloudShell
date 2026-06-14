@@ -72,6 +72,10 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Singleton<IResourceIdentityProvisioningStatusProvider, BuiltInResourceIdentityProvisioner>());
         builder.Services.TryAddSingleton(new PlatformResourceOptions());
         builder.Services.TryAddSingleton<IHostLocalNetworkEnvironment, HostLocalNetworkEnvironment>();
+        builder.Services.TryAddSingleton<
+            ILocalHostNameResolverCacheRefreshCommandRunner,
+            ProcessLocalHostNameResolverCacheRefreshCommandRunner>();
+        builder.Services.TryAddSingleton<ILocalHostNameResolverCacheRefresher, LocalHostNameResolverCacheRefresher>();
         builder.Services.TryAddSingleton<PlatformResourceStore>();
         builder.Services.TryAddSingleton<LocalHostNamePublishingProvider>();
         builder.Services.TryAddSingleton<LocalHostNetworkProvisioner>();
