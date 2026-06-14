@@ -87,7 +87,9 @@ listed here before pulling in broader proposal work.
    public endpoints, load-balancer routes, and logical DNS/name mappings form
    one understandable Resource Manager workflow. Keep `cloudshell.service`
    optional for logical facades, imported services, non-application targets,
-   and advanced routing instead of making it a required MVP hop.
+   and advanced routing instead of making it a required MVP hop. Do not expand
+   `cloudshell.service` semantics further until the shared deployment and
+   orchestrator service model is clearer.
 2. Stateful application foundation: continue the storage and volume-mapping
    path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
    and container app volume mounts exist. Next slices should materialize mounts
@@ -145,7 +147,9 @@ listed here before pulling in broader proposal work.
   materialization details unless explicitly imported or projected. This is a
   model-layer distinction: a future orchestrator may intentionally materialize
   an explicitly modeled `cloudshell.service` as its provider-native service
-  primitive when the resource represents the service unit.
+  primitive when the resource represents the service unit. Further
+  `cloudshell.service` behavior should wait for the deployment/orchestrator
+  model instead of leading the MVP implementation.
 - Bring DNS/name mapping forward as a minimal logical projection and Resource
   Manager experience. MVP does not require CloudShell to publish real public
   DNS records, run an authoritative DNS server, or implement a provider-backed

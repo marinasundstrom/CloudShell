@@ -96,7 +96,10 @@ expectations rather than duplicating the task queue.
   balancer targets. Load-balancer route resolution now expands a
   `cloudshell.service` target to its configured target resources when a
   matching Service definition is available, so providers receive concrete
-  backend targets for the manual replica-set pattern.
+  backend targets for the manual replica-set pattern. Treat this as bounded
+  support for explicitly modeled Service facades, not the next implementation
+  focus. Further `cloudshell.service` semantics should wait until the shared
+  deployment/orchestrator service model is designed with container apps.
   For MVP, DNS/name mapping can start as logical resource projection,
   relationship display, validation, and provider-materialization diagnostics;
   real public DNS propagation and provider-backed network-level service
@@ -672,7 +675,8 @@ expectations rather than duplicating the task queue.
   targets, multiple targets, imported provider-native services, or advanced
   routing; it is not required for normal container app exposure, but future
   orchestrators may intentionally map it to provider-native service concepts
-  when the resource is the service unit.
+  when the resource is the service unit. Do not expand this area further until
+  the deployment and orchestrator service model is settled.
 - The default orchestrator now owns replica instance fan-out for container app
   services, and load-balancer route resolution can expand a port-based route to
   a replicated container app into convention-named backend targets for Traefik

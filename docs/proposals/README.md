@@ -40,7 +40,10 @@ Work proposal areas in the current product order:
    exposure/discovery, virtual networks, public endpoints, load balancers, and
    logical DNS/name mapping through [Virtual network resource](networking/virtual-network-resource.md),
    [Load balancer resource](networking/load-balancer-resource.md), and
-   [DNS and name mapping](networking/dns-and-name-mapping-resource.md)
+   [DNS and name mapping](networking/dns-and-name-mapping-resource.md). Keep
+   `cloudshell.service` semantics bounded until
+   [Deployments and revisions](deployment/deployments-and-revisions.md)
+   clarifies the shared deployment/orchestrator service model.
 2. Stateful application foundation through
    [Storage and volume mappings](storage/volume-mappings.md)
 3. Identity validation beyond the built-in provider through
