@@ -148,11 +148,13 @@ expectations rather than duplicating the task queue.
   `reconcileNameMappings`, writing a CloudShell-managed block to a hosts-file
   style target. The Load Balancer sample now uses the explicit
   `cloudshell.local` suffix and documents `CLOUDSHELL_LOCAL_HOSTS_FILE` for
-  safe inspection without modifying the system hosts file. UI selection
-  affordances, `.local` creation warnings, wildcard suffixes, public DNS
-  propagation, provider-backed network-level service registries, and observed
-  applied, unknown, drifted, or failed materialization state remain
-  provider-specific follow-up work.
+  safe inspection without modifying the system hosts file. Resource Manager
+  DNS zone and name-mapping create flows can now choose the local host-name
+  publisher and warn about `.local` suffixes before creation. Wildcard
+  suffixes, public DNS propagation, provider-backed network-level service
+  registries, provider runtime publish diagnostics, and observed applied,
+  unknown, drifted, or failed materialization state remain provider-specific
+  follow-up work.
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the

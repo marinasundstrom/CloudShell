@@ -188,10 +188,10 @@ listed here before pulling in broader proposal work.
   `INamePublishingProvider` contract, with availability reasons for missing
   activated publisher implementations. A concrete local development publisher
   now handles exact host mappings under an explicit suffix through
-  `local-hostnames`. Next it needs Resource Manager UI affordances for choosing
-  that publisher and warning about `.local`, provider runtime publish
-  diagnostics, and update UI for existing name mappings when the MVP
-  management flow needs them.
+  `local-hostnames`. Resource Manager create flows can choose that publisher
+  and warn about `.local` suffixes. Next it needs provider runtime publish
+  diagnostics, observed materialization state, and update UI for existing name
+  mappings when the MVP management flow needs them.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when
@@ -426,10 +426,11 @@ listed here before pulling in broader proposal work.
   `reconcileNameMappings` action and name-publishing provider contract so
   operators can force re-apply expected records. Exact local host-name
   publication under an explicit development suffix is now implemented through
-  `local-hostnames`; next add UI selection and `.local` conflict warnings.
-  Wildcard suffixes, public DNS propagation, and observed external DNS states
-  such as applied, unknown, drifted, or failed remain provider-specific
-  follow-up work.
+  `local-hostnames`, and Resource Manager create flows expose that provider
+  with `.local` suffix warnings. Wildcard suffixes, public DNS propagation,
+  provider runtime publish diagnostics, and observed external DNS states such
+  as applied, unknown, drifted, or failed remain provider-specific follow-up
+  work.
 - Continue load balancer support beyond the first Traefik file-config provider.
   Generated Resource Manager diagnostics now cover missing selected host
   resources and missing route target resources/endpoints; next add provider

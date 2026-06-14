@@ -478,8 +478,8 @@ decides later whether and how a specific name is materialized.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
    Done for logical-only DNS name mappings without a selected publisher.
 8. Add sample declarations for local DNS-style mappings. Done in the Load
-   Balancer sample for `app.local` and `api.local` targeting the public
-   load-balancer frontend.
+   Balancer sample for `app.cloudshell.local` and `api.cloudshell.local`
+   targeting the public load-balancer frontend.
 9. Add provider-backed reconciliation infrastructure. Initial
    `INamePublishingProvider` and `reconcileNameMappings` action support is in
    place for DNS zones with provider intent. The action validates conflicts,
@@ -488,9 +488,11 @@ decides later whether and how a specific name is materialized.
 10. Add provider-backed examples for load balancer and virtual network integration.
 11. Add a local development provider for host-based name publication. Initial
     support is in place for exact host mappings under an explicit development
-    suffix with `local-hostnames` and `UseLocalHostNames()`. Next add
-    provider-specific wildcard suffix support when the provider can safely own
-    that suffix. `*.local` should remain opt-in with a conflict warning.
+    suffix with `local-hostnames` and `UseLocalHostNames()`. Resource Manager
+    create flows can choose the local publisher and warn before creating
+    `.local` suffixes. Next add provider-specific wildcard suffix support when
+    the provider can safely own that suffix. `*.local` should remain opt-in
+    with a conflict warning.
 12. Add a post-MVP sample that uses network-level service discovery through a
     provider such as a local registry or Eureka-like service.
 
@@ -503,9 +505,9 @@ decides later whether and how a specific name is materialized.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add create/update blocking or guided resolution for duplicate names in the
   same scope when DNS/name mappings are authored through Resource Manager.
-* Add Resource Manager UI affordances for choosing the local host-name
-  publisher and warning about `.local` suffixes before creation.
-* Add provider diagnostics for names that cannot be published.
+* Add provider runtime publish diagnostics for local host-name reconciliation
+  failures, permissions, generated hosts-file targets, and names that cannot
+  be published.
 * Add richer UI affordances for authoring and resolving name mappings.
 * Add integration examples with virtual networks and ingress resources.
 * Decide the first provider-backed network-level service discovery sample.

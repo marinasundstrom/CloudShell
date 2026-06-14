@@ -8,13 +8,40 @@
         <FluentTextField Id="dns-zone-name" @bind-Value="Name" />
 
         <label for="dns-zone-resource-id">Resource ID</label>
-        <FluentTextField Id="dns-zone-resource-id" @bind-Value="ResourceId" Placeholder="dns:local" />
+        <FluentTextField Id="dns-zone-resource-id" @bind-Value="ResourceId" Placeholder="dns:cloudshell-local" />
 
         <label for="dns-zone-name-value">Zone name</label>
-        <FluentTextField Id="dns-zone-name-value" @bind-Value="ZoneName" Placeholder="local" />
+        <FluentTextField Id="dns-zone-name-value" @bind-Value="ZoneName" Placeholder="cloudshell.local" />
 
         <label for="dns-zone-provider">DNS provider</label>
-        <FluentTextField Id="dns-zone-provider" @bind-Value="Provider" Placeholder="logical" />
+        <FluentSelect TOption="string"
+                      Id="dns-zone-provider"
+                      @bind-Value="ProviderSelection"
+                      Appearance="Appearance.Outline">
+            <FluentOption TOption="string" Value="@LogicalProviderSelection">Logical only</FluentOption>
+            <FluentOption TOption="string" Value="@LocalHostNamesProvider">Local host names</FluentOption>
+            <FluentOption TOption="string" Value="@CustomProviderSelection">Custom provider ID</FluentOption>
+        </FluentSelect>
+
+        @if (IsCustomProviderSelected)
+        {
+            <label for="dns-zone-custom-provider">Custom DNS provider ID</label>
+            <FluentTextField Id="dns-zone-custom-provider" @bind-Value="Provider" Placeholder="provider-id" />
+        }
+
+        @if (IsLocalHostNameProviderSelected)
+        {
+            <FluentMessageBar Intent="MessageIntent.Info">
+                Local host-name publishing writes exact host mappings to the configured hosts-file target when name mappings are reconciled.
+            </FluentMessageBar>
+        }
+
+        @if (ShouldWarnAboutLocalSuffix(ZoneName) || (CreateNameMapping && ShouldWarnAboutLocalSuffix(HostName)))
+        {
+            <FluentMessageBar Intent="MessageIntent.Warning">
+                Names ending in .local may conflict with mDNS/Bonjour on the host network. Use them intentionally for local development and reconcile them only on hosts where this suffix is acceptable.
+            </FluentMessageBar>
+        }
 
         <label for="dns-zone-group">Resource group</label>
         <FluentSelect TOption="string"
@@ -40,7 +67,7 @@
             @if (CreateNameMapping)
             {
                 <label for="dns-mapping-host">Host name</label>
-                <FluentTextField Id="dns-mapping-host" @bind-Value="HostName" Placeholder="api.local" />
+                <FluentTextField Id="dns-mapping-host" @bind-Value="HostName" Placeholder="app.cloudshell.local" />
 
                 <label for="dns-mapping-target">Target resource</label>
                 <FluentSelect TOption="string"
@@ -113,14 +140,18 @@
     private const string NetworkResourceType = "cloudshell.network";
     private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
     private const string NameMappingType = "cloudshell.nameMapping";
+    private const string LogicalProviderSelection = "";
+    private const string LocalHostNamesProvider = "local-hostnames";
+    private const string CustomProviderSelection = "__custom";
 
-    private string ResourceId { get; set; } = "dns:local";
-    private string Name { get; set; } = "Local DNS";
-    private string ZoneName { get; set; } = "local";
+    private string ResourceId { get; set; } = "dns:cloudshell-local";
+    private string Name { get; set; } = "CloudShell Local DNS";
+    private string ZoneName { get; set; } = "cloudshell.local";
     private string Provider { get; set; } = string.Empty;
+    private string ProviderSelection { get; set; } = LogicalProviderSelection;
     private string SelectedGroupId { get; set; } = string.Empty;
     private bool CreateNameMapping { get; set; } = true;
-    private string HostName { get; set; } = "app.local";
+    private string HostName { get; set; } = "app.cloudshell.local";
     private string TargetResourceId { get; set; } = string.Empty;
     private string TargetEndpointName { get; set; } = string.Empty;
     private string SelectedExposure { get; set; } = ResourceExposureScope.Public.ToString();
@@ -218,7 +249,7 @@
             ResourceId,
             Name,
             ZoneName,
-            string.IsNullOrWhiteSpace(Provider) ? null : Provider,
+            GetProvider(),
             mappings);
 
         await ResourceManager.CreateResourceAsync(
@@ -296,8 +327,29 @@
             ? exposure
             : ResourceExposureScope.Public;
 
+    private bool IsCustomProviderSelected =>
+        string.Equals(ProviderSelection, CustomProviderSelection, StringComparison.Ordinal);
+
+    private bool IsLocalHostNameProviderSelected =>
+        string.Equals(ProviderSelection, LocalHostNamesProvider, StringComparison.OrdinalIgnoreCase);
+
+    private string? GetProvider() =>
+        IsCustomProviderSelected
+            ? NormalizeNullable(Provider)
+            : NormalizeNullable(ProviderSelection);
+
     private string CreateMappingId(string hostName) =>
         $"{ResourceId.Trim()}:name:{CreateStableIdentifier(hostName)}";
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static bool ShouldWarnAboutLocalSuffix(string value)
+    {
+        var normalized = value.Trim().TrimEnd('.');
+        return normalized.Equals("local", StringComparison.OrdinalIgnoreCase) ||
+            normalized.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string CreateStableIdentifier(string value)
     {
