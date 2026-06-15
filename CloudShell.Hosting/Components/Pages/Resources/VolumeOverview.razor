@@ -1,4 +1,5 @@
 @inject IResourceManager ResourceManager
+@inject IResourceOrchestrationCatalog OrchestrationCatalog
 
 @if (Volume is null)
 {
@@ -54,12 +55,23 @@ else
                 {
                     <div>
                         <strong>
-                            <a class="resource-link" href="@BuildResourceRoute(consumer.Id)">
-                                @consumer.Name
+                            <a class="resource-link" href="@BuildResourceRoute(consumer.Resource.Id)">
+                                @consumer.Resource.Name
                             </a>
                         </strong>
-                        <span>@consumer.Kind</span>
-                        <small>@consumer.Id</small>
+                        @if (consumer.Mounts.Count == 0)
+                        {
+                            <span>@consumer.Resource.Kind</span>
+                            <small>@consumer.Resource.Id</small>
+                        }
+                        else
+                        {
+                            @foreach (var mount in consumer.Mounts)
+                            {
+                                <span>@GetMountSummary(mount)</span>
+                                <small>@consumer.Resource.Kind - @consumer.Resource.Id</small>
+                            }
+                        }
                     </div>
                 }
             </div>
@@ -72,21 +84,55 @@ else
     public string? ResourceId { get; set; }
 
     private Resource? Volume { get; set; }
-    private IReadOnlyList<Resource> Consumers { get; set; } = [];
+    private IReadOnlyList<VolumeConsumerView> Consumers { get; set; } = [];
 
     protected override async Task OnParametersSetAsync()
     {
         Volume = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
-        Consumers = Volume is null
-            ? []
-            : (await ResourceManager.ListResourcesAsync())
-                .Where(resource => !string.Equals(resource.Id, Volume.Id, StringComparison.OrdinalIgnoreCase))
-                .Where(resource => resource.DependsOn.Any(dependency =>
+        if (Volume is null)
+        {
+            Consumers = [];
+            return;
+        }
+
+        var orchestrationSnapshot = await OrchestrationCatalog.GetSnapshotAsync();
+        Consumers = (await ResourceManager.ListResourcesAsync())
+            .Where(resource => !string.Equals(resource.Id, Volume.Id, StringComparison.OrdinalIgnoreCase))
+            .Select(resource => new VolumeConsumerView(
+                resource,
+                GetMountsForVolume(resource, Volume.Id, orchestrationSnapshot)))
+            .Where(consumer =>
+                consumer.Mounts.Count > 0 ||
+                consumer.Resource.DependsOn.Any(dependency =>
                     string.Equals(dependency, Volume.Id, StringComparison.OrdinalIgnoreCase)))
-                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+            .OrderBy(consumer => consumer.Resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<ResourceVolumeMount> GetMountsForVolume(
+        Resource resource,
+        string volumeId,
+        ResourceOrchestrationCatalogSnapshot orchestrationSnapshot) =>
+        orchestrationSnapshot.Workloads.TryGetValue(resource.Id, out var workload)
+            ? workload.WorkloadVolumeMounts
+                .Where(mount => string.Equals(
+                    mount.NormalizedVolumeReference,
+                    volumeId,
+                    StringComparison.OrdinalIgnoreCase))
+                .OrderBy(mount => mount.NormalizedTargetPath, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : [];
+
+    private static string GetMountSummary(ResourceVolumeMount mount)
+    {
+        var target = mount.NormalizedTargetPath;
+        var access = mount.ReadOnly ? "read-only" : "read/write";
+
+        return string.IsNullOrWhiteSpace(mount.NormalizedName)
+            ? $"{target} - {access}"
+            : $"{mount.NormalizedName}: {target} - {access}";
     }
 
     private string GetAttribute(string name, string fallback) =>
@@ -110,4 +156,8 @@ else
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+
+    private sealed record VolumeConsumerView(
+        Resource Resource,
+        IReadOnlyList<ResourceVolumeMount> Mounts);
 }

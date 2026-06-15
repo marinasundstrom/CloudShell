@@ -13,6 +13,8 @@ container-backed resources that can map volumes, and a basic Resource Manager
 create/configuration/overview flow for direct `cloudshell.volume` resources.
 SQL Server is the first resource-specific flow that recommends a known data
 mount point and warns when data will not be persisted.
+Volume overviews show reverse consumers, including declared target path and
+read/write mode when the workload descriptor is available.
 The current container materializers support `FileSystem` mounts and application
 Start/Restart availability now reports when a managed volume or storage parent
 uses an unsupported medium. Provider-defined storage resources,
@@ -165,6 +167,8 @@ A volume projects:
   volume
 - selected provider or host resource when applicable
 - non-secret location metadata when safe to show
+- reverse consumer mappings, including target path and requested access mode
+  when the consuming workload descriptor is available
 - capabilities and diagnostics
 - lifecycle or reconcile actions when provider-backed materialization is
   supported

@@ -108,13 +108,13 @@ listed here before pulling in broader proposal work.
 3. Stateful application foundation: continue the storage and volume-mapping
    path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
    and container app volume mounts exist. Next slices should show storage
-   relationships from both the volume and consuming resource and continue the
-   temporary Local Storage provider as a bridge toward capability-based storage
-   resources where provider-owned storage locations can contain
-   provider-defined volume sub-items. Storage is the resource class, Local
-   Storage is the first concrete storage kind, and `FileSystem` is the medium
-   it announces. Future hosts must validate that they can materialize the
-   medium before accepting a volume mount.
+   materialization diagnostics from both the volume and consuming resource and
+   continue the temporary Local Storage provider as a bridge toward
+   capability-based storage resources where provider-owned storage locations
+   can contain provider-defined volume sub-items. Storage is the resource
+   class, Local Storage is the first concrete storage kind, and `FileSystem` is
+   the medium it announces. Future hosts must validate that they can
+   materialize the medium before accepting a volume mount.
 4. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider,
@@ -210,9 +210,11 @@ listed here before pulling in broader proposal work.
   Resource Manager volume selectors now only offer mountable volume resources
   and show their storage medium, and Start/Restart action availability now
   preflights unsupported volume and storage-parent media for the current
-  container materializers; next it needs host-specific storage capability
-  negotiation and Resource Manager visibility showing which resources depend
-  on storage and whether the mapping can be materialized.
+  container materializers. Application overview pages show attached storage
+  mounts, and volume overview pages show reverse consumers with declared target
+  path and access mode when workload descriptors are available; next it needs
+  host-specific storage capability negotiation and Resource Manager visibility
+  into whether a mapping was actually materialized.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

@@ -23,6 +23,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Volume overview pages now show reverse storage consumers with declared mount
+  target path and read/write mode when the consuming workload descriptor is
+  available, while preserving the dependency fallback used for deletion safety.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP
