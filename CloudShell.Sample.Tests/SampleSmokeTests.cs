@@ -554,11 +554,11 @@ public sealed class SampleSmokeTests
         var postgres = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:postgres");
         var dnsZone = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:local");
+            resource.GetProperty("id").GetString() == "dns:cloudshell-local");
         var appName = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:local:name:app-local");
+            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:app-cloudshell-local");
         var apiName = Assert.Single(resources, resource =>
-            resource.GetProperty("id").GetString() == "dns:local:name:api-local");
+            resource.GetProperty("id").GetString() == "dns:cloudshell-local:name:api-cloudshell-local");
         var attributes = loadBalancer.GetProperty("attributes");
         var apiAttributes = api.GetProperty("attributes");
         var postgresAttributes = postgres.GetProperty("attributes");
@@ -577,13 +577,13 @@ public sealed class SampleSmokeTests
         Assert.Equal("cloudshell.dnsZone", dnsZone.GetProperty("typeId").GetString());
         Assert.Equal("2", dnsAttributes.GetProperty("dns.records").GetString());
         Assert.Equal("cloudshell.nameMapping", appName.GetProperty("typeId").GetString());
-        Assert.Equal("app.local", appNameAttributes.GetProperty("nameMapping.hostName").GetString());
+        Assert.Equal("app.cloudshell.local", appNameAttributes.GetProperty("nameMapping.hostName").GetString());
         Assert.Equal("load-balancer:public", appNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
         Assert.Equal("http", appNameAttributes.GetProperty("nameMapping.targetEndpointName").GetString());
-        Assert.Equal("LogicalOnly", appNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
-        Assert.Equal("api.local", apiNameAttributes.GetProperty("nameMapping.hostName").GetString());
+        Assert.Equal("ProviderSelected", appNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
+        Assert.Equal("api.cloudshell.local", apiNameAttributes.GetProperty("nameMapping.hostName").GetString());
         Assert.Equal("load-balancer:public", apiNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
-        Assert.Equal("LogicalOnly", apiNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
+        Assert.Equal("ProviderSelected", apiNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
 
         var applyAction = loadBalancer
             .GetProperty("resourceActions")
@@ -599,8 +599,8 @@ public sealed class SampleSmokeTests
 
         var configPath = Path.Combine(dataDirectory, "traefik", "load-balancer-public.dynamic.yml");
         var config = await File.ReadAllTextAsync(configPath);
-        Assert.Contains("Host(`app.local`)", config);
-        Assert.Contains("Host(`api.local`) && PathPrefix(`/v1`)", config);
+        Assert.Contains("Host(`app.cloudshell.local`)", config);
+        Assert.Contains("Host(`api.cloudshell.local`) && PathPrefix(`/v1`)", config);
         Assert.Contains("url: \"http://cloudshell-application-web:80\"", config);
         Assert.Contains("url: \"http://cloudshell-application-api-replica-1:80\"", config);
         Assert.Contains("url: \"http://cloudshell-application-api-replica-2:80\"", config);
