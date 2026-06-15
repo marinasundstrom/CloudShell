@@ -201,11 +201,14 @@ and the default local runner uses the container app identity as the implicit
 service identity for convention named replica containers.
 
 The orchestrator deployment and revision abstractions are the shared lower
-layer for applying that service descriptor. They are available for internal
-container-app, provider, and orchestrator implementation work before they are
-announced as a public management surface. A container app revision answers
-application-version questions; an orchestrator deployment/revision answers what
-runtime workload was applied and which service/runtime resources resulted.
+layer for applying runtime intent. A resource can still be managed directly by
+Resource Manager while an orchestrator derives a default deployment for a
+deployment-relevant state or configuration change. They are available for
+internal container-app, provider, and orchestrator implementation work before
+they are announced as a public management surface. A container app revision
+answers application-version questions; an orchestrator deployment/revision
+answers what runtime workload was applied and which service/runtime resources
+resulted.
 
 The container app resource is also the normal user-facing deployment and
 exposure artifact for application workloads. It can own the stable application

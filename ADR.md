@@ -15,6 +15,12 @@ link to the decision so the dependency is visible.
 
 Container apps need deployment, revision, and runtime-owned resource relationships to become a useful managed-service primitive. Add the shared abstractions and resource metadata first, use them internally for container apps and provider/orchestrator runtime artifacts, and keep them out of the normal public product surface until the model is proven. A container app remains the user-facing resource; orchestrator deployments/revisions and runtime-managed containers, replicas, endpoint registrations, or provider-owned artifacts are lower-level implementation and diagnostic entities that may be hidden from normal Resource Manager lists.
 
+Resources can still be handled individually by the orchestrator. When a
+resource state or configuration change has runtime workload intent, the
+orchestrator may derive a default deployment for that change so CloudShell can
+track what was applied without requiring users to explicitly create or manage a
+deployment resource.
+
 Related changes: [Changelog](CHANGELOG.md).
 
 ### ADR-20260615-001: Separate product goal, roadmap, changelog, and ADR responsibilities

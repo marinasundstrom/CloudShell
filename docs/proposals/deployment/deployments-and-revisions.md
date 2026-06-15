@@ -8,7 +8,10 @@ In progress.
 
 CloudShell already has a Resource Manager, a resource graph, an orchestrator abstraction, a default orchestrator, a Docker Compose-based orchestrator, and an orchestrator-level service abstraction.
 
-The current orchestration model can start resources and group runtime instances through services, but there is no formal deployment and revision model for representing versioned workload changes, rollout history, replica changes, or traceability across orchestrator implementations.
+The current orchestration model can start resources and group runtime instances
+through services, but there is no formal deployment and revision model for
+representing versioned workload changes, rollout history, replica changes, or
+traceability across orchestrator implementations.
 
 Initial implementation now adds internal data contracts for
 `ResourceOrchestratorDeployment`, `ResourceOrchestratorDeploymentSpec`, and
@@ -19,6 +22,10 @@ service id, workload version, desired replicas, and projected replicas onto the
 stable app resource and Deployment tab. Projected runtime replica resources
 also carry the deployment id, service id, and deployment revision they
 implement for traceability.
+The intended general rule is broader than container apps: when an orchestrator
+handles a resource state change that has runtime workload intent, it may derive
+a default deployment for that change even when the user manages the resource
+directly rather than managing an explicit deployment resource.
 They are not yet a public Resource Manager or Control Plane management surface,
 and rich rollout history, rollback, traffic splitting, and retention remain
 deferred.
@@ -67,6 +74,8 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 
 * Introduce Deployment as a standard orchestrator primitive.
 * Introduce Orchestrator Revision as the versioned runtime result of applying an orchestrator deployment.
+* Allow an orchestrator to derive a default deployment for a resource state
+  change when the resource has runtime workload intent.
 * Allow higher-level resources to request orchestration without managing replicas directly.
 * Allow orchestrators to compute runtime resources and service replicas from resource intent.
 * Support consistent deployment behavior across the default orchestrator and Docker Compose orchestrator.
@@ -82,6 +91,8 @@ CloudShell needs a unified way to represent versioned orchestration changes whil
 * Do not replace the existing orchestrator-level service abstraction.
 * Do not make Deployment a normal user-authored resource.
 * Do not require every resource to use deployments.
+* Do not require users to explicitly create or manage deployment resources for
+  ordinary resource lifecycle and configuration changes.
 * Do not require every orchestrator to implement advanced rollout strategies immediately.
 * Do not expose Docker Compose, Kubernetes, or container-host-specific implementation details in the common deployment model.
 * Do not move resource graph ownership from the Resource Manager to the orchestrator.
@@ -140,7 +151,10 @@ Orchestrator revisions answer questions such as:
 The deployment and revision model in this proposal refers specifically to
 orchestrator deployments and orchestrator revisions unless otherwise stated.
 
-A Deployment is an orchestrator-owned description of an applied workload change.
+A Deployment is an orchestrator-owned description of an applied workload
+change. A deployment may be explicit in a future management surface, but the
+MVP path treats it primarily as a default deployment derived by the orchestrator
+when a resource state change needs runtime materialization.
 
 An Orchestrator Revision is the immutable runtime version produced when an orchestrator deployment is applied.
 
@@ -181,9 +195,9 @@ User-managed Resource
         ↓
 Resource Manager validates graph and lifecycle
         ↓
-Orchestrator receives desired runtime intent
+Orchestrator receives desired runtime intent or resource state change
         ↓
-Deployment is created or updated
+Default Deployment is created or updated
         ↓
 Revision is produced
         ↓
@@ -214,7 +228,12 @@ Deployment: api
 
 ## Deployment Model
 
-A Deployment represents the orchestrator’s versioned workload definition for a service.
+A Deployment represents the orchestrator’s versioned workload definition for a
+service. In the common path, a stable resource remains individually manageable
+by Resource Manager, while the orchestrator generates a default deployment for
+each deployment-relevant state or configuration change. This lets CloudShell
+track what was applied without requiring the user to author a deployment
+resource.
 
 It may include:
 

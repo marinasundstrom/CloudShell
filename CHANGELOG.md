@@ -188,6 +188,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Documentation
 
+- Clarified that orchestrator deployments can be default deployments derived
+  from ordinary resource state or configuration changes. Resources remain
+  individually manageable by Resource Manager while orchestrators use
+  deployments/revisions internally to track what was applied.
+  Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 - Updated the development workflow, agent guide, and repo-local skills to
   distinguish implementation slices from pure documentation slices. Agent-made
   documentation-only changes are now review-first and are not committed or

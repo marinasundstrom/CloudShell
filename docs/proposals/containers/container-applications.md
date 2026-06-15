@@ -154,7 +154,10 @@ Implemented pieces include:
 * current revision projection when a container app image is updated
 * Resource Manager Deployment tab with image update action
 * app-owned internal deployment projection with status, service id, workload
-  version, desired replicas, and projected runtime replicas
+  version, desired replicas, and projected runtime replicas. This is the
+  container app use of the broader default-deployment rule: a resource remains
+  directly manageable while the orchestrator derives a deployment for
+  deployment-relevant changes.
 * explicit replica count update API
 * shared resource metadata for provider/orchestrator/runtime ownership,
   visibility, owner resource, and cleanup behavior
