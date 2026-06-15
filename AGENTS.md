@@ -1,138 +1,142 @@
 # CloudShell Agent Guide
 
-This repository contains CloudShell, an extensible, self-hosted cloud-portal
-shell for local development, team-owned platform tooling, and on-premise
-environments. It uses Blazor, Fluent UI, and .NET 11 preview.
+CloudShell is an extensible, self-hosted cloud portal for local development,
+team-owned platform tooling, and on-premise environments. It uses Blazor,
+Fluent UI, and .NET 11 preview.
 
-CloudShell's goal is to let teams register, group, inspect, and operate
-resources through a consistent shell while keeping the WebUI shell deployable
-separately from Control Plane services.
+Its goal is to let teams register, group, inspect, and operate resources
+through a consistent shell while keeping the WebUI deployable independently
+from Control Plane services.
 
 ## Start Here
 
 Before making product or architecture changes, read:
 
-- [CloudShell goal](docs/goal.md)
-- [Development workflow](CONTRIBUTIONS.md)
-- [Domain model](docs/domain-model.md)
-- [System design guidelines](docs/system-design-guidelines.md)
-- [Architecture decision log](ADR.md)
-- [Changelog](CHANGELOG.md)
+- CloudShell goal
+- Development workflow
+- Domain model
+- System design guidelines
+- Architecture decision log
+- Changelog
 
-For focused areas, read the relevant docs:
+For focused areas, read the relevant documentation:
 
-- [Control Plane API](docs/control-plane-api.md)
-- [Hosting model](docs/hosting-model.md)
-- [Authentication and authorization](docs/authentication-and-authorization.md)
-- [Extensions](docs/extensions.md)
-- [Programmatic resources](docs/programmatic-resources.md)
-- [Resource templates](docs/resource-templates.md)
-- [Configuration services](docs/configuration-services.md)
-- [Application resources](docs/resources/application-resources.md)
-- [Persistence](docs/persistence.md)
+- Control Plane API
+- Hosting model
+- Authentication and authorization
+- Extensions
+- Programmatic resources
+- Resource templates
+- Configuration services
+- Application resources
+- Persistence
 
 ## Solution Shape
 
-- `CloudShell.Abstractions`: public domain abstractions, extension SDK, shell
-  contribution contracts, resource model contracts.
-- `CloudShell.ControlPlane`: Control Plane services, API endpoints,
-  authorization adapters, resource/log stores, orchestration, persistence
-  integration.
-- `CloudShell.ControlPlane.Client`: remote Control Plane adapter that maps HTTP
-  calls back to the domain-shaped managers.
-- `CloudShell.Hosting`: Blazor shell UI, Resource Manager UI, shell layout,
-  extension-hosted views.
-- `CloudShell.Host`: development combined host.
-- `CloudShell.Persistence`: EF Core persistence for registrations, groups, and
-  identity.
-- `CloudShell.Providers.*`: built-in/reference provider extensions.
-- `samples/`: focused hosting scenarios.
-- `CloudShell.*.Tests`: abstraction, Control Plane service, client/API
-  contract, and sample smoke tests.
+- CloudShell.Abstractions — public domain abstractions, extension SDK,
+  shell contribution contracts, and resource model contracts.
+- CloudShell.ControlPlane — Control Plane services, APIs, authorization,
+  orchestration, persistence integration, and operational data management.
+- CloudShell.ControlPlane.Client — remote Control Plane adapter that maps
+  HTTP APIs back to domain managers.
+- CloudShell.Hosting — Blazor shell UI, Resource Manager UI, shell layout,
+  and extension-hosted views.
+- CloudShell.Host — combined development host.
+- CloudShell.Persistence — EF Core persistence for registrations, groups,
+  identity, and platform state.
+- CloudShell.Providers.* — built-in and reference provider extensions.
+- samples/ — focused hosting scenarios.
+- CloudShell.*.Tests — abstraction, Control Plane, client/API, and sample
+  test projects.
 
 ## Architecture Rules
 
-The WebUI is the shell surface. The Control Plane owns resource inventory,
-registrations, lifecycle procedures, logs, templates, and provider-backed
-operational data.
+### Ownership Boundaries
 
-Consumers should depend on domain managers such as `IResourceManager`,
-`IResourceTemplateManager`, `ILogManager`, and `ITraceManager`, not internal
-stores or generated HTTP clients.
+The WebUI is a shell surface. The Control Plane owns resource inventory,
+registrations, lifecycle procedures, templates, logs, traces, and
+provider-backed operational data.
 
-Internal Control Plane services may use lower-level contracts such as
-`IResourceManagerStore`, `IResourceRegistrationStore`, `ILogStore`, and provider
-interfaces. Those are implementation contracts for the service process.
+Consumers should depend on domain managers such as:
 
-The API contract should resemble the domain model. API DTOs are contract
-entities for established domain entities and relationships. Add transport
-affordances such as `href` and `method` where useful, but do not invent parallel
-Web API concepts when a domain concept already exists.
+- IResourceManager
+- IResourceTemplateManager
+- ILogManager
+- ITraceManager
 
-Resource actions are domain operations on resources. They are not UI actions.
-UI controls may render or invoke resource actions, but the domain action and UI
-presentation are separate concepts.
+Avoid depending directly on internal stores or generated HTTP clients.
 
-Provider-owned configuration and runtime state should stay behind provider
-contracts. Platform-owned registration, grouping, and dependency state belongs
-to the Control Plane.
+Internal Control Plane services may depend on lower-level contracts such as:
 
-## Workflows
+- IResourceManagerStore
+- IResourceRegistrationStore
+- ILogStore
 
-Follow [CloudShell development workflow](CONTRIBUTIONS.md) for the shared procedure:
-make changes in scoped slices, verify them, update docs and decision logs when
-needed, then commit and push implementation slices. Pure documentation changes
-made by agents are review-first and should be left uncommitted and unpushed
-unless the user explicitly asks to land that reviewed documentation slice.
+These are implementation details of the Control Plane.
 
-For new product features, use the repo-local skill:
+### API Design
 
-- `.codex/skills/cloudshell-feature-development/SKILL.md`
+The API should reflect the domain model.
 
-For stabilization and MVP hardening, use:
+API DTOs represent established domain concepts and relationships. Transport
+affordances such as href and method may be added where useful, but avoid
+creating parallel Web API concepts when a domain concept already exists.
 
-- `.codex/skills/cloudshell-stabilization/SKILL.md`
+If a requested API shape implies a new concept, determine whether it belongs in
+the domain model first, then project it through the API.
 
-Keep these skills concise and update their referenced docs instead of copying
-large guidance into the skill files.
+### Resource Actions
 
-## Testing
+Resource actions are domain operations on resources.
 
-Use targeted tests while developing. For changes touching the resource model,
-Control Plane, API, remote client, or samples, run the verification baseline
-below:
+They are not UI actions. UI components may present or invoke resource actions,
+but the domain action and UI representation are separate concerns.
 
-```bash
-dotnet build CloudShell.sln --no-restore
-dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore
-dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore
-dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore
-dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore
-```
+### Provider Boundaries
 
-Docs-only changes do not require tests, but run `git diff --check` before
-handing them back for review or before an explicitly requested documentation
-commit.
+Provider-owned configuration and runtime state remain behind provider
+contracts.
 
-## Change Discipline
+Platform-owned concepts such as registration, grouping, dependencies,
+authorization, and lifecycle orchestration belong to the Control Plane.
 
-Keep changes scoped to the owning layer. If a requested API shape implies a new
-concept, first decide whether the domain model needs that concept, then project
-it through the API.
+### Security
 
-When stabilizing behavior, add tests at the layer that owns the behavior:
+Never expose secrets through resources, logs, diagnostics, APIs, samples, or
+documentation.
 
-- Control Plane service tests for resource state and validation behavior.
-- Client/API contract tests for HTTP shape, auth, errors, hypermedia, and
-  remote mapping.
-- Sample tests for hosted scenarios.
-- Abstraction tests for public DSL and extension contracts.
+## Workflow
 
-Update [ADR](ADR.md) when a durable product or architecture decision changes.
-Update [Changelog](CHANGELOG.md) when an implementation slice lands or
-verification expectations change. For pure documentation slices, update the
-changelog only when the documentation is being landed after review.
+Follow the shared workflow defined in
+CONTRIBUTIONS.md.
 
-Before staging or committing, inspect `git status --short` and stage only the
-files owned by the current chat or thread. Do not commit unrelated work from
-another person, agent, or parallel thread.
+That document defines:
+
+- slice ownership
+- implementation vs documentation slices
+- verification requirements
+- documentation updates
+- ADR and changelog updates
+- commit and push expectations
+
+## Skills
+
+For new product features:
+
+- .codex/skills/cloudshell-feature-development/SKILL.md
+
+For stabilization and MVP hardening:
+
+- .codex/skills/cloudshell-stabilization/SKILL.md
+
+Keep skills concise and update referenced documentation instead of duplicating
+project guidance.
+
+## Verification Baseline
+
+Use targeted tests while developing.
+
+For changes affecting the resource model, Control Plane, API/client layer, or
+samples, run:
+
+bash dotnet build CloudShell.sln --no-restore  dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore  dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore  dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore  dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore 
