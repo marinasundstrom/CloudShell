@@ -16,6 +16,7 @@ Read these first:
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
 - `docs/artifact-implementation-guidelines.md`
+- `ADR.md`
 - `CHANGELOG.md`
 - relevant files under `docs/proposals/` when the change touches an active or
   proposed feature area
@@ -36,7 +37,8 @@ Then inspect the relevant implementation and tests before editing.
    `docs/artifact-implementation-guidelines.md`: contribution, provider,
    projected resource shape, Control Plane behavior, authoring surfaces,
    API/client projection, shell UI, tests, samples, and docs. If any chain link
-   is intentionally deferred, record that in `CHANGELOG.md` and
+   is intentionally deferred, record the durable decision in `ADR.md`, the
+   landed implementation change in `CHANGELOG.md`, and the remaining work in
    `docs/roadmap.md`.
 3. Keep resource concepts domain-shaped. Do not introduce UI terminology into
    resource/domain contracts.
@@ -48,17 +50,19 @@ Then inspect the relevant implementation and tests before editing.
 6. Add focused tests at the owning layer. Add contract tests when an API shape
    or remote adapter changes.
 7. Update docs when a feature changes system concepts, hosting guidance, API
-   shape, proposal status, milestone scope, or MVP progress. Treat
+   shape, proposal status, milestone scope, MVP progress, or durable product
+   and architecture decisions. Treat
    `docs/roadmap.md` as authoritative for milestone scope and the current task
    queue, and `docs/proposals/README.md` as authoritative for proposal status.
-   Keep those files, `CHANGELOG.md`, and the relevant proposal documents in
-   sync so remaining tasks and current priorities do not drift.
+   Keep those files, `ADR.md`, `CHANGELOG.md`, and the relevant proposal
+   documents in sync so decisions, landed changes, remaining tasks, and current
+   priorities do not drift.
 8. Update `docs/roadmap.md` when the feature changes the current task queue.
 9. Run the relevant narrow tests first, then the verification baseline from
-   `CHANGELOG.md` for cross-boundary changes.
+   `AGENTS.md` for cross-boundary changes.
 
 ## Output expectations
 
-Keep changes scoped. Mention any intentionally deferred behavior in
-the relevant proposal, `CHANGELOG.md`, and `docs/roadmap.md` instead of
-leaving it implicit.
+Keep changes scoped. Record durable decisions in `ADR.md`, landed changes in
+`CHANGELOG.md`, and intentionally deferred behavior in the relevant proposal
+and `docs/roadmap.md` instead of leaving it implicit.

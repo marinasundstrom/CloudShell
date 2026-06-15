@@ -173,6 +173,7 @@ dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj -
 - [Domain model](docs/domain-model.md)
 - [System design guidelines](docs/system-design-guidelines.md)
 - [Roadmap](docs/roadmap.md)
+- [Architecture decision log](ADR.md)
 - [Changelog](CHANGELOG.md)
 - [Control plane API and generated clients](docs/control-plane-api.md)
 - [Authentication and authorization](docs/authentication-and-authorization.md)

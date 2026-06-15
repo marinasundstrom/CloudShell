@@ -65,5 +65,6 @@ access where needed, SQL Server with mounted storage, logs, traces, networking,
 endpoint exposure, and DNS/name mappings.
 
 [Roadmap](roadmap.md) owns milestone scope and ordering.
-[Changelog](../CHANGELOG.md) owns completed decisions and current state. This
-document owns the durable product goal.
+[ADR](../ADR.md) owns durable product and architecture decisions.
+[Changelog](../CHANGELOG.md) owns landed implementation changes. This document
+owns the durable product goal.

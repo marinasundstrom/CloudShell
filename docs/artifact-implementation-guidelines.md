@@ -113,8 +113,9 @@ Use this flow for every artifact change.
    shell-level views, navigation, and workspaces.
 7. Add targeted tests at the owning layer, plus API/client contract tests when
    transport shape changes.
-8. Update docs and progress when the artifact changes product concepts,
-   API shape, hosting guidance, or MVP priorities.
+8. Update docs, ADR, changelog, and roadmap when the artifact changes product
+   concepts, API shape, hosting guidance, MVP priorities, or durable
+   decisions.
 
 ## New resource type checklist
 
@@ -197,10 +198,11 @@ resource.
      product guidance.
 9. Update documentation.
    - Update the relevant resource docs, API docs, programmatic resource docs,
-     changelog, and roadmap execution plan.
+     ADR when a durable decision changed, changelog when implementation lands,
+     and roadmap execution plan when scope or task order changes.
    - Document intentionally deferred chain links, such as "Control Plane
      provider only, no Resource Manager UI integration yet", in
-     `CHANGELOG.md` and `docs/roadmap.md`.
+     `ADR.md`, `CHANGELOG.md`, and `docs/roadmap.md`.
 
 ## Artifact guidelines
 
@@ -750,7 +752,7 @@ Use this matrix to choose the minimum useful test coverage.
 | Sample behavior | `CloudShell.Sample.Tests` smoke coverage |
 
 For resource model, Control Plane, API, remote client, or sample changes, run
-the verification baseline from [Changelog](../CHANGELOG.md) after targeted tests
+the verification baseline from [AGENTS.md](../AGENTS.md) after targeted tests
 when practical:
 
 ```bash

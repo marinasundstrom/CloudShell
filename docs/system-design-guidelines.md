@@ -121,7 +121,7 @@ leaving equivalent logic copied across built-in services.
 Public exposure and stability are separate decisions. If an API is public so
 integrators can start using it, but the platform has not committed to keeping
 the shape stable yet, mark it clearly as preview, experimental, or unstable in
-the XML/API docs, feature documentation, and proposal or changelog. The
+the XML/API docs, feature documentation, proposal, or ADR. The
 owner, expected change surface, and path to stability should be explicit.
 
 ## Resource model

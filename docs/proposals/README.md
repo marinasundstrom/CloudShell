@@ -5,9 +5,11 @@ Their status, remaining tasks, open questions, and relationship to the current
 roadmap should be kept updated as implementation work lands.
 
 When a proposal changes direction or an implementation slice completes, update
-the relevant proposal together with [Roadmap](../roadmap.md) and
-[Changelog](../../CHANGELOG.md). The repo-local Codex skills also require this
-synchronization for feature and stabilization work.
+the relevant proposal together with [Roadmap](../roadmap.md),
+[ADR](../../ADR.md), and [Changelog](../../CHANGELOG.md). Durable decisions
+belong in ADR; landed implementation changes belong in the changelog. The
+repo-local Codex skills also require this synchronization for feature and
+stabilization work.
 
 ## Proposal Status
 

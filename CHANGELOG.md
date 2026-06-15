@@ -1,45 +1,12 @@
 # Changelog
 
-This is the living CloudShell changelog. Update it when a feature,
-stabilization pass, or design decision changes the current state, completed
-work, verification expectations, or next-priority context.
+This is the dated CloudShell change history. It records implementation slices,
+stabilization work, samples, and documentation changes after they land.
 
-See also: [Roadmap](docs/roadmap.md) for product direction, milestone scope, and
-the current task queue that turns those priorities into concrete next tasks.
-
-## Current MVP Focus
-
-Make CloudShell functional and stable for the common-hosted scenario while
-preserving the path to split hosting.
-
-The authoritative MVP milestone is defined in [Roadmap](docs/roadmap.md). Current
-MVP scope is Container Apps Version 1, network primitives, built-in identity,
-working app settings and secrets integrations, Resource Manager UX polish, and
-reliable samples.
-
-The MVP should prove:
-
-- Combined UI and Control Plane hosting works reliably.
-- Split UI and Control Plane samples build and smoke-test.
-- The Control Plane exposes a stable domain-shaped client abstraction.
-- The Control Plane API has a clear OpenAPI contract.
-- Resource Manager behavior is predictable across states, validation failures,
-  permissions, and provider capability differences.
-- Samples demonstrate the intended hosting and resource declaration patterns.
-
-## Proposal status snapshot
-
-Proposal statuses are tracked in the authoritative proposal status table in
-[Proposals](docs/proposals/README.md). Update that table together with the relevant
-proposal, this changelog, and [Roadmap](docs/roadmap.md) when status,
-milestone relevance, or remaining work changes.
-
-## Current implementation order
-
-The authoritative MVP implementation order now lives in the
-[Roadmap MVP Execution Plan](docs/roadmap.md#mvp-execution-plan). Keep this changelog
-focused on completed decisions, current state, and verification
-expectations rather than duplicating the task queue.
+Use [ADR](ADR.md) for architectural and product decisions,
+[Roadmap](docs/roadmap.md) for milestone scope and task order, and
+[CloudShell goal](docs/goal.md) for the durable product goal. Changelog entries
+link to ADR entries when a change depends on a recorded decision.
 
 ## Changes
 
@@ -65,6 +32,7 @@ on `git blame --follow`, and then by the broad type of change.
   capability/diagnostic boundary rather than becoming Resource Manager special
   cases. The older `networking:host-macos` helper remains as a macOS-specific
   alias while samples move to the portable provider.
+  Decision: [ADR-20260609-002](ADR.md#adr-20260609-002).
 - The local host-networking provider now uses the standard
   `network.provisionedMappings` attribute for its active local proxy count, and
   Resource Manager generated networking details display that count when
@@ -95,10 +63,12 @@ on `git blame --follow`, and then by the broad type of change.
 
 - Added `docs/goal.md` as the concise product-goal document for CloudShell and
   made the repo-local skills read it before product or stabilization work.
-  `docs/roadmap.md` remains the milestone and task-order document, while this
-  changelog is the dated change and decision tracker. The roadmap now also
-  states that the projected focus order can be re-evaluated during
-  implementation when another slice better serves the immediate MVP goal.
+  `docs/roadmap.md` remains the milestone and task-order document,
+  `ADR.md` records durable decisions, and this changelog records landed
+  changes. The roadmap now also states that the projected focus order can be
+  re-evaluated during implementation when another slice better serves the
+  immediate MVP goal.
+  Decision: [ADR-20260615-001](ADR.md#adr-20260615-001).
 
 ### 2026-06-14
 
@@ -148,12 +118,13 @@ on `git blame --follow`, and then by the broad type of change.
   Container Host sample now demonstrates the intended storage graph by
   declaring a Local Storage resource, a SQL Server data volume owned by that
   storage resource, and a SQL Server container mount at `/var/opt/mssql`.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Load balancers now expose lifecycle state only when a runtime provider can
   manage provider-owned infrastructure. File-config/logical load balancers keep
   their apply action but omit `State` rather than pretending to be `Running`.
   This keeps the stable user-facing resource distinct from future provider-owned
   runtime resources that may be inspectable but hidden from normal views.
-
+  Decision: [ADR-20260613-001](ADR.md#adr-20260613-001).
 #### Changed
 
 - CloudShell now distinguishes host topology from installed environment
@@ -174,6 +145,7 @@ on `git blame --follow`, and then by the broad type of change.
   host process, but they are managed by the same local Control Plane, which
   remains the owner of declarations, lifecycle policy, provider dispatch, and
   resource projection.
+  Decision: [ADR-20260614-001](ADR.md#adr-20260614-001).
 - The next MVP product focus is the application environment management path:
   container applications, app-owned exposure and application-level discovery,
   virtual networks, public endpoint exposure, load-balancer routes, and
@@ -266,6 +238,7 @@ on `git blame --follow`, and then by the broad type of change.
   registries, provider runtime publish diagnostics, and observed applied,
   unknown, drifted, or failed materialization state remain provider-specific
   follow-up work.
+  Decision: [ADR-20260614-002](ADR.md#adr-20260614-002).
 - Storage and identity are also MVP differentiators from Aspire-style local
   orchestration. CloudShell should model volume resources and volume mappings
   so stateful services can be managed through Resource Manager, and the
@@ -292,6 +265,7 @@ on `git blame --follow`, and then by the broad type of change.
   `DefaultCloudShellResourceCredential` to call Configuration Store with a
   Keycloak-issued token. The remaining validation step is automated
   end-to-end smoke coverage for that container-backed identity infrastructure.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - ASP.NET Core project declarations now have an explicit `AsContainer(...)`
   hook for conversion into `application.container-app` resources. The
   converted resource keeps project metadata in the workload descriptor and
@@ -310,6 +284,7 @@ on `git blame --follow`, and then by the broad type of change.
   flows remain manual and do not read launch settings; if a UI launch-settings
   option is added later, it should be disabled when explicit endpoints are
   configured. Broader resource exposure should remain explicit.
+  Decision: [ADR-20260613-004](ADR.md#adr-20260613-004).
 - Application overview reference rows now evaluate declared resource-permission
   grants for identity-bound configuration and secret references, showing
   granted access separately from missing grant requirements.
@@ -342,13 +317,14 @@ on `git blame --follow`, and then by the broad type of change.
 - Docker host resources now advertise the `container.host` resource capability,
   and Resource Manager uses that capability when populating load-balancer
   container-host choices while retaining a fallback for older host resources.
-
+  Decision: [ADR-20260610-001](ADR.md#adr-20260610-001).
 #### Fixed
 
 - Control-plane-scoped local process cleanup now waits for captured child
   processes after terminating the process tree. This prevents wrappers such as
   `dotnet run` from exiting while the actual ASP.NET Core child process keeps a
   development port bound.
+  Decision: [ADR-20260614-004](ADR.md#adr-20260614-004).
 - Local process Start action availability now preflights loopback endpoint
   ports for non-container application resources. If a dangling process already
   owns a configured development port, Resource Manager can show a stable
@@ -380,18 +356,10 @@ on `git blame --follow`, and then by the broad type of change.
   logs. The intended trace detail direction is a clickable waterfall with a
   service legend, span details, and links from spans to related logs, activity
   entries, and Resource Manager details.
+  Decision: [ADR-20260613-002](ADR.md#adr-20260613-002).
 - The host virtual-network sample smoke test now verifies the projected public
   endpoint, endpoint mapping, reconcile action, and reconcile capability state
   so the sample catches API/action drift across macOS and non-macOS hosts.
-
-#### Decisions
-
-- Host setup should grow into a broader environment setup experience for
-  platform operators. The setup flow should cover missing OS/runtime
-  prerequisites and environment-level choices such as the default identity
-  provider, default container host, default networking/DNS/service-discovery
-  providers, and related readiness checks. Per-resource prompts remain useful
-  when one resource requires a disabled or unconfigured capability.
 
 ### 2026-06-13
 
@@ -405,6 +373,7 @@ on `git blame --follow`, and then by the broad type of change.
   available as the `ResourceManager:ReadOnly` UI host setting so
   local-development or programmatic-declaration environments can be inspected
   without letting UI writes override the declared graph.
+  Decision: [ADR-20260614-005](ADR.md#adr-20260614-005).
 - Resource Manager now makes that bridge navigable: Activity entries and
   structured log metadata link trace IDs to the Traces view, and the Traces
   view can filter retained spans by trace ID.
@@ -466,6 +435,7 @@ on `git blame --follow`, and then by the broad type of change.
   container-workload validation and Docker Compose materialization require the
   shared resolver instead of keeping provider-local or engine-compatible host
   lookup paths.
+  Decision: [ADR-20260610-001](ADR.md#adr-20260610-001).
 - Application app-setting and environment-variable updates now emit
   platform-owned configuration activity events using
   `event.configuration.appSettings.updated` and
@@ -501,10 +471,12 @@ on `git blame --follow`, and then by the broad type of change.
   container-backed recovery is a separate host/runtime concern that should use
   container host identity plus stable container/replica IDs rather than the
   container-host CLI process.
+  Decision: [ADR-20260614-004](ADR.md#adr-20260614-004).
 - Workload crash recovery is distinct from host restart recovery. Providers
   should project observed stopped/failed state; restart, backoff, and
   provider-native recovery policy belong in the orchestrator/runtime policy
   layer.
+  Decision: [ADR-20260614-004](ADR.md#adr-20260614-004).
 - Application lifecycle operations, including host shutdown cleanup, emit
   host-console lifecycle log entries in Development environments for local
   diagnostics. Broader operational logging remains a separate policy decision
@@ -558,39 +530,13 @@ on `git blame --follow`, and then by the broad type of change.
   application-level service discovery model, including the
   `Microsoft.Extensions.ServiceDiscovery` dependency required by applications
   that resolve logical service URIs.
+  Decision: [ADR-20260613-003](ADR.md#adr-20260613-003).
 - Web samples carry `hostsettings.json` with `environment` set to
   `Development`, and load that host setting before creating the ASP.NET Core
   `WebApplicationBuilder` so local sample runs show the development lifecycle
   logs. The helper also adds `hostsettings.json` to builder configuration; the
   pre-builder read is needed because minimal hosting selects the environment
   while the builder is created.
-
-#### Decisions
-
-- Public exposure and API stability are separate decisions. Public APIs that
-  are not yet stable must be labeled as preview, experimental, or unstable,
-  with clear ownership, expected change surface, and path to stability.
-- Provider-owned operational logs now remain text-compatible with `severity`
-  terminology and optional structured metadata on `LogEntry`: `category`,
-  `eventId`, `traceId`, `spanId`, `exceptionSummary`, and string-only
-  `attributes`. The Activity log compatibility projection uses these fields
-  for resource events, but resource events, audit records, diagnostics,
-  metrics, traces, and future non-text payloads remain separate concerns tracked by
-  [Logging infrastructure](docs/proposals/core/logging-infrastructure.md).
-  Application process logs now parse standard JSON console output into those
-  structured fields while preserving plain stdout/stderr as text. The Project
-  Reference sample emits normal `ILogger` JSON console logs with activity
-  trace/span scope so the same `/upstream` request can be inspected through
-  related resource logs and the trace waterfall. The Logs view now uses a
-  header-level source selector, a structured-only filter, and a structured entry
-  details pane so source logs have more horizontal space while still exposing
-  category, event, trace/span, exception, and attribute fields. Trace-related
-  log routes now keep a `traceId` filter, prefer source logs over activity logs
-  when no log source is specified, preserve the filter while switching sources,
-  and show a clear trace-filter affordance. Trace span details also link to the
-  resource Activity tab with the same `traceId`, and Activity applies that
-  filter so resource lifecycle entries, source logs, and spans can be followed
-  from one trace.
 
 ### 2026-06-11
 
@@ -798,25 +744,6 @@ on `git blame --follow`, and then by the broad type of change.
   `NetworkResourceOperationPermissions` and
   `LoadBalancerResourceOperationPermissions`.
 
-#### Decisions
-
-- The container host abstraction should be host-first and descriptor-driven:
-  providers resolve explicit or default container hosts through a shared
-  resolver, keep provider-owned runtime state behind provider contracts, use
-  host-oriented public naming, and report missing explicit/default host
-  placement through Start/Restart action capability reasons before orchestration
-  dispatch. Host descriptors can advertise non-secret runtime capabilities, and
-  the shared resolver now reports unavailable host resources and missing
-  required host capabilities as diagnostics. Container-image and
-  container-build workloads request matching built-in host capability IDs, and
-  Docker hosts advertise those capabilities. Host placement failures now carry
-  structured reason codes so API/UI consumers do not need to parse diagnostic
-  text. Host descriptors now also carry a non-secret credential readiness flag;
-  the shared resolver reports unavailable credentials as a structured
-  placement failure, and Docker host descriptors mark configured environment or
-  TLS file credential references unavailable when the referenced runtime inputs
-  are missing.
-
 ### 2026-06-09
 
 #### Added
@@ -861,6 +788,7 @@ on `git blame --follow`, and then by the broad type of change.
 - Provider-owned resources can create and manage implementation containers as
   runtime state or child resources without becoming container app resources.
   The stable resource, such as a load balancer, owns the user-facing lifecycle.
+  Decision: [ADR-20260609-002](ADR.md#adr-20260609-002).
 - `IResourceManager` publishes coarse `ResourcesChanged` notifications after
   resource-manager mutations. Resource Manager listens for those notifications
   and also polls the inventory so provider-discovered changes, such as runtime
@@ -886,17 +814,6 @@ on `git blame --follow`, and then by the broad type of change.
   container-app targets, and a Traefik-backed public load balancer. Its smoke
   test invokes the advertised apply action and verifies the generated dynamic
   configuration file.
-
-#### Decisions
-
-- Load balancing should be modeled as a resource abstraction over providers.
-  Traefik is the proposed first provider target, with routes mapped to stable
-  resource endpoints and raw ports treated as authoring convenience.
-- Provider-owned runtime infrastructure should select a host resource, where
-  host means an instance of a runtime or control boundary CloudShell can
-  target. Docker, Podman, containerd, schedulers, process managers, and
-  appliance APIs are host runtime capabilities or provider-owned facts, not
-  separate placement primitives.
 
 ### 2026-06-08
 
@@ -1081,44 +998,3 @@ on `git blame --follow`, and then by the broad type of change.
 - Split application resource documentation into a `docs/resources` area with
   separate pages for executable applications, ASP.NET Core project resources,
   and container apps.
-
-#### Decisions
-
-- Consumers should use domain managers, not generated HTTP clients directly.
-- Internal Control Plane stores/providers remain internal implementation
-  contracts.
-- Build-server container app deployments should push an immutable image tag to
-  a registry, then call the authenticated Container Apps revision API with that
-  tag. The Control Plane authorizes the caller, updates the image, creates the
-  revision, and records resource events for traceability.
-
-## Active stabilization areas
-
-- Resource model consistency across provider overrides.
-- Resource Manager state behavior and capability signaling.
-- API contract stability for projected resources, provider-backed actions,
-  OpenAPI output, and errors.
-- Sample coverage for combined and split hosting.
-- OpenAPI/client generation readiness.
-
-## Next priorities
-
-1. Continue tightening internal Resource Manager behavior as invalid-state gaps
-   are found.
-2. Document any remaining MVP gaps as concrete tests or issues.
-
-## Verification baseline
-
-For changes that touch the resource model, Control Plane, API, remote client, or
-samples, run:
-
-```bash
-dotnet build CloudShell.sln --no-restore
-dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore
-dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore
-dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore
-dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore
-```
-
-Use narrower test runs first while developing, then run the baseline before
-committing a cross-boundary change.
