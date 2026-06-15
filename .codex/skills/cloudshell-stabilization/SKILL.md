@@ -13,6 +13,7 @@ coverage, sample reliability, and API/client contract stability.
 Read these first:
 
 - `docs/goal.md`
+- `CONTRIBUTIONS.md`
 - `ADR.md`
 - `CHANGELOG.md`
 - `docs/system-design-guidelines.md`
@@ -51,8 +52,9 @@ Then inspect the current code and tests around the failing or weak behavior.
    relevant proposal documents in sync when stabilization completes proposal
    work, changes proposal order, changes MVP scope, or creates new remaining
    tasks.
-9. Run the verification baseline from `AGENTS.md` before committing
-   cross-boundary stabilization work.
+9. Follow `CONTRIBUTIONS.md` for verification, changelog, ADR, commit, and
+   push expectations. Run the verification baseline from `AGENTS.md` before
+   committing cross-boundary stabilization work.
 
 ## Stabilization priorities
 

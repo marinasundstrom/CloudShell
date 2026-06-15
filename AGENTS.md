@@ -13,6 +13,7 @@ separately from Control Plane services.
 Before making product or architecture changes, read:
 
 - [CloudShell goal](docs/goal.md)
+- [Development workflow](CONTRIBUTIONS.md)
 - [Domain model](docs/domain-model.md)
 - [System design guidelines](docs/system-design-guidelines.md)
 - [Architecture decision log](ADR.md)
@@ -77,6 +78,10 @@ contracts. Platform-owned registration, grouping, and dependency state belongs
 to the Control Plane.
 
 ## Workflows
+
+Follow [CloudShell development workflow](CONTRIBUTIONS.md) for the shared procedure:
+make changes in scoped slices, verify them, update docs and decision logs when
+needed, then commit and push each slice.
 
 For new product features, use the repo-local skill:
 

@@ -13,6 +13,7 @@ extension points, provider capabilities, samples, or UI workflows.
 Read these first:
 
 - `docs/goal.md`
+- `CONTRIBUTIONS.md`
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
 - `docs/artifact-implementation-guidelines.md`
@@ -58,8 +59,9 @@ Then inspect the relevant implementation and tests before editing.
    documents in sync so decisions, landed changes, remaining tasks, and current
    priorities do not drift.
 8. Update `docs/roadmap.md` when the feature changes the current task queue.
-9. Run the relevant narrow tests first, then the verification baseline from
-   `AGENTS.md` for cross-boundary changes.
+9. Follow `CONTRIBUTIONS.md` for verification, changelog, ADR, commit, and
+   push expectations. Run the relevant narrow tests first, then the
+   verification baseline from `AGENTS.md` for cross-boundary changes.
 
 ## Output expectations
 

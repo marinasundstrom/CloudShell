@@ -120,6 +120,17 @@ represented through the same resource model.
 - `CloudShell.Providers.Docker`: reference extension for local Docker Engine and containers.
 - `CloudShell.Abstractions.Tests`: extension registration and validation tests.
 
+## Contributing
+
+See the project workflow and tracking docs:
+
+- [Development workflow](CONTRIBUTIONS.md): how to make changes in focused,
+  verified slices.
+- [Changelog](CHANGELOG.md): dated implementation, stabilization, sample, and
+  documentation history.
+- [Architecture decision log](ADR.md): durable product and architecture
+  decisions.
+
 ## Prerequisites
 
 - .NET 11 preview SDK.

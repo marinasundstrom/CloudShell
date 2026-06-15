@@ -76,6 +76,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Documentation
 
+- Added `CONTRIBUTIONS.md` to codify the shared CloudShell development workflow:
+  make focused slices, add tests when behavior changes, run verification,
+  update docs/changelog/ADR where applicable, then commit and push each slice.
+  The README, agent guide, and repo-local skills now point to that workflow
+  instead of duplicating the general procedure.
 - Added `docs/goal.md` as the concise product-goal document for CloudShell and
   made the repo-local skills read it before product or stabilization work.
   `docs/roadmap.md` remains the milestone and task-order document,
