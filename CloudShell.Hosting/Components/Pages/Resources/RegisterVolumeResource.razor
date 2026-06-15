@@ -32,7 +32,8 @@
         <label for="volume-storage">Storage resource</label>
         <FluentSelect TOption="string"
                       Id="volume-storage"
-                      @bind-Value="SelectedStorageResourceId"
+                      Value="@SelectedStorageResourceId"
+                      ValueChanged="ChangeSelectedStorageResource"
                       Appearance="Appearance.Outline">
             <FluentOption TOption="string" Value="">Direct filesystem path</FluentOption>
             @foreach (var storage in StorageResources)
@@ -111,6 +112,7 @@
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         SelectedStorageResourceId = GetRequestedStorageResourceId() ?? string.Empty;
+        ApplySelectedStorageGroup();
     }
 
     private async Task Register()
@@ -196,6 +198,22 @@
             storage.Id,
             StorageGroupsByResourceId.GetValueOrDefault(storage.Id)?.Id,
             CloudShellPermissions.Resources.Manage);
+
+    private void ChangeSelectedStorageResource(string? storageResourceId)
+    {
+        SelectedStorageResourceId = storageResourceId ?? string.Empty;
+        ApplySelectedStorageGroup();
+    }
+
+    private void ApplySelectedStorageGroup()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedStorageResourceId))
+        {
+            return;
+        }
+
+        SelectedGroupId = StorageGroupsByResourceId.GetValueOrDefault(SelectedStorageResourceId)?.Id ?? string.Empty;
+    }
 
     private static string BuildStorageVolumesRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=volumes";

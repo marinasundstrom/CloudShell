@@ -63,6 +63,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The Storage Volumes tab now keeps owned volumes inspectable while showing the
   explicit Manage action only for volumes the current user can manage.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
+- Volume creation now defaults an owned volume to the selected parent Storage
+  resource's group when the volume is created from the Storage Volumes tab or
+  when a Storage resource is selected manually.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP
