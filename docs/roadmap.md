@@ -117,7 +117,7 @@ listed here before pulling in broader proposal work.
    the medium it announces. The first host-level negotiation uses the
    `storage.mount.filesystem` container-host capability; next slices should
    broaden observed materialization state from orchestrator reports into
-   provider-backed storage resources and Resource Manager diagnostics.
+   provider-backed storage resources and richer Resource Manager diagnostics.
 4. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider,
@@ -227,8 +227,10 @@ listed here before pulling in broader proposal work.
   materialization status for consumers through projected resource attributes.
   Docker Compose now reports the same observations through the shared
   `IResourceVolumeMountMaterializationStore` contract after successful
-  Start/Restart/Stop actions. Provider-backed storage runtime reporting and
-  richer Resource Manager diagnostics remain next.
+  Start/Restart/Stop actions. Resource Manager generated diagnostics now warn
+  when standard mount materialization attributes report partial, not-active, or
+  unknown status. Provider-backed storage runtime reporting and richer Resource
+  Manager diagnostics remain next.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

@@ -32,8 +32,10 @@ attributes. Volume materialization observations now use the shared
 `IResourceVolumeMountMaterializationStore` contract so orchestrators can report
 runtime facts without depending on the application provider. Docker Compose
 records observations through that contract after successful Start/Restart
-actions and marks existing observations not active after Stop. Provider-backed
-storage runtime reporting remains open.
+actions and marks existing observations not active after Stop. Resource Manager
+generated diagnostics now warn when standard mount materialization attributes
+report partial, not-active, or unknown status. Provider-backed storage runtime
+reporting remains open.
 Deletion is guarded for volume resources that are still referenced by another
 resource dependency, and storage mappings cannot be changed while the target
 resource is running.

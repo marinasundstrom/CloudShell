@@ -43,6 +43,11 @@ on `git blame --follow`, and then by the broad type of change.
   implements it, and Docker Compose records materialized/not-active mount
   observations through that contract after successful lifecycle actions.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
+- Resource Manager generated diagnostics now warn when standard storage mount
+  materialization attributes report partial, not-active, or unknown status, so
+  volume consumers surface runtime storage attachment issues outside
+  provider-specific tabs.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

@@ -50,9 +50,65 @@ public static class ResourceDiagnosticDisplay
         AddNamePublisherDiagnostics(resource, relatedResources, diagnostics);
         AddEndpointMappingDiagnostics(resource, relatedResources, diagnostics);
         AddLoadBalancerDiagnostics(resource, relatedResources, diagnostics);
+        AddVolumeMountMaterializationDiagnostics(resource, diagnostics);
 
         return diagnostics;
     }
+
+    private static void AddVolumeMountMaterializationDiagnostics(
+        Resource resource,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        if (!resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.VolumeMountMaterializationStatus,
+                out var status) ||
+            string.IsNullOrWhiteSpace(status) ||
+            string.Equals(status, "materialized", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(status, "notApplicable", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var materializedCount = GetAttributeInteger(
+            resource,
+            ResourceAttributeNames.VolumeMountMaterializedCount);
+        var mountCount = GetAttributeInteger(
+            resource,
+            ResourceAttributeNames.VolumeMountCount);
+        var message = FormatVolumeMountMaterializationMessage(status, materializedCount, mountCount);
+
+        diagnostics.Add(new ResourceDiagnosticView(
+            "Warning",
+            "Storage mounts not fully materialized",
+            message));
+    }
+
+    private static string FormatVolumeMountMaterializationMessage(
+        string status,
+        int? materializedCount,
+        int? mountCount)
+    {
+        var countText = materializedCount is not null && mountCount is not null
+            ? $" {materializedCount.Value} of {mountCount.Value} declared storage mounts are materialized."
+            : string.Empty;
+
+        return NormalizeVolumeMountMaterializationStatus(status) switch
+        {
+            "partial" => $"Only some declared storage mounts are materialized.{countText}",
+            "notActive" => $"Declared storage mounts are not active.{countText}",
+            "unknown" => $"CloudShell has not observed storage mount materialization yet.{countText}",
+            _ => $"Storage mount materialization status is '{status}'.{countText}"
+        };
+    }
+
+    private static string NormalizeVolumeMountMaterializationStatus(string status) =>
+        status.Trim() switch
+        {
+            var value when string.Equals(value, "Partial", StringComparison.OrdinalIgnoreCase) => "partial",
+            var value when string.Equals(value, "NotActive", StringComparison.OrdinalIgnoreCase) => "notActive",
+            var value when string.Equals(value, "Unknown", StringComparison.OrdinalIgnoreCase) => "unknown",
+            var value => value
+        };
 
     private static void AddNamePublisherDiagnostics(
         Resource resource,
@@ -262,6 +318,12 @@ public static class ResourceDiagnosticDisplay
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private static int? GetAttributeInteger(Resource resource, string attributeName) =>
+        resource.ResourceAttributes.TryGetValue(attributeName, out var value) &&
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
+            ? number
+            : null;
 }
 
 public sealed record ResourceDiagnosticView(

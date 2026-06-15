@@ -1,3 +1,4 @@
+using System.Globalization;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Hosting.ResourceManager;
@@ -264,6 +265,46 @@ public sealed class ResourceDiagnosticDisplayTests
             diagnostic.Message);
     }
 
+    [Fact]
+    public void GetDiagnostics_WarnsWhenVolumeMountsArePartiallyMaterialized()
+    {
+        var resource = CreateVolumeConsumer("partial", materializedCount: 1, mountCount: 2);
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(resource);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Storage mounts not fully materialized", diagnostic.Title);
+        Assert.Equal(
+            "Only some declared storage mounts are materialized. 1 of 2 declared storage mounts are materialized.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_WarnsWhenVolumeMountMaterializationIsUnknown()
+    {
+        var resource = CreateVolumeConsumer("unknown", materializedCount: 0, mountCount: 1);
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(resource);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Storage mounts not fully materialized", diagnostic.Title);
+        Assert.Equal(
+            "CloudShell has not observed storage mount materialization yet. 0 of 1 declared storage mounts are materialized.",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_DoesNotWarnWhenVolumeMountsAreMaterialized()
+    {
+        var resource = CreateVolumeConsumer("materialized", materializedCount: 2, mountCount: 2);
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(resource);
+
+        Assert.Empty(diagnostics);
+    }
+
     private static Resource CreateNameMapping(string providerResourceId) =>
         new(
             "dns:local:name:api-local",
@@ -367,4 +408,27 @@ public sealed class ResourceDiagnosticDisplayTests
             Capabilities: [new(ResourceCapabilityIds.NetworkingLoadBalancer)],
             LoadBalancerRoutes: routes);
     }
+
+    private static Resource CreateVolumeConsumer(
+        string materializationStatus,
+        int materializedCount,
+        int mountCount) =>
+        new(
+            "application:api",
+            "API",
+            "Container app",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            ResourceClass: ResourceClass.Container,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.VolumeMountMaterializationStatus] = materializationStatus,
+                [ResourceAttributeNames.VolumeMountMaterializedCount] = materializedCount.ToString(CultureInfo.InvariantCulture),
+                [ResourceAttributeNames.VolumeMountCount] = mountCount.ToString(CultureInfo.InvariantCulture)
+            });
 }
