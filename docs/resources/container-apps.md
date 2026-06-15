@@ -178,7 +178,15 @@ services such as app ingress. Docker Compose maps this descriptor to a Compose
 service where `deploy.replicas` can be declared. The descriptor is consumed by
 orchestrator providers and is not projected as a Resource Manager resource by
 default. It is also distinct from the `cloudshell.service` resource type at
-the CloudShell model/API layer. A `cloudshell.service` resource can still be
+the CloudShell model/API layer.
+
+Runtime replica child resources carry the app deployment id, orchestrator
+service id, and deployment revision they implement. The app-scoped Replicas tab
+shows those identifiers so operators can correlate expected runtime artifacts
+with the current Deployment tab projection without enabling global hidden
+runtime-managed inventory.
+
+A `cloudshell.service` resource can still be
 declared when a stable CloudShell service unit or facade should expose
 non-application targets, multiple targets, imported provider-native services,
 or advanced routing. A normal container app does not require a

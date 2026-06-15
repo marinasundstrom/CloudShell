@@ -153,6 +153,11 @@ on `git blame --follow`, and then by the broad type of change.
   replicas, and the Deployment tab renders that state without exposing public
   rollout-history or rollback APIs yet.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
+- Container app runtime replica child resources now carry the deployment id,
+  service id, and deployment revision they implement. The Replicas tab shows
+  the app deployment and service identifiers so expected runtime artifacts can
+  be correlated with the Deployment tab projection.
+  Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 - Docker host resources now keep host overview and projected container
   inspection separate. The overview summarizes host status and projected
   container count, while the host-scoped Containers tab lists raw Docker

@@ -5741,6 +5741,15 @@ public sealed class ResourceDeclarationTests
             Assert.Equal("containerReplica", replica.ResourceAttributes[ResourceAttributeNames.RuntimeKind]);
             Assert.Equal("3", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
             Assert.Equal(
+                app.ResourceAttributes[ResourceAttributeNames.DeploymentId],
+                replica.ResourceAttributes[ResourceAttributeNames.DeploymentId]);
+            Assert.Equal(
+                app.ResourceAttributes[ResourceAttributeNames.DeploymentServiceId],
+                replica.ResourceAttributes[ResourceAttributeNames.DeploymentServiceId]);
+            Assert.Equal(
+                app.ResourceAttributes[ResourceAttributeNames.DeploymentRevision],
+                replica.ResourceAttributes[ResourceAttributeNames.DeploymentRevision]);
+            Assert.Equal(
                 app.ResourceAttributes[ResourceAttributeNames.ContainerRevision],
                 replica.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
             Assert.Equal(

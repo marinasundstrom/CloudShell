@@ -23,8 +23,12 @@ else
             <dd>@GetConfiguredReplicas(Application)</dd>
             <dt>Projected replicas</dt>
             <dd>@Replicas.Count</dd>
+            <dt>Deployment</dt>
+            <dd>@GetAttribute(Application, ResourceAttributeNames.DeploymentId, "not projected")</dd>
+            <dt>Service</dt>
+            <dd>@GetAttribute(Application, ResourceAttributeNames.DeploymentServiceId, "not projected")</dd>
             <dt>Revision</dt>
-            <dd>@GetAttribute(Application, ResourceAttributeNames.ContainerRevision, Application.Version)</dd>
+            <dd>@GetAttribute(Application, ResourceAttributeNames.DeploymentRevision, Application.Version)</dd>
             <dt>Image</dt>
             <dd>@GetAttribute(Application, ResourceAttributeNames.ContainerImage, "none")</dd>
         </dl>

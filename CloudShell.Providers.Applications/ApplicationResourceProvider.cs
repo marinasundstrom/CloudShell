@@ -2410,28 +2410,30 @@ public sealed partial class ApplicationResourceProvider(
 
     private IReadOnlyList<Resource> CreateRuntimeContainerResources(ApplicationResourceDefinition application)
     {
-        var service = CreateDefaultContainerOrchestratorService(application);
         var parentState = GetState(application.Id);
-        var revision = GetEffectiveContainerRevision(application);
-        return CreateDefaultContainerServiceInstances(service)
-            .Select(instance => CreateRuntimeContainerResource(application, service, instance, parentState, revision))
+        var deployment = CreateDefaultContainerOrchestratorDeployment(application, parentState);
+        return CreateDefaultContainerServiceInstances(deployment.Spec.Service)
+            .Select(instance => CreateRuntimeContainerResource(application, deployment, instance, parentState))
             .ToArray();
     }
 
     private static Resource CreateRuntimeContainerResource(
         ApplicationResourceDefinition application,
-        ResourceOrchestratorService service,
+        ResourceOrchestratorDeployment deployment,
         ResourceOrchestratorServiceInstance instance,
-        ResourceState state,
-        string revision)
+        ResourceState state)
     {
+        var service = deployment.Spec.Service;
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
+            [ResourceAttributeNames.DeploymentId] = deployment.Id,
+            [ResourceAttributeNames.DeploymentServiceId] = deployment.ServiceId,
+            [ResourceAttributeNames.DeploymentRevision] = deployment.RevisionId,
             [ResourceAttributeNames.RuntimeKind] = "containerReplica",
             [ResourceAttributeNames.RuntimeContainerName] = instance.Name,
             [ResourceAttributeNames.RuntimeReplicaOrdinal] = instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.RuntimeReplicaCount] = instance.ReplicaCount.ToString(CultureInfo.InvariantCulture),
-            [ResourceAttributeNames.RuntimeRevision] = revision,
+            [ResourceAttributeNames.RuntimeRevision] = deployment.RevisionId,
             [ResourceAttributeNames.RuntimeMaterialization] = "orchestratorProjection"
         };
 
@@ -2446,7 +2448,7 @@ public sealed partial class ApplicationResourceProvider(
             "local",
             state,
             [],
-            revision,
+            deployment.RevisionId,
             DateTimeOffset.UtcNow,
             [],
             ParentResourceId: application.Id,

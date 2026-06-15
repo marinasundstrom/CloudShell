@@ -161,7 +161,8 @@ Implemented pieces include:
 * internal orchestrator deployment/revision data contracts for future
   container app runtime materialization
 * hidden runtime-managed child resources for container app replica/container
-  projections, parented to and owned by the stable container app resource
+  projections, parented to and owned by the stable container app resource,
+  with deployment/service/revision correlation metadata
 * app-scoped Replicas tab that lists projected runtime replicas without
   requiring global hidden/runtime-managed inventory settings
 * application-level service discovery opt-in through `WithServiceDiscovery()`
