@@ -67,13 +67,9 @@
             </div>
         }
 
-        <div class="form-actions">
-            <FluentButton Appearance="Appearance.Accent"
-                          Disabled="@(selectedGroup is null || IsBusy)"
-                          OnClick="ExportSelectedGroup">
-                @L["Export JSON"]
-            </FluentButton>
-        </div>
+        <FormPrimaryAction Text="@L["Export JSON"].Value"
+                           Disabled="@(selectedGroup is null || IsBusy)"
+                           OnClick="ExportSelectedGroup" />
 
         @if (!string.IsNullOrWhiteSpace(ExportJson))
         {

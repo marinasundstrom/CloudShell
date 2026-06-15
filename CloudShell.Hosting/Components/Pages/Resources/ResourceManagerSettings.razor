@@ -173,13 +173,9 @@
             }
             else
             {
-                <div class="form-actions">
-                    <FluentButton Appearance="Appearance.Accent"
-                                  Disabled="@(!CanApply)"
-                                  OnClick="RequestChange">
-                        @L["Apply"]
-                    </FluentButton>
-                </div>
+                <FormPrimaryAction Text="@L["Apply"].Value"
+                                   Disabled="@(!CanApply)"
+                                   OnClick="RequestChange" />
             }
         </div>
     </div>

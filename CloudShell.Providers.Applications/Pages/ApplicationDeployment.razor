@@ -57,13 +57,9 @@ else
                 <div class="procedure-message compact">@ImageDeploymentMessage</div>
             }
 
-            <div class="form-actions">
-                <FluentButton Appearance="Appearance.Accent"
-                              Disabled="@(!CanSubmitImageDeployment)"
-                              OnClick="DeployImage">
-                    @(IsDeploying ? "Deploying" : "Deploy")
-                </FluentButton>
-            </div>
+            <FormPrimaryAction Text="@(IsDeploying ? "Deploying" : "Deploy")"
+                               Disabled="@(!CanSubmitImageDeployment)"
+                               OnClick="DeployImage" />
         </div>
     </section>
 }
