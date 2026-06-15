@@ -161,11 +161,6 @@
                     <p>@(resourceType?.DisplayName ?? resource.EffectiveTypeId)</p>
                 </div>
             </div>
-            @if (CanShowImageDeployment(resource, selectedTab))
-            {
-                <ResourceImageDeployment Resource="resource"
-                                         ResourceUpdated="HandleResourceUpdated" />
-            }
             @if (isGeneratedOverview)
             {
                 <GeneratedResourceOverview Resource="resource"
@@ -213,6 +208,11 @@
     private bool IsApplying { get; set; }
     private bool IsRestarting { get; set; }
     private int ResourceContentVersion { get; set; }
+
+    protected override void OnInitialized()
+    {
+        ResourceManager.ResourcesChanged += OnResourcesChanged;
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -361,6 +361,23 @@
 
     private void HandleConfigurationStateChanged() => InvokeAsync(StateHasChanged);
 
+    private void OnResourcesChanged(object? sender, ResourceChangeNotification notification)
+    {
+        var currentResourceId = Resource?.Id ?? ResourceId;
+        if (string.IsNullOrWhiteSpace(currentResourceId) ||
+            !AffectsResource(notification, currentResourceId))
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            await ReloadResourceAsync();
+            ResourceContentVersion++;
+            StateHasChanged();
+        });
+    }
+
     private async Task HandleResourceUpdated(Resource resource)
     {
         Resource = resource;
@@ -392,13 +409,12 @@
         OperationCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
     }
 
-    private static bool CanShowImageDeployment(
-        Resource resource,
-        ResourceTabContribution selectedTab) =>
-        string.Equals(selectedTab.Id, GeneratedOverviewTabId, StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(resource.EffectiveTypeId, "application.container-app", StringComparison.OrdinalIgnoreCase) &&
-        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerImage) &&
-        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.ContainerRevision);
+    private static bool AffectsResource(
+        ResourceChangeNotification notification,
+        string resourceId) =>
+        string.Equals(notification.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase) ||
+        notification.Resources.Any(affectedResourceId =>
+            string.Equals(affectedResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
 
     private string GetContentKey(Resource resource, ResourceTabContribution selectedTab) =>
         $"{resource.Id}:{selectedTab.Id}:{ResourceContentVersion}";
@@ -718,6 +734,8 @@
 
     public void Dispose()
     {
+        ResourceManager.ResourcesChanged -= OnResourcesChanged;
+
         if (ConfigurationContext is not null)
         {
             ConfigurationContext.StateChanged -= HandleConfigurationStateChanged;

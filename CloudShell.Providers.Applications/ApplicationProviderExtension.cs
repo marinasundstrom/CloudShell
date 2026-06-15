@@ -110,22 +110,27 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "overview",
                 "Overview",
                 10)
+            .AddResourceTab<Pages.ApplicationDeployment>(
+                ApplicationResourceTypes.ContainerApp,
+                "deployment",
+                "Deployment",
+                20)
             .AddResourceTab<Pages.ApplicationReplicas>(
                 ApplicationResourceTypes.ContainerApp,
                 "replicas",
                 "Replicas",
-                20)
+                30)
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ContainerApp,
                 "configuration",
                 "Configuration",
-                30,
+                40,
                 showsApplyButton: true)
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.ContainerApp,
                 "storage",
                 "Storage",
-                40,
+                50,
                 showsApplyButton: true)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.SqlServer,

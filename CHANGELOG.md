@@ -142,6 +142,11 @@ on `git blame --follow`, and then by the broad type of change.
   not require enabling global hidden or runtime-managed resource inventory
   settings.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
+- Container app image deployment moved from the generic Overview surface into a
+  provider-owned Deployment tab. The tab shows the current image, revision, and
+  desired replica count, and keeps the deploy-image operation grouped with
+  deployment-specific state.
+  Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 - Docker host resources now keep host overview and projected container
   inspection separate. The overview summarizes host status and projected
   container count, while the host-scoped Containers tab lists raw Docker

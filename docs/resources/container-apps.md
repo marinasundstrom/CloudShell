@@ -109,9 +109,9 @@ setting for Docker child-container resources; that setting also defaults to
 
 ## Resource Manager Deployment
 
-The Resource Manager overview for a container app includes a deploy image
-control. Enter a new image tag and choose whether CloudShell should restart a
-running app after the update. The shell calls the same domain
+Container app resources expose image rollout controls on the Deployment tab.
+Enter a new image tag and choose whether CloudShell should restart a running app
+after the update. The tab calls the same domain
 `UpdateResourceImageAsync` operation used by remote clients, then refreshes the
 projected container image and revision.
 

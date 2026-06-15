@@ -926,18 +926,26 @@ public sealed class ResourceDeclarationTests
             .SelectMany(extension => extension.ResourceTypes)
             .ToDictionary(resourceType => resourceType.Id, StringComparer.OrdinalIgnoreCase);
 
-        AssertReplicaTab(resourceTypes[ApplicationResourceTypes.ContainerApp]);
-        AssertStorageTab(resourceTypes[ApplicationResourceTypes.ContainerApp]);
+        var containerAppType = resourceTypes[ApplicationResourceTypes.ContainerApp];
+        AssertDeploymentTab(containerAppType);
+        AssertReplicaTab(containerAppType);
+        AssertStorageTab(containerAppType);
         AssertStorageTab(resourceTypes[ApplicationResourceTypes.SqlServer]);
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.SqlServer].ResourceTabs,
             tab => string.Equals(tab.Id, "replicas", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            resourceTypes[ApplicationResourceTypes.SqlServer].ResourceTabs,
+            tab => string.Equals(tab.Id, "deployment", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => string.Equals(tab.Id, "replicas", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => string.Equals(tab.Id, "storage", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
+            tab => string.Equals(tab.Id, "deployment", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -1092,6 +1100,18 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationStorage), storageTab.ComponentType);
     }
 
+    private static void AssertDeploymentTab(ResourceTypeContribution resourceType)
+    {
+        var deploymentTab = Assert.Single(
+            resourceType.ResourceTabs,
+            tab => string.Equals(tab.Id, "deployment", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal("Deployment", deploymentTab.Title);
+        Assert.False(deploymentTab.ShowsApplyButton);
+        Assert.Equal(20, deploymentTab.Order);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationDeployment), deploymentTab.ComponentType);
+    }
+
     private static void AssertReplicaTab(ResourceTypeContribution resourceType)
     {
         var replicaTab = Assert.Single(
@@ -1100,7 +1120,7 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal("Replicas", replicaTab.Title);
         Assert.False(replicaTab.ShowsApplyButton);
-        Assert.Equal(20, replicaTab.Order);
+        Assert.Equal(30, replicaTab.Order);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationReplicas), replicaTab.ComponentType);
     }
 

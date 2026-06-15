@@ -152,7 +152,7 @@ Implemented pieces include:
   container-host configuration, including create and update host selection
 * `AsContainer(...)` conversion for ASP.NET Core project resources
 * current revision projection when a container app image is updated
-* Resource Manager image update action
+* Resource Manager Deployment tab with image update action
 * explicit replica count update API
 * shared resource metadata for provider/orchestrator/runtime ownership,
   visibility, owner resource, and cleanup behavior
