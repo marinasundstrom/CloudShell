@@ -23,6 +23,8 @@ public sealed class DockerProviderExtension : ICloudShellExtension
             ServiceDescriptor.Singleton<IContainerHostProvider, DockerContainerHostProvider>());
         builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
             serviceProvider => serviceProvider.GetRequiredService<DockerContainerResourceProvider>());
+        builder.Services.AddSingleton<IResourceActionAvailabilityProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<DockerContainerResourceProvider>());
 
         builder
             .AddResourceProvider<DockerContainerResourceProvider>()

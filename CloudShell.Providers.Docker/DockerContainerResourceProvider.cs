@@ -4,6 +4,8 @@ using Docker.DotNet;
 using Docker.DotNet.Models;
 using System.Buffers;
 using System.Globalization;
+using System.Net;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -15,6 +17,7 @@ public sealed partial class DockerContainerResourceProvider :
     IResourceProvider,
     ILogProvider,
     IResourceProcedureProvider,
+    IResourceActionAvailabilityProvider,
     IProgrammaticResourceDeclarationProvider,
     IResourceAutoStartPolicyProvider,
     IResourceOrchestrationDescriptorProvider,
@@ -421,6 +424,34 @@ public sealed partial class DockerContainerResourceProvider :
 
         await RefreshAsync(cancellationToken);
         return ResourceProcedureResult.Completed($"{action.DisplayName} requested for {context.Resource.Name}.");
+    }
+
+    public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
+        action.Kind == ResourceActionKind.Start &&
+        string.Equals(resource.EffectiveTypeId, "docker.container", StringComparison.OrdinalIgnoreCase) &&
+        _options.DeclaredContainers.Any(container =>
+            string.Equals(container.Definition.Id, resource.Id, StringComparison.OrdinalIgnoreCase));
+
+    public Task<string?> GetActionUnavailableReasonAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanEvaluateAction(context.Resource, action))
+        {
+            return Task.FromResult<string?>(null);
+        }
+
+        foreach (var endpoint in context.Resource.Endpoints)
+        {
+            var reason = GetEndpointUnavailableReason(context.Resource, endpoint);
+            if (!string.IsNullOrWhiteSpace(reason))
+            {
+                return Task.FromResult<string?>(reason);
+            }
+        }
+
+        return Task.FromResult<string?>(null);
     }
 
     public bool CanDescribe(Resource resource) =>
@@ -1224,6 +1255,63 @@ public sealed partial class DockerContainerResourceProvider :
         string.IsNullOrWhiteSpace(host) || host == "0.0.0.0" || host == "::"
             ? "localhost"
             : host;
+
+    private static string? GetEndpointUnavailableReason(
+        Resource resource,
+        ResourceEndpoint endpoint)
+    {
+        if (endpoint.Exposure == ResourceExposureScope.Private ||
+            !Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) ||
+            uri.Port <= 0 ||
+            !IsTcpLikeEndpoint(endpoint, uri) ||
+            !TryGetLocalBindAddress(uri.Host, out var address))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var listener = new TcpListener(address, uri.Port);
+            listener.Start();
+            listener.Stop();
+            return null;
+        }
+        catch (SocketException)
+        {
+            return $"Endpoint '{endpoint.Name}' for Docker container resource '{resource.Id}' cannot use {endpoint.Address} because the address is already in use.";
+        }
+    }
+
+    private static bool IsTcpLikeEndpoint(ResourceEndpoint endpoint, Uri uri)
+    {
+        var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
+            ? uri.Scheme
+            : endpoint.Protocol;
+        return protocol.Equals("tcp", StringComparison.OrdinalIgnoreCase) ||
+            protocol.Equals("http", StringComparison.OrdinalIgnoreCase) ||
+            protocol.Equals("https", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryGetLocalBindAddress(string host, out IPAddress address)
+    {
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            address = IPAddress.Loopback;
+            return true;
+        }
+
+        if (IPAddress.TryParse(host, out var parsed) &&
+            (IPAddress.IsLoopback(parsed) ||
+                IPAddress.Any.Equals(parsed) ||
+                IPAddress.IPv6Any.Equals(parsed)))
+        {
+            address = parsed;
+            return true;
+        }
+
+        address = IPAddress.None;
+        return false;
+    }
 
     private static ResourceState MapState(string? state) =>
         state?.ToLowerInvariant() switch

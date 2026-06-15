@@ -184,6 +184,9 @@ Implemented pieces include:
 * attached volume display on application overview pages, with the Storage tab
   remaining the edit surface
 * local host-published endpoint preflight before container app start
+* declared Docker container Start preflight for occupied local TCP/HTTP
+  endpoint ports, covering local registry resources used by container app
+  deployment samples
 * local/default container-host path, host capability diagnostics, and
   application overview host placement/readiness display
 
@@ -243,11 +246,12 @@ Implemented pieces include:
 * Add deeper container-host readiness diagnostics for unsupported ingress,
   public endpoint, DNS/name publication, registry credential, and storage
   choices before update/start.
-* Add local container-registry diagnostics and configuration so CloudShell does
-  not assume `localhost:5000`. The Container App Deployment sample already
-  uses an explicit non-default port; future registry-backed samples and
-  providers should keep the port configurable, detect conflicts, and suggest or
-  allocate a different port when the default is unavailable.
+* Keep local container-registry configuration explicit so CloudShell does not
+  assume `localhost:5000`. The Container App Deployment sample already uses an
+  explicit non-default port, and declared Docker container resources now
+  preflight occupied local TCP/HTTP endpoint ports before Start. Future
+  registry-backed providers should also suggest or allocate alternate ports
+  when a default is unavailable.
 * Improve restart/update behavior around image, replica, environment, endpoint,
   identity, and storage changes.
 * Keep supported samples green with a broad container app scenario that uses

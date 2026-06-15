@@ -3237,6 +3237,71 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task DockerProvider_ReportsOccupiedDeclaredContainerEndpointAsActionUnavailable()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var services = new ServiceCollection();
+
+        try
+        {
+            services
+                .AddControlPlane()
+                .AddDockerProvider()
+                .Resources(resources =>
+                {
+                    resources
+                        .AddDocker("docker:sample", "Sample Docker")
+                        .AddDockerContainer(
+                            "sample-registry",
+                            "Local Registry",
+                            "registry:2")
+                        .WithEndpoint(ResourceEndpoint.Http(
+                            "http",
+                            "127.0.0.1",
+                            port,
+                            ResourceExposureScope.Public));
+                });
+
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<DockerContainerResourceProvider>();
+            var actionAvailabilityProvider = Assert.Single(
+                serviceProvider.GetServices<IResourceActionAvailabilityProvider>(),
+                candidate => ReferenceEquals(candidate, provider));
+            var resource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "docker:container:sample-registry");
+            var registrations = new TestResourceRegistrationStore(
+                [
+                    new ResourceRegistration(
+                        resource.Id,
+                        provider.Id,
+                        null,
+                        DateTimeOffset.UtcNow,
+                        [])
+                ]);
+            var resourceManager = new StaticResourceManagerStore([resource], [provider]);
+
+            var reason = await actionAvailabilityProvider.GetActionUnavailableReasonAsync(
+                new ResourceProcedureContext(
+                    resource,
+                    registrations.GetRegistration(resource.Id),
+                    null,
+                    registrations,
+                    resourceManager),
+                ResourceAction.Start);
+
+            Assert.Equal(
+                $"Endpoint 'http' for Docker container resource 'docker:container:sample-registry' cannot use http://127.0.0.1:{port} because the address is already in use.",
+                reason);
+        }
+        finally
+        {
+            listener.Stop();
+        }
+    }
+
+    [Fact]
     public void TypedDockerBuilder_ParentsContainersUnderSpecificDockerResource()
     {
         var services = new ServiceCollection();
