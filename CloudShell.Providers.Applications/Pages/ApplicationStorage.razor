@@ -39,53 +39,10 @@ else
         </div>
     }
 
-    <ResourceEditorSection Title="Volume mounts">
-        <Actions>
-            <FluentButton Appearance="Appearance.Neutral"
-                          Disabled="@IsStorageEditorDisabled"
-                          OnClick="AddVolumeMount">
-                Add mount
-            </FluentButton>
-        </Actions>
-
-        <ChildContent>
-            @if (GetVolumeCandidates().Count == 0)
-            {
-                <span>No volume resources are available in this group.</span>
-            }
-            else
-            {
-                @foreach (var mount in VolumeMounts)
-                {
-                    <div class="environment-row">
-                        <FluentSelect TOption="string"
-                                      AriaLabel="Volume resource"
-                                      Disabled="@IsStorageEditorDisabled"
-                                      @bind-Value="mount.VolumeReference"
-                                      Appearance="Appearance.Outline">
-                            <FluentOption TOption="string" Value="">Select volume</FluentOption>
-                            @foreach (var volume in GetVolumeCandidates())
-                            {
-                                <FluentOption TOption="string" Value="@volume.Id">@ApplicationVolumeResourceDisplay.GetVolumeOptionLabel(volume)</FluentOption>
-                            }
-                        </FluentSelect>
-                        <FluentTextField AriaLabel="Target path"
-                                         Disabled="@IsStorageEditorDisabled"
-                                         @bind-Value="mount.TargetPath"
-                                         Placeholder="@GetTargetPathPlaceholder()" />
-                        <FluentCheckbox Disabled="@IsStorageEditorDisabled" @bind-Value="mount.ReadOnly">
-                            Read-only
-                        </FluentCheckbox>
-                        <FluentButton Appearance="Appearance.Neutral"
-                                      Disabled="@IsStorageEditorDisabled"
-                                      OnClick="() => RemoveVolumeMount(mount)">
-                            Remove
-                        </FluentButton>
-                    </div>
-                }
-            }
-        </ChildContent>
-    </ResourceEditorSection>
+    <ApplicationVolumeMountsEditor Mounts="VolumeMounts"
+                                   VolumeCandidates="GetVolumeCandidates()"
+                                   Disabled="@IsStorageEditorDisabled"
+                                   TargetPathPlaceholder="@GetTargetPathPlaceholder()" />
 }
 
 @code {
@@ -100,7 +57,7 @@ else
 
     private ApplicationResourceDefinition? Application { get; set; }
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
-    private List<VolumeMountInput> VolumeMounts { get; } = [];
+    private List<ApplicationVolumeMountInput> VolumeMounts { get; } = [];
 
     private bool IsStorageLocked =>
         Application is not null &&
@@ -119,7 +76,7 @@ else
         VolumeMounts.Clear();
         if (Application is not null)
         {
-            VolumeMounts.AddRange(Application.VolumeMounts.Select(VolumeMountInput.FromMount));
+            VolumeMounts.AddRange(Application.VolumeMounts.Select(ApplicationVolumeMountInput.FromMount));
         }
 
         if (VolumeMounts.Count == 0)
@@ -254,32 +211,6 @@ else
 
     private static bool IsActive(ResourceState? state) =>
         state is ResourceState.Running or ResourceState.Starting or ResourceState.Degraded;
-
-    private void AddVolumeMount() => VolumeMounts.Add(new());
-
-    private void RemoveVolumeMount(VolumeMountInput mount)
-    {
-        VolumeMounts.Remove(mount);
-        if (VolumeMounts.Count == 0)
-        {
-            VolumeMounts.Add(new());
-        }
-    }
-
-    private sealed class VolumeMountInput(
-        string? volumeReference = null,
-        string? targetPath = null,
-        bool readOnly = false)
-    {
-        public string? VolumeReference { get; set; } = volumeReference;
-
-        public string? TargetPath { get; set; } = targetPath;
-
-        public bool ReadOnly { get; set; } = readOnly;
-
-        public static VolumeMountInput FromMount(ResourceVolumeMount mount) =>
-            new(mount.VolumeReference, mount.TargetPath, mount.ReadOnly);
-    }
 
     private sealed record ResourceMountRecommendation(
         string TargetPath,

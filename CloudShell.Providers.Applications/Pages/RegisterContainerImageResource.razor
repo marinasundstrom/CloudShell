@@ -113,48 +113,8 @@
             Start referenced resources first
         </FluentCheckbox>
 
-        <ResourceEditorSection>
-            <HeaderContent>
-                <strong>Volume mounts</strong>
-            </HeaderContent>
-            <Actions>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="AddVolumeMount">
-                    Add mount
-                </FluentButton>
-            </Actions>
-            <ChildContent>
-
-            @if (GetVolumeCandidates().Count == 0)
-            {
-                <span>No volume resources are available in this group.</span>
-            }
-            else
-            {
-                @foreach (var mount in VolumeMounts)
-                {
-                    <div class="environment-row">
-                        <FluentSelect TOption="string"
-                                      AriaLabel="Volume resource"
-                                      @bind-Value="mount.VolumeReference"
-                                      Appearance="Appearance.Outline">
-                            <FluentOption TOption="string" Value="">Select volume</FluentOption>
-                            @foreach (var volume in GetVolumeCandidates())
-                            {
-                                <FluentOption TOption="string" Value="@volume.Id">@ApplicationVolumeResourceDisplay.GetVolumeOptionLabel(volume)</FluentOption>
-                            }
-                        </FluentSelect>
-                        <FluentTextField AriaLabel="Target path" @bind-Value="mount.TargetPath" Placeholder="/data" />
-                        <FluentCheckbox @bind-Value="mount.ReadOnly">
-                            Read-only
-                        </FluentCheckbox>
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveVolumeMount(mount)">
-                            Remove
-                        </FluentButton>
-                    </div>
-                }
-            }
-            </ChildContent>
-        </ResourceEditorSection>
+        <ApplicationVolumeMountsEditor Mounts="VolumeMounts"
+                                       VolumeCandidates="GetVolumeCandidates()" />
 
         <FluentCheckbox @bind-Value="EnableObservability">
             Enable observability
@@ -200,7 +160,7 @@
     private bool StartAfterCreate { get; set; } = true;
     private string? ErrorMessage { get; set; }
     private List<ApplicationEnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
-    private List<VolumeMountInput> VolumeMounts { get; } = [new()];
+    private List<ApplicationVolumeMountInput> VolumeMounts { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     private bool IsManualEndpointAssignment =>
@@ -475,17 +435,6 @@
                 RegistryUsername,
                 RegistryPasswordEnvironmentVariable);
 
-    private void AddVolumeMount() => VolumeMounts.Add(new());
-
-    private void RemoveVolumeMount(VolumeMountInput mount)
-    {
-        VolumeMounts.Remove(mount);
-        if (VolumeMounts.Count == 0)
-        {
-            VolumeMounts.Add(new());
-        }
-    }
-
     private void ToggleReference(string resourceId, bool selected)
     {
         if (selected)
@@ -498,15 +447,4 @@
         }
     }
 
-    private sealed class VolumeMountInput(
-        string? volumeReference = null,
-        string? targetPath = null,
-        bool readOnly = false)
-    {
-        public string? VolumeReference { get; set; } = volumeReference;
-
-        public string? TargetPath { get; set; } = targetPath;
-
-        public bool ReadOnly { get; set; } = readOnly;
-    }
 }
