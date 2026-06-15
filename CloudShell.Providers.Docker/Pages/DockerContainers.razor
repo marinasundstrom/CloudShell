@@ -148,6 +148,9 @@ else
     [Parameter]
     public string? ResourceId { get; set; }
 
+    [CascadingParameter(Name = "ResourceManagerReadOnly")]
+    public bool IsReadOnly { get; set; }
+
     private string? ExecutingActionKey { get; set; }
     private string? ProcedureMessage { get; set; }
     private PendingResourceAction? PendingAction { get; set; }
@@ -214,7 +217,9 @@ else
     {
         if (!CanExecuteAction(container, action))
         {
-            ProcedureMessage = "The action is not available for this container.";
+            ProcedureMessage = IsReadOnly
+                ? "Resource Manager is in read-only mode."
+                : "The action is not available for this container.";
             return;
         }
 
@@ -246,7 +251,9 @@ else
     {
         if (!CanExecuteAction(container, action))
         {
-            ProcedureMessage = "The action is not available for this container.";
+            ProcedureMessage = IsReadOnly
+                ? "Resource Manager is in read-only mode."
+                : "The action is not available for this container.";
             return;
         }
 
@@ -274,7 +281,7 @@ else
     }
 
     private bool CanExecuteAction(Resource resource, ResourceAction action) =>
-        GetCapabilities(resource).CanExecuteAction(action.Id);
+        !IsReadOnly && GetCapabilities(resource).CanExecuteAction(action.Id);
 
     private ResourceOperationCapabilities GetCapabilities(Resource resource) =>
         CapabilitiesByResourceId.GetValueOrDefault(resource.Id) ??

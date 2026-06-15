@@ -79,6 +79,10 @@ on `git blame --follow`, and then by the broad type of change.
   through public Resource Manager and log manager APIs instead of internal
   provider stores, keeping provider UI aligned with split-hosting and
   authorization boundaries.
+- Resource detail pages now cascade the Resource Manager read-only state to
+  provider-contributed tabs. The Docker Containers tab consumes that state so
+  container action buttons and execution guards honor read-only mode without
+  depending on host UI options directly.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

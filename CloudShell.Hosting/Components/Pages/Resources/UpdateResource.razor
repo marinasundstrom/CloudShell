@@ -170,9 +170,11 @@
             else
             {
                 <CascadingValue Value="ConfigurationContext">
-                    <DynamicComponent Type="selectedTab.ComponentType"
-                                      @key="GetContentKey(resource, selectedTab)"
-                                      Parameters="@BuildComponentParameters(resource, selectedTab)" />
+                    <CascadingValue Name="ResourceManagerReadOnly" Value="IsReadOnly">
+                        <DynamicComponent Type="selectedTab.ComponentType"
+                                          @key="GetContentKey(resource, selectedTab)"
+                                          Parameters="@BuildComponentParameters(resource, selectedTab)" />
+                    </CascadingValue>
                 </CascadingValue>
             }
         }
