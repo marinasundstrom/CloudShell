@@ -43,7 +43,9 @@ below.
    Keep edits scoped to the layer and behavior being changed. Avoid unrelated
    refactors, formatting churn, or compatibility work that does not serve the
    current slice. When the work is larger than one coherent change, split it
-   into sequential slices and commit each one separately.
+   into sequential slices and commit each one separately. Larger feature slices
+   or roadmap targets should still land through smaller sub-slices when each
+   sub-slice is contained enough to verify and review on its own.
 
 4. Add or update tests when behavior changes.
 
@@ -54,6 +56,13 @@ below.
    - API/client tests for HTTP shape, errors, hypermedia, and remote mapping
    - provider tests for provider-owned projection or runtime behavior
    - sample tests for supported hosting scenarios
+
+   Testing also includes running the software when that is the most direct way
+   to verify behavior. Depending on the change, this can mean exercising a Web
+   API endpoint, starting a sample host, or walking through a user scenario in
+   the Resource Manager UI. When a change affects the UI, prefer verifying the
+   running UX so the implemented behavior, layout, and interaction work as
+   intended.
 
    Docs-only changes do not need product tests, but still need a diff check.
 
@@ -98,9 +107,10 @@ below.
    batch unrelated slices into one commit.
 
    For pure documentation slices authored by agents, do not commit or push
-   automatically. Leave the reviewed diff in the worktree and state that it is
-   intentionally uncommitted. Commit only when the user explicitly asks to land
-   that documentation slice after review.
+   automatically. This is the only slice type that has a blanket
+   no-automatic-commit rule. Leave the reviewed diff in the worktree and state
+   that it is intentionally uncommitted. Commit only when the user explicitly
+   asks to land that documentation slice after review.
 
 ## Ownership and Parallel Work
 
