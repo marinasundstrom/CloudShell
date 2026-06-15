@@ -94,13 +94,12 @@ listed here before pulling in broader proposal work.
    public endpoints, load-balancer routes, and logical DNS/name mappings form
    one understandable Resource Manager workflow. Keep `cloudshell.service`
    optional for logical facades, imported services, non-application targets,
-   and advanced routing instead of making it a required MVP hop. The next
-   networking implementation slice is a local development name-publishing
-   provider for exact host mappings under an explicit development suffix,
-   using `reconcileNameMappings`; wildcard suffixes and public DNS propagation
-   stay provider-specific and out of the MVP path unless a sample proves they
-   are required. Do not expand `cloudshell.service` semantics further until the
-   shared deployment and orchestrator service model is clearer.
+   and advanced routing instead of making it a required MVP hop. Exact local
+   development name publishing and name-mapping update UI are now in place;
+   wildcard suffixes and public DNS propagation stay provider-specific and out
+   of the MVP path unless a sample proves they are required. Do not expand
+   `cloudshell.service` semantics further until the shared deployment and
+   orchestrator service model is clearer.
 2. Resource Manager convergence for the same path: keep the app resource page
    as the operator entry point for endpoints, discovery, storage, identity,
    logs, traces, activity, and inbound name mappings. Fix UI consistency and
@@ -200,9 +199,10 @@ listed here before pulling in broader proposal work.
   `local-hostnames`. Resource Manager create flows can choose that publisher
   and warn about `.local` suffixes. Name mappings now project the last
   provider reconcile observation as `Published` or `PublishFailed` so users can
-  distinguish selected-provider intent from a recent publish result. Next it
-  needs update UI for existing name mappings and richer provider-specific DNS
-  diagnostics when the MVP management flow needs them.
+  distinguish selected-provider intent from a recent publish result. Existing
+  name mappings can now be edited from Resource Manager without changing the
+  parent DNS zone. Next it needs richer provider-specific DNS diagnostics when
+  the MVP management flow needs them.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when

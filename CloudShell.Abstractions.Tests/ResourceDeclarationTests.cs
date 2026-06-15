@@ -1028,6 +1028,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("Name Mapping", nameMappingType.DisplayName);
         Assert.Equal(ResourceClass.Network, nameMappingType.ResourceClass);
         Assert.Equal(typeof(RegisterNameMappingResource), nameMappingType.RegistrationComponentType);
+        Assert.Equal(typeof(UpdateNameMappingResource), nameMappingType.UpdateComponentType);
         Assert.Empty(nameMappingType.ResourceTabs);
     }
 
@@ -3949,6 +3950,59 @@ public sealed class ResourceDeclarationTests
         Assert.False(updatedResources.ContainsKey("dns:local:name:api-local"));
         Assert.True(updatedResources.ContainsKey("dns:local:name:app-local"));
         Assert.Equal("1", updatedResources["dns:local"].ResourceAttributes[ResourceAttributeNames.DnsRecordCount]);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_UpdatesDnsNameMappingWithoutMovingParentZoneGroup()
+    {
+        var options = new PlatformResourceOptions();
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var registrations = new MutableResourceRegistrationStore();
+
+        await provider.SetupDnsZoneAsync(
+            new DnsZoneResourceDefinition(
+                "dns:local",
+                "Local DNS",
+                "local",
+                Mappings:
+                [
+                    new DnsNameMappingDefinition(
+                        "dns:local:name:api-local",
+                        "api.local",
+                        "api.local",
+                        "application:api",
+                        "http")
+                ]),
+            "group:network",
+            registrations);
+
+        await provider.SetupNameMappingAsync(
+            new DnsNameMappingResourceDefinition(
+                "dns:local",
+                "dns:local:name:api-local",
+                "Web local",
+                "web.local",
+                "application:web",
+                "https",
+                ResourceExposureScope.Private),
+            "group:other",
+            registrations);
+
+        var resources = provider.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        var mapping = resources["dns:local:name:api-local"];
+
+        Assert.Equal("group:network", registrations.GetRegistration("dns:local")?.ResourceGroupId);
+        Assert.Equal("group:network", registrations.GetRegistration("dns:local:name:api-local")?.ResourceGroupId);
+        Assert.Equal(["application:web"], registrations.GetRegistration("dns:local")?.DependsOn);
+        Assert.Equal("Web local", mapping.Name);
+        Assert.Equal("web.local", mapping.ResourceAttributes[ResourceAttributeNames.NameMappingHostName]);
+        Assert.Equal("application:web", mapping.ResourceAttributes[ResourceAttributeNames.NameMappingTargetResourceId]);
+        Assert.Equal("https", mapping.ResourceAttributes[ResourceAttributeNames.NameMappingTargetEndpointName]);
+        Assert.Equal(ResourceExposureScope.Private.ToString(), mapping.ResourceAttributes[ResourceAttributeNames.NameMappingExposure]);
     }
 
     [Fact]

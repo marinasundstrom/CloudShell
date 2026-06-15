@@ -92,10 +92,10 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "network",
                 10,
                 resourceClass: ResourceClass.Network)
-            .AddResourceType<RegisterNameMappingResource>(
+            .AddResourceType<RegisterNameMappingResource, UpdateNameMappingResource>(
                 "cloudshell.nameMapping",
                 "Name Mapping",
-                "Inspect a DNS-style name mapping owned by a DNS Zone.",
+                "Create or update a DNS-style name mapping owned by a DNS Zone.",
                 "network",
                 11,
                 resourceClass: ResourceClass.Network);

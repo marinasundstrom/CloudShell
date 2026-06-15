@@ -324,7 +324,7 @@ public sealed class PlatformResourceProvider(
 
         store.SaveDnsZone(updated);
         var existingRegistration = registrations.GetRegistration(updated.Id);
-        var normalizedGroupId = NormalizeGroupId(resourceGroupId) ?? existingRegistration?.ResourceGroupId;
+        var normalizedGroupId = existingRegistration?.ResourceGroupId ?? NormalizeGroupId(resourceGroupId);
         await registrations.RegisterAsync(
             Id,
             updated.Id,

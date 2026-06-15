@@ -1,0 +1,317 @@
+@using System.Text.Json
+@inject IResourceManager ResourceManager
+
+@if (NameMapping is null)
+{
+    <div class="empty-state">
+        <strong>Name mapping unavailable</strong>
+        <span>The name mapping resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else if (DnsZone is null)
+{
+    <div class="empty-state">
+        <strong>DNS zone unavailable</strong>
+        <span>The parent DNS zone may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <div class="type-registration">
+        <div class="form-panel">
+            <label for="name-mapping-update-zone">DNS zone</label>
+            <FluentTextField Id="name-mapping-update-zone"
+                             Disabled="true"
+                             Value="@DnsZone.Name" />
+
+            <label for="name-mapping-update-name">Name</label>
+            <FluentTextField Id="name-mapping-update-name" @bind-Value="Name" />
+
+            <label for="name-mapping-update-host">Host name</label>
+            <FluentTextField Id="name-mapping-update-host"
+                             @bind-Value="HostName"
+                             Placeholder="app.cloudshell.local" />
+
+            @if (ShouldWarnAboutLocalSuffix(HostName))
+            {
+                <FluentMessageBar Intent="MessageIntent.Warning">
+                    Names ending in .local may conflict with mDNS/Bonjour on the host network. Use them intentionally for local development and reconcile them only on hosts where this suffix is acceptable.
+                </FluentMessageBar>
+            }
+
+            @if (IsZoneLocalHostNameProvider)
+            {
+                <FluentMessageBar Intent="MessageIntent.Info">
+                    This DNS zone uses local host-name publishing. Reconcile name mappings on the DNS zone to write exact host mappings to the configured hosts-file target.
+                </FluentMessageBar>
+            }
+
+            <label for="name-mapping-update-target">Target resource</label>
+            <FluentSelect TOption="string"
+                          Id="name-mapping-update-target"
+                          @bind-Value="TargetResourceId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Select a target</FluentOption>
+                @foreach (var target in GetTargetCandidates())
+                {
+                    <FluentOption TOption="string" Value="@target.Id">@target.Name</FluentOption>
+                }
+            </FluentSelect>
+
+            @if (GetTargetEndpoints(TargetResourceId).Count > 0)
+            {
+                <label for="name-mapping-update-target-endpoint">Target endpoint</label>
+                <FluentSelect TOption="string"
+                              Id="name-mapping-update-target-endpoint"
+                              @bind-Value="TargetEndpointName"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">Any endpoint</FluentOption>
+                    @foreach (var endpoint in GetTargetEndpoints(TargetResourceId))
+                    {
+                        <FluentOption TOption="string" Value="@endpoint.Name">@endpoint.Name</FluentOption>
+                    }
+                </FluentSelect>
+            }
+
+            <label for="name-mapping-update-exposure">Exposure</label>
+            <FluentSelect TOption="string"
+                          Id="name-mapping-update-exposure"
+                          @bind-Value="SelectedExposure"
+                          Appearance="Appearance.Outline">
+                @foreach (var exposure in Enum.GetValues<ResourceExposureScope>())
+                {
+                    <FluentOption TOption="string" Value="@exposure.ToString()">@exposure</FluentOption>
+                }
+            </FluentSelect>
+
+            <label for="name-mapping-update-provider">Publishing provider resource</label>
+            <FluentSelect TOption="string"
+                          Id="name-mapping-update-provider"
+                          @bind-Value="ProviderResourceId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Use zone provider</FluentOption>
+                @foreach (var provider in GetNamePublisherCandidates())
+                {
+                    <FluentOption TOption="string" Value="@provider.Id">@provider.Name</FluentOption>
+                }
+            </FluentSelect>
+
+            @if (ErrorMessage is not null)
+            {
+                <div class="provider-error">@ErrorMessage</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private const string PlatformProviderId = "cloudshell.platform";
+    private const string NameMappingResourceType = "cloudshell.nameMapping";
+    private const string DnsZoneResourceType = "cloudshell.dnsZone";
+    private const string NetworkResourceType = "cloudshell.network";
+    private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
+    private const string LocalHostNamesProvider = "local-hostnames";
+
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? NameMapping { get; set; }
+    private Resource? DnsZone { get; set; }
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+    private IReadOnlyList<Resource> Resources { get; set; } = [];
+    private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
+        new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+    private string Name { get; set; } = string.Empty;
+    private string HostName { get; set; } = string.Empty;
+    private string TargetResourceId { get; set; } = string.Empty;
+    private string TargetEndpointName { get; set; } = string.Empty;
+    private string SelectedExposure { get; set; } = ResourceExposureScope.Public.ToString();
+    private string ProviderResourceId { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; }
+
+    private bool IsZoneLocalHostNameProvider =>
+        DnsZone is not null &&
+        DnsZone.ResourceAttributes.TryGetValue(ResourceAttributeNames.DnsProvider, out var provider) &&
+        string.Equals(provider, LocalHostNamesProvider, StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resources = await ResourceManager.ListResourcesAsync();
+        NameMapping = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        DnsZone = NameMapping?.ParentResourceId is null
+            ? null
+            : Resources.FirstOrDefault(resource =>
+                string.Equals(resource.Id, NameMapping.ParentResourceId, StringComparison.OrdinalIgnoreCase));
+
+        var groupsByResourceId = new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resource in Resources)
+        {
+            var group = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
+            if (group is not null)
+            {
+                groupsByResourceId[resource.Id] = group;
+            }
+        }
+
+        ResourceGroupsByResourceId = groupsByResourceId;
+
+        if (NameMapping is not null)
+        {
+            Name = NameMapping.Name;
+            HostName = GetAttribute(ResourceAttributeNames.NameMappingHostName, NameMapping.Name);
+            TargetResourceId = GetAttribute(ResourceAttributeNames.NameMappingTargetResourceId, string.Empty);
+            TargetEndpointName = GetAttribute(ResourceAttributeNames.NameMappingTargetEndpointName, string.Empty);
+            SelectedExposure = GetAttribute(ResourceAttributeNames.NameMappingExposure, ResourceExposureScope.Public.ToString());
+            ProviderResourceId = GetAttribute(ResourceAttributeNames.NameMappingProviderResourceId, string.Empty);
+        }
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private IReadOnlyList<Resource> GetTargetCandidates() =>
+        Resources
+            .Where(resource => !IsDnsResource(resource))
+            .Where(resource => !IsNetworkBoundaryResource(resource))
+            .Where(resource => resource.Endpoints.Count > 0 || resource.HasCapability(ResourceCapabilityIds.EndpointSource))
+            .Where(IsInDnsZoneGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<Resource> GetNamePublisherCandidates() =>
+        Resources
+            .Where(resource => resource.HasCapability(ResourceCapabilityIds.NetworkingNamePublisher))
+            .Where(IsInDnsZoneGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<ResourceEndpoint> GetTargetEndpoints(string resourceId) =>
+        Resources
+            .FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+            ?.Endpoints ?? [];
+
+    private bool IsInDnsZoneGroup(Resource resource)
+    {
+        var zoneGroup = DnsZone is null
+            ? null
+            : ResourceGroupsByResourceId.GetValueOrDefault(DnsZone.Id);
+        var group = ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
+        return zoneGroup is null
+            ? group is null
+            : string.Equals(group?.Id, zoneGroup.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        ErrorMessage = null;
+        if (NameMapping is null)
+        {
+            return ResourceProcedureResult.Completed("Name mapping resource is unavailable.");
+        }
+
+        if (DnsZone is null || string.IsNullOrWhiteSpace(NameMapping.ParentResourceId))
+        {
+            return ResourceProcedureResult.Completed("Parent DNS zone is unavailable.");
+        }
+
+        if (string.IsNullOrWhiteSpace(HostName))
+        {
+            ErrorMessage = "Host name is required.";
+            return ResourceProcedureResult.Completed(ErrorMessage);
+        }
+
+        if (string.IsNullOrWhiteSpace(TargetResourceId))
+        {
+            ErrorMessage = "Target resource is required.";
+            return ResourceProcedureResult.Completed(ErrorMessage);
+        }
+
+        if (!GetTargetCandidates().Any(resource => string.Equals(resource.Id, TargetResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            ErrorMessage = "Target resource must be in the DNS zone group and expose endpoints.";
+            return ResourceProcedureResult.Completed(ErrorMessage);
+        }
+
+        if (!string.IsNullOrWhiteSpace(ProviderResourceId) &&
+            !GetNamePublisherCandidates().Any(resource => string.Equals(resource.Id, ProviderResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            ErrorMessage = "Publishing provider resource must be in the DNS zone group and support name publishing.";
+            return ResourceProcedureResult.Completed(ErrorMessage);
+        }
+
+        var name = string.IsNullOrWhiteSpace(Name)
+            ? HostName.Trim()
+            : Name.Trim();
+        var definition = new DnsNameMappingResourceDefinition(
+            NameMapping.ParentResourceId,
+            NameMapping.Id,
+            name,
+            HostName,
+            TargetResourceId,
+            GetTargetEndpointName(),
+            GetExposure(),
+            string.IsNullOrWhiteSpace(ProviderResourceId) ? null : ProviderResourceId);
+        var zoneGroup = ResourceGroupsByResourceId.GetValueOrDefault(DnsZone.Id);
+
+        await ResourceManager.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformProviderId,
+                NameMappingResourceType,
+                NameMapping.Id,
+                name,
+                JsonSerializer.SerializeToElement(definition),
+                zoneGroup?.Id,
+                ResourceClass.Network),
+            cancellationToken);
+
+        return ResourceProcedureResult.Completed("Name mapping updated.");
+    }
+
+    private string? GetTargetEndpointName()
+    {
+        if (string.IsNullOrWhiteSpace(TargetEndpointName))
+        {
+            return null;
+        }
+
+        return GetTargetEndpoints(TargetResourceId)
+            .Any(endpoint => string.Equals(endpoint.Name, TargetEndpointName, StringComparison.OrdinalIgnoreCase))
+                ? TargetEndpointName
+                : null;
+    }
+
+    private string GetAttribute(string name, string fallback) =>
+        NameMapping?.ResourceAttributes.TryGetValue(name, out var value) == true &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private ResourceExposureScope GetExposure() =>
+        Enum.TryParse<ResourceExposureScope>(SelectedExposure, out var exposure)
+            ? exposure
+            : ResourceExposureScope.Public;
+
+    private static bool IsDnsResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, DnsZoneResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resource.EffectiveTypeId, NameMappingResourceType, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsNetworkBoundaryResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resource.EffectiveTypeId, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase);
+
+    private static bool ShouldWarnAboutLocalSuffix(string value)
+    {
+        var normalized = value.Trim().TrimEnd('.');
+        return normalized.Equals("local", StringComparison.OrdinalIgnoreCase) ||
+            normalized.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
+    }
+}

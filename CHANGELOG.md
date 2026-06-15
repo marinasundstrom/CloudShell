@@ -69,6 +69,10 @@ on `git blame --follow`, and then by the broad type of change.
   observation. Name mappings affected by a reconcile action project
   `Published` or `PublishFailed` materialization status, and generated
   Resource Manager diagnostics warn when publishing failed.
+- Existing DNS name mappings can now be edited from Resource Manager. The
+  update flow preserves the parent DNS zone, uses the existing mapping ID, and
+  keeps the parent zone's registration group stable when the child mapping is
+  upserted.
 
 #### Samples
 
