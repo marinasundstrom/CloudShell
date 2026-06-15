@@ -60,6 +60,11 @@ on `git blame --follow`, and then by the broad type of change.
   projected application resources expose aggregate materialization attributes
   that volume overviews can display for consumers.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
+- ApplicationTopology smoke coverage now asserts the SQL Server container app
+  projects declared-but-not-active volume mount materialization attributes
+  before the workload is started, keeping the broad MVP sample aligned with
+  the storage diagnostics path.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Added the shared `IResourceVolumeMountMaterializationStore` contract for
   runtime-observed volume mount facts. The application runtime state store now
   implements it, and Docker Compose records materialized/not-active mount

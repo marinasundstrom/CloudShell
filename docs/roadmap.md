@@ -110,9 +110,10 @@ listed here before pulling in broader proposal work.
    not start broad new shell areas before the supported samples are stable.
 3. Stateful application foundation: continue the storage and volume-mapping
    path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
-   and container app volume mounts exist. Next slices should show storage
-   materialization diagnostics from both the volume and consuming resource and
-   continue the temporary Local Storage provider as a bridge toward
+   and container app volume mounts exist. Runtime materialization diagnostics
+   now project from consuming applications and can be summarized from volume
+   views; next slices should continue the temporary Local Storage provider as
+   a bridge toward
    capability-based storage resources where provider-owned storage locations
    can contain provider-defined volume sub-items. Storage is the resource
    class, Local Storage is the first concrete storage kind, and `FileSystem` is

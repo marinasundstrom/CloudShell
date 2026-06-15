@@ -220,6 +220,10 @@ public sealed class SampleSmokeTests
         Assert.Equal(ApplicationResourceTypes.ContainerApp, sqlServer.GetProperty("typeId").GetString());
         Assert.Equal($"tcp://localhost:{sqlPort}", GetEndpointAddress(sqlServer, "tds"));
         Assert.Equal("1", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountCount).GetString());
+        Assert.Equal("0", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountMaterializedCount).GetString());
+        Assert.Equal(
+            ResourceVolumeMountMaterializationStatus.NotActive,
+            sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountMaterializationStatus).GetString());
         Assert.Equal("mcr.microsoft.com/mssql/server:2022-latest", sqlAttributes.GetProperty(ResourceAttributeNames.ContainerImage).GetString());
         Assert.Contains(
             "volume:application-topology-sql-data",
