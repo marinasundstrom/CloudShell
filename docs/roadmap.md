@@ -240,8 +240,10 @@ listed here before pulling in broader proposal work.
   `IResourceVolumeMountMaterializationStore` contract after successful
   Start/Restart/Stop actions. Resource Manager generated diagnostics now warn
   when standard mount materialization attributes report partial, not-active, or
-  unknown status. Provider-backed storage runtime reporting and richer Resource
-  Manager diagnostics remain next.
+  unknown status. Local Storage overview pages now show owned volumes with
+  consumer counts and consumer-reported mount materialization summaries.
+  Provider-backed storage runtime reporting and richer Resource Manager
+  diagnostics remain next.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

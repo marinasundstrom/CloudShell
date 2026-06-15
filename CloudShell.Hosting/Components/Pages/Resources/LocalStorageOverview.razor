@@ -1,4 +1,5 @@
 @inject IResourceManager ResourceManager
+@inject IResourceOrchestrationCatalog OrchestrationCatalog
 
 @if (Storage is null)
 {
@@ -20,6 +21,8 @@ else
             <dd>@GetAttribute(ResourceAttributeNames.StorageLocation, "provider default")</dd>
             <dt>Volumes</dt>
             <dd>@Volumes.Count</dd>
+            <dt>Consumers</dt>
+            <dd>@Volumes.Sum(volume => volume.Consumers.Count)</dd>
             <dt>Delete status</dt>
             <dd>@(Volumes.Count == 0 ? "not in use" : "blocked while volumes exist")</dd>
         </dl>
@@ -41,12 +44,12 @@ else
                 {
                     <div>
                         <strong>
-                            <a class="resource-link" href="@BuildResourceRoute(volume.Id)">
-                                @volume.Name
+                            <a class="resource-link" href="@BuildResourceRoute(volume.Volume.Id)">
+                                @volume.Volume.Name
                             </a>
                         </strong>
-                        <span>@GetVolumeSubPath(volume)</span>
-                        <small>@volume.Id</small>
+                        <span>@GetVolumeSummary(volume)</span>
+                        <small>@GetVolumeMetadata(volume)</small>
                     </div>
                 }
             </div>
@@ -59,19 +62,28 @@ else
     public string? ResourceId { get; set; }
 
     private Resource? Storage { get; set; }
-    private IReadOnlyList<Resource> Volumes { get; set; } = [];
+    private IReadOnlyList<StorageVolumeView> Volumes { get; set; } = [];
 
     protected override async Task OnParametersSetAsync()
     {
         Storage = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
-        Volumes = Storage is null
-            ? []
-            : (await ResourceManager.ListResourcesAsync())
-                .Where(IsOwnedVolume)
-                .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+        if (Storage is null)
+        {
+            Volumes = [];
+            return;
+        }
+
+        var resources = await ResourceManager.ListResourcesAsync();
+        var orchestrationSnapshot = await OrchestrationCatalog.GetSnapshotAsync();
+        Volumes = resources
+            .Where(IsOwnedVolume)
+            .Select(volume => new StorageVolumeView(
+                volume,
+                GetConsumersForVolume(volume, resources, orchestrationSnapshot)))
+            .OrderBy(volume => volume.Volume.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private bool IsOwnedVolume(Resource resource) =>
@@ -91,6 +103,110 @@ else
             ? subPath
             : "provider default";
 
+    private static IReadOnlyList<StorageVolumeConsumerView> GetConsumersForVolume(
+        Resource volume,
+        IReadOnlyList<Resource> resources,
+        ResourceOrchestrationCatalogSnapshot orchestrationSnapshot) =>
+        resources
+            .Where(resource => !string.Equals(resource.Id, volume.Id, StringComparison.OrdinalIgnoreCase))
+            .Select(resource => new StorageVolumeConsumerView(
+                resource,
+                GetMountsForVolume(resource, volume.Id, orchestrationSnapshot)))
+            .Where(consumer =>
+                consumer.Mounts.Count > 0 ||
+                consumer.Resource.DependsOn.Any(dependency =>
+                    string.Equals(dependency, volume.Id, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(consumer => consumer.Resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyList<ResourceVolumeMount> GetMountsForVolume(
+        Resource resource,
+        string volumeId,
+        ResourceOrchestrationCatalogSnapshot orchestrationSnapshot) =>
+        orchestrationSnapshot.Workloads.TryGetValue(resource.Id, out var workload)
+            ? workload.WorkloadVolumeMounts
+                .Where(mount => string.Equals(
+                    mount.NormalizedVolumeReference,
+                    volumeId,
+                    StringComparison.OrdinalIgnoreCase))
+                .OrderBy(mount => mount.NormalizedTargetPath, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : [];
+
+    private static string GetVolumeSummary(StorageVolumeView volume)
+    {
+        var subPath = GetVolumeSubPath(volume.Volume);
+        return volume.Consumers.Count == 0
+            ? $"{subPath} - no consumers"
+            : $"{subPath} - {volume.Consumers.Count} consumer{Pluralize(volume.Consumers.Count)}";
+    }
+
+    private static string GetVolumeMetadata(StorageVolumeView volume)
+    {
+        var parts = new List<string>
+        {
+            volume.Volume.Id
+        };
+
+        var materializationSummaries = volume.Consumers
+            .Select(GetConsumerMountMaterialization)
+            .Where(summary => !string.IsNullOrWhiteSpace(summary))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (materializationSummaries.Length > 0)
+        {
+            parts.Add($"Storage: {string.Join(", ", materializationSummaries)}");
+        }
+
+        return string.Join(" - ", parts);
+    }
+
+    private static string? GetConsumerMountMaterialization(StorageVolumeConsumerView consumer)
+    {
+        if (!consumer.Resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.VolumeMountMaterializationStatus,
+                out var status) ||
+            string.IsNullOrWhiteSpace(status))
+        {
+            return null;
+        }
+
+        var label = GetVolumeMountMaterializationStatusLabel(status);
+        if (consumer.Resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.VolumeMountMaterializedCount,
+                out var materializedCount) &&
+            consumer.Resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.VolumeMountCount,
+                out var mountCount))
+        {
+            label = $"{label} ({materializedCount}/{mountCount})";
+        }
+
+        return $"{consumer.Resource.Name}: {label}";
+    }
+
+    private static string GetVolumeMountMaterializationStatusLabel(string status) =>
+        status switch
+        {
+            "materialized" => "materialized",
+            "partial" => "partially materialized",
+            "notActive" => "not active",
+            "unknown" => "unknown",
+            "notApplicable" => "not applicable",
+            _ => status
+        };
+
+    private static string Pluralize(int count) =>
+        count == 1 ? string.Empty : "s";
+
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+
+    private sealed record StorageVolumeView(
+        Resource Volume,
+        IReadOnlyList<StorageVolumeConsumerView> Consumers);
+
+    private sealed record StorageVolumeConsumerView(
+        Resource Resource,
+        IReadOnlyList<ResourceVolumeMount> Mounts);
 }

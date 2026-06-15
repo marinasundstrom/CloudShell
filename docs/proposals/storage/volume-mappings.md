@@ -351,6 +351,9 @@ runtime and storage provider agree on the storage medium.
 
 Resource Manager should show storage from both sides:
 
+- storage resource overview: provider boundary, owned volumes, consumers, and
+  consumer-reported materialization summaries; the first Local Storage view is
+  in place
 - volume resource overview: provider, host, usage, diagnostics, and actions
 - target resource overview: attached volumes, target paths, read-only flags,
   and materialization status
@@ -465,8 +468,10 @@ through future monitoring APIs.
    for application overview pages; generic generated-resource projection can
    still be improved for non-application volume consumers.
 8. Add dedicated create/attach UI for basic volume resources and mappings.
-   Direct volume create/configuration/overview UI is in place; richer attach
-   flows and storage-resource-owned sub-volume UI remain open.
+   Direct volume create/configuration/overview UI is in place. Local Storage
+   overview pages now list owned volumes with consumer counts and
+   consumer-reported materialization summaries; richer attach flows and
+   storage-resource-owned sub-volume UI remain open.
 9. Add action capability reasons and diagnostics for missing providers,
    missing host paths, unsupported mounts, and conflicting target paths.
 10. Extend deletion safety from dependency-based guard to explicit attachment

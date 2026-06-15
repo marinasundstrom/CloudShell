@@ -87,6 +87,9 @@ on `git blame --follow`, and then by the broad type of change.
   environment variable bindings so developers can inspect how referenced
   endpoints will resolve in the local/programmatic flow. The provider and UI
   now share the same display helper for alias and endpoint-key normalization.
+- Local Storage overview pages now list owned volumes with consumer counts and
+  consumer-reported mount materialization summaries, making storage usage
+  inspectable from the storage boundary as well as from individual volumes.
 
 #### Samples
 
