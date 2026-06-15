@@ -184,6 +184,10 @@ public sealed class SampleSmokeTests
         var apiAttributes = api.GetProperty("attributes");
         var frontendAttributes = frontend.GetProperty("attributes");
 
+        Assert.Equal((int)ResourceState.Stopped, sqlServer.GetProperty("state").GetInt32());
+        Assert.Equal((int)ResourceState.Stopped, api.GetProperty("state").GetInt32());
+        Assert.Equal((int)ResourceState.Stopped, frontend.GetProperty("state").GetInt32());
+
         Assert.Equal("cloudshell.storage", storage.GetProperty("typeId").GetString());
         Assert.Equal(StorageProviderNames.LocalStorage, storage.GetProperty("kind").GetString());
         Assert.Equal(StorageMedia.FileSystem, storageAttributes.GetProperty(ResourceAttributeNames.StorageMedium).GetString());

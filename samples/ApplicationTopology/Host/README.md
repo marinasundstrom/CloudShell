@@ -59,6 +59,11 @@ Frontend` resource. Open:
 http://localhost:5218/upstream
 ```
 
+The sample disables startup autostart for these three application resources so
+the project-backed API and frontend do not build concurrently against their
+shared `ServiceDefaults` project. Start them from Resource Manager in the
+order above when you want to exercise the live end-to-end path.
+
 You can override the SQL Server development password with:
 
 ```json

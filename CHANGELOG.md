@@ -23,6 +23,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- ApplicationTopology now disables startup autostart for its SQL Server, API,
+  and frontend resources so the documented manual startup order avoids
+  concurrent project builds against the shared ServiceDefaults project.
 - Volume overview pages now show reverse storage consumers with declared mount
   target path and read/write mode when the consuming workload descriptor is
   available, while preserving the dependency fallback used for deletion safety.

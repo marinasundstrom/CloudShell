@@ -54,7 +54,8 @@ cloudShell.Resources(resources =>
             password: sqlPassword,
             dataVolume: sqlData,
             port: sqlPort)
-        .WithImage("mcr.microsoft.com/mssql/server:2022-latest");
+        .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+        .WithAutoStart(false);
 
     var api = resources.AddAspNetCoreProject(
         "application:application-topology-api",
@@ -67,7 +68,8 @@ cloudShell.Resources(resources =>
         .WithEnvironment("ApplicationTopology__SqlServer__User", "sa")
         .WithEnvironment("ApplicationTopology__SqlServer__Password", sqlPassword)
         .WithReference(sqlServer)
-        .DependsOn(sqlServer);
+        .DependsOn(sqlServer)
+        .WithAutoStart(false);
 
     resources
         .AddAspNetCoreProject(
@@ -81,7 +83,8 @@ cloudShell.Resources(resources =>
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
         .WithServiceDiscovery()
         .WithReference(api)
-        .DependsOn(api);
+        .DependsOn(api)
+        .WithAutoStart(false);
 });
 
 var app = builder.Build();
