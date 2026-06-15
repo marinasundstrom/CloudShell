@@ -79,6 +79,24 @@ Detached/persistent production-like SQL Server management should eventually be
 modeled through the same top-level resource shape, but with provider-backed
 storage, clearer recovery behavior, and explicit persistence policy.
 
+## Identity Direction
+
+The current SQL Server provider uses password-based access because the MVP
+implementation is container-backed and optimized for local development. The
+`MSSQL_SA_PASSWORD` value remains the bootstrap path for the built-in resource
+until identity-backed database access is implemented and proven.
+
+The direction is to support CloudShell resource identity for SQL Server access
+in addition to password authentication. An application resource with an assigned
+CloudShell identity should be able to connect to SQL Server through that
+identity, similar to Azure managed identity flows, once the provider can
+materialize the required server logins, database users, and grants.
+
+Identity access should be modeled through resource identity and scoped grants,
+not by projecting database credentials as ordinary secrets into dependent
+resources. Database-scoped permissions will likely become clearer when SQL
+Server can project individual databases as child database resources.
+
 ## Future Database Resources
 
 `application.sql-server` represents the SQL Server instance. A future
