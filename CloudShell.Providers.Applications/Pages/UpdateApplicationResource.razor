@@ -18,29 +18,29 @@ else
     <div class="type-registration">
         <div class="form-panel">
             <label for="application-update-name">Name</label>
-            <FluentTextField Id="application-update-name" @bind-Value="Name" />
+            <FluentTextField Id="application-update-name" @bind-Value="Name" Disabled="@IsReadOnly" />
 
             @if (CanConfigureProcessSettings)
             {
                 <label for="application-update-executable">Executable path</label>
-                <FluentTextField Id="application-update-executable" @bind-Value="ExecutablePath" />
+                <FluentTextField Id="application-update-executable" @bind-Value="ExecutablePath" Disabled="@IsReadOnly" />
 
                 <label for="application-update-arguments">Arguments</label>
-                <FluentTextField Id="application-update-arguments" @bind-Value="Arguments" />
+                <FluentTextField Id="application-update-arguments" @bind-Value="Arguments" Disabled="@IsReadOnly" />
 
                 <label for="application-update-working-directory">Working directory</label>
-                <FluentTextField Id="application-update-working-directory" @bind-Value="WorkingDirectory" />
+                <FluentTextField Id="application-update-working-directory" @bind-Value="WorkingDirectory" Disabled="@IsReadOnly" />
             }
 
             @if (CanConfigureProjectSettings)
             {
                 <label for="application-update-project-path">Project path</label>
-                <FluentTextField Id="application-update-project-path" @bind-Value="ProjectPath" />
+                <FluentTextField Id="application-update-project-path" @bind-Value="ProjectPath" Disabled="@IsReadOnly" />
 
                 <label for="application-update-project-arguments">Application arguments</label>
-                <FluentTextField Id="application-update-project-arguments" @bind-Value="ApplicationArguments" />
+                <FluentTextField Id="application-update-project-arguments" @bind-Value="ApplicationArguments" Disabled="@IsReadOnly" />
 
-                <FluentCheckbox @bind-Value="UseHotReload">
+                <FluentCheckbox Disabled="@IsReadOnly" @bind-Value="UseHotReload">
                     Use hot reload
                 </FluentCheckbox>
             }
@@ -48,7 +48,7 @@ else
             @if (CanConfigureEndpoint)
             {
                 <label for="application-update-endpoint">Endpoint</label>
-                <FluentTextField Id="application-update-endpoint" @bind-Value="Endpoint" />
+                <FluentTextField Id="application-update-endpoint" @bind-Value="Endpoint" Disabled="@IsReadOnly" />
             }
 
             @if (CanConfigureLifetime)
@@ -57,6 +57,7 @@ else
                 <FluentSelect TOption="string"
                               Id="application-update-lifetime"
                               @bind-Value="SelectedLifetime"
+                              Disabled="@IsReadOnly"
                               Appearance="Appearance.Outline">
                     @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
                     {
@@ -67,37 +68,37 @@ else
 
             @if (CanConfigureServiceDiscovery)
             {
-                <FluentCheckbox @bind-Value="UseServiceDiscovery">
+                <FluentCheckbox Disabled="@IsReadOnly" @bind-Value="UseServiceDiscovery">
                     Enable service discovery for references
                 </FluentCheckbox>
             }
 
-            <FluentCheckbox @bind-Value="EnableObservability">
+            <FluentCheckbox Disabled="@IsReadOnly" @bind-Value="EnableObservability">
                 Enable observability
             </FluentCheckbox>
 
             @if (CanConfigureContainerImage)
             {
                 <label for="application-update-container-image">Container image</label>
-                <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Placeholder="example/api:dev" />
+                <FluentTextField Id="application-update-container-image" @bind-Value="ContainerImage" Disabled="@IsReadOnly" Placeholder="example/api:dev" />
 
                 <label for="application-update-container-registry">Registry</label>
-                <FluentTextField Id="application-update-container-registry" @bind-Value="ContainerRegistry" Placeholder="docker.io" />
+                <FluentTextField Id="application-update-container-registry" @bind-Value="ContainerRegistry" Disabled="@IsReadOnly" Placeholder="docker.io" />
 
                 <label for="application-update-registry-username">Registry username</label>
-                <FluentTextField Id="application-update-registry-username" @bind-Value="RegistryUsername" />
+                <FluentTextField Id="application-update-registry-username" @bind-Value="RegistryUsername" Disabled="@IsReadOnly" />
 
                 <label for="application-update-registry-password-environment-variable">Registry password environment variable</label>
-                <FluentTextField Id="application-update-registry-password-environment-variable" @bind-Value="RegistryPasswordEnvironmentVariable" />
+                <FluentTextField Id="application-update-registry-password-environment-variable" @bind-Value="RegistryPasswordEnvironmentVariable" Disabled="@IsReadOnly" />
             }
 
             @if (CanConfigureContainerBuildSettings)
             {
                 <label for="application-update-build-context">Docker build context</label>
-                <FluentTextField Id="application-update-build-context" @bind-Value="ContainerBuildContext" Placeholder="." />
+                <FluentTextField Id="application-update-build-context" @bind-Value="ContainerBuildContext" Disabled="@IsReadOnly" Placeholder="." />
 
                 <label for="application-update-dockerfile">Dockerfile</label>
-                <FluentTextField Id="application-update-dockerfile" @bind-Value="ContainerDockerfile" Placeholder="Dockerfile" />
+                <FluentTextField Id="application-update-dockerfile" @bind-Value="ContainerDockerfile" Disabled="@IsReadOnly" Placeholder="Dockerfile" />
             }
 
             @if (CanConfigureContainerHost)
@@ -114,6 +115,7 @@ else
                 <FluentSelect TOption="string"
                               Id="application-update-container-host"
                               @bind-Value="SelectedHostId"
+                              Disabled="@IsReadOnly"
                               Appearance="Appearance.Outline">
                     <FluentOption TOption="string" Value="">Default host</FluentOption>
                     @foreach (var host in GetContainerHosts())
@@ -126,13 +128,14 @@ else
             @if (CanConfigureReplicas)
             {
                 <label for="application-update-replicas">Replicas</label>
-                <FluentNumberField TValue="int" Id="application-update-replicas" Min="1" @bind-Value="Replicas" />
+                <FluentNumberField TValue="int" Id="application-update-replicas" Min="1" Disabled="@IsReadOnly" @bind-Value="Replicas" />
             }
 
             <label for="application-update-group">Resource group</label>
             <FluentSelect TOption="string"
                           Id="application-update-group"
                           @bind-Value="SelectedGroupId"
+                          Disabled="@IsReadOnly"
                           Appearance="Appearance.Outline">
                 <FluentOption TOption="string" Value="">Default group</FluentOption>
                 @foreach (var group in ResourceGroups.GetResourceGroups())
@@ -149,6 +152,7 @@ else
                 @foreach (var resource in GetDependencyCandidates())
                 {
                     <FluentCheckbox Value="@SelectedDependencyIds.Contains(resource.Id)"
+                                    Disabled="@IsReadOnly"
                                     ValueChanged="selected => ToggleDependency(resource.Id, selected)">
                         @resource.Name
                     </FluentCheckbox>
@@ -186,6 +190,9 @@ else
 @code {
     [CascadingParameter]
     public ResourceConfigurationContext? Configuration { get; set; }
+
+    [CascadingParameter(Name = ResourceManagerCascadingParameterNames.ReadOnly)]
+    public bool IsReadOnly { get; set; }
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -309,6 +316,11 @@ else
 
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
+        if (IsReadOnly)
+        {
+            return ResourceProcedureResult.Completed("Resource Manager is in read-only mode.");
+        }
+
         if (Application is null)
         {
             return ResourceProcedureResult.Completed("Application resource is unavailable.");

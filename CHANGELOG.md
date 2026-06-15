@@ -92,6 +92,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration Store and Secrets Vault edit tabs now consume the shared
   Resource Manager read-only cascade, disabling metadata, entry, and secret
   editors and guarding apply execution in read-only mode.
+- Application configuration and Storage tabs now consume the shared Resource
+  Manager read-only cascade, disabling editable workload fields, dependency
+  selectors, and volume-mount controls while guarding apply execution.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

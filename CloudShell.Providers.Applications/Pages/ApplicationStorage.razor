@@ -18,7 +18,13 @@ else if (!SupportsVolumeMounts(Application))
 }
 else
 {
-    @if (IsStorageLocked)
+    @if (IsReadOnly)
+    {
+        <div class="procedure-message compact">
+            Resource Manager is in read-only mode. Storage mappings cannot be changed in this UI.
+        </div>
+    }
+    else if (IsStorageLocked)
     {
         <div class="procedure-message compact">
             Storage mappings cannot be changed while this resource is running. Stop the resource before changing mounted storage.
@@ -37,7 +43,7 @@ else
         <div class="environment-header">
             <strong>Volume mounts</strong>
             <FluentButton Appearance="Appearance.Neutral"
-                          Disabled="@IsStorageLocked"
+                          Disabled="@IsStorageEditorDisabled"
                           OnClick="AddVolumeMount">
                 Add mount
             </FluentButton>
@@ -54,7 +60,7 @@ else
                 <div class="environment-row">
                     <FluentSelect TOption="string"
                                   AriaLabel="Volume resource"
-                                  Disabled="@IsStorageLocked"
+                                  Disabled="@IsStorageEditorDisabled"
                                   @bind-Value="mount.VolumeReference"
                                   Appearance="Appearance.Outline">
                         <FluentOption TOption="string" Value="">Select volume</FluentOption>
@@ -64,14 +70,14 @@ else
                         }
                     </FluentSelect>
                     <FluentTextField AriaLabel="Target path"
-                                     Disabled="@IsStorageLocked"
+                                     Disabled="@IsStorageEditorDisabled"
                                      @bind-Value="mount.TargetPath"
                                      Placeholder="@GetTargetPathPlaceholder()" />
-                    <FluentCheckbox Disabled="@IsStorageLocked" @bind-Value="mount.ReadOnly">
+                    <FluentCheckbox Disabled="@IsStorageEditorDisabled" @bind-Value="mount.ReadOnly">
                         Read-only
                     </FluentCheckbox>
                     <FluentButton Appearance="Appearance.Neutral"
-                                  Disabled="@IsStorageLocked"
+                                  Disabled="@IsStorageEditorDisabled"
                                   OnClick="() => RemoveVolumeMount(mount)">
                         Remove
                     </FluentButton>
@@ -85,6 +91,9 @@ else
     [CascadingParameter]
     public ResourceConfigurationContext? Configuration { get; set; }
 
+    [CascadingParameter(Name = ResourceManagerCascadingParameterNames.ReadOnly)]
+    public bool IsReadOnly { get; set; }
+
     [Parameter]
     public string? ResourceId { get; set; }
 
@@ -96,6 +105,9 @@ else
         Application is not null &&
         (IsActive(ResourceManager.GetResource(Application.Id)?.State) ||
             ApplicationProvider.IsRunning(Application.Id));
+
+    private bool IsStorageEditorDisabled =>
+        IsReadOnly || IsStorageLocked;
 
     protected override void OnParametersSet()
     {
@@ -124,6 +136,11 @@ else
 
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
+        if (IsReadOnly)
+        {
+            return ResourceProcedureResult.Completed("Resource Manager is in read-only mode.");
+        }
+
         if (Application is null)
         {
             return ResourceProcedureResult.Completed("Application resource is unavailable.");
