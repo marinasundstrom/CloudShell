@@ -27,6 +27,7 @@ else
         <FluentSelect TOption="string"
                       Id="docker-update-group"
                       @bind-Value="SelectedGroupId"
+                      Disabled="@IsReadOnly"
                       Appearance="Appearance.Outline">
             <FluentOption TOption="string" Value="">Default group</FluentOption>
             @foreach (var group in ResourceGroups.GetResourceGroups())
@@ -36,19 +37,22 @@ else
         </FluentSelect>
 
         <label for="docker-update-registry">Registry</label>
-        <FluentTextField Id="docker-update-registry" @bind-Value="Registry" Placeholder="docker.io" />
+        <FluentTextField Id="docker-update-registry" @bind-Value="Registry" Disabled="@IsReadOnly" Placeholder="docker.io" />
 
         <label for="docker-update-registry-username">Registry username</label>
-        <FluentTextField Id="docker-update-registry-username" @bind-Value="RegistryUsername" />
+        <FluentTextField Id="docker-update-registry-username" @bind-Value="RegistryUsername" Disabled="@IsReadOnly" />
 
         <label for="docker-update-registry-password-environment-variable">Registry password environment variable</label>
-        <FluentTextField Id="docker-update-registry-password-environment-variable" @bind-Value="RegistryPasswordEnvironmentVariable" />
+        <FluentTextField Id="docker-update-registry-password-environment-variable" @bind-Value="RegistryPasswordEnvironmentVariable" Disabled="@IsReadOnly" />
     </div>
 }
 
 @code {
     [CascadingParameter]
     public ResourceConfigurationContext? Configuration { get; set; }
+
+    [CascadingParameter(Name = ResourceManagerCascadingParameterNames.ReadOnly)]
+    public bool IsReadOnly { get; set; }
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -84,6 +88,11 @@ else
 
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
+        if (IsReadOnly)
+        {
+            return ResourceProcedureResult.Completed("Resource Manager is in read-only mode.");
+        }
+
         if (!ValidateRegistryCredentials())
         {
             return ResourceProcedureResult.Completed("Registry username and password environment variable are required together.");
