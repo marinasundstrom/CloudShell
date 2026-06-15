@@ -148,7 +148,7 @@ else
     [Parameter]
     public string? ResourceId { get; set; }
 
-    [CascadingParameter(Name = "ResourceManagerReadOnly")]
+    [CascadingParameter(Name = ResourceManagerCascadingParameterNames.ReadOnly)]
     public bool IsReadOnly { get; set; }
 
     private string? ExecutingActionKey { get; set; }

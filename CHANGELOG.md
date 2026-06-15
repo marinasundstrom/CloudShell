@@ -83,6 +83,9 @@ on `git blame --follow`, and then by the broad type of change.
   provider-contributed tabs. The Docker Containers tab consumes that state so
   container action buttons and execution guards honor read-only mode without
   depending on host UI options directly.
+- Added a shared Resource Manager cascading parameter name for read-only
+  state so provider-contributed UI can opt into host read-only behavior
+  without repeating string literals or depending on the Hosting assembly.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP
