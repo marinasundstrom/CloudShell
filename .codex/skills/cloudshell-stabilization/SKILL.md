@@ -12,8 +12,8 @@ coverage, sample reliability, and API/client contract stability.
 
 Read these first:
 
-- `goal.md`
-- `docs/progress.md`
+- `docs/goal.md`
+- `CHANGELOG.md`
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
 - `docs/artifact-implementation-guidelines.md`
@@ -41,14 +41,14 @@ Then inspect the current code and tests around the failing or weak behavior.
 6. Prefer result objects or diagnostics for expected domain validation
    outcomes; reserve exceptions for programmer errors or boundary adapters that
    must translate invalid commands into API errors.
-7. Update `docs/progress.md` when the stabilized behavior changes MVP status,
+7. Update `CHANGELOG.md` when the stabilized behavior changes MVP status,
    next priorities, or verification expectations.
 8. Treat `docs/roadmap.md` as authoritative for milestone scope and the
    current task queue, and `docs/proposals/README.md` as authoritative for
-   proposal status. Keep those files, `docs/progress.md`, and the relevant
+   proposal status. Keep those files, `CHANGELOG.md`, and the relevant
    proposal documents in sync when stabilization completes proposal work,
    changes proposal order, changes MVP scope, or creates new remaining tasks.
-9. Run the verification baseline from `docs/progress.md` before committing
+9. Run the verification baseline from `CHANGELOG.md` before committing
    cross-boundary stabilization work.
 
 ## Stabilization priorities

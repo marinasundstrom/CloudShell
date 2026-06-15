@@ -167,13 +167,13 @@ dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj -
 ```
 ## Documentation
 
-- [CloudShell goal](goal.md)
+- [CloudShell goal](docs/goal.md)
 - [Why CloudShell](docs/why-cloudshell.md)
 - [CloudShell and Aspire](docs/cloudshell-and-aspire.md)
 - [Domain model](docs/domain-model.md)
 - [System design guidelines](docs/system-design-guidelines.md)
 - [Roadmap](docs/roadmap.md)
-- [Progress and MVP tracker](docs/progress.md)
+- [Changelog](CHANGELOG.md)
 - [Control plane API and generated clients](docs/control-plane-api.md)
 - [Authentication and authorization](docs/authentication-and-authorization.md)
 - [Hosting model](docs/hosting-model.md)

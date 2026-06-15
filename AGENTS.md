@@ -12,10 +12,10 @@ separately from Control Plane services.
 
 Before making product or architecture changes, read:
 
-- [CloudShell goal](goal.md)
+- [CloudShell goal](docs/goal.md)
 - [Domain model](docs/domain-model.md)
 - [System design guidelines](docs/system-design-guidelines.md)
-- [Progress and MVP tracker](docs/progress.md)
+- [Changelog](CHANGELOG.md)
 
 For focused areas, read the relevant docs:
 
@@ -92,7 +92,7 @@ large guidance into the skill files.
 
 Use targeted tests while developing. For changes touching the resource model,
 Control Plane, API, remote client, or samples, run the verification baseline
-from [Progress](docs/progress.md):
+from [Changelog](CHANGELOG.md):
 
 ```bash
 dotnet build CloudShell.sln --no-restore
@@ -119,5 +119,5 @@ When stabilizing behavior, add tests at the layer that owns the behavior:
 - Sample tests for hosted scenarios.
 - Abstraction tests for public DSL and extension contracts.
 
-Update [Progress](docs/progress.md) when a decision, completed item, or next
+Update [Changelog](CHANGELOG.md) when a decision, completed item, or next
 priority changes.

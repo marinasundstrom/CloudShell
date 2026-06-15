@@ -64,6 +64,6 @@ apps or project-backed services, configuration and secrets, identity-backed
 access where needed, SQL Server with mounted storage, logs, traces, networking,
 endpoint exposure, and DNS/name mappings.
 
-`docs/roadmap.md` owns milestone scope and ordering. `docs/progress.md` owns
-completed decisions and current state. This document owns the durable product
-goal.
+[Roadmap](roadmap.md) owns milestone scope and ordering.
+[Changelog](../CHANGELOG.md) owns completed decisions and current state. This
+document owns the durable product goal.

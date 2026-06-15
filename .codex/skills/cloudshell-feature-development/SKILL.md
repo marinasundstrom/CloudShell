@@ -12,11 +12,11 @@ extension points, provider capabilities, samples, or UI workflows.
 
 Read these first:
 
-- `goal.md`
+- `docs/goal.md`
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
 - `docs/artifact-implementation-guidelines.md`
-- `docs/progress.md`
+- `CHANGELOG.md`
 - relevant files under `docs/proposals/` when the change touches an active or
   proposed feature area
 
@@ -36,7 +36,7 @@ Then inspect the relevant implementation and tests before editing.
    `docs/artifact-implementation-guidelines.md`: contribution, provider,
    projected resource shape, Control Plane behavior, authoring surfaces,
    API/client projection, shell UI, tests, samples, and docs. If any chain link
-   is intentionally deferred, record that in `docs/progress.md` and
+   is intentionally deferred, record that in `CHANGELOG.md` and
    `docs/roadmap.md`.
 3. Keep resource concepts domain-shaped. Do not introduce UI terminology into
    resource/domain contracts.
@@ -51,14 +51,14 @@ Then inspect the relevant implementation and tests before editing.
    shape, proposal status, milestone scope, or MVP progress. Treat
    `docs/roadmap.md` as authoritative for milestone scope and the current task
    queue, and `docs/proposals/README.md` as authoritative for proposal status.
-   Keep those files, `docs/progress.md`, and the relevant proposal documents in
+   Keep those files, `CHANGELOG.md`, and the relevant proposal documents in
    sync so remaining tasks and current priorities do not drift.
 8. Update `docs/roadmap.md` when the feature changes the current task queue.
 9. Run the relevant narrow tests first, then the verification baseline from
-   `docs/progress.md` for cross-boundary changes.
+   `CHANGELOG.md` for cross-boundary changes.
 
 ## Output expectations
 
 Keep changes scoped. Mention any intentionally deferred behavior in
-the relevant proposal, `docs/progress.md`, and `docs/roadmap.md` instead of
+the relevant proposal, `CHANGELOG.md`, and `docs/roadmap.md` instead of
 leaving it implicit.

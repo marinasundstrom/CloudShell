@@ -6,7 +6,7 @@ roadmap should be kept updated as implementation work lands.
 
 When a proposal changes direction or an implementation slice completes, update
 the relevant proposal together with [Roadmap](../roadmap.md) and
-[Progress](../progress.md). The repo-local Codex skills also require this
+[Changelog](../../CHANGELOG.md). The repo-local Codex skills also require this
 synchronization for feature and stabilization work.
 
 ## Proposal Status

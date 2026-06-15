@@ -197,10 +197,10 @@ resource.
      product guidance.
 9. Update documentation.
    - Update the relevant resource docs, API docs, programmatic resource docs,
-     progress tracker, and roadmap execution plan.
+     changelog, and roadmap execution plan.
    - Document intentionally deferred chain links, such as "Control Plane
      provider only, no Resource Manager UI integration yet", in
-     `docs/progress.md` and `docs/roadmap.md`.
+     `CHANGELOG.md` and `docs/roadmap.md`.
 
 ## Artifact guidelines
 
@@ -750,7 +750,7 @@ Use this matrix to choose the minimum useful test coverage.
 | Sample behavior | `CloudShell.Sample.Tests` smoke coverage |
 
 For resource model, Control Plane, API, remote client, or sample changes, run
-the verification baseline from [Progress](progress.md) after targeted tests
+the verification baseline from [Changelog](../CHANGELOG.md) after targeted tests
 when practical:
 
 ```bash

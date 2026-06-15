@@ -76,7 +76,12 @@ Required outcome:
 
 This section is the current task queue. Keep it focused on implementation
 slices that move the MVP forward; proposal documents remain the design
-trackers, and [Progress](progress.md) remains the completed-work tracker.
+trackers, and [Changelog](../CHANGELOG.md) remains the change and decision
+tracker.
+
+The projected focus order is a planning tool, not a constraint: re-evaluate it
+during implementation whenever a different slice better serves the immediate
+MVP goal described in [CloudShell goal](goal.md).
 
 ### Immediate Proposal Order
 
@@ -716,7 +721,7 @@ References:
 - [Deployments and Revisions Proposal](proposals/deployment/deployments-and-revisions.md)
 - [Runtime-Managed Resource Proposal](proposals/core/provider-created-and-runtime-managed-resources.md)
 - [Container apps](resources/container-apps.md#revisions)
-- [Progress](progress.md)
+- [Changelog](../CHANGELOG.md)
 
 ### 10. Advanced App and Environment Concepts
 
@@ -741,5 +746,5 @@ References:
 ## Tracking Work
 
 The current task queue and milestone scope stay in this roadmap. Completed
-decisions and verification expectations stay in [Progress](progress.md).
+decisions and verification expectations stay in [Changelog](../CHANGELOG.md).
 Proposal statuses stay in [docs/proposals](proposals/).
