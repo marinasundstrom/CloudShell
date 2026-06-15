@@ -23,6 +23,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- ApplicationTopology now declares a local-hostname DNS zone and maps
+  `app.application-topology.cloudshell.local` to the frontend endpoint so the
+  broad MVP sample covers name-mapping projection as part of the app exposure
+  path.
 - ApplicationTopology now disables startup autostart for its SQL Server, API,
   and frontend resources so the documented manual startup order avoids
   concurrent project builds against the shared ServiceDefaults project.

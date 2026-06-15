@@ -71,12 +71,12 @@ cloudShell.Resources(resources =>
         .DependsOn(sqlServer)
         .WithAutoStart(false);
 
-    resources
+    var frontend = resources
         .AddAspNetCoreProject(
-        "application:application-topology-frontend",
-        "Application Topology Frontend",
-        "../Frontend/CloudShell.ApplicationTopologyFrontend.csproj",
-        endpoint: frontendEndpoint)
+            "application:application-topology-frontend",
+            "Application Topology Frontend",
+            "../Frontend/CloudShell.ApplicationTopologyFrontend.csproj",
+            endpoint: frontendEndpoint)
         .WithHttpHealthCheck("/healthz")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
@@ -85,6 +85,14 @@ cloudShell.Resources(resources =>
         .WithReference(api)
         .DependsOn(api)
         .WithAutoStart(false);
+
+    resources
+        .AddDnsZone(
+            "application-topology-local",
+            "Application Topology Local DNS",
+            "application-topology.cloudshell.local")
+        .UseLocalHostNames()
+        .MapHost("app.application-topology.cloudshell.local", frontend, "http");
 });
 
 var app = builder.Build();

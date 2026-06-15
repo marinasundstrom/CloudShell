@@ -13,6 +13,9 @@ The host currently declares:
 - `Application Topology SQL Data`, a volume under the local storage resource
 - `application-topology-sql-server`, a SQL Server container app with the data
   volume mounted at `/var/opt/mssql`
+- `Application Topology Local DNS`, a local-hostname DNS zone with
+  `app.application-topology.cloudshell.local` mapped to the frontend HTTP
+  endpoint
 
 The frontend uses CloudShell service discovery to call the API:
 

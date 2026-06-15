@@ -177,12 +177,21 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "application:application-topology-api");
         var frontend = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:application-topology-frontend");
+        var dnsZone = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "dns:application-topology-local");
+        var nameMapping = Assert.Single(resources, resource =>
+            resource.GetProperty("typeId").GetString() == PlatformResourceProvider.NameMappingResourceType
+            && resource.GetProperty("attributes")
+                .GetProperty(ResourceAttributeNames.NameMappingHostName)
+                .GetString() == "app.application-topology.cloudshell.local");
 
         var storageAttributes = storage.GetProperty("attributes");
         var volumeAttributes = volume.GetProperty("attributes");
         var sqlAttributes = sqlServer.GetProperty("attributes");
         var apiAttributes = api.GetProperty("attributes");
         var frontendAttributes = frontend.GetProperty("attributes");
+        var dnsZoneAttributes = dnsZone.GetProperty("attributes");
+        var nameMappingAttributes = nameMapping.GetProperty("attributes");
 
         Assert.Equal((int)ResourceState.Stopped, sqlServer.GetProperty("state").GetInt32());
         Assert.Equal((int)ResourceState.Stopped, api.GetProperty("state").GetInt32());
@@ -220,6 +229,23 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             "application:application-topology-api",
             frontend.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+
+        Assert.Equal(PlatformResourceProvider.DnsZoneResourceType, dnsZone.GetProperty("typeId").GetString());
+        Assert.Equal(
+            "application-topology.cloudshell.local",
+            dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsZoneName).GetString());
+        Assert.Equal("local-hostnames", dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsProvider).GetString());
+        Assert.Equal("1", dnsZoneAttributes.GetProperty(ResourceAttributeNames.DnsRecordCount).GetString());
+        Assert.Equal("dns:application-topology-local", nameMapping.GetProperty("parentResourceId").GetString());
+        Assert.Equal(
+            "application:application-topology-frontend",
+            nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingTargetResourceId).GetString());
+        Assert.Equal(
+            "http",
+            nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingTargetEndpointName).GetString());
+        Assert.Equal(
+            "ProviderSelected",
+            nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingMaterializationStatus).GetString());
 
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
