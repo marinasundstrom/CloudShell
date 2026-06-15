@@ -57,11 +57,7 @@
             }
         </FluentSelect>
 
-        <div class="environment-editor">
-            <div class="environment-header">
-                <strong>Initial name mapping</strong>
-            </div>
-
+        <ResourceEditorSection Title="Initial name mapping">
             <FluentCheckbox @bind-Value="CreateNameMapping">
                 Add name mapping
             </FluentCheckbox>
@@ -121,7 +117,7 @@
                     }
                 </FluentSelect>
             }
-        </div>
+        </ResourceEditorSection>
 
         @if (ErrorMessage is not null)
         {

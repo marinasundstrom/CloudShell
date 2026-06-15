@@ -42,11 +42,7 @@
             }
         </FluentSelect>
 
-        <div class="environment-editor">
-            <div class="environment-header">
-                <strong>Entrypoints</strong>
-            </div>
-
+        <ResourceEditorSection Title="Entrypoints">
             <FluentCheckbox @bind-Value="ExposeHttp">
                 HTTP
             </FluentCheckbox>
@@ -73,13 +69,9 @@
                 <label for="load-balancer-tcp-port">TCP port</label>
                 <FluentNumberField TValue="int" Id="load-balancer-tcp-port" Min="1" @bind-Value="TcpPort" />
             }
-        </div>
+        </ResourceEditorSection>
 
-        <div class="environment-editor">
-            <div class="environment-header">
-                <strong>HTTP route</strong>
-            </div>
-
+        <ResourceEditorSection Title="HTTP route">
             <FluentCheckbox @bind-Value="CreateHttpRoute">
                 Add HTTP route
             </FluentCheckbox>
@@ -122,13 +114,9 @@
                 <label for="load-balancer-http-target-port">Target port</label>
                 <FluentNumberField TValue="int?" Id="load-balancer-http-target-port" Min="1" @bind-Value="HttpTargetPort" />
             }
-        </div>
+        </ResourceEditorSection>
 
-        <div class="environment-editor">
-            <div class="environment-header">
-                <strong>TCP route</strong>
-            </div>
-
+        <ResourceEditorSection Title="TCP route">
             <FluentCheckbox @bind-Value="CreateTcpRoute">
                 Add TCP route
             </FluentCheckbox>
@@ -165,7 +153,7 @@
                 <label for="load-balancer-tcp-target-port">Target port</label>
                 <FluentNumberField TValue="int?" Id="load-balancer-tcp-target-port" Min="1" @bind-Value="TcpTargetPort" />
             }
-        </div>
+        </ResourceEditorSection>
 
         @if (ErrorMessage is not null)
         {

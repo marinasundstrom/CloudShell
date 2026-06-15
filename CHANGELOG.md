@@ -104,6 +104,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource environment variable editing now uses the shared editor section
   component for app settings and environment variable sections, reducing
   repeated Resource Manager section/header markup.
+- Service, DNS zone, and load balancer registration pages now reuse the shared
+  Resource Manager editor section component for grouped form sections.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

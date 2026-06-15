@@ -27,11 +27,7 @@
             }
         </FluentSelect>
 
-        <div class="environment-editor">
-            <div class="environment-header">
-                <strong>Targets</strong>
-            </div>
-
+        <ResourceEditorSection Title="Targets">
             @foreach (var resource in GetTargetCandidates())
             {
                 <FluentCheckbox Value="@SelectedTargetIds.Contains(resource.Id)"
@@ -39,13 +35,9 @@
                     @resource.Name
                 </FluentCheckbox>
             }
-        </div>
+        </ResourceEditorSection>
 
-        <div class="environment-editor">
-            <div class="environment-header">
-                <strong>Networks</strong>
-            </div>
-
+        <ResourceEditorSection Title="Networks">
             @foreach (var network in GetNetworkCandidates())
             {
                 <FluentCheckbox Value="@SelectedNetworkIds.Contains(network.Id)"
@@ -53,7 +45,7 @@
                     @network.Name
                 </FluentCheckbox>
             }
-        </div>
+        </ResourceEditorSection>
 
         <label for="service-port-name">Port name</label>
         <FluentTextField Id="service-port-name" @bind-Value="PortName" />
