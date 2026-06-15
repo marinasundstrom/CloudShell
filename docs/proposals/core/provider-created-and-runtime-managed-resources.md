@@ -139,15 +139,21 @@ public enum ResourceManagementMode
 ```
 
 Source describes where the resource came from. Management mode describes who is
-responsible for reconciling, updating, and deleting it. Visibility describes how
-it should be projected. Ownership describes lifecycle relationships.
+responsible for reconciling, updating, and deleting it. Visibility describes
+whether the resource is part of normal inventory and whether extra display
+settings or permissions are needed to see it. Ownership describes lifecycle
+relationships. Resource Manager decides the UI context where a visible resource
+is presented.
 
 These qualities should not be collapsed into a single category. For example, a
 generated deployment revision may be provider-created, provider-managed, and
-visible. A replica may be orchestrator-created, runtime-managed, and diagnostic
-only. A health probe may be runtime-created, runtime-managed, and hidden.
+visible. A storage-owned volume may be user-created, user-managed, hidden from
+global inventory, and still visible from Storage-owned UI flows when the user
+has permission. A replica may be orchestrator-created, runtime-managed, hidden
+from global inventory, and visible from container-app UI flows. A health probe
+may be runtime-created, runtime-managed, and internal.
 
-Every resource remains:
+Every non-internal resource remains:
 
 * addressable
 * identifiable
@@ -155,6 +161,11 @@ Every resource remains:
 * capable of exposing capabilities
 * capable of exposing actions
 * capable of participating in diagnostics
+
+Internal managed resources can still be addressable to the Control Plane and
+providers, but they are not part of the default visible resource graph. They
+exist to preserve ownership, cleanup, diagnostics, or reconciliation integrity
+for another resource.
 
 ## Ownership Model
 
@@ -307,11 +318,24 @@ cluttering normal user experiences.
 
 Visibility is independent from management. A user-managed resource may be
 hidden, and a provider-managed or runtime-managed resource may be normal or
-hidden. Resource Manager therefore treats `Show hidden resources` and
-`Show runtime-managed resources` as separate display settings. A normal
+hidden. Hidden also has two practical forms:
+
+* hidden from the global inventory by default, but still eligible for Resource
+  Manager presentation from parent pages, relationship views, or selectors
+  when the user has permission
+* hidden because the user lacks permission to inspect that part of the graph
+
+Resource Manager therefore treats `Show hidden resources` and `Show
+runtime-managed resources` as separate display settings. A normal
 runtime-managed resource is visible by default if it is part of the public
 resource surface. Hidden runtime-managed artifacts require both settings to
 appear in inventory.
+
+Internal managed artifacts are stricter than resources that are merely hidden
+from inventory. They are provider, orchestrator, or runtime implementation
+details and should never appear in the default user-facing graph. Resource
+Manager may expose them only through explicit advanced or diagnostic views,
+normally behind a dedicated permission such as runtime-managed inspection.
 
 ## Source and Management Model
 
@@ -482,7 +506,11 @@ Normal UI views should:
 * show user-managed resources
 * show normal provider-managed and runtime-managed resources when they are part
   of the public resource surface
-* hide hidden resources by default
+* hide hidden resources from the global inventory by default
+* decide, as a UI concern, whether hidden-but-visible resources appear on an
+  owning resource page, relationship view, or selector when that is the
+  expected management workflow and the user has permission
+* keep internal managed artifacts out of the default user-facing graph
 
 Advanced views may:
 
@@ -493,7 +521,9 @@ Advanced views may:
 
 Resource Manager may show hidden and runtime-managed resources for inspection,
 but normal edit, delete, and lifecycle controls remain limited to normal
-user-managed resources.
+user-managed resources. Parent-scoped management can still be exposed by the
+owning resource's UI when the resource provider owns that workflow, such as
+managing Storage-owned volumes from the Storage resource's Volumes tab.
 
 Example:
 

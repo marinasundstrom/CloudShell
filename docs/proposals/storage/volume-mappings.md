@@ -167,7 +167,11 @@ resource inventory by default, and is managed from the Storage resource's
 Volumes tab. This applies to Storage-class providers generally, not just the
 Local Storage provider; providers may contribute richer storage-specific
 management views later, but the default shell behavior should keep owned
-volumes under their storage parent.
+volumes under their storage parent. Hidden in this context means "not a
+top-level inventory item by default"; the volume is still part of the resource
+graph and Resource Manager may present it from Storage-owned views or workflows
+that select mountable volumes when the user has permission. Environments may
+also hide or restrict volume inspection by permission.
 
 `resources.AddVolume(...)` declares a CloudShell volume resource through the
 default Local Storage provider unless another provider is supplied. Its path is

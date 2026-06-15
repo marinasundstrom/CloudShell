@@ -15,6 +15,15 @@ link to the decision so the dependency is visible.
 
 Container apps need deployment, revision, and runtime-owned resource relationships to become a useful managed-service primitive. Add the shared abstractions and resource metadata first, use them internally for container apps and provider/orchestrator runtime artifacts, and keep them out of the normal public product surface until the model is proven. A container app remains the user-facing resource; orchestrator deployments/revisions and runtime-managed containers, replicas, endpoint registrations, or provider-owned artifacts are lower-level implementation and diagnostic entities that may be hidden from normal Resource Manager lists.
 
+Hidden from global inventory does not necessarily mean internal. A child
+resource such as a replica under a container app or a volume under a Storage
+resource can be hidden from the top-level inventory by default while still
+being part of the visible resource graph when the user has permission.
+Resource Manager decides where those resources are presented, such as parent
+pages, relationship views, or selectors. Internal managed artifacts are
+stricter: they are provider, orchestrator, or runtime implementation details
+and should never appear in the default user-facing graph.
+
 Resources can still be handled individually by the orchestrator. When a
 resource state or configuration change has runtime workload intent, the
 orchestrator may derive a default deployment for that change so CloudShell can

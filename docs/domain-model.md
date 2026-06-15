@@ -180,11 +180,29 @@ revision; they are not themselves the revision identity.
 Resources can now also project ownership metadata that distinguishes who
 created them, who manages them, how visible they should be in normal Resource
 Manager inventory, which stable resource owns them, and how they should be
-cleaned up with that owner. This metadata lets providers and orchestrators
-register hidden runtime or diagnostic resources without making those resources
-the normal application contract. For example, a container app may own hidden
-runtime container resources for replica inspection while the container app
-remains the user-facing deployment target.
+cleaned up with that owner. This metadata does not split CloudShell into
+separate resource graphs. The resource graph remains unified; visibility and
+permissions only decide which parts of that graph are shown in which contexts.
+
+Some resources are hidden from the global inventory by default but still
+belong to the visible resource graph when the user has permission. A
+storage-owned volume or a container-app replica can be shown by Resource
+Manager on the parent resource page, in relationship views, or in selectors
+without appearing as a top-level inventory item. That placement is a UI
+presentation concern; the domain model only records ownership, visibility,
+management mode, and permissions. These resources can also be hidden by
+permission when an environment does not allow a user to inspect that part of
+the graph.
+
+Internal managed resources are stricter. They are provider, orchestrator, or
+runtime implementation details for another resource and should never be part
+of the default user-facing graph. They may be exposed only through explicit
+diagnostic or advanced inspection modes, when the user has the required
+permission. For example, a provider-owned helper container can stay internal
+even though CloudShell may still track it for cleanup, diagnostics, and
+relationship integrity. The stable user-facing resource remains the
+application, storage resource, load balancer, or other modeled resource that
+owns the behavior.
 
 Orchestrators materialize a container app by producing an orchestration-level
 service artifact. In CloudShell's orchestration contracts this is represented
