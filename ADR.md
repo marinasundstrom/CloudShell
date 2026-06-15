@@ -14,13 +14,37 @@ link to the decision so the dependency is visible.
 ### ADR-20260615-004: Treat resource IDs as canonical and display names as presentation
 
 Resource IDs are the canonical identity for resources. They are the stable
-handles used by dependencies, permissions, resource events, logs, provider
-state, API calls, and automation. Resource display names are presentation
-labels for Resource Manager and other user-facing surfaces. Display names are
-enabled by default because they improve readability, but hosts and users may
-prefer ID-first workflows. Resource Manager should therefore make the resource
-ID explicit in detail and overview surfaces, provide a display-name preference,
-and later add display-name editing without changing the stable resource ID.
+handles used by dependencies, permissions, resource events, activity logs,
+provider state, API calls, and automation. Activity logs should display or
+retain the resource ID as the canonical resource address even when display
+names are enabled. Resource display names are presentation labels for Resource
+Manager and other user-facing surfaces. Display names are useful during local
+development when resource IDs are less important to the immediate workflow,
+but they must remain optional. Programmatic registration APIs should therefore
+take resource IDs and domain-specific parameters; optional labels are applied
+with `WithDisplayName(...)`. Resource Manager create flows should ask for
+Resource ID first, then an optional display name when display names are
+enabled. Display names are enabled by default because they improve
+readability, but hosts and users may prefer ID-first workflows. Resource
+Manager should therefore make the resource ID explicit in detail and overview
+surfaces, provide a display-name preference, and later add display-name
+editing without changing the stable resource ID.
+
+CloudShell does not require one global naming scheme, but teams may use
+structured resource IDs, configuration keys, and secret names when that helps
+map resource hierarchy into JSON configuration, environment variables, or
+DNS-safe projections. The optional `--` separator is acceptable guidance for
+hierarchy that needs to travel through systems where `:` has configuration
+path meaning or is not accepted.
+
+Character and length restrictions are provider-owned rather than global
+CloudShell rules. Different backing platforms, such as Azure, AWS, local
+files, DNS providers, container hosts, and future deployment providers, impose
+different constraints. The built-in Configuration Store should remain broad
+and App Configuration-like, while rejecting names that cannot sensibly
+round-trip through text configuration. The built-in Secrets Vault should use a
+Key Vault-style secret-name shape and rely on `--` for hierarchical .NET
+configuration loading.
 
 Related changes: [Changelog](CHANGELOG.md).
 

@@ -18,11 +18,11 @@
             </div>
         }
 
-        <label for="container-name">Name</label>
-        <FluentTextField Id="container-name" @bind-Value="Name" />
-
-        <label for="container-resource-id">Resource ID</label>
-        <FluentTextField Id="container-resource-id" @bind-Value="ResourceId" Placeholder="application:redis" />
+        <ResourceIdentityFields ResourceIdInputId="container-resource-id"
+                                DisplayNameInputId="container-display-name"
+                                ResourceIdPlaceholder="application:redis"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <label for="container-image">Image</label>
         <FluentTextField Id="container-image" @bind-Value="Image" Placeholder="redis:7.2" />
@@ -143,12 +143,15 @@
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(Image))
+        if (string.IsNullOrWhiteSpace(ResourceId) || string.IsNullOrWhiteSpace(Image))
         {
-            ErrorMessage = "Name and image are required.";
+            ErrorMessage = "Resource ID and image are required.";
             return;
         }
 
@@ -183,6 +186,7 @@
             return;
         }
 
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         var references = SelectedReferenceIds.ToArray();
         var volumeMounts = BuildVolumeMounts();
         var volumeReferences = volumeMounts
@@ -192,7 +196,7 @@
             .ToArray();
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
-            Name,
+            displayName,
             executablePath: string.Empty,
             environmentVariables: BuildEnvironmentVariables(),
             lifetime: ParseLifetime(),

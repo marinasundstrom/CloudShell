@@ -8,8 +8,8 @@ namespace CloudShell.Configuration.Client;
 /// integration.
 /// </summary>
 /// <remarks>
-/// Public preview API. Option names and discovery behavior may evolve before
-/// the MVP SDK contract is declared stable.
+/// Public preview API. Option names, entry-name mapping, and discovery
+/// behavior may evolve before the MVP SDK contract is declared stable.
 /// </remarks>
 public sealed class CloudShellConfigurationStoreOptions
 {
@@ -32,4 +32,6 @@ public sealed class CloudShellConfigurationStoreOptions
     public string MetadataPrefix { get; set; } = "CloudShell:ConfigurationStore";
 
     public bool LoadSecretValues { get; set; } = true;
+
+    public string KeyDelimiterReplacement { get; set; } = "--";
 }

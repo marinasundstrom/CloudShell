@@ -246,9 +246,12 @@ The mount's required access permission is derived from `ReadOnly`:
 Resource identity grants use the existing CloudShell resource-permission model:
 
 ```csharp
-var data = resources.AddVolume("volume:postgres-data", "Postgres Data");
+var data = resources
+    .AddVolume("volume:postgres-data")
+    .WithDisplayName("Postgres Data");
 var postgres = resources
-    .AddContainerApplication("application:postgres", "Postgres", "postgres:16")
+    .AddContainerApplication("application:postgres", "postgres:16")
+    .WithDisplayName("Postgres")
     .RequireIdentity()
     .WithVolume(data, "/var/lib/postgresql/data");
 
@@ -294,11 +297,12 @@ Minimal local volume:
 
 ```csharp
 var data = resources.AddVolume(
-    "volume:postgres-data",
-    "Postgres Data");
+    "volume:postgres-data")
+    .WithDisplayName("Postgres Data");
 
 var postgres = resources
-    .AddContainerApplication("application:postgres", "Postgres", "postgres:16")
+    .AddContainerApplication("application:postgres", "postgres:16")
+    .WithDisplayName("Postgres")
     .WithVolume(data, "/var/lib/postgresql/data")
     .WithEnvironment("POSTGRES_DB", "cloudshell");
 ```
@@ -307,11 +311,13 @@ Explicit host directory:
 
 ```csharp
 var data = resources
-    .AddVolume("volume:uploads", "Uploads")
+    .AddVolume("volume:uploads")
+    .WithDisplayName("Uploads")
     .UseHostPath("./data/uploads");
 
 resources
-    .AddAspNetCoreProject("application:web", "Web", "../Web/Web.csproj")
+    .AddAspNetCoreProject("application:web", "../Web/Web.csproj")
+    .WithDisplayName("Web")
     .WithVolume(data, "/app/uploads");
 ```
 
@@ -319,7 +325,8 @@ Provider-backed mountable storage by provider name:
 
 ```csharp
 var media = resources
-    .AddVolume("volume:media", "Media")
+    .AddVolume("volume:media")
+    .WithDisplayName("Media")
     .UseProvider("nas")
     .UseLocation("team-share/media")
     .WithAccessMode(VolumeAccessMode.ReadWriteMany);
@@ -329,12 +336,13 @@ Future provider-defined storage resource with provider-owned sub-volumes:
 
 ```csharp
 var storage = resources.AddLocalStorage(
-    "storage:local",
-    "Local Storage")
+    "storage:local")
+    .WithDisplayName("Local Storage")
     .UseLocation("./storage");
 
 var media = resources
-    .AddVolume("volume:media", "Media")
+    .AddVolume("volume:media")
+    .WithDisplayName("Media")
     .UseStorage(storage, "media");
 ```
 

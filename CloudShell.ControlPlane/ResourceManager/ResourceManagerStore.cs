@@ -65,8 +65,18 @@ public sealed class ResourceManagerStore(
                 group => group.Select(registration => registration.ResourceId).ToArray(),
                 StringComparer.OrdinalIgnoreCase);
 
+        var declaredGroups = declarations.GetResourceGroups()
+            .Select(group => new ResourceGroup(
+                group.Id,
+                group.Name,
+                group.Description,
+                []));
+
         return resourceGroups
             .GetResourceGroups()
+            .Concat(declaredGroups)
+            .GroupBy(group => group.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
             .OrderBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
             .Select(group => group with
             {

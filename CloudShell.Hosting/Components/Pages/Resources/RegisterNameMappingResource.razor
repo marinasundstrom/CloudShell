@@ -16,11 +16,12 @@
             }
         </FluentSelect>
 
-        <label for="name-mapping-name">Name</label>
-        <FluentTextField Id="name-mapping-name" @bind-Value="Name" Placeholder="App local name" />
-
-        <label for="name-mapping-resource-id">Resource ID</label>
-        <FluentTextField Id="name-mapping-resource-id" @bind-Value="ResourceId" Placeholder="dns:cloudshell-local:name:app-cloudshell-local" />
+        <ResourceIdentityFields ResourceIdInputId="name-mapping-resource-id"
+                                DisplayNameInputId="name-mapping-display-name"
+                                ResourceIdPlaceholder="dns:cloudshell-local:name:app-cloudshell-local"
+                                DisplayNamePlaceholder="App local name"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <label for="name-mapping-host">Host name</label>
         <FluentTextField Id="name-mapping-host" @bind-Value="HostName" Placeholder="app.cloudshell.local" />
@@ -118,6 +119,9 @@
     private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         ResourceManagerUiAccess.EmptyGroupLookup;
+
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -287,9 +291,7 @@
         var resourceId = string.IsNullOrWhiteSpace(ResourceId)
             ? CreateMappingId(SelectedZoneResourceId, HostName)
             : ResourceId.Trim();
-        var name = string.IsNullOrWhiteSpace(Name)
-            ? HostName.Trim()
-            : Name.Trim();
+        var name = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, resourceId);
         var definition = new DnsNameMappingResourceDefinition(
             SelectedZoneResourceId,
             resourceId,

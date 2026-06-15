@@ -188,6 +188,9 @@ builder.Configuration.AddCloudShellConfigurationStore(options =>
 
 Provider diagnostics are exposed under `CloudShell:ConfigurationStore:*`,
 including `Status`, `Detail`, `Source`, `LoadedKeys`, and `SecretKeys`.
+By default, `--` in entry names maps to the .NET configuration `:`
+delimiter, so a stored entry named `Orders--Api--BaseUrl` is available through
+`Configuration["Orders:Api:BaseUrl"]`.
 
 ## Secrets Vault Client
 

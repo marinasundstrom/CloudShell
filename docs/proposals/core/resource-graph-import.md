@@ -110,12 +110,14 @@ The minimal useful output is a code block like:
 controlPlane.Resources(resources =>
 {
     var api = resources
-        .AddContainerApplication("application:api", "API", "ghcr.io/example/api:latest")
+        .AddContainerApplication("application:api", "ghcr.io/example/api:latest")
+        .WithDisplayName("API")
         .WithEndpoint("http", targetPort: 8080)
         .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development");
 
     var redis = resources
-        .AddContainerApplication("application:redis", "Redis", "redis:7")
+        .AddContainerApplication("application:redis", "redis:7")
+        .WithDisplayName("Redis")
         .WithEndpoint("redis", targetPort: 6379);
 
     api.DependsOn(redis);

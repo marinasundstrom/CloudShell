@@ -71,12 +71,11 @@ public static class ConfigurationProviderServiceCollectionExtensions
     public static IConfigurationStoreResourceBuilder AddConfigurationStore(
         this IResourceDeclarationBuilder builder,
         string id,
-        string name,
         IReadOnlyList<ConfigurationEntry>? entries = null)
     {
         var definition = new ConfigurationStoreDefinition(
             id,
-            name,
+            CreateDisplayName(id),
             entries);
         var declared = new DeclaredConfigurationStore(definition);
         var options = builder.Services.GetOrAddConfigurationProviderOptions();
@@ -88,6 +87,10 @@ public static class ConfigurationProviderServiceCollectionExtensions
             id,
             onChanged: declaration =>
             {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, CreateDisplayName(id))
+                };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
@@ -98,12 +101,11 @@ public static class ConfigurationProviderServiceCollectionExtensions
     public static IHostConfigurationSourceResourceBuilder AddHostConfigurationSource(
         this IResourceDeclarationBuilder builder,
         string id,
-        string name,
         IReadOnlyList<string>? entries = null)
     {
         var definition = new HostConfigurationSourceDefinition(
             id,
-            name,
+            CreateDisplayName(id),
             entries);
         var declared = new DeclaredHostConfigurationSource(definition);
         var options = builder.Services.GetOrAddConfigurationProviderOptions();
@@ -113,7 +115,14 @@ public static class ConfigurationProviderServiceCollectionExtensions
         var resource = builder.Declare(
             HostConfigurationSourceProvider.ProviderId,
             id,
-            resourceClass: ResourceClass.Configuration);
+            resourceClass: ResourceClass.Configuration,
+            onChanged: declaration =>
+            {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, CreateDisplayName(id))
+                };
+            });
 
         return new HostConfigurationSourceResourceBuilder(resource, declared);
     }
@@ -121,12 +130,11 @@ public static class ConfigurationProviderServiceCollectionExtensions
     public static ISecretsVaultResourceBuilder AddSecretsVault(
         this IResourceDeclarationBuilder builder,
         string id,
-        string? name = null,
         IReadOnlyList<SecretsVaultSecret>? secrets = null)
     {
         var definition = new SecretsVaultDefinition(
             id,
-            string.IsNullOrWhiteSpace(name) ? id : name,
+            CreateDisplayName(id),
             secrets);
         var declared = new DeclaredSecretsVault(definition);
         var options = builder.Services.GetOrAddConfigurationProviderOptions();
@@ -136,7 +144,14 @@ public static class ConfigurationProviderServiceCollectionExtensions
         var resource = builder.Declare(
             SecretsVaultProvider.ProviderId,
             id,
-            resourceClass: ResourceClass.SecretsVault);
+            resourceClass: ResourceClass.SecretsVault,
+            onChanged: declaration =>
+            {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, CreateDisplayName(id))
+                };
+            });
 
         return new SecretsVaultResourceBuilder(resource, declared);
     }
@@ -159,6 +174,22 @@ public static class ConfigurationProviderServiceCollectionExtensions
         services.AddSingleton(options);
         return options;
     }
+
+    private static string CreateDisplayName(string resourceId)
+    {
+        var name = resourceId.Contains(':', StringComparison.Ordinal)
+            ? resourceId[(resourceId.IndexOf(':', StringComparison.Ordinal) + 1)..]
+            : resourceId;
+        return string.Join(
+            " ",
+            name.Split(['-', '_', '.', ':', '/', '\\'], StringSplitOptions.RemoveEmptyEntries)
+                .Select(segment => string.Concat(segment[..1].ToUpperInvariant(), segment[1..])));
+    }
+
+    private static string GetDisplayName(ResourceDeclaration declaration, string fallback) =>
+        string.IsNullOrWhiteSpace(declaration.DisplayName)
+            ? fallback
+            : declaration.DisplayName;
 
     private static void AddExtensionIfMissing<TExtension>(
         this ICloudShellBuilder builder,

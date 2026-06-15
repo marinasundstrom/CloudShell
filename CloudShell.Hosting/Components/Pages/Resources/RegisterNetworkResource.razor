@@ -4,11 +4,11 @@
 
 <div class="type-registration">
     <div class="form-panel">
-        <label for="network-name">Name</label>
-        <FluentTextField Id="network-name" @bind-Value="Name" />
-
-        <label for="network-resource-id">Resource ID</label>
-        <FluentTextField Id="network-resource-id" @bind-Value="ResourceId" Placeholder="network:app" />
+        <ResourceIdentityFields ResourceIdInputId="network-resource-id"
+                                DisplayNameInputId="network-display-name"
+                                ResourceIdPlaceholder="network:app"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <FluentCheckbox @bind-Value="IsDefault">
             Default network
@@ -93,6 +93,9 @@
     private static readonly IReadOnlyList<ResourceEndpointAssignment> AllEndpointAssignments =
         Enum.GetValues<ResourceEndpointAssignment>();
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     private bool IsPredefinedAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Predefined;
 
@@ -107,9 +110,9 @@
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name))
+        if (string.IsNullOrWhiteSpace(ResourceId))
         {
-            ErrorMessage = "Name is required.";
+            ErrorMessage = "Resource ID is required.";
             return;
         }
 
@@ -119,15 +122,17 @@
             return;
         }
 
+        var normalizedResourceId = ResourceId.Trim();
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,
                 NetworkResourceType,
-                ResourceId,
-                Name,
+                normalizedResourceId,
+                displayName,
                 JsonSerializer.SerializeToElement(new NetworkResourceDefinition(
-                    ResourceId,
-                    Name,
+                    normalizedResourceId,
+                    displayName,
                     IsDefault,
                     endpointRequests)),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));

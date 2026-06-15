@@ -43,15 +43,15 @@ internal sealed class CloudShellConfigurationStoreProvider(
                     continue;
                 }
 
-                Data[entry.Name] = entry.Value;
+                Data[ToConfigurationKey(entry.Name)] = entry.Value;
             }
 
             ClearMetadata("Detail");
             SetMetadata("Status", "connected");
-            SetMetadata("LoadedKeys", string.Join(',', entries.Select(entry => entry.Name)));
+            SetMetadata("LoadedKeys", string.Join(',', entries.Select(entry => ToConfigurationKey(entry.Name))));
             SetMetadata("SecretKeys", string.Join(
                 ',',
-                entries.Where(entry => entry.IsSecret).Select(entry => entry.Name)));
+                entries.Where(entry => entry.IsSecret).Select(entry => ToConfigurationKey(entry.Name))));
         }
         catch (Exception exception) when (
             exception is CloudShellCredentialUnavailableException or
@@ -70,6 +70,14 @@ internal sealed class CloudShellConfigurationStoreProvider(
 
     private void ClearMetadata(string name) =>
         Data.Remove($"{options.MetadataPrefix}:{name}");
+
+    private string ToConfigurationKey(string entryName) =>
+        string.IsNullOrEmpty(options.KeyDelimiterReplacement)
+            ? entryName
+            : entryName.Replace(
+                options.KeyDelimiterReplacement,
+                ConfigurationPath.KeyDelimiter,
+                StringComparison.Ordinal);
 
     private static Uri? ResolveEndpoint(CloudShellConfigurationStoreOptions options)
     {

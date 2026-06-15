@@ -44,13 +44,12 @@ cloudShell
 cloudShell.Resources(resources =>
 {
     var dockerHost = resources
-        .AddDocker("docker:sample-host", "Sample Container Host")
+        .AddDocker("docker:sample-host")
         .Persist(overwrite: true);
 
     var webApp = resources
         .AddContainerApplication(
             "application:web",
-            "Web App",
             "nginx:1.27-alpine")
         .WithEndpoint(
             "http",
@@ -65,7 +64,6 @@ cloudShell.Resources(resources =>
     var apiService = resources
         .AddContainerApplication(
             "application:api",
-            "API Service",
             "traefik/whoami:v1.10")
         .WithEndpoint(
             "http",
@@ -81,7 +79,6 @@ cloudShell.Resources(resources =>
     var postgres = resources
         .AddContainerApplication(
             "application:postgres",
-            "Postgres Replica Set",
             "postgres:16-alpine")
         .WithEndpoint(
             "postgres",
@@ -108,7 +105,7 @@ cloudShell.Resources(resources =>
     lb.MapTcp(5432, postgres, targetPort: 5432);
 
     resources
-        .AddDnsZone("cloudshell-local", "CloudShell Local DNS", "cloudshell.local")
+        .AddDnsZone("cloudshell-local", zoneName: "cloudshell.local")
         .UseLocalHostNames()
         .MapHost("app.cloudshell.local", lb, "http")
         .MapHost("api.cloudshell.local", lb, "http");

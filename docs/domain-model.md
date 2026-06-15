@@ -124,9 +124,12 @@ runtime behavior behind those attributes. `Resource` does not imply CloudShell
 owns all underlying provider configuration or runtime state.
 
 `Id` is the canonical resource identity and should be visible wherever users
-inspect resource details. `Name` is a display name used for readability in
-Resource Manager and other presentation surfaces. Display names are enabled by
-default, but UI hosts can disable display-name presentation with
+inspect resource details. Activity logs should use the resource ID as the
+canonical resource address so lifecycle actions, provider-scoped events, and
+procedure milestones remain traceable even when display names are enabled.
+`Name` is a display name used for readability in Resource Manager and other
+presentation surfaces. Display names are enabled by default, but UI hosts can
+disable display-name presentation with
 `ResourceManager:EnableDisplayNames` so Resource Manager uses resource IDs as
 the primary labels. User settings can override that default where the host
 allows Resource Manager settings changes. Display-name editing is a future
@@ -158,9 +161,12 @@ runtime type or runtime container is used to deploy the app. A container app is 
 than a single container: it may be backed by one or more runtime container
 instances/replicas, and those runtime instances may change across deployments.
 Docker and other host providers may also project runtime container resources,
-often as children under a container host resource. Those runtime container
-resources are useful for inspection and low-level operations, but they are not
-the stable deployment target for app image updates.
+often as children under a container host resource. Projected resources can
+still have stable, addressable resource IDs when the provider has a stable
+underlying identity. For Docker containers, the resource ID is derived from
+the host resource ID plus the actual container identity. Those runtime
+container resources are useful for inspection and low-level operations, but
+they are not the stable deployment target for app image updates.
 
 Provider-owned resources may create and manage runtime containers without
 becoming container app resources. For example, a load balancer provider can run

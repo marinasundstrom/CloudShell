@@ -20,11 +20,11 @@
             }
         </FluentSelect>
 
-        <label for="application-name">Name</label>
-        <FluentTextField Id="application-name" @bind-Value="Name" />
-
-        <label for="application-resource-id">Resource ID</label>
-        <FluentTextField Id="application-resource-id" @bind-Value="ResourceId" Placeholder="application:example-api" />
+        <ResourceIdentityFields ResourceIdInputId="application-resource-id"
+                                DisplayNameInputId="application-display-name"
+                                ResourceIdPlaceholder="application:example-api"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <label for="application-executable">Executable path</label>
         <FluentTextField Id="application-executable" @bind-Value="ExecutablePath" />
@@ -110,6 +110,9 @@
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     private void SelectTemplate(string? applicationId)
     {
         if (string.IsNullOrWhiteSpace(applicationId))
@@ -185,9 +188,9 @@
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(ExecutablePath))
+        if (string.IsNullOrWhiteSpace(ResourceId) || string.IsNullOrWhiteSpace(ExecutablePath))
         {
-            ErrorMessage = "Name and executable path are required.";
+            ErrorMessage = "Resource ID and executable path are required.";
             return;
         }
 
@@ -205,9 +208,10 @@
             return;
         }
 
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
-            Name,
+            displayName,
             ExecutablePath,
             Arguments,
             WorkingDirectory,

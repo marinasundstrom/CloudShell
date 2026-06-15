@@ -95,7 +95,7 @@ public static class DockerProviderServiceCollectionExtensions
     /// </summary>
     public static IDockerResourceBuilder AddDocker(
         this IResourceDeclarationBuilder builder) =>
-        builder.AddDocker(DockerContainerResourceProvider.DefaultHostResourceId, "Local Docker Host");
+        builder.AddDocker(DockerContainerResourceProvider.DefaultHostResourceId);
 
     /// <summary>
     /// Declares a Docker host resource that can own Docker container
@@ -103,12 +103,11 @@ public static class DockerProviderServiceCollectionExtensions
     /// </summary>
     public static IDockerResourceBuilder AddDocker(
         this IResourceDeclarationBuilder builder,
-        string id,
-        string name)
+        string id)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var definition = new DockerResourceDefinition(id, name);
+        var definition = new DockerResourceDefinition(id, CreateDisplayName(id));
         var declared = new DeclaredDockerResource(definition);
         builder.Services
             .GetOrAddDockerProviderOptions()
@@ -120,6 +119,10 @@ public static class DockerProviderServiceCollectionExtensions
             definition.Id,
             onChanged: declaration =>
             {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, CreateDisplayName(id))
+                };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
@@ -146,14 +149,12 @@ public static class DockerProviderServiceCollectionExtensions
     public static IDockerContainerResourceBuilder AddDockerContainer(
         this IResourceDeclarationBuilder builder,
         string id,
-        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null) =>
         AddDockerContainerCore(
             builder,
             DockerContainerResourceProvider.DefaultHostResourceId,
             id,
-            name,
             image,
             endpoints,
             declareHost: true);
@@ -162,7 +163,6 @@ public static class DockerProviderServiceCollectionExtensions
         IResourceDeclarationBuilder builder,
         string dockerResourceId,
         string id,
-        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints,
         bool declareHost)
@@ -171,7 +171,7 @@ public static class DockerProviderServiceCollectionExtensions
 
         var definition = new DockerContainerResourceDefinition(
             id,
-            name,
+            CreateDisplayName(id),
             image,
             dockerResourceId,
             endpoints,
@@ -197,6 +197,7 @@ public static class DockerProviderServiceCollectionExtensions
             {
                 declared.Definition = declared.Definition with
                 {
+                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
                     DependsOn = declaration.DependsOn
                 };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
@@ -233,6 +234,22 @@ public static class DockerProviderServiceCollectionExtensions
         services.AddSingleton(options);
         return options;
     }
+
+    private static string CreateDisplayName(string resourceId)
+    {
+        var name = resourceId.Contains(':', StringComparison.Ordinal)
+            ? resourceId[(resourceId.IndexOf(':', StringComparison.Ordinal) + 1)..]
+            : resourceId;
+        return string.Join(
+            " ",
+            name.Split(['-', '_', '.', ':', '/', '\\'], StringSplitOptions.RemoveEmptyEntries)
+                .Select(segment => string.Concat(segment[..1].ToUpperInvariant(), segment[1..])));
+    }
+
+    private static string GetDisplayName(ResourceDeclaration declaration, string fallback) =>
+        string.IsNullOrWhiteSpace(declaration.DisplayName)
+            ? fallback
+            : declaration.DisplayName;
 
     private sealed class LocalDevelopmentDefaultsStartupService(
         IServiceProvider serviceProvider) : IHostedService
@@ -321,17 +338,15 @@ public interface IDockerResourceBuilder : IResourceBuilder
     /// <c>resources.AddContainerApplication(...)</c>.
     /// </remarks>
     IDockerContainerResourceBuilder AddContainer(
-        string name,
+        string id,
         string image,
         string? tag = null);
 
     /// <summary>
-    /// Declares a Docker container sub-resource with an explicit resource ID and
-    /// display name.
+    /// Declares a Docker container sub-resource with an explicit resource ID.
     /// </summary>
     IDockerContainerResourceBuilder AddDockerContainer(
         string id,
-        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null);
 
@@ -440,15 +455,14 @@ internal sealed class DockerResourceBuilder(
     }
 
     public IDockerContainerResourceBuilder AddContainer(
-        string name,
+        string id,
         string image,
         string? tag = null)
     {
         var container = DockerProviderServiceCollectionExtensions.AddDockerContainerCore(
             declarations,
             ResourceId,
-            name,
-            name,
+            id,
             DockerProviderServiceCollectionExtensions.CreateImageReference(image, tag),
             endpoints: null,
             declareHost: false)
@@ -458,7 +472,6 @@ internal sealed class DockerResourceBuilder(
 
     public IDockerContainerResourceBuilder AddDockerContainer(
         string id,
-        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null)
     {
@@ -466,7 +479,6 @@ internal sealed class DockerResourceBuilder(
             declarations,
             ResourceId,
             id,
-            name,
             image,
             endpoints,
             declareHost: false)

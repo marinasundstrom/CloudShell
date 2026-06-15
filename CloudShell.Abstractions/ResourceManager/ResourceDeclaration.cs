@@ -23,6 +23,7 @@ public sealed record ResourceDeclaration(
     bool? DependencyAutoStartOverride = null,
     bool ProvisionIdentityOnStartup = false,
     ResourceClass? ResourceClassOverride = null,
+    string? DisplayName = null,
     IReadOnlyDictionary<string, string>? Attributes = null,
     ResourceIdentityBinding? Identity = null)
 {
@@ -33,6 +34,11 @@ public sealed record ResourceDeclaration(
 
     public ResourceIdentityBinding? IdentityBinding => Identity;
 }
+
+public sealed record ResourceGroupDeclaration(
+    string Id,
+    string Name,
+    string Description);
 
 public interface IResourceBuilder
 {
@@ -208,6 +214,19 @@ public static class ResourceDeclarationBuilderExtensions
             .AddIdentityProvider(provider, useAsDefault);
     }
 
+    public static IResourceGraphBuilder AddResourceGroup(
+        this IResourceGraphBuilder builder,
+        string id,
+        string name,
+        string description = "")
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.Services)
+            .AddResourceGroup(id, name, description);
+        return builder;
+    }
+
     public static IControlPlaneBuilder Resources(
         this IControlPlaneBuilder builder,
         Action<IResourceGraphBuilder> configure)
@@ -321,6 +340,18 @@ public static class ResourceDeclarationBuilderExtensions
 
         GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
             .SetResourceClass(builder.ResourceId, resourceClass);
+        return builder;
+    }
+
+    public static TBuilder WithDisplayName<TBuilder>(
+        this TBuilder builder,
+        string? displayName)
+        where TBuilder : IResourceBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
+            .SetDisplayName(builder.ResourceId, displayName);
         return builder;
     }
 
@@ -597,6 +628,8 @@ public sealed class ResourceDeclarationStore
     private readonly object _gate = new();
     private readonly Dictionary<string, ResourceDeclaration> _declarations =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ResourceGroupDeclaration> _resourceGroups =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, List<Action<ResourceDeclaration>>> _changeHandlers =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ResourceIdentityProviderDefinition> _identityProviders =
@@ -655,6 +688,35 @@ public sealed class ResourceDeclarationStore
         }
 
         return normalized;
+    }
+
+    public void AddResourceGroup(
+        string id,
+        string name,
+        string description = "")
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var normalized = new ResourceGroupDeclaration(
+            id.Trim(),
+            name.Trim(),
+            description.Trim());
+
+        lock (_gate)
+        {
+            _resourceGroups[normalized.Id] = normalized;
+        }
+    }
+
+    public IReadOnlyList<ResourceGroupDeclaration> GetResourceGroups()
+    {
+        lock (_gate)
+        {
+            return _resourceGroups.Values
+                .OrderBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
     }
 
     public void UseDefaultIdentityProvider(string providerId)
@@ -720,6 +782,7 @@ public sealed class ResourceDeclarationStore
                 existing?.DependencyAutoStartOverride,
                 existing?.ProvisionIdentityOnStartup ?? false,
                 resourceClass ?? existing?.ResourceClassOverride,
+                existing?.DisplayName,
                 attributes is null
                     ? existing?.ResourceAttributes
                     : MergeAttributes(existing?.ResourceAttributes, attributes),
@@ -870,6 +933,14 @@ public sealed class ResourceDeclarationStore
         });
     }
 
+    public void SetDisplayName(string resourceId, string? displayName)
+    {
+        Update(resourceId, declaration => declaration with
+        {
+            DisplayName = NormalizeOptional(displayName)
+        });
+    }
+
     public void SetAttributes(
         string resourceId,
         IReadOnlyDictionary<string, string> attributes)
@@ -985,6 +1056,7 @@ public sealed class ResourceDeclarationStore
         bool? dependencyAutoStartOverride = null,
         bool provisionIdentityOnStartup = false,
         ResourceClass? resourceClass = null,
+        string? displayName = null,
         IReadOnlyDictionary<string, string>? attributes = null,
         ResourceIdentityBinding? identity = null) =>
         new(
@@ -1000,6 +1072,7 @@ public sealed class ResourceDeclarationStore
             dependencyAutoStartOverride,
             provisionIdentityOnStartup,
             resourceClass,
+            NormalizeOptional(displayName),
             NormalizeAttributes(attributes),
             identity);
 
@@ -1094,6 +1167,12 @@ internal sealed class ResourceBuilder(
     {
         ArgumentNullException.ThrowIfNull(resource);
         return WithParent(resource.ResourceId);
+    }
+
+    public IResourceBuilder WithDisplayName(string? displayName)
+    {
+        declarations.SetDisplayName(ResourceId, displayName);
+        return this;
     }
 
     public IResourceBuilder DependsOn(string resourceId)

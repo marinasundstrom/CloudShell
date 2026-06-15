@@ -106,7 +106,8 @@ cloudShell
 cloudShell.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:example", "Example Configuration")
+        .AddConfigurationStore("configuration:example")
+        .WithDisplayName("Example Configuration")
         .WithEntry("SampleMessage", "Hello from checked-in configuration");
 });
 
@@ -179,7 +180,8 @@ var controlPlane = builder
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:shared", "Shared Configuration")
+        .AddConfigurationStore("configuration:shared")
+        .WithDisplayName("Shared Configuration")
         .WithEntry("FeatureFlags:UseNewFlow", "true");
 });
 
@@ -239,7 +241,8 @@ var controlPlane = builder
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:shared", "Shared Configuration")
+        .AddConfigurationStore("configuration:shared")
+        .WithDisplayName("Shared Configuration")
         .WithEntry("FeatureFlags:UseNewFlow", "true");
 });
 ```

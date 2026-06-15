@@ -85,9 +85,8 @@ cloudShell.Resources(resources =>
         provisioningResourceId: provisioningResource.ResourceId,
         useAsDefault: true);
     var settings = resources
-        .AddConfigurationStore(
-            "configuration:third-party-identity",
-            "Third-party Identity Settings")
+        .AddConfigurationStore("configuration:third-party-identity")
+        .WithDisplayName("Third-party Identity Settings")
         .WithEntries(
         [
             new("Authority", authority),
@@ -98,7 +97,6 @@ cloudShell.Resources(resources =>
     var api = resources
         .AddAspNetCoreProject(
             "application:keycloak-provisioned-api",
-            "Keycloak Provisioned API",
             apiProjectPath,
             endpoint: apiEndpoint)
         .WithIdentity(identityProvider, identity =>

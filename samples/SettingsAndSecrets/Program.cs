@@ -83,9 +83,8 @@ cloudShell.Resources(resources =>
         useAsDefault: true);
 
     var settings = resources
-        .AddConfigurationStore(
-            "configuration:sample-app",
-            "Sample App Settings")
+        .AddConfigurationStore("configuration:sample-app")
+        .WithDisplayName("Sample App Settings")
         .WithIdentity(identityProvider)
         .WithEntries(
         [
@@ -94,14 +93,14 @@ cloudShell.Resources(resources =>
         ]);
 
     var secrets = resources
-        .AddSecretsVault("secrets-vault:sample-app", "Sample App Secrets")
+        .AddSecretsVault("secrets-vault:sample-app")
+        .WithDisplayName("Sample App Secrets")
         .WithIdentity(identityProvider)
         .WithSecret("sample-api-key", "local-development-api-key");
 
     var api = resources
         .AddAspNetCoreProject(
             "application:settings-secrets-api",
-            "Settings and Secrets API",
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
             endpoint: apiEndpoint)
         .WithIdentity(identityProvider, name: "settings-secrets-api")

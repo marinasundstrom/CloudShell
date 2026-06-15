@@ -460,7 +460,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddConfigurationStore("configuration:example", "Example Configuration")
+                    .AddConfigurationStore("configuration:example").WithDisplayName("Example Configuration")
                     .WithAutoStart(false)
                     .WithEntry("SampleMessage", "Hello");
             });
@@ -483,7 +483,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddConfigurationStore("configuration:example", "Example Configuration")
+                    .AddConfigurationStore("configuration:example").WithDisplayName("Example Configuration")
                     .WithDependencyAutoStart(false)
                     .WithEntry("SampleMessage", "Hello");
             });
@@ -736,7 +736,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddConfigurationStore("configuration:example", "Example Configuration")
+                    .AddConfigurationStore("configuration:example").WithDisplayName("Example Configuration")
                     .WithEntry("SampleMessage", "Hello")
                     .WithResourceGroup("group-1")
                     .Persist();
@@ -755,6 +755,59 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void WithDisplayName_RecordsOptionalPresentationLabel()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddConfigurationStore("configuration:example")
+                    .WithDisplayName("Example Configuration");
+            });
+
+        var declaration = Assert.Single(services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>()
+            .GetDeclarations());
+
+        Assert.Equal("configuration:example", declaration.ResourceId);
+        Assert.Equal("Example Configuration", declaration.DisplayName);
+    }
+
+    [Fact]
+    public void ResourceGraphBuilder_DeclaresResourceGroups()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources.AddResourceGroup(
+                    "group:sample",
+                    "Sample",
+                    "Sample resources.");
+                resources
+                    .AddConfigurationStore("configuration:sample")
+                    .WithResourceGroup("group:sample");
+            });
+
+        var store = services
+            .BuildServiceProvider()
+            .GetRequiredService<ResourceDeclarationStore>();
+        var group = Assert.Single(store.GetResourceGroups());
+        var declaration = Assert.Single(store.GetDeclarations());
+
+        Assert.Equal("group:sample", group.Id);
+        Assert.Equal("Sample", group.Name);
+        Assert.Equal("Sample resources.", group.Description);
+        Assert.Equal("group:sample", declaration.ResourceGroupId);
+    }
+
+    [Fact]
     public void TypedConfigurationStoreBuilder_CreatesEntryReferences()
     {
         var services = new ServiceCollection();
@@ -765,7 +818,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 var settings = resources
-                    .AddConfigurationStore("configuration:app", "App Settings");
+                    .AddConfigurationStore("configuration:app").WithDisplayName("App Settings");
 
                 reference = settings.Entry("Database:Name");
             });
@@ -788,7 +841,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 var hostSettings = resources
-                    .AddHostConfigurationSource("configuration:host-dev", "Host Development Settings")
+                    .AddHostConfigurationSource("configuration:host-dev").WithDisplayName("Host Development Settings")
                     .WithEntry("ExternalApi:BaseUrl");
 
                 reference = hostSettings.Entry("ExternalApi:BaseUrl");
@@ -825,7 +878,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 var vault = resources
-                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets")
                     .WithSecret("db-password", "local-dev-password");
 
                 reference = vault.Secret("db-password");
@@ -862,7 +915,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 var vault = resources
-                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets")
                     .WithSecret("db-password", "local-dev-password");
 
                 reference = vault.Secret("db-password");
@@ -1144,10 +1197,10 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddSecretsVault("secrets-vault:one", "One")
+                    .AddSecretsVault("secrets-vault:one").WithDisplayName("One")
                     .WithSecret("token", "one-token");
                 resources
-                    .AddSecretsVault("secrets-vault:two", "Two")
+                    .AddSecretsVault("secrets-vault:two").WithDisplayName("Two")
                     .WithSecret("token", "two-token");
             });
 
@@ -1189,11 +1242,11 @@ public sealed class ResourceDeclarationTests
                     .Declare("applications", "application:api")
                     .WithIdentity("identity:development", name: "api-service");
                 resources
-                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets")
                     .WithSecret("token", "secret-token")
                     .Allow(api.Identity, SecretsVaultResourceOperationPermissions.ReadSecrets);
                 resources
-                    .AddSecretsVault("secrets-vault:other", "Other Secrets")
+                    .AddSecretsVault("secrets-vault:other").WithDisplayName("Other Secrets")
                     .WithSecret("token", "other-token");
             });
 
@@ -1239,7 +1292,6 @@ public sealed class ResourceDeclarationTests
                 var api = resources
                     .AddExecutableApplication(
                         "application:api",
-                        "API",
                         executablePath: "dotnet")
                     .WithIdentity("identity:development", name: "api-service")
                     .WithEnvironment(
@@ -1247,7 +1299,7 @@ public sealed class ResourceDeclarationTests
                         new SecretReference("secrets-vault:app", "sample-api-key"));
 
                 resources
-                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets")
                     .WithSecret("sample-api-key", "secret");
             });
 
@@ -1300,7 +1352,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddExecutableApplication(
                         "application:api",
-                        "API",
                         executablePath: "dotnet")
                     .WithEnvironment(
                         "SAMPLE_API_KEY",
@@ -1356,7 +1407,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddExecutableApplication(
                         "application:api",
-                        "API",
                         executablePath: "dotnet")
                     .WithIdentity("identity:development", name: "api-service")
                     .WithEnvironment(
@@ -1364,7 +1414,7 @@ public sealed class ResourceDeclarationTests
                         new SecretReference("secrets-vault:app", "sample-api-key"));
 
                 resources
-                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets")
                     .WithSecret("sample-api-key", "secret");
             });
 
@@ -1426,7 +1476,6 @@ public sealed class ResourceDeclarationTests
                     resources
                         .AddExecutableApplication(
                             "application:api",
-                            "API",
                             executablePath: "dotnet")
                         .WithEndpoint($"http://127.0.0.1:{port}");
                 });
@@ -1779,11 +1828,9 @@ public sealed class ResourceDeclarationTests
             {
                 resources.AddExecutableApplication(
                     "application:worker",
-                    "Worker",
                     executablePath: "dotnet");
                 resources.AddAspNetCoreProject(
                     "application:api",
-                    "API",
                     "src/API/API.csproj");
                 resources.AddContainer(
                     "redis",
@@ -1817,7 +1864,6 @@ public sealed class ResourceDeclarationTests
             {
                 resources.AddExecutableApplication(
                     "application:api",
-                    "API",
                     executablePath: "dotnet");
             });
 
@@ -1858,7 +1904,6 @@ public sealed class ResourceDeclarationTests
             {
                 resources.AddExecutableApplication(
                     "application:api",
-                    "API",
                     executablePath: "dotnet");
             });
 
@@ -1893,7 +1938,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddSecretsVault("secrets-vault:app", "App Secrets")
+                    .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets")
                     .WithSecret("db-password", "local-dev-password");
             });
 
@@ -1971,6 +2016,62 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("group-b", registration.ResourceGroupId);
         Assert.Null(provider.GetVault("secrets-vault:ui"));
         Assert.Null(registrations.GetRegistration("secrets-vault:ui"));
+    }
+
+    [Fact]
+    public void ConfigurationStores_FilterUnsupportedEntryAndSecretNames()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider(options =>
+            {
+                options.DefinitionsPath = "configuration-stores.json";
+                options.SecretsVaultDefinitionsPath = "secrets-vaults.json";
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var configurationStore = serviceProvider.GetRequiredService<ConfigurationStore>();
+        var secretsVaultStore = serviceProvider.GetRequiredService<SecretsVaultStore>();
+
+        configurationStore.Save(
+            new ConfigurationStoreDefinition(
+                "configuration:orders",
+                "Orders Configuration",
+                [
+                    new(" Orders--Api--BaseUrl ", "http://localhost:5080"),
+                    new("Orders:Api:Timeout", "00:00:30"),
+                    new("Bad\nKey", "ignored"),
+                    new("Bad%Key", "ignored"),
+                    new(".", "ignored"),
+                    new("..", "ignored"),
+                    new(" ", "ignored")
+                ]));
+        secretsVaultStore.Save(
+            new SecretsVaultDefinition(
+                "secrets-vault:orders",
+                "Orders Secrets",
+                [
+                    new(" Orders--Api--ClientSecret ", "secret"),
+                    new("Orders:Api:InvalidSecret", "ignored"),
+                    new("Orders_Api_InvalidSecret", "ignored"),
+                    new("Bad\nSecret", "ignored"),
+                    new(" ", "ignored")
+                ]));
+
+        var configurationEntries =
+            configurationStore.GetStore("configuration:orders")?.Entries ?? [];
+        var secret = Assert.Single(
+            secretsVaultStore.GetVault("secrets-vault:orders")?.Secrets ?? []);
+
+        Assert.Collection(
+            configurationEntries,
+            entry => Assert.Equal("Orders--Api--BaseUrl", entry.Name),
+            entry => Assert.Equal("Orders:Api:Timeout", entry.Name));
+        Assert.Equal("Orders--Api--ClientSecret", secret.Name);
     }
 
     [Fact]
@@ -2061,11 +2162,11 @@ public sealed class ResourceDeclarationTests
                     .Declare("applications", "application:api")
                     .WithIdentity("identity:development", name: "api-service");
                 resources
-                    .AddConfigurationStore("configuration:app", "App Settings")
+                    .AddConfigurationStore("configuration:app").WithDisplayName("App Settings")
                     .WithEntry("Message", "hello")
                     .Allow(api.Identity, ConfigurationStoreResourceOperationPermissions.ReadEntries);
                 resources
-                    .AddConfigurationStore("configuration:other", "Other Settings")
+                    .AddConfigurationStore("configuration:other").WithDisplayName("Other Settings")
                     .WithEntry("Message", "other");
             });
 
@@ -2109,7 +2210,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddHostConfigurationSource("configuration:host-dev", "Host Development Settings")
+                    .AddHostConfigurationSource("configuration:host-dev").WithDisplayName("Host Development Settings")
                     .WithEntry("ExternalApi:BaseUrl");
             });
 
@@ -2141,13 +2242,12 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 var hostSettings = resources
-                    .AddHostConfigurationSource("configuration:host-dev", "Host Development Settings")
+                    .AddHostConfigurationSource("configuration:host-dev").WithDisplayName("Host Development Settings")
                     .WithEntry("ExternalApi:BaseUrl");
 
                 resources
                     .AddExecutableApplication(
                         "application:api",
-                        "API",
                         executablePath: "dotnet")
                     .WithAppSetting("ExternalApi:BaseUrl", hostSettings.Entry("ExternalApi:BaseUrl"));
             });
@@ -2185,15 +2285,14 @@ public sealed class ResourceDeclarationTests
             .AddControlPlane()
             .Resources(resources =>
             {
-                var settings = resources.AddConfigurationStore(
-                    "configuration:settings",
-                    "Settings");
+                var settings = resources
+                    .AddConfigurationStore("configuration:settings")
+                    .WithDisplayName("Settings");
                 var postgres = resources.Declare("managed", "postgres-main");
 
                 resources
                     .AddExecutableApplication(
                         "application:api",
-                        "API",
                         executablePath: "dotnet")
                     .WithReference(settings)
                     .DependsOn(postgres)
@@ -2231,17 +2330,16 @@ public sealed class ResourceDeclarationTests
             .AddControlPlane()
             .Resources(resources =>
             {
-                var settings = resources.AddConfigurationStore(
-                    "configuration:settings",
-                    "Settings");
-                var secrets = resources.AddSecretsVault(
-                    "secrets-vault:app",
-                    "App Secrets");
+                var settings = resources
+                    .AddConfigurationStore("configuration:settings")
+                    .WithDisplayName("Settings");
+                var secrets = resources
+                    .AddSecretsVault("secrets-vault:app")
+                    .WithDisplayName("App Secrets");
 
                 resources
                     .AddExecutableApplication(
                         "application:api",
-                        "API",
                         executablePath: "dotnet")
                     .WithReference(settings)
                     .WithReference(secrets)
@@ -2282,14 +2380,13 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 var settings = resources
-                    .AddConfigurationStore("configuration:app", "App Settings");
+                    .AddConfigurationStore("configuration:app").WithDisplayName("App Settings");
                 var secrets = resources
-                    .AddSecretsVault("secrets-vault:app", "App Secrets");
+                    .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets");
 
                 resources
                     .AddExecutableApplication(
                         "application:api",
-                        "API",
                         executablePath: "dotnet")
                     .WithAppSetting("Database:Host", settings.Entry("Database:Host"))
                     .WithEnvironment(
@@ -2536,7 +2633,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddExecutableApplication(
                         "application:web",
-                        "Web",
                         executablePath: "dotnet")
                     .DependsOn(redis);
             });
@@ -2559,14 +2655,13 @@ public sealed class ResourceDeclarationTests
             .AddControlPlane()
             .Resources(resources =>
             {
-                var settings = resources.AddConfigurationStore(
-                    "configuration:settings",
-                    "Settings");
+                var settings = resources
+                    .AddConfigurationStore("configuration:settings")
+                    .WithDisplayName("Settings");
 
                 resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj",
                         endpoint: "http://localhost:5127")
                     .WithReference(settings);
@@ -2631,7 +2726,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj")
                     .WithOtlpExporter(headers: "x-otlp-api-key=test-key");
             });
@@ -2688,7 +2782,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj")
                     .WithHttpEndpoint(port: 5127)
                     .WithEndpointPort(
@@ -2741,7 +2834,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj")
                     .WithHttpHealthCheck("/health")
                     .WithHttpProbe(ResourceProbeType.Liveness, "/alive");
@@ -2787,7 +2879,6 @@ public sealed class ResourceDeclarationTests
             {
                 resources.AddAspNetCoreProject(
                     "application:api",
-                    "API",
                     "src/API/API.csproj");
             });
 
@@ -2820,7 +2911,6 @@ public sealed class ResourceDeclarationTests
             {
                 resources.AddAspNetCoreProject(
                     "application:api",
-                    "API",
                     "src/API/API.csproj");
             });
 
@@ -2857,7 +2947,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj")
                     .WithLaunchSettingsEndpoints();
             });
@@ -2907,7 +2996,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj")
                     .WithLaunchSettingsEndpoints();
             });
@@ -2971,7 +3059,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj")
                     .WithHttpEndpoint(port: 6000)
                     .WithLaunchSettingsEndpoints();
@@ -3008,7 +3095,6 @@ public sealed class ResourceDeclarationTests
             {
                 resources.AddAspNetCoreProject(
                     "application:api",
-                    "API",
                     "src/API/API.csproj",
                     endpoint: "https://localhost:5127");
             });
@@ -3045,7 +3131,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj",
                         hotReload: true)
                     .WithApplicationArguments("--seed");
@@ -3180,7 +3265,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             [DockerContainerResourceProvider.DefaultHostResourceId, "postgres-main"],
             container.DependsOn);
-        Assert.Equal("redis", definition.Name);
+        Assert.Equal("Redis", definition.Name);
         Assert.Equal("redis:7.2", definition.Image);
         Assert.Equal("http://registry.local:5000", definition.Registry);
         Assert.Equal("registry-user", definition.RegistryCredentials?.Username);
@@ -3252,11 +3337,12 @@ public sealed class ResourceDeclarationTests
                 .Resources(resources =>
                 {
                     resources
-                        .AddDocker("docker:sample", "Sample Docker")
-                        .AddDockerContainer(
-                            "sample-registry",
-                            "Local Registry",
-                            "registry:2")
+                    .AddDocker("docker:sample")
+                    .WithDisplayName("Sample Docker")
+                    .AddDockerContainer(
+                        "sample-registry",
+                        "registry:2")
+                    .WithDisplayName("Local Registry")
                         .WithEndpoint(ResourceEndpoint.Http(
                             "http",
                             "127.0.0.1",
@@ -3311,11 +3397,13 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddDocker("docker:dev", "Development Docker")
+                    .AddDocker("docker:dev")
+                    .WithDisplayName("Development Docker")
                     .AddContainer("redis-dev", "redis", "7.2");
 
                 resources
-                    .AddDocker("docker:test", "Test Docker")
+                    .AddDocker("docker:test")
+                    .WithDisplayName("Test Docker")
                     .AddContainer("redis-test", "redis", "7.2");
             });
 
@@ -3394,7 +3482,8 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddDocker("docker:build-01", "Build Host 01")
+                    .AddDocker("docker:build-01")
+                    .WithDisplayName("Build Host 01")
                     .UseRemoteHost(new Uri("tcp://build-01.example.com:2375"))
                     .WithHostCredentialsFromEnvironment("docker-user", passwordVariable);
             });
@@ -3427,7 +3516,8 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddDocker("docker:build-01", "Build Host 01")
+                    .AddDocker("docker:build-01")
+                    .WithDisplayName("Build Host 01")
                     .UseRemoteHost(new Uri("tcp://user:secret@Build-01.Example.com:2375/?debug=true"))
                     .WithHostCredentialsFromEnvironment("docker-user", "DOCKER_HOST_PASSWORD")
                     .AddContainer("redis", "redis", "7.2");
@@ -3523,7 +3613,8 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 resources
-                    .AddDockerContainer("rabbitmq", "RabbitMQ", "rabbitmq:4")
+                    .AddDockerContainer("rabbitmq", "rabbitmq:4")
+                    .WithDisplayName("RabbitMQ")
                     .DependsOn("configuration:settings")
                     .DependsOn(DockerContainerResourceProvider.DefaultHostResourceId);
             });
@@ -3548,11 +3639,11 @@ public sealed class ResourceDeclarationTests
             .AddControlPlane()
             .Resources(resources =>
             {
-                var network = resources.AddNetwork("network:app", "App Network");
+                var network = resources.AddNetwork("network:app").WithDisplayName("App Network");
                 var api = resources.Declare("applications", "application:api");
 
                 resources
-                    .AddService("service:api", "API")
+                    .AddService("service:api")
                     .Targets(api)
                     .WithNetwork(network)
                     .WithPort(
@@ -3596,7 +3687,7 @@ public sealed class ResourceDeclarationTests
             {
                 var app = resources.Declare("applications", "application:postgres");
                 resources
-                    .AddVolume("postgres-data", "Postgres Data")
+                    .AddVolume("postgres-data").WithDisplayName("Postgres Data")
                     .UseHostPath("./data/postgres")
                     .WithAccessMode(VolumeAccessMode.ReadWriteOnce)
                     .Persist()
@@ -3666,11 +3757,11 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 var storage = resources
-                    .AddLocalStorage("local", "Local Storage")
+                    .AddLocalStorage("local").WithDisplayName("Local Storage")
                     .UseLocation("./storage");
 
                 resources
-                    .AddVolume("postgres-data", "Postgres Data")
+                    .AddVolume("postgres-data").WithDisplayName("Postgres Data")
                     .UseStorage(storage, "postgres")
                     .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
             });
@@ -3737,7 +3828,7 @@ public sealed class ResourceDeclarationTests
                 var api = resources.Declare("applications", "application:api");
 
                 resources
-                    .AddDnsZone("local", "Local DNS", "local")
+                    .AddDnsZone("local", zoneName: "local").WithDisplayName("Local DNS")
                     .MapHost("api.local", api, "http");
             });
 
@@ -3804,7 +3895,7 @@ public sealed class ResourceDeclarationTests
                 var api = resources.Declare("applications", "application:api");
 
                 resources
-                    .AddDnsZone("local", "Local DNS", "local")
+                    .AddDnsZone("local", zoneName: "local").WithDisplayName("Local DNS")
                     .UseProvider("hosts-file")
                     .MapHost("api.local", api, "http");
             });
@@ -3848,7 +3939,7 @@ public sealed class ResourceDeclarationTests
                 var api = resources.Declare("applications", "application:api");
 
                 resources
-                    .AddDnsZone("dev", "Development DNS", "cloudshell.local")
+                    .AddDnsZone("dev", zoneName: "cloudshell.local").WithDisplayName("Development DNS")
                     .UseLocalHostNames()
                     .MapHost("api.cloudshell.local", api, "http");
             });
@@ -4259,7 +4350,7 @@ public sealed class ResourceDeclarationTests
                 var frontend = resources.Declare("applications", "application:frontend");
 
                 resources
-                    .AddDnsZone("local", "Local DNS", "local")
+                    .AddDnsZone("local", zoneName: "local").WithDisplayName("Local DNS")
                     .MapHost("app.local", api, "http", id: "dns:local:name:app-api")
                     .MapHost("app.local", frontend, "http", id: "dns:local:name:app-frontend");
             });
@@ -4783,7 +4874,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 var network = resources
-                    .AddNetwork("network:app", "App Network", isDefault: true);
+                    .AddNetwork("network:app", isDefault: true).WithDisplayName("App Network");
                 var api = resources.Declare("applications", "application:api");
                 var proxy = resources.Declare("networking", "networking:proxy");
                 var publicEndpoint = network.AddTcpEndpoint("localhost", 4040, "public");
@@ -4982,7 +5073,7 @@ public sealed class ResourceDeclarationTests
             .Resources(resources =>
             {
                 var network = resources
-                    .AddVirtualNetwork("network:app", "App Network", isDefault: true);
+                    .AddVirtualNetwork("network:app", isDefault: true).WithDisplayName("App Network");
                 var apiEndpoint = network.RequestHttpEndpoint(
                     "api",
                     exposure: ResourceExposureScope.Public);
@@ -5568,7 +5659,6 @@ public sealed class ResourceDeclarationTests
                 IProjectResourceBuilder project = resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj");
 
                 project
@@ -5625,7 +5715,6 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddAspNetCoreProject(
                         "application:api",
-                        "API",
                         "src/API/API.csproj")
                     .WithIdentity(identityProvider, name: "api-service")
                     .AsContainer(registry: "registry.local:5000", replicas: 2)
@@ -5726,7 +5815,7 @@ public sealed class ResourceDeclarationTests
             .AddExtension<ApplicationProviderExtension>()
             .Resources(resources =>
             {
-                var volume = resources.AddVolume("volume:sql-data", "SQL Data");
+                var volume = resources.AddVolume("volume:sql-data").WithDisplayName("SQL Data");
                 var container = resources
                     .AddContainer(
                         "sql",
@@ -6582,7 +6671,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("example/api:20260608", updated.ContainerImage);
         Assert.StartsWith("rev-", updated.ContainerRevision);
         Assert.NotEqual(originalRevision, updated.ContainerRevision);
-        Assert.Equal("Updated api to image 'example/api:20260608'.", result.Message);
+        Assert.Equal("Updated Api to image 'example/api:20260608'.", result.Message);
     }
 
     [Fact]
@@ -6621,7 +6710,7 @@ public sealed class ResourceDeclarationTests
         Assert.NotNull(updated);
         Assert.Equal(3, updated.Replicas);
         Assert.Equal("3", projected.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
-        Assert.Equal("Updated api to 3 replicas.", result.Message);
+        Assert.Equal("Updated Api to 3 replicas.", result.Message);
     }
 
 

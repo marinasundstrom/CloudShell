@@ -26,7 +26,8 @@ var controlPlane = builder
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:example", "Example Configuration")
+        .AddConfigurationStore("configuration:example")
+        .WithDisplayName("Example Configuration")
         .WithEntries(
         [
             new("SampleMessage", "Hello from CloudShell configuration"),
@@ -42,9 +43,9 @@ types. Built-in methods include:
 - `AddConfigurationStore(...)` from `CloudShell.Providers.Configuration`.
 - `AddSecretsVault(...)` from `CloudShell.Providers.Configuration`.
 - `AddExecutable(...)`, `AddExecutableApplication(...)`,
-  `AddAspNetCoreProject(...)`, and `AddAspNetCoreProjectFromName(...)` from
-  `CloudShell.Providers.Applications`. Executable builders configure command
-  execution; project builders can also attach container execution metadata.
+  and `AddAspNetCoreProject(...)` from `CloudShell.Providers.Applications`.
+  Executable builders configure command execution; project builders can also
+  attach container execution metadata.
 - `AddContainer(...)` from `CloudShell.Providers.Applications`.
 - `AddDocker(...)` from `CloudShell.Providers.Docker` when Docker should be an
   explicit managed resource.
@@ -90,6 +91,17 @@ relationships:
 - String IDs remain available as a lower-level escape hatch, but typed builders
   should be preferred when both resources are declared in the same callback.
 
+Resource IDs are the canonical addresses used by dependencies, permissions,
+activity logs, DNS/name mapping targets, provider state, API calls, and
+automation. Display names are optional presentation labels. Use
+`.WithDisplayName(...)` when a local development dashboard or sample benefits
+from a friendlier label; otherwise prefer the resource ID as the visible
+label.
+
+Resource IDs and item names can be structured when users want a logical
+hierarchy. See [Naming conventions](naming-conventions.md) for optional
+resource ID, configuration key, and secret naming guidance.
+
 Executable applications and ASP.NET Core projects have one additional
 Aspire-compatible concept: endpoint references. `WithReference(resource)`
 records that the application wants endpoint/configuration values for another
@@ -129,7 +141,6 @@ override provider defaults for a single resource.
 resources
     .AddAspNetCoreProject(
         "application:api",
-        "API",
         "src/API/API.csproj")
     .WithOtlpExporter("http://localhost:4317");
 
@@ -174,7 +185,8 @@ provider:
 
 ```csharp
 var appNetwork = resources
-    .AddNetwork("network:app", "App Network", isDefault: true);
+    .AddNetwork("network:app", isDefault: true)
+    .WithDisplayName("App Network");
 
 var publicEndpoint = appNetwork.AddTcpEndpoint(
     "localhost",
@@ -193,7 +205,8 @@ projecting a richer network capability:
 
 ```csharp
 var appNetwork = resources
-    .AddVirtualNetwork("network:app", "App Network", isDefault: true);
+    .AddVirtualNetwork("network:app", isDefault: true)
+    .WithDisplayName("App Network");
 
 var publicEndpoint = appNetwork.RequestHttpEndpoint(
     "api",
@@ -209,7 +222,8 @@ provider while keeping the logical network as the boundary:
 
 ```csharp
 var appNetwork = resources
-    .AddNetwork("network:app", "App Network", isDefault: true);
+    .AddNetwork("network:app", isDefault: true)
+    .WithDisplayName("App Network");
 
 var api = resources.Declare("applications", "application:example-web-api");
 var gateway = resources.Declare("networking", "networking:gateway");
@@ -254,7 +268,9 @@ resource without making the caller choose a Docker host:
 ```csharp
 cloudShell.Resources(resources =>
 {
-    resources.AddSqlServer("sql:main", "Main SQL Server");
+    resources
+        .AddSqlServer("sql:main")
+        .WithDisplayName("Main SQL Server");
 });
 ```
 
@@ -265,7 +281,7 @@ workload internally. Top-level container applications use the same shape:
 cloudShell.Resources(resources =>
 {
     resources
-        .AddContainerApplication("application:redis", "Redis", "redis:7.2")
+        .AddContainerApplication("application:redis", "redis:7.2")
         .WithRegistry("http://localhost:5000")
         .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
         .WithImage("redis:7.2-alpine");
@@ -283,9 +299,9 @@ instance of a runtime or control boundary; Docker, Podman, and similar runtime
 types are host facts rather than logical resource parentage.
 
 ```csharp
-var configuration = resources.AddConfigurationStore(
-    "configuration:example",
-    "Example Configuration");
+var configuration = resources
+    .AddConfigurationStore("configuration:example")
+    .WithDisplayName("Example Configuration");
 
 var database = resources.Declare("managed", "postgres-main");
 var redis = resources
@@ -296,17 +312,20 @@ var redis = resources
 resources
     .AddAspNetCoreProject(
         "application:example-web-api",
-        "Example Web API",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+    .WithDisplayName("Example Web API")
     .AsContainer()
     .WithReference(configuration)
     .WithReference(redis)
     .DependsOn(redis);
 
-var appNetwork = resources.AddNetwork("network:app", "App Network");
+var appNetwork = resources
+    .AddNetwork("network:app")
+    .WithDisplayName("App Network");
 
 resources
-    .AddService("service:example-web-api", "Example Web API")
+    .AddService("service:example-web-api")
+    .WithDisplayName("Example Web API")
     .Targets("application:example-web-api")
     .WithNetwork(appNetwork)
     .WithPort(
@@ -351,21 +370,26 @@ resource can specify a registry with `WithRegistry(...)`; the registry defaults
 to Docker Hub (`docker.io`) and declared child containers inherit it. Add
 `WithRegistryCredentialsFromEnvironment(username, passwordEnvironmentVariable)`
 when the registry requires authentication. Containers are declared from that
-Docker resource with `AddContainer(name, image, tag)`, following the
-Aspire-style logical name shape. CloudShell derives the stable container
-resource ID as `docker:container:<name>` and declares the container as a
-sub-resource of the Docker resource that created it.
+Docker resource with `AddContainer(id, image, tag)`, following the
+Aspire-style logical resource ID shorthand. CloudShell derives the stable
+container resource ID as a child of the Docker host resource and the container
+identity, then declares the container as a sub-resource of the Docker resource
+that created it.
 
 Use `DependsOn(...)` to add topology dependencies without changing the
-container's parent relationship to its Docker host. When you need a custom container
-resource ID or display name, use `AddDocker().AddDockerContainer(id, name,
-image)`. To model more than one Docker parent, use `AddDocker(id, name)` and
+container's parent relationship to its Docker host. When you need a custom
+container resource ID or display name, use
+`AddDocker().AddDockerContainer(id, image).WithDisplayName(...)`. To model
+more than one Docker parent, use `AddDocker(id).WithDisplayName(...)` and
 add containers from the returned Docker resource builder:
 
 ```csharp
-var devDocker = resources.AddDocker("docker:dev", "Development Docker");
+var devDocker = resources
+    .AddDocker("docker:dev")
+    .WithDisplayName("Development Docker");
 var testDocker = resources
-    .AddDocker("docker:test", "Test Docker")
+    .AddDocker("docker:test")
+    .WithDisplayName("Test Docker")
     .WithRegistry("https://registry.example.com");
 
 var devRedis = devDocker.AddContainer("redis-dev", "redis", "7.2");
@@ -555,7 +579,8 @@ setup logic as the UI:
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:shared", "Shared Configuration")
+        .AddConfigurationStore("configuration:shared")
+        .WithDisplayName("Shared Configuration")
         .WithEntry("FeatureFlags:UseNewFlow", "true")
         .Persist();
 });
@@ -573,7 +598,8 @@ current persisted provider configuration and registration metadata:
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:shared", "Shared Configuration")
+        .AddConfigurationStore("configuration:shared")
+        .WithDisplayName("Shared Configuration")
         .WithEntry("FeatureFlags:UseNewFlow", "true")
         .Persist(overwrite: true);
 });

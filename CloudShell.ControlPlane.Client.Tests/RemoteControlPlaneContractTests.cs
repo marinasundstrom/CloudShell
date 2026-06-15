@@ -987,7 +987,8 @@ public sealed class RemoteControlPlaneContractTests
                 "Contract identity",
                 ResourceIdentityProviderKind.Custom);
             var network = resources
-                .AddNetwork("network:contract", "Contract Network", isDefault: true)
+                .AddNetwork("network:contract", isDefault: true)
+                .WithDisplayName("Contract Network")
                 .Persist()
                 .WithIdentity("development", name: "network-service");
             network.Allow(

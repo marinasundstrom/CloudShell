@@ -149,7 +149,7 @@ public sealed class ConfigurationStore
                 ? null
                 : definition.Endpoint.Trim(),
             Entries = definition.Entries
-                .Where(entry => !string.IsNullOrWhiteSpace(entry.Name))
+                .Where(entry => IsSupportedEntryName(entry.Name))
                 .Select(entry => entry with
                 {
                     Name = entry.Name.Trim(),
@@ -166,5 +166,18 @@ public sealed class ConfigurationStore
         Path.IsPathRooted(path)
             ? path
             : Path.GetFullPath(path, contentRootPath);
+
+    private static bool IsSupportedEntryName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        var normalized = name.Trim();
+        return normalized is not "." and not ".." &&
+            !normalized.Contains('%', StringComparison.Ordinal) &&
+            !normalized.Any(char.IsControl);
+    }
 
 }

@@ -27,11 +27,13 @@ local endpoint and a Local Storage-backed data volume:
 
 ```csharp
 var localStorage = resources
-    .AddLocalStorage("local", "Local Storage")
+    .AddLocalStorage("local")
+    .WithDisplayName("Local Storage")
     .UseLocation("./Data/storage");
 
 var sqlData = resources
-    .AddVolume("sql-data", "SQL Server Data")
+    .AddVolume("sql-data")
+    .WithDisplayName("SQL Server Data")
     .UseStorage(localStorage, "sql-server");
 
 resources

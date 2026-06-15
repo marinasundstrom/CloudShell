@@ -40,14 +40,12 @@ public static class ApplicationProviderServiceCollectionExtensions
 
     public static IExecutableResourceBuilder AddExecutable(
         this IResourceDeclarationBuilder builder,
-        string id,
-        string name) =>
-        builder.AddExecutableApplication(id, name, executablePath: string.Empty);
+        string id) =>
+        builder.AddExecutableApplication(id, executablePath: string.Empty);
 
     public static IExecutableResourceBuilder AddExecutableApplication(
         this IResourceDeclarationBuilder builder,
         string id,
-        string name,
         string executablePath,
         string? arguments = null,
         string? workingDirectory = null,
@@ -59,7 +57,7 @@ public static class ApplicationProviderServiceCollectionExtensions
     {
         var definition = new ApplicationResourceDefinition(
             id,
-            name,
+            CreateDisplayName(id),
             executablePath,
             arguments,
             workingDirectory,
@@ -82,6 +80,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             {
                 declared.Definition = declared.Definition with
                 {
+                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
                     DependsOn = declaration.DependsOn
                 };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
@@ -91,33 +90,9 @@ public static class ApplicationProviderServiceCollectionExtensions
         return new ExecutableApplicationResourceBuilder(resource, declared);
     }
 
-    public static IProjectResourceBuilder AddAspNetCoreProjectFromName(
-        this IResourceDeclarationBuilder builder,
-        string name,
-        string projectPath,
-        string? endpoint = null,
-        IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
-        ApplicationLifetime lifetime = ApplicationLifetime.ControlPlaneScoped,
-        bool hotReload = false,
-        bool useServiceDiscovery = false,
-        ResourceObservability? observability = null,
-        string? applicationArguments = null) =>
-        builder.AddAspNetCoreProject(
-            CreateApplicationResourceId(name),
-            name,
-            projectPath,
-            endpoint,
-            environmentVariables,
-            lifetime,
-            hotReload,
-            useServiceDiscovery,
-            observability,
-            applicationArguments);
-
     public static IProjectResourceBuilder AddAspNetCoreProject(
         this IResourceDeclarationBuilder builder,
         string id,
-        string name,
         string projectPath,
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
@@ -132,7 +107,7 @@ public static class ApplicationProviderServiceCollectionExtensions
 
         var definition = new ApplicationResourceDefinition(
             id,
-            name,
+            CreateDisplayName(id),
             executablePath: string.Empty,
             environmentVariables: environmentVariables,
             lifetime: lifetime,
@@ -159,6 +134,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             {
                 declared.Definition = declared.Definition with
                 {
+                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
                     DependsOn = declaration.DependsOn
                 };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
@@ -244,7 +220,7 @@ public static class ApplicationProviderServiceCollectionExtensions
     /// </remarks>
     public static IContainerResourceBuilder AddContainer(
         this IResourceDeclarationBuilder builder,
-        string name,
+        string id,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
@@ -253,8 +229,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         ResourceObservability? observability = null,
         string? registry = null) =>
         builder.AddContainerApplication(
-            CreateApplicationResourceId(name),
-            name,
+            CreateApplicationResourceId(id),
             image,
             endpoints,
             environmentVariables,
@@ -276,7 +251,6 @@ public static class ApplicationProviderServiceCollectionExtensions
     public static IContainerResourceBuilder AddContainerApplication(
         this IResourceDeclarationBuilder builder,
         string id,
-        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
@@ -292,7 +266,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             !string.IsNullOrWhiteSpace(endpoint.Address))?.Address;
         var definition = new ApplicationResourceDefinition(
             id,
-            name,
+            CreateDisplayName(id),
             executablePath: string.Empty,
             endpoint: endpoint,
             environmentVariables: environmentVariables,
@@ -319,6 +293,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             {
                 declared.Definition = declared.Definition with
                 {
+                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
                     DependsOn = declaration.DependsOn
                 };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
@@ -342,6 +317,22 @@ public static class ApplicationProviderServiceCollectionExtensions
             ? $"application:{Guid.NewGuid():N}"
             : $"application:{slug}";
     }
+
+    private static string CreateDisplayName(string resourceId)
+    {
+        var name = resourceId.Contains(':', StringComparison.Ordinal)
+            ? resourceId[(resourceId.IndexOf(':', StringComparison.Ordinal) + 1)..]
+            : resourceId;
+        return string.Join(
+            " ",
+            name.Split(['-', '_', '.', ':', '/', '\\'], StringSplitOptions.RemoveEmptyEntries)
+                .Select(segment => string.Concat(segment[..1].ToUpperInvariant(), segment[1..])));
+    }
+
+    private static string GetDisplayName(ResourceDeclaration declaration, string fallback) =>
+        string.IsNullOrWhiteSpace(declaration.DisplayName)
+            ? fallback
+            : declaration.DisplayName;
 
     private static string CreateContainerRevision() =>
         $"rev-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}"[..27];

@@ -63,12 +63,23 @@ cloudShell
 
 cloudShell.Resources(resources =>
 {
+    const string groupId = "group:application-topology";
+
+    resources.AddResourceGroup(
+        groupId,
+        "Application Topology",
+        "Resources for the Application Topology sample.");
+
     var localStorage = resources
-        .AddLocalStorage("application-topology-local", "Application Topology Local Storage")
+        .AddLocalStorage("application-topology-local")
+        .WithDisplayName("Local Storage")
+        .WithResourceGroup(groupId)
         .UseLocation("./Data/storage");
 
     var sqlData = resources
-        .AddVolume("application-topology-sql-data", "Application Topology SQL Data")
+        .AddVolume("application-topology-sql-data")
+        .WithDisplayName("SQL Data")
+        .WithResourceGroup(groupId)
         .UseStorage(localStorage, "sql-server")
         .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
 
@@ -78,13 +89,14 @@ cloudShell.Resources(resources =>
             password: sqlPassword,
             dataVolume: sqlData,
             port: sqlPort)
+        .WithResourceGroup(groupId)
         .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
         .WithAutoStart(false);
 
     var settings = resources
-        .AddConfigurationStore(
-            "configuration:application-topology",
-            "Application Topology Settings")
+        .AddConfigurationStore("configuration:application-topology")
+        .WithDisplayName("Settings")
+        .WithResourceGroup(groupId)
         .WithEntries(
         [
             new("ApplicationTopology:Message", "Hello from CloudShell configuration."),
@@ -92,14 +104,13 @@ cloudShell.Resources(resources =>
         ]);
 
     var secrets = resources
-        .AddSecretsVault(
-            "secrets-vault:application-topology",
-            "Application Topology Secrets")
+        .AddSecretsVault("secrets-vault:application-topology")
+        .WithDisplayName("Secrets")
+        .WithResourceGroup(groupId)
         .WithSecret("external-api-key", "local-development-api-key");
 
     var api = resources.AddAspNetCoreProject(
         "application:application-topology-api",
-        "Application Topology API",
         "../Api/CloudShell.ApplicationTopologyApi.csproj")
         .WithHttpHealthCheck("/health")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
@@ -114,12 +125,12 @@ cloudShell.Resources(resources =>
         .WithReference(secrets)
         .WithReference(sqlServer)
         .DependsOn(sqlServer)
+        .WithResourceGroup(groupId)
         .WithAutoStart(false);
 
     var frontend = resources
         .AddAspNetCoreProject(
             "application:application-topology-frontend",
-            "Application Topology Frontend",
             "../Frontend/CloudShell.ApplicationTopologyFrontend.csproj",
             endpoint: frontendEndpoint)
         .WithHttpHealthCheck("/healthz")
@@ -129,13 +140,15 @@ cloudShell.Resources(resources =>
         .WithServiceDiscovery()
         .WithReference(api)
         .DependsOn(api)
+        .WithResourceGroup(groupId)
         .WithAutoStart(false);
 
     resources
         .AddDnsZone(
             "application-topology-local",
-            "Application Topology Local DNS",
-            "application-topology.cloudshell.local")
+            zoneName: "application-topology.cloudshell.local")
+        .WithDisplayName("Local DNS")
+        .WithResourceGroup(groupId)
         .UseLocalHostNames()
         .MapHost("app.application-topology.cloudshell.local", frontend, "http");
 });

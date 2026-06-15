@@ -102,7 +102,8 @@ public sealed class CloudShellServiceClientTests
     {
         using var server = LoopbackServer.Start("""
             [
-              { "name": "Sample:Message", "value": "Hello", "isSecret": false }
+              { "name": "Sample:Message", "value": "Hello", "isSecret": false },
+              { "name": "Orders--Api--BaseUrl", "value": "http://localhost:5080", "isSecret": false }
             ]
             """);
 
@@ -115,7 +116,11 @@ public sealed class CloudShellServiceClientTests
             .Build();
 
         Assert.Equal("Hello", configuration["Sample:Message"]);
+        Assert.Equal("http://localhost:5080", configuration["Orders:Api:BaseUrl"]);
         Assert.Equal("connected", configuration["CloudShell:ConfigurationStore:Status"]);
+        Assert.Equal(
+            "Sample:Message,Orders:Api:BaseUrl",
+            configuration["CloudShell:ConfigurationStore:LoadedKeys"]);
         Assert.Equal(server.BaseAddress.ToString(), configuration["CloudShell:ConfigurationStore:Source"]);
     }
 
@@ -125,11 +130,11 @@ public sealed class CloudShellServiceClientTests
         using var server = LoopbackServer.Start(
             """
             [
-              { "name": "Sample--ApiKey", "version": "v1" }
+              { "name": "Orders--Api--BaseUrl", "version": "v1" }
             ]
             """,
             """
-            { "name": "Sample--ApiKey", "value": "secret-value", "version": "v1" }
+            { "name": "Orders--Api--BaseUrl", "value": "secret-value", "version": "v1" }
             """);
 
         var configuration = new ConfigurationBuilder()
@@ -140,9 +145,9 @@ public sealed class CloudShellServiceClientTests
             })
             .Build();
 
-        Assert.Equal("secret-value", configuration["Sample:ApiKey"]);
+        Assert.Equal("secret-value", configuration["Orders:Api:BaseUrl"]);
         Assert.Equal("connected", configuration["CloudShell:SecretsVault:Status"]);
-        Assert.Equal("Sample:ApiKey", configuration["CloudShell:SecretsVault:LoadedKeys"]);
+        Assert.Equal("Orders:Api:BaseUrl", configuration["CloudShell:SecretsVault:LoadedKeys"]);
     }
 
     private sealed class RecordingCredential(string token) : CloudShellResourceCredential

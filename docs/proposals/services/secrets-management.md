@@ -97,7 +97,9 @@ Application-style resources should be able to declare settings separately from
 environment variables:
 
 ```csharp
-var settings = resources.AddConfigurationStore("configuration:app", "App Settings");
+var settings = resources
+    .AddConfigurationStore("configuration:app")
+    .WithDisplayName("App Settings");
 
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
     .WithAppSetting("Database:Host", "postgres")
@@ -166,7 +168,9 @@ both non-secret settings and secret-backed environment variables:
 
 ```csharp
 var vault = resources.AddSecretsVault("secrets-vault:app");
-var settings = resources.AddConfigurationStore("configuration:app", "App Settings");
+var settings = resources
+    .AddConfigurationStore("configuration:app")
+    .WithDisplayName("App Settings");
 
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
     .WithAppSetting("Database:Host", settings.Entry("database-host"))
@@ -284,7 +288,9 @@ value, while the application settings UI only binds to the reference.
 
 ```csharp
 var vault = resources.AddSecretsVault("secrets-vault:app");
-var settings = resources.AddConfigurationStore("configuration:app", "App Settings");
+var settings = resources
+    .AddConfigurationStore("configuration:app")
+    .WithDisplayName("App Settings");
 
 resources.AddContainerApplication("api", "ghcr.io/example/api:latest")
     .WithAppSetting("Database:Host", settings.Entry("database-host"))

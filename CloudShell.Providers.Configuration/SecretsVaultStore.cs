@@ -145,7 +145,7 @@ public sealed class SecretsVaultStore
                 ? null
                 : definition.Endpoint.Trim(),
             Secrets = definition.Secrets
-                .Where(secret => !string.IsNullOrWhiteSpace(secret.Name))
+                .Where(secret => IsSupportedSecretName(secret.Name))
                 .Select(secret => secret with
                 {
                     Name = secret.Name.Trim(),
@@ -165,5 +165,21 @@ public sealed class SecretsVaultStore
         Path.IsPathRooted(path)
             ? path
             : Path.GetFullPath(path, contentRootPath);
+
+    private static bool IsSupportedSecretName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        var normalized = name.Trim();
+        return normalized.Length <= 127 &&
+            normalized.All(static character =>
+                character is >= 'a' and <= 'z' ||
+                character is >= 'A' and <= 'Z' ||
+                character is >= '0' and <= '9' ||
+                character == '-');
+    }
 
 }

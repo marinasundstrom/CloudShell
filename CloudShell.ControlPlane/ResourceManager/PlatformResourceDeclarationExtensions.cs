@@ -9,12 +9,11 @@ public static class PlatformResourceDeclarationExtensions
     public static INetworkResourceBuilder AddNetwork(
         this IResourceDeclarationBuilder builder,
         string id,
-        string name,
         bool isDefault = false)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var definition = new NetworkResourceDefinition(id, name, isDefault);
+        var definition = new NetworkResourceDefinition(id, CreateDisplayName(id), isDefault);
         var declared = new DeclaredNetworkResource(definition);
         builder.Services
             .GetOrAddPlatformResourceOptions()
@@ -26,6 +25,10 @@ public static class PlatformResourceDeclarationExtensions
             definition.Id,
             onChanged: declaration =>
             {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, definition.Name)
+                };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
@@ -36,14 +39,13 @@ public static class PlatformResourceDeclarationExtensions
     public static INetworkResourceBuilder AddVirtualNetwork(
         this IResourceDeclarationBuilder builder,
         string id,
-        string name,
         bool isDefault = false)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
         var definition = new NetworkResourceDefinition(
             id,
-            name,
+            CreateDisplayName(id),
             isDefault,
             Kind: NetworkResourceKind.Virtual);
         var declared = new DeclaredNetworkResource(definition);
@@ -57,6 +59,10 @@ public static class PlatformResourceDeclarationExtensions
             definition.Id,
             onChanged: declaration =>
             {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, definition.Name)
+                };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
@@ -66,12 +72,11 @@ public static class PlatformResourceDeclarationExtensions
 
     public static IServiceResourceBuilder AddService(
         this IResourceDeclarationBuilder builder,
-        string id,
-        string name)
+        string id)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var definition = new ServiceResourceDefinition(id, name, [], [], []);
+        var definition = new ServiceResourceDefinition(id, CreateDisplayName(id), [], [], []);
         var declared = new DeclaredServiceResource(definition);
         builder.Services
             .GetOrAddPlatformResourceOptions()
@@ -87,6 +92,7 @@ public static class PlatformResourceDeclarationExtensions
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
                 declared.Definition = declared.Definition with
                 {
+                    Name = GetDisplayName(declaration, definition.Name),
                     NetworkIds = declared.Definition.NetworkIds,
                     Targets = declared.Definition.Targets,
                     Ports = declared.Definition.Ports
@@ -98,8 +104,7 @@ public static class PlatformResourceDeclarationExtensions
 
     public static ILoadBalancerResourceBuilder AddLoadBalancer(
         this IResourceDeclarationBuilder builder,
-        string id,
-        string? name = null)
+        string id)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -107,7 +112,7 @@ public static class PlatformResourceDeclarationExtensions
         var normalizedId = NormalizeLoadBalancerId(id);
         var definition = new LoadBalancerResourceDefinition(
             normalizedId,
-            string.IsNullOrWhiteSpace(name) ? CreateDisplayName(normalizedId) : name.Trim(),
+            CreateDisplayName(normalizedId),
             "traefik");
         var declared = new DeclaredLoadBalancerResource(definition);
         builder.Services
@@ -120,6 +125,10 @@ public static class PlatformResourceDeclarationExtensions
             definition.Id,
             onChanged: declaration =>
             {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, definition.Name)
+                };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
@@ -130,17 +139,15 @@ public static class PlatformResourceDeclarationExtensions
     public static IDnsZoneResourceBuilder AddDnsZone(
         this IResourceDeclarationBuilder builder,
         string id,
-        string? name = null,
         string? zoneName = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
         var normalizedId = NormalizeDnsZoneId(id);
-        var displayName = string.IsNullOrWhiteSpace(name) ? CreateDisplayName(normalizedId) : name.Trim();
         var definition = new DnsZoneResourceDefinition(
             normalizedId,
-            displayName,
+            CreateDisplayName(normalizedId),
             string.IsNullOrWhiteSpace(zoneName) ? CreateZoneName(normalizedId) : zoneName.Trim().ToLowerInvariant());
         var declared = new DeclaredDnsZoneResource(definition);
         builder.Services
@@ -159,6 +166,10 @@ public static class PlatformResourceDeclarationExtensions
             },
             onChanged: declaration =>
             {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, definition.Name)
+                };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
@@ -168,8 +179,7 @@ public static class PlatformResourceDeclarationExtensions
 
     public static IStorageResourceBuilder AddLocalStorage(
         this IResourceDeclarationBuilder builder,
-        string id,
-        string? name = null)
+        string id)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -177,7 +187,7 @@ public static class PlatformResourceDeclarationExtensions
         var normalizedId = NormalizeStorageId(id);
         var definition = new StorageResourceDefinition(
             normalizedId,
-            string.IsNullOrWhiteSpace(name) ? CreateDisplayName(normalizedId) : name.Trim(),
+            CreateDisplayName(normalizedId),
             StorageProviderNames.LocalStorage,
             StorageMedia.FileSystem);
         var declared = new DeclaredStorageResource(definition);
@@ -197,6 +207,10 @@ public static class PlatformResourceDeclarationExtensions
             },
             onChanged: declaration =>
             {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, definition.Name)
+                };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
@@ -206,8 +220,7 @@ public static class PlatformResourceDeclarationExtensions
 
     public static IVolumeResourceBuilder AddVolume(
         this IResourceDeclarationBuilder builder,
-        string id,
-        string? name = null)
+        string id)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -215,7 +228,7 @@ public static class PlatformResourceDeclarationExtensions
         var normalizedId = NormalizeVolumeId(id);
         var definition = new VolumeResourceDefinition(
             normalizedId,
-            string.IsNullOrWhiteSpace(name) ? CreateDisplayName(normalizedId) : name.Trim());
+            CreateDisplayName(normalizedId));
         var declared = new DeclaredVolumeResource(definition);
         builder.Services
             .GetOrAddPlatformResourceOptions()
@@ -234,6 +247,10 @@ public static class PlatformResourceDeclarationExtensions
             },
             onChanged: declaration =>
             {
+                declared.Definition = declared.Definition with
+                {
+                    Name = GetDisplayName(declaration, definition.Name)
+                };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
                 declared.OverwritePersistedState = declaration.OverwritePersistedState;
             });
@@ -352,6 +369,11 @@ public static class PlatformResourceDeclarationExtensions
         resourceId.Contains(':', StringComparison.Ordinal)
             ? resourceId[(resourceId.IndexOf(':', StringComparison.Ordinal) + 1)..].Trim().ToLowerInvariant()
             : resourceId.Trim().ToLowerInvariant();
+
+    private static string GetDisplayName(ResourceDeclaration declaration, string fallback) =>
+        string.IsNullOrWhiteSpace(declaration.DisplayName)
+            ? fallback
+            : declaration.DisplayName;
 }
 
 public interface INetworkResourceBuilder : IResourceBuilder

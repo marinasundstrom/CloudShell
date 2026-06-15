@@ -4,11 +4,11 @@
 
 <div class="type-registration">
     <div class="form-panel">
-        <label for="dns-zone-name">Name</label>
-        <FluentTextField Id="dns-zone-name" @bind-Value="Name" />
-
-        <label for="dns-zone-resource-id">Resource ID</label>
-        <FluentTextField Id="dns-zone-resource-id" @bind-Value="ResourceId" Placeholder="dns:cloudshell-local" />
+        <ResourceIdentityFields ResourceIdInputId="dns-zone-resource-id"
+                                DisplayNameInputId="dns-zone-display-name"
+                                ResourceIdPlaceholder="dns:cloudshell-local"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <label for="dns-zone-name-value">Zone name</label>
         <FluentTextField Id="dns-zone-name-value" @bind-Value="ZoneName" Placeholder="cloudshell.local" />
@@ -142,6 +142,9 @@
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         ResourceManagerUiAccess.EmptyGroupLookup;
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
@@ -198,12 +201,6 @@
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(Name))
-        {
-            ErrorMessage = "Name is required.";
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(ZoneName))
         {
             ErrorMessage = "Zone name is required.";
@@ -216,9 +213,11 @@
             return;
         }
 
+        var normalizedResourceId = ResourceId.Trim();
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         var definition = new DnsZoneResourceDefinition(
-            ResourceId,
-            Name,
+            normalizedResourceId,
+            displayName,
             ZoneName,
             GetProvider(),
             mappings);
@@ -227,8 +226,8 @@
             new CreateResourceCommand(
                 PlatformProviderId,
                 DnsZoneResourceType,
-                ResourceId,
-                Name,
+                normalizedResourceId,
+                displayName,
                 JsonSerializer.SerializeToElement(definition),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 

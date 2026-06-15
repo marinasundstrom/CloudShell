@@ -4,11 +4,11 @@
 
 <div class="type-registration">
     <div class="form-panel">
-        <label for="load-balancer-name">Name</label>
-        <FluentTextField Id="load-balancer-name" @bind-Value="Name" />
-
-        <label for="load-balancer-resource-id">Resource ID</label>
-        <FluentTextField Id="load-balancer-resource-id" @bind-Value="ResourceId" Placeholder="load-balancer:public" />
+        <ResourceIdentityFields ResourceIdInputId="load-balancer-resource-id"
+                                DisplayNameInputId="load-balancer-display-name"
+                                ResourceIdPlaceholder="load-balancer:public"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <label for="load-balancer-provider">Provider</label>
         <FluentSelect TOption="string"
@@ -192,6 +192,9 @@
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         ResourceManagerUiAccess.EmptyGroupLookup;
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
@@ -318,9 +321,9 @@
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name))
+        if (string.IsNullOrWhiteSpace(ResourceId))
         {
-            ErrorMessage = "Name is required.";
+            ErrorMessage = "Resource ID is required.";
             return;
         }
 
@@ -337,9 +340,11 @@
             return;
         }
 
+        var normalizedResourceId = ResourceId.Trim();
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         var definition = new LoadBalancerResourceDefinition(
-            ResourceId,
-            Name,
+            normalizedResourceId,
+            displayName,
             Provider,
             string.IsNullOrWhiteSpace(SelectedHostResourceId) ? null : SelectedHostResourceId,
             entrypoints,
@@ -349,8 +354,8 @@
             new CreateResourceCommand(
                 PlatformProviderId,
                 LoadBalancerResourceType,
-                ResourceId,
-                Name,
+                normalizedResourceId,
+                displayName,
                 JsonSerializer.SerializeToElement(definition),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 

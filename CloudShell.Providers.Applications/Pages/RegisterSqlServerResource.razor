@@ -18,11 +18,11 @@
             </div>
         }
 
-        <label for="sql-name">Name</label>
-        <FluentTextField Id="sql-name" @bind-Value="Name" />
-
-        <label for="sql-resource-id">Resource ID</label>
-        <FluentTextField Id="sql-resource-id" @bind-Value="ResourceId" Placeholder="application:sql-server" />
+        <ResourceIdentityFields ResourceIdInputId="sql-resource-id"
+                                DisplayNameInputId="sql-display-name"
+                                ResourceIdPlaceholder="application:sql-server"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <label for="sql-image">Image</label>
         <FluentTextField Id="sql-image" @bind-Value="Image" />
@@ -115,12 +115,15 @@
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(Image))
+        if (string.IsNullOrWhiteSpace(ResourceId) || string.IsNullOrWhiteSpace(Image))
         {
-            ErrorMessage = "Name and image are required.";
+            ErrorMessage = "Resource ID and image are required.";
             return;
         }
 
@@ -149,10 +152,11 @@
             return;
         }
 
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         var volumeMounts = BuildVolumeMounts();
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
-            Name,
+            displayName,
             executablePath: string.Empty,
             environmentVariables:
             [

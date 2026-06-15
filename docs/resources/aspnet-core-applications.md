@@ -16,16 +16,16 @@ see [Executable applications](executable-applications.md) and
 
 ## Declaration
 
-Programmatic declarations use `AddAspNetCoreProject(...)` when specifying a
-resource ID, or `AddAspNetCoreProjectFromName(...)` when CloudShell should
-derive the resource ID from the name:
+Programmatic declarations use `AddAspNetCoreProject(...)` with an explicit
+resource ID. Apply an optional display label with `.WithDisplayName(...)`
+when it helps the local development experience:
 
 ```csharp
 resources
     .AddAspNetCoreProject(
         "application:example-web-api",
-        "Example Web API",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+    .WithDisplayName("Example Web API")
     .WithReference(configuration);
 ```
 
@@ -51,8 +51,8 @@ instead of a process-backed ASP.NET Core project:
 resources
     .AddAspNetCoreProject(
         "application:example-web-api",
-        "Example Web API",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+    .WithDisplayName("Example Web API")
     .AsContainer(registry: "registry.local:5000")
     .WithContainerHost("docker:dev");
 ```

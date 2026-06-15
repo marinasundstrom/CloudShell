@@ -4,11 +4,11 @@
 
 <div class="type-registration">
     <div class="form-panel">
-        <label for="local-storage-name">Name</label>
-        <FluentTextField Id="local-storage-name" @bind-Value="Name" />
-
-        <label for="local-storage-resource-id">Resource ID</label>
-        <FluentTextField Id="local-storage-resource-id" @bind-Value="ResourceId" Placeholder="storage:local" />
+        <ResourceIdentityFields ResourceIdInputId="local-storage-resource-id"
+                                DisplayNameInputId="local-storage-display-name"
+                                ResourceIdPlaceholder="storage:local"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <ResourceGroupSelect Id="local-storage-group"
                              ResourceGroups="ResourceGroups"
@@ -39,6 +39,9 @@
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
@@ -47,15 +50,17 @@
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(ResourceId))
+        if (string.IsNullOrWhiteSpace(ResourceId))
         {
-            ErrorMessage = "Name and resource ID are required.";
+            ErrorMessage = "Resource ID is required.";
             return;
         }
 
+        var normalizedResourceId = ResourceId.Trim();
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         var definition = new StorageResourceDefinition(
-            ResourceId,
-            Name,
+            normalizedResourceId,
+            displayName,
             StorageProviderNames.LocalStorage,
             StorageMedia.FileSystem,
             NormalizeNullable(Location));
@@ -64,8 +69,8 @@
             new CreateResourceCommand(
                 PlatformProviderId,
                 StorageResourceType,
-                ResourceId,
-                Name,
+                normalizedResourceId,
+                displayName,
                 JsonSerializer.SerializeToElement(definition),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId,
                 ResourceClass.Storage));

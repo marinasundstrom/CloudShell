@@ -52,7 +52,7 @@ cloudShell
 cloudShell.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:example", "Example Configuration")
+        .AddConfigurationStore("configuration:example")
         .WithEntries(
         [
             new("SampleMessage", "Hello from CloudShell configuration"),

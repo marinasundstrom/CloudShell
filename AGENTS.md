@@ -15,6 +15,7 @@ Before making product or architecture changes, read:
 - [CloudShell goal](docs/goal.md)
 - [Development workflow](CONTRIBUTIONS.md)
 - [Domain model](docs/domain-model.md)
+- [Naming conventions](docs/naming-conventions.md)
 - [System design guidelines](docs/system-design-guidelines.md)
 - [Architecture decision log](ADR.md)
 - [Changelog](CHANGELOG.md)

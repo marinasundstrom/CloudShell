@@ -5,11 +5,11 @@
 
 <div class="type-registration">
     <div class="form-panel">
-        <label for="volume-name">Name</label>
-        <FluentTextField Id="volume-name" @bind-Value="Name" />
-
-        <label for="volume-resource-id">Resource ID</label>
-        <FluentTextField Id="volume-resource-id" @bind-Value="ResourceId" Placeholder="volume:data" />
+        <ResourceIdentityFields ResourceIdInputId="volume-resource-id"
+                                DisplayNameInputId="volume-display-name"
+                                ResourceIdPlaceholder="volume:data"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <ResourceGroupSelect Id="volume-group"
                              ResourceGroups="ResourceGroups"
@@ -80,6 +80,9 @@
     private bool HasSelectedStorage =>
         !string.IsNullOrWhiteSpace(SelectedStorageResourceId);
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
@@ -95,9 +98,9 @@
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(ResourceId))
+        if (string.IsNullOrWhiteSpace(ResourceId))
         {
-            ErrorMessage = "Name and resource ID are required.";
+            ErrorMessage = "Resource ID is required.";
             return;
         }
 
@@ -113,9 +116,11 @@
             return;
         }
 
+        var normalizedResourceId = ResourceId.Trim();
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         var definition = new VolumeResourceDefinition(
-            ResourceId,
-            Name,
+            normalizedResourceId,
+            displayName,
             HasSelectedStorage ? GetSelectedStorageProvider() : NormalizeNullable(Provider),
             HasSelectedStorage ? null : NormalizeNullable(Location),
             Persistent,
@@ -127,8 +132,8 @@
             new CreateResourceCommand(
                 PlatformProviderId,
                 VolumeResourceType,
-                ResourceId,
-                Name,
+                normalizedResourceId,
+                displayName,
                 JsonSerializer.SerializeToElement(definition),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId,
                 ResourceClass.Storage));

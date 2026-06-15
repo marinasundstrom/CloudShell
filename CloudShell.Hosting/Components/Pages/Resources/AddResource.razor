@@ -4,6 +4,7 @@
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
+@inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
 
 <PageTitle>@L["Add resource"]</PageTitle>
@@ -81,9 +82,12 @@ else
                         </div>
                     </div>
                 </div>
-                <CascadingValue Value="probeContext">
-                    <CascadingValue Value="selectedType">
-                        <DynamicComponent Type="selectedType.RegistrationComponentType" />
+                <CascadingValue Name="@ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName"
+                                Value="DisplaySelection.EnableDisplayNames">
+                    <CascadingValue Value="probeContext">
+                        <CascadingValue Value="selectedType">
+                            <DynamicComponent Type="selectedType.RegistrationComponentType" />
+                        </CascadingValue>
                     </CascadingValue>
                 </CascadingValue>
             }
@@ -96,10 +100,14 @@ else
     private string? SelectedTypeId { get; set; }
     private Dictionary<string, ResourceRegistrationProbeContext> ProbeContexts { get; } =
         new(StringComparer.OrdinalIgnoreCase);
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        DisplaySelection = await DisplaySettings.GetAsync();
+
         if (IsReadOnly)
         {
             return;

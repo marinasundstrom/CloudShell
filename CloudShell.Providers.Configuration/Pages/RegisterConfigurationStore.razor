@@ -6,11 +6,11 @@
 
 <div class="type-registration">
     <div class="form-panel">
-        <label for="configuration-store-name">Name</label>
-        <FluentTextField Id="configuration-store-name" @bind-Value="Name" />
-
-        <label for="configuration-store-resource-id">Resource ID</label>
-        <FluentTextField Id="configuration-store-resource-id" @bind-Value="ResourceId" Placeholder="configuration:local" />
+        <ResourceIdentityFields ResourceIdInputId="configuration-store-resource-id"
+                                DisplayNameInputId="configuration-store-display-name"
+                                ResourceIdPlaceholder="configuration:local"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <label for="configuration-store-endpoint">Endpoint</label>
         <FluentTextField Id="configuration-store-endpoint" @bind-Value="Endpoint" Placeholder="Generated from the resource ID" />
@@ -41,12 +41,15 @@
     private string? ErrorMessage { get; set; }
     private List<ConfigurationEntryInput> Entries { get; } = [new()];
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name))
+        if (string.IsNullOrWhiteSpace(ResourceId))
         {
-            ErrorMessage = "Name is required.";
+            ErrorMessage = "Resource ID is required.";
             return;
         }
 
@@ -58,9 +61,10 @@
             return;
         }
 
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         var definition = new ConfigurationStoreDefinition(
             normalizedResourceId,
-            Name,
+            displayName,
             BuildEntries(),
             endpoint: Endpoint,
             healthChecks: ProbeContext?.GetSelectedHealthChecks());

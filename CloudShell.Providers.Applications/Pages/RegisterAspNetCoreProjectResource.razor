@@ -7,11 +7,11 @@
 
 <div class="type-registration">
     <div class="form-panel">
-        <label for="web-application-name">Name</label>
-        <FluentTextField Id="web-application-name" @bind-Value="Name" />
-
-        <label for="web-application-resource-id">Resource ID</label>
-        <FluentTextField Id="web-application-resource-id" @bind-Value="ResourceId" Placeholder="application:example-web-api" />
+        <ResourceIdentityFields ResourceIdInputId="web-application-resource-id"
+                                DisplayNameInputId="web-application-display-name"
+                                ResourceIdPlaceholder="application:example-web-api"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <label for="web-application-project">Project path</label>
         <FluentTextField Id="web-application-project" @bind-Value="ProjectPath" Placeholder="samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj" />
@@ -109,6 +109,9 @@
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     private bool HealthChecksEnabled
     {
         get => ProbeContext?.EnableHealthChecks == true;
@@ -124,9 +127,9 @@
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(ProjectPath))
+        if (string.IsNullOrWhiteSpace(ResourceId) || string.IsNullOrWhiteSpace(ProjectPath))
         {
-            ErrorMessage = "Name and project path are required.";
+            ErrorMessage = "Resource ID and project path are required.";
             return;
         }
 
@@ -146,10 +149,11 @@
             return;
         }
 
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
         var references = SelectedReferenceIds.ToArray();
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
-            Name,
+            displayName,
             executablePath: string.Empty,
             environmentVariables: BuildEnvironmentVariables(),
             lifetime: ParseLifetime(),

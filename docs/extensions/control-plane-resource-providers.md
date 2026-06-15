@@ -237,7 +237,8 @@ sub-resources:
 ```csharp
 controlPlane.Resources(resources =>
 {
-    var docker = resources.AddDocker("docker:dev", "Development Docker");
+    var docker = resources.AddDocker("docker:dev")
+        .WithDisplayName("Development Docker");
 
     var redis = docker
         .AddContainer("redis", "redis", "7.2")

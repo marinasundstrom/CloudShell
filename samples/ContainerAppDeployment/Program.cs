@@ -33,14 +33,13 @@ cloudShell
 cloudShell.Resources(resources =>
 {
     var docker = resources
-        .AddDocker("docker:sample", "Sample Docker Environment")
+        .AddDocker("docker:sample")
         .WithRegistry(registryAddress)
         .Persist(overwrite: true);
 
     var registry = docker
         .AddDockerContainer(
             registryResourceId,
-            "Local Registry",
             "registry:2")
         .WithEndpoint(ResourceEndpoint.Http(
             "http",
@@ -54,7 +53,6 @@ cloudShell.Resources(resources =>
     resources
         .AddContainerApplication(
             containerAppResourceId,
-            "Sample API",
             sampleImage,
             registry: registryAddress)
         .WithEndpoint(

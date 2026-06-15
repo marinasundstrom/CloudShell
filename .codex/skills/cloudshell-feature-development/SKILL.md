@@ -16,6 +16,7 @@ Read these first:
 - `CONTRIBUTIONS.md`
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
+- `docs/naming-conventions.md`
 - `docs/artifact-implementation-guidelines.md`
 - `ADR.md`
 - `CHANGELOG.md`

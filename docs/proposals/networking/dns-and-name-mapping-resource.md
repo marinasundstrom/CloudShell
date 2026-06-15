@@ -237,7 +237,8 @@ with explicit host mappings first:
 
 ```csharp
 var dns = resources
-    .AddDnsZone("dns:dev", "Development DNS", "cloudshell.local")
+    .AddDnsZone("dns:dev", "cloudshell.local")
+    .WithDisplayName("Development DNS")
     .UseProvider("local-hostnames");
 
 dns.MapHost("api.cloudshell.local", api, "http");

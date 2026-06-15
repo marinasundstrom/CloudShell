@@ -9,11 +9,11 @@
             Container apps can expose app-owned endpoints without a Service resource.
         </p>
 
-        <label for="service-name">Name</label>
-        <FluentTextField Id="service-name" @bind-Value="Name" />
-
-        <label for="service-resource-id">Resource ID</label>
-        <FluentTextField Id="service-resource-id" @bind-Value="ResourceId" Placeholder="service:api" />
+        <ResourceIdentityFields ResourceIdInputId="service-resource-id"
+                                DisplayNameInputId="service-display-name"
+                                ResourceIdPlaceholder="service:api"
+                                @bind-ResourceId="ResourceId"
+                                @bind-DisplayName="Name" />
 
         <ResourceGroupSelect Id="service-group"
                              ResourceGroups="ResourceGroups"
@@ -89,6 +89,9 @@
     private bool IsManualAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
@@ -124,9 +127,9 @@
     private async Task Register()
     {
         ErrorMessage = null;
-        if (string.IsNullOrWhiteSpace(Name))
+        if (string.IsNullOrWhiteSpace(ResourceId))
         {
-            ErrorMessage = "Name is required.";
+            ErrorMessage = "Resource ID is required.";
             return;
         }
 
@@ -152,10 +155,12 @@
             ? parsedExposure
             : ResourceExposureScope.Network;
         var assignedPort = IsManualAssignment ? Port : null;
+        var normalizedResourceId = ResourceId.Trim();
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
 
         var definition = new ServiceResourceDefinition(
-            ResourceId,
-            Name,
+            normalizedResourceId,
+            displayName,
             SelectedTargetIds.Select(resourceId => new ServiceTarget(resourceId)).ToArray(),
             [new ServicePort(PortName, TargetPort, assignedPort, Protocol, exposure)],
             SelectedNetworkIds.ToArray());
@@ -164,8 +169,8 @@
             new CreateResourceCommand(
                 PlatformProviderId,
                 ServiceResourceType,
-                ResourceId,
-                Name,
+                normalizedResourceId,
+                displayName,
                 JsonSerializer.SerializeToElement(definition),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 

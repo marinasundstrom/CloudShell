@@ -186,7 +186,9 @@ be passed to the provider as provider-owned target configuration.
 The user-facing API should support the concise shape:
 
 ```csharp
-var lb = resources.AddLoadBalancer("load-balancer:public", "Public")
+var lb = resources
+    .AddLoadBalancer("load-balancer:public")
+    .WithDisplayName("Public")
     .UseProvider("traefik")
     .UseContainerHost("docker:engine")
     .ExposeHttp(80)
@@ -250,8 +252,12 @@ For virtual-network use, the virtual network can own the public endpoint while
 the load balancer resource materializes the mapping:
 
 ```csharp
-var vnet = resources.AddVirtualNetwork("network:app", "App Network");
-var lb = resources.AddLoadBalancer("load-balancer:public", "Public")
+var vnet = resources
+    .AddVirtualNetwork("network:app")
+    .WithDisplayName("App Network");
+var lb = resources
+    .AddLoadBalancer("load-balancer:public")
+    .WithDisplayName("Public")
     .UseProvider("traefik");
 
 var publicApi = vnet.RequestHttpEndpoint(

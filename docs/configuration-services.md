@@ -29,7 +29,8 @@ startup code:
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:example", "Example Configuration")
+        .AddConfigurationStore("configuration:example")
+        .WithDisplayName("Example Configuration")
         .WithEntries(
         [
             new("SampleMessage", "Hello from CloudShell configuration"),
@@ -44,6 +45,20 @@ Each store stores key-value entries:
 - `Value`: the stored value.
 - `Secret`: legacy sensitive-entry marker. New authoring should prefer
   Secrets Vault references for credentials and other secret values.
+
+The built-in Configuration Store accepts broad App Configuration-style setting
+names. Empty names, `%`, `.`, `..`, and control characters are rejected. Both
+`Orders:Api:BaseUrl` and the portable `Orders--Api--BaseUrl` hierarchy form
+are accepted; the CloudShell `IConfiguration` client maps `--` to `:` when it
+loads entries.
+
+Secrets Vault uses Key Vault-style secret names: 1-127 ASCII letters, digits,
+and hyphens. Use names such as `Orders--Api--ClientSecret` for hierarchical
+application configuration. The Secrets Vault `IConfiguration` client maps
+`--` to `:` when it loads secrets.
+
+These naming rules belong to the built-in providers. Other providers or cloud
+deployment targets may apply their own character and length restrictions.
 
 Provider-owned state is persisted in:
 

@@ -148,7 +148,8 @@ identity binding per resource:
 
 ```csharp
 var api = resources
-    .AddAspNetCoreProject("application:api", "API", "../Api/Api.csproj")
+    .AddAspNetCoreProject("application:api", "../Api/Api.csproj")
+    .WithDisplayName("API")
     .WithIdentity(identity =>
     {
         identity.Name = "api-service";
@@ -180,7 +181,8 @@ identity to another resource:
 
 ```csharp
 var api = resources
-    .AddAspNetCoreProject("application:api", "API", "../Api/Api.csproj")
+    .AddAspNetCoreProject("application:api", "../Api/Api.csproj")
+    .WithDisplayName("API")
     .WithIdentity("development", name: "api-service");
 
 var database = resources.Declare("database", "database:app");
@@ -272,7 +274,8 @@ calling `ProvisionIdentityOnStartup()` after declaring an identity:
 
 ```csharp
 var api = resources
-    .AddAspNetCoreProject("application:api", "API", "../Api/Api.csproj")
+    .AddAspNetCoreProject("application:api", "../Api/Api.csproj")
+    .WithDisplayName("API")
     .WithIdentity("development", name: "api-service")
     .ProvisionIdentityOnStartup();
 ```

@@ -10,11 +10,12 @@ public static class ContainerHostSampleResources
         ArgumentNullException.ThrowIfNull(resources);
 
         var localStorage = resources
-            .AddLocalStorage("local", "Local Storage")
+            .AddLocalStorage("local")
             .UseLocation("./Data/storage");
 
         var sqlData = resources
-            .AddVolume("sql-data", "SQL Server Data")
+            .AddVolume("sql-data")
+            .WithDisplayName("SQL Server Data")
             .UseStorage(localStorage, "sql-server")
             .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
 

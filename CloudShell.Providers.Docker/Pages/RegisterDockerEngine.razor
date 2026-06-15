@@ -29,8 +29,13 @@
         <FluentOption TOption="string" Value="remote">Remote</FluentOption>
     </FluentSelect>
 
-    <label for="docker-host-name">Name</label>
-    <FluentTextField Id="docker-host-name" @bind-Value="HostName" Placeholder="Local Docker Host" />
+    <ResourceIdentityFields ResourceIdInputId="docker-host-resource-id"
+                            DisplayNameInputId="docker-host-display-name"
+                            ResourceId="@BuildResourceId(BuildHostDefinitionOrDefault())"
+                            ResourceIdChanged="@IgnoreResourceIdChange"
+                            ResourceIdDisabled="true"
+                            DisplayName="@HostName"
+                            DisplayNameChanged="@ChangeHostName" />
 
     @if (IsRemoteHost)
     {
@@ -71,6 +76,9 @@
     [CascadingParameter]
     public ResourceRegistrationProbeContext? ProbeContext { get; set; }
 
+    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
+    private bool EnableDisplayNames { get; set; } = true;
+
     private string SelectedGroupId { get; set; } = string.Empty;
     private string HostMode { get; set; } = "local";
     private string HostName { get; set; } = "Local Docker Host";
@@ -93,9 +101,10 @@
         try
         {
             var hostDefinition = BuildHostDefinition();
+            var resourceId = BuildResourceId(hostDefinition);
             await DockerProvider.SetupHostAsync(
-                BuildResourceId(hostDefinition),
-                NormalizeHostName(HostName),
+                resourceId,
+                ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, HostName, resourceId),
                 hostDefinition,
                 SelectedGroupId,
                 Registrations,
@@ -132,6 +141,19 @@
         IsRemoteHost
             ? DockerHostDefinition.Remote(new Uri(RemoteEndpoint!))
             : DockerHostDefinition.Local(DockerProvider.Endpoint);
+
+    private DockerHostDefinition BuildHostDefinitionOrDefault() =>
+        IsRemoteHost && Uri.TryCreate(RemoteEndpoint, UriKind.Absolute, out var remote)
+            ? DockerHostDefinition.Remote(remote)
+            : DockerHostDefinition.Local(DockerProvider.Endpoint);
+
+    private static Task IgnoreResourceIdChange(string? _) => Task.CompletedTask;
+
+    private Task ChangeHostName(string? value)
+    {
+        HostName = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
 
     private static string NormalizeHostName(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "Docker Host" : value.Trim();
