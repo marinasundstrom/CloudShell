@@ -1,0 +1,175 @@
+@inject IResourceManager ResourceManager
+
+@if (DnsZone is null)
+{
+    <div class="empty-state">
+        <strong>DNS zone unavailable</strong>
+        <span>The DNS zone resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <section class="blade-section">
+        <h3>DNS zone</h3>
+        <dl class="detail-list">
+            <dt>Zone name</dt>
+            <dd>@GetZoneAttribute(ResourceAttributeNames.DnsZoneName, DnsZone.Name)</dd>
+            <dt>Provider</dt>
+            <dd>@GetZoneAttribute(ResourceAttributeNames.DnsProvider, "logical")</dd>
+            <dt>Name mappings</dt>
+            <dd>@NameMappings.Count</dd>
+            <dt>Conflicts</dt>
+            <dd>@GetZoneAttribute(ResourceAttributeNames.DnsConflictCount, "0")</dd>
+        </dl>
+    </section>
+
+    <section class="blade-section">
+        <h3>Name mappings</h3>
+        @if (NameMappings.Count == 0)
+        {
+            <p class="muted">No name mappings are owned by this DNS zone.</p>
+        }
+        else
+        {
+            @if (HasMappingAttention)
+            {
+                <div class="procedure-message compact">
+                    One or more name mappings need attention. Open the mapping to inspect diagnostics or update its configuration.
+                </div>
+            }
+
+            <div class="generated-list">
+                @foreach (var mapping in NameMappings)
+                {
+                    <div>
+                        <strong>
+                            <a class="resource-link" href="@BuildResourceRoute(mapping.Id, "overview")">
+                                @GetNameMappingHostName(mapping)
+                            </a>
+                        </strong>
+                        <span>@GetMappingSummary(mapping)</span>
+                        <small>@GetMappingMetadata(mapping)</small>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private const string NameMappingResourceType = "cloudshell.nameMapping";
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? DnsZone { get; set; }
+    private IReadOnlyList<Resource> NameMappings { get; set; } = [];
+    private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+
+    private bool HasMappingAttention =>
+        NameMappings.Any(mapping =>
+            string.Equals(
+                GetAttribute(mapping, ResourceAttributeNames.NameMappingStatus, "Ready"),
+                "Conflict",
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                GetAttribute(mapping, ResourceAttributeNames.NameMappingMaterializationStatus, string.Empty),
+                "PublishFailed",
+                StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(
+                GetAttribute(mapping, ResourceAttributeNames.NameMappingMaterializationStatus, string.Empty),
+                "LogicalOnly",
+                StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var resources = await ResourceManager.ListResourcesAsync();
+        ResourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+        DnsZone = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ResourcesById.GetValueOrDefault(ResourceId);
+        NameMappings = DnsZone is null
+            ? []
+            : resources
+                .Where(IsOwnedNameMapping)
+                .OrderBy(GetNameMappingHostName, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+    }
+
+    private bool IsOwnedNameMapping(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, NameMappingResourceType, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(resource.ParentResourceId, DnsZone?.Id, StringComparison.OrdinalIgnoreCase);
+
+    private string GetMappingSummary(Resource mapping)
+    {
+        var targetResourceId = GetAttribute(mapping, ResourceAttributeNames.NameMappingTargetResourceId, string.Empty);
+        var targetLabel = ResourcesById.TryGetValue(targetResourceId, out var target)
+            ? target.Name
+            : targetResourceId;
+        var endpoint = GetAttribute(mapping, ResourceAttributeNames.NameMappingTargetEndpointName, "default");
+
+        return $"{targetLabel}/{endpoint}";
+    }
+
+    private string GetMappingMetadata(Resource mapping)
+    {
+        var parts = new List<string>
+        {
+            $"Exposure: {GetAttribute(mapping, ResourceAttributeNames.NameMappingExposure, ResourceExposureScope.Public.ToString())}",
+            GetProviderLabel(mapping),
+            $"Materialization: {GetMaterializationLabel(mapping)}"
+        };
+
+        if (!string.Equals(
+                GetAttribute(mapping, ResourceAttributeNames.NameMappingStatus, "Ready"),
+                "Ready",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            parts.Add($"Status: {GetAttribute(mapping, ResourceAttributeNames.NameMappingStatus, "unknown")}");
+        }
+
+        return string.Join(" - ", parts);
+    }
+
+    private string GetProviderLabel(Resource mapping)
+    {
+        var providerResourceId = GetAttribute(mapping, ResourceAttributeNames.NameMappingProviderResourceId, string.Empty);
+        if (!string.IsNullOrWhiteSpace(providerResourceId))
+        {
+            return ResourcesById.TryGetValue(providerResourceId, out var provider)
+                ? $"Provider: {provider.Name}"
+                : $"Provider: {providerResourceId}";
+        }
+
+        return $"Provider: {GetAttribute(mapping, ResourceAttributeNames.DnsProvider, "logical")}";
+    }
+
+    private static string GetMaterializationLabel(Resource mapping) =>
+        GetAttribute(mapping, ResourceAttributeNames.NameMappingMaterializationStatus, "unknown") switch
+        {
+            "LogicalOnly" => "logical only",
+            "ProviderSelected" => "provider selected",
+            "Published" => "published",
+            "PublishFailed" => "publish failed",
+            var value => value
+        };
+
+    private string GetZoneAttribute(string name, string fallback) =>
+        DnsZone?.ResourceAttributes.TryGetValue(name, out var value) == true &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static string GetNameMappingHostName(Resource mapping) =>
+        GetAttribute(mapping, ResourceAttributeNames.NameMappingHostName, mapping.Name);
+
+    private static string GetAttribute(Resource resource, string name, string fallback) =>
+        resource.ResourceAttributes.TryGetValue(name, out var value) &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static string BuildResourceRoute(string resourceId, string tabId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId)}";
+}

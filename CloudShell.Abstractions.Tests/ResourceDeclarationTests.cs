@@ -1023,7 +1023,11 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("DNS Zone", dnsZoneType.DisplayName);
         Assert.Equal(ResourceClass.Network, dnsZoneType.ResourceClass);
         Assert.Equal(typeof(RegisterDnsZoneResource), dnsZoneType.RegistrationComponentType);
-        Assert.Empty(dnsZoneType.ResourceTabs);
+        var dnsZoneOverview = Assert.Single(
+            dnsZoneType.ResourceTabs,
+            tab => string.Equals(tab.Id, "overview", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(typeof(DnsZoneOverview), dnsZoneOverview.ComponentType);
+        Assert.False(dnsZoneOverview.ShowsApplyButton);
 
         Assert.Equal("Name Mapping", nameMappingType.DisplayName);
         Assert.Equal(ResourceClass.Network, nameMappingType.ResourceClass);

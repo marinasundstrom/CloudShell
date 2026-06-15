@@ -2516,6 +2516,37 @@ h3 {
     overflow-wrap: anywhere;
 }
 
+.resource-alert {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: .25rem;
+    padding: .7rem .8rem;
+    border: 1px solid var(--cloudshell-stroke);
+    border-left-width: 4px;
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+    color: var(--cloudshell-text);
+    overflow-wrap: anywhere;
+}
+
+.resource-alert strong {
+    font-size: .82rem;
+}
+
+.resource-alert span {
+    color: var(--cloudshell-text-muted);
+}
+
+.resource-alert.info {
+    border-color: #60a5fa;
+    background: color-mix(in srgb, #60a5fa 14%, var(--cloudshell-surface));
+}
+
+.resource-alert.warning {
+    border-color: #f2c94c;
+    background: var(--cloudshell-warning-fill);
+}
+
 .extension-card strong,
 .extension-card span {
     display: block;

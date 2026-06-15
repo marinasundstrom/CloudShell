@@ -482,7 +482,8 @@ decides later whether and how a specific name is materialized.
    standalone name mappings to existing zones; name mappings can be deleted
    through the normal Resource Manager delete flow. Existing name mappings
    can now be edited from their Resource Manager configuration tab while
-   preserving their parent DNS zone.
+   preserving their parent DNS zone. DNS zone overview pages now list owned
+   name mappings with target, exposure, provider, and materialization status.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
    Done for logical-only DNS name mappings without a selected publisher.
 8. Add sample declarations for local DNS-style mappings. Done in the Load

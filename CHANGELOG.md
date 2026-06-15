@@ -73,6 +73,11 @@ on `git blame --follow`, and then by the broad type of change.
   update flow preserves the parent DNS zone, uses the existing mapping ID, and
   keeps the parent zone's registration group stable when the child mapping is
   upserted.
+- DNS zone detail pages now have a focused overview that lists owned name
+  mappings with their target, exposure, provider, and materialization status.
+  DNS/name-mapping create and update forms now use CloudShell alert boxes for
+  local suffix and local host-name publisher notices instead of unframed
+  message bar content.
 
 #### Samples
 

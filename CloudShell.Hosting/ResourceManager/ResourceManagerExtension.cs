@@ -92,6 +92,11 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "network",
                 10,
                 resourceClass: ResourceClass.Network)
+            .AddResourceTab<DnsZoneOverview>(
+                "cloudshell.dnsZone",
+                "overview",
+                "Overview",
+                10)
             .AddResourceType<RegisterNameMappingResource, UpdateNameMappingResource>(
                 "cloudshell.nameMapping",
                 "Name Mapping",

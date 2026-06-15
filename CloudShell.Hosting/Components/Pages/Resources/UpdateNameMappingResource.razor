@@ -34,16 +34,18 @@ else
 
             @if (ShouldWarnAboutLocalSuffix(HostName))
             {
-                <FluentMessageBar Intent="MessageIntent.Warning">
-                    Names ending in .local may conflict with mDNS/Bonjour on the host network. Use them intentionally for local development and reconcile them only on hosts where this suffix is acceptable.
-                </FluentMessageBar>
+                <div class="resource-alert warning" role="alert">
+                    <strong>Local suffix warning</strong>
+                    <span>Names ending in .local may conflict with mDNS/Bonjour on the host network. Use them intentionally for local development and reconcile them only on hosts where this suffix is acceptable.</span>
+                </div>
             }
 
             @if (IsZoneLocalHostNameProvider)
             {
-                <FluentMessageBar Intent="MessageIntent.Info">
-                    This DNS zone uses local host-name publishing. Reconcile name mappings on the DNS zone to write exact host mappings to the configured hosts-file target.
-                </FluentMessageBar>
+                <div class="resource-alert info" role="status">
+                    <strong>Local host-name publishing</strong>
+                    <span>This DNS zone uses local host-name publishing. Reconcile name mappings on the DNS zone to write exact host mappings to the configured hosts-file target.</span>
+                </div>
             }
 
             <label for="name-mapping-update-target">Target resource</label>
