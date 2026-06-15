@@ -2,13 +2,16 @@ using CloudShell.Client.Authentication;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
@@ -142,6 +145,39 @@ public sealed class RemoteControlPlaneAuthenticationTests
     }
 
     [Fact]
+    public async Task IdentityUserResourcePermissionClaim_CanInspectManagedResource()
+    {
+        await using var app = await CreateIdentityProtectedAppAsync(includeLifecycleResource: true);
+        await CreateIdentityUserAsync(
+            app,
+            "resource.manager@example.test",
+            "CloudShell123!",
+            new Claim(
+                CloudShellAuthenticationOptions.ResourcePermissionClaimType,
+                ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+                    ContractLifecycleResourceProvider.ResourceId,
+                    CloudShellPermissions.Resources.Manage)));
+        var token = await GetPasswordTokenAsync(
+            app.GetTestClient(),
+            "resource.manager@example.test",
+            "CloudShell123!");
+        var controlPlane = CreateClient(
+            app,
+            new StaticBearerControlPlaneCredential(token),
+            CreateOptions());
+
+        var resource = await controlPlane.GetResourceAsync(ContractLifecycleResourceProvider.ResourceId);
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync(
+            [ContractLifecycleResourceProvider.ResourceId]);
+
+        Assert.NotNull(resource);
+        Assert.Equal(ContractLifecycleResourceProvider.ResourceId, resource.Id);
+        var capability = Assert.Single(capabilities).Value;
+        Assert.True(capability.CanManage);
+        Assert.True(capability.CanDelete);
+    }
+
+    [Fact]
     public async Task EmptyCredential_CannotCallProtectedControlPlane()
     {
         await using var app = await CreateProtectedAppAsync();
@@ -254,6 +290,82 @@ public sealed class RemoteControlPlaneAuthenticationTests
         return app;
     }
 
+    private static async Task<WebApplication> CreateIdentityProtectedAppAsync(bool includeLifecycleResource = false)
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            ContentRootPath = contentRoot,
+            EnvironmentName = "Development"
+        });
+        builder.WebHost.UseTestServer();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Authentication:Enabled"] = "true",
+            ["Authentication:Mode"] = "Identity",
+            ["Authentication:BuiltInAuthority:Enabled"] = "true",
+            ["Authentication:BuiltInAuthority:Issuer"] = "http://localhost",
+            ["Authentication:BuiltInAuthority:Audience"] = "cloudshell-control-plane",
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-ui:Secret"] =
+                "local-development-ui-secret",
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-ui:Scopes:0"] =
+                "ControlPlane.Access",
+            ["Persistence:Provider"] = "Sqlite",
+            ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-client-identity-auth.db",
+            ["Persistence:IdentityConnectionString"] = "Data Source=Data/identity-client-identity-auth.db"
+        });
+
+        var controlPlane = builder.AddCloudShellControlPlane();
+        if (includeLifecycleResource)
+        {
+            builder.Services.AddSingleton<ContractLifecycleResourceProvider>();
+            builder.Services.AddSingleton<IResourceProvider>(serviceProvider =>
+                serviceProvider.GetRequiredService<ContractLifecycleResourceProvider>());
+            controlPlane.Resources(resources =>
+            {
+                resources.Declare(
+                    ContractLifecycleResourceProvider.ProviderId,
+                    ContractLifecycleResourceProvider.ResourceId);
+            });
+        }
+
+        var app = builder.Build();
+        await app.UseCloudShellControlPlaneAsync();
+        app.MapCloudShellControlPlane();
+        await app.StartAsync();
+        return app;
+    }
+
+    private static async Task CreateIdentityUserAsync(
+        WebApplication app,
+        string userName,
+        string password,
+        params Claim[] claims)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+        var user = new IdentityUser
+        {
+            UserName = userName,
+            Email = userName,
+            EmailConfirmed = true
+        };
+        var createResult = await userManager.CreateAsync(user, password);
+        Assert.True(
+            createResult.Succeeded,
+            string.Join(", ", createResult.Errors.Select(error => error.Description)));
+
+        foreach (var claim in claims)
+        {
+            var claimResult = await userManager.AddClaimAsync(user, claim);
+            Assert.True(
+                claimResult.Succeeded,
+                string.Join(", ", claimResult.Errors.Select(error => error.Description)));
+        }
+    }
+
     private static async Task<string> GetTokenAsync(
         HttpClient client,
         string clientId = "cloudshell-test",
@@ -266,6 +378,29 @@ public sealed class RemoteControlPlaneAuthenticationTests
                 ["grant_type"] = "client_credentials",
                 ["client_id"] = clientId,
                 ["client_secret"] = clientSecret,
+                ["scope"] = "ControlPlane.Access"
+            }));
+        response.EnsureSuccessStatusCode();
+
+        var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
+        return token?.AccessToken ??
+            throw new InvalidOperationException("The token endpoint returned no access token.");
+    }
+
+    private static async Task<string> GetPasswordTokenAsync(
+        HttpClient client,
+        string userName,
+        string password)
+    {
+        var response = await client.PostAsync(
+            "/api/auth/v1/token",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "password",
+                ["client_id"] = "cloudshell-ui",
+                ["client_secret"] = "local-development-ui-secret",
+                ["username"] = userName,
+                ["password"] = password,
                 ["scope"] = "ControlPlane.Access"
             }));
         response.EnsureSuccessStatusCode();

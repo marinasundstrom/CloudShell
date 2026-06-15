@@ -134,6 +134,10 @@ on `git blame --follow`, and then by the broad type of change.
   grants as sufficient to inspect the managed resource and load operation
   capabilities, without broadening data-plane permissions such as secrets or
   configuration value access.
+- Remote Control Plane authentication coverage now creates an ASP.NET
+  Identity user with a resource-scoped permission claim, obtains a password
+  grant token from the built-in authority, and verifies the protected API can
+  inspect the managed resource with that user account.
 - Resource detail pages now use Resource Manager operation capabilities for
   apply-button visibility and apply execution guards, keeping update affordance
   checks aligned with inventory manage/delete/action checks.
