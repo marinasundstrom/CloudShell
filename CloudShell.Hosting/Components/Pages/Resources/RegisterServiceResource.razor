@@ -15,17 +15,9 @@
         <label for="service-resource-id">Resource ID</label>
         <FluentTextField Id="service-resource-id" @bind-Value="ResourceId" Placeholder="service:api" />
 
-        <label for="service-group">Resource group</label>
-        <FluentSelect TOption="string"
-                      Id="service-group"
-                      @bind-Value="SelectedGroupId"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups)
-            {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-            }
-        </FluentSelect>
+        <ResourceGroupSelect Id="service-group"
+                             ResourceGroups="ResourceGroups"
+                             @bind-Value="SelectedGroupId" />
 
         <ResourceSelectionSection Title="Targets"
                                   Resources="GetTargetCandidates()"

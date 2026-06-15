@@ -1,0 +1,42 @@
+<label for="@Id">@Label</label>
+<FluentSelect TOption="string"
+              Id="@Id"
+              Value="@Value"
+              ValueChanged="OnValueChanged"
+              Disabled="@Disabled"
+              Appearance="Appearance.Outline">
+    <FluentOption TOption="string" Value="">@DefaultGroupLabel</FluentOption>
+    @foreach (var group in ResourceGroups)
+    {
+        <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
+    }
+</FluentSelect>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Id { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Label { get; set; } = "Resource group";
+
+    [Parameter]
+    public string DefaultGroupLabel { get; set; } = "Default group";
+
+    [Parameter]
+    public IEnumerable<ResourceGroup> ResourceGroups { get; set; } = [];
+
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private async Task OnValueChanged(string? value)
+    {
+        Value = value ?? string.Empty;
+        await ValueChanged.InvokeAsync(Value);
+    }
+}

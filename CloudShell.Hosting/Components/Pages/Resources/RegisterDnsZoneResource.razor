@@ -45,17 +45,9 @@
             </div>
         }
 
-        <label for="dns-zone-group">Resource group</label>
-        <FluentSelect TOption="string"
-                      Id="dns-zone-group"
-                      @bind-Value="SelectedGroupId"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups)
-            {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-            }
-        </FluentSelect>
+        <ResourceGroupSelect Id="dns-zone-group"
+                             ResourceGroups="ResourceGroups"
+                             @bind-Value="SelectedGroupId" />
 
         <ResourceEditorSection Title="Initial name mapping">
             <FluentCheckbox @bind-Value="CreateNameMapping">
