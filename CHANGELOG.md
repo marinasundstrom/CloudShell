@@ -158,6 +158,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager resource tabs can now declare named groups. The resource
   detail sidebar renders those group labels instead of relying on divider-like
   padding for Identity and Activity.
+- ApplicationTopology is now included in sample smoke coverage. The sample
+  host can configure its SQL Server local port, and the smoke guard verifies
+  SQL Server, Local Storage, storage-owned volume, project dependencies, and
+  grouped resource tabs.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

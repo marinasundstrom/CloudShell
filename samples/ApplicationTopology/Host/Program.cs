@@ -22,6 +22,7 @@ var frontendEndpoint = builder.Configuration["ApplicationTopology:FrontendEndpoi
     ?? "http://localhost:5218";
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
     ?? SqlServerResourceBuilderExtensions.DefaultPassword;
+var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -48,7 +49,11 @@ cloudShell.Resources(resources =>
         .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
 
     var sqlServer = resources
-        .AddSqlServer("application-topology-sql-server", sqlPassword, sqlData)
+        .AddSqlServer(
+            "application-topology-sql-server",
+            password: sqlPassword,
+            dataVolume: sqlData,
+            port: sqlPort)
         .WithImage("mcr.microsoft.com/mssql/server:2022-latest");
 
     var api = resources.AddAspNetCoreProject(

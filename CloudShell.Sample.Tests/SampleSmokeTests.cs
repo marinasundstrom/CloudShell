@@ -150,6 +150,88 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ApplicationTopologyHost_ProjectsSqlStorageAndServiceDiscoveryTopology()
+    {
+        var frontendPort = await GetFreePortAsync();
+        var sqlPort = await GetFreePortAsync();
+        using var host = await SampleProcess.StartAsync(
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var storage = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "storage:application-topology-local");
+        var volume = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "volume:application-topology-sql-data");
+        var sqlServer = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:application-topology-sql-server");
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:application-topology-api");
+        var frontend = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:application-topology-frontend");
+
+        var storageAttributes = storage.GetProperty("attributes");
+        var volumeAttributes = volume.GetProperty("attributes");
+        var sqlAttributes = sqlServer.GetProperty("attributes");
+        var apiAttributes = api.GetProperty("attributes");
+        var frontendAttributes = frontend.GetProperty("attributes");
+
+        Assert.Equal("cloudshell.storage", storage.GetProperty("typeId").GetString());
+        Assert.Equal(StorageProviderNames.LocalStorage, storage.GetProperty("kind").GetString());
+        Assert.Equal(StorageMedia.FileSystem, storageAttributes.GetProperty(ResourceAttributeNames.StorageMedium).GetString());
+        Assert.Equal("./Data/storage", storageAttributes.GetProperty(ResourceAttributeNames.StorageLocation).GetString());
+        Assert.Equal("1", storageAttributes.GetProperty(ResourceAttributeNames.StorageVolumeCount).GetString());
+
+        Assert.Equal("cloudshell.volume", volume.GetProperty("typeId").GetString());
+        Assert.Equal("storage:application-topology-local", volume.GetProperty("parentResourceId").GetString());
+        Assert.Equal("storage:application-topology-local", volumeAttributes.GetProperty(ResourceAttributeNames.VolumeStorageResourceId).GetString());
+        Assert.Equal("sql-server", volumeAttributes.GetProperty(ResourceAttributeNames.VolumeSubPath).GetString());
+        Assert.Equal(StorageMedia.FileSystem, volumeAttributes.GetProperty(ResourceAttributeNames.VolumeStorageMedium).GetString());
+
+        Assert.Equal(ApplicationResourceTypes.ContainerApp, sqlServer.GetProperty("typeId").GetString());
+        Assert.Equal($"tcp://localhost:{sqlPort}", GetEndpointAddress(sqlServer, "tds"));
+        Assert.Equal("1", sqlAttributes.GetProperty(ResourceAttributeNames.VolumeMountCount).GetString());
+        Assert.Equal("mcr.microsoft.com/mssql/server:2022-latest", sqlAttributes.GetProperty(ResourceAttributeNames.ContainerImage).GetString());
+        Assert.Contains(
+            "volume:application-topology-sql-data",
+            sqlServer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+
+        Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, api.GetProperty("typeId").GetString());
+        Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", apiAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
+        Assert.Contains(
+            "application:application-topology-sql-server",
+            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+
+        Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, frontend.GetProperty("typeId").GetString());
+        Assert.Equal($"http://localhost:{frontendPort}", GetEndpointAddress(frontend, "http"));
+        Assert.Equal("../Frontend/CloudShell.ApplicationTopologyFrontend.csproj", frontendAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
+        Assert.Contains(
+            "application:application-topology-api",
+            frontend.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+
+        var sqlDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
+        AssertResourceTabsInOrder(
+            sqlDetailsHtml,
+            ">Overview<",
+            ">Runtime<",
+            ">Deployment<",
+            ">Replicas<",
+            ">Configuration<",
+            ">Storage<",
+            ">Management<",
+            ">Activity<");
+    }
+
+    [Fact]
     public async Task SettingsAndSecretsSample_ProjectsReferenceBackedEnvironmentResources()
     {
         var apiPort = await GetFreePortAsync();
@@ -718,8 +800,8 @@ public sealed class SampleSmokeTests
         var tabListStart = html.IndexOf(tabListMarker, StringComparison.Ordinal);
         Assert.True(tabListStart >= 0, "Expected to find the resource tab list.");
 
-        var tabListEnd = html.IndexOf("</div>", tabListStart, StringComparison.Ordinal);
-        Assert.True(tabListEnd > tabListStart, "Expected the resource tab list to have a closing element.");
+        var tabListEnd = html.IndexOf("class=\"panel registration-host\"", tabListStart, StringComparison.Ordinal);
+        Assert.True(tabListEnd > tabListStart, "Expected the resource tab list to appear before the detail host.");
 
         AssertInOrder(html[tabListStart..tabListEnd], expected);
     }

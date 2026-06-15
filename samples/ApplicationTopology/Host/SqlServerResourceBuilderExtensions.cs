@@ -12,13 +12,14 @@ public static class SqlServerResourceBuilderExtensions
         this IResourceDeclarationBuilder resources,
         string name,
         string? password = null,
-        IResourceBuilder? dataVolume = null)
+        IResourceBuilder? dataVolume = null,
+        int port = 14334)
     {
         ArgumentNullException.ThrowIfNull(resources);
 
         var sqlServer = resources
             .AddContainer(name, DefaultSqlServerImage)
-            .WithEndpoint("tds", targetPort: 1433, port: 14334, protocol: "tcp")
+            .WithEndpoint("tds", targetPort: 1433, port: port, protocol: "tcp")
             .WithEnvironment("ACCEPT_EULA", "Y")
             .WithEnvironment("MSSQL_SA_PASSWORD", string.IsNullOrWhiteSpace(password)
                 ? DefaultPassword

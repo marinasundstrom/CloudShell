@@ -30,12 +30,12 @@ can show spans across both services.
 The SQL Server resource is intentionally sample-local composition over the
 current container app primitives. It uses Docker through
 `UseLocalDevelopmentDefaults()`, publishes a local `tds` endpoint on
-`localhost:14334`, and mounts a Local Storage-backed volume so database files
-can survive restarts of the SQL Server resource. The backend API references
-SQL Server through CloudShell service discovery and exposes `/database`, which
-opens a SQL connection and executes a small timestamp query. The frontend
-calls both `/message` and `/database` through the API so the sample exercises
-frontend-to-API and API-to-SQL dependencies.
+`localhost:14334` by default, and mounts a Local Storage-backed volume so
+database files can survive restarts of the SQL Server resource. The backend
+API references SQL Server through CloudShell service discovery and exposes
+`/database`, which opens a SQL connection and executes a small timestamp
+query. The frontend calls both `/message` and `/database` through the API so
+the sample exercises frontend-to-API and API-to-SQL dependencies.
 
 ## Run
 
@@ -65,7 +65,8 @@ You can override the SQL Server development password with:
 {
   "ApplicationTopology": {
     "SqlServer": {
-      "Password": "Your-strong-dev-password!"
+      "Password": "Your-strong-dev-password!",
+      "Port": 14334
     }
   }
 }
