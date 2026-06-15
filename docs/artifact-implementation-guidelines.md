@@ -582,8 +582,15 @@ Implementation:
   as lifecycle events by Resource Manager.
 - Emit resource events for operations such as actions, image updates,
   configuration changes, and important Control Plane decisions.
-- Keep resource events generic. Provider-specific logs can add operational
-  detail.
+- Provider procedures may emit provider-scoped resource events under
+  `event.provider.<provider-id>.*` for concise milestones or observations that
+  explain what the provider did while fulfilling the current resource
+  procedure. These events remain resource-scoped and should carry actor/cause
+  information from the procedure context when available.
+- Keep provider-scoped resource events concise and non-sensitive. Do not write
+  secrets, raw credentials, secret values, or raw configuration values into
+  resource events. Provider-specific logs can add operational detail when that
+  detail belongs in a log stream rather than Activity.
 - Keep structured event properties additive until event schemas are defined.
 
 Verification:

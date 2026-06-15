@@ -131,6 +131,13 @@ events. The stable event type remains machine-readable; Resource Manager UI
 can map known event types to friendly display names such as "Start action" and
 "Started".
 
+Providers can also emit provider-scoped activity while fulfilling a resource
+procedure. These events use `event.provider.<provider-id>.*` and are attached
+to the resource whose procedure is running. They are useful for implementation
+milestones such as resolving a container host, publishing DNS name mappings, or
+starting a provider-owned runtime artifact. They are not lifecycle transitions
+unless the standard lifecycle event types are used.
+
 ## Dependency Execution
 
 Dependency execution should be plan-driven:

@@ -115,6 +115,24 @@ updates. Authors can still define custom resource actions and custom resource
 event types under `event.*`; only standard lifecycle action kinds receive
 Resource Manager lifecycle events automatically.
 
+Provider-scoped activity events use the `event.provider.*` namespace. They
+are emitted while a provider is fulfilling a resource procedure and are
+registered against the resource being operated, not against the provider as a
+separate product object. This lets the Activity tab answer "what happened to
+this resource?" while still showing which provider implementation produced the
+detail. For example, a DNS zone reconcile action can record
+`event.provider.cloudshell.platform.dns.nameMappings.publishing` and
+`event.provider.cloudshell.platform.dns.nameMappings.published`, and an
+application start can record provider details such as container host
+resolution or container replica startup.
+
+Provider events are not another action model and should not become a dumping
+ground for provider logs. Use them for concise resource-procedure milestones,
+outcomes, or observations that help a user understand what the provider did on
+behalf of the resource. Provider events must not include secrets, raw
+credentials, secret values, or raw configuration values. Keep sensitive
+runtime detail in protected provider-owned stores or redacted diagnostics.
+
 When dependency startup starts another resource, that dependency gets its own
 action and lifecycle records with the dependency-start cause in the message.
 For MVP, result and failure details are text on the event message. Resource

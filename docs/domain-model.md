@@ -626,6 +626,11 @@ Event types describe facts that happened. Standard lifecycle events use
 `event.deployment.*`, for example `event.deployment.image.updated` and
 `event.deployment.replicas.updated`. Authors may define their own event
 namespaces under `event.*`, such as `event.database.backup.completed`.
+Provider-scoped activity events use `event.provider.<provider-id>.*` and are
+attached to the resource whose procedure the provider is fulfilling. They let
+provider implementations record concise procedure milestones, such as DNS
+settings being published or a container replica being started, without turning
+those details into standardized lifecycle events.
 
 Display names are presentation metadata. The Activity UI can show friendly
 labels such as "Start action" or "Started" while preserving the stable event

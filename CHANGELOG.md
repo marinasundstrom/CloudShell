@@ -146,6 +146,11 @@ on `git blame --follow`, and then by the broad type of change.
   The application provider records non-secret start/stop process and container
   steps, while DNS name-mapping reconcile records when DNS settings are being
   published and when they have been applied.
+- Provider-scoped activity event semantics are now documented in the logging
+  infrastructure, domain model, artifact guidelines, and lifecycle
+  orchestration proposal. Provider events are resource-scoped procedure
+  milestones under `event.provider.<provider-id>.*` and must not include
+  secrets or raw credential/configuration values.
 - Resource detail Apply failures now stay on the page as an apply error
   message instead of escaping through the Blazor circuit. This keeps local DNS
   permission failures, such as denied writes to `/etc/hosts`, visible without
