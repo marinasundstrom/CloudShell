@@ -19,8 +19,13 @@
     <section class="generated-section">
         <h3>@L["Identity"]</h3>
         <dl class="detail-list">
-            <dt>@L["ID"]</dt>
+            <dt>@L["Resource ID"]</dt>
             <dd>@Resource.Id</dd>
+            @if (DisplaySelection.ShouldShowDisplayName(Resource))
+            {
+                <dt>@L["Display name"]</dt>
+                <dd>@Resource.Name</dd>
+            }
             <dt>@L["Type"]</dt>
             <dd>@Resource.EffectiveTypeId</dd>
             <dt>@L["Class"]</dt>
@@ -545,7 +550,7 @@
             var confirmed = await JS.InvokeAsync<bool>(
                 "confirm",
                 action.Description ??
-                L["Start {0} for {1}?", action.DisplayName, Resource.Name].Value);
+                L["Start {0} for {1}?", action.DisplayName, GetResourceLabel(Resource)].Value);
             if (!confirmed)
             {
                 return;
@@ -741,7 +746,7 @@
     private RenderFragment ResourceLink(string resourceId) => builder =>
     {
         var resource = FindRelatedResource(resourceId);
-        var label = resource?.Name ?? resourceId;
+        var label = resource is null ? resourceId : GetResourceLabel(resource);
         builder.OpenElement(0, "a");
         builder.AddAttribute(1, "class", "resource-link generated-pill-link");
         builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
@@ -761,7 +766,7 @@
         builder.OpenElement(0, "a");
         builder.AddAttribute(1, "class", "resource-link generated-pill-link");
         builder.AddAttribute(2, "href", BuildResourceRoute(resource.Id));
-        builder.AddContent(3, resource.Name);
+        builder.AddContent(3, GetResourceLabel(resource));
         builder.OpenElement(4, "small");
         builder.AddContent(5, resource.EffectiveTypeId);
         builder.CloseElement();
@@ -777,6 +782,8 @@
 
         return RelatedResources.GetValueOrDefault(resourceId);
     }
+
+    private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
 
     private async Task<IReadOnlyDictionary<string, Resource>> LoadRelatedResourcesAsync()
     {
@@ -842,7 +849,7 @@
     private string FormatLoadBalancerRouteTarget(LoadBalancerRouteTarget target)
     {
         var resource = FindRelatedResource(target.ResourceId);
-        var label = resource?.Name ?? target.ResourceId;
+        var label = resource is null ? target.ResourceId : GetResourceLabel(resource);
         if (!string.IsNullOrWhiteSpace(target.EndpointName))
         {
             return $"{label}/{target.EndpointName}";
@@ -856,7 +863,7 @@
     private string FormatNameMappingSummary(Resource mapping) =>
         L["{0} -> {1}/{2}",
             GetNameMappingHostName(mapping),
-            Resource.Name,
+            GetResourceLabel(Resource),
             GetNameMappingTargetEndpointName(mapping)].Value;
 
     private string FormatNameMappingMetadata(NameMappingView view)

@@ -11,6 +11,19 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-15
 
+### ADR-20260615-004: Treat resource IDs as canonical and display names as presentation
+
+Resource IDs are the canonical identity for resources. They are the stable
+handles used by dependencies, permissions, resource events, logs, provider
+state, API calls, and automation. Resource display names are presentation
+labels for Resource Manager and other user-facing surfaces. Display names are
+enabled by default because they improve readability, but hosts and users may
+prefer ID-first workflows. Resource Manager should therefore make the resource
+ID explicit in detail and overview surfaces, provide a display-name preference,
+and later add display-name editing without changing the stable resource ID.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260615-003: Keep managed SQL Server distinct from container apps
 
 SQL Server is a managed database service resource, not a generic container

@@ -155,6 +155,12 @@ on `git blame --follow`, and then by the broad type of change.
   message instead of escaping through the Blazor circuit. This keeps local DNS
   permission failures, such as denied writes to `/etc/hosts`, visible without
   breaking the Resource Manager session.
+- Resource Manager now makes Resource ID the first identity detail in the
+  resource blade, detail sidebar, and generated Overview tab. The UI also
+  supports `ResourceManager:EnableDisplayNames` and a Resource Manager
+  settings toggle so hosts and users can choose display-name or resource-ID
+  primary labels.
+  Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
 - Resource detail pages now use Resource Manager operation capabilities for
   apply-button visibility and apply execution guards, keeping update affordance
   checks aligned with inventory manage/delete/action checks.

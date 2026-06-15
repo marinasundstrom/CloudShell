@@ -80,7 +80,7 @@
     <div class="procedure-confirmation">
         @if (PendingAction.RequiresDependencyChoice)
         {
-            <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
+            <strong>@PendingAction.Action.DisplayName @GetResourceLabel(PendingAction.Resource)?</strong>
             <span>@GetDependencyConfirmationMessage(PendingAction)</span>
             <div class="form-actions">
                 <FluentButton Appearance="Appearance.Accent" OnClick="() => ConfirmResourceAction(startDependencies: true)">
@@ -93,7 +93,7 @@
         }
         else if (PendingAction.RequiresDependentWarning)
         {
-            <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
+            <strong>@PendingAction.Action.DisplayName @GetResourceLabel(PendingAction.Resource)?</strong>
             <span>@GetDependentWarningMessage(PendingAction)</span>
             <div class="form-actions">
                 <FluentButton Appearance="Appearance.Neutral" OnClick="CancelResourceAction">
@@ -106,7 +106,7 @@
         }
         else
         {
-            <strong>@PendingAction.Action.DisplayName @PendingAction.Resource.Name?</strong>
+            <strong>@PendingAction.Action.DisplayName @GetResourceLabel(PendingAction.Resource)?</strong>
             <span>@GetConfirmationMessage(PendingAction.Resource, PendingAction.Action)</span>
             <div class="form-actions">
                 <FluentButton Appearance="Appearance.Neutral" OnClick="CancelResourceAction">
@@ -126,7 +126,7 @@
             <div class="inventory-filters">
                 <div class="inventory-filter name-filter">
                     <label for="resource-name-filter">@L["Name"]</label>
-                    <FluentSearch Id="resource-name-filter" @bind-Value="NameFilter" Placeholder="@L["Filter by resource name"]" />
+                    <FluentSearch Id="resource-name-filter" @bind-Value="NameFilter" Placeholder="@L["Filter by resource"]" />
                 </div>
                 <div class="inventory-filter">
                     <label for="resource-class-filter">@L["Class"]</label>
@@ -175,7 +175,7 @@
         </div>
 
         <div class="resource-list-header">
-            <span>@L["Name"]</span>
+            <span>@L["Resource"]</span>
             <span>@L["Type"]</span>
             <span>@L["Group"]</span>
             <span>@L["State"]</span>
@@ -213,11 +213,11 @@
                             {
                                 <a class="resource-link"
                                    href="@resource.DetailRoute"
-                                   @onclick:stopPropagation="true">@resource.Name</a>
+                                   @onclick:stopPropagation="true">@GetResourceLabel(resource)</a>
                             }
                             else
                             {
-                                <strong>@resource.Name</strong>
+                                <strong>@GetResourceLabel(resource)</strong>
                             }
                             @if (row.ChildCount > 0)
                             {
@@ -306,21 +306,21 @@
                 string.Equals(resource.Id, selected.ParentResourceId, StringComparison.OrdinalIgnoreCase));
         var children = allResources
             .Where(resource => string.Equals(resource.ParentResourceId, selected.Id, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         <aside class="resource-blade panel">
             @if (parent is not null)
             {
                 <button class="parent-link" @onclick="() => SelectResource(parent)">
-                    @L["Back to {0}", parent.Name]
+                    @L["Back to {0}", GetResourceLabel(parent)]
                 </button>
             }
 
             <div class="detail-heading">
                 <span class="resource-kind-icon large">@GetResourceGlyph(selected.Kind)</span>
                 <div>
-                    <h2>@selected.Name</h2>
+                    <h2>@GetResourceLabel(selected)</h2>
                     <p>@selected.Kind</p>
                 </div>
                 <button type="button"
@@ -410,6 +410,13 @@
             <section class="blade-section">
                 <h3>@L["Essentials"]</h3>
                 <dl class="detail-list">
+                    <dt>@L["Resource ID"]</dt>
+                    <dd>@selected.Id</dd>
+                    @if (DisplaySelection.ShouldShowDisplayName(selected))
+                    {
+                        <dt>@L["Display name"]</dt>
+                        <dd>@selected.Name</dd>
+                    }
                     <dt>@L["Type"]</dt>
                     <dd>@selected.EffectiveTypeId</dd>
                     <dt>@L["Resource group"]</dt>
@@ -435,8 +442,6 @@
                             <dd>@FormatResourceName(selected.OwnerResourceId)</dd>
                         }
                     }
-                    <dt>@L["Resource ID"]</dt>
-                    <dd>@selected.Id</dd>
                 </dl>
             </section>
 
@@ -450,7 +455,7 @@
                             <button @onclick="() => SelectResource(child)">
                                 <span class="resource-kind-icon">@GetResourceGlyph(child.Kind)</span>
                                 <span>
-                                    <strong>@child.Name</strong>
+                                    <strong>@GetResourceLabel(child)</strong>
                                     <small>@child.Kind</small>
                                 </span>
                                 @if (ResourceLifecycleDisplay.ShouldShowStatus(child))
@@ -568,7 +573,7 @@
                         @foreach (var exposure in GetInboundNetworkMappings(selected))
                         {
                             <div>
-                                <strong>@exposure.Network.Name</strong>
+                                <strong>@GetResourceLabel(exposure.Network)</strong>
                                 <span>@FormatMappingSummary(exposure.Mapping, exposure.Network)</span>
                                 <small>@FormatMappingProvider(exposure.Mapping)</small>
                             </div>
@@ -585,7 +590,7 @@
                         @foreach (var exposure in GetInboundLoadBalancerRoutes(selected))
                         {
                             <div>
-                                <strong>@exposure.LoadBalancer.Name</strong>
+                                <strong>@GetResourceLabel(exposure.LoadBalancer)</strong>
                                 <span>@FormatLoadBalancerRoute(exposure.Route)</span>
                                 <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
                             </div>
@@ -768,7 +773,7 @@
         var childrenByParent = scoped
             .Where(resource => resource.ParentResourceId is not null)
             .GroupBy(resource => resource.ParentResourceId!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.OrderBy(resource => resource.Name).ToArray(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(group => group.Key, group => group.OrderBy(GetResourceSortLabel).ToArray(), StringComparer.OrdinalIgnoreCase);
 
         HashSet<string>? visibleIds = null;
         if (HasActiveListFilters())
@@ -791,7 +796,7 @@
         var rows = new List<ResourceRow>();
         var roots = scoped
             .Where(resource => resource.ParentResourceId is null || !scopedIds.Contains(resource.ParentResourceId))
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase);
+            .OrderBy(GetResourceSortLabel, StringComparer.OrdinalIgnoreCase);
 
         foreach (var root in roots)
         {
@@ -829,6 +834,10 @@
 
     private bool IsVisibleInInventory(Resource resource) => DisplaySelection.ShowsResource(resource);
 
+    private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
+
+    private string GetResourceSortLabel(Resource resource) => DisplaySelection.GetResourceSortLabel(resource);
+
     private static bool IsUserManagedResource(Resource resource) =>
         resource.Source == ResourceSource.User &&
         resource.ManagementMode == ResourceManagementMode.UserManaged;
@@ -860,7 +869,8 @@
 
     private bool MatchesNameFilter(Resource resource) =>
         string.IsNullOrWhiteSpace(NameFilter) ||
-        resource.Name.Contains(NameFilter, StringComparison.OrdinalIgnoreCase);
+        resource.Name.Contains(NameFilter, StringComparison.OrdinalIgnoreCase) ||
+        resource.Id.Contains(NameFilter, StringComparison.OrdinalIgnoreCase);
 
     private bool MatchesClassFilter(Resource resource) =>
         SelectedClassFilter == AllResourceClassesFilter ||
@@ -1706,8 +1716,9 @@
 
     private string FormatResourceName(string resourceId) =>
         ResourceInventory.FirstOrDefault(resource =>
-            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))?.Name ??
-        resourceId;
+            string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) is { } resource
+                ? GetResourceLabel(resource)
+                : resourceId;
 
     private string FormatLoadBalancerRouteCounts(Resource resource)
     {
@@ -1941,7 +1952,7 @@
 
     private string GetConfirmationMessage(Resource resource, ResourceAction action) =>
         action.Description ??
-        L["This will request the {0} action for {1}.", action.DisplayName, resource.Name].Value;
+        L["This will request the {0} action for {1}.", action.DisplayName, GetResourceLabel(resource)].Value;
 
     private string GetDependencyConfirmationMessage(PendingResourceAction pending)
     {

@@ -45,6 +45,13 @@
             </div>
         </div>
         <div class="selected-type-card">
+            <span class="resource-kind-icon">L</span>
+            <div>
+                <strong>@GetLabelSummary()</strong>
+                <p>@L["Resource labels"]</p>
+            </div>
+        </div>
+        <div class="selected-type-card">
             <span class="resource-kind-icon">V</span>
             <div>
                 <strong>@GetVisibilitySummary()</strong>
@@ -128,6 +135,19 @@
             </small>
 
             <fieldset class="form-fieldset">
+                <legend>@L["Resource labels"]</legend>
+                <div class="checkbox-stack">
+                    <FluentCheckbox @bind-Value="SelectedEnableDisplayNames"
+                                    Disabled="@IsReadOnly">
+                        @L["Use display names"]
+                    </FluentCheckbox>
+                    <small>
+                        @L["Shows resource display names in Resource Manager. When disabled, Resource Manager uses resource IDs as the primary labels. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultEnableDisplayNames)]
+                    </small>
+                </div>
+            </fieldset>
+
+            <fieldset class="form-fieldset">
                 <legend>@L["Inventory visibility"]</legend>
                 <div class="checkbox-stack">
                     <FluentCheckbox @bind-Value="SelectedShowRuntimeManagedResources"
@@ -186,6 +206,7 @@
     private string? SelectedContainerHostId { get; set; }
     private int SelectedHealthCheckIntervalSeconds { get; set; } =
         ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds;
+    private bool SelectedEnableDisplayNames { get; set; } = true;
     private bool SelectedShowRuntimeManagedResources { get; set; }
     private bool SelectedShowHiddenResources { get; set; }
     private IReadOnlyList<ContainerHostOption> ContainerHosts { get; set; } = [];
@@ -240,6 +261,7 @@
             (!IsHealthCheckIntervalConfigured &&
                 ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(SelectedHealthCheckIntervalSeconds) !=
                 selection.HealthCheckIntervalSeconds) ||
+            SelectedEnableDisplayNames != display.EnableDisplayNames ||
             (display.CanShowRuntimeManagedResources &&
                 SelectedShowRuntimeManagedResources != display.ShowRuntimeManagedResources) ||
             SelectedShowHiddenResources != display.ShowHiddenResources;
@@ -294,6 +316,7 @@
             SelectedContainerHostId,
             SelectedHealthCheckIntervalSeconds);
         await DisplaySettings.SelectAsync(
+            SelectedEnableDisplayNames,
             SelectedShowRuntimeManagedResources,
             SelectedShowHiddenResources);
         SelectedHealthCheckIntervalSeconds = OrchestrationSettings.Get().HealthCheckIntervalSeconds;
@@ -310,9 +333,15 @@
     private async Task ApplyDisplaySelectionAsync()
     {
         DisplaySelection = await DisplaySettings.GetAsync();
+        SelectedEnableDisplayNames = DisplaySelection.EnableDisplayNames;
         SelectedShowRuntimeManagedResources = DisplaySelection.ShowRuntimeManagedResources;
         SelectedShowHiddenResources = DisplaySelection.ShowHiddenResources;
     }
+
+    private string GetLabelSummary() =>
+        DisplaySelection.EnableDisplayNames
+            ? L["Display names"].Value
+            : L["Resource IDs"].Value;
 
     private string GetVisibilitySummary()
     {
@@ -370,7 +399,7 @@
             {
                 if (!hosts.Any(host => string.Equals(host.Id, hostId, StringComparison.OrdinalIgnoreCase)))
                 {
-                    warnings.Add(L["Container resource '{0}' references container host '{1}', but that host is not registered.", resource.Name, hostId]);
+                    warnings.Add(L["Container resource '{0}' references container host '{1}', but that host is not registered.", DisplaySelection.GetResourceLabel(resource), hostId]);
                 }
 
                 continue;
@@ -378,7 +407,7 @@
 
             if (!hasDefaultHost)
             {
-                warnings.Add(L["Container resource '{0}' does not specify a container host and no default container host is registered.", resource.Name]);
+                warnings.Add(L["Container resource '{0}' does not specify a container host and no default container host is registered.", DisplaySelection.GetResourceLabel(resource)]);
             }
         }
 
@@ -406,7 +435,7 @@
 
         if (string.Equals(readiness, "logicalOnly", StringComparison.OrdinalIgnoreCase))
         {
-            warnings.Add(L["Virtual network '{0}' is using host-local logical networking because no host networking service is active. Activate a gateway, load balancer, or network controller provider to configure real virtual-network routing.", resource.Name]);
+            warnings.Add(L["Virtual network '{0}' is using host-local logical networking because no host networking service is active. Activate a gateway, load balancer, or network controller provider to configure real virtual-network routing.", DisplaySelection.GetResourceLabel(resource)]);
             return;
         }
 
@@ -427,7 +456,7 @@
             return;
         }
 
-        warnings.Add(L["Virtual network '{0}' requires host networking provider '{1}', but it is not active on this host.", resource.Name, string.Join(", ", missingProviders)]);
+        warnings.Add(L["Virtual network '{0}' requires host networking provider '{1}', but it is not active on this host.", DisplaySelection.GetResourceLabel(resource), string.Join(", ", missingProviders)]);
     }
 
     private IReadOnlyList<ContainerHostDescriptor> GetContainerHostDefinitions()

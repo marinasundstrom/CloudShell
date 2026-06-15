@@ -23,8 +23,14 @@ internal sealed class ResourceManagerDisplaySettings(
             CloudShellUserSettingKeys.ResourceManagerShowHiddenResources,
             configured.ShowHiddenResources,
             cancellationToken);
+        var enableDisplayNames = await GetBooleanSettingAsync(
+            CloudShellUserSettingKeys.ResourceManagerEnableDisplayNames,
+            configured.EnableDisplayNames,
+            cancellationToken);
 
         return new ResourceManagerDisplaySelection(
+            enableDisplayNames,
+            configured.EnableDisplayNames,
             canShowRuntimeManagedResources && showRuntimeManagedResources,
             configured.ShowRuntimeManagedResources,
             canShowRuntimeManagedResources,
@@ -33,10 +39,16 @@ internal sealed class ResourceManagerDisplaySettings(
     }
 
     public async Task SelectAsync(
+        bool enableDisplayNames,
         bool showRuntimeManagedResources,
         bool showHiddenResources,
         CancellationToken cancellationToken = default)
     {
+        await userSettings.SetSettingAsync(
+            CloudShellUserSettingKeys.ResourceManagerEnableDisplayNames,
+            enableDisplayNames ? "true" : "false",
+            cancellationToken);
+
         if (authorization.HasPermission(CloudShellPermissions.Resources.ReadRuntimeManaged))
         {
             await userSettings.SetSettingAsync(
@@ -64,6 +76,8 @@ internal sealed class ResourceManagerDisplaySettings(
 }
 
 internal sealed record ResourceManagerDisplaySelection(
+    bool EnableDisplayNames,
+    bool DefaultEnableDisplayNames,
     bool ShowRuntimeManagedResources,
     bool DefaultShowRuntimeManagedResources,
     bool CanShowRuntimeManagedResources,
@@ -71,6 +85,8 @@ internal sealed record ResourceManagerDisplaySelection(
     bool DefaultShowHiddenResources)
 {
     public static ResourceManagerDisplaySelection Default { get; } = new(
+        true,
+        true,
         false,
         false,
         false,
@@ -92,4 +108,14 @@ internal sealed record ResourceManagerDisplaySelection(
         return resource.ManagementMode != ResourceManagementMode.RuntimeManaged ||
             ShowRuntimeManagedResources;
     }
+
+    public string GetResourceLabel(Resource resource) =>
+        EnableDisplayNames ? resource.Name : resource.Id;
+
+    public string GetResourceSortLabel(Resource resource) =>
+        EnableDisplayNames ? resource.Name : resource.Id;
+
+    public bool ShouldShowDisplayName(Resource resource) =>
+        EnableDisplayNames &&
+        !string.Equals(resource.Name, resource.Id, StringComparison.Ordinal);
 }

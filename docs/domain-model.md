@@ -97,6 +97,7 @@ In code, a resource is projected as `Resource`.
 Important properties:
 
 - `Id`: stable identifier.
+- `Name`: user-facing display name.
 - `TypeId` / `EffectiveTypeId`: stable resource type.
 - `ResourceClass`: broad resource classification such as executable, project,
   container, service, network, storage, configuration, or infrastructure.
@@ -121,6 +122,17 @@ attributes such as class, type, endpoints, actions, health checks,
 observability, and structural metadata; providers own the configuration and
 runtime behavior behind those attributes. `Resource` does not imply CloudShell
 owns all underlying provider configuration or runtime state.
+
+`Id` is the canonical resource identity and should be visible wherever users
+inspect resource details. `Name` is a display name used for readability in
+Resource Manager and other presentation surfaces. Display names are enabled by
+default, but UI hosts can disable display-name presentation with
+`ResourceManager:EnableDisplayNames` so Resource Manager uses resource IDs as
+the primary labels. User settings can override that default where the host
+allows Resource Manager settings changes. Display-name editing is a future
+Resource Manager capability; it should update only the presentation label and
+must not change the resource ID, type, provider identity, dependencies,
+permissions, or other stable references.
 
 Not every resource exposes lifecycle status. Runtime resources such as
 applications, container hosts, containers, configuration services, secrets

@@ -8,6 +8,7 @@
 @inject ICloudShellAuthorizationService Authorization
 @inject IJSRuntime JS
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
+@inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
 @implements IDisposable
 
@@ -39,9 +40,9 @@
                       title="@L["State: {0}", state]"
                       aria-label="@L["State: {0}", state]"></span>
             }
-            <h1>@(resource?.Name ?? L["Resource"])</h1>
+            <h1>@(resource is null ? L["Resource"] : GetResourceLabel(resource))</h1>
         </div>
-        <p>@(resource?.Kind ?? L["Generated details and provider-contributed views for this resource."])</p>
+        <p>@(resource is null ? L["Generated details and provider-contributed views for this resource."] : GetResourceSubtitle(resource))</p>
     </div>
     <div class="heading-actions resource-detail-actions">
         @if (resource is not null)
@@ -108,11 +109,18 @@
             <div class="selected-type-card">
                 <span class="resource-kind-icon">@GetTypeGlyph(resource)</span>
                 <div>
-                    <strong>@resource.Name</strong>
+                    <strong>@GetResourceLabel(resource)</strong>
                     <p>@resource.Kind</p>
                 </div>
             </div>
             <dl class="detail-list">
+                <dt>@L["Resource ID"]</dt>
+                <dd>@resource.Id</dd>
+                @if (DisplaySelection.ShouldShowDisplayName(resource))
+                {
+                    <dt>@L["Display name"]</dt>
+                    <dd>@resource.Name</dd>
+                }
                 <dt>@L["Group"]</dt>
                 <dd>@(group?.Name ?? L["Default group"])</dd>
                 <dt>@L["Provider"]</dt>
@@ -215,6 +223,8 @@
     private ResourceOperationCapabilities OperationCapabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
     private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
     private string? SelectedTabId { get; set; }
     private string? ProcedureMessage { get; set; }
@@ -230,6 +240,7 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        DisplaySelection = await DisplaySettings.GetAsync();
         Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
@@ -339,7 +350,7 @@
 
         var resourceName = Resource is not null &&
             string.Equals(resourceId, Resource.Id, StringComparison.OrdinalIgnoreCase)
-            ? Resource.Name
+            ? GetResourceLabel(Resource)
             : resourceId;
         var message = string.IsNullOrWhiteSpace(result.RestartMessage)
             ? L["This change requires a restart before it takes effect."].Value
@@ -713,7 +724,7 @@
             var confirmed = await JS.InvokeAsync<bool>(
                 "confirm",
                 action.Description ??
-                L["Start {0} for {1}?", action.DisplayName, Resource.Name].Value);
+                L["Start {0} for {1}?", action.DisplayName, GetResourceLabel(Resource)].Value);
             if (!confirmed)
             {
                 return;
@@ -803,6 +814,13 @@
     private static string GetTypeGlyph(Resource resource) =>
         resource.Kind.Contains("Docker", StringComparison.OrdinalIgnoreCase) ? "D" :
         resource.Name[..1].ToUpperInvariant();
+
+    private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
+
+    private string GetResourceSubtitle(Resource resource) =>
+        DisplaySelection.EnableDisplayNames
+            ? L["{0} / {1}", resource.Kind, resource.Id].Value
+            : resource.Kind;
 
     private sealed record PendingResourceRestart(
         string ResourceId,

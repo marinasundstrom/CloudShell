@@ -308,6 +308,11 @@ listed here before pulling in broader proposal work.
 - Make Resource Manager generated details predictable for common resources:
   Overview first, resource-specific tabs next, Environment after resource
   configuration, and Identity/Activity near the bottom.
+- Keep resource identity clear when display names are enabled: Resource ID
+  should appear first in details and overview identity surfaces. Resource
+  Manager now has a display-name preference; follow-up work is a managed
+  display-name edit flow and setup guidance for environments that prefer
+  resource IDs as primary labels.
 - Keep lifecycle actions and resource activity consistent: `Start` is the
   canonical action, every lifecycle action records the requested action and
   resulting events, and dependencies started by orchestration get their own

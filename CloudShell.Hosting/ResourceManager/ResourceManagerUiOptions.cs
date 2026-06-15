@@ -6,6 +6,8 @@ public sealed class ResourceManagerUiOptions
 
     public bool ReadOnly { get; set; }
 
+    public bool EnableDisplayNames { get; set; } = true;
+
     public bool ShowRuntimeManagedResources { get; set; }
 
     public bool ShowHiddenResources { get; set; }

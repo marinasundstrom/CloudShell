@@ -50,4 +50,6 @@ public static class CloudShellUserSettingKeys
         "resource-manager.show-runtime-managed-resources";
     public const string ResourceManagerShowHiddenResources =
         "resource-manager.show-hidden-resources";
+    public const string ResourceManagerEnableDisplayNames =
+        "resource-manager.enable-display-names";
 }
