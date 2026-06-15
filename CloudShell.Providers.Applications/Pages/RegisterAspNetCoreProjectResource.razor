@@ -30,16 +30,11 @@
             <FluentTextField Id="web-application-endpoint" @bind-Value="Endpoint" Placeholder="http://localhost:5127" />
         }
 
-        <label for="web-application-lifetime">Lifetime</label>
-        <FluentSelect TOption="string"
-                      Id="web-application-lifetime"
-                      @bind-Value="SelectedLifetime"
-                      Appearance="Appearance.Outline">
-            @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
-            {
-                <FluentOption TOption="string" Value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</FluentOption>
-            }
-        </FluentSelect>
+        <EnumValueSelect TEnum="ApplicationLifetime"
+                         Id="web-application-lifetime"
+                         Label="Lifetime"
+                         LabelSelector="GetLifetimeLabel"
+                         @bind-Value="SelectedLifetime" />
 
         <FluentCheckbox @bind-Value="UseHotReload">
             Use hot reload

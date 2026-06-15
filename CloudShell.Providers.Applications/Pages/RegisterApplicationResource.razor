@@ -46,16 +46,11 @@
             <FluentTextField Id="application-endpoint" @bind-Value="Endpoint" />
         }
 
-        <label for="application-lifetime">Lifetime</label>
-        <FluentSelect TOption="string"
-                      Id="application-lifetime"
-                      @bind-Value="SelectedLifetime"
-                      Appearance="Appearance.Outline">
-            @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
-            {
-                <FluentOption TOption="string" Value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</FluentOption>
-            }
-        </FluentSelect>
+        <EnumValueSelect TEnum="ApplicationLifetime"
+                         Id="application-lifetime"
+                         Label="Lifetime"
+                         LabelSelector="GetLifetimeLabel"
+                         @bind-Value="SelectedLifetime" />
 
         <FluentCheckbox @bind-Value="UseServiceDiscovery">
             Enable service discovery for references

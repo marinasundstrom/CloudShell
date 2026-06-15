@@ -135,6 +135,8 @@ on `git blame --follow`, and then by the broad type of change.
   disabling on update tabs.
 - Network, Storage, Volume, Docker host, and application update forms now use
   the shared Resource Manager resource-group selector component.
+- Added a shared enum select component and applied it to application lifetime
+  selectors across application registration and update forms.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

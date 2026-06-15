@@ -48,16 +48,11 @@
             }
         </FluentSelect>
 
-        <label for="container-lifetime">Lifetime</label>
-        <FluentSelect TOption="string"
-                      Id="container-lifetime"
-                      @bind-Value="SelectedLifetime"
-                      Appearance="Appearance.Outline">
-            @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
-            {
-                <FluentOption TOption="string" Value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</FluentOption>
-            }
-        </FluentSelect>
+        <EnumValueSelect TEnum="ApplicationLifetime"
+                         Id="container-lifetime"
+                         Label="Lifetime"
+                         LabelSelector="GetLifetimeLabel"
+                         @bind-Value="SelectedLifetime" />
 
         <FluentCheckbox @bind-Value="ExposeEndpoint">
             Expose local endpoint

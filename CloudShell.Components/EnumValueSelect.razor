@@ -1,0 +1,43 @@
+@typeparam TEnum where TEnum : struct, Enum
+
+<label for="@Id">@Label</label>
+<FluentSelect TOption="string"
+              Id="@Id"
+              Value="@Value"
+              ValueChanged="OnValueChanged"
+              Disabled="@Disabled"
+              Appearance="Appearance.Outline">
+    @foreach (var value in Enum.GetValues<TEnum>())
+    {
+        <FluentOption TOption="string" Value="@value.ToString()">@GetLabel(value)</FluentOption>
+    }
+</FluentSelect>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Id { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Value { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public Func<TEnum, string>? LabelSelector { get; set; }
+
+    private string GetLabel(TEnum value) =>
+        LabelSelector?.Invoke(value) ?? value.ToString();
+
+    private async Task OnValueChanged(string? value)
+    {
+        Value = value ?? string.Empty;
+        await ValueChanged.InvokeAsync(Value);
+    }
+}

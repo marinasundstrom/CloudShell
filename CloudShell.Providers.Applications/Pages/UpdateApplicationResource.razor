@@ -53,17 +53,12 @@ else
 
             @if (CanConfigureLifetime)
             {
-                <label for="application-update-lifetime">Lifetime</label>
-                <FluentSelect TOption="string"
-                              Id="application-update-lifetime"
-                              @bind-Value="SelectedLifetime"
-                              Disabled="@IsReadOnly"
-                              Appearance="Appearance.Outline">
-                    @foreach (var lifetime in Enum.GetValues<ApplicationLifetime>())
-                    {
-                        <FluentOption TOption="string" Value="@lifetime.ToString()">@GetLifetimeLabel(lifetime)</FluentOption>
-                    }
-                </FluentSelect>
+                <EnumValueSelect TEnum="ApplicationLifetime"
+                                 Id="application-update-lifetime"
+                                 Label="Lifetime"
+                                 LabelSelector="GetLifetimeLabel"
+                                 Disabled="@IsReadOnly"
+                                 @bind-Value="SelectedLifetime" />
             }
 
             @if (CanConfigureServiceDiscovery)
