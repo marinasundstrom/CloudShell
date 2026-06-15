@@ -147,6 +147,12 @@ on `git blame --follow`, and then by the broad type of change.
   desired replica count, and keeps the deploy-image operation grouped with
   deployment-specific state.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
+- Container apps now project an internal orchestrator deployment view onto the
+  stable app resource. The projection includes deployment id, service id,
+  status, revision/workload version, desired replicas, and projected runtime
+  replicas, and the Deployment tab renders that state without exposing public
+  rollout-history or rollback APIs yet.
+  Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 - Docker host resources now keep host overview and projected container
   inspection separate. The overview summarizes host status and projected
   container count, while the host-scoped Containers tab lists raw Docker

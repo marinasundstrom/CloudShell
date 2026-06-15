@@ -5716,6 +5716,17 @@ public sealed class ResourceDeclarationTests
             .ToArray();
 
         Assert.True(app.IsNormalResource);
+        Assert.Equal("cloudshell-application-api-deployment", app.ResourceAttributes[ResourceAttributeNames.DeploymentId]);
+        Assert.Equal("cloudshell-application-api", app.ResourceAttributes[ResourceAttributeNames.DeploymentServiceId]);
+        Assert.Equal("pending", app.ResourceAttributes[ResourceAttributeNames.DeploymentStatus]);
+        Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentDesiredReplicas]);
+        Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
+        Assert.Equal(
+            app.ResourceAttributes[ResourceAttributeNames.ContainerRevision],
+            app.ResourceAttributes[ResourceAttributeNames.DeploymentRevision]);
+        Assert.Equal(
+            app.ResourceAttributes[ResourceAttributeNames.ContainerRevision],
+            app.ResourceAttributes[ResourceAttributeNames.DeploymentWorkloadVersion]);
         Assert.Equal(3, replicas.Length);
         Assert.All(replicas, replica =>
         {

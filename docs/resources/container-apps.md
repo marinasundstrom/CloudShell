@@ -115,6 +115,11 @@ after the update. The tab calls the same domain
 `UpdateResourceImageAsync` operation used by remote clients, then refreshes the
 projected container image and revision.
 
+The same tab shows the app's current internal deployment projection: deployment
+status, orchestrator service id, desired replicas, and projected runtime
+replicas. This is an inspection surface over CloudShell's internal
+orchestrator deployment model, not a public rollout-history or rollback API.
+
 ## Service Discovery
 
 Container apps can reference other resources with `WithReference(...)` and opt

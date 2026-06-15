@@ -2520,6 +2520,9 @@ public sealed partial class ApplicationResourceProvider(
         }
         if (IsContainerBacked(application))
         {
+            var deployment = CreateDefaultContainerOrchestratorDeployment(application, state);
+            var projectedReplicas = CreateDefaultContainerServiceInstances(deployment.Spec.Service).Count();
+
             attributes[ResourceAttributeNames.ContainerReplicas] =
                 Math.Max(1, application.Replicas).ToString(CultureInfo.InvariantCulture);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerImage, application.ContainerImage);
@@ -2528,6 +2531,15 @@ public sealed partial class ApplicationResourceProvider(
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerDockerfile, application.ContainerDockerfile);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerHostId, application.ContainerHostId);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerRevision, GetEffectiveContainerRevision(application));
+            attributes[ResourceAttributeNames.DeploymentId] = deployment.Id;
+            attributes[ResourceAttributeNames.DeploymentServiceId] = deployment.ServiceId;
+            attributes[ResourceAttributeNames.DeploymentStatus] = ToAttributeValue(deployment.Status);
+            attributes[ResourceAttributeNames.DeploymentRevision] = deployment.RevisionId;
+            attributes[ResourceAttributeNames.DeploymentWorkloadVersion] = deployment.Spec.WorkloadVersion;
+            attributes[ResourceAttributeNames.DeploymentDesiredReplicas] =
+                deployment.Spec.Service.Replicas.ToString(CultureInfo.InvariantCulture);
+            attributes[ResourceAttributeNames.DeploymentProjectedReplicas] =
+                projectedReplicas.ToString(CultureInfo.InvariantCulture);
         }
 
         if (!IsProjectBacked(application) && !IsContainerBacked(application))
@@ -3662,6 +3674,31 @@ public sealed partial class ApplicationResourceProvider(
             CreateWorkloadConfiguration(application),
             Networks: [DefaultContainerNetworkName]);
 
+    private ResourceOrchestratorDeployment CreateDefaultContainerOrchestratorDeployment(
+        ApplicationResourceDefinition application,
+        ResourceState state)
+    {
+        var service = CreateDefaultContainerOrchestratorService(application);
+        var revision = GetEffectiveContainerRevision(application);
+        var inputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.DeploymentDesiredReplicas] =
+                service.Replicas.ToString(CultureInfo.InvariantCulture),
+            [ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application)
+        };
+
+        AddIfNotEmpty(inputs, ResourceAttributeNames.ContainerImage, application.ContainerImage);
+
+        return new ResourceOrchestratorDeployment(
+            CreateDefaultContainerOrchestratorDeploymentId(application.Id),
+            Id,
+            application.Id,
+            service.Name,
+            revision,
+            new ResourceOrchestratorDeploymentSpec(service, revision, inputs),
+            GetContainerOrchestratorDeploymentStatus(state));
+    }
+
     private ApplicationResourceDefinition GetContainerApplication(string resourceId)
     {
         var application = store.GetApplication(resourceId)
@@ -3679,6 +3716,16 @@ public sealed partial class ApplicationResourceProvider(
     private static IEnumerable<ResourceOrchestratorServiceInstance> CreateDefaultContainerServiceInstances(
         ResourceOrchestratorService service) =>
         ResourceOrchestratorServiceInstances.CreateDefaultInstances(service);
+
+    private static ResourceOrchestratorDeploymentStatus GetContainerOrchestratorDeploymentStatus(
+        ResourceState state) =>
+        state switch
+        {
+            ResourceState.Starting => ResourceOrchestratorDeploymentStatus.Applying,
+            ResourceState.Running => ResourceOrchestratorDeploymentStatus.Active,
+            ResourceState.Degraded => ResourceOrchestratorDeploymentStatus.Failed,
+            _ => ResourceOrchestratorDeploymentStatus.Pending
+        };
 
     private async Task<ContainerHostDescriptor> ResolveRequiredContainerHostAsync(
         ApplicationResourceDefinition definition,
@@ -3950,6 +3997,12 @@ public sealed partial class ApplicationResourceProvider(
 
     private static string GetContainerServiceName(string resourceId) =>
         ResourceOrchestratorServiceInstances.CreateDefaultServiceName(resourceId);
+
+    private static string CreateDefaultContainerOrchestratorDeploymentId(string resourceId) =>
+        $"{GetContainerServiceName(resourceId)}-deployment";
+
+    private static string ToAttributeValue(ResourceOrchestratorDeploymentStatus status) =>
+        status.ToString().ToLowerInvariant();
 
     private bool ShouldUseContainerAppIngress(ResourceOrchestratorService service) =>
         options.EnableReplicatedContainerAppIngress &&

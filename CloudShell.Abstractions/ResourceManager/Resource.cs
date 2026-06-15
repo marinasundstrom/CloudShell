@@ -139,6 +139,13 @@ public static class ResourceAttributeNames
     public const string ContainerHostId = "container.engineId";
     public const string ContainerReplicas = "container.replicas";
     public const string ContainerRevision = "container.revision";
+    public const string DeploymentId = "deployment.id";
+    public const string DeploymentServiceId = "deployment.serviceId";
+    public const string DeploymentStatus = "deployment.status";
+    public const string DeploymentRevision = "deployment.revision";
+    public const string DeploymentWorkloadVersion = "deployment.workloadVersion";
+    public const string DeploymentDesiredReplicas = "deployment.replicas.desired";
+    public const string DeploymentProjectedReplicas = "deployment.replicas.projected";
     public const string RuntimeKind = "runtime.kind";
     public const string RuntimeContainerName = "runtime.container.name";
     public const string RuntimeReplicaOrdinal = "runtime.replica.ordinal";

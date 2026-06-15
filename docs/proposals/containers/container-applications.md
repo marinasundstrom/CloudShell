@@ -153,6 +153,8 @@ Implemented pieces include:
 * `AsContainer(...)` conversion for ASP.NET Core project resources
 * current revision projection when a container app image is updated
 * Resource Manager Deployment tab with image update action
+* app-owned internal deployment projection with status, service id, workload
+  version, desired replicas, and projected runtime replicas
 * explicit replica count update API
 * shared resource metadata for provider/orchestrator/runtime ownership,
   visibility, owner resource, and cleanup behavior

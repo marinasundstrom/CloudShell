@@ -17,10 +17,21 @@ else
             <dt>Image</dt>
             <dd>@GetCurrentContainerImage(Resource)</dd>
             <dt>Revision</dt>
-            <dd>@GetCurrentContainerRevision(Resource)</dd>
-            <dt>Replicas</dt>
-            <dd>@GetCurrentReplicas(Resource)</dd>
+            <dd>@GetDeploymentRevision(Resource)</dd>
+            <dt>Status</dt>
+            <dd>@GetDeploymentStatusLabel(Resource)</dd>
+            <dt>Service</dt>
+            <dd>@GetDeploymentService(Resource)</dd>
+            <dt>Desired replicas</dt>
+            <dd>@GetDeploymentDesiredReplicas(Resource)</dd>
+            <dt>Projected replicas</dt>
+            <dd>@GetDeploymentProjectedReplicas(Resource)</dd>
         </dl>
+
+        @if (GetDeploymentStatusDescription(Resource) is { Length: > 0 } statusDescription)
+        {
+            <div class="procedure-message compact">@statusDescription</div>
+        }
     </section>
 
     <section class="blade-section">
@@ -162,11 +173,43 @@ else
     private static string GetCurrentContainerImage(Resource resource) =>
         resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerImage) ?? string.Empty;
 
-    private static string GetCurrentContainerRevision(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision) ?? "unrevisioned";
+    private static string GetDeploymentRevision(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentRevision) ??
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerRevision) ??
+        "unrevisioned";
 
-    private static string GetCurrentReplicas(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerReplicas) ?? "1";
+    private static string GetDeploymentService(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId) ?? "not projected";
+
+    private static string GetDeploymentDesiredReplicas(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentDesiredReplicas) ??
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerReplicas) ??
+        "1";
+
+    private static string GetDeploymentProjectedReplicas(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentProjectedReplicas) ?? "0";
+
+    private static string GetDeploymentStatusLabel(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+        {
+            "active" => "Active",
+            "applying" => "Applying",
+            "failed" => "Failed",
+            "deleted" => "Deleted",
+            "pending" => "Pending",
+            _ => "Not projected"
+        };
+
+    private static string GetDeploymentStatusDescription(Resource resource) =>
+        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch
+        {
+            "active" => string.Empty,
+            "applying" => "CloudShell is applying this deployment to the selected container host.",
+            "failed" => "The latest deployment projection failed. Check resource activity and logs for details.",
+            "pending" => "The deployment is projected but not currently active. Start the app to materialize runtime replicas.",
+            "deleted" => "This deployment has been deleted by the orchestrator.",
+            _ => "No orchestrator deployment projection is available for this resource."
+        };
 
     private async Task<string> ReadDeploymentImageAsync()
     {

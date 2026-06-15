@@ -14,6 +14,9 @@ Initial implementation now adds internal data contracts for
 `ResourceOrchestratorDeployment`, `ResourceOrchestratorDeploymentSpec`, and
 `ResourceOrchestratorRevision` in the orchestration abstractions. These are
 intended for container apps, providers, and orchestrators to build on first.
+Container apps now use the deployment contract to project deployment status,
+service id, workload version, desired replicas, and projected replicas onto the
+stable app resource and Deployment tab.
 They are not yet a public Resource Manager or Control Plane management surface,
 and rich rollout history, rollback, traffic splitting, and retention remain
 deferred.
