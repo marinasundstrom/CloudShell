@@ -160,6 +160,8 @@ Implemented pieces include:
   container app runtime materialization
 * hidden runtime-managed child resources for container app replica/container
   projections, parented to and owned by the stable container app resource
+* app-scoped Replicas tab that lists projected runtime replicas without
+  requiring global hidden/runtime-managed inventory settings
 * application-level service discovery opt-in through `WithServiceDiscovery()`
 * volume mount model and Storage tab for resources that support storage
 * identity binding and standard runtime credential delivery path
@@ -205,12 +207,11 @@ Implemented pieces include:
    orchestrator deployment/revision contracts for container app implementation
    work, but defer public rollout history, rollback, and traffic splitting to
    later deployment/revision slices.
-7. Add a container app Replicas tab that shows app-owned replica/runtime
-   diagnostics to users who can view or manage the container app. This tab is
-   app-scoped and should not require enabling the global runtime-managed
-   inventory view; the global `Show runtime-managed resources` setting remains
-   for browsing hidden runtime-managed artifacts directly in the resource
-   inventory.
+7. Keep the container app Replicas tab app-scoped. It shows app-owned
+   replica/runtime diagnostics to users who can view or manage the container
+   app without requiring the global runtime-managed inventory view; the global
+   `Show runtime-managed resources` setting remains for browsing hidden
+   runtime-managed artifacts directly in the resource inventory.
 8. Validate the managed-service story with samples that combine container app,
    storage, service discovery, identity, secrets/configuration, logs, traces,
    and public/name exposure.
@@ -230,8 +231,9 @@ Implemented pieces include:
 * Enrich hidden replica/container child resources with provider-observed
   container IDs, health, placement, and materialization state once providers
   can report them consistently.
-* Add a Replicas tab under container app resources for app-scoped replica
-  diagnostics and relationship inspection.
+* Enrich the Replicas tab with provider-observed container IDs, placement,
+  health, and materialization state once providers can report them
+  consistently.
 * Add deeper container-host readiness diagnostics for unsupported ingress,
   public endpoint, DNS/name publication, registry credential, and storage
   choices before update/start.

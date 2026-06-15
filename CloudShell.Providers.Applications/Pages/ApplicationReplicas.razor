@@ -1,0 +1,159 @@
+@inject IResourceManagerStore ResourceManager
+
+@if (Application is null)
+{
+    <div class="empty-state">
+        <strong>Replicas are unavailable</strong>
+        <span>The resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else if (!ApplicationResourceTypes.IsContainerApp(Application.EffectiveTypeId))
+{
+    <div class="empty-state">
+        <strong>Replicas are not supported</strong>
+        <span>This resource type does not expose container app replicas.</span>
+    </div>
+}
+else
+{
+    <section class="blade-section">
+        <h3>Replica set</h3>
+        <dl class="detail-list">
+            <dt>Configured replicas</dt>
+            <dd>@GetConfiguredReplicas(Application)</dd>
+            <dt>Projected replicas</dt>
+            <dd>@Replicas.Count</dd>
+            <dt>Revision</dt>
+            <dd>@GetAttribute(Application, ResourceAttributeNames.ContainerRevision, Application.Version)</dd>
+            <dt>Image</dt>
+            <dd>@GetAttribute(Application, ResourceAttributeNames.ContainerImage, "none")</dd>
+        </dl>
+    </section>
+
+    <section class="blade-section">
+        <h3>Replicas</h3>
+        @if (Replicas.Count == 0)
+        {
+            <div class="empty-state">
+                <strong>No replicas are projected</strong>
+                <span>The provider has not projected runtime replica artifacts for this app.</span>
+            </div>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table class="resource-table">
+                    <thead>
+                        <tr>
+                            <th>Replica</th>
+                            <th>State</th>
+                            <th>Revision</th>
+                            <th>Container</th>
+                            <th>Materialization</th>
+                            <th>Host</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var replica in Replicas)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@replica.Name</strong>
+                                    <span>@FormatReplicaOrdinal(replica)</span>
+                                </td>
+                                <td>
+                                    <span class="state-pill @GetStateClass(replica.State)">
+                                        @GetStateLabel(replica.State)
+                                    </span>
+                                </td>
+                                <td>@GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version)</td>
+                                <td>
+                                    <strong>@GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name)</strong>
+                                    <span>@replica.Id</span>
+                                </td>
+                                <td>@GetMaterializationLabel(replica)</td>
+                                <td>@GetAttribute(replica, ResourceAttributeNames.ContainerHostId, "default host")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Application { get; set; }
+    private IReadOnlyList<Resource> Replicas { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        Application = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ResourceManager.GetResource(ResourceId);
+        Replicas = Application is null
+            ? []
+            : ResourceManager.GetChildren(Application.Id)
+                .Where(IsReplicaResource)
+                .OrderBy(GetReplicaOrdinal)
+                .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+    }
+
+    private static bool IsReplicaResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeKind, string.Empty),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static int GetConfiguredReplicas(Resource resource) =>
+        int.TryParse(
+            GetAttribute(resource, ResourceAttributeNames.ContainerReplicas, string.Empty),
+            out var replicas)
+            ? Math.Max(1, replicas)
+            : 1;
+
+    private static int GetReplicaOrdinal(Resource resource) =>
+        int.TryParse(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, string.Empty),
+            out var ordinal)
+            ? ordinal
+            : int.MaxValue;
+
+    private static string FormatReplicaOrdinal(Resource resource)
+    {
+        var ordinal = GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, "?");
+        var count = GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaCount, "?");
+        return $"{ordinal} of {count}";
+    }
+
+    private static string GetMaterializationLabel(Resource resource) =>
+        GetAttribute(resource, ResourceAttributeNames.RuntimeMaterialization, "unknown") switch
+        {
+            "orchestratorProjection" => "projected by orchestrator",
+            { Length: > 0 } value => value,
+            _ => "unknown"
+        };
+
+    private static string GetAttribute(Resource resource, string key, string fallback) =>
+        resource.ResourceAttributes.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static string GetStateLabel(ResourceState? state) =>
+        state?.ToString() ?? "Unknown";
+
+    private static string GetStateClass(ResourceState? state) => state switch
+    {
+        ResourceState.Running => "state-running",
+        ResourceState.Starting => "state-starting",
+        ResourceState.Paused => "state-paused",
+        ResourceState.Degraded => "state-degraded",
+        ResourceState.Stopped => "state-stopped",
+        _ => "state-unknown"
+    };
+}

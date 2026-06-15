@@ -136,6 +136,12 @@ on `git blame --follow`, and then by the broad type of change.
   the same visibility gates as the Resource Manager inventory so provider or
   runtime artifacts do not appear as sub-resources by default.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
+- Container app resources now have a read-only Replicas tab that lists the
+  app-owned projected runtime replicas with state, revision, container name,
+  materialization, and host metadata. The tab is scoped to the app and does
+  not require enabling global hidden or runtime-managed resource inventory
+  settings.
+  Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 
 #### Samples
 

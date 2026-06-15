@@ -155,10 +155,11 @@ listed here before pulling in broader proposal work.
    declared Docker containers remain normal user-managed resources. Generic
    child-resource UI should honor visibility settings; providers should expose
    deliberate host/app-scoped tabs when those artifacts need first-class
-   inspection. Next slices should enrich those children only where container
-   apps need provider-observed container IDs, health, placement,
-   materialization diagnostics, or an app-scoped Replicas tab, not as a broad
-   public deployment product surface.
+   inspection. Container apps now have an app-scoped Replicas tab for projected
+   runtime children. Next slices should enrich those children only where
+   container apps need provider-observed container IDs, health, placement, or
+   materialization diagnostics, not as a broad public deployment product
+   surface.
 12. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,

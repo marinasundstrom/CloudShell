@@ -912,7 +912,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public void ApplicationProviderExtension_RegistersStorageTabsForVolumeMountResources()
+    public void ApplicationProviderExtension_RegistersApplicationResourceTabs()
     {
         var services = new ServiceCollection();
 
@@ -926,8 +926,15 @@ public sealed class ResourceDeclarationTests
             .SelectMany(extension => extension.ResourceTypes)
             .ToDictionary(resourceType => resourceType.Id, StringComparer.OrdinalIgnoreCase);
 
+        AssertReplicaTab(resourceTypes[ApplicationResourceTypes.ContainerApp]);
         AssertStorageTab(resourceTypes[ApplicationResourceTypes.ContainerApp]);
         AssertStorageTab(resourceTypes[ApplicationResourceTypes.SqlServer]);
+        Assert.DoesNotContain(
+            resourceTypes[ApplicationResourceTypes.SqlServer].ResourceTabs,
+            tab => string.Equals(tab.Id, "replicas", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
+            tab => string.Equals(tab.Id, "replicas", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => string.Equals(tab.Id, "storage", StringComparison.OrdinalIgnoreCase));
@@ -1046,6 +1053,18 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("Storage", storageTab.Title);
         Assert.True(storageTab.ShowsApplyButton);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationStorage), storageTab.ComponentType);
+    }
+
+    private static void AssertReplicaTab(ResourceTypeContribution resourceType)
+    {
+        var replicaTab = Assert.Single(
+            resourceType.ResourceTabs,
+            tab => string.Equals(tab.Id, "replicas", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal("Replicas", replicaTab.Title);
+        Assert.False(replicaTab.ShowsApplyButton);
+        Assert.Equal(20, replicaTab.Order);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationReplicas), replicaTab.ComponentType);
     }
 
     [Fact]
