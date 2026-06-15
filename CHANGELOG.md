@@ -142,6 +142,9 @@ on `git blame --follow`, and then by the broad type of change.
   update behavior.
 - Core networking, service, DNS, and name-mapping forms now use the shared enum
   select component for protocol and exposure selections.
+- Added a shared primary form action component and applied it to matching
+  single-action registration forms across Resource Manager, application, and
+  configuration pages.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP
