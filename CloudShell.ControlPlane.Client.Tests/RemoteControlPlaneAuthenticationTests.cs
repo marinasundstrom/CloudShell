@@ -1,9 +1,13 @@
 using CloudShell.Client.Authentication;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
+using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
@@ -86,6 +90,34 @@ public sealed class RemoteControlPlaneAuthenticationTests
     }
 
     [Fact]
+    public async Task ResourcePermissionCredential_CanExecuteScopedResourceAction()
+    {
+        await using var app = await CreateProtectedAppAsync(includeLifecycleResource: true);
+        var token = await GetTokenAsync(
+            app.GetTestClient(),
+            "cloudshell-lifecycle",
+            "local-development-lifecycle-secret");
+        var controlPlane = CreateClient(
+            app,
+            new StaticBearerControlPlaneCredential(token),
+            CreateOptions());
+
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync(
+            [ContractLifecycleResourceProvider.ResourceId]);
+        var result = await controlPlane.ExecuteResourceActionAsync(
+            ContractLifecycleResourceProvider.ResourceId,
+            ResourceActionIds.Stop);
+
+        var capability = Assert.Single(capabilities).Value;
+        Assert.False(capability.CanManage);
+        Assert.False(capability.CanDelete);
+        Assert.True(capability.CanExecuteAction(ResourceActionIds.Stop));
+        Assert.Equal("Executed stop.", result.Message);
+        var provider = app.Services.GetRequiredService<ContractLifecycleResourceProvider>();
+        Assert.Equal([ResourceActionIds.Stop], provider.ExecutedActions);
+    }
+
+    [Fact]
     public async Task EmptyCredential_CannotCallProtectedControlPlane()
     {
         await using var app = await CreateProtectedAppAsync();
@@ -127,7 +159,7 @@ public sealed class RemoteControlPlaneAuthenticationTests
         return options;
     }
 
-    private static async Task<WebApplication> CreateProtectedAppAsync()
+    private static async Task<WebApplication> CreateProtectedAppAsync(bool includeLifecycleResource = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -152,12 +184,37 @@ public sealed class RemoteControlPlaneAuthenticationTests
                 "ControlPlane.Access",
             ["Authentication:BuiltInAuthority:Clients:cloudshell-test:Roles:0"] =
                 "CloudShell.Administrator",
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-lifecycle:Secret"] =
+                "local-development-lifecycle-secret",
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-lifecycle:Scopes:0"] =
+                "ControlPlane.Access",
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-lifecycle:ResourcePermissions:0:ResourceId"] =
+                ContractLifecycleResourceProvider.ResourceId,
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-lifecycle:ResourcePermissions:0:Permission"] =
+                CloudShellPermissions.Resources.Read,
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-lifecycle:ResourcePermissions:1:ResourceId"] =
+                ContractLifecycleResourceProvider.ResourceId,
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-lifecycle:ResourcePermissions:1:Permission"] =
+                CloudShellPermissions.Resources.Actions.Lifecycle,
             ["Persistence:Provider"] = "Sqlite",
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-client-auth.db",
             ["Persistence:IdentityConnectionString"] = "Data Source=Data/identity-client-auth.db"
         });
 
-        builder.AddCloudShellControlPlane();
+        var controlPlane = builder.AddCloudShellControlPlane();
+        if (includeLifecycleResource)
+        {
+            builder.Services.AddSingleton<ContractLifecycleResourceProvider>();
+            builder.Services.AddSingleton<IResourceProvider>(serviceProvider =>
+                serviceProvider.GetRequiredService<ContractLifecycleResourceProvider>());
+            controlPlane.Resources(resources =>
+            {
+                resources.Declare(
+                    ContractLifecycleResourceProvider.ProviderId,
+                    ContractLifecycleResourceProvider.ResourceId);
+            });
+        }
+
         var app = builder.Build();
         await app.UseCloudShellControlPlaneAsync();
         app.MapCloudShellControlPlane();
@@ -165,15 +222,18 @@ public sealed class RemoteControlPlaneAuthenticationTests
         return app;
     }
 
-    private static async Task<string> GetTokenAsync(HttpClient client)
+    private static async Task<string> GetTokenAsync(
+        HttpClient client,
+        string clientId = "cloudshell-test",
+        string clientSecret = "local-development-client-secret")
     {
         var response = await client.PostAsync(
             "/api/auth/v1/token",
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
                 ["grant_type"] = "client_credentials",
-                ["client_id"] = "cloudshell-test",
-                ["client_secret"] = "local-development-client-secret",
+                ["client_id"] = clientId,
+                ["client_secret"] = clientSecret,
                 ["scope"] = "ControlPlane.Access"
             }));
         response.EnsureSuccessStatusCode();
@@ -202,6 +262,54 @@ public sealed class RemoteControlPlaneAuthenticationTests
                 new CloudShellResourceAccessToken(
                     token,
                     DateTimeOffset.UtcNow.AddMinutes(5)));
+        }
+    }
+
+    private sealed class ContractLifecycleResourceProvider : IResourceProvider, IResourceProcedureProvider
+    {
+        public const string ProviderId = "contract.lifecycle";
+        public const string ResourceId = "contract:lifecycle";
+
+        public string Id => ProviderId;
+
+        public string DisplayName => "Contract Lifecycle";
+
+        public List<string> ExecutedActions { get; } = [];
+
+        public IReadOnlyList<Resource> GetResources() =>
+        [
+            new(
+                ResourceId,
+                "Contract Lifecycle",
+                "Lifecycle",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                TypeId: "contract.lifecycle",
+                ResourceClass: ResourceClass.Executable,
+                Actions:
+                [
+                    ResourceAction.Stop,
+                    ResourceAction.Restart
+                ])
+        ];
+
+        public Task<ResourceProcedureResult> DeleteAsync(
+            ResourceProcedureContext context,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(ResourceProcedureResult.Completed($"Deleted {context.Resource.Id}."));
+
+        public Task<ResourceProcedureResult> ExecuteActionAsync(
+            ResourceProcedureContext context,
+            ResourceAction action,
+            CancellationToken cancellationToken = default)
+        {
+            ExecutedActions.Add(action.Id);
+            return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
         }
     }
 

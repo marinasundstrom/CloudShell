@@ -126,6 +126,10 @@ on `git blame --follow`, and then by the broad type of change.
   lifecycle action execution, storage-owned volume creation, and resource
   identity provisioning so the UI-first identity path is covered by the same
   Control Plane service behavior.
+- Remote Control Plane authentication coverage now includes a constrained
+  bearer credential with resource-scoped read and lifecycle-action claims,
+  proving protected API/client calls can inspect resource capabilities and
+  execute permitted lifecycle actions without manage/delete permission.
 - Resource detail pages now use Resource Manager operation capabilities for
   apply-button visibility and apply execution guards, keeping update affordance
   checks aligned with inventory manage/delete/action checks.
