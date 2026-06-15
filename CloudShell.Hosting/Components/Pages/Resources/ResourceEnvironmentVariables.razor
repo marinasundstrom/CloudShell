@@ -28,13 +28,16 @@ else
 
     @if (AppSettingProvider is not null)
     {
-        <div class="environment-editor resource-environment-editor">
-            <div class="environment-header">
+        <ResourceEditorSection Class="resource-environment-editor">
+            <HeaderContent>
                 <strong>@L["App settings"]</strong>
+            </HeaderContent>
+            <Actions>
                 <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="AddAppSetting">
                     @L["Add setting"]
                 </FluentButton>
-            </div>
+            </Actions>
+            <ChildContent>
 
             @if (AppSettings.Count == 0)
             {
@@ -121,105 +124,110 @@ else
                     </div>
                 }
             }
-        </div>
+            </ChildContent>
+        </ResourceEditorSection>
     }
 
     @if (EnvironmentVariableProvider is not null)
     {
-    <div class="environment-editor resource-environment-editor">
-        <div class="environment-header">
-            <strong>@L["Environment variables"]</strong>
-            <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="AddVariable">
-                @L["Add variable"]
-            </FluentButton>
-        </div>
+        <ResourceEditorSection Class="resource-environment-editor">
+            <HeaderContent>
+                <strong>@L["Environment variables"]</strong>
+            </HeaderContent>
+            <Actions>
+                <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="AddVariable">
+                    @L["Add variable"]
+                </FluentButton>
+            </Actions>
+            <ChildContent>
 
-        @if (Variables.Count == 0)
-        {
-            <p class="muted">@L["No environment variables are configured."]</p>
-        }
-        else
-        {
-            @foreach (var variable in Variables)
+            @if (Variables.Count == 0)
             {
-                <div class="resource-environment-row" @key="variable">
-                    <FluentTextField AriaLabel="@L["Environment variable name"]"
-                                     Placeholder="ASPNETCORE_ENVIRONMENT"
-                                     Disabled="@IsReadOnly"
-                                     @bind-Value="variable.Name" />
-                    <select class="resource-environment-source"
-                            aria-label="@L["Environment variable source"]"
-                            disabled="@IsReadOnly"
-                            @bind="variable.Source">
-                        <option value="@EnvironmentVariableSource.Literal">@L["Custom value"]</option>
-                        <option value="@EnvironmentVariableSource.Configuration">@L["Configuration entry"]</option>
-                        <option value="@EnvironmentVariableSource.Secret">@L["Secret"]</option>
-                    </select>
-
-                    @if (variable.Source == EnvironmentVariableSource.Literal)
-                    {
-                        <FluentTextField AriaLabel="@L["Environment variable value"]"
-                                         Disabled="@IsReadOnly"
-                                         @bind-Value="variable.Value" />
-                    }
-                    else if (variable.Source == EnvironmentVariableSource.Configuration)
-                    {
-                        <select class="resource-environment-reference"
-                                aria-label="@L["Configuration store"]"
-                                disabled="@IsReadOnly"
-                                @bind="variable.ReferenceResourceId">
-                            <option value="">@L["Select configuration store"]</option>
-                            @foreach (var store in ConfigurationStores)
-                            {
-                                <option value="@store.Id">@store.Name</option>
-                            }
-                            @if (IsMissingConfigurationStore(variable.ReferenceResourceId))
-                            {
-                                <option value="@variable.ReferenceResourceId">@FormatUnavailableReference(variable.ReferenceResourceId)</option>
-                            }
-                        </select>
-                        <FluentTextField AriaLabel="@L["Configuration entry name"]"
-                                         Placeholder="ConnectionStrings:Default"
-                                         Disabled="@IsReadOnly"
-                                         @bind-Value="variable.ReferenceName" />
-                        <FluentTextField AriaLabel="@L["Configuration entry version"]"
-                                         Placeholder="@L["Version"]"
-                                         Disabled="@IsReadOnly"
-                                         @bind-Value="variable.Version" />
-                    }
-                    else
-                    {
-                        <select class="resource-environment-reference"
-                                aria-label="@L["Secrets vault"]"
-                                disabled="@IsReadOnly"
-                                @bind="variable.ReferenceResourceId">
-                            <option value="">@L["Select Secrets Vault"]</option>
-                            @foreach (var vault in SecretsVaults)
-                            {
-                                <option value="@vault.Id">@vault.Name</option>
-                            }
-                            @if (IsMissingSecretsVault(variable.ReferenceResourceId))
-                            {
-                                <option value="@variable.ReferenceResourceId">@FormatUnavailableReference(variable.ReferenceResourceId)</option>
-                            }
-                        </select>
-                        <FluentTextField AriaLabel="@L["Secret name"]"
-                                         Placeholder="ApiKey"
-                                         Disabled="@IsReadOnly"
-                                         @bind-Value="variable.ReferenceName" />
-                        <FluentTextField AriaLabel="@L["Secret version"]"
-                                         Placeholder="@L["Version"]"
-                                         Disabled="@IsReadOnly"
-                                         @bind-Value="variable.Version" />
-                    }
-
-                    <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="() => RemoveVariable(variable)">
-                        @L["Remove"]
-                    </FluentButton>
-                </div>
+                <p class="muted">@L["No environment variables are configured."]</p>
             }
-        }
-    </div>
+            else
+            {
+                @foreach (var variable in Variables)
+                {
+                    <div class="resource-environment-row" @key="variable">
+                        <FluentTextField AriaLabel="@L["Environment variable name"]"
+                                         Placeholder="ASPNETCORE_ENVIRONMENT"
+                                         Disabled="@IsReadOnly"
+                                         @bind-Value="variable.Name" />
+                        <select class="resource-environment-source"
+                                aria-label="@L["Environment variable source"]"
+                                disabled="@IsReadOnly"
+                                @bind="variable.Source">
+                            <option value="@EnvironmentVariableSource.Literal">@L["Custom value"]</option>
+                            <option value="@EnvironmentVariableSource.Configuration">@L["Configuration entry"]</option>
+                            <option value="@EnvironmentVariableSource.Secret">@L["Secret"]</option>
+                        </select>
+
+                        @if (variable.Source == EnvironmentVariableSource.Literal)
+                        {
+                            <FluentTextField AriaLabel="@L["Environment variable value"]"
+                                             Disabled="@IsReadOnly"
+                                             @bind-Value="variable.Value" />
+                        }
+                        else if (variable.Source == EnvironmentVariableSource.Configuration)
+                        {
+                            <select class="resource-environment-reference"
+                                    aria-label="@L["Configuration store"]"
+                                    disabled="@IsReadOnly"
+                                    @bind="variable.ReferenceResourceId">
+                                <option value="">@L["Select configuration store"]</option>
+                                @foreach (var store in ConfigurationStores)
+                                {
+                                    <option value="@store.Id">@store.Name</option>
+                                }
+                                @if (IsMissingConfigurationStore(variable.ReferenceResourceId))
+                                {
+                                    <option value="@variable.ReferenceResourceId">@FormatUnavailableReference(variable.ReferenceResourceId)</option>
+                                }
+                            </select>
+                            <FluentTextField AriaLabel="@L["Configuration entry name"]"
+                                             Placeholder="ConnectionStrings:Default"
+                                             Disabled="@IsReadOnly"
+                                             @bind-Value="variable.ReferenceName" />
+                            <FluentTextField AriaLabel="@L["Configuration entry version"]"
+                                             Placeholder="@L["Version"]"
+                                             Disabled="@IsReadOnly"
+                                             @bind-Value="variable.Version" />
+                        }
+                        else
+                        {
+                            <select class="resource-environment-reference"
+                                    aria-label="@L["Secrets vault"]"
+                                    disabled="@IsReadOnly"
+                                    @bind="variable.ReferenceResourceId">
+                                <option value="">@L["Select Secrets Vault"]</option>
+                                @foreach (var vault in SecretsVaults)
+                                {
+                                    <option value="@vault.Id">@vault.Name</option>
+                                }
+                                @if (IsMissingSecretsVault(variable.ReferenceResourceId))
+                                {
+                                    <option value="@variable.ReferenceResourceId">@FormatUnavailableReference(variable.ReferenceResourceId)</option>
+                                }
+                            </select>
+                            <FluentTextField AriaLabel="@L["Secret name"]"
+                                             Placeholder="ApiKey"
+                                             Disabled="@IsReadOnly"
+                                             @bind-Value="variable.ReferenceName" />
+                            <FluentTextField AriaLabel="@L["Secret version"]"
+                                             Placeholder="@L["Version"]"
+                                             Disabled="@IsReadOnly"
+                                             @bind-Value="variable.Version" />
+                        }
+
+                        <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="() => RemoveVariable(variable)">
+                            @L["Remove"]
+                        </FluentButton>
+                    </div>
+                }
+            }
+            </ChildContent>
+        </ResourceEditorSection>
     }
 }
 

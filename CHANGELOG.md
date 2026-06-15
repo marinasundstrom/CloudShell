@@ -101,6 +101,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a reusable `ResourceEditorSection` component for Resource Manager
   editor sections with standard header/action layout, and applied it to
   configuration, secrets, and application storage edit tabs.
+- Resource environment variable editing now uses the shared editor section
+  component for app settings and environment variable sections, reducing
+  repeated Resource Manager section/header markup.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP
