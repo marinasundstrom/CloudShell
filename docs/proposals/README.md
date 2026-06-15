@@ -34,6 +34,7 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 | 13 | [Provider-created and runtime-managed resources](core/provider-created-and-runtime-managed-resources.md) | In progress design | Post-MVP foundation, with MVP implications for diagnostics and cleanup | Decide ownership, visibility, cleanup, diagnostics, and authorization before broad runtime artifact projection. |
 | 14 | [Deployments and revisions](deployment/deployments-and-revisions.md) | In progress design | Post-MVP foundation, with MVP current-revision support | Rich rollout history waits until runtime ownership and traceability boundaries are clear. |
 | 15 | [Deployment projection](deployment/deployment-projection.md) | In progress | Later portability | Tracks external deployment artifact projection and should not displace the MVP control-plane milestone. |
+| 16 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
 
 ## Current proposal order
 
@@ -66,7 +67,8 @@ Work proposal areas in the current product order:
 9. Runtime ownership decisions through
    [Runtime-managed resources](core/provider-created-and-runtime-managed-resources.md)
 10. [Deployments and revisions](deployment/deployments-and-revisions.md)
-11. Advanced app and environment concepts
+11. Advanced app and environment concepts, including external-format resource
+    graph import and code generation
 
 Use [Roadmap](../roadmap.md) for the reasoning behind this order and the
 concrete MVP execution plan.

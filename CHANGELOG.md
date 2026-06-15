@@ -63,6 +63,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Samples
 
+- Updated the Load Balancer smoke test to match the sample's current
+  `cloudshell.local` DNS zone, local host-name publisher materialization
+  status, and generated Traefik host rules.
 - The broad MVP application-topology sample is now forked from
   `samples/ProjectReference` into `samples/ApplicationTopology`. Keep
   ProjectReference focused on the small ASP.NET Core project dependency,
@@ -81,6 +84,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Documentation
 
+- Added a resource graph import and code generation proposal. The proposal
+  treats Docker Compose YAML as the first external input dialect, keeps
+  CloudShell graph drafts as the translation boundary, and makes generated C#
+  programmatic declarations the preferred first output while also considering
+  UI apply, API, and resource-template scenarios.
 - Added `CONTRIBUTIONS.md` to codify the shared CloudShell development workflow:
   make focused slices, add tests when behavior changes, run verification,
   update docs/changelog/ADR where applicable, then commit and push each slice.
