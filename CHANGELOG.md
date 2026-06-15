@@ -60,6 +60,9 @@ on `git blame --follow`, and then by the broad type of change.
   Storage Volumes tab and volume create form, and the Control Plane enforces it
   before dispatching the create request to the provider.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
+- The Storage Volumes tab now keeps owned volumes inspectable while showing the
+  explicit Manage action only for volumes the current user can manage.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

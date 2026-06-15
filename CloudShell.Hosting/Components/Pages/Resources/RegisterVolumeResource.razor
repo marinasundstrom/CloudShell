@@ -101,9 +101,10 @@
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
         StorageGroupsByResourceId = ResourceGroups
             .SelectMany(group => group.ResourceIds.Select(resourceId => new { resourceId, group }))
+            .GroupBy(entry => entry.resourceId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
-                entry => entry.resourceId,
-                entry => entry.group,
+                group => group.Key,
+                group => group.First().group,
                 StringComparer.OrdinalIgnoreCase);
         StorageResources = (await ResourceManager.ListResourcesAsync())
             .Where(resource => resource.HasCapability(ResourceCapabilityIds.StorageProvider))

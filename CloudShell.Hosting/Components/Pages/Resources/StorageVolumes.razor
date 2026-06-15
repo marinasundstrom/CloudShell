@@ -49,12 +49,15 @@ else
                         </strong>
                         <span>@GetVolumeSummary(volume)</span>
                         <small>@GetVolumeMetadata(volume)</small>
-                        <span class="inline-actions">
-                            <FluentButton Appearance="Appearance.Neutral"
-                                          OnClick="@(() => ManageVolume(volume.Volume.Id))">
-                                Manage
-                            </FluentButton>
-                        </span>
+                        @if (CanManageVolume(volume.Volume))
+                        {
+                            <span class="inline-actions">
+                                <FluentButton Appearance="Appearance.Neutral"
+                                              OnClick="@(() => ManageVolume(volume.Volume.Id))">
+                                    Manage
+                                </FluentButton>
+                            </span>
+                        }
                     </div>
                 }
             </div>
@@ -68,6 +71,8 @@ else
 
     private Resource? Storage { get; set; }
     private ResourceGroup? StorageGroup { get; set; }
+    private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
+        new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<StorageVolumeView> Volumes { get; set; } = [];
     private bool CanCreateVolume =>
         Storage is not null &&
@@ -88,6 +93,13 @@ else
         }
 
         StorageGroup = await ResourceManager.GetResourceGroupForResourceAsync(Storage.Id);
+        ResourceGroupsByResourceId = (await ResourceManager.ListResourceGroupsAsync())
+            .SelectMany(group => group.ResourceIds.Select(resourceId => new { resourceId, group }))
+            .GroupBy(entry => entry.resourceId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First().group,
+                StringComparer.OrdinalIgnoreCase);
         var resources = await ResourceManager.ListResourcesAsync();
         var children = await ResourceManager.ListResourceChildrenAsync(Storage.Id);
         var orchestrationSnapshot = await OrchestrationCatalog.GetSnapshotAsync();
@@ -213,6 +225,13 @@ else
 
     private static string BuildManageResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=configuration";
+
+    private bool CanManageVolume(Resource volume) =>
+        !ResourceManagerUiOptions.Value.ReadOnly &&
+        Authorization.CanAccessResource(
+            volume.Id,
+            ResourceGroupsByResourceId.GetValueOrDefault(volume.Id)?.Id,
+            CloudShellPermissions.Resources.Manage);
 
     private static string BuildCreateVolumeRoute(string storageResourceId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
