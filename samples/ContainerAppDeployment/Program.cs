@@ -11,7 +11,7 @@ using CloudShell.Providers.Docker;
 var builder = CloudShellApplication.CreateBuilder(args);
 
 const string registryHost = "localhost";
-const int registryPort = 5023;
+var registryPort = builder.Configuration.GetValue("ContainerAppDeployment:RegistryPort", 5023);
 string registryAddress = $"{registryHost}:{registryPort}";
 const string registryResourceId = "docker:container:sample-registry";
 const string containerAppResourceId = "application:sample-api";

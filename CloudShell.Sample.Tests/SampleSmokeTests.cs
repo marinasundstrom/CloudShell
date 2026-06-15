@@ -653,9 +653,13 @@ public sealed class SampleSmokeTests
     [Fact]
     public async Task ContainerAppDeploymentSample_UpdatesMockImageTagThroughRevisionApi()
     {
+        var registryPort = await GetFreePortAsync();
         using var host = await SampleProcess.StartAsync(
             "samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj",
-            await GetFreePortAsync());
+            await GetFreePortAsync(),
+            [
+                ("ContainerAppDeployment__RegistryPort", registryPort.ToString(CultureInfo.InvariantCulture))
+            ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
 
@@ -667,8 +671,9 @@ public sealed class SampleSmokeTests
         var registry = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "docker:container:sample-registry");
 
-        Assert.Equal("localhost:5023", app.GetProperty("attributes").GetProperty("container.registry").GetString());
-        Assert.Equal("localhost:5023", registry.GetProperty("attributes").GetProperty("container.registry").GetString());
+        var registryAddress = $"localhost:{registryPort.ToString(CultureInfo.InvariantCulture)}";
+        Assert.Equal(registryAddress, app.GetProperty("attributes").GetProperty("container.registry").GetString());
+        Assert.Equal(registryAddress, registry.GetProperty("attributes").GetProperty("container.registry").GetString());
 
         var updateJson = await host.SendJsonAsync(
             HttpMethod.Post,

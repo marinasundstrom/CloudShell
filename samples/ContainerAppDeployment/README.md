@@ -18,10 +18,17 @@ The resource graph declares:
 > Receiver. Keep the registry port explicit when testing local deployment
 > flows.
 
+Override the registry port with configuration when `5023` is unavailable:
+
+```bash
+ContainerAppDeployment__RegistryPort=18023 \
+  dotnet run --project samples/ContainerAppDeployment/CloudShell.ContainerAppDeployment.csproj -- --urls http://localhost:5007
+```
+
 The sample keeps the registry and app stopped by default. That makes the
 revision flow safe to run even when the mock image has not actually been pushed.
 When you do start the resources, Docker expects the referenced image tags to
-exist in `localhost:5023`.
+exist in the configured registry address.
 
 The app declaration keeps the lifecycle dependency and endpoint discovery
 relationship explicit:
@@ -41,6 +48,15 @@ Simulate a new build/deploy:
 
 ```bash
 samples/ContainerAppDeployment/deploy-mock-image.sh
+```
+
+Create the local registry on a matching alternate port:
+
+```bash
+CONTAINER_APP_DEPLOYMENT_REGISTRY_PORT=18023 \
+  samples/ContainerAppDeployment/create-registry.sh
+SAMPLE_REGISTRY=localhost:18023 \
+  samples/ContainerAppDeployment/deploy-mock-image.sh
 ```
 
 Or pass an explicit app ID and tag:

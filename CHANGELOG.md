@@ -69,6 +69,11 @@ on `git blame --follow`, and then by the broad type of change.
   availability checks for Start actions and report occupied local TCP/HTTP
   endpoint ports before Docker is asked to start the container. This covers
   local registry resources such as the Container App Deployment sample.
+- The Container App Deployment sample now reads
+  `ContainerAppDeployment:RegistryPort`, its smoke test runs the sample with an
+  allocated registry port, and the local registry helper script accepts
+  `CONTAINER_APP_DEPLOYMENT_REGISTRY_PORT` so local registry tests can avoid
+  host port conflicts.
 - Added the shared `IResourceVolumeMountMaterializationStore` contract for
   runtime-observed volume mount facts. The application runtime state store now
   implements it, and Docker Compose records materialized/not-active mount
