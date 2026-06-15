@@ -25,6 +25,9 @@ on `git blame --follow`, and then by the broad type of change.
   to the scoped resource name when `.WithDisplayName(...)` is not set, instead
   of auto-humanizing resource IDs into implicit display names.
   Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
+- Trace detail actions now use explicit navigation handlers for related logs,
+  related activity, and resource details, so Fluent UI buttons navigate
+  reliably from the trace span details panel.
 
 ### 2026-06-15
 

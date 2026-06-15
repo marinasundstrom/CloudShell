@@ -240,15 +240,15 @@
 
                                     <div class="trace-related-actions">
                                         <FluentButton Appearance="Appearance.Neutral"
-                                                      Href="@BuildLogsRoute(selectedSpan.ResourceId, selectedSpan.TraceId)">
+                                                      OnClick="() => OpenRelatedLogs(selectedSpan)">
                                             @L["Related logs"]
                                         </FluentButton>
                                         <FluentButton Appearance="Appearance.Neutral"
-                                                      Href="@BuildActivityRoute(selectedSpan.ResourceId, selectedSpan.TraceId)">
+                                                      OnClick="() => OpenRelatedActivity(selectedSpan)">
                                             @L["Related activity"]
                                         </FluentButton>
                                         <FluentButton Appearance="Appearance.Neutral"
-                                                      Href="@BuildResourceRoute(selectedSpan.ResourceId)">
+                                                      OnClick="() => OpenSpanResource(selectedSpan)">
                                             @L["Open resource"]
                                         </FluentButton>
                                     </div>
@@ -446,7 +446,16 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     }
 
     private void OpenResource(Resource resource) =>
-        Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/edit");
+        Navigation.NavigateTo(BuildResourceRoute(resource.Id));
+
+    private void OpenRelatedLogs(TraceSpan span) =>
+        Navigation.NavigateTo(BuildLogsRoute(span.ResourceId, span.TraceId));
+
+    private void OpenRelatedActivity(TraceSpan span) =>
+        Navigation.NavigateTo(BuildActivityRoute(span.ResourceId, span.TraceId));
+
+    private void OpenSpanResource(TraceSpan span) =>
+        Navigation.NavigateTo(BuildResourceRoute(span.ResourceId));
 
     private void SelectSpan(TraceSpan span)
     {
@@ -701,7 +710,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             });
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/edit";
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details";
 
     private static readonly string[] ServicePalette =
     [
