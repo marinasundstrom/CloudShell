@@ -899,8 +899,21 @@ h3 {
 
 .resource-tab-list {
     display: grid;
-    gap: .25rem;
+    gap: .65rem;
     margin-top: .35rem;
+}
+
+.resource-tab-group {
+    display: grid;
+    gap: .25rem;
+}
+
+.resource-tab-group-title {
+    color: var(--cloudshell-text-muted);
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
 }
 
 .resource-tab-button {
@@ -922,14 +935,6 @@ h3 {
     border-color: var(--cloudshell-accent);
     background: var(--cloudshell-selected);
     box-shadow: inset 3px 0 0 var(--cloudshell-accent);
-}
-
-.resource-tab-button.bottom-tab {
-    margin-top: .65rem;
-}
-
-.resource-tab-button.bottom-tab + .resource-tab-button.bottom-tab {
-    margin-top: 0;
 }
 
 .registration-host {

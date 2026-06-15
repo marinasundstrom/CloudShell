@@ -5,4 +5,5 @@ public sealed record ResourceTabContribution(
     string Title,
     int Order,
     Type ComponentType,
-    bool ShowsApplyButton = false);
+    bool ShowsApplyButton = false,
+    string? GroupTitle = null);

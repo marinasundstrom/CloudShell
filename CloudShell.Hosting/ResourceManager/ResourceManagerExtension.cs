@@ -53,18 +53,21 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "cloudshell.storage",
                 "overview",
                 "Overview",
-                10)
+                10,
+                groupTitle: "Overview")
             .AddResourceTab<StorageVolumes>(
                 "cloudshell.storage",
                 "volumes",
                 "Volumes",
-                20)
+                20,
+                groupTitle: "Storage")
             .AddResourceTab<UpdateLocalStorageResource>(
                 "cloudshell.storage",
                 "configuration",
                 "Configuration",
                 30,
-                showsApplyButton: true)
+                showsApplyButton: true,
+                groupTitle: "Configuration")
             .AddResourceType<RegisterVolumeResource, UpdateVolumeResource>(
                 "cloudshell.volume",
                 "Volume",
@@ -76,13 +79,15 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "cloudshell.volume",
                 "overview",
                 "Overview",
-                10)
+                10,
+                groupTitle: "Overview")
             .AddResourceTab<UpdateVolumeResource>(
                 "cloudshell.volume",
                 "configuration",
                 "Configuration",
                 20,
-                showsApplyButton: true)
+                showsApplyButton: true,
+                groupTitle: "Configuration")
             .AddResourceType<RegisterLoadBalancerResource>(
                 "cloudshell.loadBalancer",
                 "Load Balancer",
@@ -101,7 +106,8 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "cloudshell.dnsZone",
                 "overview",
                 "Overview",
-                10)
+                10,
+                groupTitle: "Overview")
             .AddResourceType<RegisterNameMappingResource, UpdateNameMappingResource>(
                 "cloudshell.nameMapping",
                 "Name Mapping",

@@ -53,19 +53,22 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                 "configuration.store",
                 "overview",
                 "Overview",
-                10)
+                10,
+                groupTitle: "Overview")
             .AddResourceTab<Pages.UpdateConfigurationStore>(
                 "configuration.store",
                 "settings",
                 "Settings",
                 20,
-                showsApplyButton: true)
+                showsApplyButton: true,
+                groupTitle: "Configuration")
             .AddResourceTab<Pages.ConfigurationStoreEntries>(
                 "configuration.store",
                 "entries",
                 "Entries",
                 30,
-                showsApplyButton: true);
+                showsApplyButton: true,
+                groupTitle: "Entries");
     }
 }
 
@@ -103,18 +106,21 @@ public sealed class SecretsProviderExtension : ICloudShellExtension
                 SecretsVaultProvider.ResourceType,
                 "overview",
                 "Overview",
-                10)
+                10,
+                groupTitle: "Overview")
             .AddResourceTab<Pages.UpdateSecretsVault>(
                 SecretsVaultProvider.ResourceType,
                 "settings",
                 "Settings",
                 20,
-                showsApplyButton: true)
+                showsApplyButton: true,
+                groupTitle: "Configuration")
             .AddResourceTab<Pages.SecretsVaultSecrets>(
                 SecretsVaultProvider.ResourceType,
                 "secrets",
                 "Secrets",
                 30,
-                showsApplyButton: true);
+                showsApplyButton: true,
+                groupTitle: "Secrets");
     }
 }

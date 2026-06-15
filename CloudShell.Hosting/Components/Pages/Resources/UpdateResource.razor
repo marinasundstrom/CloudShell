@@ -123,15 +123,26 @@
         @if (tabs.Count > 0)
         {
             <div class="resource-tab-list" role="tablist" aria-label="@L["Resource views"]">
-                @foreach (var tab in tabs)
+                @foreach (var tabGroup in BuildTabGroups(tabs))
                 {
-                    <button class="@GetTabButtonClass(tab, selectedTab)"
-                            type="button"
-                            role="tab"
-                            aria-selected="@(selectedTab?.Id == tab.Id)"
-                            @onclick="() => SelectTab(tab.Id)">
-                        @tab.Title
-                    </button>
+                    <div class="resource-tab-group"
+                         role="group"
+                         aria-label="@tabGroup.Title">
+                        @if (!string.IsNullOrWhiteSpace(tabGroup.Title))
+                        {
+                            <span class="resource-tab-group-title">@tabGroup.Title</span>
+                        }
+                        @foreach (var tab in tabGroup.Tabs)
+                        {
+                            <button class="@GetTabButtonClass(tab, selectedTab)"
+                                    type="button"
+                                    role="tab"
+                                    aria-selected="@(selectedTab?.Id == tab.Id)"
+                                    @onclick="() => SelectTab(tab.Id)">
+                                @tab.Title
+                            </button>
+                        }
+                    </div>
                 }
             </div>
         }
@@ -182,6 +193,11 @@
     private const string GeneratedIdentityTabId = "identity";
     private const string GeneratedStorageVolumesTabId = "volumes";
     private const string GeneratedActivityTabId = "activity";
+    private const string OverviewTabGroup = "Overview";
+    private const string ConfigurationTabGroup = "Configuration";
+    private const string StorageTabGroup = "Storage";
+    private const string EnvironmentTabGroup = "Environment";
+    private const string ManagementTabGroup = "Management";
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -452,7 +468,8 @@
                 GeneratedOverviewTabId,
                 "Overview",
                 -100,
-                typeof(GeneratedResourceOverview)));
+                typeof(GeneratedResourceOverview),
+                GroupTitle: OverviewTabGroup));
         }
 
         if (resource?.IdentityBinding is not null &&
@@ -463,7 +480,8 @@
                 GeneratedIdentityTabId,
                 "Identity",
                 -90,
-                typeof(GeneratedResourceIdentity)));
+                typeof(GeneratedResourceIdentity),
+                GroupTitle: ManagementTabGroup));
         }
 
         if (resource?.HasCapability(ResourceCapabilityIds.StorageProvider) == true &&
@@ -474,7 +492,8 @@
                 GeneratedStorageVolumesTabId,
                 "Volumes",
                 20,
-                typeof(StorageVolumes)));
+                typeof(StorageVolumes),
+                GroupTitle: StorageTabGroup));
         }
 
         if (!contributedTabs.Any(tab =>
@@ -484,7 +503,8 @@
                 GeneratedActivityTabId,
                 "Activity",
                 90,
-                typeof(ResourceActivity)));
+                typeof(ResourceActivity),
+                GroupTitle: ManagementTabGroup));
         }
 
         if (resourceType?.UpdateComponentType is not null &&
@@ -496,7 +516,8 @@
                 "Configuration",
                 0,
                 resourceType.UpdateComponentType,
-                ShowsApplyButton: true));
+                ShowsApplyButton: true,
+                GroupTitle: ConfigurationTabGroup));
         }
 
         if (resource?.HasCapability(ResourceCapabilityIds.EnvironmentVariables) == true &&
@@ -508,7 +529,8 @@
                 "Environment",
                 80,
                 typeof(ResourceEnvironmentVariables),
-                ShowsApplyButton: true));
+                ShowsApplyButton: true,
+                GroupTitle: EnvironmentTabGroup));
         }
 
         return tabs
@@ -543,6 +565,29 @@
         return tab.Order;
     }
 
+    private static IReadOnlyList<ResourceTabGroup> BuildTabGroups(
+        IReadOnlyList<ResourceTabContribution> tabs)
+    {
+        var groups = new List<ResourceTabGroup>();
+        foreach (var tab in tabs)
+        {
+            var groupTitle = string.IsNullOrWhiteSpace(tab.GroupTitle)
+                ? string.Empty
+                : tab.GroupTitle;
+            var currentGroup = groups.LastOrDefault();
+            if (currentGroup is null ||
+                !string.Equals(currentGroup.Title, groupTitle, StringComparison.OrdinalIgnoreCase))
+            {
+                currentGroup = new ResourceTabGroup(groupTitle, []);
+                groups.Add(currentGroup);
+            }
+
+            currentGroup.Tabs.Add(tab);
+        }
+
+        return groups;
+    }
+
     private string GetTabButtonClass(
         ResourceTabContribution tab,
         ResourceTabContribution? selectedTab)
@@ -553,17 +598,8 @@
             classes.Add("active");
         }
 
-        if (IsBottomTab(tab))
-        {
-            classes.Add("bottom-tab");
-        }
-
         return string.Join(" ", classes);
     }
-
-    private static bool IsBottomTab(ResourceTabContribution tab) =>
-        string.Equals(tab.Id, GeneratedIdentityTabId, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(tab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase);
 
     private RenderFragment ResourceActionControls(Resource resource) => builder =>
     {
@@ -767,4 +803,8 @@
         string ResourceId,
         string ResourceName,
         string Message);
+
+    private sealed record ResourceTabGroup(
+        string Title,
+        List<ResourceTabContribution> Tabs);
 }

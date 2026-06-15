@@ -87,67 +87,79 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 ApplicationResourceTypes.ExecutableApplication,
                 "overview",
                 "Overview",
-                10)
+                10,
+                groupTitle: "Overview")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ExecutableApplication,
                 "configuration",
                 "Configuration",
                 20,
-                showsApplyButton: true)
+                showsApplyButton: true,
+                groupTitle: "Configuration")
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 "overview",
                 "Overview",
-                10)
+                10,
+                groupTitle: "Overview")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 "configuration",
                 "Configuration",
                 20,
-                showsApplyButton: true)
+                showsApplyButton: true,
+                groupTitle: "Configuration")
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ContainerApp,
                 "overview",
                 "Overview",
-                10)
+                10,
+                groupTitle: "Overview")
             .AddResourceTab<Pages.ApplicationDeployment>(
                 ApplicationResourceTypes.ContainerApp,
                 "deployment",
                 "Deployment",
-                20)
+                20,
+                groupTitle: "Runtime")
             .AddResourceTab<Pages.ApplicationReplicas>(
                 ApplicationResourceTypes.ContainerApp,
                 "replicas",
                 "Replicas",
-                30)
+                30,
+                groupTitle: "Runtime")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ContainerApp,
                 "configuration",
                 "Configuration",
                 40,
-                showsApplyButton: true)
+                showsApplyButton: true,
+                groupTitle: "Configuration")
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.ContainerApp,
                 "storage",
                 "Storage",
                 50,
-                showsApplyButton: true)
+                showsApplyButton: true,
+                groupTitle: "Storage")
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.SqlServer,
                 "overview",
                 "Overview",
-                10)
+                10,
+                groupTitle: "Overview")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.SqlServer,
                 "configuration",
                 "Configuration",
                 20,
-                showsApplyButton: true)
+                showsApplyButton: true,
+                groupTitle: "Configuration")
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.SqlServer,
                 "storage",
                 "Storage",
                 30,
-                showsApplyButton: true);
+                showsApplyButton: true,
+                groupTitle: "Storage");
     }
 }

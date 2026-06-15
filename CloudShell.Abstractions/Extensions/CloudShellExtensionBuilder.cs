@@ -271,7 +271,8 @@ internal sealed class CloudShellExtensionBuilder(
         string id,
         string title,
         int order,
-        bool showsApplyButton = false)
+        bool showsApplyButton = false,
+        string? groupTitle = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceTypeId);
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -292,7 +293,8 @@ internal sealed class CloudShellExtensionBuilder(
                 title,
                 order,
                 typeof(TComponent),
-                showsApplyButton))
+                showsApplyButton,
+                NormalizeGroupTitle(groupTitle)))
             .OrderBy(tab => tab.Order)
             .ThenBy(tab => tab.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -300,6 +302,9 @@ internal sealed class CloudShellExtensionBuilder(
         _resourceTypes[typeIndex] = resourceType with { Tabs = tabs };
         return this;
     }
+
+    private static string? NormalizeGroupTitle(string? groupTitle) =>
+        string.IsNullOrWhiteSpace(groupTitle) ? null : groupTitle.Trim();
 
     private void AddResourceType(
         string id,

@@ -155,6 +155,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager update, storage volume, environment, and activity views now
   use the shared empty-state component for matching unavailable and empty
   states.
+- Resource Manager resource tabs can now declare named groups. The resource
+  detail sidebar renders those group labels instead of relying on divider-like
+  padding for Identity and Activity.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

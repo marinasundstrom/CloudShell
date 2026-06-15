@@ -102,7 +102,8 @@ public interface ICloudShellExtensionBuilder
         string id,
         string title,
         int order,
-        bool showsApplyButton = false);
+        bool showsApplyButton = false,
+        string? groupTitle = null);
 
     ICloudShellExtensionBuilder AddSingleton<TService>()
         where TService : class;
