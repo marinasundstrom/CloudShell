@@ -27,13 +27,16 @@
             }
         </FluentSelect>
 
-        <div class="environment-editor">
-            <div class="environment-header">
+        <ResourceEditorSection>
+            <HeaderContent>
                 <strong>Entries</strong>
+            </HeaderContent>
+            <Actions>
                 <FluentButton Appearance="Appearance.Neutral" OnClick="AddEntry">
                     Add entry
                 </FluentButton>
-            </div>
+            </Actions>
+            <ChildContent>
 
             @foreach (var entry in Entries)
             {
@@ -45,7 +48,8 @@
                     </FluentButton>
                 </div>
             }
-        </div>
+            </ChildContent>
+        </ResourceEditorSection>
 
         @if (ErrorMessage is not null)
         {

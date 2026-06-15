@@ -110,6 +110,9 @@ on `git blame --follow`, and then by the broad type of change.
   registration pages now reuse the shared Resource Manager editor section
   component for references, dependencies, environment variables, volume mounts,
   and storage sections.
+- Configuration Store and Secrets Vault registration pages, plus the
+  application update tab, now use the shared Resource Manager editor section
+  component for entry, secret, dependency, and network exposure sections.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

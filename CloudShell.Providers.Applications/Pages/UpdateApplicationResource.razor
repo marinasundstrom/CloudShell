@@ -144,11 +144,7 @@ else
                 }
             </FluentSelect>
 
-            <div class="environment-editor">
-                <div class="environment-header">
-                    <strong>Dependencies</strong>
-                </div>
-
+            <ResourceEditorSection Title="Dependencies">
                 @foreach (var resource in GetDependencyCandidates())
                 {
                     <FluentCheckbox Value="@SelectedDependencyIds.Contains(resource.Id)"
@@ -157,15 +153,11 @@ else
                         @resource.Name
                     </FluentCheckbox>
                 }
-            </div>
+            </ResourceEditorSection>
 
             @if (Application is not null && GetInboundNetworkMappings(Application.Id).Count > 0)
             {
-                <div class="environment-editor">
-                    <div class="environment-header">
-                        <strong>Network exposure</strong>
-                    </div>
-
+                <ResourceEditorSection Title="Network exposure">
                     <div class="generated-list">
                         @foreach (var exposure in GetInboundNetworkMappings(Application.Id))
                         {
@@ -180,7 +172,7 @@ else
                             </div>
                         }
                     </div>
-                </div>
+                </ResourceEditorSection>
             }
 
         </div>
