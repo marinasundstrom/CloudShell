@@ -140,6 +140,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Volume create/update forms now use the shared enum select component for
   access mode selection while preserving custom display labels and locked
   update behavior.
+- Core networking, service, DNS, and name-mapping forms now use the shared enum
+  select component for protocol and exposure selections.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

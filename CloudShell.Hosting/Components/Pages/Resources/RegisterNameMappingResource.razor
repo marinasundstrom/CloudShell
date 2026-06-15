@@ -68,16 +68,10 @@
             </FluentSelect>
         }
 
-        <label for="name-mapping-exposure">Exposure</label>
-        <FluentSelect TOption="string"
-                      Id="name-mapping-exposure"
-                      @bind-Value="SelectedExposure"
-                      Appearance="Appearance.Outline">
-            @foreach (var exposure in Enum.GetValues<ResourceExposureScope>())
-            {
-                <FluentOption TOption="string" Value="@exposure.ToString()">@exposure</FluentOption>
-            }
-        </FluentSelect>
+        <EnumValueSelect TEnum="ResourceExposureScope"
+                         Id="name-mapping-exposure"
+                         Label="Exposure"
+                         @bind-Value="SelectedExposure" />
 
         <label for="name-mapping-provider">Publishing provider resource</label>
         <FluentSelect TOption="string"

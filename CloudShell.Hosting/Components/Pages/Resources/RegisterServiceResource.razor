@@ -50,16 +50,10 @@
             <FluentOption TOption="string" Value="https">HTTPS</FluentOption>
         </FluentSelect>
 
-        <label for="service-exposure">Exposure</label>
-        <FluentSelect TOption="string"
-                      Id="service-exposure"
-                      @bind-Value="SelectedExposure"
-                      Appearance="Appearance.Outline">
-            @foreach (var exposure in Enum.GetValues<ResourceExposureScope>())
-            {
-                <FluentOption TOption="string" Value="@exposure.ToString()">@exposure</FluentOption>
-            }
-        </FluentSelect>
+        <EnumValueSelect TEnum="ResourceExposureScope"
+                         Id="service-exposure"
+                         Label="Exposure"
+                         @bind-Value="SelectedExposure" />
 
         @if (ErrorMessage is not null)
         {

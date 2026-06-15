@@ -23,16 +23,10 @@
             <label for="network-endpoint-name">Endpoint name</label>
             <FluentTextField Id="network-endpoint-name" @bind-Value="EndpointName" />
 
-            <label for="network-endpoint-protocol">Protocol</label>
-            <FluentSelect TOption="string"
-                          Id="network-endpoint-protocol"
-                          @bind-Value="SelectedProtocol"
-                          Appearance="Appearance.Outline">
-                @foreach (var protocol in Enum.GetValues<ResourceEndpointProtocol>())
-                {
-                    <FluentOption TOption="string" Value="@protocol.ToString()">@protocol</FluentOption>
-                }
-            </FluentSelect>
+            <EnumValueSelect TEnum="ResourceEndpointProtocol"
+                             Id="network-endpoint-protocol"
+                             Label="Protocol"
+                             @bind-Value="SelectedProtocol" />
 
             <EndpointAssignmentEditor AssignmentId="network-endpoint-assignment"
                                       PortId="network-endpoint-port"
@@ -56,16 +50,10 @@
                 <FluentTextField Id="network-provider-endpoint" @bind-Value="ProviderEndpointId" />
             }
 
-            <label for="network-endpoint-exposure">Exposure</label>
-            <FluentSelect TOption="string"
-                          Id="network-endpoint-exposure"
-                          @bind-Value="SelectedExposure"
-                          Appearance="Appearance.Outline">
-                @foreach (var exposure in Enum.GetValues<ResourceExposureScope>())
-                {
-                    <FluentOption TOption="string" Value="@exposure.ToString()">@exposure</FluentOption>
-                }
-            </FluentSelect>
+            <EnumValueSelect TEnum="ResourceExposureScope"
+                             Id="network-endpoint-exposure"
+                             Label="Exposure"
+                             @bind-Value="SelectedExposure" />
         }
 
         <ResourceGroupSelect Id="network-group"
