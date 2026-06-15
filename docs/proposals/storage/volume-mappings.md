@@ -207,6 +207,10 @@ binding, and OS feature enablement. The first storage UI keeps standalone
 direct volumes available for developer scenarios, but the product direction is
 to let hosted environments disable or restrict standalone local storage so
 users create storage-backed volumes through approved Storage resources instead.
+Creating a volume under a Storage resource already requires manage permission
+on that parent Storage resource; direct standalone volumes continue to use the
+ordinary resource creation path until environment-level host-affecting
+operation policy is introduced.
 
 A volume projects:
 
@@ -389,6 +393,8 @@ MVP UI should support:
 - attaching a volume to a container app or executable app; the first container
   app registration selector and resource Storage tab are in place for
   container-backed resources that can map volumes
+- creating and managing volumes under a Storage resource when the user has
+  manage permission on that parent Storage resource
 - showing both managed volume resources and unmanaged/local volume references
   used by applications
 - showing unresolved provider/host diagnostics

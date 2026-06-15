@@ -110,6 +110,7 @@ public sealed class InProcessControlPlane(
             resourceClass,
             NormalizeAttributes(command.ResourceAttributes));
         EnsureResourceGroupExists(resourceGroupId);
+        AuthorizeCreateResource(request);
 
         var provider = resourceManager.Providers
             .OfType<IResourceCreationProvider>()
@@ -204,6 +205,47 @@ public sealed class InProcessControlPlane(
         return await resourceIdentityProvisioning.ProvisionResourceAsync(
             resource.Id,
             cancellationToken);
+    }
+
+    private void AuthorizeCreateResource(ResourceCreationRequest request)
+    {
+        if (!string.Equals(
+                request.ResourceType,
+                PlatformResourceProvider.VolumeResourceType,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        VolumeResourceDefinition? definition;
+        try
+        {
+            definition = request.Configuration.Deserialize<VolumeResourceDefinition>();
+        }
+        catch (JsonException)
+        {
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest(
+                "Volume configuration is invalid."));
+        }
+
+        var storageResourceId = NormalizeOptional(definition?.StorageResourceId);
+        if (storageResourceId is null)
+        {
+            return;
+        }
+
+        var storageResource = resourceManager.GetResource(storageResourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(storageResourceId));
+        var storageGroup = resourceManager.GetGroupForResource(storageResource.Id);
+        if (!authorization.CanAccessResource(
+                storageResource.Id,
+                storageGroup?.Id,
+                CloudShellPermissions.Resources.Manage))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                storageResource.Id,
+                CloudShellPermissions.Resources.Manage);
+        }
     }
 
     public async Task<ResourceIdentityProvisioningStatusResult> GetResourceIdentityProvisioningStatusAsync(

@@ -67,11 +67,13 @@ else
     public string? ResourceId { get; set; }
 
     private Resource? Storage { get; set; }
+    private ResourceGroup? StorageGroup { get; set; }
     private IReadOnlyList<StorageVolumeView> Volumes { get; set; } = [];
     private bool CanCreateVolume =>
         Storage is not null &&
         !ResourceManagerUiOptions.Value.ReadOnly &&
-        Authorization.HasPermission(CloudShellPermissions.Resources.Create);
+        Authorization.HasPermission(CloudShellPermissions.Resources.Create) &&
+        Authorization.CanAccessResource(Storage.Id, StorageGroup?.Id, CloudShellPermissions.Resources.Manage);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -80,10 +82,12 @@ else
             : await ResourceManager.GetResourceAsync(ResourceId);
         if (Storage is null)
         {
+            StorageGroup = null;
             Volumes = [];
             return;
         }
 
+        StorageGroup = await ResourceManager.GetResourceGroupForResourceAsync(Storage.Id);
         var resources = await ResourceManager.ListResourcesAsync();
         var children = await ResourceManager.ListResourceChildrenAsync(Storage.Id);
         var orchestrationSnapshot = await OrchestrationCatalog.GetSnapshotAsync();

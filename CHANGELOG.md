@@ -55,6 +55,11 @@ on `git blame --follow`, and then by the broad type of change.
   environments should be able to restrict host-affecting operations to
   administrators or platform operators.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
+- Creating a volume under a Storage resource now requires manage permission on
+  that parent Storage resource. Resource Manager uses the same rule for the
+  Storage Volumes tab and volume create form, and the Control Plane enforces it
+  before dispatching the create request to the provider.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

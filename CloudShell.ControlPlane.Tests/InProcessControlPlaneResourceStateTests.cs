@@ -1172,6 +1172,59 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task CreateResourceAsync_RejectsStorageOwnedVolumeWithoutStorageManagePermission()
+    {
+        var options = new PlatformResourceOptions();
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var storage = CreateStorageResource("storage:local");
+        var controlPlane = CreateControlPlane(
+            [storage],
+            provider,
+            authorization: new ResourceScopedAuthorizationService(),
+            resourceTypeClasses: new Dictionary<string, ResourceClass>
+            {
+                [PlatformResourceProvider.VolumeResourceType] = ResourceClass.Storage
+            });
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.CreateResourceAsync(CreateStorageOwnedVolumeCommand()));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+        Assert.Equal(
+            $"The '{CloudShellPermissions.Resources.Manage}' permission is required for resource 'storage:local'.",
+            exception.Message);
+    }
+
+    [Fact]
+    public async Task CreateResourceAsync_AllowsStorageOwnedVolumeWithStorageManagePermission()
+    {
+        var options = new PlatformResourceOptions();
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var storage = CreateStorageResource("storage:local");
+        var controlPlane = CreateControlPlane(
+            [storage],
+            provider,
+            authorization: new ResourceScopedAuthorizationService(
+                ("storage:local", CloudShellPermissions.Resources.Manage)),
+            resourceTypeClasses: new Dictionary<string, ResourceClass>
+            {
+                [PlatformResourceProvider.VolumeResourceType] = ResourceClass.Storage
+            });
+
+        await controlPlane.CreateResourceAsync(CreateStorageOwnedVolumeCommand());
+
+        var volume = Assert.Single(provider.GetResources(), resource => resource.Id == "volume:data");
+        Assert.Equal("storage:local", volume.ParentResourceId);
+        Assert.Equal(ResourceVisibility.Hidden, volume.Visibility);
+    }
+
+    [Fact]
     public async Task DefaultOrchestrator_ExecutesOrchestratorServiceInstancesForReplicas()
     {
         var resource = CreateResource("application:api", ResourceState.Stopped);
@@ -1335,6 +1388,44 @@ public sealed class InProcessControlPlaneResourceStateTests
                 ResourceAction.Pause,
                 ResourceAction.Restart
             ]);
+
+    private static Resource CreateStorageResource(string id) =>
+        new(
+            id,
+            id,
+            StorageProviderNames.LocalStorage,
+            StorageProviderNames.LocalStorage,
+            "local",
+            null,
+            [],
+            StorageMedia.FileSystem,
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.StorageResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.StorageProvider] = StorageProviderNames.LocalStorage,
+                [ResourceAttributeNames.StorageMedium] = StorageMedia.FileSystem
+            },
+            Capabilities:
+            [
+                new(ResourceCapabilityIds.StorageProvider),
+                new(ResourceCapabilityIds.StorageMountProvider)
+            ]);
+
+    private static CreateResourceCommand CreateStorageOwnedVolumeCommand() =>
+        new(
+            PlatformResourceProvider.ProviderId,
+            PlatformResourceProvider.VolumeResourceType,
+            "volume:data",
+            "Data",
+            JsonSerializer.SerializeToElement(new VolumeResourceDefinition(
+                "volume:data",
+                "Data",
+                StorageResourceId: "storage:local",
+                SubPath: "data")),
+            ResourceClass: ResourceClass.Storage);
 
     private static ResourceOrchestratorSelectionStore CreateSelectionStore()
     {
