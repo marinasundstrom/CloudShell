@@ -15,17 +15,9 @@
         <label for="configuration-store-endpoint">Endpoint</label>
         <FluentTextField Id="configuration-store-endpoint" @bind-Value="Endpoint" Placeholder="Generated from the resource ID" />
 
-        <label for="configuration-store-group">Resource group</label>
-        <FluentSelect TOption="string"
-                      Id="configuration-store-group"
-                      @bind-Value="SelectedGroupId"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups.GetResourceGroups())
-            {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-            }
-        </FluentSelect>
+        <ResourceGroupSelect Id="configuration-store-group"
+                             ResourceGroups="ResourceGroups.GetResourceGroups()"
+                             @bind-Value="SelectedGroupId" />
 
         <ConfigurationEntriesEditor Entries="Entries" />
 

@@ -20,18 +20,10 @@ else
             <label for="configuration-update-endpoint">Endpoint</label>
             <FluentTextField Id="configuration-update-endpoint" @bind-Value="Endpoint" Disabled="@IsReadOnly" />
 
-            <label for="configuration-update-group">Resource group</label>
-            <FluentSelect TOption="string"
-                          Id="configuration-update-group"
-                          @bind-Value="SelectedGroupId"
-                          Disabled="@IsReadOnly"
-                          Appearance="Appearance.Outline">
-                <FluentOption TOption="string" Value="">Default group</FluentOption>
-                @foreach (var group in ResourceGroups.GetResourceGroups())
-                {
-                    <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-                }
-            </FluentSelect>
+            <ResourceGroupSelect Id="configuration-update-group"
+                                 ResourceGroups="ResourceGroups.GetResourceGroups()"
+                                 Disabled="@IsReadOnly"
+                                 @bind-Value="SelectedGroupId" />
 
         </div>
     </div>
