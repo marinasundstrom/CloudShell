@@ -51,17 +51,12 @@ else
                              @bind-Value="Location"
                              Placeholder="@GetLocationPlaceholder()" />
 
-            <label for="volume-update-access-mode">Access mode</label>
-            <FluentSelect TOption="string"
-                          Id="volume-update-access-mode"
-                          Disabled="@IsStorageShapeLocked"
-                          @bind-Value="SelectedAccessMode"
-                          Appearance="Appearance.Outline">
-                @foreach (var mode in Enum.GetValues<VolumeAccessMode>())
-                {
-                    <FluentOption TOption="string" Value="@mode.ToString()">@GetAccessModeLabel(mode)</FluentOption>
-                }
-            </FluentSelect>
+            <EnumValueSelect TEnum="VolumeAccessMode"
+                             Id="volume-update-access-mode"
+                             Label="Access mode"
+                             LabelSelector="GetAccessModeLabel"
+                             Disabled="@IsStorageShapeLocked"
+                             @bind-Value="SelectedAccessMode" />
 
             <FluentCheckbox Disabled="@IsStorageShapeLocked" @bind-Value="Persistent">
                 Persistent
