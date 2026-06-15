@@ -165,7 +165,8 @@ Implemented pieces include:
 * attached volume display on application overview pages, with the Storage tab
   remaining the edit surface
 * local host-published endpoint preflight before container app start
-* local/default container-host path and host capability diagnostics
+* local/default container-host path, host capability diagnostics, and
+  application overview host placement/readiness display
 
 ## MVP Implementation Plan
 
@@ -174,8 +175,9 @@ Implemented pieces include:
    relationships, and attached volume visibility.
 2. Keep container host selection explicit or defaulted through the host
    resolver. Initial resolver, create/update host selection, and missing-host
-   diagnostics exist; richer credential and readiness diagnostics continue in
-   the host proposal.
+   diagnostics exist. Application overview pages now show resolved host status,
+   endpoint, registry, credentials availability, and advertised capabilities;
+   deeper host readiness diagnostics continue in the host proposal.
 3. Materialize volume mounts in the runtime providers and surface mount
    compatibility diagnostics from host/storage medium capabilities.
 4. Finish the Resource Manager exposure path from the application resource:
@@ -202,9 +204,9 @@ Implemented pieces include:
   start/update where possible.
 * Add host capability diagnostics for unsupported storage media, ingress,
   public endpoint, or DNS/name publication choices.
-* Add a richer container-host readiness surface on the container app page,
-  including selected/default host status, credential availability, and
-  unsupported capability warnings before update/start.
+* Add deeper container-host readiness diagnostics for unsupported ingress,
+  public endpoint, DNS/name publication, registry credential, and storage
+  choices before update/start.
 * Improve restart/update behavior around image, replica, environment, endpoint,
   identity, and storage changes.
 * Keep supported samples green with a broad container app scenario that uses

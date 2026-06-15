@@ -184,7 +184,9 @@ listed here before pulling in broader proposal work.
   resource. Container app and SQL Server create/update flows now use the same
   selected-or-default host path, so users can keep deployment placement on the
   managed-service configuration surface instead of editing provider runtime
-  details.
+  details. Application overview pages also resolve the selected/default host
+  and show host status, kind, endpoint, registry, credential availability, and
+  advertised capabilities.
 - Bring DNS/name mapping forward as a minimal logical projection and Resource
   Manager experience. MVP does not require CloudShell to publish real public
   DNS records, run an authoritative DNS server, or implement a provider-backed

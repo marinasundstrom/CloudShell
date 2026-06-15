@@ -94,6 +94,10 @@ on `git blame --follow`, and then by the broad type of change.
   container host or return to the default host path, using the same host
   discovery and validation rules as the create flow.
   Decision: [ADR-20260614-002](ADR.md#adr-20260614-002).
+- Application overview pages now resolve container-backed resource placement to
+  the selected or default container host and show host status, kind, endpoint,
+  registry, credentials availability, and advertised capabilities.
+  Decision: [ADR-20260614-002](ADR.md#adr-20260614-002).
 
 #### Samples
 
