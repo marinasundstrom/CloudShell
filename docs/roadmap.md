@@ -115,8 +115,8 @@ listed here before pulling in broader proposal work.
    class, Local Storage is the first concrete storage kind, and `FileSystem` is
    the medium it announces. The first host-level negotiation uses the
    `storage.mount.filesystem` container-host capability; next slices should
-   broaden diagnostics from declared support into observed materialization
-   state.
+   broaden observed materialization state beyond the local Docker runner into
+   Docker Compose and future provider-backed storage resources.
 4. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider,
@@ -218,7 +218,12 @@ listed here before pulling in broader proposal work.
   container hosts now advertise `storage.mount.filesystem`, and application
   Start/Restart availability checks the selected host for that capability when
   managed `FileSystem` volumes are attached; next it needs Resource Manager
-  visibility into whether a mapping was actually materialized.
+  visibility into whether a mapping was actually materialized. The local Docker
+  runner now records runtime-observed mount materialization facts after a
+  successful container start, application overview pages show source/target
+  materialization status per mount, and volume overview pages show aggregate
+  materialization status for consumers through projected resource attributes.
+  Docker Compose and provider-backed storage runtime reporting remain next.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

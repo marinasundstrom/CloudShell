@@ -4269,6 +4269,59 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ProjectsVolumeMountMaterializationStatus()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var runtimeStates = serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>();
+        var registrations = new MutableResourceRegistrationStore();
+        await provider.SetupApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:api",
+                "API",
+                string.Empty,
+                containerImage: "redis:7.2",
+                resourceType: ApplicationResourceTypes.ContainerApp,
+                volumeMounts:
+                [
+                    new ResourceVolumeMount("volume:data", "/data")
+                ]),
+            resourceGroupId: null,
+            registrations);
+        runtimeStates.Save(new ApplicationRuntimeState(
+            "application:api",
+            1234,
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            LogPath: "api.log",
+            VolumeMounts:
+            [
+                new ApplicationRuntimeVolumeMount(
+                    "volume:data",
+                    "/data",
+                    "/tmp/cloudshell/data",
+                    ReadOnly: false)
+            ]));
+
+        var resource = Assert.Single(provider.GetResources());
+
+        Assert.Equal(
+            "1",
+            resource.ResourceAttributes[ResourceAttributeNames.VolumeMountMaterializedCount]);
+        Assert.Equal(
+            "materialized",
+            resource.ResourceAttributes[ResourceAttributeNames.VolumeMountMaterializationStatus]);
+    }
+
+    [Fact]
     public void VolumeMountValidation_ReturnsUnsupportedStorageMediumReason()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

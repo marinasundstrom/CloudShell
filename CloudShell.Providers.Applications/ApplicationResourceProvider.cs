@@ -901,7 +901,10 @@ public sealed partial class ApplicationResourceProvider(
                         null,
                         DateTimeOffset.UtcNow,
                         TryGetExitCode(state.Process),
-                        state.LogPath));
+                        state.LogPath,
+                        VolumeMounts: MarkVolumeMountsNotActive(
+                            runtimeStates.Get(applicationId)?.RuntimeVolumeMounts ?? [],
+                            DateTimeOffset.UtcNow)));
                     LogDevelopmentLifecycle(
                         "Stopped host-scoped application resource {ResourceId} during Control Plane shutdown.",
                         applicationId);
@@ -1763,13 +1766,14 @@ public sealed partial class ApplicationResourceProvider(
         startInfo.ArgumentList.Add($"CLOUDSHELL_RESOURCE_ID={definition.Id}");
         startInfo.ArgumentList.Add("-e");
         startInfo.ArgumentList.Add($"CLOUDSHELL_REPLICA_ORDINAL={instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)}");
-        foreach (var volumeArgument in CreateLocalContainerVolumeArguments(
-                     service.ServiceVolumeMounts,
-                     resourceManager,
-                     environment.ContentRootPath))
+        var volumeMaterializations = CreateLocalContainerVolumeMaterializations(
+            service.ServiceVolumeMounts,
+            resourceManager,
+            environment.ContentRootPath);
+        foreach (var volumeMaterialization in volumeMaterializations)
         {
             startInfo.ArgumentList.Add("-v");
-            startInfo.ArgumentList.Add(volumeArgument);
+            startInfo.ArgumentList.Add(volumeMaterialization.Argument);
         }
 
         startInfo.ArgumentList.Add(definition.ProjectContainerBuild
@@ -1797,7 +1801,10 @@ public sealed partial class ApplicationResourceProvider(
                 null,
                 DateTimeOffset.UtcNow,
                 process.ExitCode,
-                logPath));
+                logPath,
+                VolumeMounts: MarkVolumeMountsNotActive(
+                    volumeMaterializations.Select(mount => mount.RuntimeState),
+                    DateTimeOffset.UtcNow)));
         };
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -1811,7 +1818,10 @@ public sealed partial class ApplicationResourceProvider(
             process.Id,
             startedAt,
             DateTimeOffset.UtcNow,
-            LogPath: logPath));
+            LogPath: logPath,
+            VolumeMounts: volumeMaterializations
+                .Select(mount => mount.RuntimeState)
+                .ToArray()));
 
         processLog.Append(
             $"Started container image '{definition.ContainerImage}' as '{instance.Name}' replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} of {instance.ReplicaCount.ToString(CultureInfo.InvariantCulture)} using {engine.Name} with {definition.Lifetime} lifetime.",
@@ -1983,7 +1993,10 @@ public sealed partial class ApplicationResourceProvider(
             null,
             DateTimeOffset.UtcNow,
             TryGetExitCode(process),
-            GetLogPath(applicationId)));
+            GetLogPath(applicationId),
+            VolumeMounts: MarkVolumeMountsNotActive(
+                runtimeStates.Get(applicationId)?.RuntimeVolumeMounts ?? [],
+                DateTimeOffset.UtcNow)));
     }
 
     private async Task StopContainerAsync(
@@ -2427,7 +2440,7 @@ public sealed partial class ApplicationResourceProvider(
             HealthChecks: application.HealthChecks,
             Observability: GetEffectiveObservability(application),
             ResourceClass: GetResourceClass(application),
-            Attributes: CreateAttributes(application),
+            Attributes: CreateAttributes(application, state),
             Capabilities: CreateCapabilities(application, endpoints));
     }
 
@@ -2453,7 +2466,9 @@ public sealed partial class ApplicationResourceProvider(
         return capabilities;
     }
 
-    private static IReadOnlyDictionary<string, string> CreateAttributes(ApplicationResourceDefinition application)
+    private IReadOnlyDictionary<string, string> CreateAttributes(
+        ApplicationResourceDefinition application,
+        ResourceState state)
     {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -2461,6 +2476,24 @@ public sealed partial class ApplicationResourceProvider(
             [ResourceAttributeNames.EndpointCount] = application.EndpointPorts.Count.ToString(CultureInfo.InvariantCulture),
             [ResourceAttributeNames.VolumeMountCount] = application.VolumeMounts.Count.ToString(CultureInfo.InvariantCulture)
         };
+
+        if (application.VolumeMounts.Count > 0)
+        {
+            var runtimeMounts = runtimeStates.Get(application.Id)?.RuntimeVolumeMounts ?? [];
+            var materializedCount = runtimeMounts.Count(mount =>
+                string.Equals(
+                    mount.Status,
+                    ApplicationRuntimeVolumeMountStatus.Materialized,
+                    StringComparison.OrdinalIgnoreCase));
+            attributes[ResourceAttributeNames.VolumeMountMaterializedCount] =
+                materializedCount.ToString(CultureInfo.InvariantCulture);
+            attributes[ResourceAttributeNames.VolumeMountMaterializationStatus] =
+                GetVolumeMountMaterializationStatus(
+                    application,
+                    state,
+                    runtimeMounts,
+                    materializedCount);
+        }
 
         if (IsProjectBacked(application))
         {
@@ -2489,6 +2522,37 @@ public sealed partial class ApplicationResourceProvider(
         }
 
         return attributes;
+    }
+
+    private static string GetVolumeMountMaterializationStatus(
+        ApplicationResourceDefinition application,
+        ResourceState state,
+        IReadOnlyList<ApplicationRuntimeVolumeMount> runtimeMounts,
+        int materializedCount)
+    {
+        if (application.VolumeMounts.Count == 0)
+        {
+            return "notApplicable";
+        }
+
+        if (materializedCount == application.VolumeMounts.Count)
+        {
+            return "materialized";
+        }
+
+        if (materializedCount > 0)
+        {
+            return "partial";
+        }
+
+        if (runtimeMounts.Count > 0)
+        {
+            return "notActive";
+        }
+
+        return state == ResourceState.Running && IsContainerBacked(application)
+            ? "unknown"
+            : "notActive";
     }
 
     private static string CreateWorkloadKind(ApplicationResourceDefinition application)
@@ -2826,7 +2890,10 @@ public sealed partial class ApplicationResourceProvider(
                 null,
                 DateTimeOffset.UtcNow,
                 TryGetExitCode(state.Process),
-                state.LogPath));
+                state.LogPath,
+                VolumeMounts: MarkVolumeMountsNotActive(
+                    runtimeStates.Get(definition.Id)?.RuntimeVolumeMounts ?? [],
+                    DateTimeOffset.UtcNow)));
         }
 
         var runtimeState = runtimeStates.Get(definition.Id);
@@ -2860,7 +2927,10 @@ public sealed partial class ApplicationResourceProvider(
                     null,
                     DateTimeOffset.UtcNow,
                     TryGetExitCode(candidate),
-                    logPath));
+                    logPath,
+                    VolumeMounts: MarkVolumeMountsNotActive(
+                        runtimeStates.Get(definition.Id)?.RuntimeVolumeMounts ?? [],
+                        DateTimeOffset.UtcNow)));
             };
 
             _processes[definition.Id] = new ApplicationProcessState(
@@ -3897,11 +3967,22 @@ public sealed partial class ApplicationResourceProvider(
         IReadOnlyList<ResourceVolumeMount> mounts,
         IResourceManagerStore? resourceManager,
         string contentRootPath) =>
+        CreateLocalContainerVolumeMaterializations(mounts, resourceManager, contentRootPath)
+            .Select(materialization => materialization.Argument)
+            .ToArray();
+
+    private static IReadOnlyList<LocalContainerVolumeMaterialization> CreateLocalContainerVolumeMaterializations(
+        IReadOnlyList<ResourceVolumeMount> mounts,
+        IResourceManagerStore? resourceManager,
+        string contentRootPath) =>
         mounts
             .Where(mount =>
                 !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
                 !string.IsNullOrWhiteSpace(mount.TargetPath))
-            .Select(mount => CreateLocalContainerVolumeArgument(mount, resourceManager, contentRootPath))
+            .Select(mount => CreateLocalContainerVolumeMaterialization(
+                mount,
+                resourceManager,
+                contentRootPath))
             .ToArray();
 
     internal static string? GetVolumeMountUnavailableReason(
@@ -4054,7 +4135,18 @@ public sealed partial class ApplicationResourceProvider(
         return $"Container host '{containerHost.Id}' does not advertise required storage capability '{ContainerHostCapabilityIds.StorageMountFileSystem}' for {sourceDescription}.";
     }
 
-    private static string CreateLocalContainerVolumeArgument(
+    private static IReadOnlyList<ApplicationRuntimeVolumeMount> MarkVolumeMountsNotActive(
+        IEnumerable<ApplicationRuntimeVolumeMount> mounts,
+        DateTimeOffset observedAt) =>
+        mounts
+            .Select(mount => mount with
+            {
+                Status = ApplicationRuntimeVolumeMountStatus.NotActive,
+                ObservedAt = observedAt
+            })
+            .ToArray();
+
+    private static LocalContainerVolumeMaterialization CreateLocalContainerVolumeMaterialization(
         ResourceVolumeMount mount,
         IResourceManagerStore? resourceManager,
         string contentRootPath)
@@ -4063,9 +4155,17 @@ public sealed partial class ApplicationResourceProvider(
             mount.NormalizedVolumeReference,
             resourceManager,
             contentRootPath);
-        return mount.ReadOnly
+        var argument = mount.ReadOnly
             ? $"{source}:{mount.NormalizedTargetPath}:ro"
             : $"{source}:{mount.NormalizedTargetPath}";
+        return new LocalContainerVolumeMaterialization(
+            argument,
+            new ApplicationRuntimeVolumeMount(
+                mount.NormalizedVolumeReference,
+                mount.NormalizedTargetPath,
+                source,
+                mount.ReadOnly,
+                ObservedAt: DateTimeOffset.UtcNow));
     }
 
     private static string ResolveLocalContainerVolumeSource(
@@ -4521,6 +4621,10 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationProcessLog Log,
         ApplicationLifetime Lifetime,
         string LogPath);
+
+    private sealed record LocalContainerVolumeMaterialization(
+        string Argument,
+        ApplicationRuntimeVolumeMount RuntimeState);
 
     private sealed record ApplicationProcessCommand(
         string ExecutablePath,

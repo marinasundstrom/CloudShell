@@ -69,7 +69,7 @@ else
                             @foreach (var mount in consumer.Mounts)
                             {
                                 <span>@GetMountSummary(mount)</span>
-                                <small>@consumer.Resource.Kind - @consumer.Resource.Id</small>
+                                <small>@GetConsumerMountMetadata(consumer.Resource)</small>
                             }
                         }
                     </div>
@@ -134,6 +134,47 @@ else
             ? $"{target} - {access}"
             : $"{mount.NormalizedName}: {target} - {access}";
     }
+
+    private static string GetConsumerMountMetadata(Resource consumer)
+    {
+        var parts = new List<string>
+        {
+            consumer.Kind,
+            consumer.Id
+        };
+
+        if (consumer.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.VolumeMountMaterializationStatus,
+                out var status) &&
+            !string.IsNullOrWhiteSpace(status))
+        {
+            var label = GetVolumeMountMaterializationStatusLabel(status);
+            if (consumer.ResourceAttributes.TryGetValue(
+                    ResourceAttributeNames.VolumeMountMaterializedCount,
+                    out var materializedCount) &&
+                consumer.ResourceAttributes.TryGetValue(
+                    ResourceAttributeNames.VolumeMountCount,
+                    out var mountCount))
+            {
+                label = $"{label} ({materializedCount}/{mountCount})";
+            }
+
+            parts.Add($"Storage: {label}");
+        }
+
+        return string.Join(" - ", parts);
+    }
+
+    private static string GetVolumeMountMaterializationStatusLabel(string status) =>
+        status switch
+        {
+            "materialized" => "materialized",
+            "partial" => "partially materialized",
+            "notActive" => "not active",
+            "unknown" => "unknown",
+            "notApplicable" => "not applicable",
+            _ => status
+        };
 
     private string GetAttribute(string name, string fallback) =>
         Volume?.ResourceAttributes.TryGetValue(name, out var value) == true &&

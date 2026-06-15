@@ -9,4 +9,23 @@ public sealed record ApplicationRuntimeState(
     DateTimeOffset LastObservedAt,
     int? LastExitCode = null,
     string? LogPath = null,
-    ResourceState? State = null);
+    ResourceState? State = null,
+    IReadOnlyList<ApplicationRuntimeVolumeMount>? VolumeMounts = null)
+{
+    public IReadOnlyList<ApplicationRuntimeVolumeMount> RuntimeVolumeMounts => VolumeMounts ?? [];
+}
+
+public sealed record ApplicationRuntimeVolumeMount(
+    string VolumeReference,
+    string TargetPath,
+    string Source,
+    bool ReadOnly,
+    string Status = ApplicationRuntimeVolumeMountStatus.Materialized,
+    string? Reason = null,
+    DateTimeOffset? ObservedAt = null);
+
+public static class ApplicationRuntimeVolumeMountStatus
+{
+    public const string Materialized = "materialized";
+    public const string NotActive = "notActive";
+}

@@ -23,6 +23,13 @@ availability reports when the selected host does not advertise that capability
 for a managed `FileSystem` volume. Provider-defined storage resources,
 provider-backed volume resources, richer host-specific compatibility
 negotiation, and usage monitoring remain open.
+The local Docker runner now records runtime-observed volume mount
+materialization facts, including resolved source, target path, access mode, and
+active/not-active status, after a successful container start. Application
+overview pages show those observations and volume overview pages surface the
+consumer's aggregate materialization status through projected resource
+attributes. Docker Compose materialization observation and provider-backed
+storage runtime reporting remain open.
 Deletion is guarded for volume resources that are still referenced by another
 resource dependency, and storage mappings cannot be changed while the target
 resource is running.
@@ -180,6 +187,9 @@ A volume projects:
 - non-secret location metadata when safe to show
 - reverse consumer mappings, including target path and requested access mode
   when the consuming workload descriptor is available
+- aggregate materialization status for consuming resources, and provider-owned
+  runtime observations for source, target path, access mode, and active status
+  where the runtime provider can report them
 - capabilities and diagnostics
 - lifecycle or reconcile actions when provider-backed materialization is
   supported

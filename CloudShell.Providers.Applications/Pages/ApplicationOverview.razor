@@ -2,6 +2,7 @@
 @inject ApplicationResourceProvider ApplicationProvider
 @inject IResourceManagerStore ResourceManager
 @inject IResourceManager ResourceManagerClient
+@inject ApplicationRuntimeStateStore RuntimeStates
 @inject IJSRuntime JS
 
 @if (Application is null)
@@ -161,7 +162,7 @@ else
                             }
                         </strong>
                         <span>@ApplicationVolumeResourceDisplay.GetMountSummary(volumeMount.Mount, volumeMount.Volume)</span>
-                        <small>@ApplicationVolumeResourceDisplay.GetMountAccessLabel(volumeMount.Mount)</small>
+                        <small>@GetMountRuntimeLabel(volumeMount)</small>
                     </div>
                 }
             </div>
@@ -243,6 +244,7 @@ else
 
     private ApplicationResourceDefinition? Application { get; set; }
     private Resource? ProjectedResource { get; set; }
+    private ApplicationRuntimeState? RuntimeState { get; set; }
     private ResourcePermissionGrantEvaluator? PermissionGrantEvaluator { get; set; }
     private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
@@ -258,6 +260,9 @@ else
         ProjectedResource = Application is null
             ? null
             : ResourceManager.GetResource(Application.Id);
+        RuntimeState = Application is null
+            ? null
+            : RuntimeStates.Get(Application.Id);
         EffectiveDependencies = Application is null
             ? []
             : ProjectedResource?.DependsOn ?? Application.DependsOn;
@@ -348,9 +353,54 @@ else
             .Where(mount =>
                 !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
                 !string.IsNullOrWhiteSpace(mount.TargetPath))
-            .Select(mount => new VolumeMountView(mount, ResolveVolumeResource(mount.NormalizedVolumeReference)))
+            .Select(mount => new VolumeMountView(
+                mount,
+                ResolveVolumeResource(mount.NormalizedVolumeReference),
+                ResolveRuntimeVolumeMount(mount)))
             .OrderBy(mount => mount.Mount.NormalizedTargetPath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private ApplicationRuntimeVolumeMount? ResolveRuntimeVolumeMount(ResourceVolumeMount mount) =>
+        RuntimeState?.RuntimeVolumeMounts.FirstOrDefault(runtimeMount =>
+            string.Equals(
+                runtimeMount.VolumeReference,
+                mount.NormalizedVolumeReference,
+                StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(
+                runtimeMount.TargetPath,
+                mount.NormalizedTargetPath,
+                StringComparison.OrdinalIgnoreCase));
+
+    private static string GetMountRuntimeLabel(VolumeMountView volumeMount)
+    {
+        var parts = new List<string>
+        {
+            ApplicationVolumeResourceDisplay.GetMountAccessLabel(volumeMount.Mount)
+        };
+
+        if (volumeMount.RuntimeMount is null)
+        {
+            parts.Add("Materialization: not observed");
+        }
+        else
+        {
+            parts.Add($"Materialization: {GetVolumeMountStatusLabel(volumeMount.RuntimeMount.Status)}");
+            if (!string.IsNullOrWhiteSpace(volumeMount.RuntimeMount.Source))
+            {
+                parts.Add($"Source: {volumeMount.RuntimeMount.Source}");
+            }
+        }
+
+        return string.Join(" - ", parts);
+    }
+
+    private static string GetVolumeMountStatusLabel(string status) =>
+        status switch
+        {
+            ApplicationRuntimeVolumeMountStatus.Materialized => "materialized",
+            ApplicationRuntimeVolumeMountStatus.NotActive => "not active",
+            _ => string.IsNullOrWhiteSpace(status) ? "unknown" : status
+        };
 
     private string FormatMappingSummary(
         ResourceEndpointMappingDefinition mapping,
@@ -639,5 +689,6 @@ else
 
     private sealed record VolumeMountView(
         ResourceVolumeMount Mount,
-        Resource? Volume);
+        Resource? Volume,
+        ApplicationRuntimeVolumeMount? RuntimeMount);
 }
