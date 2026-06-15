@@ -8,6 +8,7 @@
 @inject IEnumerable<IContainerHostProvider> ContainerHostProviders
 @inject IEnumerable<IResourceOrchestrationDescriptorProvider> DescriptorProviders
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 @if (Application is null)
 {
@@ -191,23 +192,36 @@ else
         </section>
     }
 
-    @if (InboundNameMappings.Count > 0)
+    @if (IsContainerBacked(Application) || InboundNameMappings.Count > 0)
     {
         <section class="blade-section">
             <h3>DNS and domain names</h3>
-            <div class="generated-list">
-                @foreach (var exposure in InboundNameMappings)
-                {
-                    <div>
-                        <strong>
-                            <a class="resource-link" href="@BuildResourceRoute(exposure.Mapping.Id)">
-                                @ApplicationNameMappingDisplay.GetHostName(exposure.Mapping)
-                            </a>
-                        </strong>
-                        <span>@ApplicationNameMappingDisplay.GetSummary(exposure.Mapping, Application.Name)</span>
-                        <small>@FormatNameMappingMetadata(exposure)</small>
-                    </div>
-                }
+            @if (InboundNameMappings.Count == 0)
+            {
+                <p class="muted">No DNS or domain names target this app.</p>
+            }
+            else
+            {
+                <div class="generated-list">
+                    @foreach (var exposure in InboundNameMappings)
+                    {
+                        <div>
+                            <strong>
+                                <a class="resource-link" href="@BuildResourceRoute(exposure.Mapping.Id)">
+                                    @ApplicationNameMappingDisplay.GetHostName(exposure.Mapping)
+                                </a>
+                            </strong>
+                            <span>@ApplicationNameMappingDisplay.GetSummary(exposure.Mapping, Application.Name)</span>
+                            <small>@FormatNameMappingMetadata(exposure)</small>
+                        </div>
+                    }
+                </div>
+            }
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Neutral"
+                              OnClick="() => Navigation.NavigateTo(BuildAddNameMappingRoute(Application))">
+                    Add name mapping
+                </FluentButton>
             </div>
         </section>
     }
@@ -836,6 +850,31 @@ else
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+
+    private static string BuildAddNameMappingRoute(ApplicationResourceDefinition application)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["type"] = "cloudshell.nameMapping",
+            ["targetResourceId"] = application.Id
+        };
+        var endpointName = application.EndpointPorts.FirstOrDefault()?.Name;
+        if (!string.IsNullOrWhiteSpace(endpointName))
+        {
+            query["targetEndpointName"] = endpointName;
+        }
+
+        var queryString = string.Join(
+            "&",
+            query
+                .Where(parameter => !string.IsNullOrWhiteSpace(parameter.Value))
+                .Select(parameter =>
+                    $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(parameter.Value!)}"));
+
+        return string.IsNullOrWhiteSpace(queryString)
+            ? "/resources/add"
+            : $"/resources/add?{queryString}";
+    }
 
     private static string? GetEndpointAddress(ApplicationResourceDefinition application)
     {

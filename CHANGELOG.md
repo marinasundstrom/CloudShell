@@ -98,6 +98,11 @@ on `git blame --follow`, and then by the broad type of change.
   the selected or default container host and show host status, kind, endpoint,
   registry, credentials availability, and advertised capabilities.
   Decision: [ADR-20260614-002](ADR.md#adr-20260614-002).
+- Container-backed application overview pages now expose an app-centric
+  "Add name mapping" action. The name-mapping registration form can be
+  deep-linked with a target resource and endpoint, and it derives a default
+  host name from the selected target and DNS zone.
+  Decision: [ADR-20260614-002](ADR.md#adr-20260614-002).
 
 #### Samples
 

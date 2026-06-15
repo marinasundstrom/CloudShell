@@ -111,6 +111,10 @@
     private const string NetworkResourceType = "cloudshell.network";
     private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
     private const string LocalHostNamesProvider = "local-hostnames";
+    private const string ZoneResourceQueryParameter = "zoneResourceId";
+    private const string TargetResourceQueryParameter = "targetResourceId";
+    private const string TargetEndpointQueryParameter = "targetEndpointName";
+    private const string HostNameQueryParameter = "hostName";
 
     private string SelectedZoneResourceId { get; set; } = string.Empty;
     private string ResourceId { get; set; } = string.Empty;
@@ -140,8 +144,26 @@
         }
 
         ResourceGroupsByResourceId = groupsByResourceId;
-        SelectedZoneResourceId = GetDnsZoneCandidates().FirstOrDefault()?.Id ?? string.Empty;
-        TargetResourceId = GetTargetCandidates().FirstOrDefault()?.Id ?? string.Empty;
+        SelectedZoneResourceId = GetRequestedDnsZoneId() ??
+            GetDnsZoneCandidates().FirstOrDefault()?.Id ??
+            string.Empty;
+        TargetResourceId = GetRequestedTargetResourceId() ??
+            GetTargetCandidates().FirstOrDefault()?.Id ??
+            string.Empty;
+        TargetEndpointName = GetRequestedTargetEndpointName() ??
+            GetTargetEndpoints(TargetResourceId).FirstOrDefault()?.Name ??
+            string.Empty;
+        if (GetRequestedHostName() is { } requestedHostName)
+        {
+            HostName = requestedHostName;
+        }
+        else if (GetSelectedZone() is { } zone &&
+            Resources.FirstOrDefault(resource =>
+                string.Equals(resource.Id, TargetResourceId, StringComparison.OrdinalIgnoreCase)) is { } target)
+        {
+            HostName = CreateDefaultHostName(target, zone);
+            Name = HostName;
+        }
     }
 
     private IReadOnlyList<Resource> GetDnsZoneCandidates() =>
@@ -176,6 +198,45 @@
     private Resource? GetSelectedZone() =>
         Resources.FirstOrDefault(resource =>
             string.Equals(resource.Id, SelectedZoneResourceId, StringComparison.OrdinalIgnoreCase));
+
+    private string? GetRequestedDnsZoneId()
+    {
+        var requested = GetRequestedQueryValue(ZoneResourceQueryParameter);
+        return string.IsNullOrWhiteSpace(requested) ||
+            !GetDnsZoneCandidates().Any(resource => string.Equals(resource.Id, requested, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : requested;
+    }
+
+    private string? GetRequestedTargetResourceId()
+    {
+        var requested = GetRequestedQueryValue(TargetResourceQueryParameter);
+        return string.IsNullOrWhiteSpace(requested) ||
+            !GetTargetCandidates().Any(resource => string.Equals(resource.Id, requested, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : requested;
+    }
+
+    private string? GetRequestedTargetEndpointName()
+    {
+        var requested = GetRequestedQueryValue(TargetEndpointQueryParameter);
+        return string.IsNullOrWhiteSpace(requested) ||
+            !GetTargetEndpoints(TargetResourceId).Any(endpoint => string.Equals(endpoint.Name, requested, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : requested;
+    }
+
+    private string? GetRequestedHostName() =>
+        NormalizeNullable(GetRequestedQueryValue(HostNameQueryParameter));
+
+    private string? GetRequestedQueryValue(string name)
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        return query.TryGetValue(name, out var values)
+            ? values.ToString()
+            : null;
+    }
 
     private bool IsSelectedZoneLocalHostNameProvider()
     {
@@ -292,6 +353,19 @@
     private static string CreateMappingId(string zoneResourceId, string hostName) =>
         $"{zoneResourceId.Trim()}:name:{CreateStableIdentifier(hostName)}";
 
+    private static string CreateDefaultHostName(Resource target, Resource zone)
+    {
+        var zoneName = zone.ResourceAttributes.TryGetValue(ResourceAttributeNames.DnsZoneName, out var value) &&
+            !string.IsNullOrWhiteSpace(value)
+                ? value.Trim().TrimStart('.')
+                : zone.Name.Trim().TrimStart('.');
+        var hostLabel = CreateStableIdentifier(target.Name);
+
+        return string.IsNullOrWhiteSpace(zoneName)
+            ? hostLabel
+            : $"{hostLabel}.{zoneName}";
+    }
+
     private static bool ShouldWarnAboutLocalSuffix(string value)
     {
         var normalized = value.Trim().TrimEnd('.');
@@ -310,4 +384,7 @@
 
         return string.IsNullOrWhiteSpace(normalized) ? "name" : normalized;
     }
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
