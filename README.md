@@ -167,6 +167,7 @@ dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj -
 ```
 ## Documentation
 
+- [CloudShell goal](goal.md)
 - [Why CloudShell](docs/why-cloudshell.md)
 - [CloudShell and Aspire](docs/cloudshell-and-aspire.md)
 - [Domain model](docs/domain-model.md)

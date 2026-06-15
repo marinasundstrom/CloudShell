@@ -12,6 +12,7 @@ coverage, sample reliability, and API/client contract stability.
 
 Read these first:
 
+- `goal.md`
 - `docs/progress.md`
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`

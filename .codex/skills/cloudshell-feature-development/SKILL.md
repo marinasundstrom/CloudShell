@@ -12,6 +12,7 @@ extension points, provider capabilities, samples, or UI workflows.
 
 Read these first:
 
+- `goal.md`
 - `docs/system-design-guidelines.md`
 - `docs/domain-model.md`
 - `docs/artifact-implementation-guidelines.md`

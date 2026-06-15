@@ -12,6 +12,7 @@ separately from Control Plane services.
 
 Before making product or architecture changes, read:
 
+- [CloudShell goal](goal.md)
 - [Domain model](docs/domain-model.md)
 - [System design guidelines](docs/system-design-guidelines.md)
 - [Progress and MVP tracker](docs/progress.md)
