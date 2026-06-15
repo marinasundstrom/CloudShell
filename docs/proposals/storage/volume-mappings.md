@@ -17,9 +17,12 @@ Volume overviews show reverse consumers, including declared target path and
 read/write mode when the workload descriptor is available.
 The current container materializers support `FileSystem` mounts and application
 Start/Restart availability now reports when a managed volume or storage parent
-uses an unsupported medium. Provider-defined storage resources,
-provider-backed volume resources, host-specific capability negotiation, and
-usage monitoring remain open.
+uses an unsupported medium. Container hosts can now advertise the standard
+`storage.mount.filesystem` capability, and application Start/Restart
+availability reports when the selected host does not advertise that capability
+for a managed `FileSystem` volume. Provider-defined storage resources,
+provider-backed volume resources, richer host-specific compatibility
+negotiation, and usage monitoring remain open.
 Deletion is guarded for volume resources that are still referenced by another
 resource dependency, and storage mappings cannot be changed while the target
 resource is running.
@@ -112,6 +115,10 @@ Suggested capability identifiers:
 - `storage.snapshot`
 - `storage.backup`
 
+Container hosts that can materialize filesystem mounts should advertise:
+
+- `storage.mount.filesystem`
+
 For MVP, the primary storage concepts are a storage resource and a volume. The
 first concrete storage kind is Local Storage. A Local Storage resource is a
 `ResourceClass.Storage` resource that projects class-level attributes such as
@@ -135,6 +142,10 @@ currently selected mappings and report when the provider cannot materialize a
 managed volume medium. Future host providers should advertise storage media or
 mount capabilities explicitly so compatibility can be negotiated per host
 instead of being inferred from the current container materializer.
+The first host-level negotiation is intentionally narrow:
+Docker-compatible hosts advertise `storage.mount.filesystem`, and application
+Start/Restart availability checks that capability for managed `FileSystem`
+volume resources when a selected container host can be resolved.
 
 `resources.AddVolume(...)` declares a CloudShell volume resource through the
 default Local Storage provider unless another provider is supplied. Its path is

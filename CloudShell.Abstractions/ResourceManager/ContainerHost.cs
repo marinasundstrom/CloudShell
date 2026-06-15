@@ -28,6 +28,7 @@ public static class ContainerHostCapabilityIds
 {
     public const string ContainerImage = "container.image";
     public const string ContainerBuild = "container.build";
+    public const string StorageMountFileSystem = "storage.mount.filesystem";
 }
 
 public sealed record ContainerHostDescriptor(

@@ -8,7 +8,8 @@ public static class ContainerHostServiceCollectionExtensions
     private static readonly string[] DefaultCapabilities =
     [
         ContainerHostCapabilityIds.ContainerImage,
-        ContainerHostCapabilityIds.ContainerBuild
+        ContainerHostCapabilityIds.ContainerBuild,
+        ContainerHostCapabilityIds.StorageMountFileSystem
     ];
 
     public static ICloudShellBuilder UseContainerHost(

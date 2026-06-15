@@ -27,6 +27,11 @@ on `git blame --follow`, and then by the broad type of change.
   target path and read/write mode when the consuming workload descriptor is
   available, while preserving the dependency fallback used for deletion safety.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
+- Container hosts now have a standard `storage.mount.filesystem` capability.
+  Docker-backed hosts advertise it, configured default hosts inherit it, and
+  application Start/Restart availability reports when a selected host cannot
+  mount a managed `FileSystem` volume.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

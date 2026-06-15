@@ -16,7 +16,8 @@ internal sealed class DockerContainerHostProvider(
             Capabilities:
             [
                 ContainerHostCapabilityIds.ContainerImage,
-                ContainerHostCapabilityIds.ContainerBuild
+                ContainerHostCapabilityIds.ContainerBuild,
+                ContainerHostCapabilityIds.StorageMountFileSystem
             ]);
 
     private static string NormalizeRegistry(string? registry) =>

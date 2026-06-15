@@ -3183,7 +3183,11 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(provider.Endpoint.ToString(), definition.Endpoint);
         Assert.Equal(ContainerRegistryDefaults.Default, definition.Registry);
         Assert.Equal(
-            [ContainerHostCapabilityIds.ContainerBuild, ContainerHostCapabilityIds.ContainerImage],
+            [
+                ContainerHostCapabilityIds.ContainerBuild,
+                ContainerHostCapabilityIds.ContainerImage,
+                ContainerHostCapabilityIds.StorageMountFileSystem
+            ],
             definition.HostCapabilities.Order(StringComparer.OrdinalIgnoreCase));
         Assert.Equal(DockerContainerResourceProvider.HostResourceType, host.EffectiveTypeId);
         Assert.True(host.HasCapability(ResourceCapabilityIds.ContainerHost));
@@ -3314,7 +3318,11 @@ public sealed class ResourceDeclarationTests
         Assert.True(containerHost.IsDefault);
         Assert.Equal(ContainerRegistryDefaults.Default, containerHost.Registry);
         Assert.Equal(
-            [ContainerHostCapabilityIds.ContainerBuild, ContainerHostCapabilityIds.ContainerImage],
+            [
+                ContainerHostCapabilityIds.ContainerBuild,
+                ContainerHostCapabilityIds.ContainerImage,
+                ContainerHostCapabilityIds.StorageMountFileSystem
+            ],
             containerHost.HostCapabilities.Order(StringComparer.OrdinalIgnoreCase));
     }
 
@@ -4184,6 +4192,79 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal(
             "Volume resource 'volume:data' uses storage medium 'NFS', which cannot be mounted by the current container materializer.",
+            reason);
+    }
+
+    [Fact]
+    public async Task ApplicationActionAvailability_ReturnsContainerHostStorageCapabilityReason()
+    {
+        var services = new ServiceCollection();
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .UseContainerHost(new ContainerHostDescriptor(
+                "docker:limited",
+                "Limited Docker",
+                ContainerHostKind.Docker,
+                "unix:///var/run/docker.sock",
+                Capabilities:
+                [
+                    ContainerHostCapabilityIds.ContainerImage,
+                    ContainerHostCapabilityIds.ContainerBuild
+                ]))
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var registrations = new MutableResourceRegistrationStore();
+        await provider.SetupApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:api",
+                "API",
+                string.Empty,
+                containerImage: "redis:7.2",
+                containerHostId: "docker:limited",
+                resourceType: ApplicationResourceTypes.ContainerApp,
+                volumeMounts:
+                [
+                    new ResourceVolumeMount("volume:data", "/data")
+                ]),
+            resourceGroupId: null,
+            registrations);
+        var resource = Assert.Single(provider.GetResources());
+        var volume = new Resource(
+            "volume:data",
+            "Data",
+            "Volume",
+            "Test",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.VolumeResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.VolumeStorageMedium] = StorageMedia.FileSystem
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+        var resourceManager = new StaticResourceManagerStore([resource, volume]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                resource,
+                registrations.GetRegistration(resource.Id),
+                null,
+                registrations,
+                resourceManager),
+            resource.ResourceActions.Single(action => action.Kind == ResourceActionKind.Start));
+
+        Assert.Equal(
+            "Container host 'docker:limited' does not advertise required storage capability 'storage.mount.filesystem' for volume resource 'volume:data'.",
             reason);
     }
 

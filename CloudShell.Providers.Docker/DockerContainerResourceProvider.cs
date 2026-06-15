@@ -449,7 +449,8 @@ public sealed partial class DockerContainerResourceProvider :
                 Capabilities:
                 [
                     ContainerHostCapabilityIds.ContainerImage,
-                    ContainerHostCapabilityIds.ContainerBuild
+                    ContainerHostCapabilityIds.ContainerBuild,
+                    ContainerHostCapabilityIds.StorageMountFileSystem
                 ]);
 
             return Task.FromResult(new ResourceOrchestrationDescriptor(

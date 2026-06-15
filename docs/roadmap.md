@@ -113,8 +113,10 @@ listed here before pulling in broader proposal work.
    capability-based storage resources where provider-owned storage locations
    can contain provider-defined volume sub-items. Storage is the resource
    class, Local Storage is the first concrete storage kind, and `FileSystem` is
-   the medium it announces. Future hosts must validate that they can
-   materialize the medium before accepting a volume mount.
+   the medium it announces. The first host-level negotiation uses the
+   `storage.mount.filesystem` container-host capability; next slices should
+   broaden diagnostics from declared support into observed materialization
+   state.
 4. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider,
@@ -212,9 +214,11 @@ listed here before pulling in broader proposal work.
   preflights unsupported volume and storage-parent media for the current
   container materializers. Application overview pages show attached storage
   mounts, and volume overview pages show reverse consumers with declared target
-  path and access mode when workload descriptors are available; next it needs
-  host-specific storage capability negotiation and Resource Manager visibility
-  into whether a mapping was actually materialized.
+  path and access mode when workload descriptors are available. Docker-backed
+  container hosts now advertise `storage.mount.filesystem`, and application
+  Start/Restart availability checks the selected host for that capability when
+  managed `FileSystem` volumes are attached; next it needs Resource Manager
+  visibility into whether a mapping was actually materialized.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

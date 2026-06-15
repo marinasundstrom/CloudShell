@@ -265,7 +265,7 @@ public sealed partial class ApplicationResourceProvider(
         store.GetApplication(resource.Id) is not null &&
         action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
 
-    public Task<string?> GetActionUnavailableReasonAsync(
+    public async Task<string?> GetActionUnavailableReasonAsync(
         ResourceProcedureContext context,
         ResourceAction action,
         CancellationToken cancellationToken = default)
@@ -273,31 +273,37 @@ public sealed partial class ApplicationResourceProvider(
         cancellationToken.ThrowIfCancellationRequested();
         if (action.Kind is not (ResourceActionKind.Start or ResourceActionKind.Restart))
         {
-            return Task.FromResult<string?>(null);
+            return null;
         }
 
         var application = store.GetApplication(context.Resource.Id);
         if (application is null)
         {
-            return Task.FromResult<string?>(null);
+            return null;
         }
 
         var referenceReason = GetReferenceUnavailableReason(application, context);
         if (!string.IsNullOrWhiteSpace(referenceReason))
         {
-            return Task.FromResult<string?>(referenceReason);
+            return referenceReason;
         }
 
+        var containerHost = await TryResolveContainerHostForAvailabilityAsync(
+            application,
+            context.ResourceManager,
+            context.PreferredContainerHostId,
+            cancellationToken);
         var volumeReason = GetVolumeMountUnavailableReason(
             application.VolumeMounts,
             context.ResourceManager,
-            environment.ContentRootPath);
+            environment.ContentRootPath,
+            containerHost);
         if (!string.IsNullOrWhiteSpace(volumeReason))
         {
-            return Task.FromResult<string?>(volumeReason);
+            return volumeReason;
         }
 
-        return Task.FromResult(GetEndpointUnavailableReason(application, action.Kind));
+        return GetEndpointUnavailableReason(application, action.Kind);
     }
 
     public bool CanExecuteOrchestratorService(
@@ -3609,6 +3615,32 @@ public sealed partial class ApplicationResourceProvider(
                 $"Resource '{definition.Name}' is container-backed but no default container host is registered. Use UseDocker(), UseContainerHost(...), or set WithContainerHost(...).");
     }
 
+    private async Task<ContainerHostDescriptor?> TryResolveContainerHostForAvailabilityAsync(
+        ApplicationResourceDefinition definition,
+        IResourceManagerStore? resourceManager,
+        string? preferredContainerHostId,
+        CancellationToken cancellationToken)
+    {
+        if (!IsContainerBacked(definition) ||
+            resourceManager is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await ResolveContainerHostAsync(
+                definition.ContainerHostId,
+                preferredContainerHostId,
+                resourceManager,
+                cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
     private async Task<ContainerHostDescriptor?> ResolveContainerHostAsync(
         string? containerHostId,
         string? preferredContainerHostId,
@@ -3875,7 +3907,8 @@ public sealed partial class ApplicationResourceProvider(
     internal static string? GetVolumeMountUnavailableReason(
         IReadOnlyList<ResourceVolumeMount> mounts,
         IResourceManagerStore? resourceManager,
-        string contentRootPath)
+        string contentRootPath,
+        ContainerHostDescriptor? containerHost = null)
     {
         foreach (var mount in mounts.Where(mount =>
                      !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
@@ -3884,7 +3917,8 @@ public sealed partial class ApplicationResourceProvider(
             var reason = GetVolumeMountUnavailableReason(
                 mount.NormalizedVolumeReference,
                 resourceManager,
-                contentRootPath);
+                contentRootPath,
+                containerHost);
             if (!string.IsNullOrWhiteSpace(reason))
             {
                 return reason;
@@ -3897,7 +3931,8 @@ public sealed partial class ApplicationResourceProvider(
     private static string? GetVolumeMountUnavailableReason(
         string volumeReference,
         IResourceManagerStore? resourceManager,
-        string contentRootPath)
+        string contentRootPath,
+        ContainerHostDescriptor? containerHost)
     {
         var volume = resourceManager?.GetResource(volumeReference);
         if (volume is null)
@@ -3917,16 +3952,30 @@ public sealed partial class ApplicationResourceProvider(
             return $"Volume resource '{volume.Id}' uses storage medium '{medium}', which cannot be mounted by the current container materializer.";
         }
 
+        if (string.Equals(medium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            var hostReason = GetContainerHostStorageMountUnavailableReason(
+                containerHost,
+                StorageMedia.FileSystem,
+                $"volume resource '{volume.Id}'");
+            if (!string.IsNullOrWhiteSpace(hostReason))
+            {
+                return hostReason;
+            }
+        }
+
         return GetStorageOwnedVolumeUnavailableReason(
             volume,
             resourceManager,
-            contentRootPath);
+            contentRootPath,
+            containerHost);
     }
 
     private static string? GetStorageOwnedVolumeUnavailableReason(
         Resource volume,
         IResourceManagerStore? resourceManager,
-        string contentRootPath)
+        string contentRootPath,
+        ContainerHostDescriptor? containerHost)
     {
         var storageResourceId = GetAttribute(volume, ResourceAttributeNames.VolumeStorageResourceId);
         var subPath = GetAttribute(volume, ResourceAttributeNames.VolumeSubPath);
@@ -3946,6 +3995,18 @@ public sealed partial class ApplicationResourceProvider(
             !string.Equals(storageMedium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
         {
             return $"Storage resource '{storage.Id}' uses storage medium '{storageMedium}', which cannot be mounted by the current container materializer.";
+        }
+
+        if (string.Equals(storageMedium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            var hostReason = GetContainerHostStorageMountUnavailableReason(
+                containerHost,
+                StorageMedia.FileSystem,
+                $"storage resource '{storage.Id}'");
+            if (!string.IsNullOrWhiteSpace(hostReason))
+            {
+                return hostReason;
+            }
         }
 
         if (string.IsNullOrWhiteSpace(subPath))
@@ -3974,6 +4035,23 @@ public sealed partial class ApplicationResourceProvider(
         return IsPathWithin(fullPath, fullStorageRoot)
             ? null
             : $"Volume resource '{volume.Id}' has subpath '{subPath}' outside storage resource '{storage.Id}'.";
+    }
+
+    private static string? GetContainerHostStorageMountUnavailableReason(
+        ContainerHostDescriptor? containerHost,
+        string storageMedium,
+        string sourceDescription)
+    {
+        if (containerHost is null ||
+            !string.Equals(storageMedium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase) ||
+            containerHost.HostCapabilities.Contains(
+                ContainerHostCapabilityIds.StorageMountFileSystem,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return $"Container host '{containerHost.Id}' does not advertise required storage capability '{ContainerHostCapabilityIds.StorageMountFileSystem}' for {sourceDescription}.";
     }
 
     private static string CreateLocalContainerVolumeArgument(
