@@ -1,0 +1,44 @@
+<ResourceEditorSection Title="Entries">
+    <Actions>
+        <FluentButton Appearance="Appearance.Neutral" Disabled="@Disabled" OnClick="AddEntry">
+            Add entry
+        </FluentButton>
+    </Actions>
+    <ChildContent>
+        @foreach (var entry in Entries)
+        {
+            <div class="environment-row configuration-entry-row" @key="entry">
+                <FluentTextField AriaLabel="Configuration entry name"
+                                 Disabled="@Disabled"
+                                 @bind-Value="entry.Name" />
+                <FluentTextField AriaLabel="Configuration entry value"
+                                 Disabled="@Disabled"
+                                 @bind-Value="entry.Value" />
+                <FluentButton Appearance="Appearance.Neutral"
+                              Disabled="@Disabled"
+                              OnClick="() => RemoveEntry(entry)">
+                    Remove
+                </FluentButton>
+            </div>
+        }
+    </ChildContent>
+</ResourceEditorSection>
+
+@code {
+    [Parameter, EditorRequired]
+    public List<ConfigurationEntryInput> Entries { get; set; } = [];
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private void AddEntry() => Entries.Add(new());
+
+    private void RemoveEntry(ConfigurationEntryInput entry)
+    {
+        Entries.Remove(entry);
+        if (Entries.Count == 0)
+        {
+            Entries.Add(new());
+        }
+    }
+}

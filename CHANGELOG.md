@@ -116,6 +116,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application registration pages now share a raw environment variable editor
   component and input model instead of duplicating add/remove row handling
   across executable, ASP.NET Core project, and container image forms.
+- Configuration Store and Secrets Vault create/edit pages now share entry and
+  secret editor components with shared input models, including the existing
+  masked-secret edit behavior.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

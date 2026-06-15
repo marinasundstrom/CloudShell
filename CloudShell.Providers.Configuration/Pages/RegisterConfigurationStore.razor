@@ -27,29 +27,7 @@
             }
         </FluentSelect>
 
-        <ResourceEditorSection>
-            <HeaderContent>
-                <strong>Entries</strong>
-            </HeaderContent>
-            <Actions>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="AddEntry">
-                    Add entry
-                </FluentButton>
-            </Actions>
-            <ChildContent>
-
-            @foreach (var entry in Entries)
-            {
-                <div class="environment-row configuration-entry-row">
-                    <FluentTextField AriaLabel="Configuration entry name" @bind-Value="entry.Name" />
-                    <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" />
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEntry(entry)">
-                        Remove
-                    </FluentButton>
-                </div>
-            }
-            </ChildContent>
-        </ResourceEditorSection>
+        <ConfigurationEntriesEditor Entries="Entries" />
 
         @if (ErrorMessage is not null)
         {
@@ -74,17 +52,6 @@
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
     private List<ConfigurationEntryInput> Entries { get; } = [new()];
-
-    private void AddEntry() => Entries.Add(new());
-
-    private void RemoveEntry(ConfigurationEntryInput entry)
-    {
-        Entries.Remove(entry);
-        if (Entries.Count == 0)
-        {
-            Entries.Add(new());
-        }
-    }
 
     private async Task Register()
     {
@@ -128,10 +95,4 @@
         Registrations.GetRegistration(resourceId) is not null ||
         ConfigurationProvider.GetStore(resourceId) is not null;
 
-    private sealed class ConfigurationEntryInput(string? name = null, string? value = null)
-    {
-        public string? Name { get; set; } = name;
-
-        public string? Value { get; set; } = value;
-    }
 }
