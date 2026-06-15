@@ -1,9 +1,10 @@
 # Service Discovery
 
-CloudShell currently supports application-level service discovery for local
+CloudShell currently supports developer service discovery for local
 development and descriptor-based orchestration. This is the Aspire-compatible
-configuration shape used by `Microsoft.Extensions.ServiceDiscovery`, not the
-future network-level service discovery resource capability.
+per-application configuration shape used by
+`Microsoft.Extensions.ServiceDiscovery`, not the future managed or
+network-level service discovery resource capability.
 
 ## Current Model
 
@@ -33,21 +34,22 @@ resource ID, normalized to lower-case dash-separated service names. Endpoint
 keys are emitted from both the endpoint name and protocol when they differ.
 Process-only endpoints are not projected.
 
-Application Resource Manager overview pages show the service discovery
-references that will be projected, including their aliases and the first
-environment variable names that bind those aliases to concrete endpoint
-addresses.
+Application Resource Manager overview pages show the developer service
+discovery references that will be projected for this local/programmatic flow,
+including their aliases and the first environment variable names that bind
+those aliases to concrete endpoint addresses.
 
-Service discovery variables are generated from references, not from lifecycle
-dependencies. Use `WithReference(...)` when the application should discover a
-resource endpoint. Use `DependsOn(...)` when the resource graph needs startup
-ordering. A resource can use both relationships.
+Developer service discovery variables are generated from application
+references, not from lifecycle dependencies. Use `WithReference(...)` when a
+local development application should receive Aspire-compatible endpoint
+configuration for another resource. Use `DependsOn(...)` when the resource
+graph needs startup ordering. A resource can use both relationships.
 
-Service discovery is one addressing layer in CloudShell. Concrete endpoint
-addresses, topology-scoped reachability, application service discovery
-aliases, future network-level discovery names, and DNS/name mappings have
-different uses; see [Networking](networking.md#addressing-layers) for the
-shared terminology.
+Developer service discovery is one addressing layer in CloudShell. Concrete
+endpoint addresses, topology-scoped reachability, Aspire-compatible developer
+service discovery aliases, future managed network-level discovery names, and
+DNS/name mappings have different uses; see
+[Networking](networking.md#addressing-layers) for the shared terminology.
 
 ## Application Requirements
 
@@ -110,13 +112,14 @@ resolution.
 
 ## Identity And Authorization
 
-Service discovery only locates endpoints. It does not authenticate the caller
-and does not grant access.
+Developer service discovery only locates endpoints. It does not authenticate
+the caller and does not grant access.
 
 Configuration Store, Secrets Vault, and other protected services should be
 treated like any other referenced service:
 
-- `WithReference(...)` and service discovery locate the service endpoint.
+- `WithReference(...)` and developer service discovery locate the service
+  endpoint in the local/programmatic flow.
 - `WithIdentity(...)` or `RequireIdentity()` assigns the calling resource
   identity.
 - Resource grants such as `ReadEntries` or `ReadSecrets` authorize the identity
@@ -135,9 +138,9 @@ The current model is per-application configuration projection. It works well
 for local development, ASP.NET Core project resources, executables, and
 descriptor-based orchestrators such as Docker Compose.
 
-The post-MVP network-level model should be a resource capability owned by the
-networking layer. It should allow services inside a host network or virtual
-network to resolve CloudShell resources without every workload receiving
-application-specific environment variables. That future capability should
-complement this current model, not reinterpret resource identity or lifecycle
-dependencies as endpoint discovery.
+The managed or on-premise network-level model should be a resource capability
+owned by the networking layer. It should allow services inside a host network
+or virtual network to resolve CloudShell resources without CloudShell tracking
+programmatic application references or projecting per-application environment
+variables. That future capability should complement this developer flow, not
+reinterpret resource identity or lifecycle dependencies as endpoint discovery.

@@ -198,10 +198,13 @@ resource group.
 An application can depend on any resource builder returned from the declarative
 graph, including provider sub-resources such as Docker containers.
 
-Service discovery is intentionally opt-in for generic application resources. An
-application can reference or depend on resources without receiving generated
-environment variables, which leaves room for other discovery mechanisms such as
-a service discovery service running in a container.
+This developer service discovery flow is intentionally opt-in for generic
+application resources. It is the Aspire-compatible local/programmatic path, not
+the future managed on-premise discovery model. An application can reference or
+depend on resources without receiving generated environment variables, which
+leaves room for other discovery mechanisms such as a service discovery service
+running in a container or network-level discovery owned by a host or virtual
+network provider.
 
 Applications can read the generated URLs directly through `IConfiguration`:
 

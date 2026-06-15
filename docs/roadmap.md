@@ -159,12 +159,12 @@ listed here before pulling in broader proposal work.
   and operate that path from the application resource configuration experience
   without requiring programmatic-only sample knowledge.
 - Keep CloudShell's resource addressing layers distinct. Concrete endpoint
-  addresses, topology-scoped reachability, per-application service discovery,
-  future network-level discovery, and DNS/name mappings each solve a different
-  part of the application environment path. Application overview pages now
-  show projected service discovery references and aliases; network-level
-  discovery remains a later provider capability for host or virtual-network
-  scopes.
+  addresses, topology-scoped reachability, Aspire-compatible developer
+  service discovery, future managed network-level discovery, and DNS/name
+  mappings each solve a different part of the application environment path.
+  Application overview pages now show projected developer service discovery
+  references and aliases for local/programmatic flows; network-level discovery
+  remains a later provider capability for host or virtual-network scopes.
 - Do not require `cloudshell.service` for normal container app exposure in the
   MVP. Container apps are the stable user-facing deployment, replica, and
   exposure artifacts: they represent managed services that can be exposed

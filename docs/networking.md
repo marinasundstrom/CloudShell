@@ -78,15 +78,15 @@ addressed. These mechanisms are related, but they are not interchangeable.
 | --- | --- | --- |
 | Concrete endpoint address | `http://127.0.0.1:5218`, `tcp://10.0.0.5:1433`, `http://container-name:8080` | A provider-observed address that can be used directly when the caller is already in the right network context. |
 | Topology-scoped reachability | host network, virtual network, container-host network, load-balancer backend | Defines where an endpoint is reachable and what provider may route, proxy, isolate, or materialize it. |
-| Application service discovery alias | `services__catalog-api__http__0`, `https+http://catalog-api` | Per-workload configuration that lets an application resolve a referenced resource without hard-coding a concrete address. |
-| Network-level service discovery name | future DNS or registry-backed name inside a host or virtual network | Shared discovery for workloads in the same network scope without per-application environment projection. |
+| Developer service discovery alias | `services__catalog-api__http__0`, `https+http://catalog-api` | Aspire-compatible per-workload configuration for local/programmatic development flows. |
+| Network-level service discovery name | future DNS or registry-backed name inside a host or virtual network | Shared managed discovery for workloads in the same network scope without tracking programmatic references or projecting per-application environment variables. |
 | DNS/name mapping | `api.cloudshell.local`, `api.example.com` | Human-facing or integration-facing names mapped to a resource endpoint, load-balancer route, or other exposure target. |
 
 The immediate MVP uses concrete endpoint addresses, topology-scoped endpoint
-mappings, application service discovery aliases, and logical DNS/name mappings.
-Network-level service discovery is a later provider capability for host or
-virtual networks. It should not replace explicit endpoint mappings or public
-DNS/name mappings.
+mappings, Aspire-compatible developer service discovery aliases, and logical
+DNS/name mappings. Network-level service discovery is a later provider
+capability for host or virtual networks. It should not replace explicit
+endpoint mappings or public DNS/name mappings.
 
 ## Capabilities
 

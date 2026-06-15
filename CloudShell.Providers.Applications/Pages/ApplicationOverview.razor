@@ -81,7 +81,7 @@ else
     @if (ServiceDiscoveryReferences.Count > 0)
     {
         <section class="blade-section">
-            <h3>Service discovery</h3>
+            <h3>Developer service discovery</h3>
             <div class="generated-list">
                 @foreach (var reference in ServiceDiscoveryReferences)
                 {
@@ -418,7 +418,7 @@ else
     {
         if (Application?.UseServiceDiscovery != true)
         {
-            return "Reference is not projected because service discovery is disabled.";
+            return "Reference is not projected because developer service discovery is disabled.";
         }
 
         if (reference.Resource is null)
@@ -428,7 +428,7 @@ else
 
         if (reference.ServiceNames.Count == 0)
         {
-            return "No service discovery aliases are available.";
+            return "No developer service discovery aliases are available.";
         }
 
         return $"Aliases: {string.Join(", ", reference.ServiceNames)}";
@@ -438,7 +438,7 @@ else
     {
         if (Application?.UseServiceDiscovery != true)
         {
-            return "Enable service discovery to inject referenced endpoints.";
+            return "Enable developer service discovery to inject referenced endpoints.";
         }
 
         if (reference.Resource is null)
@@ -448,7 +448,7 @@ else
 
         if (reference.EndpointBindings.Count == 0)
         {
-            return "No reachable endpoints are available for discovery.";
+            return "No reachable endpoints are available for developer service discovery.";
         }
 
         var firstAddress = reference.EndpointBindings[0].Address;

@@ -125,7 +125,7 @@ surface for:
 * current revision and image deployment
 * replica count
 * endpoints
-* service discovery references
+* Aspire-compatible developer service discovery references
 * environment variables and app settings
 * secrets/configuration references
 * identity binding and permission grants

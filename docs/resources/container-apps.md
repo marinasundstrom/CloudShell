@@ -118,20 +118,22 @@ projected container image and revision.
 ## Service Discovery
 
 Container apps can reference other resources with `WithReference(...)` and opt
-into the current application-level service discovery mapping with
+into the current Aspire-compatible developer service discovery mapping with
 `WithServiceDiscovery()`. Descriptor-based orchestrators receive the same
 `services__<resource-name-or-id>__<endpoint-name-or-scheme>__0` environment
 variables as local executable resources, so Docker Compose and future
 descriptor-driven orchestrators can pass those values into the workload
-container.
+container. This is the local/programmatic flow; managed on-premise
+network-level discovery is a separate future provider capability.
 
 See [Service discovery](../service-discovery.md) for the current Microsoft
 service discovery package requirements for applications that consume logical
 service URIs.
 
-Service discovery remains separate from resource identity. Use references and
-service discovery to locate a service endpoint, then use resource identity and
-grants when the container app needs authorized access to that service.
+Developer service discovery remains separate from resource identity. Use
+references and developer service discovery to locate a service endpoint in the
+local/programmatic flow, then use resource identity and grants when the
+container app needs authorized access to that service.
 
 ## Replicas
 
