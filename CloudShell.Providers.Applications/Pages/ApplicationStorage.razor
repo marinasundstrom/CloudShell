@@ -4,17 +4,13 @@
 
 @if (Application is null)
 {
-    <div class="empty-state">
-        <strong>Storage is unavailable</strong>
-        <span>The resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="Storage is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
 }
 else if (!SupportsVolumeMounts(Application))
 {
-    <div class="empty-state">
-        <strong>Storage is not supported</strong>
-        <span>This resource type does not support volume mappings.</span>
-    </div>
+    <EmptyState Title="Storage is not supported"
+                Message="This resource type does not support volume mappings." />
 }
 else
 {

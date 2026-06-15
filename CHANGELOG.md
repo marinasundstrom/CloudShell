@@ -149,6 +149,9 @@ on `git blame --follow`, and then by the broad type of change.
   deployment submit flows now use the shared primary form action component.
 - Added a shared empty-state component and applied it to configuration and
   storage-related resource views with matching unavailable-resource messages.
+- Application overview, update, deployment, storage, and replicas views now use
+  the shared empty-state component for matching unavailable and unsupported
+  resource states.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

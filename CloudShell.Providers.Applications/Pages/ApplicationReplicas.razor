@@ -2,17 +2,13 @@
 
 @if (Application is null)
 {
-    <div class="empty-state">
-        <strong>Replicas are unavailable</strong>
-        <span>The resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="Replicas are unavailable"
+                Message="The resource may have been removed or is no longer visible." />
 }
 else if (!ApplicationResourceTypes.IsContainerApp(Application.EffectiveTypeId))
 {
-    <div class="empty-state">
-        <strong>Replicas are not supported</strong>
-        <span>This resource type does not expose container app replicas.</span>
-    </div>
+    <EmptyState Title="Replicas are not supported"
+                Message="This resource type does not expose container app replicas." />
 }
 else
 {
@@ -38,10 +34,8 @@ else
         <h3>Replicas</h3>
         @if (Replicas.Count == 0)
         {
-            <div class="empty-state">
-                <strong>No replicas are projected</strong>
-                <span>The provider has not projected runtime replica artifacts for this app.</span>
-            </div>
+            <EmptyState Title="No replicas are projected"
+                        Message="The provider has not projected runtime replica artifacts for this app." />
         }
         else
         {

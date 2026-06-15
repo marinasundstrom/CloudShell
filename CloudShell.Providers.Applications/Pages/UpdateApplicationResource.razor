@@ -8,10 +8,8 @@
 
 @if (Application is null)
 {
-    <div class="empty-state">
-        <strong>Application is unavailable</strong>
-        <span>The resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="Application is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
 }
 else
 {

@@ -4,10 +4,8 @@
 
 @if (Resource is null)
 {
-    <div class="empty-state">
-        <strong>Deployment is unavailable</strong>
-        <span>The resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="Deployment is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
 }
 else
 {
