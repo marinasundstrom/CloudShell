@@ -39,52 +39,53 @@ else
         </div>
     }
 
-    <div class="environment-editor">
-        <div class="environment-header">
-            <strong>Volume mounts</strong>
+    <ResourceEditorSection Title="Volume mounts">
+        <Actions>
             <FluentButton Appearance="Appearance.Neutral"
                           Disabled="@IsStorageEditorDisabled"
                           OnClick="AddVolumeMount">
                 Add mount
             </FluentButton>
-        </div>
+        </Actions>
 
-        @if (GetVolumeCandidates().Count == 0)
-        {
-            <span>No volume resources are available in this group.</span>
-        }
-        else
-        {
-            @foreach (var mount in VolumeMounts)
+        <ChildContent>
+            @if (GetVolumeCandidates().Count == 0)
             {
-                <div class="environment-row">
-                    <FluentSelect TOption="string"
-                                  AriaLabel="Volume resource"
-                                  Disabled="@IsStorageEditorDisabled"
-                                  @bind-Value="mount.VolumeReference"
-                                  Appearance="Appearance.Outline">
-                        <FluentOption TOption="string" Value="">Select volume</FluentOption>
-                        @foreach (var volume in GetVolumeCandidates())
-                        {
-                            <FluentOption TOption="string" Value="@volume.Id">@ApplicationVolumeResourceDisplay.GetVolumeOptionLabel(volume)</FluentOption>
-                        }
-                    </FluentSelect>
-                    <FluentTextField AriaLabel="Target path"
-                                     Disabled="@IsStorageEditorDisabled"
-                                     @bind-Value="mount.TargetPath"
-                                     Placeholder="@GetTargetPathPlaceholder()" />
-                    <FluentCheckbox Disabled="@IsStorageEditorDisabled" @bind-Value="mount.ReadOnly">
-                        Read-only
-                    </FluentCheckbox>
-                    <FluentButton Appearance="Appearance.Neutral"
-                                  Disabled="@IsStorageEditorDisabled"
-                                  OnClick="() => RemoveVolumeMount(mount)">
-                        Remove
-                    </FluentButton>
-                </div>
+                <span>No volume resources are available in this group.</span>
             }
-        }
-    </div>
+            else
+            {
+                @foreach (var mount in VolumeMounts)
+                {
+                    <div class="environment-row">
+                        <FluentSelect TOption="string"
+                                      AriaLabel="Volume resource"
+                                      Disabled="@IsStorageEditorDisabled"
+                                      @bind-Value="mount.VolumeReference"
+                                      Appearance="Appearance.Outline">
+                            <FluentOption TOption="string" Value="">Select volume</FluentOption>
+                            @foreach (var volume in GetVolumeCandidates())
+                            {
+                                <FluentOption TOption="string" Value="@volume.Id">@ApplicationVolumeResourceDisplay.GetVolumeOptionLabel(volume)</FluentOption>
+                            }
+                        </FluentSelect>
+                        <FluentTextField AriaLabel="Target path"
+                                         Disabled="@IsStorageEditorDisabled"
+                                         @bind-Value="mount.TargetPath"
+                                         Placeholder="@GetTargetPathPlaceholder()" />
+                        <FluentCheckbox Disabled="@IsStorageEditorDisabled" @bind-Value="mount.ReadOnly">
+                            Read-only
+                        </FluentCheckbox>
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      Disabled="@IsStorageEditorDisabled"
+                                      OnClick="() => RemoveVolumeMount(mount)">
+                            Remove
+                        </FluentButton>
+                    </div>
+                }
+            }
+        </ChildContent>
+    </ResourceEditorSection>
 }
 
 @code {

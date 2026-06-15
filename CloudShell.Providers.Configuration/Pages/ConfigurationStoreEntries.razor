@@ -13,25 +13,26 @@ else
 {
     <div class="type-registration">
         <div class="form-panel">
-            <div class="environment-editor">
-                <div class="environment-header">
-                    <strong>Entries</strong>
+            <ResourceEditorSection Title="Entries">
+                <Actions>
                     <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="AddEntry">
                         Add entry
                     </FluentButton>
-                </div>
+                </Actions>
 
-                @foreach (var entry in Entries)
-                {
-                    <div class="environment-row configuration-entry-row">
-                        <FluentTextField AriaLabel="Configuration entry name" @bind-Value="entry.Name" Disabled="@IsReadOnly" />
-                        <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" Disabled="@IsReadOnly" />
-                        <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="() => RemoveEntry(entry)">
-                            Remove
-                        </FluentButton>
-                    </div>
-                }
-            </div>
+                <ChildContent>
+                    @foreach (var entry in Entries)
+                    {
+                        <div class="environment-row configuration-entry-row">
+                            <FluentTextField AriaLabel="Configuration entry name" @bind-Value="entry.Name" Disabled="@IsReadOnly" />
+                            <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" Disabled="@IsReadOnly" />
+                            <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="() => RemoveEntry(entry)">
+                                Remove
+                            </FluentButton>
+                        </div>
+                    }
+                </ChildContent>
+            </ResourceEditorSection>
         </div>
     </div>
 }

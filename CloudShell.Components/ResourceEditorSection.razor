@@ -1,0 +1,39 @@
+<div class="@CssClass">
+    @if (HeaderContent is not null || Actions is not null || !string.IsNullOrWhiteSpace(Title))
+    {
+        <div class="environment-header">
+            @if (HeaderContent is not null)
+            {
+                @HeaderContent
+            }
+            else
+            {
+                <strong>@Title</strong>
+            }
+            @Actions
+        </div>
+    }
+    @ChildContent
+</div>
+
+@code {
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string CssClass =>
+        string.IsNullOrWhiteSpace(Class)
+            ? "environment-editor"
+            : $"environment-editor {Class}";
+}
