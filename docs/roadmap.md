@@ -796,6 +796,10 @@ host, routing, identity, runtime ownership, and deployment decisions above.
 The initial on-premise hosting scenario also belongs here: it should assemble
 the already-proven primitives into a larger environment rather than pulling
 new platform concepts into the MVP.
+That validation should include creating resources through the Resource Manager
+UI with identity enabled, then exercising container app image updates against a
+registry-backed app so authorization, registry credentials, revisions, and
+runtime rollout behavior are tested together.
 
 References:
 

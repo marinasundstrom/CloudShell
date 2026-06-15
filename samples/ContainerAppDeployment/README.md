@@ -13,7 +13,10 @@ The resource graph declares:
   lifecycle ordering, references it for service discovery, and starts from the
   mock image tag `cloudshell/mock-api:20260608.1`.
 
-> We use port `5023` because standard `5000` is not available on MacOS.
+> We use port `5023` instead of the common local registry default `5000`
+> because macOS commonly reserves `5000` for host services such as AirPlay
+> Receiver. Keep the registry port explicit when testing local deployment
+> flows.
 
 The sample keeps the registry and app stopped by default. That makes the
 revision flow safe to run even when the mock image has not actually been pushed.
@@ -55,3 +58,9 @@ POST /api/container-apps/v1/{containerAppId}/revisions
 with a new image tag and `restartIfRunning=false`. The Control Plane updates the
 container app image, creates a new app-owned revision, and records resource
 events for traceability.
+
+Future on-premise validation should cover the same image-update flow through
+the Resource Manager UI after resources have been created through the UI, with
+identity and access enforcement enabled. That scenario is where registry
+credentials, authorized image updates, and managed container app deployment
+should be tested together.

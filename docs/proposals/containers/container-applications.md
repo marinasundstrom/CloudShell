@@ -244,9 +244,10 @@ Implemented pieces include:
   public endpoint, DNS/name publication, registry credential, and storage
   choices before update/start.
 * Add local container-registry diagnostics and configuration so CloudShell does
-  not assume `localhost:5000`. On macOS, port `5000` is commonly occupied by
-  the host OS, so registry-backed samples and providers should detect conflicts
-  and suggest or allocate a different port.
+  not assume `localhost:5000`. The Container App Deployment sample already
+  uses an explicit non-default port; future registry-backed samples and
+  providers should keep the port configurable, detect conflicts, and suggest or
+  allocate a different port when the default is unavailable.
 * Improve restart/update behavior around image, replica, environment, endpoint,
   identity, and storage changes.
 * Keep supported samples green with a broad container app scenario that uses
