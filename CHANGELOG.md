@@ -126,7 +126,7 @@ on `git blame --follow`, and then by the broad type of change.
   container-name, revision, and materialization metadata, and stay out of the
   normal Resource Manager inventory. Resource Manager now resolves inventory
   visibility from appsettings defaults and per-user settings: hidden resources
-  and runtime-managed resources are separate opt-ins, runtime-managed
+  and hidden runtime-managed artifacts are separate opt-ins, runtime-managed
   inspection requires permission, and non-normal resources remain view-only.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 

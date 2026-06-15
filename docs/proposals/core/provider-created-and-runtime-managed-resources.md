@@ -13,13 +13,15 @@ lifecycle relates to other resources.
 Initial implementation now adds these distinctions to the projected `Resource`
 shape: source, management mode, visibility, owner resource, and cleanup
 behavior. The Control Plane API and remote client preserve those fields, and
-Resource Manager hides runtime-managed and hidden resources from the standard
-inventory by default while keeping them available in the loaded graph for
-parent/detail inspection. Resource Manager can opt into showing hidden
-resources independently from runtime-managed resources; the runtime-managed
-view uses appsettings defaults, per-user settings, and an explicit permission.
-This is an internal foundation for container app runtime artifacts before broad
-runtime resource projection is announced as a public product surface.
+Resource Manager hides resources based on visibility, not management mode.
+Provider-managed and runtime-managed resources may still be normal/public
+resources. Hidden resources stay out of the standard inventory by default
+while remaining available in the loaded graph for parent/detail inspection.
+Resource Manager can opt into showing hidden resources, and hidden
+runtime-managed artifacts additionally require a runtime-managed inspection
+setting and permission. This is an internal foundation for container app
+runtime artifacts before broad runtime resource projection is announced as a
+public product surface.
 Container apps now use this foundation to project desired runtime container
 replicas as hidden children of the stable container app resource. Provider-
 observed container IDs, health, placement, and materialization details remain
@@ -284,10 +286,12 @@ This allows runtime-managed resources to exist within the graph without
 cluttering normal user experiences.
 
 Visibility is independent from management. A user-managed resource may be
-hidden, and a runtime-managed resource may be normal or hidden. Resource
-Manager therefore treats `Show hidden resources` and
-`Show runtime-managed resources` as separate display settings. Hidden
-runtime-managed resources require both settings to appear in inventory.
+hidden, and a provider-managed or runtime-managed resource may be normal or
+hidden. Resource Manager therefore treats `Show hidden resources` and
+`Show runtime-managed resources` as separate display settings. A normal
+runtime-managed resource is visible by default if it is part of the public
+resource surface. Hidden runtime-managed artifacts require both settings to
+appear in inventory.
 
 ## Source and Management Model
 
@@ -456,7 +460,8 @@ Additional projected fields may include:
 Normal UI views should:
 
 * show user-managed resources
-* hide runtime-managed resources by default
+* show normal provider-managed and runtime-managed resources when they are part
+  of the public resource surface
 * hide hidden resources by default
 
 Advanced views may:

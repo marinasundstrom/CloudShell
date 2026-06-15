@@ -827,10 +827,21 @@
         }
     }
 
-    private bool IsVisibleInInventory(Resource resource) =>
-        (DisplaySelection.ShowHiddenResources || resource.Visibility == ResourceVisibility.Normal) &&
-        (DisplaySelection.ShowRuntimeManagedResources ||
-            resource.ManagementMode != ResourceManagementMode.RuntimeManaged);
+    private bool IsVisibleInInventory(Resource resource)
+    {
+        if (resource.Visibility == ResourceVisibility.Normal)
+        {
+            return true;
+        }
+
+        if (!DisplaySelection.ShowHiddenResources)
+        {
+            return false;
+        }
+
+        return resource.ManagementMode != ResourceManagementMode.RuntimeManaged ||
+            DisplaySelection.ShowRuntimeManagedResources;
+    }
 
     private static bool IsUserManagedResource(Resource resource) =>
         resource.Source == ResourceSource.User &&

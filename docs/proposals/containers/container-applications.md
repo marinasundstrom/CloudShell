@@ -209,7 +209,8 @@ Implemented pieces include:
    diagnostics to users who can view or manage the container app. This tab is
    app-scoped and should not require enabling the global runtime-managed
    inventory view; the global `Show runtime-managed resources` setting remains
-   for browsing runtime-managed resources directly in the resource inventory.
+   for browsing hidden runtime-managed artifacts directly in the resource
+   inventory.
 8. Validate the managed-service story with samples that combine container app,
    storage, service discovery, identity, secrets/configuration, logs, traces,
    and public/name exposure.

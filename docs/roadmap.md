@@ -150,8 +150,8 @@ listed here before pulling in broader proposal work.
    are in place. Container apps now project desired replica/runtime-container
    children as hidden runtime-managed resources parented to the app, with
    Resource Manager visibility controlled separately for hidden resources and
-   runtime-managed resources. Next slices should enrich those children only
-   where container apps need provider-observed container IDs, health,
+   hidden runtime-managed artifacts. Next slices should enrich those children
+   only where container apps need provider-observed container IDs, health,
    placement, materialization diagnostics, or an app-scoped Replicas tab, not
    as a broad public deployment product surface.
 12. Advanced app and environment concepts: defer autoscaling, backend pools,

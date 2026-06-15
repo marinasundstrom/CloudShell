@@ -188,10 +188,13 @@ container app for diagnostics and relationship inspection. The current
 application provider projects desired replica/container children from the
 orchestrator service descriptor with replica ordinal, replica count, container
 name, and revision metadata. Provider-observed container IDs, placement, health,
-and materialization state are future enrichment. Resource Manager only shows
-these child resources when both hidden resources and runtime-managed resources
-are enabled for the current user, and runtime-managed inspection requires the
-`resources.runtime-managed.read` permission.
+and materialization state are future enrichment. These child resources are
+internal artifacts because their visibility is hidden. Resource Manager only
+shows them when both hidden resources and runtime-managed resources are enabled
+for the current user, and runtime-managed inspection requires the
+`resources.runtime-managed.read` permission. A future runtime-managed resource
+that is part of the public application surface can use normal visibility and
+remain visible without being treated as an internal artifact.
 
 When multiple local containers are materialized, they are named by convention
 from the parent container app, for example with a `-replica-{n}` suffix. Docker

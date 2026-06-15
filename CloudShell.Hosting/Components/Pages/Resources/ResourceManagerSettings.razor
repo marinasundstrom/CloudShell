@@ -141,7 +141,7 @@
                         }
                         else
                         {
-                            @L["Shows runtime-managed resources in Resource Manager. These resources are view-only. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowRuntimeManagedResources)]
+                            @L["Allows hidden runtime-managed artifacts to appear when hidden resources are shown. These resources are view-only. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowRuntimeManagedResources)]
                         }
                     </small>
                 </div>
@@ -151,7 +151,7 @@
                         @L["Show hidden resources"]
                     </FluentCheckbox>
                     <small>
-                        @L["Shows resources whose visibility is hidden. Hidden runtime-managed resources require both visibility settings. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowHiddenResources)]
+                        @L["Shows resources whose visibility is hidden. Hidden runtime-managed artifacts also require runtime-managed inspection. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowHiddenResources)]
                     </small>
                 </div>
             </fieldset>
