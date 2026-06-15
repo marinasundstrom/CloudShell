@@ -16,17 +16,9 @@
         <div class="provider-error">@status.Error</div>
     }
 
-    <label for="docker-group">Resource group</label>
-    <FluentSelect TOption="string"
-                  Id="docker-group"
-                  @bind-Value="SelectedGroupId"
-                  Appearance="Appearance.Outline">
-        <FluentOption TOption="string" Value="">Default group</FluentOption>
-        @foreach (var group in groups)
-        {
-            <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-        }
-    </FluentSelect>
+    <ResourceGroupSelect Id="docker-group"
+                         ResourceGroups="groups"
+                         @bind-Value="SelectedGroupId" />
 
     <label for="docker-host-mode">Host mode</label>
     <FluentSelect TOption="string"

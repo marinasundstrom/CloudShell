@@ -133,6 +133,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration Store and Secrets Vault create/update forms now use the shared
   Resource Manager resource-group selector component, including read-only
   disabling on update tabs.
+- Network, Storage, Volume, Docker host, and application update forms now use
+  the shared Resource Manager resource-group selector component.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

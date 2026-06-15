@@ -22,17 +22,9 @@ else
             <label for="local-storage-update-name">Name</label>
             <FluentTextField Id="local-storage-update-name" @bind-Value="Name" />
 
-            <label for="local-storage-update-group">Resource group</label>
-            <FluentSelect TOption="string"
-                          Id="local-storage-update-group"
-                          @bind-Value="SelectedGroupId"
-                          Appearance="Appearance.Outline">
-                <FluentOption TOption="string" Value="">Default group</FluentOption>
-                @foreach (var group in ResourceGroups)
-                {
-                    <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-                }
-            </FluentSelect>
+            <ResourceGroupSelect Id="local-storage-update-group"
+                                 ResourceGroups="ResourceGroups"
+                                 @bind-Value="SelectedGroupId" />
 
             <label for="local-storage-update-location">Provider location</label>
             <FluentTextField Id="local-storage-update-location"

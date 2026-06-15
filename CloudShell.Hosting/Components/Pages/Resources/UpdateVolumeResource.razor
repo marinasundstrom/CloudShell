@@ -22,17 +22,9 @@ else
             <label for="volume-update-name">Name</label>
             <FluentTextField Id="volume-update-name" @bind-Value="Name" />
 
-            <label for="volume-update-group">Resource group</label>
-            <FluentSelect TOption="string"
-                          Id="volume-update-group"
-                          @bind-Value="SelectedGroupId"
-                          Appearance="Appearance.Outline">
-                <FluentOption TOption="string" Value="">Default group</FluentOption>
-                @foreach (var group in ResourceGroups)
-                {
-                    <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-                }
-            </FluentSelect>
+            <ResourceGroupSelect Id="volume-update-group"
+                                 ResourceGroups="ResourceGroups"
+                                 @bind-Value="SelectedGroupId" />
 
             <label for="volume-update-provider">Provider</label>
             <FluentTextField Id="volume-update-provider"

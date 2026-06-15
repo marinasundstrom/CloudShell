@@ -23,18 +23,10 @@ else
             </div>
         </div>
 
-        <label for="docker-update-group">Resource group</label>
-        <FluentSelect TOption="string"
-                      Id="docker-update-group"
-                      @bind-Value="SelectedGroupId"
-                      Disabled="@IsReadOnly"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups.GetResourceGroups())
-            {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-            }
-        </FluentSelect>
+        <ResourceGroupSelect Id="docker-update-group"
+                             ResourceGroups="ResourceGroups.GetResourceGroups()"
+                             Disabled="@IsReadOnly"
+                             @bind-Value="SelectedGroupId" />
 
         <label for="docker-update-registry">Registry</label>
         <FluentTextField Id="docker-update-registry" @bind-Value="Registry" Disabled="@IsReadOnly" Placeholder="docker.io" />

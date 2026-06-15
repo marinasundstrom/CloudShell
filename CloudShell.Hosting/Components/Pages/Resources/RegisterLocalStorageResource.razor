@@ -10,17 +10,9 @@
         <label for="local-storage-resource-id">Resource ID</label>
         <FluentTextField Id="local-storage-resource-id" @bind-Value="ResourceId" Placeholder="storage:local" />
 
-        <label for="local-storage-group">Resource group</label>
-        <FluentSelect TOption="string"
-                      Id="local-storage-group"
-                      @bind-Value="SelectedGroupId"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups)
-            {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-            }
-        </FluentSelect>
+        <ResourceGroupSelect Id="local-storage-group"
+                             ResourceGroups="ResourceGroups"
+                             @bind-Value="SelectedGroupId" />
 
         <label for="local-storage-location">Provider location</label>
         <FluentTextField Id="local-storage-location"

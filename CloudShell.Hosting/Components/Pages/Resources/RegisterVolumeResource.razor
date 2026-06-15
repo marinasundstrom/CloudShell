@@ -11,17 +11,9 @@
         <label for="volume-resource-id">Resource ID</label>
         <FluentTextField Id="volume-resource-id" @bind-Value="ResourceId" Placeholder="volume:data" />
 
-        <label for="volume-group">Resource group</label>
-        <FluentSelect TOption="string"
-                      Id="volume-group"
-                      @bind-Value="SelectedGroupId"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups)
-            {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-            }
-        </FluentSelect>
+        <ResourceGroupSelect Id="volume-group"
+                             ResourceGroups="ResourceGroups"
+                             @bind-Value="SelectedGroupId" />
 
         <label for="volume-provider">Provider</label>
         <FluentTextField Id="volume-provider"

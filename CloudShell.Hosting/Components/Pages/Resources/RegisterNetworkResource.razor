@@ -68,17 +68,9 @@
             </FluentSelect>
         }
 
-        <label for="network-group">Resource group</label>
-        <FluentSelect TOption="string"
-                      Id="network-group"
-                      @bind-Value="SelectedGroupId"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups)
-            {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-            }
-        </FluentSelect>
+        <ResourceGroupSelect Id="network-group"
+                             ResourceGroups="ResourceGroups"
+                             @bind-Value="SelectedGroupId" />
 
         @if (ErrorMessage is not null)
         {

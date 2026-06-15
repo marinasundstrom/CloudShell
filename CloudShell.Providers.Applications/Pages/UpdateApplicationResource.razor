@@ -131,18 +131,10 @@ else
                 <FluentNumberField TValue="int" Id="application-update-replicas" Min="1" Disabled="@IsReadOnly" @bind-Value="Replicas" />
             }
 
-            <label for="application-update-group">Resource group</label>
-            <FluentSelect TOption="string"
-                          Id="application-update-group"
-                          @bind-Value="SelectedGroupId"
-                          Disabled="@IsReadOnly"
-                          Appearance="Appearance.Outline">
-                <FluentOption TOption="string" Value="">Default group</FluentOption>
-                @foreach (var group in ResourceGroups.GetResourceGroups())
-                {
-                    <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-                }
-            </FluentSelect>
+            <ResourceGroupSelect Id="application-update-group"
+                                 ResourceGroups="ResourceGroups.GetResourceGroups()"
+                                 Disabled="@IsReadOnly"
+                                 @bind-Value="SelectedGroupId" />
 
             <ResourceSelectionSection Title="Dependencies"
                                       Resources="GetDependencyCandidates()"
