@@ -144,16 +144,10 @@ else
                 }
             </FluentSelect>
 
-            <ResourceEditorSection Title="Dependencies">
-                @foreach (var resource in GetDependencyCandidates())
-                {
-                    <FluentCheckbox Value="@SelectedDependencyIds.Contains(resource.Id)"
-                                    Disabled="@IsReadOnly"
-                                    ValueChanged="selected => ToggleDependency(resource.Id, selected)">
-                        @resource.Name
-                    </FluentCheckbox>
-                }
-            </ResourceEditorSection>
+            <ResourceSelectionSection Title="Dependencies"
+                                      Resources="GetDependencyCandidates()"
+                                      SelectedResourceIds="SelectedDependencyIds"
+                                      Disabled="@IsReadOnly" />
 
             @if (Application is not null && GetInboundNetworkMappings(Application.Id).Count > 0)
             {
@@ -558,18 +552,6 @@ else
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
-
-    private void ToggleDependency(string resourceId, bool selected)
-    {
-        if (selected)
-        {
-            SelectedDependencyIds.Add(resourceId);
-        }
-        else
-        {
-            SelectedDependencyIds.Remove(resourceId);
-        }
-    }
 
     private bool IsInSelectedGroup(string resourceId)
     {

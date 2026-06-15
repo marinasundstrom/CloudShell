@@ -77,15 +77,9 @@
             }
         </FluentSelect>
 
-        <ResourceEditorSection Title="Dependencies">
-            @foreach (var resource in GetDependencyCandidates())
-            {
-                <FluentCheckbox Value="@SelectedDependencyIds.Contains(resource.Id)"
-                                ValueChanged="selected => ToggleDependency(resource.Id, selected)">
-                    @resource.Name
-                </FluentCheckbox>
-            }
-        </ResourceEditorSection>
+        <ResourceSelectionSection Title="Dependencies"
+                                  Resources="GetDependencyCandidates()"
+                                  SelectedResourceIds="SelectedDependencyIds" />
 
         <ApplicationEnvironmentVariablesEditor Variables="EnvironmentVariables" />
 
@@ -294,18 +288,6 @@
         return string.IsNullOrWhiteSpace(SelectedGroupId)
             ? group is null
             : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void ToggleDependency(string resourceId, bool selected)
-    {
-        if (selected)
-        {
-            SelectedDependencyIds.Add(resourceId);
-        }
-        else
-        {
-            SelectedDependencyIds.Remove(resourceId);
-        }
     }
 
     private ApplicationLifetime ParseLifetime() =>

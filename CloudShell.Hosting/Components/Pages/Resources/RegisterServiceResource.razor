@@ -27,25 +27,13 @@
             }
         </FluentSelect>
 
-        <ResourceEditorSection Title="Targets">
-            @foreach (var resource in GetTargetCandidates())
-            {
-                <FluentCheckbox Value="@SelectedTargetIds.Contains(resource.Id)"
-                                ValueChanged="selected => Toggle(SelectedTargetIds, resource.Id, selected)">
-                    @resource.Name
-                </FluentCheckbox>
-            }
-        </ResourceEditorSection>
+        <ResourceSelectionSection Title="Targets"
+                                  Resources="GetTargetCandidates()"
+                                  SelectedResourceIds="SelectedTargetIds" />
 
-        <ResourceEditorSection Title="Networks">
-            @foreach (var network in GetNetworkCandidates())
-            {
-                <FluentCheckbox Value="@SelectedNetworkIds.Contains(network.Id)"
-                                ValueChanged="selected => Toggle(SelectedNetworkIds, network.Id, selected)">
-                    @network.Name
-                </FluentCheckbox>
-            }
-        </ResourceEditorSection>
+        <ResourceSelectionSection Title="Networks"
+                                  Resources="GetNetworkCandidates()"
+                                  SelectedResourceIds="SelectedNetworkIds" />
 
         <label for="service-port-name">Port name</label>
         <FluentTextField Id="service-port-name" @bind-Value="PortName" />
@@ -149,18 +137,6 @@
         return string.IsNullOrWhiteSpace(SelectedGroupId)
             ? group is null
             : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static void Toggle(HashSet<string> values, string value, bool selected)
-    {
-        if (selected)
-        {
-            values.Add(value);
-        }
-        else
-        {
-            values.Remove(value);
-        }
     }
 
     private async Task Register()

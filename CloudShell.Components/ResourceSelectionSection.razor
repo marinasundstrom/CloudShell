@@ -1,0 +1,36 @@
+<ResourceEditorSection Title="@Title">
+    @foreach (var resource in Resources)
+    {
+        <FluentCheckbox Value="@SelectedResourceIds.Contains(resource.Id)"
+                        Disabled="@Disabled"
+                        ValueChanged="selected => Toggle(resource.Id, selected)">
+            @resource.Name
+        </FluentCheckbox>
+    }
+</ResourceEditorSection>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public IReadOnlyList<Resource> Resources { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public ISet<string> SelectedResourceIds { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    private void Toggle(string resourceId, bool selected)
+    {
+        if (selected)
+        {
+            SelectedResourceIds.Add(resourceId);
+        }
+        else
+        {
+            SelectedResourceIds.Remove(resourceId);
+        }
+    }
+}

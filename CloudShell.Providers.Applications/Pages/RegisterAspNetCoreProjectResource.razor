@@ -72,15 +72,9 @@
             }
         </FluentSelect>
 
-        <ResourceEditorSection Title="References">
-            @foreach (var resource in GetReferenceCandidates())
-            {
-                <FluentCheckbox Value="@SelectedReferenceIds.Contains(resource.Id)"
-                                ValueChanged="selected => ToggleReference(resource.Id, selected)">
-                    @resource.Name
-                </FluentCheckbox>
-            }
-        </ResourceEditorSection>
+        <ResourceSelectionSection Title="References"
+                                  Resources="GetReferenceCandidates()"
+                                  SelectedResourceIds="SelectedReferenceIds" />
 
         <FluentCheckbox @bind-Value="WaitForReferences">
             Start referenced resources first
@@ -238,18 +232,6 @@
             string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase)) ||
         Registrations.GetRegistration(resourceId) is not null ||
         ApplicationProvider.GetApplication(resourceId) is not null;
-
-    private void ToggleReference(string resourceId, bool selected)
-    {
-        if (selected)
-        {
-            SelectedReferenceIds.Add(resourceId);
-        }
-        else
-        {
-            SelectedReferenceIds.Remove(resourceId);
-        }
-    }
 
     private ApplicationLifetime ParseLifetime() =>
         Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)
