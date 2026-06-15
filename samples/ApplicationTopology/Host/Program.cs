@@ -7,10 +7,20 @@ using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
+using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
 using CloudShell.ApplicationTopology;
 
 var builder = CloudShellApplication.CreateBuilder(args);
+var repositoryRootPath = Path.GetFullPath("../../..", builder.Environment.ContentRootPath);
+var configurationStoreServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.ConfigurationStoreService",
+    "CloudShell.ConfigurationStoreService.csproj");
+var secretsVaultServiceProjectPath = Path.Combine(
+    repositoryRootPath,
+    "CloudShell.SecretsVaultService",
+    "CloudShell.SecretsVaultService.csproj");
 
 var cloudShellEndpoint = ResolveCloudShellEndpoint(builder.Configuration);
 var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"]
@@ -35,6 +45,20 @@ cloudShell
         options.OtlpEndpoint = otlpEndpoint;
         options.OtlpProtocol = otlpProtocol;
     })
+    .AddConfigurationProvider(options =>
+    {
+        options.ServiceProjectPath = configurationStoreServiceProjectPath;
+        options.ServiceWorkingDirectory = repositoryRootPath;
+        options.ServiceBasePort = builder.Configuration.GetValue<int?>(
+            "ApplicationTopology:ConfigurationServiceBasePort") ?? options.ServiceBasePort;
+    })
+    .AddSecretsProvider(options =>
+    {
+        options.SecretsServiceProjectPath = secretsVaultServiceProjectPath;
+        options.SecretsServiceWorkingDirectory = repositoryRootPath;
+        options.SecretsServiceBasePort = builder.Configuration.GetValue<int?>(
+            "ApplicationTopology:SecretsServiceBasePort") ?? options.SecretsServiceBasePort;
+    })
     .UseLocalDevelopmentDefaults();
 
 cloudShell.Resources(resources =>
@@ -57,6 +81,22 @@ cloudShell.Resources(resources =>
         .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
         .WithAutoStart(false);
 
+    var settings = resources
+        .AddConfigurationStore(
+            "configuration:application-topology",
+            "Application Topology Settings")
+        .WithEntries(
+        [
+            new("ApplicationTopology:Message", "Hello from CloudShell configuration."),
+            new("ApplicationTopology:Mode", "Development")
+        ]);
+
+    var secrets = resources
+        .AddSecretsVault(
+            "secrets-vault:application-topology",
+            "Application Topology Secrets")
+        .WithSecret("external-api-key", "local-development-api-key");
+
     var api = resources.AddAspNetCoreProject(
         "application:application-topology-api",
         "Application Topology API",
@@ -67,6 +107,11 @@ cloudShell.Resources(resources =>
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
         .WithEnvironment("ApplicationTopology__SqlServer__User", "sa")
         .WithEnvironment("ApplicationTopology__SqlServer__Password", sqlPassword)
+        .WithEnvironment("ApplicationTopology__Message", settings.Entry("ApplicationTopology:Message"))
+        .WithEnvironment("ApplicationTopology__Mode", settings.Entry("ApplicationTopology:Mode"))
+        .WithEnvironment("ApplicationTopology__ExternalApiKey", secrets.Secret("external-api-key"))
+        .WithReference(settings)
+        .WithReference(secrets)
         .WithReference(sqlServer)
         .DependsOn(sqlServer)
         .WithAutoStart(false);

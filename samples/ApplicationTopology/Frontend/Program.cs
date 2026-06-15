@@ -37,15 +37,20 @@ app.MapGet("/upstream", async (
     var message = await client.GetFromJsonAsync<ApiMessage>(
         "/message",
         cancellationToken);
+    var settings = await client.GetFromJsonAsync<ApplicationSettings>(
+        "/settings",
+        cancellationToken);
     var database = await client.GetFromJsonAsync<DatabaseCheck>(
         "/database",
         cancellationToken);
     activity?.SetTag("cloudshell.sample.upstream_machine", message?.Machine ?? "unknown");
+    activity?.SetTag("cloudshell.sample.configuration_mode", settings?.Mode ?? "unknown");
     activity?.SetTag("cloudshell.sample.database_status", database?.Status ?? "unknown");
     logger.LogInformation(
         ApplicationTopologyLogEvents.ApiResponseReceived,
-        "Received message from {UpstreamMachine} with database status {DatabaseStatus}",
+        "Received message from {UpstreamMachine} with configuration mode {ConfigurationMode} and database status {DatabaseStatus}",
         message?.Machine ?? "unknown",
+        settings?.Mode ?? "unknown",
         database?.Status ?? "unknown");
 
     return Results.Ok(new
@@ -54,6 +59,7 @@ app.MapGet("/upstream", async (
         logicalApiEndpoint = "https+http://application-topology-api",
         resolvedApiEndpoint = endpoint.ToString(),
         upstream = message,
+        settings,
         database
     });
 });
@@ -61,6 +67,11 @@ app.MapGet("/upstream", async (
 app.Run();
 
 internal sealed record ApiMessage(string Message, string Machine);
+
+internal sealed record ApplicationSettings(
+    string Message,
+    string Mode,
+    bool ExternalApiKeyConfigured);
 
 internal sealed record DatabaseCheck(
     string Status,

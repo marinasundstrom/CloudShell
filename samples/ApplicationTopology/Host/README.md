@@ -13,6 +13,10 @@ The host currently declares:
 - `Application Topology SQL Data`, a volume under the local storage resource
 - `application-topology-sql-server`, a SQL Server container app with the data
   volume mounted at `/var/opt/mssql`
+- `Application Topology Settings`, a Configuration Store with sample
+  application settings injected into the backend API
+- `Application Topology Secrets`, a Secrets Vault with a sample secret
+  reference injected into the backend API without displaying the value
 - `Application Topology Local DNS`, a local-hostname DNS zone with
   `app.application-topology.cloudshell.local` mapped to the frontend HTTP
   endpoint
@@ -39,6 +43,10 @@ API references SQL Server through CloudShell service discovery and exposes
 `/database`, which opens a SQL connection and executes a small timestamp
 query. The frontend calls both `/message` and `/database` through the API so
 the sample exercises frontend-to-API and API-to-SQL dependencies.
+
+The backend API also receives Configuration Store and Secrets Vault references
+as environment variables. `/settings` returns the configured message, mode,
+and whether the secret value was injected without returning the secret itself.
 
 ## Run
 
@@ -72,6 +80,8 @@ You can override the SQL Server development password with:
 ```json
 {
   "ApplicationTopology": {
+    "ConfigurationServiceBasePort": 5138,
+    "SecretsServiceBasePort": 6138,
     "SqlServer": {
       "Password": "Your-strong-dev-password!",
       "Port": 14334
@@ -95,7 +105,6 @@ Planned capabilities to add here:
 
 - Identity-backed SQL Server authentication, so the API can use its CloudShell
   resource identity to access the database in an Azure-like flow.
-- Configuration Store and Secrets Vault references consumed by the backend API.
 - Resource identity and scoped grants for protected configuration and secret
   access when enforcement is enabled.
 - Structured logs from both projects, including fields that correlate to

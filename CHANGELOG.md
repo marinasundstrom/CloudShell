@@ -23,6 +23,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- ApplicationTopology now declares Configuration Store and Secrets Vault
+  resources and injects referenced setting/secret values into the backend API,
+  with the frontend `/upstream` response including a redacted settings check.
 - ApplicationTopology now declares a local-hostname DNS zone and maps
   `app.application-topology.cloudshell.local` to the frontend endpoint so the
   broad MVP sample covers name-mapping projection as part of the app exposure

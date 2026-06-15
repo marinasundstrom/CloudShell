@@ -154,12 +154,16 @@ public sealed class SampleSmokeTests
     {
         var frontendPort = await GetFreePortAsync();
         var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
         using var host = await SampleProcess.StartAsync(
             "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
             await GetFreePortAsync(),
             [
                 ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
-                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture))
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
             ]);
 
         await host.WaitForHttpOkAsync("/", StartupTimeout);
@@ -173,6 +177,10 @@ public sealed class SampleSmokeTests
             resource.GetProperty("id").GetString() == "volume:application-topology-sql-data");
         var sqlServer = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:application-topology-sql-server");
+        var settings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration:application-topology");
+        var secrets = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "secrets-vault:application-topology");
         var api = Assert.Single(resources, resource =>
             resource.GetProperty("id").GetString() == "application:application-topology-api");
         var frontend = Assert.Single(resources, resource =>
@@ -217,10 +225,19 @@ public sealed class SampleSmokeTests
             "volume:application-topology-sql-data",
             sqlServer.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
+        Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
+        Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
+
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, api.GetProperty("typeId").GetString());
         Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", apiAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
         Assert.Contains(
             "application:application-topology-sql-server",
+            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "configuration:application-topology",
+            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+        Assert.Contains(
+            "secrets-vault:application-topology",
             api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, frontend.GetProperty("typeId").GetString());

@@ -46,6 +46,18 @@ app.MapGet("/message", async (
     return Results.Ok(message);
 });
 
+app.MapGet("/settings", (IConfiguration configuration) =>
+{
+    var message = configuration["ApplicationTopology:Message"];
+    var mode = configuration["ApplicationTopology:Mode"];
+    var externalApiKey = configuration["ApplicationTopology:ExternalApiKey"];
+
+    return Results.Ok(new ApplicationSettings(
+        message ?? "not configured",
+        mode ?? "not configured",
+        !string.IsNullOrWhiteSpace(externalApiKey)));
+});
+
 app.MapGet("/database", async (
     IConfiguration configuration,
     ILoggerFactory loggerFactory,
@@ -120,6 +132,11 @@ static string CreateSqlDataSource(Uri endpoint)
 }
 
 internal sealed record ApiMessage(string Message, string Machine);
+
+internal sealed record ApplicationSettings(
+    string Message,
+    string Mode,
+    bool ExternalApiKeyConfigured);
 
 internal sealed record DatabaseCheck(
     string Status,
