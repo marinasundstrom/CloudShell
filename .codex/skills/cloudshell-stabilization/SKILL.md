@@ -54,7 +54,10 @@ Then inspect the current code and tests around the failing or weak behavior.
    tasks.
 9. Follow `CONTRIBUTIONS.md` for verification, changelog, ADR, commit, and
    push expectations. Run the verification baseline from `AGENTS.md` before
-   committing cross-boundary stabilization work.
+   committing cross-boundary stabilization work. Commit only files owned by the
+   current chat or thread. Leave pure documentation changes uncommitted and
+   unpushed unless the user explicitly asks to land the reviewed documentation
+   slice.
 
 ## Stabilization priorities
 

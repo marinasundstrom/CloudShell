@@ -61,10 +61,15 @@ Then inspect the relevant implementation and tests before editing.
 8. Update `docs/roadmap.md` when the feature changes the current task queue.
 9. Follow `CONTRIBUTIONS.md` for verification, changelog, ADR, commit, and
    push expectations. Run the relevant narrow tests first, then the
-   verification baseline from `AGENTS.md` for cross-boundary changes.
+   verification baseline from `AGENTS.md` for cross-boundary changes. Commit
+   only files owned by the current chat or thread. Leave pure documentation
+   changes uncommitted and unpushed unless the user explicitly asks to land the
+   reviewed documentation slice.
 
 ## Output expectations
 
 Keep changes scoped. Record durable decisions in `ADR.md`, landed changes in
 `CHANGELOG.md`, and intentionally deferred behavior in the relevant proposal
-and `docs/roadmap.md` instead of leaving it implicit.
+and `docs/roadmap.md` instead of leaving it implicit. When the task is
+documentation-only, hand back the reviewed diff after `git diff --check`
+instead of automatically committing or pushing it.

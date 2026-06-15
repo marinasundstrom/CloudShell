@@ -84,6 +84,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Documentation
 
+- Updated the development workflow, agent guide, and repo-local skills to
+  distinguish implementation slices from pure documentation slices. Agent-made
+  documentation-only changes are now review-first and are not committed or
+  pushed automatically unless explicitly approved, and contributors must stage
+  only files owned by the current chat or thread.
 - Added a resource graph import and code generation proposal. The proposal
   treats Docker Compose YAML as the first external input dialect, keeps
   CloudShell graph drafts as the translation boundary, and makes generated C#

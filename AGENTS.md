@@ -81,7 +81,9 @@ to the Control Plane.
 
 Follow [CloudShell development workflow](CONTRIBUTIONS.md) for the shared procedure:
 make changes in scoped slices, verify them, update docs and decision logs when
-needed, then commit and push each slice.
+needed, then commit and push implementation slices. Pure documentation changes
+made by agents are review-first and should be left uncommitted and unpushed
+unless the user explicitly asks to land that reviewed documentation slice.
 
 For new product features, use the repo-local skill:
 
@@ -109,7 +111,8 @@ dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore
 ```
 
 Docs-only changes do not require tests, but run `git diff --check` before
-committing.
+handing them back for review or before an explicitly requested documentation
+commit.
 
 ## Change Discipline
 
@@ -127,4 +130,9 @@ When stabilizing behavior, add tests at the layer that owns the behavior:
 
 Update [ADR](ADR.md) when a durable product or architecture decision changes.
 Update [Changelog](CHANGELOG.md) when an implementation slice lands or
-verification expectations change.
+verification expectations change. For pure documentation slices, update the
+changelog only when the documentation is being landed after review.
+
+Before staging or committing, inspect `git status --short` and stage only the
+files owned by the current chat or thread. Do not commit unrelated work from
+another person, agent, or parallel thread.
