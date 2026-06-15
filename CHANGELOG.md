@@ -103,6 +103,11 @@ on `git blame --follow`, and then by the broad type of change.
   deep-linked with a target resource and endpoint, and it derives a default
   host name from the selected target and DNS zone.
   Decision: [ADR-20260614-002](ADR.md#adr-20260614-002).
+- Container-backed application overview pages now expose an app-centric
+  "Add load-balancer route" action. The load-balancer registration form can be
+  deep-linked with a target resource and endpoint, selects the target resource
+  group when needed, and uses the target as the initial route destination.
+  Decision: [ADR-20260614-002](ADR.md#adr-20260614-002).
 
 #### Samples
 

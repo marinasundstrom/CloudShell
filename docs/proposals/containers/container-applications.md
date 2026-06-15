@@ -162,6 +162,9 @@ Implemented pieces include:
 * app-owned ingress for replicated Docker-backed apps
 * inbound virtual-network, load-balancer, and DNS/name-mapping relationship
   display on application overview pages
+* app-centric load-balancer creation from container-backed application overview
+  pages through a prefilled Resource Manager create flow with the target app
+  endpoint selected
 * app-centric name-mapping creation from container-backed application overview
   pages through a prefilled Resource Manager create flow
 * attached volume display on application overview pages, with the Storage tab
@@ -184,8 +187,9 @@ Implemented pieces include:
    compatibility diagnostics from host/storage medium capabilities.
 4. Finish the Resource Manager exposure path from the application resource:
    endpoint, internal/virtual exposure, public endpoint, load balancer, and
-   DNS/domain mappings. The first app-centric DNS/name authoring slice is in
-   place through a prefilled name-mapping create flow.
+   DNS/domain mappings. The first app-centric load-balancer and DNS/name
+   authoring slices are in place through prefilled Resource Manager create
+   flows.
 5. Add conflict and readiness diagnostics for endpoint ports, load-balancer
    routes, DNS/name mappings, and unsupported host capabilities. Local
    host-published endpoint preflight is in place for container app start;
@@ -201,10 +205,10 @@ Implemented pieces include:
 
 * Materialize container app volume mounts reliably through the supported local
   runtime paths.
-* Add application-centric UI for internal exposure, public endpoint exposure,
-  and load-balancer route selection. DNS/domain mapping authoring has a first
-  app-centric entry point, but richer provider-specific publishing and custom
-  domain guidance remains open.
+* Add application-centric UI for internal exposure and public endpoint
+  exposure. Load-balancer and DNS/domain mapping authoring now have first
+  app-centric entry points, but route editing on existing load balancers,
+  richer provider-specific publishing, and custom domain guidance remain open.
 * Add route, DNS/name, and provider-backed endpoint conflict diagnostics before
   start/update where possible.
 * Add host capability diagnostics for unsupported storage media, ingress,

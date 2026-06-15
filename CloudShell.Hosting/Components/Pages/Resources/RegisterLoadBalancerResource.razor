@@ -185,6 +185,9 @@
     private const string NetworkResourceType = "cloudshell.network";
     private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
     private const string LoadBalancerResourceType = "cloudshell.loadBalancer";
+    private const string TargetResourceQueryParameter = "targetResourceId";
+    private const string TargetEndpointQueryParameter = "targetEndpointName";
+    private const string RouteKindQueryParameter = "routeKind";
 
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
@@ -229,7 +232,41 @@
         }
 
         ResourceGroupsByResourceId = groupsByResourceId;
-        HttpTargetResourceId = GetTargetCandidates().FirstOrDefault()?.Id ?? string.Empty;
+        var requestedTargetResourceId = GetRequestedTargetResourceId();
+        if (!string.IsNullOrWhiteSpace(requestedTargetResourceId) &&
+            ResourceGroupsByResourceId.TryGetValue(requestedTargetResourceId, out var requestedTargetGroup))
+        {
+            SelectedGroupId = requestedTargetGroup.Id;
+        }
+
+        var requestedRouteKind = GetRequestedRouteKind();
+        var targetResourceId = requestedTargetResourceId ??
+            GetTargetCandidates().FirstOrDefault()?.Id ??
+            string.Empty;
+        var targetEndpointName = GetRequestedTargetEndpointName(targetResourceId) ??
+            GetTargetEndpoints(targetResourceId).FirstOrDefault()?.Name ??
+            string.Empty;
+
+        if (string.Equals(requestedRouteKind, "tcp", StringComparison.OrdinalIgnoreCase))
+        {
+            CreateHttpRoute = false;
+            CreateTcpRoute = true;
+            ExposeTcp = true;
+            TcpTargetResourceId = targetResourceId;
+            TcpTargetEndpointName = targetEndpointName;
+        }
+        else
+        {
+            HttpTargetResourceId = targetResourceId;
+            HttpTargetEndpointName = targetEndpointName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(requestedTargetResourceId) &&
+            Resources.FirstOrDefault(resource => string.Equals(resource.Id, requestedTargetResourceId, StringComparison.OrdinalIgnoreCase)) is { } requestedTarget)
+        {
+            Name = $"{requestedTarget.Name} load balancer";
+            ResourceId = $"load-balancer:{CreateRouteId(requestedTarget.Name)}";
+        }
     }
 
     private IReadOnlyList<Resource> GetHostCandidates() =>
@@ -247,11 +284,15 @@
                 resource.EffectiveTypeId.Contains("host", StringComparison.OrdinalIgnoreCase)));
 
     private IReadOnlyList<Resource> GetTargetCandidates() =>
+        GetAllTargetCandidates()
+            .Where(IsInSelectedGroup)
+            .ToArray();
+
+    private IReadOnlyList<Resource> GetAllTargetCandidates() =>
         Resources
             .Where(resource => !IsNetworkBoundaryResource(resource))
             .Where(resource => !string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
             .Where(resource => resource.Endpoints.Count > 0 || resource.HasCapability(ResourceCapabilityIds.EndpointSource))
-            .Where(IsInSelectedGroup)
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -271,6 +312,41 @@
     private static bool IsNetworkBoundaryResource(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(resource.EffectiveTypeId, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase);
+
+    private string? GetRequestedTargetResourceId()
+    {
+        var requested = GetRequestedQueryValue(TargetResourceQueryParameter);
+        return string.IsNullOrWhiteSpace(requested) ||
+            !GetAllTargetCandidates().Any(resource => string.Equals(resource.Id, requested, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : requested;
+    }
+
+    private string? GetRequestedTargetEndpointName(string targetResourceId)
+    {
+        var requested = GetRequestedQueryValue(TargetEndpointQueryParameter);
+        return string.IsNullOrWhiteSpace(requested) ||
+            !GetTargetEndpoints(targetResourceId).Any(endpoint => string.Equals(endpoint.Name, requested, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : requested;
+    }
+
+    private string? GetRequestedRouteKind()
+    {
+        var requested = GetRequestedQueryValue(RouteKindQueryParameter);
+        return string.Equals(requested, "tcp", StringComparison.OrdinalIgnoreCase)
+            ? "tcp"
+            : null;
+    }
+
+    private string? GetRequestedQueryValue(string name)
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        return query.TryGetValue(name, out var values)
+            ? values.ToString()
+            : null;
+    }
 
     private async Task Register()
     {

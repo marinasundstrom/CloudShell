@@ -171,23 +171,36 @@ else
         </section>
     }
 
-    @if (InboundLoadBalancerRoutes.Count > 0)
+    @if (IsContainerBacked(Application) || InboundLoadBalancerRoutes.Count > 0)
     {
         <section class="blade-section">
             <h3>Load balancer exposure</h3>
-            <div class="generated-list">
-                @foreach (var exposure in InboundLoadBalancerRoutes)
-                {
-                    <div>
-                        <strong>
-                            <a class="resource-link" href="@BuildResourceRoute(exposure.LoadBalancer.Id)">
-                                @exposure.LoadBalancer.Name
-                            </a>
-                        </strong>
-                        <span>@FormatLoadBalancerRoute(exposure.Route)</span>
-                        <small>Entrypoint: @exposure.Route.EntrypointName</small>
-                    </div>
-                }
+            @if (InboundLoadBalancerRoutes.Count == 0)
+            {
+                <p class="muted">No load-balancer routes target this app.</p>
+            }
+            else
+            {
+                <div class="generated-list">
+                    @foreach (var exposure in InboundLoadBalancerRoutes)
+                    {
+                        <div>
+                            <strong>
+                                <a class="resource-link" href="@BuildResourceRoute(exposure.LoadBalancer.Id)">
+                                    @exposure.LoadBalancer.Name
+                                </a>
+                            </strong>
+                            <span>@FormatLoadBalancerRoute(exposure.Route)</span>
+                            <small>Entrypoint: @exposure.Route.EntrypointName</small>
+                        </div>
+                    }
+                </div>
+            }
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Neutral"
+                              OnClick="() => Navigation.NavigateTo(BuildAddLoadBalancerRoute(Application))">
+                    Add load-balancer route
+                </FluentButton>
             </div>
         </section>
     }
@@ -853,9 +866,25 @@ else
 
     private static string BuildAddNameMappingRoute(ApplicationResourceDefinition application)
     {
+        var query = BuildTargetResourceQuery("cloudshell.nameMapping", application);
+
+        return BuildResourceAddRoute(query);
+    }
+
+    private static string BuildAddLoadBalancerRoute(ApplicationResourceDefinition application)
+    {
+        var query = BuildTargetResourceQuery("cloudshell.loadBalancer", application);
+
+        return BuildResourceAddRoute(query);
+    }
+
+    private static Dictionary<string, string?> BuildTargetResourceQuery(
+        string type,
+        ApplicationResourceDefinition application)
+    {
         var query = new Dictionary<string, string?>
         {
-            ["type"] = "cloudshell.nameMapping",
+            ["type"] = type,
             ["targetResourceId"] = application.Id
         };
         var endpointName = application.EndpointPorts.FirstOrDefault()?.Name;
@@ -864,6 +893,11 @@ else
             query["targetEndpointName"] = endpointName;
         }
 
+        return query;
+    }
+
+    private static string BuildResourceAddRoute(Dictionary<string, string?> query)
+    {
         var queryString = string.Join(
             "&",
             query
