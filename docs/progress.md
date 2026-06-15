@@ -73,7 +73,11 @@ expectations rather than duplicating the task queue.
   service discovery, logs, and trace baseline; evolve ApplicationTopology into
   the full frontend/backend sample that composes SQL Server with mounted
   storage, configuration, secrets, identity, structured logs, traces,
-  container apps, and networking as those primitives stabilize.
+  container apps, and networking as those primitives stabilize. The first
+  ApplicationTopology composition slice now declares Local Storage, a
+  storage-owned SQL data volume, and a sample-local SQL Server container app;
+  the backend API references and depends on SQL Server, but database access is
+  deferred to the next sample slice.
 - The next MVP product focus is the application environment management path:
   container applications, app-owned exposure and application-level discovery,
   virtual networks, public endpoint exposure, load-balancer routes, and

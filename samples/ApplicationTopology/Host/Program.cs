@@ -1,11 +1,14 @@
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
+using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
 using CloudShell.Providers.Applications;
+using CloudShell.Providers.Docker;
+using CloudShell.ApplicationTopology;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 
@@ -28,10 +31,24 @@ cloudShell
     {
         options.OtlpEndpoint = otlpEndpoint;
         options.OtlpProtocol = otlpProtocol;
-    });
+    })
+    .UseLocalDevelopmentDefaults();
 
 cloudShell.Resources(resources =>
 {
+    var localStorage = resources
+        .AddLocalStorage("application-topology-local", "Application Topology Local Storage")
+        .UseLocation("./Data/storage");
+
+    var sqlData = resources
+        .AddVolume("application-topology-sql-data", "Application Topology SQL Data")
+        .UseStorage(localStorage, "sql-server")
+        .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
+
+    var sqlServer = resources
+        .AddSqlServer("application-topology-sql-server", dataVolume: sqlData)
+        .WithImage("mcr.microsoft.com/mssql/server:2022-latest");
+
     var api = resources.AddAspNetCoreProject(
         "application:application-topology-api",
         "Application Topology API",
@@ -39,7 +56,9 @@ cloudShell.Resources(resources =>
         .WithHttpHealthCheck("/health")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty);
+        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+        .WithReference(sqlServer)
+        .DependsOn(sqlServer);
 
     resources
         .AddAspNetCoreProject(

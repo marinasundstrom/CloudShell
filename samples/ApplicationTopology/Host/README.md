@@ -5,10 +5,14 @@ the focused Project Reference sample so the original can remain a small
 service-discovery and distributed-tracing baseline while this sample grows into
 the full local development scenario.
 
-The host currently declares two ASP.NET Core project resources:
+The host currently declares:
 
 - `Application Topology API` with an auto-assigned HTTP endpoint
 - `Application Topology Frontend` on `http://localhost:5218`
+- `Application Topology Local Storage`, backed by `./Data/storage`
+- `Application Topology SQL Data`, a volume under the local storage resource
+- `application-topology-sql-server`, a SQL Server container app with the data
+  volume mounted at `/var/opt/mssql`
 
 The frontend uses CloudShell service discovery to call the API:
 
@@ -22,6 +26,14 @@ Both projects use the shared `ServiceDefaults` project for health endpoints,
 HTTP client service discovery, JSON console logs, and OpenTelemetry tracing.
 The host injects CloudShell trace ingestion settings so `/observability/traces`
 can show spans across both services.
+
+The SQL Server resource is intentionally sample-local composition over the
+current container app primitives. It uses Docker through
+`UseLocalDevelopmentDefaults()`, publishes a local `tds` endpoint on
+`localhost:14334`, and mounts a Local Storage-backed volume so database files
+can survive restarts of the SQL Server resource. The backend API already
+references and depends on SQL Server, but it does not query the database yet;
+that is the next slice for this sample.
 
 ## Run
 
@@ -37,8 +49,9 @@ Open:
 http://localhost:5104/resources
 ```
 
-Start the `Application Topology API` resource, then start the
-`Application Topology Frontend` resource. Open:
+Start the `application-topology-sql-server` resource, then start the
+`Application Topology API` resource, then start the `Application Topology
+Frontend` resource. Open:
 
 ```text
 http://localhost:5218/upstream
@@ -57,8 +70,7 @@ platform services are exercised.
 
 Planned capabilities to add here:
 
-- SQL Server as a stateful dependency, backed by Local Storage and a mounted
-  data volume.
+- Backend API data access through the SQL Server dependency.
 - Configuration Store and Secrets Vault references consumed by the backend API.
 - Resource identity and scoped grants for protected configuration and secret
   access when enforcement is enabled.

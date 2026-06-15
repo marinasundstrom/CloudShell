@@ -229,7 +229,11 @@ listed here before pulling in broader proposal work.
   service discovery, log, and trace baseline; ApplicationTopology is where SQL
   Server with mounted storage, configuration, secrets, identity, structured
   logs, traces, container apps, and networking should converge as those
-  primitives stabilize.
+  primitives stabilize. The first ApplicationTopology SQL/storage slice is in
+  place: Local Storage, a storage-owned SQL data volume, and a sample-local SQL
+  Server container app are declared, with the backend API referencing and
+  depending on SQL Server. Next sample work should make the API actually
+  consume the SQL endpoint.
 - Treat the Settings and Secrets sample as the current proof of the developer
   service-integration flow: a resource can model settings and secrets first,
   then opt into identity and resource-scoped grants when access enforcement is
