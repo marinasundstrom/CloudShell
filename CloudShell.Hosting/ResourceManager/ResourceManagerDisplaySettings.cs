@@ -115,7 +115,13 @@ internal sealed record ResourceManagerDisplaySelection(
     public string GetResourceSortLabel(Resource resource) =>
         EnableDisplayNames ? resource.Name : resource.Id;
 
+    public string GetResourceName(Resource resource) =>
+        ResourceId.TryParse(resource.Id, out var resourceId)
+            ? resourceId.Name
+            : resource.Id;
+
     public bool ShouldShowDisplayName(Resource resource) =>
         EnableDisplayNames &&
-        !string.Equals(resource.Name, resource.Id, StringComparison.Ordinal);
+        !string.Equals(resource.Name, resource.Id, StringComparison.Ordinal) &&
+        !string.Equals(resource.Name, GetResourceName(resource), StringComparison.Ordinal);
 }

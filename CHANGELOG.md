@@ -13,6 +13,15 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-16
+
+#### Changed
+
+- Resource Manager identity views now show scoped resource Name between
+  Resource ID and optional display name, so users can distinguish the canonical
+  platform identity from the authored resource name.
+  Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
+
 ### 2026-06-15
 
 #### Added

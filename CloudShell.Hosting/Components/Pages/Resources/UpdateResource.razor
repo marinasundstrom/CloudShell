@@ -116,6 +116,8 @@
             <dl class="detail-list">
                 <dt>@L["Resource ID"]</dt>
                 <dd>@resource.Id</dd>
+                <dt>@L["Name"]</dt>
+                <dd>@DisplaySelection.GetResourceName(resource)</dd>
                 @if (DisplaySelection.ShouldShowDisplayName(resource))
                 {
                     <dt>@L["Display name"]</dt>
