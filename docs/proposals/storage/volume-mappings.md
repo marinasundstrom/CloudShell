@@ -160,13 +160,23 @@ Docker-compatible hosts advertise `storage.mount.filesystem`, and application
 Start/Restart availability checks that capability for managed `FileSystem`
 volume resources when a selected container host can be resolved.
 
+Storage-owned volumes are sub-items of their Storage resource in Resource
+Manager. They keep `cloudshell.volume` identity, but the projected resource
+uses the Storage resource as parent and owner, is hidden from the normal
+resource inventory by default, and is managed from the Storage resource's
+Volumes tab. This applies to Storage-class providers generally, not just the
+Local Storage provider; providers may contribute richer storage-specific
+management views later, but the default shell behavior should keep owned
+volumes under their storage parent.
+
 `resources.AddVolume(...)` declares a CloudShell volume resource through the
 default Local Storage provider unless another provider is supplied. Its path is
 the direct relative or absolute folder path for that volume and is not derived
 from, appended to, or otherwise affected by a separate storage resource
 location. This is intentionally lightweight for local development: the volume
 can be tracked as a resource without requiring a separate storage-provider
-resource or storage-control-plane service.
+resource or storage-control-plane service. Direct volumes are normal inventory
+resources because the volume itself is the thing being managed.
 
 A storage resource is a boundary whose behavior depends on the concrete
 resource kind/provider. It may represent local storage, a NAS share, remote
@@ -183,6 +193,16 @@ mountable target. The Local Storage provider is a temporary default
 until storage capabilities are formalized. After storage capabilities are
 defined, the provider should materialize the allocation and report
 provider-specific diagnostics and usage metrics for the resource.
+
+Shared on-premise environments need a stricter policy boundary than local
+development. Any operation that changes the host machine or shared platform
+state should be separately controllable and normally limited to administrators
+or platform operators. Examples include standalone local filesystem volumes,
+host path mounts, host-file DNS publishing, network setup, public endpoint
+binding, and OS feature enablement. The first storage UI keeps standalone
+direct volumes available for developer scenarios, but the product direction is
+to let hosted environments disable or restrict standalone local storage so
+users create storage-backed volumes through approved Storage resources instead.
 
 A volume projects:
 

@@ -1048,11 +1048,18 @@ public sealed class ResourceDeclarationTests
         var configuration = Assert.Single(
             storageType.ResourceTabs,
             tab => string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase));
+        var volumes = Assert.Single(
+            storageType.ResourceTabs,
+            tab => string.Equals(tab.Id, "volumes", StringComparison.OrdinalIgnoreCase));
 
         Assert.Equal(typeof(LocalStorageOverview), overview.ComponentType);
         Assert.False(overview.ShowsApplyButton);
+        Assert.Equal(typeof(StorageVolumes), volumes.ComponentType);
+        Assert.False(volumes.ShowsApplyButton);
+        Assert.Equal(20, volumes.Order);
         Assert.Equal(typeof(UpdateLocalStorageResource), configuration.ComponentType);
         Assert.True(configuration.ShowsApplyButton);
+        Assert.Equal(30, configuration.Order);
     }
 
     [Fact]
@@ -3571,6 +3578,10 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("ReadWriteOnce", resource.ResourceAttributes[ResourceAttributeNames.VolumeAccessMode]);
         Assert.Equal("true", resource.ResourceAttributes[ResourceAttributeNames.VolumePersistent]);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.StorageVolume));
+        Assert.True(resource.IsNormalResource);
+        Assert.Equal(ResourceVisibility.Normal, resource.Visibility);
+        Assert.Null(resource.ParentResourceId);
+        Assert.Null(resource.OwnerResourceId);
 
         var evaluation = store.CreatePermissionGrantEvaluator().Evaluate(
             ResourceIdentityReference.ForResource("application:postgres"),
@@ -3643,6 +3654,10 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(StorageMedia.FileSystem, volumeResource.ResourceAttributes[ResourceAttributeNames.VolumeStorageMedium]);
         Assert.Equal("postgres", volumeResource.ResourceAttributes[ResourceAttributeNames.VolumeSubPath]);
         Assert.Equal(["storage:local"], volumeResource.DependsOn);
+        Assert.Equal("storage:local", volumeResource.ParentResourceId);
+        Assert.Equal("storage:local", volumeResource.OwnerResourceId);
+        Assert.Equal(ResourceVisibility.Hidden, volumeResource.Visibility);
+        Assert.False(volumeResource.IsNormalResource);
     }
 
     [Fact]

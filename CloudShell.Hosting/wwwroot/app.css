@@ -804,6 +804,25 @@ h3 {
     border-top: 1px solid var(--cloudshell-divider);
 }
 
+.blade-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: .75rem;
+}
+
+.blade-section-header h3,
+.blade-section-header p {
+    margin: 0;
+}
+
+.blade-section-header p {
+    color: var(--cloudshell-text-muted);
+    font-size: .86rem;
+    line-height: 1.35;
+}
+
 .parent-link {
     margin: -.2rem 0 .7rem;
     padding: 0;

@@ -1,0 +1,240 @@
+@inject IResourceManager ResourceManager
+@inject IResourceOrchestrationCatalog OrchestrationCatalog
+@inject NavigationManager Navigation
+@inject ICloudShellAuthorizationService Authorization
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
+
+@if (Storage is null)
+{
+    <div class="empty-state">
+        <strong>Storage unavailable</strong>
+        <span>The storage resource may have been removed or is no longer visible.</span>
+    </div>
+}
+else
+{
+    <section class="blade-section">
+        <div class="blade-section-header">
+            <div>
+                <h3>Volumes</h3>
+                <p>Manage volumes owned by this Storage resource.</p>
+            </div>
+            @if (CanCreateVolume)
+            {
+                <FluentButton Appearance="Appearance.Accent" OnClick="CreateVolume">
+                    Add volume
+                </FluentButton>
+            }
+        </div>
+        @if (Volumes.Count == 0)
+        {
+            <div class="empty-state">
+                <strong>No volumes</strong>
+                <span>No volumes are owned by this Storage resource.</span>
+            </div>
+        }
+        else
+        {
+            <div class="procedure-message compact">
+                This Storage resource cannot be deleted while it owns volumes.
+            </div>
+            <div class="generated-list">
+                @foreach (var volume in Volumes)
+                {
+                    <div>
+                        <strong>
+                            <a class="resource-link" href="@BuildResourceRoute(volume.Volume.Id)">
+                                @volume.Volume.Name
+                            </a>
+                        </strong>
+                        <span>@GetVolumeSummary(volume)</span>
+                        <small>@GetVolumeMetadata(volume)</small>
+                        <span class="inline-actions">
+                            <FluentButton Appearance="Appearance.Neutral"
+                                          OnClick="@(() => ManageVolume(volume.Volume.Id))">
+                                Manage
+                            </FluentButton>
+                        </span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? Storage { get; set; }
+    private IReadOnlyList<StorageVolumeView> Volumes { get; set; } = [];
+    private bool CanCreateVolume =>
+        Storage is not null &&
+        !ResourceManagerUiOptions.Value.ReadOnly &&
+        Authorization.HasPermission(CloudShellPermissions.Resources.Create);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Storage = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        if (Storage is null)
+        {
+            Volumes = [];
+            return;
+        }
+
+        var resources = await ResourceManager.ListResourcesAsync();
+        var children = await ResourceManager.ListResourceChildrenAsync(Storage.Id);
+        var orchestrationSnapshot = await OrchestrationCatalog.GetSnapshotAsync();
+        Volumes = children
+            .Where(IsOwnedVolume)
+            .Select(volume => new StorageVolumeView(
+                volume,
+                GetConsumersForVolume(volume, resources, orchestrationSnapshot)))
+            .OrderBy(volume => volume.Volume.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private bool IsOwnedVolume(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) &&
+        (string.Equals(resource.ParentResourceId, Storage?.Id, StringComparison.OrdinalIgnoreCase) ||
+            resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeStorageResourceId, out var storageResourceId) &&
+            string.Equals(storageResourceId, Storage?.Id, StringComparison.OrdinalIgnoreCase));
+
+    private static string GetVolumeSubPath(Resource volume) =>
+        volume.ResourceAttributes.TryGetValue(ResourceAttributeNames.VolumeSubPath, out var subPath) &&
+        !string.IsNullOrWhiteSpace(subPath)
+            ? subPath
+            : "provider default";
+
+    private static IReadOnlyList<StorageVolumeConsumerView> GetConsumersForVolume(
+        Resource volume,
+        IReadOnlyList<Resource> resources,
+        ResourceOrchestrationCatalogSnapshot orchestrationSnapshot) =>
+        resources
+            .Where(resource => !string.Equals(resource.Id, volume.Id, StringComparison.OrdinalIgnoreCase))
+            .Select(resource => new StorageVolumeConsumerView(
+                resource,
+                GetMountsForVolume(resource, volume.Id, orchestrationSnapshot)))
+            .Where(consumer =>
+                consumer.Mounts.Count > 0 ||
+                consumer.Resource.DependsOn.Any(dependency =>
+                    string.Equals(dependency, volume.Id, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(consumer => consumer.Resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private static IReadOnlyList<ResourceVolumeMount> GetMountsForVolume(
+        Resource resource,
+        string volumeId,
+        ResourceOrchestrationCatalogSnapshot orchestrationSnapshot) =>
+        orchestrationSnapshot.Workloads.TryGetValue(resource.Id, out var workload)
+            ? workload.WorkloadVolumeMounts
+                .Where(mount => string.Equals(
+                    mount.NormalizedVolumeReference,
+                    volumeId,
+                    StringComparison.OrdinalIgnoreCase))
+                .OrderBy(mount => mount.NormalizedTargetPath, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : [];
+
+    private static string GetVolumeSummary(StorageVolumeView volume)
+    {
+        var subPath = GetVolumeSubPath(volume.Volume);
+        return volume.Consumers.Count == 0
+            ? $"{subPath} - no consumers"
+            : $"{subPath} - {volume.Consumers.Count} consumer{Pluralize(volume.Consumers.Count)}";
+    }
+
+    private static string GetVolumeMetadata(StorageVolumeView volume)
+    {
+        var parts = new List<string>
+        {
+            volume.Volume.Id
+        };
+
+        var materializationSummaries = volume.Consumers
+            .Select(GetConsumerMountMaterialization)
+            .Where(summary => !string.IsNullOrWhiteSpace(summary))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (materializationSummaries.Length > 0)
+        {
+            parts.Add($"Storage: {string.Join(", ", materializationSummaries)}");
+        }
+
+        return string.Join(" - ", parts);
+    }
+
+    private static string? GetConsumerMountMaterialization(StorageVolumeConsumerView consumer)
+    {
+        if (!consumer.Resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.VolumeMountMaterializationStatus,
+                out var status) ||
+            string.IsNullOrWhiteSpace(status))
+        {
+            return null;
+        }
+
+        var label = GetVolumeMountMaterializationStatusLabel(status);
+        if (consumer.Resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.VolumeMountMaterializedCount,
+                out var materializedCount) &&
+            consumer.Resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.VolumeMountCount,
+                out var mountCount))
+        {
+            label = $"{label} ({materializedCount}/{mountCount})";
+        }
+
+        return $"{consumer.Resource.Name}: {label}";
+    }
+
+    private static string GetVolumeMountMaterializationStatusLabel(string status) =>
+        status switch
+        {
+            "materialized" => "materialized",
+            "partial" => "partially materialized",
+            "notActive" => "not active",
+            "unknown" => "unknown",
+            "notApplicable" => "not applicable",
+            _ => status
+        };
+
+    private static string Pluralize(int count) =>
+        count == 1 ? string.Empty : "s";
+
+    private static string BuildResourceRoute(string resourceId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+
+    private static string BuildManageResourceRoute(string resourceId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=configuration";
+
+    private static string BuildCreateVolumeRoute(string storageResourceId) =>
+        Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            "/resources/add",
+            new Dictionary<string, string?>
+            {
+                ["type"] = "cloudshell.volume",
+                ["storageResourceId"] = storageResourceId
+            });
+
+    private void CreateVolume()
+    {
+        if (Storage is not null)
+        {
+            Navigation.NavigateTo(BuildCreateVolumeRoute(Storage.Id));
+        }
+    }
+
+    private void ManageVolume(string resourceId) =>
+        Navigation.NavigateTo(BuildManageResourceRoute(resourceId));
+
+    private sealed record StorageVolumeView(
+        Resource Volume,
+        IReadOnlyList<StorageVolumeConsumerView> Consumers);
+
+    private sealed record StorageVolumeConsumerView(
+        Resource Resource,
+        IReadOnlyList<ResourceVolumeMount> Mounts);
+}

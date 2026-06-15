@@ -183,6 +183,7 @@
 @code {
     private const string GeneratedOverviewTabId = "overview";
     private const string GeneratedIdentityTabId = "identity";
+    private const string GeneratedStorageVolumesTabId = "volumes";
     private const string GeneratedActivityTabId = "activity";
 
     [Parameter]
@@ -461,6 +462,17 @@
                 "Identity",
                 -90,
                 typeof(GeneratedResourceIdentity)));
+        }
+
+        if (resource?.HasCapability(ResourceCapabilityIds.StorageProvider) == true &&
+            !contributedTabs.Any(tab =>
+                string.Equals(tab.Id, GeneratedStorageVolumesTabId, StringComparison.OrdinalIgnoreCase)))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedStorageVolumesTabId,
+                "Volumes",
+                20,
+                typeof(StorageVolumes)));
         }
 
         if (!contributedTabs.Any(tab =>

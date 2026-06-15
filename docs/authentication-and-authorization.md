@@ -53,6 +53,13 @@ Direction:
   Entra ID, API gateways, service meshes, mTLS, signed requests, or local
   credential stores.
 - Runtime API enforcement by the service or container that owns each API.
+- Shared on-premise environments should be able to distinguish ordinary
+  resource management from operations that affect the host machine or shared
+  platform state. Host-affecting actions such as standalone local filesystem
+  volume creation, host path mounts, hosts-file DNS publishing, network setup,
+  public endpoint binding, and OS feature enablement should be gated by
+  administrator or platform-operator permissions, even when lower-risk resource
+  creation remains available to application owners.
 
 See [Resource identity and permissions](resource-identity-and-permissions.md)
 for resource identity providers, projected identity bindings, resource

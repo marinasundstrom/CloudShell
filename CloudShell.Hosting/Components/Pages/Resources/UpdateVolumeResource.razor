@@ -81,7 +81,6 @@ else
 @code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string VolumeResourceType = "cloudshell.volume";
-    private const string StorageResourceType = "cloudshell.storage";
 
     [CascadingParameter]
     public ResourceConfigurationContext? Configuration { get; set; }
@@ -112,7 +111,7 @@ else
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
         StorageResources = (await ResourceManager.ListResourcesAsync())
-            .Where(resource => string.Equals(resource.EffectiveTypeId, StorageResourceType, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => resource.HasCapability(ResourceCapabilityIds.StorageProvider))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         Volume = string.IsNullOrWhiteSpace(ResourceId)
@@ -161,7 +160,7 @@ else
 
         var provider = IsStorageShapeLocked
             ? GetAttribute(ResourceAttributeNames.VolumeProvider, string.Empty)
-            : HasSelectedStorage ? StorageProviderNames.LocalStorage : NormalizeNullable(Provider);
+            : HasSelectedStorage ? GetSelectedStorageProvider() : NormalizeNullable(Provider);
         var location = IsStorageShapeLocked
             ? GetAttribute(ResourceAttributeNames.VolumeLocation, string.Empty)
             : HasSelectedStorage ? null : NormalizeNullable(Location);
@@ -217,6 +216,12 @@ else
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private string? GetSelectedStorageProvider() =>
+        StorageResources
+            .FirstOrDefault(resource => string.Equals(resource.Id, SelectedStorageResourceId, StringComparison.OrdinalIgnoreCase))
+            ?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.StorageProvider) ??
+        StorageProviderNames.LocalStorage;
 
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";

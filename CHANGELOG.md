@@ -48,6 +48,13 @@ on `git blame --follow`, and then by the broad type of change.
   volume consumers surface runtime storage attachment issues outside
   provider-specific tabs.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
+- Storage-owned volumes are now hidden from the normal resource inventory by
+  default and managed from the parent Storage resource's Volumes tab. Direct
+  standalone volumes remain normal inventory resources for local development
+  scenarios, while the storage proposal now records that shared on-premise
+  environments should be able to restrict host-affecting operations to
+  administrators or platform operators.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

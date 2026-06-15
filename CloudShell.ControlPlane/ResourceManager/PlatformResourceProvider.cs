@@ -1805,10 +1805,15 @@ public sealed class PlatformResourceProvider(
             providerName,
             DateTimeOffset.UtcNow,
             CreateVolumeDependencies(definition),
+            ParentResourceId: NormalizeNullable(definition.StorageResourceId),
             TypeId: VolumeResourceType,
             ResourceClass: ResourceClass.Storage,
             Attributes: attributes,
-            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)],
+            Visibility: string.IsNullOrWhiteSpace(definition.StorageResourceId)
+                ? ResourceVisibility.Normal
+                : ResourceVisibility.Hidden,
+            OwnerResourceId: NormalizeNullable(definition.StorageResourceId));
     }
 
     private Resource CreateDnsZoneResource(DnsZoneResourceDefinition definition)

@@ -54,11 +54,16 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 "overview",
                 "Overview",
                 10)
+            .AddResourceTab<StorageVolumes>(
+                "cloudshell.storage",
+                "volumes",
+                "Volumes",
+                20)
             .AddResourceTab<UpdateLocalStorageResource>(
                 "cloudshell.storage",
                 "configuration",
                 "Configuration",
-                20,
+                30,
                 showsApplyButton: true)
             .AddResourceType<RegisterVolumeResource, UpdateVolumeResource>(
                 "cloudshell.volume",

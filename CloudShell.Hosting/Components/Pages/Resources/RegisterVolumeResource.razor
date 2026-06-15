@@ -76,7 +76,7 @@
 @code {
     private const string PlatformProviderId = "cloudshell.platform";
     private const string VolumeResourceType = "cloudshell.volume";
-    private const string StorageResourceType = "cloudshell.storage";
+    private const string StorageResourceQueryParameter = "storageResourceId";
 
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
@@ -97,9 +97,10 @@
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
         StorageResources = (await ResourceManager.ListResourcesAsync())
-            .Where(resource => string.Equals(resource.EffectiveTypeId, StorageResourceType, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => resource.HasCapability(ResourceCapabilityIds.StorageProvider))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        SelectedStorageResourceId = GetRequestedStorageResourceId() ?? string.Empty;
     }
 
     private async Task Register()
@@ -120,7 +121,7 @@
         var definition = new VolumeResourceDefinition(
             ResourceId,
             Name,
-            HasSelectedStorage ? StorageProviderNames.LocalStorage : NormalizeNullable(Provider),
+            HasSelectedStorage ? GetSelectedStorageProvider() : NormalizeNullable(Provider),
             HasSelectedStorage ? null : NormalizeNullable(Location),
             Persistent,
             ParseAccessMode(),
@@ -137,7 +138,9 @@
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId,
                 ResourceClass.Storage));
 
-        Navigation.NavigateTo("/resources");
+        Navigation.NavigateTo(HasSelectedStorage
+            ? BuildStorageVolumesRoute(SelectedStorageResourceId)
+            : "/resources");
     }
 
     private VolumeAccessMode ParseAccessMode() =>
@@ -147,6 +150,31 @@
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private string? GetRequestedStorageResourceId()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (!query.TryGetValue(StorageResourceQueryParameter, out var values))
+        {
+            return null;
+        }
+
+        var requested = values.ToString();
+        return string.IsNullOrWhiteSpace(requested) ||
+            !StorageResources.Any(resource => string.Equals(resource.Id, requested, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : requested;
+    }
+
+    private string? GetSelectedStorageProvider() =>
+        StorageResources
+            .FirstOrDefault(resource => string.Equals(resource.Id, SelectedStorageResourceId, StringComparison.OrdinalIgnoreCase))
+            ?.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.StorageProvider) ??
+        StorageProviderNames.LocalStorage;
+
+    private static string BuildStorageVolumesRoute(string resourceId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=volumes";
 
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";
