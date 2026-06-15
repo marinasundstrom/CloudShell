@@ -2483,7 +2483,7 @@ public sealed partial class ApplicationResourceProvider(
             var materializedCount = runtimeMounts.Count(mount =>
                 string.Equals(
                     mount.Status,
-                    ApplicationRuntimeVolumeMountStatus.Materialized,
+                    ResourceVolumeMountMaterializationStatus.Materialized,
                     StringComparison.OrdinalIgnoreCase));
             attributes[ResourceAttributeNames.VolumeMountMaterializedCount] =
                 materializedCount.ToString(CultureInfo.InvariantCulture);
@@ -2527,7 +2527,7 @@ public sealed partial class ApplicationResourceProvider(
     private static string GetVolumeMountMaterializationStatus(
         ApplicationResourceDefinition application,
         ResourceState state,
-        IReadOnlyList<ApplicationRuntimeVolumeMount> runtimeMounts,
+        IReadOnlyList<ResourceVolumeMountMaterialization> runtimeMounts,
         int materializedCount)
     {
         if (application.VolumeMounts.Count == 0)
@@ -4135,13 +4135,13 @@ public sealed partial class ApplicationResourceProvider(
         return $"Container host '{containerHost.Id}' does not advertise required storage capability '{ContainerHostCapabilityIds.StorageMountFileSystem}' for {sourceDescription}.";
     }
 
-    private static IReadOnlyList<ApplicationRuntimeVolumeMount> MarkVolumeMountsNotActive(
-        IEnumerable<ApplicationRuntimeVolumeMount> mounts,
+    private static IReadOnlyList<ResourceVolumeMountMaterialization> MarkVolumeMountsNotActive(
+        IEnumerable<ResourceVolumeMountMaterialization> mounts,
         DateTimeOffset observedAt) =>
         mounts
             .Select(mount => mount with
             {
-                Status = ApplicationRuntimeVolumeMountStatus.NotActive,
+                Status = ResourceVolumeMountMaterializationStatus.NotActive,
                 ObservedAt = observedAt
             })
             .ToArray();
@@ -4160,7 +4160,7 @@ public sealed partial class ApplicationResourceProvider(
             : $"{source}:{mount.NormalizedTargetPath}";
         return new LocalContainerVolumeMaterialization(
             argument,
-            new ApplicationRuntimeVolumeMount(
+            new ResourceVolumeMountMaterialization(
                 mount.NormalizedVolumeReference,
                 mount.NormalizedTargetPath,
                 source,
@@ -4624,7 +4624,7 @@ public sealed partial class ApplicationResourceProvider(
 
     private sealed record LocalContainerVolumeMaterialization(
         string Argument,
-        ApplicationRuntimeVolumeMount RuntimeState);
+        ResourceVolumeMountMaterialization RuntimeState);
 
     private sealed record ApplicationProcessCommand(
         string ExecutablePath,

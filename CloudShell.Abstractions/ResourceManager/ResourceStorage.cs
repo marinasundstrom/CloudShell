@@ -33,3 +33,28 @@ public static class StorageMedia
 {
     public const string FileSystem = "FileSystem";
 }
+
+public sealed record ResourceVolumeMountMaterialization(
+    string VolumeReference,
+    string TargetPath,
+    string Source,
+    bool ReadOnly,
+    string Status = ResourceVolumeMountMaterializationStatus.Materialized,
+    string? Reason = null,
+    DateTimeOffset? ObservedAt = null);
+
+public static class ResourceVolumeMountMaterializationStatus
+{
+    public const string Materialized = "materialized";
+    public const string NotActive = "notActive";
+}
+
+public interface IResourceVolumeMountMaterializationStore
+{
+    IReadOnlyList<ResourceVolumeMountMaterialization> GetVolumeMountMaterializations(
+        string resourceId);
+
+    void SaveVolumeMountMaterializations(
+        string resourceId,
+        IReadOnlyList<ResourceVolumeMountMaterialization> materializations);
+}

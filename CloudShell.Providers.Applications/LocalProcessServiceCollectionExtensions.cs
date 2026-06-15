@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -13,6 +14,8 @@ public static class LocalProcessServiceCollectionExtensions
         configure?.Invoke(options);
 
         services.TryAddSingleton<ApplicationRuntimeStateStore>();
+        services.TryAddSingleton<IResourceVolumeMountMaterializationStore>(
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>());
         services.TryAddSingleton<LocalProcessRunner>();
         return services;
     }

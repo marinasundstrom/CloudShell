@@ -10,22 +10,7 @@ public sealed record ApplicationRuntimeState(
     int? LastExitCode = null,
     string? LogPath = null,
     ResourceState? State = null,
-    IReadOnlyList<ApplicationRuntimeVolumeMount>? VolumeMounts = null)
+    IReadOnlyList<ResourceVolumeMountMaterialization>? VolumeMounts = null)
 {
-    public IReadOnlyList<ApplicationRuntimeVolumeMount> RuntimeVolumeMounts => VolumeMounts ?? [];
-}
-
-public sealed record ApplicationRuntimeVolumeMount(
-    string VolumeReference,
-    string TargetPath,
-    string Source,
-    bool ReadOnly,
-    string Status = ApplicationRuntimeVolumeMountStatus.Materialized,
-    string? Reason = null,
-    DateTimeOffset? ObservedAt = null);
-
-public static class ApplicationRuntimeVolumeMountStatus
-{
-    public const string Materialized = "materialized";
-    public const string NotActive = "notActive";
+    public IReadOnlyList<ResourceVolumeMountMaterialization> RuntimeVolumeMounts => VolumeMounts ?? [];
 }

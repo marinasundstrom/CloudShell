@@ -28,8 +28,12 @@ materialization facts, including resolved source, target path, access mode, and
 active/not-active status, after a successful container start. Application
 overview pages show those observations and volume overview pages surface the
 consumer's aggregate materialization status through projected resource
-attributes. Docker Compose materialization observation and provider-backed
-storage runtime reporting remain open.
+attributes. Volume materialization observations now use the shared
+`IResourceVolumeMountMaterializationStore` contract so orchestrators can report
+runtime facts without depending on the application provider. Docker Compose
+records observations through that contract after successful Start/Restart
+actions and marks existing observations not active after Stop. Provider-backed
+storage runtime reporting remains open.
 Deletion is guarded for volume resources that are still referenced by another
 resource dependency, and storage mappings cannot be changed while the target
 resource is running.
@@ -231,6 +235,15 @@ The exact public abstraction may differ, but the important split is stable:
 CloudShell owns the relationship between resource and volume; providers own how
 that relationship becomes a bind mount, Docker volume, Kubernetes persistent
 volume claim, SMB mount, NFS mount, or platform-native storage attachment.
+Runtime providers can report observed materialization through
+`IResourceVolumeMountMaterializationStore`, using
+`ResourceVolumeMountMaterialization` records. This is runtime observation, not
+desired configuration: it records the resolved source, target path, access
+mode, status, optional reason, and observed time for a resource's mounted
+volumes. The first store is backed by application runtime state so application
+and volume overview pages can show materialized, not-active, partial, or
+unknown storage status without coupling each orchestrator to the Applications
+provider.
 
 `VolumeReference` can point at a first-class `cloudshell.volume` resource, but
 it does not have to. Local development should allow simple named or host-local

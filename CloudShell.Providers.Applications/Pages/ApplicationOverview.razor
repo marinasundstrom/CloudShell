@@ -360,7 +360,7 @@ else
             .OrderBy(mount => mount.Mount.NormalizedTargetPath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private ApplicationRuntimeVolumeMount? ResolveRuntimeVolumeMount(ResourceVolumeMount mount) =>
+    private ResourceVolumeMountMaterialization? ResolveRuntimeVolumeMount(ResourceVolumeMount mount) =>
         RuntimeState?.RuntimeVolumeMounts.FirstOrDefault(runtimeMount =>
             string.Equals(
                 runtimeMount.VolumeReference,
@@ -397,8 +397,8 @@ else
     private static string GetVolumeMountStatusLabel(string status) =>
         status switch
         {
-            ApplicationRuntimeVolumeMountStatus.Materialized => "materialized",
-            ApplicationRuntimeVolumeMountStatus.NotActive => "not active",
+            ResourceVolumeMountMaterializationStatus.Materialized => "materialized",
+            ResourceVolumeMountMaterializationStatus.NotActive => "not active",
             _ => string.IsNullOrWhiteSpace(status) ? "unknown" : status
         };
 
@@ -690,5 +690,5 @@ else
     private sealed record VolumeMountView(
         ResourceVolumeMount Mount,
         Resource? Volume,
-        ApplicationRuntimeVolumeMount? RuntimeMount);
+        ResourceVolumeMountMaterialization? RuntimeMount);
 }

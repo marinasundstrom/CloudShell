@@ -1,9 +1,10 @@
 using System.Text.Json;
+using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Hosting;
 
 namespace CloudShell.Providers.Applications;
 
-public sealed class ApplicationRuntimeStateStore
+public sealed class ApplicationRuntimeStateStore : IResourceVolumeMountMaterializationStore
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -58,6 +59,31 @@ public sealed class ApplicationRuntimeStateStore
                 string.Equals(state.ApplicationId, applicationId, StringComparison.OrdinalIgnoreCase));
             Persist();
         }
+    }
+
+    public IReadOnlyList<ResourceVolumeMountMaterialization> GetVolumeMountMaterializations(
+        string resourceId) =>
+        Get(resourceId)?.RuntimeVolumeMounts ?? [];
+
+    public void SaveVolumeMountMaterializations(
+        string resourceId,
+        IReadOnlyList<ResourceVolumeMountMaterialization> materializations)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        var now = DateTimeOffset.UtcNow;
+        var state = Get(resourceId);
+        Save(state is null
+            ? new ApplicationRuntimeState(
+                resourceId,
+                null,
+                null,
+                now,
+                VolumeMounts: materializations)
+            : state with
+            {
+                LastObservedAt = now,
+                VolumeMounts = materializations
+            });
     }
 
     private List<ApplicationRuntimeState> LoadStates()

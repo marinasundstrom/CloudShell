@@ -22,6 +22,7 @@ Useful references:
 - [Control Plane API](control-plane-api.md)
 - [CloudShell and Aspire](cloudshell-and-aspire.md)
 - [Container applications proposal](proposals/containers/container-applications.md)
+- [Resource graph import and code generation proposal](proposals/core/resource-graph-import.md)
 
 ## Authoritative Milestones
 
@@ -115,8 +116,8 @@ listed here before pulling in broader proposal work.
    class, Local Storage is the first concrete storage kind, and `FileSystem` is
    the medium it announces. The first host-level negotiation uses the
    `storage.mount.filesystem` container-host capability; next slices should
-   broaden observed materialization state beyond the local Docker runner into
-   Docker Compose and future provider-backed storage resources.
+   broaden observed materialization state from orchestrator reports into
+   provider-backed storage resources and Resource Manager diagnostics.
 4. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider,
@@ -147,7 +148,8 @@ listed here before pulling in broader proposal work.
    runtime and image updates.
 12. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
-   provider-backed DNS propagation, external deployment projection, container
+   provider-backed DNS propagation, external deployment projection,
+   external-format resource graph import and code generation, container
    application environments, and the initial on-premise hosting scenario.
 
 ### Now: MVP Convergence and Resource Manager Reliability
@@ -223,7 +225,10 @@ listed here before pulling in broader proposal work.
   successful container start, application overview pages show source/target
   materialization status per mount, and volume overview pages show aggregate
   materialization status for consumers through projected resource attributes.
-  Docker Compose and provider-backed storage runtime reporting remain next.
+  Docker Compose now reports the same observations through the shared
+  `IResourceVolumeMountMaterializationStore` contract after successful
+  Start/Restart/Stop actions. Provider-backed storage runtime reporting and
+  richer Resource Manager diagnostics remain next.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

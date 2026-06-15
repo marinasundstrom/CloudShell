@@ -4304,7 +4304,7 @@ public sealed class ResourceDeclarationTests
             LogPath: "api.log",
             VolumeMounts:
             [
-                new ApplicationRuntimeVolumeMount(
+                new ResourceVolumeMountMaterialization(
                     "volume:data",
                     "/data",
                     "/tmp/cloudshell/data",
@@ -5841,6 +5841,77 @@ public sealed class ResourceDeclarationTests
 
         Assert.Contains("    volumes:", yaml);
         Assert.Contains($"      - \"{expectedPath}:/var/opt/mssql\"", yaml);
+        Assert.True(Directory.Exists(expectedPath));
+    }
+
+    [Fact]
+    public void DockerComposeOrchestrator_CreatesVolumeMountMaterializations()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var storage = new Resource(
+            "storage:local",
+            "Local Storage",
+            StorageProviderNames.LocalStorage,
+            StorageProviderNames.LocalStorage,
+            "local",
+            ResourceState.Running,
+            [],
+            StorageMedia.FileSystem,
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: "cloudshell.storage",
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.StorageMedium] = StorageMedia.FileSystem,
+                [ResourceAttributeNames.StorageLocation] = "./Data/storage"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageMountProvider)]);
+        var volume = new Resource(
+            "volume:sql-data",
+            "SQL Data",
+            "Volume",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [],
+            StorageProviderNames.LocalStorage,
+            DateTimeOffset.UtcNow,
+            ["storage:local"],
+            TypeId: "cloudshell.volume",
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.VolumeStorageMedium] = StorageMedia.FileSystem,
+                [ResourceAttributeNames.VolumeStorageResourceId] = "storage:local",
+                [ResourceAttributeNames.VolumeSubPath] = "sql-server"
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
+        var resourceManager = new StaticResourceManagerStore([storage, volume]);
+        var createMaterializations = typeof(DockerComposeResourceOrchestrator).GetMethod(
+            "CreateComposeVolumeMaterializations",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+
+        Assert.NotNull(createMaterializations);
+        var materializations = Assert.IsAssignableFrom<IReadOnlyList<ResourceVolumeMountMaterialization>>(
+            createMaterializations.Invoke(
+                null,
+                [
+                    new[]
+                    {
+                        new ResourceVolumeMount("volume:sql-data", "/var/opt/mssql", false, "data")
+                    },
+                    resourceManager,
+                    workingDirectory
+                ]));
+        var materialization = Assert.Single(materializations);
+        var expectedPath = Path.GetFullPath(Path.Combine(workingDirectory, "Data/storage/sql-server"));
+
+        Assert.Equal("volume:sql-data", materialization.VolumeReference);
+        Assert.Equal("/var/opt/mssql", materialization.TargetPath);
+        Assert.Equal(expectedPath, materialization.Source);
+        Assert.False(materialization.ReadOnly);
+        Assert.Equal(ResourceVolumeMountMaterializationStatus.Materialized, materialization.Status);
         Assert.True(Directory.Exists(expectedPath));
     }
 

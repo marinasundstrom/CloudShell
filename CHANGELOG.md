@@ -38,6 +38,11 @@ on `git blame --follow`, and then by the broad type of change.
   projected application resources expose aggregate materialization attributes
   that volume overviews can display for consumers.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
+- Added the shared `IResourceVolumeMountMaterializationStore` contract for
+  runtime-observed volume mount facts. The application runtime state store now
+  implements it, and Docker Compose records materialized/not-active mount
+  observations through that contract after successful lifecycle actions.
+  Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

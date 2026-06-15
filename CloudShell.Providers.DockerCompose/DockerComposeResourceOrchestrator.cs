@@ -10,9 +10,12 @@ namespace CloudShell.Providers.DockerCompose;
 public sealed partial class DockerComposeResourceOrchestrator(
     DockerComposeOrchestratorOptions options,
     IEnumerable<IResourceOrchestrationDescriptorProvider> descriptorProviders,
-    IContainerHostResolver containerHostResolver) : IResourceOrchestrator
+    IContainerHostResolver containerHostResolver,
+    IEnumerable<IResourceVolumeMountMaterializationStore>? materializationStores = null) : IResourceOrchestrator
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+    private readonly IReadOnlyList<IResourceVolumeMountMaterializationStore> materializationStores =
+        materializationStores?.ToArray() ?? [];
 
     public string Id => "docker-compose";
 
@@ -50,6 +53,10 @@ public sealed partial class DockerComposeResourceOrchestrator(
         var result = await RunDockerAsync(
             arguments,
             await ResolveDockerHostAsync(context, cancellationToken),
+            cancellationToken);
+        await RecordVolumeMountMaterializationsAsync(
+            context,
+            action,
             cancellationToken);
 
         return ResourceProcedureResult.Completed(
@@ -525,7 +532,7 @@ public sealed partial class DockerComposeResourceOrchestrator(
                 builder.AppendLine("    volumes:");
                 foreach (var mount in service.ServiceVolumeMounts)
                 {
-                    builder.AppendLine($"      - {QuoteYaml(CreateComposeVolumeMount(mount, resourceManager, workingDirectory))}");
+                    builder.AppendLine($"      - {QuoteYaml(CreateComposeVolumeMaterialization(mount, resourceManager, workingDirectory).Argument)}");
                 }
             }
 
@@ -603,7 +610,7 @@ public sealed partial class DockerComposeResourceOrchestrator(
         }
     }
 
-    private static string CreateComposeVolumeMount(
+    private static ComposeVolumeMaterialization CreateComposeVolumeMaterialization(
         ResourceVolumeMount mount,
         IResourceManagerStore? resourceManager,
         string workingDirectory)
@@ -618,10 +625,32 @@ public sealed partial class DockerComposeResourceOrchestrator(
             mount.NormalizedVolumeReference,
             resourceManager,
             workingDirectory);
-        return mount.ReadOnly
+        var argument = mount.ReadOnly
             ? $"{source}:{mount.NormalizedTargetPath}:ro"
             : $"{source}:{mount.NormalizedTargetPath}";
+        return new ComposeVolumeMaterialization(
+            argument,
+            new ResourceVolumeMountMaterialization(
+                mount.NormalizedVolumeReference,
+                mount.NormalizedTargetPath,
+                source,
+                mount.ReadOnly,
+                ObservedAt: DateTimeOffset.UtcNow));
     }
+
+    private static IReadOnlyList<ResourceVolumeMountMaterialization> CreateComposeVolumeMaterializations(
+        IReadOnlyList<ResourceVolumeMount> mounts,
+        IResourceManagerStore? resourceManager,
+        string workingDirectory) =>
+        mounts
+            .Where(mount =>
+                !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
+                !string.IsNullOrWhiteSpace(mount.TargetPath))
+            .Select(mount => CreateComposeVolumeMaterialization(
+                mount,
+                resourceManager,
+                workingDirectory).Materialization)
+            .ToArray();
 
     private static string ResolveComposeVolumeSource(
         string volumeReference,
@@ -737,6 +766,84 @@ public sealed partial class DockerComposeResourceOrchestrator(
         options.EnableReplicatedContainerAppIngress &&
         service.Replicas > 1 &&
         service.ServicePorts.Any(IsComposeIngressPort);
+
+    private async Task RecordVolumeMountMaterializationsAsync(
+        ResourceOrchestrationContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken)
+    {
+        if (materializationStores.Count == 0 ||
+            action.Kind is not (ResourceActionKind.Start or ResourceActionKind.Stop or ResourceActionKind.Restart))
+        {
+            return;
+        }
+
+        var target = await ResolveMaterializationTargetAsync(context, cancellationToken);
+        if (target is null)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var store in materializationStores)
+        {
+            var materializations = action.Kind == ResourceActionKind.Stop
+                ? store.GetVolumeMountMaterializations(target.ResourceId)
+                    .Select(mount => mount with
+                    {
+                        Status = ResourceVolumeMountMaterializationStatus.NotActive,
+                        ObservedAt = now
+                    })
+                    .ToArray()
+                : CreateComposeVolumeMaterializations(
+                    target.Workload.WorkloadVolumeMounts,
+                    context.ResourceManager,
+                    ResolveWorkingDirectory())
+                    .Select(mount => mount with
+                    {
+                        ObservedAt = now
+                    })
+                    .ToArray();
+
+            store.SaveVolumeMountMaterializations(target.ResourceId, materializations);
+        }
+    }
+
+    private async Task<MaterializationTarget?> ResolveMaterializationTargetAsync(
+        ResourceOrchestrationContext context,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = await TryDescribeAsync(context.Resource, context, cancellationToken);
+        if (descriptor is null)
+        {
+            return null;
+        }
+
+        var workload = TryReadWorkload(descriptor);
+        if (workload is not null)
+        {
+            return new MaterializationTarget(context.Resource.Id, workload);
+        }
+
+        var service = TryReadService(descriptor);
+        var target = service?.Targets.FirstOrDefault();
+        if (string.IsNullOrWhiteSpace(target?.ResourceId))
+        {
+            return null;
+        }
+
+        var targetResource = context.ResourceManager.GetResource(target.ResourceId);
+        if (targetResource is null)
+        {
+            return null;
+        }
+
+        var targetDescriptor = await TryDescribeAsync(targetResource, context, cancellationToken);
+        var targetWorkload = targetDescriptor is null ? null : TryReadWorkload(targetDescriptor);
+        return targetWorkload is null
+            ? null
+            : new MaterializationTarget(targetResource.Id, targetWorkload);
+    }
 
     private static bool IsComposeIngressPort(ServicePort port) =>
         NormalizeProtocol(port.Protocol) is "http" or "tcp";
@@ -871,6 +978,14 @@ public sealed partial class DockerComposeResourceOrchestrator(
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
+
+    private sealed record ComposeVolumeMaterialization(
+        string Argument,
+        ResourceVolumeMountMaterialization Materialization);
+
+    private sealed record MaterializationTarget(
+        string ResourceId,
+        ResourceWorkloadConfiguration Workload);
 
     [GeneratedRegex("[^a-z0-9_.-]+")]
     private static partial Regex ComposeServiceNamePattern();
