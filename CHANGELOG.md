@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   Resource ID and optional display name, so users can distinguish the canonical
   platform identity from the authored resource name.
   Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
+- Built-in programmatic resource declarations now default projected labels back
+  to the scoped resource name when `.WithDisplayName(...)` is not set, instead
+  of auto-humanizing resource IDs into implicit display names.
+  Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
 
 ### 2026-06-15
 

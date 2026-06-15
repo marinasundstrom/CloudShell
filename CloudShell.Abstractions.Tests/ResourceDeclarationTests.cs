@@ -819,6 +819,58 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ProgrammaticResources_DefaultNameUsesScopedResourceName()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider()
+            .AddConfigurationProvider()
+            .AddDockerProvider()
+            .Resources(resources =>
+            {
+                resources.AddAspNetCoreProject(
+                    "application:application-topology-frontend",
+                    "src/Frontend/Frontend.csproj");
+                resources.AddConfigurationStore("configuration:sample-app");
+                resources.AddSecretsVault("secrets-vault:sample-app");
+                resources.AddDocker("docker:sample")
+                    .AddDockerContainer("redis", "redis:7.2");
+                resources.AddNetwork("network:app");
+                resources.AddLoadBalancer("load-balancer:public");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var appProvider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var configurationProvider = serviceProvider.GetRequiredService<ConfigurationResourceProvider>();
+        var secretsProvider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        var dockerProvider = serviceProvider.GetRequiredService<DockerContainerResourceProvider>();
+        var platformOptions = serviceProvider.GetRequiredService<PlatformResourceOptions>();
+
+        Assert.Equal(
+            "application-topology-frontend",
+            Assert.Single(appProvider.GetResources(), resource => resource.Id == "application:application-topology-frontend").Name);
+        Assert.Equal(
+            "sample-app",
+            Assert.Single(configurationProvider.GetResources(), resource => resource.Id == "configuration:sample-app").Name);
+        Assert.Equal(
+            "sample-app",
+            Assert.Single(secretsProvider.GetResources(), resource => resource.Id == "secrets-vault:sample-app").Name);
+        Assert.Equal(
+            "redis",
+            Assert.Single(dockerProvider.GetResources(), resource => resource.Id == "docker:container:redis").Name);
+        Assert.Equal(
+            "app",
+            Assert.Single(platformOptions.DeclaredNetworks).Definition.Name);
+        Assert.Equal(
+            "public",
+            Assert.Single(platformOptions.DeclaredLoadBalancers).Definition.Name);
+    }
+
+    [Fact]
     public void ResourceGraphBuilder_DeclaresResourceGroups()
     {
         var services = new ServiceCollection();
@@ -3306,7 +3358,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             [DockerContainerResourceProvider.DefaultHostResourceId, "postgres-main"],
             container.DependsOn);
-        Assert.Equal("Redis", definition.Name);
+        Assert.Equal("redis", definition.Name);
         Assert.Equal("redis:7.2", definition.Image);
         Assert.Equal("http://registry.local:5000", definition.Registry);
         Assert.Equal("registry-user", definition.RegistryCredentials?.Username);
@@ -5026,7 +5078,7 @@ public sealed class ResourceDeclarationTests
         var definition = Assert.Single(options.DeclaredLoadBalancers).Definition;
 
         Assert.Equal("load-balancer:public", definition.Id);
-        Assert.Equal("Public", definition.Name);
+        Assert.Equal("public", definition.Name);
         Assert.Equal("traefik", definition.Provider);
         Assert.Equal("docker:engine", definition.HostResourceId);
         Assert.Collection(
@@ -6712,7 +6764,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("example/api:20260608", updated.ContainerImage);
         Assert.StartsWith("rev-", updated.ContainerRevision);
         Assert.NotEqual(originalRevision, updated.ContainerRevision);
-        Assert.Equal("Updated Api to image 'example/api:20260608'.", result.Message);
+        Assert.Equal("Updated api to image 'example/api:20260608'.", result.Message);
     }
 
     [Fact]
@@ -6751,7 +6803,7 @@ public sealed class ResourceDeclarationTests
         Assert.NotNull(updated);
         Assert.Equal(3, updated.Replicas);
         Assert.Equal("3", projected.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
-        Assert.Equal("Updated Api to 3 replicas.", result.Message);
+        Assert.Equal("Updated api to 3 replicas.", result.Message);
     }
 
 

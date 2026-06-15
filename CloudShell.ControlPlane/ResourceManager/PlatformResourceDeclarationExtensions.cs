@@ -329,15 +329,9 @@ public static class PlatformResourceDeclarationExtensions
         => ResourceId.FromName(prefix, name).Value;
 
     private static string CreateDisplayName(string resourceId)
-    {
-        var name = resourceId.Contains(':', StringComparison.Ordinal)
-            ? resourceId[(resourceId.IndexOf(':', StringComparison.Ordinal) + 1)..]
-            : resourceId;
-        return string.Join(
-            " ",
-            name.Split(['-', '_', '.', ':'], StringSplitOptions.RemoveEmptyEntries)
-                .Select(segment => string.Concat(segment[..1].ToUpperInvariant(), segment[1..])));
-    }
+        => ResourceId.TryParse(resourceId, out var id)
+            ? id.Name
+            : resourceId.Trim();
 
     private static string CreateZoneName(string resourceId) =>
         resourceId.Contains(':', StringComparison.Ordinal)
