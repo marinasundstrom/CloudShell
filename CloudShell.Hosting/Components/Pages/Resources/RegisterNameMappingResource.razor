@@ -127,23 +127,14 @@
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
-        new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+        ResourceManagerUiAccess.EmptyGroupLookup;
 
     protected override async Task OnInitializedAsync()
     {
         Resources = await ResourceManager.ListResourcesAsync();
-
-        var groupsByResourceId = new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
-        foreach (var resource in Resources)
-        {
-            var group = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
-            if (group is not null)
-            {
-                groupsByResourceId[resource.Id] = group;
-            }
-        }
-
-        ResourceGroupsByResourceId = groupsByResourceId;
+        ResourceGroupsByResourceId = await ResourceManagerUiAccess.CreateGroupLookupAsync(
+            ResourceManager,
+            Resources);
         SelectedZoneResourceId = GetRequestedDnsZoneId() ??
             GetDnsZoneCandidates().FirstOrDefault()?.Id ??
             string.Empty;
@@ -248,8 +239,8 @@
 
     private bool IsInSelectedZoneGroup(Resource resource)
     {
-        var zoneGroup = ResourceGroupsByResourceId.GetValueOrDefault(SelectedZoneResourceId);
-        var group = ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
+        var zoneGroup = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, SelectedZoneResourceId);
+        var group = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, resource.Id);
         return zoneGroup is null
             ? group is null
             : string.Equals(group?.Id, zoneGroup.Id, StringComparison.OrdinalIgnoreCase);
@@ -318,7 +309,7 @@
             GetTargetEndpointName(),
             GetExposure(),
             string.IsNullOrWhiteSpace(ProviderResourceId) ? null : ProviderResourceId);
-        var zoneGroup = ResourceGroupsByResourceId.GetValueOrDefault(SelectedZoneResourceId);
+        var zoneGroup = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, SelectedZoneResourceId);
 
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(

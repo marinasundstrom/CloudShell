@@ -1,0 +1,84 @@
+@namespace CloudShell.Hosting.Components.ResourceManager
+@inject ICloudShellAuthorizationService Authorization
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
+
+@if (IsAuthorized())
+{
+    @ChildContent
+}
+else if (NotAuthorized is not null)
+{
+    @NotAuthorized
+}
+
+@code {
+    [Parameter]
+    public Resource? Resource { get; set; }
+
+    [Parameter]
+    public string? ResourceGroupId { get; set; }
+
+    [Parameter]
+    public IReadOnlyDictionary<string, ResourceGroup>? ResourceGroupsByResourceId { get; set; }
+
+    [Parameter]
+    public string? Permission { get; set; }
+
+    [Parameter]
+    public IReadOnlyCollection<string>? Permissions { get; set; }
+
+    [Parameter]
+    public bool RequireAll { get; set; } = true;
+
+    [Parameter]
+    public bool RequireWritableResourceManager { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? NotAuthorized { get; set; }
+
+    private bool IsAuthorized()
+    {
+        if (Resource is null || ChildContent is null)
+        {
+            return false;
+        }
+
+        if (RequireWritableResourceManager && ResourceManagerUiOptions.Value.ReadOnly)
+        {
+            return false;
+        }
+
+        var permissions = GetPermissions();
+        if (permissions.Count == 0)
+        {
+            return false;
+        }
+
+        var groupId = ResourceGroupId ??
+            (ResourceGroupsByResourceId is null
+                ? null
+                : ResourceManagerUiAccess.GetResourceGroupId(ResourceGroupsByResourceId, Resource.Id));
+
+        return RequireAll
+            ? permissions.All(permission => Authorization.CanAccessResource(Resource.Id, groupId, permission))
+            : permissions.Any(permission => Authorization.CanAccessResource(Resource.Id, groupId, permission));
+    }
+
+    private IReadOnlyList<string> GetPermissions()
+    {
+        var permissions = Permissions?
+            .Where(permission => !string.IsNullOrWhiteSpace(permission))
+            .ToArray();
+        if (permissions is { Length: > 0 })
+        {
+            return permissions;
+        }
+
+        return string.IsNullOrWhiteSpace(Permission)
+            ? []
+            : [Permission];
+    }
+}

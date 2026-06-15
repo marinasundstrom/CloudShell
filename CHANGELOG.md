@@ -67,6 +67,10 @@ on `git blame --follow`, and then by the broad type of change.
   resource's group when the volume is created from the Storage Volumes tab or
   when a Storage resource is selected manually.
   Decision: [ADR-20260614-003](ADR.md#adr-20260614-003).
+- Resource Manager UI now shares helper logic for building resource-to-group
+  lookups and checking group-aware resource access. A new resource permission
+  boundary component keeps permission-gated UI actions from repeating the
+  same authorization and presentation plumbing across management views.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

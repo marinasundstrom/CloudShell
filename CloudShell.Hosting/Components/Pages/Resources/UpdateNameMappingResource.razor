@@ -125,7 +125,7 @@ else
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
-        new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+        ResourceManagerUiAccess.EmptyGroupLookup;
     private string Name { get; set; } = string.Empty;
     private string HostName { get; set; } = string.Empty;
     private string TargetResourceId { get; set; } = string.Empty;
@@ -149,18 +149,9 @@ else
             ? null
             : Resources.FirstOrDefault(resource =>
                 string.Equals(resource.Id, NameMapping.ParentResourceId, StringComparison.OrdinalIgnoreCase));
-
-        var groupsByResourceId = new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
-        foreach (var resource in Resources)
-        {
-            var group = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
-            if (group is not null)
-            {
-                groupsByResourceId[resource.Id] = group;
-            }
-        }
-
-        ResourceGroupsByResourceId = groupsByResourceId;
+        ResourceGroupsByResourceId = await ResourceManagerUiAccess.CreateGroupLookupAsync(
+            ResourceManager,
+            Resources);
 
         if (NameMapping is not null)
         {
@@ -205,8 +196,8 @@ else
     {
         var zoneGroup = DnsZone is null
             ? null
-            : ResourceGroupsByResourceId.GetValueOrDefault(DnsZone.Id);
-        var group = ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
+            : ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, DnsZone.Id);
+        var group = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, resource.Id);
         return zoneGroup is null
             ? group is null
             : string.Equals(group?.Id, zoneGroup.Id, StringComparison.OrdinalIgnoreCase);
@@ -262,7 +253,7 @@ else
             GetTargetEndpointName(),
             GetExposure(),
             string.IsNullOrWhiteSpace(ProviderResourceId) ? null : ProviderResourceId);
-        var zoneGroup = ResourceGroupsByResourceId.GetValueOrDefault(DnsZone.Id);
+        var zoneGroup = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, DnsZone.Id);
 
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(

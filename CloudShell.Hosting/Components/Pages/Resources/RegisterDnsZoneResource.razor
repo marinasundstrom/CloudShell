@@ -162,24 +162,15 @@
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
     private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
-        new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
+        ResourceManagerUiAccess.EmptyGroupLookup;
 
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
         Resources = await ResourceManager.ListResourcesAsync();
-
-        var groupsByResourceId = new Dictionary<string, ResourceGroup>(StringComparer.OrdinalIgnoreCase);
-        foreach (var resource in Resources)
-        {
-            var group = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
-            if (group is not null)
-            {
-                groupsByResourceId[resource.Id] = group;
-            }
-        }
-
-        ResourceGroupsByResourceId = groupsByResourceId;
+        ResourceGroupsByResourceId = await ResourceManagerUiAccess.CreateGroupLookupAsync(
+            ResourceManager,
+            Resources);
         TargetResourceId = GetTargetCandidates().FirstOrDefault()?.Id ?? string.Empty;
     }
 
@@ -206,7 +197,7 @@
 
     private bool IsInSelectedGroup(Resource resource)
     {
-        var group = ResourceGroupsByResourceId.GetValueOrDefault(resource.Id);
+        var group = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, resource.Id);
         return string.IsNullOrWhiteSpace(SelectedGroupId)
             ? group is null
             : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
