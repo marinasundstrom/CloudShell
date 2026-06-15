@@ -113,6 +113,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration Store and Secrets Vault registration pages, plus the
   application update tab, now use the shared Resource Manager editor section
   component for entry, secret, dependency, and network exposure sections.
+- Application registration pages now share a raw environment variable editor
+  component and input model instead of duplicating add/remove row handling
+  across executable, ASP.NET Core project, and container image forms.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

@@ -86,29 +86,7 @@
             Start referenced resources first
         </FluentCheckbox>
 
-        <ResourceEditorSection>
-            <HeaderContent>
-                <strong>Environment variables</strong>
-            </HeaderContent>
-            <Actions>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
-                    Add variable
-                </FluentButton>
-            </Actions>
-            <ChildContent>
-
-            @foreach (var variable in EnvironmentVariables)
-            {
-                <div class="environment-row">
-                    <FluentTextField AriaLabel="Environment variable name" @bind-Value="variable.Name" />
-                    <FluentTextField AriaLabel="Environment variable value" @bind-Value="variable.Value" />
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
-                        Remove
-                    </FluentButton>
-                </div>
-            }
-            </ChildContent>
-        </ResourceEditorSection>
+        <ApplicationEnvironmentVariablesEditor Variables="EnvironmentVariables" />
 
         @if (ErrorMessage is not null)
         {
@@ -146,7 +124,7 @@
     private bool StartAfterCreate { get; set; } = true;
     private string SelectedGroupId { get; set; } = string.Empty;
     private string? ErrorMessage { get; set; }
-    private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
+    private List<ApplicationEnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     private bool SupportsHealthChecks => ProbeContext?.SupportsHealthChecks == true;
@@ -273,17 +251,6 @@
         }
     }
 
-    private void AddEnvironmentVariable() => EnvironmentVariables.Add(new());
-
-    private void RemoveEnvironmentVariable(EnvironmentVariableInput variable)
-    {
-        EnvironmentVariables.Remove(variable);
-        if (EnvironmentVariables.Count == 0)
-        {
-            EnvironmentVariables.Add(new());
-        }
-    }
-
     private ApplicationLifetime ParseLifetime() =>
         Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)
             ? lifetime
@@ -296,10 +263,4 @@
             _ => "Detached"
         };
 
-    private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
-    {
-        public string? Name { get; set; } = name;
-
-        public string? Value { get; set; } = value;
-    }
 }

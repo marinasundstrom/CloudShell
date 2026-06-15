@@ -87,29 +87,7 @@
             }
         </ResourceEditorSection>
 
-        <ResourceEditorSection>
-            <HeaderContent>
-                <strong>Environment variables</strong>
-            </HeaderContent>
-            <Actions>
-                <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
-                    Add variable
-                </FluentButton>
-            </Actions>
-            <ChildContent>
-
-            @foreach (var variable in EnvironmentVariables)
-            {
-                <div class="environment-row">
-                    <FluentTextField AriaLabel="Environment variable name" @bind-Value="variable.Name" />
-                    <FluentTextField AriaLabel="Environment variable value" @bind-Value="variable.Value" />
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEnvironmentVariable(variable)">
-                        Remove
-                    </FluentButton>
-                </div>
-            }
-            </ChildContent>
-        </ResourceEditorSection>
+        <ApplicationEnvironmentVariablesEditor Variables="EnvironmentVariables" />
 
         @if (ErrorMessage is not null)
         {
@@ -148,7 +126,7 @@
     private string SelectedGroupId { get; set; } = string.Empty;
     private bool StartAfterCreate { get; set; } = true;
     private string? ErrorMessage { get; set; }
-    private List<EnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
+    private List<ApplicationEnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<string> ReferenceIds { get; set; } = [];
 
@@ -220,18 +198,7 @@
 
         EnvironmentVariables.Clear();
         EnvironmentVariables.AddRange(application.EnvironmentVariables
-            .Select(variable => new EnvironmentVariableInput(variable.Name, variable.Value)));
-        if (EnvironmentVariables.Count == 0)
-        {
-            EnvironmentVariables.Add(new());
-        }
-    }
-
-    private void AddEnvironmentVariable() => EnvironmentVariables.Add(new());
-
-    private void RemoveEnvironmentVariable(EnvironmentVariableInput variable)
-    {
-        EnvironmentVariables.Remove(variable);
+            .Select(variable => new ApplicationEnvironmentVariableInput(variable.Name, variable.Value)));
         if (EnvironmentVariables.Count == 0)
         {
             EnvironmentVariables.Add(new());
@@ -356,10 +323,4 @@
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private sealed class EnvironmentVariableInput(string? name = null, string? value = null)
-    {
-        public string? Name { get; set; } = name;
-
-        public string? Value { get; set; } = value;
-    }
 }
