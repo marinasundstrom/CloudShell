@@ -80,7 +80,7 @@ public sealed class ResourceOrchestrationService(
         string? triggeredBy = null,
         string? cause = null)
     {
-        var context = CreateContext(resource);
+        var context = CreateContext(resource, triggeredBy, cause);
         var unavailableReason = await GetActionUnavailableReasonAsync(context, action, cancellationToken);
         if (unavailableReason is not null)
         {
@@ -446,7 +446,10 @@ public sealed class ResourceOrchestrationService(
         return declarations.DefaultDependencyAutoStart;
     }
 
-    private ResourceOrchestrationContext CreateContext(Resource resource)
+    private ResourceOrchestrationContext CreateContext(
+        Resource resource,
+        string? triggeredBy = null,
+        string? cause = null)
     {
         var registration = GetRegistrationForResourceOrAncestor(resource);
         return new ResourceOrchestrationContext(
@@ -455,7 +458,10 @@ public sealed class ResourceOrchestrationService(
             resourceManager.GetGroupForResource(resource.Id),
             resourceManager,
             registrations,
-            selectionStore.Get().PreferredContainerHostId);
+            selectionStore.Get().PreferredContainerHostId,
+            triggeredBy,
+            cause,
+            resourceEvents);
     }
 
     private IResourceOrchestrator SelectActionOrchestrator(

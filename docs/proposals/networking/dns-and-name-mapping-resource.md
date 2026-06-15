@@ -270,6 +270,18 @@ hosts-file targets do not refresh the host resolver cache. Later providers can
 add wildcard suffix support when they have a resolver mechanism that can own
 the suffix cleanly.
 
+Local development and shared on-premise environments should not require the
+main CloudShell host process to run with broad elevated privileges. A future
+implementation can use a small privileged helper responsible only for
+host-level mutations such as updating `/etc/hosts`, reserving low ports below
+1024, or configuring local DNS/resolver state when an activated provider needs
+those capabilities. The helper should expose a narrow command surface,
+validate the requested operation against CloudShell-managed intent, and leave
+resource activity/audit events on the resource that requested the change. Until
+that helper exists, local hosts should either configure a writable
+`LocalHostNameHostsFilePath` for development/testing or run the host with the
+specific permission needed to update the selected hosts-file target.
+
 ## Relationship to Load Balancers and Ingress
 
 Load balancers and ingress resources may reference DNS names, but they should not own DNS records directly.

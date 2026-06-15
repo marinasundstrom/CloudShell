@@ -782,6 +782,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             resourceEvent.EventType == ResourceEventTypes.Events.Lifecycle.Stopped &&
             resourceEvent.TriggeredBy == "operator" &&
             resourceEvent.Message.Contains("Executed stop", StringComparison.Ordinal));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Provider.ForEvent(provider.Id, "action.executed") &&
+            resourceEvent.TriggeredBy == "operator" &&
+            resourceEvent.Message.Contains("Test provider executed action 'stop'.", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -1598,6 +1602,10 @@ public sealed class InProcessControlPlaneResourceStateTests
             CancellationToken cancellationToken = default)
         {
             ExecutedActions.Add($"{context.Resource.Id}:{action.Id}");
+            context.AppendProviderEvent(
+                Id,
+                "action.executed",
+                $"Test provider executed action '{action.Id}'.");
             return Task.FromResult(ResourceProcedureResult.Completed($"Executed {action.Id}."));
         }
     }

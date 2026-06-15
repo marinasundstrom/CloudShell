@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CloudShell.Abstractions.Logs;
 
 namespace CloudShell.Abstractions.ResourceManager;
 
@@ -8,7 +9,10 @@ public sealed record ResourceOrchestrationContext(
     ResourceGroup? ResourceGroup,
     IResourceManagerStore ResourceManager,
     IResourceRegistrationStore Registrations,
-    string? PreferredContainerHostId = null);
+    string? PreferredContainerHostId = null,
+    string? TriggeredBy = null,
+    string? Cause = null,
+    IResourceEventSink? ResourceEvents = null);
 
 public sealed record ResourceOrchestrationDescriptor(
     string ResourceId,

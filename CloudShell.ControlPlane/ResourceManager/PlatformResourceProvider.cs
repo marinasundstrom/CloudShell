@@ -1026,9 +1026,18 @@ public sealed class PlatformResourceProvider(
         ResourceProcedureContext context,
         CancellationToken cancellationToken)
     {
+        context.AppendProviderEvent(
+            ProviderId,
+            "dns.nameMappings.reconcile.preparing",
+            $"CloudShell platform provider is preparing to reconcile DNS name mappings for '{context.Resource.Name}'.");
+
         var providerContext = CreateNamePublishingContext(context);
         if (providerContext.Definition.DnsNameMappings.Count == 0)
         {
+            context.AppendProviderEvent(
+                ProviderId,
+                "dns.nameMappings.reconcile.skipped",
+                $"CloudShell platform provider found no DNS name mappings to reconcile for '{context.Resource.Name}'.");
             return ResourceProcedureResult.Completed("No name mappings to reconcile.");
         }
 
@@ -1042,8 +1051,16 @@ public sealed class PlatformResourceProvider(
 
         try
         {
+            context.AppendProviderEvent(
+                ProviderId,
+                "dns.nameMappings.publishing",
+                $"CloudShell platform provider is applying {providerContext.Mappings.Count.ToString(CultureInfo.InvariantCulture)} DNS name mapping(s) through '{provider.ProviderName}'.");
             var result = await provider.ReconcileAsync(providerContext, cancellationToken);
             namePublishingObservations.RecordPublished(providerContext, provider.ProviderName, result);
+            context.AppendProviderEvent(
+                ProviderId,
+                "dns.nameMappings.published",
+                $"CloudShell platform provider applied DNS name mappings through '{provider.ProviderName}'. Result: {result.Message}");
             return result;
         }
         catch (OperationCanceledException)
@@ -1053,6 +1070,11 @@ public sealed class PlatformResourceProvider(
         catch (Exception exception)
         {
             namePublishingObservations.RecordFailed(providerContext, provider.ProviderName, exception.Message);
+            context.AppendProviderEvent(
+                ProviderId,
+                "dns.nameMappings.publish.failed",
+                $"CloudShell platform provider failed to apply DNS name mappings through '{provider.ProviderName}'. Reason: {exception.Message}",
+                "Warning");
             throw;
         }
     }

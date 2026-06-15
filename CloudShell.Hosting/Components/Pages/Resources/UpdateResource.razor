@@ -311,6 +311,11 @@
             ProcedureMessage = result.Message;
             PendingRestart = CreatePendingRestart(result);
         }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ProcedureMessage = L["Apply failed: {0}", exception.Message].Value;
+            PendingRestart = null;
+        }
         finally
         {
             IsApplying = false;

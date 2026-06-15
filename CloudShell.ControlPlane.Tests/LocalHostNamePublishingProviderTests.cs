@@ -1,4 +1,6 @@
+using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Logs;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -52,6 +54,7 @@ public sealed class LocalHostNamePublishingProviderTests
             "1.0",
             DateTimeOffset.UtcNow,
             []);
+        var resourceEvents = new InMemoryResourceEventStore();
 
         var result = await platform.ExecuteActionAsync(
             new ResourceProcedureContext(
@@ -59,13 +62,23 @@ public sealed class LocalHostNamePublishingProviderTests
                 null,
                 null,
                 new TestResourceRegistrationStore([]),
-                new TestResourceManagerStore([zone, api])),
+                new TestResourceManagerStore([zone, api]),
+                TriggeredBy: "operator",
+                ResourceEvents: resourceEvents),
             zone.ResourceActions.Single(action =>
                 action.Id == PlatformResourceProvider.ReconcileNameMappingsActionId));
 
         var content = await File.ReadAllTextAsync(hostsPath);
         Assert.Contains("Published 1 local host name mapping", result.Message);
         Assert.Contains("127.0.0.1 api.cloudshell.local", content);
+        var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: zone.Id));
+        Assert.Contains(events, resourceEvent =>
+            resourceEvent.EventType == ResourceEventTypes.Events.Provider.ForEvent(
+                PlatformResourceProvider.ProviderId,
+                "dns.nameMappings.published") &&
+            resourceEvent.TriggeredBy == "operator" &&
+            resourceEvent.Message.Contains("applied DNS name mappings", StringComparison.OrdinalIgnoreCase) &&
+            resourceEvent.Message.Contains("Published 1 local host name mapping", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -33,6 +33,14 @@ public static class ResourceEventTypes
 
     public static class Events
     {
+        public static class Provider
+        {
+            public const string Prefix = "event.provider.";
+
+            public static string ForEvent(string providerId, string eventName) =>
+                $"{Prefix}{NormalizeEventTypeSegment(providerId)}.{NormalizeEventTypeSegment(eventName)}";
+        }
+
         public static class Lifecycle
         {
             public const string Starting = "event.lifecycle.starting";
@@ -62,7 +70,7 @@ public static class ResourceEventTypes
         }
     }
 
-    private static string NormalizeEventTypeSegment(string value)
+    public static string NormalizeEventTypeSegment(string value)
     {
         var builder = new StringBuilder(value.Trim().Length);
         foreach (var character in value.Trim().ToLowerInvariant())

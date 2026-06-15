@@ -227,7 +227,8 @@ public sealed partial class ApplicationResourceProvider(
                     context.Registrations,
                     context.ResourceManager,
                     context.PreferredContainerHostId,
-                    cancellationToken);
+                    cancellationToken,
+                    context);
                 return ResourceProcedureResult.Completed($"Started {context.Resource.Name}.");
             case ResourceActionKind.Stop:
                 await StopApplicationAsync(
@@ -235,7 +236,8 @@ public sealed partial class ApplicationResourceProvider(
                     force: true,
                     context.ResourceManager,
                     context.PreferredContainerHostId,
-                    cancellationToken);
+                    cancellationToken,
+                    context);
                 return ResourceProcedureResult.Completed($"Stopped {context.Resource.Name}.");
             case ResourceActionKind.Restart:
                 await StopApplicationAsync(
@@ -243,7 +245,8 @@ public sealed partial class ApplicationResourceProvider(
                     force: true,
                     context.ResourceManager,
                     context.PreferredContainerHostId,
-                    cancellationToken);
+                    cancellationToken,
+                    context);
                 await StartApplicationAsync(
                     context.Resource.Id,
                     context.Resource.DependsOn,
@@ -251,7 +254,8 @@ public sealed partial class ApplicationResourceProvider(
                     context.Registrations,
                     context.ResourceManager,
                     context.PreferredContainerHostId,
-                    cancellationToken);
+                    cancellationToken,
+                    context);
                 return ResourceProcedureResult.Completed($"Restarted {context.Resource.Name}.");
             default:
                 throw new NotSupportedException(
@@ -562,7 +566,8 @@ public sealed partial class ApplicationResourceProvider(
                 force: true,
                 context.ResourceManager,
                 context.PreferredContainerHostId,
-                cancellationToken);
+                cancellationToken,
+                context);
             await StartApplicationAsync(
                 application.Id,
                 context.Resource.DependsOn,
@@ -570,7 +575,8 @@ public sealed partial class ApplicationResourceProvider(
                 context.Registrations,
                 context.ResourceManager,
                 context.PreferredContainerHostId,
-                cancellationToken);
+                cancellationToken,
+                context);
             resourceEvents?.Append(new ResourceEvent(
                 application.Id,
                 ResourceEventTypes.Events.Lifecycle.Restarted,
@@ -631,7 +637,8 @@ public sealed partial class ApplicationResourceProvider(
                 force: true,
                 context.ResourceManager,
                 context.PreferredContainerHostId,
-                cancellationToken);
+                cancellationToken,
+                context);
         }
 
         store.Save(updated);
@@ -652,7 +659,8 @@ public sealed partial class ApplicationResourceProvider(
                 context.Registrations,
                 context.ResourceManager,
                 context.PreferredContainerHostId,
-                cancellationToken);
+                cancellationToken,
+                context);
             resourceEvents?.Append(new ResourceEvent(
                 application.Id,
                 ResourceEventTypes.Events.Lifecycle.Restarted,
@@ -940,10 +948,16 @@ public sealed partial class ApplicationResourceProvider(
         IResourceRegistrationStore registrations,
         IResourceManagerStore? resourceManager,
         string? preferredContainerHostId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
     {
         var definition = GetApplication(applicationId)
             ?? throw new InvalidOperationException($"Application resource '{applicationId}' is not configured.");
+
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.start.preparing",
+            $"Application provider is preparing to start '{definition.Name}' ({definition.ResourceType}) with {definition.Lifetime} lifetime.");
 
         LogDevelopmentLifecycle(
             "Starting application resource {ResourceId} ({ResourceType}) with {Lifetime} lifetime.",
@@ -955,6 +969,10 @@ public sealed partial class ApplicationResourceProvider(
         {
             if (TryGetRunningProcess(definition, out _))
             {
+                procedureContext?.AppendProviderEvent(
+                    Id,
+                    "application.start.skipped",
+                    $"Application provider skipped start for '{definition.Name}' because it is already running.");
                 LogDevelopmentLifecycle(
                     "Application resource {ResourceId} ({ResourceType}) is already running.",
                     definition.Id,
@@ -978,7 +996,8 @@ public sealed partial class ApplicationResourceProvider(
                     registrations,
                     resourceManager,
                     preferredContainerHostId,
-                    cancellationToken);
+                    cancellationToken,
+                    procedureContext);
                 LogDevelopmentLifecycle(
                     "Started application resource {ResourceId} ({ResourceType}).",
                     definition.Id,
@@ -992,16 +1011,30 @@ public sealed partial class ApplicationResourceProvider(
             return;
         }
 
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.environment.resolving",
+            $"Application provider is resolving environment variables for '{definition.Name}'.");
+        var resolvedEnvironmentVariables = await ResolveLocalProcessEnvironmentVariablesAsync(
+            definition,
+            dependsOn,
+            resourceGroupId,
+            registrations,
+            cancellationToken);
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.environment.resolved",
+            $"Application provider resolved {resolvedEnvironmentVariables.Count.ToString(CultureInfo.InvariantCulture)} environment variable{Pluralize(resolvedEnvironmentVariables.Count)} for '{definition.Name}'.");
+
         var localProcess = CreateLocalProcessDefinition(
             definition,
-            await ResolveLocalProcessEnvironmentVariablesAsync(
-                definition,
-                dependsOn,
-                resourceGroupId,
-                registrations,
-                cancellationToken));
+            resolvedEnvironmentVariables);
         if (localProcesses.IsRunning(localProcess))
         {
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.start.skipped",
+                $"Application provider skipped start for '{definition.Name}' because it is already running.");
             LogDevelopmentLifecycle(
                 "Application resource {ResourceId} ({ResourceType}) is already running.",
                 definition.Id,
@@ -1012,9 +1045,17 @@ public sealed partial class ApplicationResourceProvider(
         MarkStarting(definition.Id);
         try
         {
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.process.starting",
+                $"Application provider is starting local process for '{definition.Name}'.");
             await localProcesses.StartAsync(
                 localProcess,
                 cancellationToken);
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.process.started",
+                $"Application provider started local process for '{definition.Name}'.");
             LogDevelopmentLifecycle(
                 "Started application resource {ResourceId} ({ResourceType}).",
                 definition.Id,
@@ -1605,9 +1646,14 @@ public sealed partial class ApplicationResourceProvider(
         IResourceRegistrationStore registrations,
         IResourceManagerStore resourceManager,
         string? preferredContainerHostId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
     {
         var service = CreateDefaultContainerOrchestratorService(definition);
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.service.preparing",
+            $"Application provider is preparing container service '{service.Name}' for '{definition.Name}'.");
         await PrepareOrchestratorServiceAsync(
             new ResourceOrchestratorServiceProcedureContext(
                 new ResourceProcedureContext(
@@ -1616,16 +1662,24 @@ public sealed partial class ApplicationResourceProvider(
                     resourceGroupId,
                     registrations,
                     resourceManager,
-                    preferredContainerHostId),
+                    preferredContainerHostId,
+                    procedureContext?.TriggeredBy,
+                    procedureContext?.Cause,
+                    procedureContext?.ResourceEvents),
                 service),
             ResourceAction.Start,
             cancellationToken);
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.service.prepared",
+            $"Application provider prepared container service '{service.Name}' for '{definition.Name}'.");
 
         var runtimeDefinition = await MaterializeProjectContainerImageAsync(
             definition,
             resourceManager,
             preferredContainerHostId,
-            cancellationToken);
+            cancellationToken,
+            procedureContext);
         foreach (var instance in CreateDefaultContainerServiceInstances(service))
         {
             await StartContainerApplicationInstanceAsync(
@@ -1637,7 +1691,8 @@ public sealed partial class ApplicationResourceProvider(
                 preferredContainerHostId,
                 service,
                 instance,
-                cancellationToken);
+                cancellationToken,
+                procedureContext);
         }
     }
 
@@ -1645,7 +1700,8 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationResourceDefinition definition,
         IResourceManagerStore resourceManager,
         string? preferredContainerHostId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
     {
         if (!definition.ProjectContainerBuild)
         {
@@ -1666,6 +1722,10 @@ public sealed partial class ApplicationResourceProvider(
         var log = GetProcessLog(definition.Id);
         var imageReference = CreateProjectContainerImageReference(definition);
 
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.image.building",
+            $"Application provider is building project container image '{imageReference.Reference}' for '{definition.Name}' using '{engine.Name}'.");
         if (string.IsNullOrWhiteSpace(definition.ContainerDockerfile))
         {
             await PublishProjectContainerImageAsync(
@@ -1689,6 +1749,10 @@ public sealed partial class ApplicationResourceProvider(
                 cancellationToken);
         }
 
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.image.built",
+            $"Application provider built project container image '{imageReference.Reference}' for '{definition.Name}'.");
         return definition with
         {
             ContainerImage = imageReference.Reference
@@ -1704,7 +1768,8 @@ public sealed partial class ApplicationResourceProvider(
         string? preferredContainerHostId,
         ResourceOrchestratorService service,
         ResourceOrchestratorServiceInstance instance,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
     {
         if (string.IsNullOrWhiteSpace(definition.ContainerImage))
         {
@@ -1717,11 +1782,19 @@ public sealed partial class ApplicationResourceProvider(
             resourceManager,
             preferredContainerHostId,
             cancellationToken);
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.host.resolved",
+            $"Application provider resolved container host '{engine.Name}' for '{definition.Name}'.");
         var logPath = GetLogPath(definition.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
         var processLog = new ApplicationProcessLog(logPath);
         if (definition.Lifetime == ApplicationLifetime.ControlPlaneScoped)
         {
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.container.instance.cleanup",
+                $"Application provider is removing any existing container replica '{instance.Name}' before start.");
             await RunContainerHostCommandAsync(
                 engine,
                 ["rm", "-f", instance.Name],
@@ -1790,6 +1863,10 @@ public sealed partial class ApplicationResourceProvider(
             startInfo.ArgumentList.Add("-v");
             startInfo.ArgumentList.Add(volumeMaterialization.Argument);
         }
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.volume.mounts.prepared",
+            $"Application provider prepared {volumeMaterializations.Count.ToString(CultureInfo.InvariantCulture)} volume mount{Pluralize(volumeMaterializations.Count)} for '{definition.Name}'.");
 
         startInfo.ArgumentList.Add(definition.ProjectContainerBuild
             ? definition.ContainerImage
@@ -1823,6 +1900,10 @@ public sealed partial class ApplicationResourceProvider(
         };
 
         cancellationToken.ThrowIfCancellationRequested();
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.instance.starting",
+            $"Application provider is starting container replica '{instance.Name}' for '{definition.Name}'.");
         process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
@@ -1842,6 +1923,10 @@ public sealed partial class ApplicationResourceProvider(
             $"Started container image '{definition.ContainerImage}' as '{instance.Name}' replica {instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture)} of {instance.ReplicaCount.ToString(CultureInfo.InvariantCulture)} using {engine.Name} with {definition.Lifetime} lifetime.",
             "process",
             "Information");
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.instance.started",
+            $"Application provider started container replica '{instance.Name}' for '{definition.Name}'.");
 
         _processes[definition.Id] = new ApplicationProcessState(
             process,
@@ -1857,7 +1942,8 @@ public sealed partial class ApplicationResourceProvider(
                 engine,
                 service,
                 processLog,
-                cancellationToken);
+                cancellationToken,
+                procedureContext);
         }
     }
 
@@ -1891,13 +1977,18 @@ public sealed partial class ApplicationResourceProvider(
         bool force,
         IResourceManagerStore? resourceManager,
         string? preferredContainerHostId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
     {
         var application = store.GetApplication(applicationId);
         var log = GetProcessLog(applicationId);
 
         if (application is not null)
         {
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.stop.preparing",
+                $"Application provider is preparing to stop '{application.Name}' ({application.ResourceType}) with {application.Lifetime} lifetime.");
             LogDevelopmentLifecycle(
                 "Stopping application resource {ResourceId} ({ResourceType}) with {Lifetime} lifetime.",
                 application.Id,
@@ -1908,10 +1999,18 @@ public sealed partial class ApplicationResourceProvider(
         if (application is not null &&
             !IsContainerBacked(application))
         {
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.process.stopping",
+                $"Application provider is stopping local process for '{application.Name}'.");
             await localProcesses.StopAsync(
                 CreateLocalProcessDefinition(application),
                 force,
                 cancellationToken);
+            procedureContext?.AppendProviderEvent(
+                Id,
+                "application.process.stopped",
+                $"Application provider stopped local process for '{application.Name}'.");
             LogDevelopmentLifecycle(
                 "Stopped application resource {ResourceId} ({ResourceType}).",
                 application.Id,
@@ -1935,7 +2034,7 @@ public sealed partial class ApplicationResourceProvider(
                 cancellationToken);
             if (engine is not null)
             {
-                await StopContainerAsync(application, engine, log, cancellationToken);
+                await StopContainerAsync(application, engine, log, cancellationToken, procedureContext);
                 LogDevelopmentLifecycle(
                     "Stopped application resource {ResourceId} ({ResourceType}).",
                     application.Id,
@@ -1949,6 +2048,10 @@ public sealed partial class ApplicationResourceProvider(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.process.stopping",
+            $"Application provider is stopping tracked process for '{application?.Name ?? applicationId}'.");
         log.Append(force ? "Stopping process." : "Stopping control-plane-scoped process.", "process", "Information");
         ProcessShutdown.KillProcessTreeAndWait(process);
         runtimeStates.Save(new ApplicationRuntimeState(
@@ -1961,13 +2064,18 @@ public sealed partial class ApplicationResourceProvider(
             VolumeMounts: MarkVolumeMountsNotActive(
                 runtimeStates.Get(applicationId)?.RuntimeVolumeMounts ?? [],
                 DateTimeOffset.UtcNow)));
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.process.stopped",
+            $"Application provider stopped tracked process for '{application?.Name ?? applicationId}'.");
     }
 
     private async Task StopContainerAsync(
         ApplicationResourceDefinition definition,
         ContainerHostDescriptor engine,
         ApplicationProcessLog log,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
     {
         var service = CreateDefaultContainerOrchestratorService(definition);
         if (ShouldUseContainerAppIngress(service))
@@ -1976,7 +2084,8 @@ public sealed partial class ApplicationResourceProvider(
                 definition,
                 engine,
                 log,
-                cancellationToken);
+                cancellationToken,
+                procedureContext);
         }
 
         foreach (var instance in CreateDefaultContainerServiceInstances(service))
@@ -1986,7 +2095,8 @@ public sealed partial class ApplicationResourceProvider(
                 engine,
                 log,
                 instance,
-                cancellationToken);
+                cancellationToken,
+                procedureContext);
         }
     }
 
@@ -2026,8 +2136,13 @@ public sealed partial class ApplicationResourceProvider(
         ContainerHostDescriptor engine,
         ApplicationProcessLog log,
         ResourceOrchestratorServiceInstance instance,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
     {
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.instance.stopping",
+            $"Application provider is stopping container replica '{instance.Name}' for '{definition.Name}'.");
         await RunContainerHostCommandAsync(
             engine,
             ["stop", instance.Name],
@@ -2041,6 +2156,10 @@ public sealed partial class ApplicationResourceProvider(
                 log,
                 cancellationToken);
         }
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.instance.stopped",
+            $"Application provider stopped container replica '{instance.Name}' for '{definition.Name}'.");
     }
 
     private async Task StartContainerAppIngressAsync(
@@ -2048,7 +2167,8 @@ public sealed partial class ApplicationResourceProvider(
         ContainerHostDescriptor engine,
         ResourceOrchestratorService service,
         ApplicationProcessLog log,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
     {
         var ingressPorts = service.ServicePorts
             .Where(IsContainerAppIngressPort)
@@ -2062,6 +2182,10 @@ public sealed partial class ApplicationResourceProvider(
         var configurationDirectory = GetContainerAppIngressConfigurationDirectory(definition.Id);
         Directory.CreateDirectory(configurationDirectory);
         var configurationPath = Path.Combine(configurationDirectory, "dynamic.yml");
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.ingress.configuring",
+            $"Application provider is writing ingress configuration for '{definition.Name}'.");
         await File.WriteAllTextAsync(
             configurationPath,
             CreateContainerAppIngressConfiguration(service, ingressPorts),
@@ -2103,6 +2227,10 @@ public sealed partial class ApplicationResourceProvider(
             arguments.Add($"--entrypoints.{entrypoint}.address=:{hostPort.ToString(CultureInfo.InvariantCulture)}");
         }
 
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.ingress.starting",
+            $"Application provider is starting ingress '{ingressName}' for '{definition.Name}'.");
         await RunContainerHostCommandAsync(
             engine,
             arguments,
@@ -2112,20 +2240,33 @@ public sealed partial class ApplicationResourceProvider(
             $"Started replicated container app ingress '{ingressName}' for {definition.Name}.",
             "process",
             "Information");
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.ingress.started",
+            $"Application provider started ingress '{ingressName}' for '{definition.Name}'.");
     }
 
-    private Task StopContainerAppIngressAsync(
+    private async Task StopContainerAppIngressAsync(
         ApplicationResourceDefinition definition,
         ContainerHostDescriptor engine,
         ApplicationProcessLog log,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ResourceProcedureContext? procedureContext = null)
     {
         var service = CreateDefaultContainerOrchestratorService(definition);
-        return StopContainerAppIngressAsync(
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.ingress.stopping",
+            $"Application provider is stopping ingress '{GetContainerAppIngressName(service)}' for '{definition.Name}'.");
+        await StopContainerAppIngressAsync(
             service,
             engine,
             log,
             cancellationToken);
+        procedureContext?.AppendProviderEvent(
+            Id,
+            "application.container.ingress.stopped",
+            $"Application provider stopped ingress '{GetContainerAppIngressName(service)}' for '{definition.Name}'.");
     }
 
     private static async Task StopContainerAppIngressAsync(
