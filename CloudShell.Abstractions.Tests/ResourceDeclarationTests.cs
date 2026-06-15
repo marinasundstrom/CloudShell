@@ -941,6 +941,43 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void DockerProviderExtension_RegistersHostContainersTab()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddExtension<DockerProviderExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var registry = serviceProvider.GetRequiredService<CloudShellExtensionRegistry>();
+        var hostType = registry.Extensions
+            .SelectMany(extension => extension.ResourceTypes)
+            .Single(resourceType => string.Equals(
+                resourceType.Id,
+                DockerContainerResourceProvider.HostResourceType,
+                StringComparison.OrdinalIgnoreCase));
+
+        var overviewTab = Assert.Single(
+            hostType.ResourceTabs,
+            tab => string.Equals(tab.Id, "overview", StringComparison.OrdinalIgnoreCase));
+        var containersTab = Assert.Single(
+            hostType.ResourceTabs,
+            tab => string.Equals(tab.Id, "containers", StringComparison.OrdinalIgnoreCase));
+        var configurationTab = Assert.Single(
+            hostType.ResourceTabs,
+            tab => string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(typeof(CloudShell.Providers.Docker.Pages.DockerEngineOverview), overviewTab.ComponentType);
+        Assert.Equal(typeof(CloudShell.Providers.Docker.Pages.DockerContainers), containersTab.ComponentType);
+        Assert.Equal("Containers", containersTab.Title);
+        Assert.Equal(20, containersTab.Order);
+        Assert.False(containersTab.ShowsApplyButton);
+        Assert.Equal(30, configurationTab.Order);
+        Assert.True(configurationTab.ShowsApplyButton);
+    }
+
+    [Fact]
     public void ResourceManagerExtension_RegistersVolumeResourceTypeAndTabs()
     {
         var services = new ServiceCollection();

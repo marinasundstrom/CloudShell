@@ -338,10 +338,11 @@ the generic Resource Manager child list still honors resource visibility.
 For Docker specifically, the `docker.host` resource is the user-facing host
 boundary. Raw Docker containers discovered from the host are useful operational
 observations, but they should not appear in the global resource inventory by
-default. A later Docker host Containers tab can intentionally show those
-containers to users who can view the host, while normal global inventory stays
-focused on stable user-authored resources and explicitly declared Docker
-container resources.
+default. The Docker host `Containers` tab intentionally shows those containers
+to users who can view the host, while normal global inventory stays focused on
+stable user-authored resources and explicitly declared Docker container
+resources. The Docker host overview stays separate and summarizes host state,
+connection, and projected container count.
 
 ### Remote Client/API Boundary
 

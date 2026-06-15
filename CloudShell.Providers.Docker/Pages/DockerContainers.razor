@@ -10,9 +10,14 @@
 <PageTitle>Docker</PageTitle>
 
 @{
-    var host = DockerProvider.GetResources()
-        .FirstOrDefault(resource => resource.EffectiveTypeId == DockerContainerResourceProvider.HostResourceType);
-    var canView = host is not null && ResourceManager.GetResource(host.Id) is not null;
+    var isResourceTab = !string.IsNullOrWhiteSpace(ResourceId);
+    var host = isResourceTab
+        ? ResourceManager.GetResource(ResourceId!)
+        : DockerProvider.GetResources()
+            .FirstOrDefault(resource => resource.EffectiveTypeId == DockerContainerResourceProvider.HostResourceType);
+    var canView = host is not null &&
+        string.Equals(host.EffectiveTypeId, DockerContainerResourceProvider.HostResourceType, StringComparison.OrdinalIgnoreCase) &&
+        ResourceManager.GetResource(host.Id) is not null;
 }
 
 @if (!canView)
@@ -27,39 +32,46 @@ else
     var status = DockerProvider.ConnectionStatus;
     var containers = ResourceManager.GetChildren(host!.Id);
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">Docker resource</span>
-        <h1>Container Host</h1>
-        <p>Host connection and containers contributed by the Docker extension.</p>
-    </div>
-    <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral" OnClick="Refresh">Refresh</FluentButton>
-    </div>
-</section>
+    @if (!isResourceTab)
+    {
+        <section class="page-heading compact">
+            <div>
+                <span class="eyebrow">Docker resource</span>
+                <h1>Container Host</h1>
+                <p>Host connection and containers contributed by the Docker extension.</p>
+            </div>
+            <div class="heading-actions">
+                <FluentButton Appearance="Appearance.Neutral" OnClick="Refresh">Refresh</FluentButton>
+            </div>
+        </section>
 
-<section class="provider-summary panel">
-    <div class="provider-status">
-        <span class="state-dot @(status.IsConnected ? "state-running" : "state-stopped")"></span>
-        <div>
-            <strong>@(status.IsConnected ? "Connected" : "Unavailable")</strong>
-            <span>@EndpointLink(status.Endpoint.ToString())</span>
-        </div>
-    </div>
-    <dl class="provider-facts">
-        <dt>Transport</dt>
-        <dd>@status.Endpoint.Scheme</dd>
-        <dt>Last checked</dt>
-        <dd>@FormatLastChecked(status.LastChecked)</dd>
-        <dt>Containers</dt>
-        <dd>@containers.Count</dd>
-    </dl>
+        <section class="provider-summary panel">
+            <div class="provider-status">
+                <span class="state-dot @(status.IsConnected ? "state-running" : "state-stopped")"></span>
+                <div>
+                    <strong>@(status.IsConnected ? "Connected" : "Unavailable")</strong>
+                    <span>@EndpointLink(status.Endpoint.ToString())</span>
+                </div>
+            </div>
+            <dl class="provider-facts">
+                <dt>Transport</dt>
+                <dd>@status.Endpoint.Scheme</dd>
+                <dt>Last checked</dt>
+                <dd>@FormatLastChecked(status.LastChecked)</dd>
+                <dt>Containers</dt>
+                <dd>@containers.Count</dd>
+            </dl>
 
-    @if (!status.IsConnected && status.Error is not null)
+            @if (!status.IsConnected && status.Error is not null)
+            {
+                <div class="provider-error">@status.Error</div>
+            }
+        </section>
+    }
+    else if (!status.IsConnected && status.Error is not null)
     {
         <div class="provider-error">@status.Error</div>
     }
-</section>
 
 @if (ProcedureMessage is not null)
 {
@@ -86,7 +98,10 @@ else
     <div class="panel-header">
         <div>
             <h2>Containers</h2>
-            <p>@containers.Count discovered from this container host.</p>
+            <p>@containers.Count projected from this container host.</p>
+        </div>
+        <div class="heading-actions">
+            <FluentButton Appearance="Appearance.Neutral" OnClick="Refresh">Refresh</FluentButton>
         </div>
     </div>
 
@@ -136,6 +151,9 @@ else
 }
 
 @code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
     private string? ExecutingActionKey { get; set; }
     private string? ProcedureMessage { get; set; }
     private PendingResourceAction? PendingAction { get; set; }
