@@ -182,12 +182,22 @@ orchestrator may materialize an explicitly modeled `cloudshell.service` as its
 provider-native service primitive when that resource represents the service
 unit.
 
-Runtime replica containers are not Resource Manager targets. When multiple
-local containers are materialized, they are named by convention from the parent
-container app, for example with a `-replica-{n}` suffix. Docker Compose maps
-the same desired count to `deploy.replicas`; future orchestrators should map it
-to their native service and replica abstractions without changing the
-CloudShell API shape.
+Runtime replica containers are not normal Resource Manager management targets.
+CloudShell may project them as hidden runtime-managed child resources of the
+container app for diagnostics and relationship inspection. The current
+application provider projects desired replica/container children from the
+orchestrator service descriptor with replica ordinal, replica count, container
+name, and revision metadata. Provider-observed container IDs, placement, health,
+and materialization state are future enrichment. Resource Manager only shows
+these child resources when both hidden resources and runtime-managed resources
+are enabled for the current user, and runtime-managed inspection requires the
+`resources.runtime-managed.read` permission.
+
+When multiple local containers are materialized, they are named by convention
+from the parent container app, for example with a `-replica-{n}` suffix. Docker
+Compose maps the same desired count to `deploy.replicas`; future orchestrators
+should map it to their native service and replica abstractions without changing
+the CloudShell API shape.
 
 ## Ingress
 

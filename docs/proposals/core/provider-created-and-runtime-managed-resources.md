@@ -13,10 +13,17 @@ lifecycle relates to other resources.
 Initial implementation now adds these distinctions to the projected `Resource`
 shape: source, management mode, visibility, owner resource, and cleanup
 behavior. The Control Plane API and remote client preserve those fields, and
-Resource Manager hides non-normal resources from the standard inventory while
-keeping them available in the loaded graph for parent/detail inspection. This
-is an internal foundation for container app runtime artifacts before broad
+Resource Manager hides runtime-managed and hidden resources from the standard
+inventory by default while keeping them available in the loaded graph for
+parent/detail inspection. Resource Manager can opt into showing hidden
+resources independently from runtime-managed resources; the runtime-managed
+view uses appsettings defaults, per-user settings, and an explicit permission.
+This is an internal foundation for container app runtime artifacts before broad
 runtime resource projection is announced as a public product surface.
+Container apps now use this foundation to project desired runtime container
+replicas as hidden children of the stable container app resource. Provider-
+observed container IDs, health, placement, and materialization details remain
+future enrichment.
 
 Runtime-managed resources are one important case, but the broader problem is
 that provider-created, orchestrator-created, and runtime-created resources need
@@ -276,6 +283,12 @@ public enum ResourceVisibility
 This allows runtime-managed resources to exist within the graph without
 cluttering normal user experiences.
 
+Visibility is independent from management. A user-managed resource may be
+hidden, and a runtime-managed resource may be normal or hidden. Resource
+Manager therefore treats `Show hidden resources` and
+`Show runtime-managed resources` as separate display settings. Hidden
+runtime-managed resources require both settings to appear in inventory.
+
 ## Source and Management Model
 
 Source and management mode should answer different questions.
@@ -443,14 +456,19 @@ Additional projected fields may include:
 Normal UI views should:
 
 * show user-managed resources
-* hide diagnostic-only and hidden resources by default
+* hide runtime-managed resources by default
+* hide hidden resources by default
 
 Advanced views may:
 
-* show owned runtime resources
+* show owned runtime resources when the user has permission
 * display ownership trees
 * display runtime diagnostics
-* expose runtime actions
+* expose runtime actions only when the resource explicitly supports them
+
+Resource Manager may show hidden and runtime-managed resources for inspection,
+but normal edit, delete, and lifecycle controls remain limited to normal
+user-managed resources.
 
 Example:
 

@@ -147,9 +147,13 @@ listed here before pulling in broader proposal work.
    local/default container-host MVP path.
 11. Runtime-managed resources and deployment model: the first ownership,
    visibility, cleanup, and internal orchestrator deployment/revision contracts
-   are in place. Next slices should use them only where container apps need
-   observed replicas/runtime containers for diagnostics, not as a broad public
-   deployment product surface.
+   are in place. Container apps now project desired replica/runtime-container
+   children as hidden runtime-managed resources parented to the app, with
+   Resource Manager visibility controlled separately for hidden resources and
+   runtime-managed resources. Next slices should enrich those children only
+   where container apps need provider-observed container IDs, health,
+   placement, materialization diagnostics, or an app-scoped Replicas tab, not
+   as a broad public deployment product surface.
 12. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,

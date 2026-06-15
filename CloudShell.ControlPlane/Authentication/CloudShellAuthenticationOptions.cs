@@ -48,6 +48,7 @@ public sealed class CloudShellAuthenticationOptions
                 CloudShellPermissions.ResourceGroups.Create,
                 CloudShellPermissions.ResourceGroups.Manage,
                 CloudShellPermissions.Resources.Read,
+                CloudShellPermissions.Resources.ReadRuntimeManaged,
                 CloudShellPermissions.Resources.Create,
                 CloudShellPermissions.Resources.Manage
             ],

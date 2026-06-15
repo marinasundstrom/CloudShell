@@ -7,6 +7,7 @@
 @inject ShellCatalog ShellCatalog
 @inject ResourceHealthCheckService HealthChecks
 @inject IResourceOrchestrationSettings OrchestrationSettings
+@inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
@@ -17,10 +18,10 @@
 
 @{
     var allResources = ResourceInventory;
-    var normalResources = allResources.Where(IsNormalInventoryResource).ToArray();
+    var inventoryResources = allResources.Where(IsVisibleInInventory).ToArray();
     var groups = ResourceGroups;
-    var resourceClasses = GetResourceClassOptions(normalResources);
-    var resourceTypes = GetResourceTypeOptions(normalResources);
+    var resourceClasses = GetResourceClassOptions(inventoryResources);
+    var resourceTypes = GetResourceTypeOptions(inventoryResources);
     var resourceGroupFilters = GetResourceGroupFilterOptions(groups);
     var rows = BuildRows(allResources);
     SetPaginationTotal(rows.Count);
@@ -666,6 +667,8 @@
         new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> LogsByResourceId { get; set; } =
         new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
 
     private string? NameFilter
     {
@@ -741,6 +744,7 @@
     {
         ResourceManager.ResourcesChanged += OnResourcesChanged;
         ApplyPaginationFromUrl();
+        DisplaySelection = await DisplaySettings.GetAsync();
         await LoadResourceModelAsync();
 
         ResourcePollingCancellation = new CancellationTokenSource();
@@ -757,7 +761,7 @@
     private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<Resource> allResources)
     {
         var scoped = allResources
-            .Where(IsNormalInventoryResource)
+            .Where(IsVisibleInInventory)
             .Where(IsInSelectedResourceGroup)
             .ToArray();
         var scopedIds = scoped.Select(resource => resource.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -823,8 +827,18 @@
         }
     }
 
-    private static bool IsNormalInventoryResource(Resource resource) =>
-        resource.Visibility == ResourceVisibility.Normal;
+    private bool IsVisibleInInventory(Resource resource) =>
+        (DisplaySelection.ShowHiddenResources || resource.Visibility == ResourceVisibility.Normal) &&
+        (DisplaySelection.ShowRuntimeManagedResources ||
+            resource.ManagementMode != ResourceManagementMode.RuntimeManaged);
+
+    private static bool IsUserManagedResource(Resource resource) =>
+        resource.Source == ResourceSource.User &&
+        resource.ManagementMode == ResourceManagementMode.UserManaged;
+
+    private static bool IsUserManagedNormalResource(Resource resource) =>
+        resource.Visibility == ResourceVisibility.Normal &&
+        IsUserManagedResource(resource);
 
     private bool IsInSelectedResourceGroup(Resource resource)
     {
@@ -1442,7 +1456,9 @@
             .ToArray();
 
     private bool CanManage(Resource resource) =>
-        !IsReadOnly && GetCapabilities(resource).CanManage;
+        !IsReadOnly &&
+        IsUserManagedNormalResource(resource) &&
+        GetCapabilities(resource).CanManage;
 
     private bool HasProviderConfiguration(Resource resource) =>
         ShellCatalog.ResourceTypes.Any(type =>
@@ -1450,10 +1466,14 @@
             (type.UpdateComponentType is not null || type.ResourceTabs.Count > 0));
 
     private bool CanDelete(Resource resource) =>
-        !IsReadOnly && GetCapabilities(resource).CanDelete;
+        !IsReadOnly &&
+        IsUserManagedNormalResource(resource) &&
+        GetCapabilities(resource).CanDelete;
 
     private bool CanExecuteAction(Resource resource, ResourceAction action) =>
-        !IsReadOnly && GetCapabilities(resource).CanExecuteAction(action.Id);
+        !IsReadOnly &&
+        IsUserManagedNormalResource(resource) &&
+        GetCapabilities(resource).CanExecuteAction(action.Id);
 
     private ResourceOperationCapabilities GetCapabilities(Resource resource) =>
         ResourceCapabilities.GetValueOrDefault(resource.Id) ??

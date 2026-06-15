@@ -371,7 +371,8 @@ available.
 Roles map to permissions through configuration. The default roles are:
 
 - `CloudShell.Administrator`: all permissions and all scopes.
-- `CloudShell.Contributor`: shell read plus resource read, create, and manage permissions.
+- `CloudShell.Contributor`: shell read plus resource read, runtime-managed
+  resource inspection, create, and manage permissions.
 - `CloudShell.Reader`: shell and resource read permissions.
 
 Available permissions are:
@@ -382,6 +383,7 @@ Available permissions are:
 - `resource-groups.create`
 - `resource-groups.manage`
 - `resources.read`
+- `resources.runtime-managed.read`
 - `resources.create`
 - `resources.manage`
 - `CloudShell.Resources/resources/lifecycle/action`

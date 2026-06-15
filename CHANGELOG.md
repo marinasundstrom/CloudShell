@@ -120,6 +120,15 @@ on `git blame --follow`, and then by the broad type of change.
   resource with applied runtime workload versions before rollout history and
   public deployment management APIs are introduced.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
+- Container apps now project desired replica/container runtime artifacts as
+  hidden runtime-managed child resources. The child resources are parented to
+  and owned by the stable container app, carry replica ordinal/count,
+  container-name, revision, and materialization metadata, and stay out of the
+  normal Resource Manager inventory. Resource Manager now resolves inventory
+  visibility from appsettings defaults and per-user settings: hidden resources
+  and runtime-managed resources are separate opt-ins, runtime-managed
+  inspection requires permission, and non-normal resources remain view-only.
+  Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 
 #### Samples
 

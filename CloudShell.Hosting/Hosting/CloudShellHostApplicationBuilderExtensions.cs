@@ -74,6 +74,7 @@ public static class CloudShellHostApplicationBuilderExtensions
         builder.Services.AddSingleton<ShellCatalog>();
         builder.Services.AddScoped<ICloudShellNavigator, CloudShellNavigator>();
         builder.Services.AddScoped<ResourceHealthCheckService>();
+        builder.Services.AddScoped<ResourceManagerDisplaySettings>();
     }
 
     private static void ConfigureLocalization(WebApplicationBuilder builder)

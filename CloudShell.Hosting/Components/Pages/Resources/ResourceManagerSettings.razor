@@ -4,6 +4,7 @@
 @inject IEnumerable<IContainerHostProvider> ContainerHostProviders
 @inject IResourceOrchestrationSettings OrchestrationSettings
 @inject IResourceOrchestrationCatalog OrchestrationCatalog
+@inject ResourceManagerDisplaySettings DisplaySettings
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
@@ -41,6 +42,13 @@
                 <p>@(GetEffectiveHealthCheckInterval().IsConfigured
                     ? L["Health interval from appsettings"]
                     : L["Health interval from settings"])</p>
+            </div>
+        </div>
+        <div class="selected-type-card">
+            <span class="resource-kind-icon">V</span>
+            <div>
+                <strong>@GetVisibilitySummary()</strong>
+                <p>@L["Inventory visibility"]</p>
             </div>
         </div>
     </aside>
@@ -119,11 +127,40 @@
                 }
             </small>
 
+            <fieldset class="form-fieldset">
+                <legend>@L["Inventory visibility"]</legend>
+                <div class="checkbox-stack">
+                    <FluentCheckbox @bind-Value="SelectedShowRuntimeManagedResources"
+                                    Disabled="@(IsReadOnly || !CanShowRuntimeManagedResources)">
+                        @L["Show runtime-managed resources"]
+                    </FluentCheckbox>
+                    <small>
+                        @if (!CanShowRuntimeManagedResources)
+                        {
+                            @L["You need permission to inspect runtime-managed resources."]
+                        }
+                        else
+                        {
+                            @L["Shows runtime-managed resources in Resource Manager. These resources are view-only. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowRuntimeManagedResources)]
+                        }
+                    </small>
+                </div>
+                <div class="checkbox-stack">
+                    <FluentCheckbox @bind-Value="SelectedShowHiddenResources"
+                                    Disabled="@IsReadOnly">
+                        @L["Show hidden resources"]
+                    </FluentCheckbox>
+                    <small>
+                        @L["Shows resources whose visibility is hidden. Hidden runtime-managed resources require both visibility settings. Default: {0}.", GetDefaultDisplayText(DisplaySelection.DefaultShowHiddenResources)]
+                    </small>
+                </div>
+            </fieldset>
+
             @if (PendingChange)
             {
                 <div class="procedure-confirmation">
                     <strong>@L["Apply resource settings?"]</strong>
-                    <span>@L["Existing resources are not migrated automatically when the orchestrator changes. The new settings apply to future lifecycle actions and health checks."]</span>
+                    <span>@L["Existing resources are not migrated automatically when the orchestrator changes. The new settings apply to inventory display, future lifecycle actions, and health checks."]</span>
                     <div class="form-actions">
                         <FluentButton Appearance="Appearance.Neutral" OnClick="CancelChange">
                             @L["Cancel"]
@@ -153,29 +190,25 @@
     private string? SelectedContainerHostId { get; set; }
     private int SelectedHealthCheckIntervalSeconds { get; set; } =
         ResourceOrchestratorSelectionDefaults.DefaultHealthCheckIntervalSeconds;
+    private bool SelectedShowRuntimeManagedResources { get; set; }
+    private bool SelectedShowHiddenResources { get; set; }
     private IReadOnlyList<ContainerHostOption> ContainerHosts { get; set; } = [];
     private IReadOnlyList<string> ConfigurationWarnings { get; set; } = [];
     private ResourceOrchestrationCatalogSnapshot OrchestrationSnapshot { get; set; } =
         ResourceOrchestrationCatalogSnapshot.Empty;
     private bool PendingChange { get; set; }
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
 
     private bool IsHealthCheckIntervalConfigured =>
         OrchestrationSettings.GetHealthCheckIntervalSettings().IsConfigured;
 
+    private bool CanShowRuntimeManagedResources =>
+        DisplaySelection.CanShowRuntimeManagedResources;
+
     private bool CanApply =>
-        !IsReadOnly &&
-        !string.Equals(
-            SelectedOrchestratorId,
-            OrchestrationSettings.Get().OrchestratorId,
-            StringComparison.OrdinalIgnoreCase) ||
-        !string.Equals(
-            NormalizeOptional(SelectedContainerHostId),
-            OrchestrationSettings.Get().PreferredContainerHostId,
-            StringComparison.OrdinalIgnoreCase) ||
-        (!IsHealthCheckIntervalConfigured &&
-            ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(SelectedHealthCheckIntervalSeconds) !=
-            OrchestrationSettings.Get().HealthCheckIntervalSeconds);
+        !IsReadOnly && HasPendingSettingsChange();
 
     protected override async Task OnInitializedAsync()
     {
@@ -189,9 +222,31 @@
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerHostId = selection.PreferredContainerHostId;
         SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
+        await ApplyDisplaySelectionAsync();
         OrchestrationSnapshot = await OrchestrationCatalog.GetSnapshotAsync();
         ContainerHosts = GetContainerHosts();
         ConfigurationWarnings = GetConfigurationWarnings();
+    }
+
+    private bool HasPendingSettingsChange()
+    {
+        var selection = OrchestrationSettings.Get();
+        var display = DisplaySelection;
+
+        return !string.Equals(
+                SelectedOrchestratorId,
+                selection.OrchestratorId,
+                StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(
+                NormalizeOptional(SelectedContainerHostId),
+                selection.PreferredContainerHostId,
+                StringComparison.OrdinalIgnoreCase) ||
+            (!IsHealthCheckIntervalConfigured &&
+                ResourceOrchestratorSelectionDefaults.NormalizeHealthCheckInterval(SelectedHealthCheckIntervalSeconds) !=
+                selection.HealthCheckIntervalSeconds) ||
+            (display.CanShowRuntimeManagedResources &&
+                SelectedShowRuntimeManagedResources != display.ShowRuntimeManagedResources) ||
+            SelectedShowHiddenResources != display.ShowHiddenResources;
     }
 
     private IReadOnlyList<IResourceOrchestrator> GetOrchestrators() =>
@@ -219,17 +274,18 @@
         PendingChange = true;
     }
 
-    private void CancelChange()
+    private async Task CancelChange()
     {
         var selection = OrchestrationSettings.Get();
         SelectedOrchestratorId = selection.OrchestratorId;
         SelectedContainerHostId = selection.PreferredContainerHostId;
         SelectedHealthCheckIntervalSeconds = selection.HealthCheckIntervalSeconds;
+        await ApplyDisplaySelectionAsync();
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
     }
 
-    private void ConfirmChange()
+    private async Task ConfirmChange()
     {
         if (IsReadOnly)
         {
@@ -241,7 +297,11 @@
             SelectedOrchestratorId,
             SelectedContainerHostId,
             SelectedHealthCheckIntervalSeconds);
+        await DisplaySettings.SelectAsync(
+            SelectedShowRuntimeManagedResources,
+            SelectedShowHiddenResources);
         SelectedHealthCheckIntervalSeconds = OrchestrationSettings.Get().HealthCheckIntervalSeconds;
+        await ApplyDisplaySelectionAsync();
         ConfigurationWarnings = GetConfigurationWarnings();
         PendingChange = false;
     }
@@ -250,6 +310,27 @@
 
     private ResourceHealthCheckIntervalSettings GetEffectiveHealthCheckInterval() =>
         OrchestrationSettings.GetHealthCheckIntervalSettings();
+
+    private async Task ApplyDisplaySelectionAsync()
+    {
+        DisplaySelection = await DisplaySettings.GetAsync();
+        SelectedShowRuntimeManagedResources = DisplaySelection.ShowRuntimeManagedResources;
+        SelectedShowHiddenResources = DisplaySelection.ShowHiddenResources;
+    }
+
+    private string GetVisibilitySummary()
+    {
+        return (DisplaySelection.ShowRuntimeManagedResources, DisplaySelection.ShowHiddenResources) switch
+        {
+            (true, true) => L["Runtime-managed and hidden"].Value,
+            (true, false) => L["Runtime-managed"].Value,
+            (false, true) => L["Hidden"].Value,
+            _ => L["Normal only"].Value
+        };
+    }
+
+    private string GetDefaultDisplayText(bool value) =>
+        value ? L["enabled"].Value : L["disabled"].Value;
 
     private IReadOnlyList<ContainerHostOption> GetContainerHosts() =>
         ContainerHostProviders

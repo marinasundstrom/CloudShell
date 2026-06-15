@@ -139,6 +139,12 @@ public static class ResourceAttributeNames
     public const string ContainerHostId = "container.engineId";
     public const string ContainerReplicas = "container.replicas";
     public const string ContainerRevision = "container.revision";
+    public const string RuntimeKind = "runtime.kind";
+    public const string RuntimeContainerName = "runtime.container.name";
+    public const string RuntimeReplicaOrdinal = "runtime.replica.ordinal";
+    public const string RuntimeReplicaCount = "runtime.replica.count";
+    public const string RuntimeRevision = "runtime.revision";
+    public const string RuntimeMaterialization = "runtime.materialization";
     public const string VolumeProvider = "storage.volume.provider";
     public const string VolumeStorageMedium = "storage.volume.medium";
     public const string VolumeLocation = "storage.volume.location";

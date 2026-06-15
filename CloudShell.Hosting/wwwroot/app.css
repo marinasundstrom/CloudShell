@@ -383,6 +383,26 @@ h3 {
     min-width: 10.5rem;
 }
 
+.form-fieldset {
+    border: 1px solid var(--neutral-stroke-rest);
+    border-radius: 6px;
+    padding: 1rem;
+}
+
+.form-fieldset legend {
+    float: none;
+    width: auto;
+    margin: 0;
+    padding: 0 .35rem;
+    font-size: .9rem;
+    font-weight: 700;
+}
+
+.checkbox-stack {
+    display: grid;
+    gap: .25rem;
+}
+
 .inventory-select::part(control) {
     width: 100%;
 }

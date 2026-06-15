@@ -70,8 +70,23 @@ public sealed partial class ApplicationResourceProvider(
         .GetApplications()
         .Select(ResolveDefinition)
         .Where(application => !IsHidden(application))
-        .Select(CreateResource)
+        .SelectMany(CreateResourceProjection)
         .ToArray();
+
+    private IEnumerable<Resource> CreateResourceProjection(ApplicationResourceDefinition application)
+    {
+        yield return CreateResource(application);
+
+        if (!ApplicationResourceTypes.IsContainerApp(application.ResourceType))
+        {
+            yield break;
+        }
+
+        foreach (var runtimeResource in CreateRuntimeContainerResources(application))
+        {
+            yield return runtimeResource;
+        }
+    }
 
     public IReadOnlyList<LogDescriptor> GetLogs() => store
         .GetApplications()
@@ -2393,6 +2408,58 @@ public sealed partial class ApplicationResourceProvider(
             Capabilities: CreateCapabilities(application, endpoints));
     }
 
+    private IReadOnlyList<Resource> CreateRuntimeContainerResources(ApplicationResourceDefinition application)
+    {
+        var service = CreateDefaultContainerOrchestratorService(application);
+        var parentState = GetState(application.Id);
+        var revision = GetEffectiveContainerRevision(application);
+        return CreateDefaultContainerServiceInstances(service)
+            .Select(instance => CreateRuntimeContainerResource(application, service, instance, parentState, revision))
+            .ToArray();
+    }
+
+    private static Resource CreateRuntimeContainerResource(
+        ApplicationResourceDefinition application,
+        ResourceOrchestratorService service,
+        ResourceOrchestratorServiceInstance instance,
+        ResourceState state,
+        string revision)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.RuntimeKind] = "containerReplica",
+            [ResourceAttributeNames.RuntimeContainerName] = instance.Name,
+            [ResourceAttributeNames.RuntimeReplicaOrdinal] = instance.ReplicaOrdinal.ToString(CultureInfo.InvariantCulture),
+            [ResourceAttributeNames.RuntimeReplicaCount] = instance.ReplicaCount.ToString(CultureInfo.InvariantCulture),
+            [ResourceAttributeNames.RuntimeRevision] = revision,
+            [ResourceAttributeNames.RuntimeMaterialization] = "orchestratorProjection"
+        };
+
+        AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerImage, service.Workload.Image);
+        AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerHostId, service.Workload.ContainerHostId);
+
+        return new Resource(
+            CreateRuntimeContainerResourceId(application.Id, instance.ReplicaOrdinal),
+            instance.Name,
+            "Container replica",
+            "Applications",
+            "local",
+            state,
+            [],
+            revision,
+            DateTimeOffset.UtcNow,
+            [],
+            ParentResourceId: application.Id,
+            TypeId: "runtime.container",
+            ResourceClass: ResourceClass.Container,
+            Attributes: attributes,
+            Source: ResourceSource.Orchestrator,
+            ManagementMode: ResourceManagementMode.RuntimeManaged,
+            Visibility: ResourceVisibility.Hidden,
+            OwnerResourceId: application.Id,
+            CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner);
+    }
+
     private static IReadOnlyList<ResourceCapability> CreateCapabilities(
         ApplicationResourceDefinition application,
         IReadOnlyList<ResourceEndpoint> endpoints)
@@ -3868,6 +3935,9 @@ public sealed partial class ApplicationResourceProvider(
             service.Name,
             replica,
             service.Replicas);
+
+    private static string CreateRuntimeContainerResourceId(string resourceId, int replica) =>
+        $"runtime-container:{CreateStableIdentifier(resourceId)}:replica-{Math.Max(1, replica).ToString(CultureInfo.InvariantCulture)}";
 
     private static string GetContainerName(string resourceId, int replica = 1, int replicas = 1)
     {

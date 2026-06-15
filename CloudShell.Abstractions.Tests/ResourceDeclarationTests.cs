@@ -798,7 +798,7 @@ public sealed class ResourceDeclarationTests
         var declaration = Assert.Single(store.GetDeclarations(), declaration =>
             declaration.ResourceId == "configuration:host-dev");
         var provider = serviceProvider.GetRequiredService<HostConfigurationSourceProvider>();
-        var resource = Assert.Single(provider.GetResources());
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
 
         Assert.Equal(HostConfigurationSourceProvider.ProviderId, declaration.ProviderId);
         Assert.Equal(ResourceClass.Configuration, declaration.ResourceClassOverride);
@@ -835,7 +835,7 @@ public sealed class ResourceDeclarationTests
         var declaration = Assert.Single(store.GetDeclarations(), declaration =>
             declaration.ResourceId == "secrets-vault:app");
         var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
-        var resource = Assert.Single(provider.GetResources());
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
 
         Assert.Equal(SecretsVaultProvider.ProviderId, declaration.ProviderId);
         Assert.Equal(ResourceClass.SecretsVault, declaration.ResourceClassOverride);
@@ -870,7 +870,7 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
         var resolver = Assert.Single(serviceProvider.GetServices<ISecretReferenceResolver>());
-        var resource = Assert.Single(provider.GetResources());
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
 
         Assert.Same(provider, resolver);
         Assert.Null(serviceProvider.GetService<ConfigurationResourceProvider>());
@@ -1815,7 +1815,7 @@ public sealed class ResourceDeclarationTests
 
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
-        var resource = Assert.Single(provider.GetResources());
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
 
         var template = await provider.ExportAsync(
             resource,
@@ -1869,7 +1869,7 @@ public sealed class ResourceDeclarationTests
 
         var vault = provider.GetVault("secrets-vault:ui");
         var registration = registrations.GetRegistration("secrets-vault:ui");
-        var resource = Assert.Single(provider.GetResources());
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
         await provider.DeleteAsync(
             new ResourceProcedureContext(
                 resource,
@@ -4295,7 +4295,7 @@ public sealed class ResourceDeclarationTests
                 ]),
             resourceGroupId: null,
             registrations);
-        var resource = Assert.Single(provider.GetResources());
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
         var volume = new Resource(
             "volume:data",
             "Data",
@@ -4368,7 +4368,7 @@ public sealed class ResourceDeclarationTests
                 ]),
             resourceGroupId: null,
             registrations);
-        var resource = Assert.Single(provider.GetResources());
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
         var volume = new Resource(
             "volume:data",
             "Data",
@@ -4446,7 +4446,7 @@ public sealed class ResourceDeclarationTests
                     ReadOnly: false)
             ]));
 
-        var resource = Assert.Single(provider.GetResources());
+        var resource = Assert.Single(provider.GetResources(), resource => resource.IsNormalResource);
 
         Assert.Equal(
             "1",
@@ -5574,6 +5574,63 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(14333, port.Port);
         var endpoint = Assert.Single(resource.Endpoints);
         Assert.Equal("tcp://localhost:14333", endpoint.Address);
+    }
+
+    [Fact]
+    public void ContainerApplicationProvider_ProjectsHiddenRuntimeReplicaResources()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer(
+                        "api",
+                        "example/api:latest",
+                        replicas: 3)
+                    .WithContainerHost("docker:dev");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resources = provider.GetResources();
+        var app = Assert.Single(resources, resource => resource.Id == "application:api");
+        var replicas = resources
+            .Where(resource => string.Equals(resource.ParentResourceId, app.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal])
+            .ToArray();
+
+        Assert.True(app.IsNormalResource);
+        Assert.Equal(3, replicas.Length);
+        Assert.All(replicas, replica =>
+        {
+            Assert.Equal(ResourceSource.Orchestrator, replica.Source);
+            Assert.Equal(ResourceManagementMode.RuntimeManaged, replica.ManagementMode);
+            Assert.Equal(ResourceVisibility.Hidden, replica.Visibility);
+            Assert.Equal(ResourceCleanupBehavior.DeleteWithOwner, replica.CleanupBehavior);
+            Assert.Equal(app.Id, replica.OwnerResourceId);
+            Assert.Equal(app.Id, replica.ParentResourceId);
+            Assert.Equal("runtime.container", replica.EffectiveTypeId);
+            Assert.Equal(ResourceClass.Container, replica.ResourceClass);
+            Assert.Equal("containerReplica", replica.ResourceAttributes[ResourceAttributeNames.RuntimeKind]);
+            Assert.Equal("3", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
+            Assert.Equal(
+                app.ResourceAttributes[ResourceAttributeNames.ContainerRevision],
+                replica.ResourceAttributes[ResourceAttributeNames.RuntimeRevision]);
+            Assert.Equal(
+                "orchestratorProjection",
+                replica.ResourceAttributes[ResourceAttributeNames.RuntimeMaterialization]);
+            Assert.False(replica.IsNormalResource);
+            Assert.True(replica.IsRuntimeManaged);
+        });
+        Assert.Equal("1", replicas[0].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
+        Assert.Equal("2", replicas[1].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
+        Assert.Equal("3", replicas[2].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
     }
 
     [Fact]

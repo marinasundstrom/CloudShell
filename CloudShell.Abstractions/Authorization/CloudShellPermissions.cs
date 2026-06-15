@@ -80,6 +80,7 @@ public static class CloudShellPermissions
     public static class Resources
     {
         public const string Read = "resources.read";
+        public const string ReadRuntimeManaged = "resources.runtime-managed.read";
         public const string Create = "resources.create";
         public const string Manage = "resources.manage";
 
