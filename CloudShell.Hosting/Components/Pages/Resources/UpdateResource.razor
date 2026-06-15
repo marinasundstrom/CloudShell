@@ -25,9 +25,8 @@
     var selectedTab = tabs.FirstOrDefault(tab => tab.Id == SelectedTabId) ?? tabs.FirstOrDefault();
     var isGeneratedOverview = selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
     var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
-    var canManageResource = resource is not null &&
-        !isReadOnly &&
-        Authorization.CanAccessResource(resource.Id, group?.Id, CloudShellPermissions.Resources.Manage);
+    var canApplyResourceChanges = selectedTab?.ShowsApplyButton == true &&
+        CanApplyResourceChanges();
 }
 
 <section class="page-heading compact">
@@ -60,7 +59,7 @@
         <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
             @L["Close"]
         </FluentButton>
-        @if (selectedTab?.ShowsApplyButton == true && canManageResource)
+        @if (canApplyResourceChanges)
         {
             <FluentButton Appearance="Appearance.Accent"
                           Disabled="@(ConfigurationContext?.CanApply != true || IsApplying)"
@@ -281,8 +280,13 @@
 
     private async Task ApplyChanges()
     {
-        if (ConfigurationContext is null)
+        if (ConfigurationContext is null || !CanApplyResourceChanges())
         {
+            if (IsReadOnly)
+            {
+                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            }
+
             return;
         }
 
@@ -646,6 +650,9 @@
 
     private bool CanExecuteAction(ResourceAction action) =>
         !IsReadOnly && OperationCapabilities.CanExecuteAction(action.Id);
+
+    private bool CanApplyResourceChanges() =>
+        !IsReadOnly && OperationCapabilities.CanManage;
 
     private bool IsExecutingAction(ResourceAction action) =>
         ExecutingActionIds.Contains(action.Id);

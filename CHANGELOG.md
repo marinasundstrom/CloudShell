@@ -71,6 +71,9 @@ on `git blame --follow`, and then by the broad type of change.
   lookups and checking group-aware resource access. A new resource permission
   boundary component keeps permission-gated UI actions from repeating the
   same authorization and presentation plumbing across management views.
+- Resource detail pages now use Resource Manager operation capabilities for
+  apply-button visibility and apply execution guards, keeping update affordance
+  checks aligned with inventory manage/delete/action checks.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP
