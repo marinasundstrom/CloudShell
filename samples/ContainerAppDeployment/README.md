@@ -55,7 +55,7 @@ Create the local registry on a matching alternate port:
 ```bash
 CONTAINER_APP_DEPLOYMENT_REGISTRY_PORT=18023 \
   samples/ContainerAppDeployment/create-registry.sh
-SAMPLE_REGISTRY=localhost:18023 \
+CONTAINER_APP_DEPLOYMENT_REGISTRY_PORT=18023 \
   samples/ContainerAppDeployment/deploy-mock-image.sh
 ```
 

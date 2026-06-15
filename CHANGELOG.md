@@ -74,6 +74,10 @@ on `git blame --follow`, and then by the broad type of change.
   allocated registry port, and the local registry helper script accepts
   `CONTAINER_APP_DEPLOYMENT_REGISTRY_PORT` so local registry tests can avoid
   host port conflicts.
+- The Container App Deployment deploy helper now also derives its default
+  `SAMPLE_REGISTRY` value from `CONTAINER_APP_DEPLOYMENT_REGISTRY_PORT`, so
+  the registry creation and mock deployment scripts use the same port
+  convention.
 - Added the shared `IResourceVolumeMountMaterializationStore` contract for
   runtime-observed volume mount facts. The application runtime state store now
   implements it, and Docker Compose records materialized/not-active mount
