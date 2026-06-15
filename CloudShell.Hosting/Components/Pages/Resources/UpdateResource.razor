@@ -140,17 +140,13 @@
     <div class="panel registration-host">
         @if (resource is null)
         {
-            <div class="empty-state">
-                <strong>@L["Resource not found"]</strong>
-                <span>@L["The resource may have been removed or is no longer visible."]</span>
-            </div>
+            <EmptyState Title="@L["Resource not found"].Value"
+                        Message="@L["The resource may have been removed or is no longer visible."].Value" />
         }
         else if (selectedTab is null)
         {
-            <div class="empty-state">
-                <strong>@L["No resource selected"]</strong>
-                <span>@L["Select a resource to inspect its projected details."]</span>
-            </div>
+            <EmptyState Title="@L["No resource selected"].Value"
+                        Message="@L["Select a resource to inspect its projected details."].Value" />
         }
         else
         {

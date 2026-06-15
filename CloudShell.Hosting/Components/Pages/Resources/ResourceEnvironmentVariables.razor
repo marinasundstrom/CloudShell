@@ -7,17 +7,13 @@
 
 @if (!string.IsNullOrWhiteSpace(ErrorMessage))
 {
-    <div class="empty-state">
-        <strong>@L["Environment variables unavailable"]</strong>
-        <span>@ErrorMessage</span>
-    </div>
+    <EmptyState Title="@L["Environment variables unavailable"].Value"
+                Message="@ErrorMessage" />
 }
 else if ((AppSettingProvider is null && EnvironmentVariableProvider is null) || Resource is null)
 {
-    <div class="empty-state">
-        <strong>@L["Environment unavailable"]</strong>
-        <span>@L["No provider is available to configure app settings or environment variables for this resource."]</span>
-    </div>
+    <EmptyState Title="@L["Environment unavailable"].Value"
+                Message="@L["No provider is available to configure app settings or environment variables for this resource."].Value" />
 }
 else
 {

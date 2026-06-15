@@ -3,17 +3,13 @@
 
 @if (NameMapping is null)
 {
-    <div class="empty-state">
-        <strong>Name mapping unavailable</strong>
-        <span>The name mapping resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="Name mapping unavailable"
+                Message="The name mapping resource may have been removed or is no longer visible." />
 }
 else if (DnsZone is null)
 {
-    <div class="empty-state">
-        <strong>DNS zone unavailable</strong>
-        <span>The parent DNS zone may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="DNS zone unavailable"
+                Message="The parent DNS zone may have been removed or is no longer visible." />
 }
 else
 {

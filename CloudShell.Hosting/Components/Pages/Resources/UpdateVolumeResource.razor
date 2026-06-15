@@ -3,10 +3,8 @@
 
 @if (Volume is null)
 {
-    <div class="empty-state">
-        <strong>Volume unavailable</strong>
-        <span>The volume resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="Volume unavailable"
+                Message="The volume resource may have been removed or is no longer visible." />
 }
 else
 {

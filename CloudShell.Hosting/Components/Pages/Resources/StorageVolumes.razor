@@ -6,10 +6,8 @@
 
 @if (Storage is null)
 {
-    <div class="empty-state">
-        <strong>Storage unavailable</strong>
-        <span>The storage resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="Storage unavailable"
+                Message="The storage resource may have been removed or is no longer visible." />
 }
 else
 {
@@ -28,10 +26,8 @@ else
         </div>
         @if (Volumes.Count == 0)
         {
-            <div class="empty-state">
-                <strong>No volumes</strong>
-                <span>No volumes are owned by this Storage resource.</span>
-            </div>
+            <EmptyState Title="No volumes"
+                        Message="No volumes are owned by this Storage resource." />
         }
         else
         {

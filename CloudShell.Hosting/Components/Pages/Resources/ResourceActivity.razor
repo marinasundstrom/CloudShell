@@ -65,10 +65,9 @@
 
         @if (Events.Count == 0)
         {
-            <div class="empty-state compact">
-                <strong>@L["No activity"]</strong>
-                <span>@GetEmptyStateMessage()</span>
-            </div>
+            <EmptyState Title="@L["No activity"].Value"
+                        Message="@GetEmptyStateMessage()"
+                        Compact="true" />
         }
         else
         {
