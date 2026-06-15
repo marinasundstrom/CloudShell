@@ -99,7 +99,10 @@ listed here before pulling in broader proposal work.
    wildcard suffixes and public DNS propagation stay provider-specific and out
    of the MVP path unless a sample proves they are required. Do not expand
    `cloudshell.service` semantics further until the shared deployment and
-   orchestrator service model is clearer.
+   orchestrator service model is clearer. Container app usefulness depends on
+   a thin deployment/revision/runtime-owned resource foundation: keep this
+   foundation internal and diagnostic first, and do not pull in broad rollout
+   history, rollback, or traffic-splitting work for the MVP.
 2. Resource Manager convergence for the same path: keep the app resource page
    as the operator entry point for endpoints, discovery, storage, identity,
    logs, traces, activity, and inbound name mappings. Fix UI consistency and
@@ -142,9 +145,11 @@ listed here before pulling in broader proposal work.
 10. Remote Docker host completion: finish concrete remote-host registration and
    credentials if it validates the host model, but do not let it block the
    local/default container-host MVP path.
-11. Runtime-managed resources and deployment model: make only the ownership,
-   cleanup, current-revision, and diagnostics decisions needed by provider-owned
-   runtime and image updates.
+11. Runtime-managed resources and deployment model: the first ownership,
+   visibility, cleanup, and internal orchestrator deployment/revision contracts
+   are in place. Next slices should use them only where container apps need
+   observed replicas/runtime containers for diagnostics, not as a broad public
+   deployment product surface.
 12. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,

@@ -10,6 +10,14 @@ there is currently no formal distinction between how a resource is created,
 who is responsible for managing it, how visible it should be, and how its
 lifecycle relates to other resources.
 
+Initial implementation now adds these distinctions to the projected `Resource`
+shape: source, management mode, visibility, owner resource, and cleanup
+behavior. The Control Plane API and remote client preserve those fields, and
+Resource Manager hides non-normal resources from the standard inventory while
+keeping them available in the loaded graph for parent/detail inspection. This
+is an internal foundation for container app runtime artifacts before broad
+runtime resource projection is announced as a public product surface.
+
 Runtime-managed resources are one important case, but the broader problem is
 that provider-created, orchestrator-created, and runtime-created resources need
 to participate in the same resource graph without becoming part of the normal

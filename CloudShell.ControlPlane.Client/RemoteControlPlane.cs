@@ -688,7 +688,12 @@ file sealed record ResourceResponse(
     IReadOnlyList<ResourceEndpointMappingResponse>? EndpointMappings,
     IReadOnlyList<LoadBalancerRouteResponse>? LoadBalancerRoutes,
     ResourceIdentityBindingResponse? Identity,
-    IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
+    IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions,
+    ResourceSource Source = ResourceSource.User,
+    ResourceManagementMode ManagementMode = ResourceManagementMode.UserManaged,
+    ResourceVisibility Visibility = ResourceVisibility.Normal,
+    string? OwnerResourceId = null,
+    ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None);
 
 file sealed record ResourceEndpointResponse(
     string Name,
@@ -934,7 +939,12 @@ file static class RemoteControlPlaneMapper
             LoadBalancerRoutes: response.GetLoadBalancerRouteResponses()
                 .Select(route => route.ToLoadBalancerRoute())
                 .ToArray(),
-            Identity: response.Identity?.ToResourceIdentityBinding());
+            Identity: response.Identity?.ToResourceIdentityBinding(),
+            Source: response.Source,
+            ManagementMode: response.ManagementMode,
+            Visibility: response.Visibility,
+            OwnerResourceId: response.OwnerResourceId,
+            CleanupBehavior: response.CleanupBehavior);
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
         new(

@@ -17,9 +17,10 @@
 
 @{
     var allResources = ResourceInventory;
+    var normalResources = allResources.Where(IsNormalInventoryResource).ToArray();
     var groups = ResourceGroups;
-    var resourceClasses = GetResourceClassOptions(allResources);
-    var resourceTypes = GetResourceTypeOptions(allResources);
+    var resourceClasses = GetResourceClassOptions(normalResources);
+    var resourceTypes = GetResourceTypeOptions(normalResources);
     var resourceGroupFilters = GetResourceGroupFilterOptions(groups);
     var rows = BuildRows(allResources);
     SetPaginationTotal(rows.Count);
@@ -416,6 +417,23 @@
                     <dd>@selected.Region</dd>
                     <dt>@L["Version"]</dt>
                     <dd>@selected.Version</dd>
+                    @if (!selected.IsNormalResource ||
+                        selected.Source != ResourceSource.User ||
+                        selected.ManagementMode != ResourceManagementMode.UserManaged ||
+                        !string.IsNullOrWhiteSpace(selected.OwnerResourceId))
+                    {
+                        <dt>@L["Source"]</dt>
+                        <dd>@selected.Source</dd>
+                        <dt>@L["Management"]</dt>
+                        <dd>@selected.ManagementMode</dd>
+                        <dt>@L["Visibility"]</dt>
+                        <dd>@selected.Visibility</dd>
+                        @if (!string.IsNullOrWhiteSpace(selected.OwnerResourceId))
+                        {
+                            <dt>@L["Owner"]</dt>
+                            <dd>@FormatResourceName(selected.OwnerResourceId)</dd>
+                        }
+                    }
                     <dt>@L["Resource ID"]</dt>
                     <dd>@selected.Id</dd>
                 </dl>
@@ -739,6 +757,7 @@
     private IReadOnlyList<ResourceRow> BuildRows(IReadOnlyList<Resource> allResources)
     {
         var scoped = allResources
+            .Where(IsNormalInventoryResource)
             .Where(IsInSelectedResourceGroup)
             .ToArray();
         var scopedIds = scoped.Select(resource => resource.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -803,6 +822,9 @@
             AddResourceRow(child, depth + 1, childrenByParent, visibleIds, rows);
         }
     }
+
+    private static bool IsNormalInventoryResource(Resource resource) =>
+        resource.Visibility == ResourceVisibility.Normal;
 
     private bool IsInSelectedResourceGroup(Resource resource)
     {

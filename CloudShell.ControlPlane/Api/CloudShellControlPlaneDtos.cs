@@ -29,7 +29,12 @@ public sealed record ResourceResponse(
     IReadOnlyList<ResourceEndpointMappingResponse> EndpointMappings,
     IReadOnlyList<LoadBalancerRouteResponse> LoadBalancerRoutes,
     ResourceIdentityBindingResponse? Identity,
-    IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions);
+    IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions,
+    ResourceSource Source = ResourceSource.User,
+    ResourceManagementMode ManagementMode = ResourceManagementMode.UserManaged,
+    ResourceVisibility Visibility = ResourceVisibility.Normal,
+    string? OwnerResourceId = null,
+    ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None);
 
 public sealed record ResourceEndpointResponse(
     string Name,
@@ -276,7 +281,12 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.ResourceEndpointMappings.Select(ToResponse).ToArray(),
             resource.ResourceLoadBalancerRoutes.Select(ToResponse).ToArray(),
             resource.IdentityBinding?.ToResponse(),
-            CreateResourceActionDictionary(resource));
+            CreateResourceActionDictionary(resource),
+            resource.Source,
+            resource.ManagementMode,
+            resource.Visibility,
+            resource.OwnerResourceId,
+            resource.CleanupBehavior);
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
         new(endpoint.Name, endpoint.Address, endpoint.Protocol, endpoint.IsExternal, endpoint.Exposure);

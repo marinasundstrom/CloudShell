@@ -24,6 +24,53 @@ public sealed record ResourceOrchestrationDescriptorContext(
     ResourceGroup? ResourceGroup,
     IResourceManagerStore ResourceManager);
 
+public sealed record ResourceOrchestratorDeployment(
+    string Id,
+    string OrchestratorId,
+    string SourceResourceId,
+    string ServiceId,
+    string RevisionId,
+    ResourceOrchestratorDeploymentSpec Spec,
+    ResourceOrchestratorDeploymentStatus Status);
+
+public sealed record ResourceOrchestratorDeploymentSpec(
+    ResourceOrchestratorService Service,
+    string WorkloadVersion,
+    IReadOnlyDictionary<string, string>? Inputs = null)
+{
+    private static readonly IReadOnlyDictionary<string, string> EmptyInputs =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    public IReadOnlyDictionary<string, string> DeploymentInputs => Inputs ?? EmptyInputs;
+}
+
+public sealed record ResourceOrchestratorRevision(
+    string Id,
+    string DeploymentId,
+    string SourceResourceId,
+    string ServiceId,
+    int RevisionNumber,
+    DateTimeOffset CreatedAt,
+    ResourceOrchestratorRevisionStatus Status);
+
+public enum ResourceOrchestratorDeploymentStatus
+{
+    Pending,
+    Applying,
+    Active,
+    Failed,
+    Deleted
+}
+
+public enum ResourceOrchestratorRevisionStatus
+{
+    Pending,
+    Active,
+    Superseded,
+    Failed,
+    Deleted
+}
+
 public interface IResourceOrchestrator
 {
     string Id { get; }

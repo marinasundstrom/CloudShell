@@ -154,6 +154,10 @@ Implemented pieces include:
 * current revision projection when a container app image is updated
 * Resource Manager image update action
 * explicit replica count update API
+* shared resource metadata for provider/orchestrator/runtime ownership,
+  visibility, owner resource, and cleanup behavior
+* internal orchestrator deployment/revision data contracts for future
+  container app runtime materialization
 * application-level service discovery opt-in through `WithServiceDiscovery()`
 * volume mount model and Storage tab for resources that support storage
 * identity binding and standard runtime credential delivery path
@@ -194,9 +198,11 @@ Implemented pieces include:
    routes, DNS/name mappings, and unsupported host capabilities. Local
    host-published endpoint preflight is in place for container app start;
    route, DNS, and provider-backed diagnostics remain open.
-6. Keep image update and explicit replica count as the MVP deployment surface.
-   Defer rollout history and traffic splitting to the deployment/revision
-   proposal.
+6. Keep image update, current revision, explicit replica count, and hidden
+   runtime ownership metadata as the MVP deployment surface. Use the internal
+   orchestrator deployment/revision contracts for container app implementation
+   work, but defer public rollout history, rollback, and traffic splitting to
+   later deployment/revision slices.
 7. Validate the managed-service story with samples that combine container app,
    storage, service discovery, identity, secrets/configuration, logs, traces,
    and public/name exposure.
@@ -213,6 +219,9 @@ Implemented pieces include:
   start/update where possible.
 * Add host capability diagnostics for unsupported storage media, ingress,
   public endpoint, or DNS/name publication choices.
+* Register observed replica/container runtime artifacts as hidden
+  runtime-managed child resources of the container app once the providers can
+  report them consistently.
 * Add deeper container-host readiness diagnostics for unsupported ingress,
   public endpoint, DNS/name publication, registry credential, and storage
   choices before update/start.

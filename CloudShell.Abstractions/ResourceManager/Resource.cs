@@ -22,7 +22,12 @@ public sealed record Resource(
     IReadOnlyList<ResourceCapability>? Capabilities = null,
     IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null,
     IReadOnlyList<LoadBalancerRoute>? LoadBalancerRoutes = null,
-    ResourceIdentityBinding? Identity = null)
+    ResourceIdentityBinding? Identity = null,
+    ResourceSource Source = ResourceSource.User,
+    ResourceManagementMode ManagementMode = ResourceManagementMode.UserManaged,
+    ResourceVisibility Visibility = ResourceVisibility.Normal,
+    string? OwnerResourceId = null,
+    ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -63,9 +68,45 @@ public sealed record Resource(
 
     public ResourceIdentityBinding? IdentityBinding => Identity;
 
+    public bool IsNormalResource => Visibility == ResourceVisibility.Normal;
+
+    public bool IsRuntimeManaged =>
+        ManagementMode == ResourceManagementMode.RuntimeManaged ||
+        ManagementMode == ResourceManagementMode.OrchestratorManaged;
+
     public bool HasCapability(string capabilityId) =>
         ResourceCapabilities.Any(capability =>
             string.Equals(capability.Id, capabilityId, StringComparison.OrdinalIgnoreCase));
+}
+
+public enum ResourceSource
+{
+    User,
+    Provider,
+    Orchestrator,
+    RuntimeController
+}
+
+public enum ResourceManagementMode
+{
+    UserManaged,
+    ProviderManaged,
+    OrchestratorManaged,
+    RuntimeManaged
+}
+
+public enum ResourceVisibility
+{
+    Normal,
+    Hidden,
+    Diagnostic
+}
+
+public enum ResourceCleanupBehavior
+{
+    None,
+    DeleteWithOwner,
+    DetachWithOwner
 }
 
 public enum ResourceClass

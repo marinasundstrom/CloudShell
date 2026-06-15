@@ -177,6 +177,15 @@ projected on the container app resource and changes when the deployable image
 is updated. Runtime container instances/replicas are implementations of a
 revision; they are not themselves the revision identity.
 
+Resources can now also project ownership metadata that distinguishes who
+created them, who manages them, how visible they should be in normal Resource
+Manager inventory, which stable resource owns them, and how they should be
+cleaned up with that owner. This metadata lets providers and orchestrators
+register hidden runtime or diagnostic resources without making those resources
+the normal application contract. For example, a container app may own hidden
+runtime container resources for replica inspection while the container app
+remains the user-facing deployment target.
+
 Orchestrators materialize a container app by producing an orchestration-level
 service artifact. In CloudShell's orchestration contracts this is represented
 by `ResourceOrchestratorService`: a runtime service descriptor derived from the
@@ -190,6 +199,13 @@ Docker Compose maps it to a Compose service where replicas can be declared,
 Kubernetes-oriented providers can map it to Service/Deployment-style objects,
 and the default local runner uses the container app identity as the implicit
 service identity for convention named replica containers.
+
+The orchestrator deployment and revision abstractions are the shared lower
+layer for applying that service descriptor. They are available for internal
+container-app, provider, and orchestrator implementation work before they are
+announced as a public management surface. A container app revision answers
+application-version questions; an orchestrator deployment/revision answers what
+runtime workload was applied and which service/runtime resources resulted.
 
 The container app resource is also the normal user-facing deployment and
 exposure artifact for application workloads. It can own the stable application

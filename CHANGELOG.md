@@ -108,6 +108,18 @@ on `git blame --follow`, and then by the broad type of change.
   deep-linked with a target resource and endpoint, selects the target resource
   group when needed, and uses the target as the initial route destination.
   Decision: [ADR-20260614-002](ADR.md#adr-20260614-002).
+- Resources now project source, management mode, visibility, owner resource,
+  and cleanup behavior metadata. The Control Plane API and remote client
+  preserve those fields, and Resource Manager hides non-normal resources from
+  the standard inventory while keeping them available for parent/detail
+  inspection. This prepares container apps to own hidden runtime-managed
+  replica/container artifacts.
+  Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
+- Added internal orchestrator deployment and revision data contracts so
+  container apps, providers, and orchestrators can correlate a stable app
+  resource with applied runtime workload versions before rollout history and
+  public deployment management APIs are introduced.
+  Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 
 #### Samples
 

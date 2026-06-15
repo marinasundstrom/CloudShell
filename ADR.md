@@ -11,6 +11,12 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-15
 
+### ADR-20260615-002: Introduce deployment and runtime-owned resource metadata before public rollout features
+
+Container apps need deployment, revision, and runtime-owned resource relationships to become a useful managed-service primitive. Add the shared abstractions and resource metadata first, use them internally for container apps and provider/orchestrator runtime artifacts, and keep them out of the normal public product surface until the model is proven. A container app remains the user-facing resource; orchestrator deployments/revisions and runtime-managed containers, replicas, endpoint registrations, or provider-owned artifacts are lower-level implementation and diagnostic entities that may be hidden from normal Resource Manager lists.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260615-001: Separate product goal, roadmap, changelog, and ADR responsibilities
 
 Keep the project goal, roadmap, changelog, and architecture decision log as separate documents with different responsibilities. `docs/goal.md` owns the durable product goal, `docs/roadmap.md` owns milestone scope and current task order, `CHANGELOG.md` owns dated landed changes, and `ADR.md` owns durable product and architecture decisions. Link between these documents instead of duplicating the same planning state in each one.

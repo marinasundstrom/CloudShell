@@ -10,6 +10,14 @@ CloudShell already has a Resource Manager, a resource graph, an orchestrator abs
 
 The current orchestration model can start resources and group runtime instances through services, but there is no formal deployment and revision model for representing versioned workload changes, rollout history, replica changes, or traceability across orchestrator implementations.
 
+Initial implementation now adds internal data contracts for
+`ResourceOrchestratorDeployment`, `ResourceOrchestratorDeploymentSpec`, and
+`ResourceOrchestratorRevision` in the orchestration abstractions. These are
+intended for container apps, providers, and orchestrators to build on first.
+They are not yet a public Resource Manager or Control Plane management surface,
+and rich rollout history, rollback, traffic splitting, and retention remain
+deferred.
+
 ## Problem
 
 CloudShell resources may express desired runtime behavior that requires orchestration.

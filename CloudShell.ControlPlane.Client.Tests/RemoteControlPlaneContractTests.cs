@@ -52,6 +52,24 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_PreservesRuntimeManagedResourceMetadata()
+    {
+        await using var app = await CreateAppAsync(includeRuntimeResource: true);
+        var controlPlane = CreateClient(app);
+
+        var resource = await controlPlane.GetResourceAsync(ContractRuntimeResourceProvider.ResourceId);
+
+        Assert.NotNull(resource);
+        Assert.Equal(ResourceSource.RuntimeController, resource.Source);
+        Assert.Equal(ResourceManagementMode.RuntimeManaged, resource.ManagementMode);
+        Assert.Equal(ResourceVisibility.Hidden, resource.Visibility);
+        Assert.Equal("network:contract", resource.OwnerResourceId);
+        Assert.Equal(ResourceCleanupBehavior.DeleteWithOwner, resource.CleanupBehavior);
+        Assert.False(resource.IsNormalResource);
+        Assert.True(resource.IsRuntimeManaged);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_CreatesAndQueriesPlatformResources()
     {
         await using var app = await CreateAppAsync();
@@ -911,7 +929,8 @@ public sealed class RemoteControlPlaneContractTests
         bool includeMappedNetwork = false,
         bool includeLoadBalancer = false,
         bool includeStatelessResource = false,
-        bool includeResolutionFailureResource = false)
+        bool includeResolutionFailureResource = false,
+        bool includeRuntimeResource = false)
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(contentRoot);
@@ -955,6 +974,10 @@ public sealed class RemoteControlPlaneContractTests
         if (includeResolutionFailureResource)
         {
             builder.Services.AddSingleton<IResourceProvider, ContractResolutionFailureProvider>();
+        }
+        if (includeRuntimeResource)
+        {
+            builder.Services.AddSingleton<IResourceProvider, ContractRuntimeResourceProvider>();
         }
 
         controlPlane.Resources(resources =>
@@ -1203,6 +1226,38 @@ public sealed class RemoteControlPlaneContractTests
                 [],
                 TypeId: "contract.stateless",
                 ResourceClass: ResourceClass.Infrastructure)
+        ];
+    }
+
+    private sealed class ContractRuntimeResourceProvider : IResourceProvider
+    {
+        public const string ResourceId = "container:api-replica-1";
+
+        public string Id => "contract.runtime";
+
+        public string DisplayName => "Contract Runtime";
+
+        public IReadOnlyList<Resource> GetResources() =>
+        [
+            new(
+                ResourceId,
+                "API replica 1",
+                "Container instance",
+                DisplayName,
+                "local",
+                ResourceState.Running,
+                [],
+                "1.0",
+                DateTimeOffset.UtcNow,
+                [],
+                ParentResourceId: "network:contract",
+                TypeId: "runtime.container",
+                ResourceClass: ResourceClass.Container,
+                Source: ResourceSource.RuntimeController,
+                ManagementMode: ResourceManagementMode.RuntimeManaged,
+                Visibility: ResourceVisibility.Hidden,
+                OwnerResourceId: "network:contract",
+                CleanupBehavior: ResourceCleanupBehavior.DeleteWithOwner)
         ];
     }
 
