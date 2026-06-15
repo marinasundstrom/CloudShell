@@ -12,24 +12,24 @@ from Control Plane services.
 
 Before making product or architecture changes, read:
 
-- CloudShell goal
-- Development workflow
-- Domain model
-- System design guidelines
-- Architecture decision log
-- Changelog
+- [CloudShell goal](docs/goal.md)
+- [Development workflow](CONTRIBUTIONS.md)
+- [Domain model](docs/domain-model.md)
+- [System design guidelines](docs/system-design-guidelines.md)
+- [Architecture decision log](ADR.md)
+- [Changelog](CHANGELOG.md)
 
 For focused areas, read the relevant documentation:
 
-- Control Plane API
-- Hosting model
-- Authentication and authorization
-- Extensions
-- Programmatic resources
-- Resource templates
-- Configuration services
-- Application resources
-- Persistence
+- [Control Plane API](docs/control-plane-api.md)
+- [Hosting model](docs/hosting-model.md)
+- [Authentication and authorization](docs/authentication-and-authorization.md)
+- [Extensions](docs/extensions.md)
+- [Programmatic resources](docs/programmatic-resources.md)
+- [Resource templates](docs/resource-templates.md)
+- [Configuration services](docs/configuration-services.md)
+- [Application resources](docs/resources/)
+- [Persistence](docs/persistence.md)
 
 ## Solution Shape
 
