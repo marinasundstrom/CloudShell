@@ -858,7 +858,8 @@
         var parts = new List<string>
         {
             L["Exposure: {0}", GetNameMappingExposure(view.Mapping)].Value,
-            FormatNameMappingProvider(view.Mapping)
+            FormatNameMappingProvider(view.Mapping),
+            L["Materialization: {0}", GetNameMappingMaterializationLabel(view.Mapping)].Value
         };
 
         var zone = string.IsNullOrWhiteSpace(view.Mapping.ParentResourceId)
@@ -903,6 +904,16 @@
 
     private static string GetNameMappingProviderResourceId(Resource mapping) =>
         GetAttributeValue(mapping, ResourceAttributeNames.NameMappingProviderResourceId, string.Empty);
+
+    private static string GetNameMappingMaterializationLabel(Resource mapping) =>
+        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingMaterializationStatus, "unknown") switch
+        {
+            "LogicalOnly" => "logical only",
+            "ProviderSelected" => "provider selected",
+            "Published" => "published",
+            "PublishFailed" => "publish failed",
+            var value => value
+        };
 
     private static string GetAttributeValue(Resource resource, string name, string fallback) =>
         resource.ResourceAttributes.TryGetValue(name, out var value) &&

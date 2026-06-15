@@ -490,7 +490,8 @@ else
         var parts = new List<string>
         {
             $"Exposure: {ApplicationNameMappingDisplay.GetExposureLabel(view.Mapping)}",
-            FormatNameMappingProvider(view.Mapping)
+            FormatNameMappingProvider(view.Mapping),
+            $"Materialization: {ApplicationNameMappingDisplay.GetMaterializationLabel(view.Mapping)}"
         };
 
         if (view.Zone is not null)

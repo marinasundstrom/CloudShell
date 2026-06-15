@@ -4186,6 +4186,7 @@ public sealed class ResourceDeclarationTests
                 [ResourceAttributeNames.NameMappingTargetResourceId] = "application:api",
                 [ResourceAttributeNames.NameMappingTargetEndpointName] = "http",
                 [ResourceAttributeNames.NameMappingExposure] = ResourceExposureScope.Public.ToString(),
+                [ResourceAttributeNames.NameMappingMaterializationStatus] = "ProviderSelected",
                 [ResourceAttributeNames.DnsProvider] = "logical"
             },
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
@@ -4197,6 +4198,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("http", ApplicationNameMappingDisplay.GetTargetEndpointName(mapping));
         Assert.Equal(ResourceExposureScope.Public.ToString(), ApplicationNameMappingDisplay.GetExposureLabel(mapping));
         Assert.Equal("logical", ApplicationNameMappingDisplay.GetProviderLabel(mapping));
+        Assert.Equal("provider selected", ApplicationNameMappingDisplay.GetMaterializationLabel(mapping));
         Assert.Equal("api.local -> API/http", ApplicationNameMappingDisplay.GetSummary(mapping, "API"));
     }
 

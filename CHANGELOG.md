@@ -78,6 +78,10 @@ on `git blame --follow`, and then by the broad type of change.
   DNS/name-mapping create and update forms now use CloudShell alert boxes for
   local suffix and local host-name publisher notices instead of unframed
   message bar content.
+- Application and generated resource overviews now include DNS/name-mapping
+  materialization status when showing inbound DNS-style names, so users can see
+  whether a name is logical-only, provider-selected, published, or failed from
+  the target resource page.
 
 #### Samples
 

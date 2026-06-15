@@ -484,6 +484,8 @@ decides later whether and how a specific name is materialized.
    can now be edited from their Resource Manager configuration tab while
    preserving their parent DNS zone. DNS zone overview pages now list owned
    name mappings with target, exposure, provider, and materialization status.
+   Target resource overview pages now include materialization status for
+   inbound DNS/name mappings.
 7. Add default-orchestrator diagnostics for unmapped or unmaterialized names.
    Done for logical-only DNS name mappings without a selected publisher.
 8. Add sample declarations for local DNS-style mappings. Done in the Load

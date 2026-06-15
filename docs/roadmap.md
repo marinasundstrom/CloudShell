@@ -202,7 +202,8 @@ listed here before pulling in broader proposal work.
   distinguish selected-provider intent from a recent publish result. Existing
   name mappings can now be edited from Resource Manager without changing the
   parent DNS zone, and DNS zone overview pages list owned mappings with target
-  and materialization status. Next it needs richer provider-specific DNS
+  and materialization status. Target resource overviews also show inbound
+  name-mapping materialization. Next it needs richer provider-specific DNS
   diagnostics when the MVP management flow needs them.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,

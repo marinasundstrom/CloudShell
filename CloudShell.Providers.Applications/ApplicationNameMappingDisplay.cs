@@ -29,6 +29,16 @@ internal static class ApplicationNameMappingDisplay
     public static string GetProviderResourceId(Resource resource) =>
         GetAttribute(resource, ResourceAttributeNames.NameMappingProviderResourceId, string.Empty);
 
+    public static string GetMaterializationLabel(Resource resource) =>
+        GetAttribute(resource, ResourceAttributeNames.NameMappingMaterializationStatus, "unknown") switch
+        {
+            "LogicalOnly" => "logical only",
+            "ProviderSelected" => "provider selected",
+            "Published" => "published",
+            "PublishFailed" => "publish failed",
+            var value => value
+        };
+
     public static string GetSummary(Resource resource, string targetName) =>
         $"{GetHostName(resource)} -> {targetName}/{GetTargetEndpointName(resource)}";
 
