@@ -74,6 +74,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource detail pages now use Resource Manager operation capabilities for
   apply-button visibility and apply execution guards, keeping update affordance
   checks aligned with inventory manage/delete/action checks.
+- Docker host overview and container tabs now read host/container state,
+  container logs, operation capabilities, and container action execution
+  through public Resource Manager and log manager APIs instead of internal
+  provider stores, keeping provider UI aligned with split-hosting and
+  authorization boundaries.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

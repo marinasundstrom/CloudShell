@@ -1,17 +1,11 @@
 @inject DockerContainerResourceProvider DockerProvider
-@inject IResourceManagerStore ResourceManager
+@inject IResourceManager ResourceManager
 
 @{
-    var resource = string.IsNullOrWhiteSpace(ResourceId)
-        ? null
-        : ResourceManager.GetResource(ResourceId);
     var status = DockerProvider.ConnectionStatus;
-    IReadOnlyList<Resource> containers = resource is null
-        ? []
-        : ResourceManager.GetChildren(resource.Id);
 }
 
-@if (resource is null)
+@if (Resource is null)
 {
     <div class="empty-state">
         <strong>Container host is unavailable</strong>
@@ -36,17 +30,17 @@ else
         </div>
 
         <dl class="detail-list">
-            @if (resource.State is { } state)
+            @if (Resource.State is { } state)
             {
                 <dt>State</dt>
                 <dd>@state</dd>
             }
             <dt>Containers</dt>
-            <dd>@containers.Count</dd>
+            <dd>@Containers.Count</dd>
             <dt>Version</dt>
-            <dd>@resource.Version</dd>
+            <dd>@Resource.Version</dd>
             <dt>Host mode</dt>
-            <dd>@resource.Region</dd>
+            <dd>@Resource.Region</dd>
         </dl>
     </div>
 }
@@ -54,6 +48,19 @@ else
 @code {
     [Parameter]
     public string? ResourceId { get; set; }
+
+    private Resource? Resource { get; set; }
+    private IReadOnlyList<Resource> Containers { get; set; } = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        Containers = Resource is null
+            ? []
+            : await ResourceManager.ListResourceChildrenAsync(Resource.Id);
+    }
 
     private static RenderFragment EndpointLink(string? address) => builder =>
     {

@@ -1,23 +1,17 @@
 @page "/resources/container-hosts"
 @rendermode InteractiveServer
 @inject DockerContainerResourceProvider DockerProvider
-@inject ILogStore LogStore
-@inject IResourceManagerStore ResourceManager
-@inject IResourceRegistrationStore Registrations
-@inject ICloudShellAuthorizationService Authorization
+@inject ILogManager LogManager
+@inject IResourceManager ResourceManager
 @inject NavigationManager Navigation
 
 <PageTitle>Docker</PageTitle>
 
 @{
     var isResourceTab = !string.IsNullOrWhiteSpace(ResourceId);
-    var host = isResourceTab
-        ? ResourceManager.GetResource(ResourceId!)
-        : DockerProvider.GetResources()
-            .FirstOrDefault(resource => resource.EffectiveTypeId == DockerContainerResourceProvider.HostResourceType);
+    var host = Host;
     var canView = host is not null &&
-        string.Equals(host.EffectiveTypeId, DockerContainerResourceProvider.HostResourceType, StringComparison.OrdinalIgnoreCase) &&
-        ResourceManager.GetResource(host.Id) is not null;
+        string.Equals(host.EffectiveTypeId, DockerContainerResourceProvider.HostResourceType, StringComparison.OrdinalIgnoreCase);
 }
 
 @if (!canView)
@@ -30,7 +24,7 @@
 else
 {
     var status = DockerProvider.ConnectionStatus;
-    var containers = ResourceManager.GetChildren(host!.Id);
+    var containers = Containers;
 
     @if (!isResourceTab)
     {
@@ -157,15 +151,73 @@ else
     private string? ExecutingActionKey { get; set; }
     private string? ProcedureMessage { get; set; }
     private PendingResourceAction? PendingAction { get; set; }
+    private Resource? Host { get; set; }
+    private IReadOnlyList<Resource> Containers { get; set; } = [];
+    private IReadOnlyDictionary<string, IReadOnlyList<LogDescriptor>> LogsByResourceId { get; set; } =
+        new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, ResourceOperationCapabilities> CapabilitiesByResourceId { get; set; } =
+        new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadModelAsync();
+    }
+
+    private async Task LoadModelAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(ResourceId))
+        {
+            Host = await ResourceManager.GetResourceAsync(ResourceId);
+        }
+        else
+        {
+            Host = (await ResourceManager.ListResourcesAsync())
+                .FirstOrDefault(resource =>
+                    string.Equals(
+                        resource.EffectiveTypeId,
+                        DockerContainerResourceProvider.HostResourceType,
+                        StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (Host is null ||
+            !string.Equals(Host.EffectiveTypeId, DockerContainerResourceProvider.HostResourceType, StringComparison.OrdinalIgnoreCase))
+        {
+            Containers = [];
+            LogsByResourceId = new Dictionary<string, IReadOnlyList<LogDescriptor>>(StringComparer.OrdinalIgnoreCase);
+            CapabilitiesByResourceId = new Dictionary<string, ResourceOperationCapabilities>(StringComparer.OrdinalIgnoreCase);
+            return;
+        }
+
+        Containers = await ResourceManager.ListResourceChildrenAsync(Host.Id);
+        var containerIds = Containers
+            .Select(container => container.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var logs = await LogManager.ListLogsAsync();
+        LogsByResourceId = logs
+            .Where(log => log.ResourceId is not null && containerIds.Contains(log.ResourceId))
+            .GroupBy(log => log.ResourceId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<LogDescriptor>)group.ToArray(),
+                StringComparer.OrdinalIgnoreCase);
+        CapabilitiesByResourceId = await ResourceManager.GetResourceOperationCapabilitiesAsync(containerIds.ToArray());
+    }
 
     private async Task Refresh()
     {
         var refresh = DockerProvider.RefreshAsync();
         await Task.WhenAny(refresh, Task.Delay(TimeSpan.FromSeconds(4)));
+        await LoadModelAsync();
     }
 
     private async Task RequestContainerAction(Resource container, ResourceAction action)
     {
+        if (!CanExecuteAction(container, action))
+        {
+            ProcedureMessage = "The action is not available for this container.";
+            return;
+        }
+
         if (action.RequiresConfirmation)
         {
             PendingAction = new PendingResourceAction(container, action);
@@ -192,16 +244,24 @@ else
 
     private async Task ExecuteContainerAction(Resource container, ResourceAction action)
     {
+        if (!CanExecuteAction(container, action))
+        {
+            ProcedureMessage = "The action is not available for this container.";
+            return;
+        }
+
         ExecutingActionKey = GetActionKey(container, action);
         ProcedureMessage = null;
         try
         {
-            var group = ResourceManager.GetGroupForResource(container.Id);
-            var result = await DockerProvider.ExecuteActionAsync(
-                new ResourceProcedureContext(container, null, group?.Id, Registrations),
-                action);
+            var result = await ResourceManager.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    container.Id,
+                    action.Id,
+                    IgnoreDependentWarning: true));
 
             ProcedureMessage = result.Message;
+            await LoadModelAsync();
         }
         catch (Exception exception)
         {
@@ -213,21 +273,19 @@ else
         }
     }
 
-    private bool CanManage(Resource resource)
-    {
-        var group = ResourceManager.GetGroupForResource(resource.Id);
-        return Authorization.CanAccessResource(
-            resource.Id,
-            group?.Id,
-            CloudShellPermissions.Resources.Manage);
-    }
+    private bool CanExecuteAction(Resource resource, ResourceAction action) =>
+        GetCapabilities(resource).CanExecuteAction(action.Id);
+
+    private ResourceOperationCapabilities GetCapabilities(Resource resource) =>
+        CapabilitiesByResourceId.GetValueOrDefault(resource.Id) ??
+        ResourceOperationCapabilities.None(resource.Id);
 
     private bool IsExecutingAction(Resource resource, ResourceAction action) =>
         string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
 
     private void OpenLogs(Resource resource)
     {
-        var logs = LogStore.GetLogsForResource(resource.Id);
+        var logs = LogsByResourceId.GetValueOrDefault(resource.Id) ?? [];
         var query = new Dictionary<string, string?>
         {
             ["resourceId"] = resource.Id
@@ -243,7 +301,7 @@ else
 
     private RenderFragment ContainerActionControls(Resource container) => builder =>
     {
-        var logs = LogStore.GetLogsForResource(container.Id);
+        var logs = LogsByResourceId.GetValueOrDefault(container.Id) ?? [];
         if (container.ResourceActions.Count == 0 && logs.Count == 0)
         {
             return;
@@ -260,7 +318,7 @@ else
             builder.AddAttribute(sequence++, "Class", "action-icon-button");
             builder.AddAttribute(sequence++, "Style", "width: 2rem; min-width: 2rem;");
             builder.AddAttribute(sequence++, "Title", action.DisplayName);
-            builder.AddAttribute(sequence++, "Disabled", !CanManage(container) || IsExecutingAction(container, action));
+            builder.AddAttribute(sequence++, "Disabled", !CanExecuteAction(container, action) || IsExecutingAction(container, action));
             builder.AddAttribute(sequence++, "OnClick",
                 EventCallback.Factory.Create<MouseEventArgs>(
                     this,
@@ -307,7 +365,7 @@ else
             {
                 menuBuilder.OpenComponent<FluentMenuItem>(menuSequence++);
                 menuBuilder.AddAttribute(menuSequence++, "Disabled",
-                    !CanManage(container) || IsExecutingAction(container, action));
+                    !CanExecuteAction(container, action) || IsExecutingAction(container, action));
                 menuBuilder.AddAttribute(menuSequence++, "OnClick",
                     EventCallback.Factory.Create<MouseEventArgs>(
                         this,
