@@ -60,11 +60,7 @@
             }
         </FluentSelect>
 
-        <div class="environment-editor">
-            <div class="environment-header">
-                <strong>Storage</strong>
-            </div>
-
+        <ResourceEditorSection Title="Storage">
             @if (GetVolumeCandidates().Count == 0)
             {
                 <div class="procedure-message compact">
@@ -93,7 +89,7 @@
                     Data will not be persisted unless a volume is mounted at /var/opt/mssql.
                 </div>
             }
-        </div>
+        </ResourceEditorSection>
 
         @if (ErrorMessage is not null)
         {

@@ -99,11 +99,7 @@
             }
         </FluentSelect>
 
-        <div class="environment-editor">
-            <div class="environment-header">
-                <strong>References</strong>
-            </div>
-
+        <ResourceEditorSection Title="References">
             @foreach (var resource in GetReferenceCandidates())
             {
                 <FluentCheckbox Value="@SelectedReferenceIds.Contains(resource.Id)"
@@ -111,19 +107,22 @@
                     @resource.Name
                 </FluentCheckbox>
             }
-        </div>
+        </ResourceEditorSection>
 
         <FluentCheckbox @bind-Value="WaitForReferences">
             Start referenced resources first
         </FluentCheckbox>
 
-        <div class="environment-editor">
-            <div class="environment-header">
+        <ResourceEditorSection>
+            <HeaderContent>
                 <strong>Volume mounts</strong>
+            </HeaderContent>
+            <Actions>
                 <FluentButton Appearance="Appearance.Neutral" OnClick="AddVolumeMount">
                     Add mount
                 </FluentButton>
-            </div>
+            </Actions>
+            <ChildContent>
 
             @if (GetVolumeCandidates().Count == 0)
             {
@@ -154,19 +153,23 @@
                     </div>
                 }
             }
-        </div>
+            </ChildContent>
+        </ResourceEditorSection>
 
         <FluentCheckbox @bind-Value="EnableObservability">
             Enable observability
         </FluentCheckbox>
 
-        <div class="environment-editor">
-            <div class="environment-header">
+        <ResourceEditorSection>
+            <HeaderContent>
                 <strong>Environment variables</strong>
+            </HeaderContent>
+            <Actions>
                 <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
                     Add variable
                 </FluentButton>
-            </div>
+            </Actions>
+            <ChildContent>
 
             @foreach (var variable in EnvironmentVariables)
             {
@@ -178,7 +181,8 @@
                     </FluentButton>
                 </div>
             }
-        </div>
+            </ChildContent>
+        </ResourceEditorSection>
 
         @if (ErrorMessage is not null)
         {

@@ -77,11 +77,7 @@
             }
         </FluentSelect>
 
-        <div class="environment-editor">
-            <div class="environment-header">
-                <strong>Dependencies</strong>
-            </div>
-
+        <ResourceEditorSection Title="Dependencies">
             @foreach (var resource in GetDependencyCandidates())
             {
                 <FluentCheckbox Value="@SelectedDependencyIds.Contains(resource.Id)"
@@ -89,15 +85,18 @@
                     @resource.Name
                 </FluentCheckbox>
             }
-        </div>
+        </ResourceEditorSection>
 
-        <div class="environment-editor">
-            <div class="environment-header">
+        <ResourceEditorSection>
+            <HeaderContent>
                 <strong>Environment variables</strong>
+            </HeaderContent>
+            <Actions>
                 <FluentButton Appearance="Appearance.Neutral" OnClick="AddEnvironmentVariable">
                     Add variable
                 </FluentButton>
-            </div>
+            </Actions>
+            <ChildContent>
 
             @foreach (var variable in EnvironmentVariables)
             {
@@ -109,7 +108,8 @@
                     </FluentButton>
                 </div>
             }
-        </div>
+            </ChildContent>
+        </ResourceEditorSection>
 
         @if (ErrorMessage is not null)
         {
