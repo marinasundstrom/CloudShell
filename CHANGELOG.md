@@ -95,6 +95,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application configuration and Storage tabs now consume the shared Resource
   Manager read-only cascade, disabling editable workload fields, dependency
   selectors, and volume-mount controls while guarding apply execution.
+- Resource Manager read-only UI messages and read-only procedure results are
+  now centralized in a shared helper so provider tabs do not repeat the same
+  string and result construction.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

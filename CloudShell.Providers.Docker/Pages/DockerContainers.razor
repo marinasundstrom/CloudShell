@@ -218,7 +218,7 @@ else
         if (!CanExecuteAction(container, action))
         {
             ProcedureMessage = IsReadOnly
-                ? "Resource Manager is in read-only mode."
+                ? ResourceManagerUiState.ReadOnlyMessage
                 : "The action is not available for this container.";
             return;
         }
@@ -252,7 +252,7 @@ else
         if (!CanExecuteAction(container, action))
         {
             ProcedureMessage = IsReadOnly
-                ? "Resource Manager is in read-only mode."
+                ? ResourceManagerUiState.ReadOnlyMessage
                 : "The action is not available for this container.";
             return;
         }

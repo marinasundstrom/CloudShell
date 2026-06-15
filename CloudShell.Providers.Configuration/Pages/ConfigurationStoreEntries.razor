@@ -89,7 +89,7 @@ else
     {
         if (IsReadOnly)
         {
-            return ResourceProcedureResult.Completed("Resource Manager is in read-only mode.");
+            return ResourceManagerUiState.ReadOnlyResult();
         }
 
         if (Store is null)
