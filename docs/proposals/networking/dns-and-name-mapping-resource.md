@@ -423,9 +423,10 @@ Projected DNS materialization should distinguish:
 
 * logical-only: CloudShell models the name but no provider will publish it
 * provider selected: a provider is responsible but applied state is unknown
-* applied: the provider observed the expected external record
-* drifted or failed: the provider observed missing, stale, or invalid external
-  state
+* published/applied: the provider observed or reported the expected external
+  record
+* drifted or failed: the provider observed missing, stale, invalid, or
+  unpublishable external state
 
 This lets Resource Manager answer the operational question: "Are the DNS
 settings applied now?" without requiring the DNS zone or name mapping to be a
@@ -490,7 +491,10 @@ decides later whether and how a specific name is materialized.
    `INamePublishingProvider` and `reconcileNameMappings` action support is in
    place for DNS zones with provider intent. The action validates conflicts,
    selected publisher resources, and missing activated publisher
-   implementations before delegating to the provider.
+   implementations before delegating to the provider. Resource Manager now
+   records the provider's last observed reconcile result and projects
+   `Published` or `PublishFailed` materialization status on affected
+   `cloudshell.nameMapping` resources.
 10. Add provider-backed examples for load balancer and virtual network integration.
 11. Add a local development provider for host-based name publication. Initial
     support is in place for exact host mappings under an explicit development
@@ -509,13 +513,13 @@ decides later whether and how a specific name is materialized.
 * Add Resource Manager update authoring UI for existing name mappings owned by
   a DNS zone.
 * Add provider-specific publish/materialization diagnostics from DNS provider
-  runtime state.
+  runtime state beyond the current last-reconcile observation.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add create/update blocking or guided resolution for duplicate names in the
   same scope when DNS/name mappings are authored through Resource Manager.
-* Add provider runtime publish diagnostics for local host-name reconciliation
-  failures, permissions, generated hosts-file targets, resolver-cache refresh
-  outcomes, and names that cannot be published.
+* Add richer provider runtime publish diagnostics for local host-name
+  reconciliation permissions, generated hosts-file targets, resolver-cache
+  refresh outcomes, and names that cannot be published.
 * Add richer UI affordances for authoring and resolving name mappings.
 * Add integration examples with virtual networks and ingress resources.
 * Decide the first provider-backed network-level service discovery sample.

@@ -84,6 +84,68 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
+    public void GetDiagnostics_WarnsWhenNameMappingPublishFailed()
+    {
+        var mapping = CreateNameMapping(
+            "networking:publisher",
+            materializationStatus: "PublishFailed",
+            materializationStatusReason: "Could not update hosts file.");
+        var provider = new Resource(
+            "networking:publisher",
+            "Publisher",
+            "Network provider",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [],
+            "publisher",
+            DateTimeOffset.UtcNow,
+            [],
+            Capabilities: [new(ResourceCapabilityIds.NetworkingNamePublisher)]);
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            mapping,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
+            {
+                [provider.Id] = provider
+            });
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Name mapping publish failed", diagnostic.Title);
+        Assert.Equal("Could not update hosts file.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_DoesNotWarnWhenNameMappingIsPublished()
+    {
+        var mapping = CreateNameMapping(
+            "networking:publisher",
+            materializationStatus: "Published");
+        var provider = new Resource(
+            "networking:publisher",
+            "Publisher",
+            "Network provider",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [],
+            "publisher",
+            DateTimeOffset.UtcNow,
+            [],
+            Capabilities: [new(ResourceCapabilityIds.NetworkingNamePublisher)]);
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            mapping,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
+            {
+                [provider.Id] = provider
+            });
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
     public void GetDiagnostics_WarnsWhenEndpointMappingProviderResourceIsMissing()
     {
         var network = CreateNetworkWithEndpointMapping(providerResourceId: "networking:missing");
@@ -305,7 +367,10 @@ public sealed class ResourceDiagnosticDisplayTests
         Assert.Empty(diagnostics);
     }
 
-    private static Resource CreateNameMapping(string providerResourceId) =>
+    private static Resource CreateNameMapping(
+        string providerResourceId,
+        string materializationStatus = "ProviderSelected",
+        string? materializationStatusReason = null) =>
         new(
             "dns:local:name:api-local",
             "api.local",
@@ -325,7 +390,9 @@ public sealed class ResourceDiagnosticDisplayTests
                 [ResourceAttributeNames.NameMappingTargetResourceId] = "application:api",
                 [ResourceAttributeNames.NameMappingExposure] = ResourceExposureScope.Public.ToString(),
                 [ResourceAttributeNames.NameMappingStatus] = "Ready",
-                [ResourceAttributeNames.NameMappingMaterializationStatus] = "ProviderSelected",
+                [ResourceAttributeNames.NameMappingMaterializationStatus] = materializationStatus,
+                [ResourceAttributeNames.NameMappingMaterializationStatusReason] =
+                    materializationStatusReason ?? "Provider selected.",
                 [ResourceAttributeNames.NameMappingProviderResourceId] = providerResourceId
             },
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);

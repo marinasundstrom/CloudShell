@@ -65,6 +65,10 @@ on `git blame --follow`, and then by the broad type of change.
 - The local host-networking provider now has direct Control Plane test coverage
   that provisions a real localhost endpoint mapping and verifies TCP traffic is
   forwarded through the local proxy.
+- DNS/name-mapping reconciliation now records the provider's last runtime
+  observation. Name mappings affected by a reconcile action project
+  `Published` or `PublishFailed` materialization status, and generated
+  Resource Manager diagnostics warn when publishing failed.
 
 #### Samples
 

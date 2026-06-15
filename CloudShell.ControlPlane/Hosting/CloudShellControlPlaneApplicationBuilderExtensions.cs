@@ -77,6 +77,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ProcessLocalHostNameResolverCacheRefreshCommandRunner>();
         builder.Services.TryAddSingleton<ILocalHostNameResolverCacheRefresher, LocalHostNameResolverCacheRefresher>();
         builder.Services.TryAddSingleton<PlatformResourceStore>();
+        builder.Services.TryAddSingleton<DnsNamePublishingObservationStore>();
         builder.Services.TryAddSingleton<LocalHostNamePublishingProvider>();
         builder.Services.TryAddSingleton<LocalHostNetworkProvisioner>();
         builder.Services.TryAddSingleton<LocalHostNetworkProvider>();

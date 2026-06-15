@@ -35,17 +35,7 @@ public static class ResourceDiagnosticDisplay
                     "This name mapping is not ready."));
         }
 
-        if (resource.ResourceAttributes.TryGetValue(
-                ResourceAttributeNames.NameMappingMaterializationStatus,
-                out var materializationStatus) &&
-            string.Equals(materializationStatus, "LogicalOnly", StringComparison.OrdinalIgnoreCase))
-        {
-            diagnostics.Add(new ResourceDiagnosticView(
-                "Warning",
-                "Name mapping is logical only",
-                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NameMappingMaterializationStatusReason) ??
-                    "No DNS publishing provider is selected for this name mapping."));
-        }
+        AddNameMappingMaterializationDiagnostics(resource, diagnostics);
 
         AddNamePublisherDiagnostics(resource, relatedResources, diagnostics);
         AddEndpointMappingDiagnostics(resource, relatedResources, diagnostics);
@@ -53,6 +43,37 @@ public static class ResourceDiagnosticDisplay
         AddVolumeMountMaterializationDiagnostics(resource, diagnostics);
 
         return diagnostics;
+    }
+
+    private static void AddNameMappingMaterializationDiagnostics(
+        Resource resource,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        if (!resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingMaterializationStatus,
+                out var materializationStatus))
+        {
+            return;
+        }
+
+        if (string.Equals(materializationStatus, "LogicalOnly", StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Name mapping is logical only",
+                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NameMappingMaterializationStatusReason) ??
+                    "No DNS publishing provider is selected for this name mapping."));
+            return;
+        }
+
+        if (string.Equals(materializationStatus, "PublishFailed", StringComparison.OrdinalIgnoreCase))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Name mapping publish failed",
+                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NameMappingMaterializationStatusReason) ??
+                    "CloudShell could not publish this name mapping."));
+        }
     }
 
     private static void AddVolumeMountMaterializationDiagnostics(

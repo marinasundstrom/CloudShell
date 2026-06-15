@@ -13,7 +13,8 @@ public sealed class PlatformResourceProvider(
     IHostLocalNetworkEnvironment? hostLocalNetworkEnvironment = null,
     IEnumerable<IResourceEndpointMappingProvisioner>? endpointMappingProvisioners = null,
     IEnumerable<ILoadBalancerProvider>? loadBalancerProviders = null,
-    IEnumerable<INamePublishingProvider>? namePublishingProviders = null) :
+    IEnumerable<INamePublishingProvider>? namePublishingProviders = null,
+    DnsNamePublishingObservationStore? namePublishingObservationStore = null) :
     IResourceProvider,
     IResourceCreationProvider,
     IResourceProcedureProvider,
@@ -45,6 +46,8 @@ public sealed class PlatformResourceProvider(
         loadBalancerProviders?.ToArray() ?? [];
     private readonly IReadOnlyList<INamePublishingProvider> namePublishingProviders =
         namePublishingProviders?.ToArray() ?? [];
+    private readonly DnsNamePublishingObservationStore namePublishingObservations =
+        namePublishingObservationStore ?? new DnsNamePublishingObservationStore();
 
     private static readonly ResourceAction ReconcileEndpointMappingsAction = new(
         ReconcileEndpointMappingsActionId,
@@ -1037,7 +1040,21 @@ public sealed class PlatformResourceProvider(
                 $"No activated DNS publishing provider can reconcile name mappings for DNS zone resource '{context.Resource.Id}'.");
         }
 
-        return await provider.ReconcileAsync(providerContext, cancellationToken);
+        try
+        {
+            var result = await provider.ReconcileAsync(providerContext, cancellationToken);
+            namePublishingObservations.RecordPublished(providerContext, provider.ProviderName, result);
+            return result;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            namePublishingObservations.RecordFailed(providerContext, provider.ProviderName, exception.Message);
+            throw;
+        }
     }
 
     private string? GetNameMappingUnavailableReason(ResourceProcedureContext context)
@@ -1836,22 +1853,26 @@ public sealed class PlatformResourceProvider(
     private IReadOnlyList<Resource> CreateNameMappingResources(DnsZoneResourceDefinition zone) =>
         CreateNameMappingResources(
             zone,
-            GetConflictingNameMappingIds(zone));
+            GetConflictingNameMappingIds(zone),
+            namePublishingObservations.GetObservation(zone.Id));
 
     private IReadOnlyList<Resource> CreateNameMappingResources(
         DnsZoneResourceDefinition zone,
-        HashSet<string> conflictingMappingIds) =>
+        HashSet<string> conflictingMappingIds,
+        DnsNamePublishingObservation? publishingObservation) =>
         zone.DnsNameMappings
             .Select(mapping => CreateNameMappingResource(
                 zone,
                 mapping,
-                conflictingMappingIds.Contains(mapping.Id)))
+                conflictingMappingIds.Contains(mapping.Id),
+                publishingObservation))
             .ToArray();
 
     private Resource CreateNameMappingResource(
         DnsZoneResourceDefinition zone,
         DnsNameMappingDefinition mapping,
-        bool hasConflict)
+        bool hasConflict,
+        DnsNamePublishingObservation? publishingObservation)
     {
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -1860,9 +1881,9 @@ public sealed class PlatformResourceProvider(
             [ResourceAttributeNames.NameMappingExposure] = mapping.Exposure.ToString(),
             [ResourceAttributeNames.NameMappingStatus] = hasConflict ? "Conflict" : "Ready",
             [ResourceAttributeNames.NameMappingMaterializationStatus] =
-                GetNameMappingMaterializationStatus(zone, mapping),
+                GetNameMappingMaterializationStatus(zone, mapping, publishingObservation),
             [ResourceAttributeNames.NameMappingMaterializationStatusReason] =
-                GetNameMappingMaterializationStatusReason(zone, mapping),
+                GetNameMappingMaterializationStatusReason(zone, mapping, publishingObservation),
             [ResourceAttributeNames.DnsZoneName] = zone.ZoneName,
             [ResourceAttributeNames.DnsProvider] =
                 string.IsNullOrWhiteSpace(zone.Provider) ? "logical" : zone.Provider
@@ -1922,13 +1943,38 @@ public sealed class PlatformResourceProvider(
 
     private static string GetNameMappingMaterializationStatus(
         DnsZoneResourceDefinition zone,
-        DnsNameMappingDefinition mapping) =>
-        HasNameMappingProvider(zone, mapping) ? "ProviderSelected" : "LogicalOnly";
+        DnsNameMappingDefinition mapping,
+        DnsNamePublishingObservation? publishingObservation)
+    {
+        if (!HasNameMappingProvider(zone, mapping))
+        {
+            return "LogicalOnly";
+        }
+
+        if (TryGetPublishingObservationForMapping(mapping, publishingObservation, out var observation))
+        {
+            return observation.Status switch
+            {
+                DnsNamePublishingObservationStatus.Published => "Published",
+                DnsNamePublishingObservationStatus.Failed => "PublishFailed",
+                _ => "ProviderSelected"
+            };
+        }
+
+        return "ProviderSelected";
+    }
 
     private static string GetNameMappingMaterializationStatusReason(
         DnsZoneResourceDefinition zone,
-        DnsNameMappingDefinition mapping)
+        DnsNameMappingDefinition mapping,
+        DnsNamePublishingObservation? publishingObservation)
     {
+        if (TryGetPublishingObservationForMapping(mapping, publishingObservation, out var observation))
+        {
+            var observedAt = observation.ObservedAt.ToString("u", CultureInfo.InvariantCulture);
+            return $"{observation.Message} Observed at {observedAt} by provider '{observation.ProviderName}'.";
+        }
+
         if (!string.IsNullOrWhiteSpace(mapping.ProviderResourceId))
         {
             return $"Provider resource '{mapping.ProviderResourceId}' is responsible for publishing this name.";
@@ -1941,6 +1987,25 @@ public sealed class PlatformResourceProvider(
 
         return "No DNS publishing provider is selected. CloudShell models the name mapping, but it will not publish DNS records for this host.";
     }
+
+    private static bool TryGetPublishingObservationForMapping(
+        DnsNameMappingDefinition mapping,
+        DnsNamePublishingObservation? publishingObservation,
+        out DnsNamePublishingObservation observation)
+    {
+        observation = publishingObservation!;
+        if (publishingObservation is null)
+        {
+            return false;
+        }
+
+        var hostName = NormalizeNameMappingHostName(mapping.HostName);
+        return publishingObservation.HostNames.Any(host =>
+            string.Equals(host, hostName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizeNameMappingHostName(string hostName) =>
+        hostName.Trim().TrimEnd('.').ToLowerInvariant();
 
     private static bool HasNameMappingProvider(
         DnsZoneResourceDefinition zone,

@@ -3720,6 +3720,81 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("application:api", mapping.TargetResource.Id);
         Assert.Equal("http", mapping.TargetEndpoint?.Name);
         Assert.Null(mapping.PublisherResource);
+
+        var projectedMapping = Assert.Single(
+            provider.GetResources(),
+            resource => resource.Id == "dns:local:name:api-local");
+        Assert.Equal(
+            "Published",
+            projectedMapping.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatus]);
+        Assert.Contains(
+            "Reconciled name mappings.",
+            projectedMapping.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatusReason],
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "provider 'hosts-file'",
+            projectedMapping.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatusReason],
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_ProjectsDnsNameMappingPublishFailureObservation()
+    {
+        var definition = new DnsZoneResourceDefinition(
+            "dns:local",
+            "Local DNS",
+            "local",
+            Provider: "hosts-file",
+            Mappings:
+            [
+                new DnsNameMappingDefinition(
+                    "dns:local:name:api-local",
+                    "api.local",
+                    "api.local",
+                    "application:api",
+                    "http")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredDnsZones.Add(new DeclaredDnsZoneResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var namePublisher = new TestNamePublishingProvider(
+            "hosts-file",
+            exception: new InvalidOperationException("Could not update hosts file."));
+        var provider = new PlatformResourceProvider(
+            store,
+            options,
+            namePublishingProviders: [namePublisher]);
+        var zone = Assert.Single(provider.GetResources(), resource => resource.Id == "dns:local");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                zone,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080")
+            ],
+            [provider]);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.ExecuteActionAsync(
+                new ResourceProcedureContext(
+                    zone,
+                    new ResourceRegistration(zone.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                    null,
+                    new TestResourceRegistrationStore([]),
+                    resourceManager),
+                zone.ResourceActions.Single()));
+
+        Assert.Equal("Could not update hosts file.", exception.Message);
+        var projectedMapping = Assert.Single(
+            provider.GetResources(),
+            resource => resource.Id == "dns:local:name:api-local");
+        Assert.Equal(
+            "PublishFailed",
+            projectedMapping.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatus]);
+        Assert.Contains(
+            "Could not update hosts file.",
+            projectedMapping.ResourceAttributes[ResourceAttributeNames.NameMappingMaterializationStatusReason],
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -6425,7 +6500,10 @@ public sealed class ResourceDeclarationTests
         }
     }
 
-    private sealed class TestNamePublishingProvider(string providerName) : INamePublishingProvider
+    private sealed class TestNamePublishingProvider(
+        string providerName,
+        ResourceProcedureResult? result = null,
+        Exception? exception = null) : INamePublishingProvider
     {
         public string ProviderName => providerName;
 
@@ -6440,7 +6518,12 @@ public sealed class ResourceDeclarationTests
             CancellationToken cancellationToken = default)
         {
             Context = context;
-            return Task.FromResult(ResourceProcedureResult.Completed("Reconciled name mappings."));
+            if (exception is not null)
+            {
+                throw exception;
+            }
+
+            return Task.FromResult(result ?? ResourceProcedureResult.Completed("Reconciled name mappings."));
         }
     }
 

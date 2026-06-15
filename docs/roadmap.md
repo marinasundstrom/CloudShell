@@ -198,9 +198,11 @@ listed here before pulling in broader proposal work.
   activated publisher implementations. A concrete local development publisher
   now handles exact host mappings under an explicit suffix through
   `local-hostnames`. Resource Manager create flows can choose that publisher
-  and warn about `.local` suffixes. Next it needs provider runtime publish
-  diagnostics, observed materialization state, and update UI for existing name
-  mappings when the MVP management flow needs them.
+  and warn about `.local` suffixes. Name mappings now project the last
+  provider reconcile observation as `Published` or `PublishFailed` so users can
+  distinguish selected-provider intent from a recent publish result. Next it
+  needs update UI for existing name mappings and richer provider-specific DNS
+  diagnostics when the MVP management flow needs them.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when
@@ -465,10 +467,11 @@ listed here before pulling in broader proposal work.
   operators can force re-apply expected records. Exact local host-name
   publication under an explicit development suffix is now implemented through
   `local-hostnames`, and Resource Manager create flows expose that provider
-  with `.local` suffix warnings. Wildcard suffixes, public DNS propagation,
-  provider runtime publish diagnostics, and observed external DNS states such
-  as applied, unknown, drifted, or failed remain provider-specific follow-up
-  work.
+  with `.local` suffix warnings. The last provider reconcile result now feeds
+  observed name-mapping materialization attributes and publish-failure
+  diagnostics. Wildcard suffixes, public DNS propagation, richer provider
+  runtime diagnostics, and observed external DNS states such as unknown or
+  drifted remain provider-specific follow-up work.
 - Continue load balancer support beyond the first Traefik file-config provider.
   Generated Resource Manager diagnostics now cover missing selected host
   resources and missing route target resources/endpoints; next add provider
