@@ -121,7 +121,12 @@ public sealed class AuthorizedResourceRegistrationStore(
         authorization.CanAccessResource(
             registration.ResourceId,
             registration.ResourceGroupId,
-            permission);
+            permission) ||
+        string.Equals(permission, CloudShellPermissions.Resources.Read, StringComparison.OrdinalIgnoreCase) &&
+        authorization.CanAccessResource(
+            registration.ResourceId,
+            registration.ResourceGroupId,
+            CloudShellPermissions.Resources.Manage);
 
     private void EnsureAccess(ResourceRegistration registration, string permission) =>
         EnsureAccess(registration.ResourceId, registration.ResourceGroupId, permission);

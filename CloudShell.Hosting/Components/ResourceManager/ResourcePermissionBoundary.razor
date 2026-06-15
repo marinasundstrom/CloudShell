@@ -63,9 +63,14 @@ else if (NotAuthorized is not null)
                 : ResourceManagerUiAccess.GetResourceGroupId(ResourceGroupsByResourceId, Resource.Id));
 
         return RequireAll
-            ? permissions.All(permission => Authorization.CanAccessResource(Resource.Id, groupId, permission))
-            : permissions.Any(permission => Authorization.CanAccessResource(Resource.Id, groupId, permission));
+            ? permissions.All(permission => CanAccessResource(permission, groupId))
+            : permissions.Any(permission => CanAccessResource(permission, groupId));
     }
+
+    private bool CanAccessResource(string permission, string? resourceGroupId) =>
+        string.Equals(permission, CloudShellPermissions.Resources.Read, StringComparison.OrdinalIgnoreCase)
+            ? ResourceManagerUiAccess.CanReadResource(Authorization, Resource!, resourceGroupId)
+            : Authorization.CanAccessResource(Resource!.Id, resourceGroupId, permission);
 
     private IReadOnlyList<string> GetPermissions()
     {

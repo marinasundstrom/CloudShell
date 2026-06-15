@@ -118,6 +118,30 @@ public sealed class RemoteControlPlaneAuthenticationTests
     }
 
     [Fact]
+    public async Task ResourcePermissionCredential_CanInspectManagedResourceWithoutReadClaim()
+    {
+        await using var app = await CreateProtectedAppAsync(includeLifecycleResource: true);
+        var token = await GetTokenAsync(
+            app.GetTestClient(),
+            "cloudshell-resource-manager",
+            "local-development-resource-manager-secret");
+        var controlPlane = CreateClient(
+            app,
+            new StaticBearerControlPlaneCredential(token),
+            CreateOptions());
+
+        var resource = await controlPlane.GetResourceAsync(ContractLifecycleResourceProvider.ResourceId);
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync(
+            [ContractLifecycleResourceProvider.ResourceId]);
+
+        Assert.NotNull(resource);
+        Assert.Equal(ContractLifecycleResourceProvider.ResourceId, resource.Id);
+        var capability = Assert.Single(capabilities).Value;
+        Assert.True(capability.CanManage);
+        Assert.True(capability.CanDelete);
+    }
+
+    [Fact]
     public async Task EmptyCredential_CannotCallProtectedControlPlane()
     {
         await using var app = await CreateProtectedAppAsync();
@@ -196,6 +220,14 @@ public sealed class RemoteControlPlaneAuthenticationTests
                 ContractLifecycleResourceProvider.ResourceId,
             ["Authentication:BuiltInAuthority:Clients:cloudshell-lifecycle:ResourcePermissions:1:Permission"] =
                 CloudShellPermissions.Resources.Actions.Lifecycle,
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-resource-manager:Secret"] =
+                "local-development-resource-manager-secret",
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-resource-manager:Scopes:0"] =
+                "ControlPlane.Access",
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-resource-manager:ResourcePermissions:0:ResourceId"] =
+                ContractLifecycleResourceProvider.ResourceId,
+            ["Authentication:BuiltInAuthority:Clients:cloudshell-resource-manager:ResourcePermissions:0:Permission"] =
+                CloudShellPermissions.Resources.Manage,
             ["Persistence:Provider"] = "Sqlite",
             ["Persistence:ConnectionString"] = "Data Source=Data/cloudshell-client-auth.db",
             ["Persistence:IdentityConnectionString"] = "Data Source=Data/identity-client-auth.db"

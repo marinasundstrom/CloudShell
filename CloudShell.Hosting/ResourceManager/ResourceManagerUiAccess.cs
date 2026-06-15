@@ -52,17 +52,36 @@ public static class ResourceManagerUiAccess
         ICloudShellAuthorizationService authorization,
         Resource resource,
         IReadOnlyDictionary<string, ResourceGroup> groupsByResourceId) =>
+        CanManageResource(
+            authorization,
+            resource,
+            GetResourceGroupId(groupsByResourceId, resource.Id));
+
+    public static bool CanManageResource(
+        ICloudShellAuthorizationService authorization,
+        Resource resource,
+        string? resourceGroupId) =>
         authorization.CanAccessResource(
             resource.Id,
-            GetResourceGroupId(groupsByResourceId, resource.Id),
+            resourceGroupId,
             CloudShellPermissions.Resources.Manage);
 
     public static bool CanReadResource(
         ICloudShellAuthorizationService authorization,
         Resource resource,
         IReadOnlyDictionary<string, ResourceGroup> groupsByResourceId) =>
+        CanReadResource(
+            authorization,
+            resource,
+            GetResourceGroupId(groupsByResourceId, resource.Id));
+
+    public static bool CanReadResource(
+        ICloudShellAuthorizationService authorization,
+        Resource resource,
+        string? resourceGroupId) =>
         authorization.CanAccessResource(
             resource.Id,
-            GetResourceGroupId(groupsByResourceId, resource.Id),
-            CloudShellPermissions.Resources.Read);
+            resourceGroupId,
+            CloudShellPermissions.Resources.Read) ||
+        CanManageResource(authorization, resource, resourceGroupId);
 }

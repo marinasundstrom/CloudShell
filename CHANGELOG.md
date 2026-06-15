@@ -130,6 +130,10 @@ on `git blame --follow`, and then by the broad type of change.
   bearer credential with resource-scoped read and lifecycle-action claims,
   proving protected API/client calls can inspect resource capabilities and
   execute permitted lifecycle actions without manage/delete permission.
+- Resource Manager visibility now treats resource-scoped `resources.manage`
+  grants as sufficient to inspect the managed resource and load operation
+  capabilities, without broadening data-plane permissions such as secrets or
+  configuration value access.
 - Resource detail pages now use Resource Manager operation capabilities for
   apply-button visibility and apply execution guards, keeping update affordance
   checks aligned with inventory manage/delete/action checks.

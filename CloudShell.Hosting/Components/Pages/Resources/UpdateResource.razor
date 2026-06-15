@@ -238,7 +238,7 @@
             : await ResourceManager.GetResourceGroupForResourceAsync(Resource.Id);
 
         if (Resource is not null &&
-            !Authorization.CanAccessResource(Resource.Id, ResourceGroup?.Id, CloudShellPermissions.Resources.Read))
+            !ResourceManagerUiAccess.CanReadResource(Authorization, Resource, ResourceGroup?.Id))
         {
             Navigation.NavigateTo("/account/access-denied");
         }
