@@ -31,9 +31,11 @@ The SQL Server resource is intentionally sample-local composition over the
 current container app primitives. It uses Docker through
 `UseLocalDevelopmentDefaults()`, publishes a local `tds` endpoint on
 `localhost:14334`, and mounts a Local Storage-backed volume so database files
-can survive restarts of the SQL Server resource. The backend API already
-references and depends on SQL Server, but it does not query the database yet;
-that is the next slice for this sample.
+can survive restarts of the SQL Server resource. The backend API references
+SQL Server through CloudShell service discovery and exposes `/database`, which
+opens a SQL connection and executes a small timestamp query. The frontend
+calls both `/message` and `/database` through the API so the sample exercises
+frontend-to-API and API-to-SQL dependencies.
 
 ## Run
 
@@ -57,6 +59,18 @@ Frontend` resource. Open:
 http://localhost:5218/upstream
 ```
 
+You can override the SQL Server development password with:
+
+```json
+{
+  "ApplicationTopology": {
+    "SqlServer": {
+      "Password": "Your-strong-dev-password!"
+    }
+  }
+}
+```
+
 Runtime state is stored under `samples/ApplicationTopology/Host/Data/` and is
 ignored by git.
 
@@ -70,7 +84,8 @@ platform services are exercised.
 
 Planned capabilities to add here:
 
-- Backend API data access through the SQL Server dependency.
+- Identity-backed SQL Server authentication, so the API can use its CloudShell
+  resource identity to access the database in an Azure-like flow.
 - Configuration Store and Secrets Vault references consumed by the backend API.
 - Resource identity and scoped grants for protected configuration and secret
   access when enforcement is enabled.

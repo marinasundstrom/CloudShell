@@ -1,4 +1,5 @@
 using CloudShell.ApplicationTopology.ServiceDefaults;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 
 var builder = CloudShellApplication.CreateBuilder(args);
@@ -45,6 +46,83 @@ app.MapGet("/message", async (
     return Results.Ok(message);
 });
 
+app.MapGet("/database", async (
+    IConfiguration configuration,
+    ILoggerFactory loggerFactory,
+    CancellationToken cancellationToken) =>
+{
+    var logger = loggerFactory.CreateLogger("CloudShell.ApplicationTopology.Api");
+    using var activity = ApplicationTopologyTraceSources.ActivitySource.StartActivity(
+        "api.check-sql-server",
+        ActivityKind.Client);
+    activity?.SetTag("cloudshell.sample.resource", "application-topology-api");
+    activity?.SetTag("cloudshell.sample.dependency", "application-topology-sql-server");
+
+    var endpoint = configuration.GetRequiredResourceUri("application-topology-sql-server", "tds");
+    activity?.SetTag("cloudshell.sample.sql_endpoint", endpoint.ToString());
+    logger.LogInformation(
+        ApplicationTopologyLogEvents.CheckingDatabase,
+        "Checking SQL Server dependency at {SqlEndpoint}",
+        endpoint);
+
+    await using var connection = new SqlConnection(CreateSqlConnectionString(configuration, endpoint));
+    await connection.OpenAsync(cancellationToken);
+    await using var command = connection.CreateCommand();
+    command.CommandText = "SELECT SYSDATETIMEOFFSET()";
+    var databaseTimestamp = (DateTimeOffset)(await command.ExecuteScalarAsync(cancellationToken)
+        ?? throw new InvalidOperationException("SQL Server did not return a timestamp."));
+
+    activity?.SetTag("db.system", "mssql");
+    activity?.SetTag("db.operation.name", "SELECT");
+    logger.LogInformation(
+        ApplicationTopologyLogEvents.DatabaseChecked,
+        "Checked SQL Server dependency at {SqlEndpoint}",
+        endpoint);
+
+    return Results.Ok(new DatabaseCheck(
+        "ok",
+        endpoint.ToString(),
+        "mssql",
+        databaseTimestamp));
+});
+
 app.Run();
 
+static string CreateSqlConnectionString(IConfiguration configuration, Uri endpoint)
+{
+    var builder = new SqlConnectionStringBuilder
+    {
+        DataSource = CreateSqlDataSource(endpoint),
+        UserID = configuration["ApplicationTopology:SqlServer:User"] ?? "sa",
+        Password = configuration["ApplicationTopology:SqlServer:Password"]
+            ?? throw new InvalidOperationException(
+                "ApplicationTopology:SqlServer:Password is required."),
+        InitialCatalog = "master",
+        Encrypt = false,
+        TrustServerCertificate = true,
+        ConnectTimeout = 5
+    };
+    return builder.ConnectionString;
+}
+
+static string CreateSqlDataSource(Uri endpoint)
+{
+    var host = endpoint.Host;
+    if (string.IsNullOrWhiteSpace(host))
+    {
+        throw new InvalidOperationException(
+            $"SQL Server endpoint '{endpoint}' does not include a host.");
+    }
+
+    return endpoint.Port > 0
+        ? $"{host},{endpoint.Port}"
+        : host;
+}
+
 internal sealed record ApiMessage(string Message, string Machine);
+
+internal sealed record DatabaseCheck(
+    string Status,
+    string Endpoint,
+    string Provider,
+    DateTimeOffset DatabaseTimestamp);

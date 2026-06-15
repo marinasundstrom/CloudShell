@@ -20,6 +20,8 @@ var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoi
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/traces/ingest";
 var frontendEndpoint = builder.Configuration["ApplicationTopology:FrontendEndpoint"]
     ?? "http://localhost:5218";
+var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
+    ?? SqlServerResourceBuilderExtensions.DefaultPassword;
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -46,7 +48,7 @@ cloudShell.Resources(resources =>
         .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
 
     var sqlServer = resources
-        .AddSqlServer("application-topology-sql-server", dataVolume: sqlData)
+        .AddSqlServer("application-topology-sql-server", sqlPassword, sqlData)
         .WithImage("mcr.microsoft.com/mssql/server:2022-latest");
 
     var api = resources.AddAspNetCoreProject(
@@ -57,6 +59,8 @@ cloudShell.Resources(resources =>
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+        .WithEnvironment("ApplicationTopology__SqlServer__User", "sa")
+        .WithEnvironment("ApplicationTopology__SqlServer__Password", sqlPassword)
         .WithReference(sqlServer)
         .DependsOn(sqlServer);
 

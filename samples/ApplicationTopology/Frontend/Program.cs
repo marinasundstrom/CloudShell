@@ -37,21 +37,33 @@ app.MapGet("/upstream", async (
     var message = await client.GetFromJsonAsync<ApiMessage>(
         "/message",
         cancellationToken);
+    var database = await client.GetFromJsonAsync<DatabaseCheck>(
+        "/database",
+        cancellationToken);
     activity?.SetTag("cloudshell.sample.upstream_machine", message?.Machine ?? "unknown");
+    activity?.SetTag("cloudshell.sample.database_status", database?.Status ?? "unknown");
     logger.LogInformation(
         ApplicationTopologyLogEvents.ApiResponseReceived,
-        "Received message from {UpstreamMachine}",
-        message?.Machine ?? "unknown");
+        "Received message from {UpstreamMachine} with database status {DatabaseStatus}",
+        message?.Machine ?? "unknown",
+        database?.Status ?? "unknown");
 
     return Results.Ok(new
     {
         frontend = "Application Topology Frontend",
         logicalApiEndpoint = "https+http://application-topology-api",
         resolvedApiEndpoint = endpoint.ToString(),
-        upstream = message
+        upstream = message,
+        database
     });
 });
 
 app.Run();
 
 internal sealed record ApiMessage(string Message, string Machine);
+
+internal sealed record DatabaseCheck(
+    string Status,
+    string Endpoint,
+    string Provider,
+    DateTimeOffset DatabaseTimestamp);

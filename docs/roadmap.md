@@ -231,9 +231,11 @@ listed here before pulling in broader proposal work.
   logs, traces, container apps, and networking should converge as those
   primitives stabilize. The first ApplicationTopology SQL/storage slice is in
   place: Local Storage, a storage-owned SQL data volume, and a sample-local SQL
-  Server container app are declared, with the backend API referencing and
-  depending on SQL Server. Next sample work should make the API actually
-  consume the SQL endpoint.
+  Server container app are declared, with the backend API resolving SQL Server
+  through CloudShell service discovery and exposing a `/database` check that
+  the frontend calls through the API. A later SQL/database identity slice
+  should let application resources use CloudShell resource identity for
+  database authentication in an Azure-like flow.
 - Treat the Settings and Secrets sample as the current proof of the developer
   service-integration flow: a resource can model settings and secrets first,
   then opt into identity and resource-scoped grants when access enforcement is

@@ -106,6 +106,10 @@ public static class ApplicationTopologyLogEvents
     public static readonly EventId PreparingMessage = new(2000, nameof(PreparingMessage));
 
     public static readonly EventId MessagePrepared = new(2001, nameof(MessagePrepared));
+
+    public static readonly EventId CheckingDatabase = new(2100, nameof(CheckingDatabase));
+
+    public static readonly EventId DatabaseChecked = new(2101, nameof(DatabaseChecked));
 }
 
 internal sealed class CloudShellTraceExporter(HttpClient httpClient, IHostEnvironment environment) :

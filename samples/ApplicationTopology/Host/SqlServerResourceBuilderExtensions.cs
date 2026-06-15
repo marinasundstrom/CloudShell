@@ -6,7 +6,7 @@ namespace CloudShell.ApplicationTopology;
 public static class SqlServerResourceBuilderExtensions
 {
     private const string DefaultSqlServerImage = "mcr.microsoft.com/mssql/server:2022-latest";
-    private const string DefaultPassword = "CloudShell-Passw0rd!";
+    public const string DefaultPassword = "CloudShell-Passw0rd!";
 
     public static IContainerResourceBuilder AddSqlServer(
         this IResourceDeclarationBuilder resources,

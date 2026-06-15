@@ -76,8 +76,12 @@ expectations rather than duplicating the task queue.
   container apps, and networking as those primitives stabilize. The first
   ApplicationTopology composition slice now declares Local Storage, a
   storage-owned SQL data volume, and a sample-local SQL Server container app;
-  the backend API references and depends on SQL Server, but database access is
-  deferred to the next sample slice.
+  the backend API references SQL Server through CloudShell service discovery,
+  exposes a `/database` check endpoint, and the frontend calls that endpoint
+  through the API so the sample exercises frontend-to-API and API-to-SQL
+  dependencies. Identity-backed SQL/database authentication is explicitly
+  deferred; the intended later goal is for the API to use its CloudShell
+  resource identity to access SQL Server in an Azure-like flow.
 - The next MVP product focus is the application environment management path:
   container applications, app-owned exposure and application-level discovery,
   virtual networks, public endpoint exposure, load-balancer routes, and
