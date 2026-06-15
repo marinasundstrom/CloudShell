@@ -3180,9 +3180,7 @@ public sealed partial class ApplicationResourceProvider(
 
     private ApplicationResourceDefinition NormalizeDefinition(ApplicationResourceDefinition definition)
     {
-        var id = string.IsNullOrWhiteSpace(definition.Id)
-            ? CreateId(definition.Name)
-            : definition.Id.Trim();
+        var id = NormalizeApplicationId(definition.Id, definition.Name);
         var resourceType = NormalizeResourceType(definition.ResourceType);
         var isAspNetCoreProject = string.Equals(
             resourceType,
@@ -4701,14 +4699,19 @@ public sealed partial class ApplicationResourceProvider(
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim();
 
     private static string CreateId(string name)
-    {
-        var slug = SlugPattern()
-            .Replace(name.Trim().ToLowerInvariant(), "-")
-            .Trim('-');
+        => ResourceId.FromName("application", name).Value;
 
-        return string.IsNullOrWhiteSpace(slug)
-            ? $"application:{Guid.NewGuid():N}"
-            : $"application:{slug}";
+    private static string NormalizeApplicationId(string? id, string name)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return CreateId(name);
+        }
+
+        var normalized = id.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : CreateId(normalized);
     }
 
     private string CreateUniqueImportId(string name) =>

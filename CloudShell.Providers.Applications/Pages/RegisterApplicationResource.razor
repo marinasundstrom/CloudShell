@@ -22,7 +22,7 @@
 
         <ResourceIdentityFields ResourceIdInputId="application-resource-id"
                                 DisplayNameInputId="application-display-name"
-                                ResourceIdPlaceholder="application:example-api"
+                                ResourceIdPlaceholder="example-api"
                                 @bind-ResourceId="ResourceId"
                                 @bind-DisplayName="Name" />
 
@@ -190,15 +190,15 @@
         ErrorMessage = null;
         if (string.IsNullOrWhiteSpace(ResourceId) || string.IsNullOrWhiteSpace(ExecutablePath))
         {
-            ErrorMessage = "Resource ID and executable path are required.";
+            ErrorMessage = "Name and executable path are required.";
             return;
         }
 
-        var normalizedResourceId = ResourceId.Trim();
+        var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "application");
         if (!string.IsNullOrWhiteSpace(normalizedResourceId) &&
             IsResourceIdInUse(normalizedResourceId, ApplicationId))
         {
-            ErrorMessage = $"Resource ID '{normalizedResourceId}' is already in use.";
+            ErrorMessage = $"Name '{ResourceId.Trim()}' resolves to existing resource '{normalizedResourceId}'.";
             return;
         }
 
@@ -208,7 +208,7 @@
             return;
         }
 
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
             displayName,

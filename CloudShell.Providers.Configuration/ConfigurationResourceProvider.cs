@@ -384,6 +384,19 @@ public sealed partial class ConfigurationResourceProvider :
             : $"configuration:{slug}";
     }
 
+    private static string NormalizeConfigurationStoreId(string? id, string name)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return CreateId(name);
+        }
+
+        var normalized = id.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : CreateId(normalized);
+    }
+
     public static string CreateServiceResourceId(
         string resourceId,
         string? prefix = null)
@@ -701,9 +714,7 @@ public sealed partial class ConfigurationResourceProvider :
 
     private static ConfigurationStoreDefinition NormalizeDefinition(ConfigurationStoreDefinition definition)
     {
-        var id = string.IsNullOrWhiteSpace(definition.Id)
-            ? CreateId(definition.Name)
-            : definition.Id.Trim();
+        var id = NormalizeConfigurationStoreId(definition.Id, definition.Name);
 
         return definition with
         {

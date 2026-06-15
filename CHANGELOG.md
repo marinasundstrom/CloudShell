@@ -158,26 +158,28 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager now makes Resource ID the first identity detail in the
   resource blade, detail sidebar, and generated Overview tab. The UI also
   supports `ResourceManager:EnableDisplayNames` and a Resource Manager
-  settings toggle so hosts and users can choose display-name or resource-ID
-  primary labels.
+  settings toggle so hosts and users can choose whether display labels or
+  canonical resource IDs are primary in Resource Manager.
   Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
-- Programmatic resource declaration APIs now take resource IDs and
-  domain-specific parameters instead of display-name arguments. Optional
-  labels are applied with `.WithDisplayName(...)`, while resource IDs remain
-  the canonical references for dependencies, DNS/name mappings, permissions,
-  activity logs, provider state, API calls, and automation.
+- Programmatic resource declaration APIs now take scoped resource names and
+  domain-specific parameters instead of display-name arguments. Providers
+  derive canonical resource IDs from those names, and optional labels are
+  applied with `.WithDisplayName(...)`.
   Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
-- Resource Manager create forms now show Resource ID before display name.
+- Added a `ResourceId` value object for typed resource-ID construction and
+  validation at normalization boundaries.
+  Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
+- Resource Manager create forms now show Name before display name.
   Display name is optional and hidden when display-name presentation is
-  disabled, with create flows falling back to the resource ID as the stored
-  label when no display name is provided.
+  disabled, with create flows deriving the canonical resource ID from the
+  provided name.
   Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
 - Programmatic resource groups can now be declared with stable IDs. The
   ApplicationTopology sample declares `group:application-topology`, assigns
   its resources to that group, and uses concise display names instead of an
   `Application Topology` display-name prefix.
   Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
-- Added naming-convention guidance for optional structured resource IDs,
+- Added naming-convention guidance for resource IDs, scoped resource names,
   configuration keys, and secret names, including using `--` where a hierarchy
   should map cleanly to JSON configuration or systems where `:` has special
   meaning.

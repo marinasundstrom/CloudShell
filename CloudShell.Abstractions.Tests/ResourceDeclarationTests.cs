@@ -27,6 +27,47 @@ namespace CloudShell.Abstractions.Tests;
 public sealed class ResourceDeclarationTests
 {
     [Fact]
+    public void ResourceId_CreatesTypedIdFromScopedName()
+    {
+        var id = ResourceId.FromName("application", "Orders API");
+
+        Assert.Equal("application:orders-api", id.Value);
+        Assert.Equal("application", id.Scope);
+        Assert.Equal("orders-api", id.Name);
+        Assert.True(id.IsQualified);
+        Assert.Equal(id.Value, id.ToString());
+    }
+
+    [Fact]
+    public void ResourceId_PreservesQualifiedId()
+    {
+        var id = ResourceId.FromName("application", "configuration:orders--api");
+
+        Assert.Equal("configuration:orders--api", id.Value);
+        Assert.Equal("configuration", id.Scope);
+        Assert.Equal("orders--api", id.Name);
+    }
+
+    [Fact]
+    public void ResourceId_RejectsControlCharacters()
+    {
+        Assert.False(ResourceId.TryParse("application:bad\nname", out _));
+        Assert.Throws<ArgumentException>(() => new ResourceId("application:bad\nname"));
+    }
+
+    [Fact]
+    public void ResourceId_DefaultValueIsEmpty()
+    {
+        var id = default(ResourceId);
+
+        Assert.True(id.IsEmpty);
+        Assert.False(id.IsQualified);
+        Assert.Null(id.Scope);
+        Assert.Equal(string.Empty, id.Name);
+        Assert.Equal(string.Empty, id.ToString());
+    }
+
+    [Fact]
     public void Resources_DeclaresTransientResourceWithDependencies()
     {
         var services = new ServiceCollection();

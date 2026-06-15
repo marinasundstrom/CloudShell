@@ -10,7 +10,7 @@ var controlPlane = builder.AddCloudShellControlPlane();
 controlPlane.Resources(resources =>
 {
     resources
-        .AddNetwork("network:split-sample", isDefault: true)
+        .AddNetwork("split-sample", isDefault: true)
         .WithDisplayName("Split Sample Network")
         .Persist();
 });

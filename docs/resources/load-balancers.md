@@ -50,22 +50,22 @@ that target to their own service, backend, or endpoint model.
 
 ```csharp
 var dockerHost = resources
-    .AddDocker("docker:sample-host")
+    .AddDocker("sample-host")
     .WithDisplayName("Sample Container Host");
 
 var webApp = resources
-    .AddContainerApplication("application:web", "nginx:1.27-alpine")
+    .AddContainerApplication("web", "nginx:1.27-alpine")
     .WithDisplayName("Web App")
     .WithEndpoint("http", targetPort: 80, port: 5080, protocol: "http");
 
 var apiService = resources
-    .AddContainerApplication("application:api", "traefik/whoami:v1.10")
+    .AddContainerApplication("api", "traefik/whoami:v1.10")
     .WithDisplayName("API Service")
     .WithEndpoint("http", targetPort: 80, port: 5081, protocol: "http")
     .WithReplicas(3);
 
 var postgres = resources
-    .AddContainerApplication("application:postgres", "postgres:16-alpine")
+    .AddContainerApplication("postgres", "postgres:16-alpine")
     .WithDisplayName("Postgres")
     .WithEndpoint("postgres", targetPort: 5432, port: 55432, protocol: "tcp")
     .WithEnvironment("POSTGRES_PASSWORD", "cloudshell")

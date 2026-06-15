@@ -209,7 +209,7 @@ Programmatic declarations can use:
 
 ```csharp
 resources
-    .AddDnsZone("dns:cloudshell-local", zoneName: "cloudshell.local")
+    .AddDnsZone("cloudshell-local", zoneName: "cloudshell.local")
     .WithDisplayName("CloudShell Local DNS")
     .UseLocalHostNames()
     .MapHost("app.cloudshell.local", app, "http");

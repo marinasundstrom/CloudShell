@@ -16,14 +16,15 @@ see [Executable applications](executable-applications.md) and
 
 ## Declaration
 
-Programmatic declarations use `AddAspNetCoreProject(...)` with an explicit
-resource ID. Apply an optional display label with `.WithDisplayName(...)`
-when it helps the local development experience:
+Programmatic declarations use `AddAspNetCoreProject(...)` with a scoped
+resource name. The provider derives the canonical resource ID from that name.
+Apply an optional display label with `.WithDisplayName(...)` when it helps the
+local development experience:
 
 ```csharp
 resources
     .AddAspNetCoreProject(
-        "application:example-web-api",
+        "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
     .WithReference(configuration);
@@ -50,7 +51,7 @@ instead of a process-backed ASP.NET Core project:
 ```csharp
 resources
     .AddAspNetCoreProject(
-        "application:example-web-api",
+        "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
     .AsContainer(registry: "registry.local:5000")
@@ -96,10 +97,10 @@ Use endpoint builder methods to model additional or named endpoints:
 ```csharp
 resources
     .AddAspNetCoreProject(
-        "application:example-web-api",
-        "Example Web API",
+        "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
         applicationArguments: "--seed")
+    .WithDisplayName("Example Web API")
     .WithHttpEndpoint(port: 5127)
     .WithEndpointPort("dashboard", targetPort: 18888, port: 18888, protocol: "http");
 ```
@@ -110,9 +111,9 @@ its local endpoint shape from the ASP.NET Core development profile:
 ```csharp
 resources
     .AddAspNetCoreProject(
-        "application:example-web-api",
-        "Example Web API",
+        "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
+    .WithDisplayName("Example Web API")
     .WithLaunchSettingsEndpoints();
 ```
 

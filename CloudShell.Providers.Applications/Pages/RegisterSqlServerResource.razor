@@ -20,7 +20,7 @@
 
         <ResourceIdentityFields ResourceIdInputId="sql-resource-id"
                                 DisplayNameInputId="sql-display-name"
-                                ResourceIdPlaceholder="application:sql-server"
+                                ResourceIdPlaceholder="sql-server"
                                 @bind-ResourceId="ResourceId"
                                 @bind-DisplayName="Name" />
 
@@ -123,7 +123,7 @@
         ErrorMessage = null;
         if (string.IsNullOrWhiteSpace(ResourceId) || string.IsNullOrWhiteSpace(Image))
         {
-            ErrorMessage = "Resource ID and image are required.";
+            ErrorMessage = "Name and image are required.";
             return;
         }
 
@@ -144,15 +144,15 @@
             return;
         }
 
-        var normalizedResourceId = ResourceId.Trim();
+        var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "application");
         if (!string.IsNullOrWhiteSpace(normalizedResourceId) &&
             IsResourceIdInUse(normalizedResourceId))
         {
-            ErrorMessage = $"Resource ID '{normalizedResourceId}' is already in use.";
+            ErrorMessage = $"Name '{ResourceId.Trim()}' resolves to existing resource '{normalizedResourceId}'.";
             return;
         }
 
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
         var volumeMounts = BuildVolumeMounts();
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,

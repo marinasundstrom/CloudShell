@@ -27,14 +27,14 @@ cloudShell.Resources(resources =>
 
     var api = resources
         .AddAspNetCoreProject(
-            "application:vnet-api",
+            "vnet-api",
             "../CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj",
             endpoint: $"http://localhost:{targetPort}")
         .WithAutoStart(false);
 
     var network = resources
         .AddVirtualNetwork(
-            "network:sample-vnet",
+            "sample-vnet",
             isDefault: true);
 
     var ingress = network.AddHttpEndpoint(

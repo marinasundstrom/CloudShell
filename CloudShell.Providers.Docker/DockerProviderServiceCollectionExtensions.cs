@@ -103,10 +103,11 @@ public static class DockerProviderServiceCollectionExtensions
     /// </summary>
     public static IDockerResourceBuilder AddDocker(
         this IResourceDeclarationBuilder builder,
-        string id)
+        string name)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        var id = DockerContainerResourceProvider.CreateDockerResourceId(name);
         var definition = new DockerResourceDefinition(id, CreateDisplayName(id));
         var declared = new DeclaredDockerResource(definition);
         builder.Services
@@ -148,13 +149,13 @@ public static class DockerProviderServiceCollectionExtensions
     /// </summary>
     public static IDockerContainerResourceBuilder AddDockerContainer(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null) =>
         AddDockerContainerCore(
             builder,
             DockerContainerResourceProvider.DefaultHostResourceId,
-            id,
+            name,
             image,
             endpoints,
             declareHost: true);
@@ -162,7 +163,7 @@ public static class DockerProviderServiceCollectionExtensions
     internal static IDockerContainerResourceBuilder AddDockerContainerCore(
         IResourceDeclarationBuilder builder,
         string dockerResourceId,
-        string id,
+        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints,
         bool declareHost)
@@ -170,8 +171,8 @@ public static class DockerProviderServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         var definition = new DockerContainerResourceDefinition(
-            id,
-            CreateDisplayName(id),
+            name,
+            CreateDisplayName(name),
             image,
             dockerResourceId,
             endpoints,
@@ -197,7 +198,7 @@ public static class DockerProviderServiceCollectionExtensions
             {
                 declared.Definition = declared.Definition with
                 {
-                    Name = GetDisplayName(declaration, CreateDisplayName(id)),
+                    Name = GetDisplayName(declaration, CreateDisplayName(name)),
                     DependsOn = declaration.DependsOn
                 };
                 declared.Persist = declaration.Persistence == ResourceDeclarationPersistence.Persisted;
@@ -338,15 +339,15 @@ public interface IDockerResourceBuilder : IResourceBuilder
     /// <c>resources.AddContainerApplication(...)</c>.
     /// </remarks>
     IDockerContainerResourceBuilder AddContainer(
-        string id,
+        string name,
         string image,
         string? tag = null);
 
     /// <summary>
-    /// Declares a Docker container sub-resource with an explicit resource ID.
+    /// Declares a Docker container sub-resource with a scoped name.
     /// </summary>
     IDockerContainerResourceBuilder AddDockerContainer(
-        string id,
+        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null);
 
@@ -455,14 +456,14 @@ internal sealed class DockerResourceBuilder(
     }
 
     public IDockerContainerResourceBuilder AddContainer(
-        string id,
+        string name,
         string image,
         string? tag = null)
     {
         var container = DockerProviderServiceCollectionExtensions.AddDockerContainerCore(
             declarations,
             ResourceId,
-            id,
+            name,
             DockerProviderServiceCollectionExtensions.CreateImageReference(image, tag),
             endpoints: null,
             declareHost: false)
@@ -471,14 +472,14 @@ internal sealed class DockerResourceBuilder(
     }
 
     public IDockerContainerResourceBuilder AddDockerContainer(
-        string id,
+        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null)
     {
         var container = DockerProviderServiceCollectionExtensions.AddDockerContainerCore(
             declarations,
             ResourceId,
-            id,
+            name,
             image,
             endpoints,
             declareHost: false)

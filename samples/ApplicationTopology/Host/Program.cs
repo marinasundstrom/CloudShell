@@ -94,7 +94,7 @@ cloudShell.Resources(resources =>
         .WithAutoStart(false);
 
     var settings = resources
-        .AddConfigurationStore("configuration:application-topology")
+        .AddConfigurationStore("application-topology")
         .WithDisplayName("Settings")
         .WithResourceGroup(groupId)
         .WithEntries(
@@ -104,13 +104,13 @@ cloudShell.Resources(resources =>
         ]);
 
     var secrets = resources
-        .AddSecretsVault("secrets-vault:application-topology")
+        .AddSecretsVault("application-topology")
         .WithDisplayName("Secrets")
         .WithResourceGroup(groupId)
         .WithSecret("external-api-key", "local-development-api-key");
 
     var api = resources.AddAspNetCoreProject(
-        "application:application-topology-api",
+        "application-topology-api",
         "../Api/CloudShell.ApplicationTopologyApi.csproj")
         .WithHttpHealthCheck("/health")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
@@ -130,7 +130,7 @@ cloudShell.Resources(resources =>
 
     var frontend = resources
         .AddAspNetCoreProject(
-            "application:application-topology-frontend",
+            "application-topology-frontend",
             "../Frontend/CloudShell.ApplicationTopologyFrontend.csproj",
             endpoint: frontendEndpoint)
         .WithHttpHealthCheck("/healthz")

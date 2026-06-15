@@ -44,12 +44,12 @@ cloudShell
 cloudShell.Resources(resources =>
 {
     var dockerHost = resources
-        .AddDocker("docker:sample-host")
+        .AddDocker("sample-host")
         .Persist(overwrite: true);
 
     var webApp = resources
         .AddContainerApplication(
-            "application:web",
+            "web",
             "nginx:1.27-alpine")
         .WithEndpoint(
             "http",
@@ -63,7 +63,7 @@ cloudShell.Resources(resources =>
 
     var apiService = resources
         .AddContainerApplication(
-            "application:api",
+            "api",
             "traefik/whoami:v1.10")
         .WithEndpoint(
             "http",
@@ -78,7 +78,7 @@ cloudShell.Resources(resources =>
 
     var postgres = resources
         .AddContainerApplication(
-            "application:postgres",
+            "postgres",
             "postgres:16-alpine")
         .WithEndpoint(
             "postgres",

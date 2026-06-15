@@ -29,7 +29,7 @@ startup code:
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:example")
+        .AddConfigurationStore("example")
         .WithDisplayName("Example Configuration")
         .WithEntries(
         [

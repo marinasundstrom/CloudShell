@@ -139,7 +139,7 @@ public sealed class SecretsVaultStore
         {
             Id = string.IsNullOrWhiteSpace(definition.Id)
                 ? SecretsVaultProvider.CreateId(definition.Name)
-                : definition.Id.Trim(),
+                : NormalizeId(definition.Id),
             Name = definition.Name.Trim(),
             Endpoint = string.IsNullOrWhiteSpace(definition.Endpoint)
                 ? null
@@ -180,6 +180,14 @@ public sealed class SecretsVaultStore
                 character is >= 'A' and <= 'Z' ||
                 character is >= '0' and <= '9' ||
                 character == '-');
+    }
+
+    private static string NormalizeId(string id)
+    {
+        var normalized = id.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : SecretsVaultProvider.CreateId(normalized);
     }
 
 }

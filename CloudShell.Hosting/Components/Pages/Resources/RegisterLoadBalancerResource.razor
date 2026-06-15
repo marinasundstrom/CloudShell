@@ -6,7 +6,7 @@
     <div class="form-panel">
         <ResourceIdentityFields ResourceIdInputId="load-balancer-resource-id"
                                 DisplayNameInputId="load-balancer-display-name"
-                                ResourceIdPlaceholder="load-balancer:public"
+                                ResourceIdPlaceholder="public"
                                 @bind-ResourceId="ResourceId"
                                 @bind-DisplayName="Name" />
 
@@ -323,7 +323,7 @@
         ErrorMessage = null;
         if (string.IsNullOrWhiteSpace(ResourceId))
         {
-            ErrorMessage = "Resource ID is required.";
+            ErrorMessage = "Name is required.";
             return;
         }
 
@@ -340,8 +340,8 @@
             return;
         }
 
-        var normalizedResourceId = ResourceId.Trim();
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
+        var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "load-balancer");
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
         var definition = new LoadBalancerResourceDefinition(
             normalizedResourceId,
             displayName,

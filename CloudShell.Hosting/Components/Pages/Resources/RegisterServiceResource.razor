@@ -11,7 +11,7 @@
 
         <ResourceIdentityFields ResourceIdInputId="service-resource-id"
                                 DisplayNameInputId="service-display-name"
-                                ResourceIdPlaceholder="service:api"
+                                ResourceIdPlaceholder="api"
                                 @bind-ResourceId="ResourceId"
                                 @bind-DisplayName="Name" />
 
@@ -129,7 +129,7 @@
         ErrorMessage = null;
         if (string.IsNullOrWhiteSpace(ResourceId))
         {
-            ErrorMessage = "Resource ID is required.";
+            ErrorMessage = "Name is required.";
             return;
         }
 
@@ -155,8 +155,8 @@
             ? parsedExposure
             : ResourceExposureScope.Network;
         var assignedPort = IsManualAssignment ? Port : null;
-        var normalizedResourceId = ResourceId.Trim();
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
+        var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "service");
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
 
         var definition = new ServiceResourceDefinition(
             normalizedResourceId,

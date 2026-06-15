@@ -33,7 +33,7 @@ cloudShell
 cloudShell.Resources(resources =>
 {
     var api = resources.AddAspNetCoreProject(
-        "application:project-reference-api",
+        "project-reference-api",
         "../Api/CloudShell.ProjectReferenceApi.csproj")
         .WithDisplayName("Project Reference API")
         .WithHttpHealthCheck("/health")
@@ -43,7 +43,7 @@ cloudShell.Resources(resources =>
 
     resources
         .AddAspNetCoreProject(
-        "application:project-reference-frontend",
+        "project-reference-frontend",
         "../Frontend/CloudShell.ProjectReferenceFrontend.csproj",
         endpoint: frontendEndpoint)
         .WithDisplayName("Project Reference Frontend")

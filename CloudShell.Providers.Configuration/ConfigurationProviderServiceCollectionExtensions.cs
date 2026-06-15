@@ -70,9 +70,10 @@ public static class ConfigurationProviderServiceCollectionExtensions
 
     public static IConfigurationStoreResourceBuilder AddConfigurationStore(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         IReadOnlyList<ConfigurationEntry>? entries = null)
     {
+        var id = NormalizeConfigurationStoreId(name);
         var definition = new ConfigurationStoreDefinition(
             id,
             CreateDisplayName(id),
@@ -100,9 +101,10 @@ public static class ConfigurationProviderServiceCollectionExtensions
 
     public static IHostConfigurationSourceResourceBuilder AddHostConfigurationSource(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         IReadOnlyList<string>? entries = null)
     {
+        var id = NormalizeConfigurationStoreId(name);
         var definition = new HostConfigurationSourceDefinition(
             id,
             CreateDisplayName(id),
@@ -129,9 +131,10 @@ public static class ConfigurationProviderServiceCollectionExtensions
 
     public static ISecretsVaultResourceBuilder AddSecretsVault(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         IReadOnlyList<SecretsVaultSecret>? secrets = null)
     {
+        var id = NormalizeSecretsVaultId(name);
         var definition = new SecretsVaultDefinition(
             id,
             CreateDisplayName(id),
@@ -190,6 +193,24 @@ public static class ConfigurationProviderServiceCollectionExtensions
         string.IsNullOrWhiteSpace(declaration.DisplayName)
             ? fallback
             : declaration.DisplayName;
+
+    private static string NormalizeConfigurationStoreId(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var normalized = name.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : ConfigurationResourceProvider.CreateId(normalized);
+    }
+
+    private static string NormalizeSecretsVaultId(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        var normalized = name.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : SecretsVaultProvider.CreateId(normalized);
+    }
 
     private static void AddExtensionIfMissing<TExtension>(
         this ICloudShellBuilder builder,

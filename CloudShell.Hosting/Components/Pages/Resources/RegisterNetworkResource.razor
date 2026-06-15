@@ -6,7 +6,7 @@
     <div class="form-panel">
         <ResourceIdentityFields ResourceIdInputId="network-resource-id"
                                 DisplayNameInputId="network-display-name"
-                                ResourceIdPlaceholder="network:app"
+                                ResourceIdPlaceholder="app"
                                 @bind-ResourceId="ResourceId"
                                 @bind-DisplayName="Name" />
 
@@ -112,7 +112,7 @@
         ErrorMessage = null;
         if (string.IsNullOrWhiteSpace(ResourceId))
         {
-            ErrorMessage = "Resource ID is required.";
+            ErrorMessage = "Name is required.";
             return;
         }
 
@@ -122,8 +122,8 @@
             return;
         }
 
-        var normalizedResourceId = ResourceId.Trim();
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
+        var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "network");
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,

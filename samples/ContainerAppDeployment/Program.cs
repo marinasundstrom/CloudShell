@@ -33,7 +33,7 @@ cloudShell
 cloudShell.Resources(resources =>
 {
     var docker = resources
-        .AddDocker("docker:sample")
+        .AddDocker("sample")
         .WithRegistry(registryAddress)
         .Persist(overwrite: true);
 

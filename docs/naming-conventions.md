@@ -1,15 +1,33 @@
 # Naming Conventions
 
-CloudShell resource IDs are canonical addresses. Display names are optional
-presentation labels.
+CloudShell follows cloud-platform naming terminology:
 
-CloudShell does not require one global resource ID naming scheme. Teams can
-choose the scheme that fits their environment, provider, and operating model.
-For resources that benefit from a logical hierarchy, use a stable structure
-that can be projected into configuration, logs, DNS/name mappings, and
-automation without relying on display names.
+```csharp
+Resource.Id          // immutable platform identity or derived resource path
+Resource.Name        // scoped unique resource name, such as "api" or "orders--api"
+Resource.DisplayName // optional presentation label, such as "Orders API"
+```
 
-## Resource IDs
+The current runtime model still has transitional surfaces where `Resource.Name`
+is used as the display label. New authoring, UI, and documentation should use
+the cloud-platform distinction above. A future model cleanup should make
+`DisplayName` explicit on projected resources and keep `Name` as the
+addressable scoped name.
+
+## Resource ID
+
+`Resource.Id` is the immutable identity CloudShell uses internally and across
+Control Plane APIs. It may be a GUID, a provider-derived resource path, or a
+typed path derived from resource type plus name.
+
+Examples:
+
+```text
+application:api
+configuration:sample-app
+secrets-vault:sample-app
+docker:engine
+```
 
 Use resource IDs for durable references:
 
@@ -21,27 +39,54 @@ Use resource IDs for durable references:
 - Control Plane API calls
 - automation
 
-Common examples:
+## Resource Name
+
+`Resource.Name` is the scoped unique name users and programmatic declarations
+normally provide. For example:
 
 ```text
-application:api
-configuration:sample-app
-secrets-vault:sample-app
-docker:engine
+api
+orders--api
+sample-app
 ```
+
+Provider and resource-type APIs derive the internal resource ID from the name
+when needed. For example, an application named `api` can become
+`application:api`, while a Configuration Store named `sample-app` can become
+`configuration:sample-app`.
+
+The Resource Manager create UI should ask for **Name** first, not Resource ID.
+Display name comes after it and remains optional.
+
+## Display Name
+
+`Resource.DisplayName` is an optional presentation label. Display names are
+useful during local development and demos when the scoped name is terse:
+
+```text
+Name: orders--api
+DisplayName: Orders API
+```
+
+Display names must not be used as durable addresses. They can change without
+changing the resource identity, dependencies, permissions, provider state, or
+automation targets.
+
+Programmatic declarations should use `.WithDisplayName(...)` only when a
+friendly label adds value.
 
 ## Optional Hierarchy Separator
 
 When a name needs to map cleanly into JSON configuration, environment
-variables, DNS-safe names, or other systems where `:` has special meaning or
-is not accepted, `--` is a useful optional hierarchy separator.
+variables, DNS-safe names, or systems where `:` has special meaning or is not
+accepted, `--` is a useful optional hierarchy separator.
 
 Examples:
 
 ```text
-application:orders--api
-configuration:orders--app
-secrets-vault:orders--app
+orders--api
+orders--worker
+orders--configuration
 ```
 
 This fits well with configuration paths because a setting or secret can be
@@ -63,10 +108,9 @@ For example:
 A team may choose names such as:
 
 ```text
-configuration:orders--api
-Orders--Api--BaseUrl
-secrets-vault:orders--api
-Orders--Api--ClientSecret
+Resource name: orders--api
+Configuration key: Orders--Api--BaseUrl
+Secret name: Orders--Api--ClientSecret
 ```
 
 When Configuration Store and Secrets Vault values are loaded through the
@@ -84,18 +128,23 @@ is available to application code as:
 
 ```csharp
 Configuration["Orders:Api:BaseUrl"]
+
+var baseUrl = Configuration.GetValue<string>("Orders:Api:BaseUrl");
+
+var baseUrl = Configuration
+    .GetSection("Orders:Api")
+    .GetValue<string>("BaseUrl");
 ```
 
 The convention is user-controlled guidance, not a platform requirement.
 
 ## Provider-Owned Restrictions
 
-CloudShell resource IDs are canonical platform addresses, but CloudShell does
-not impose one global character policy for every provider, cloud, or deployment
-target. A provider can apply stricter validation when its backing system needs
-it. For example, an Azure deployment provider may need different rules than a
-local development provider, and a DNS provider has different constraints than a
-configuration provider.
+CloudShell does not impose one global character policy for every resource
+name, provider, cloud, or deployment target. A provider can apply stricter
+validation when its backing system needs it. For example, an Azure deployment
+provider may need different rules than a local development provider, and a DNS
+provider has different constraints than a configuration provider.
 
 The built-in Configuration Store and Secrets Vault intentionally follow
 different conventions:
@@ -115,9 +164,9 @@ References:
 - [Azure Key Vault configuration provider for ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/security/key-vault-configuration)
 - [Azure Key Vault keys, secrets, and certificates overview](https://learn.microsoft.com/en-us/azure/key-vault/general/about-keys-secrets-certificates)
 
-## Display Names
+## Typed Resource IDs
 
-Display names are useful during local development when resource IDs are less
-important to the immediate workflow. Programmatic declarations should apply
-them explicitly with `.WithDisplayName(...)`, and samples should use them
-sparingly. Display names must not be used as durable addresses.
+CloudShell provides a `ResourceId` value object for resource-ID construction
+and validation. New code should prefer that value object at normalization
+boundaries instead of passing raw strings through unrelated layers. Existing
+manager interfaces still accept strings while the model migrates.

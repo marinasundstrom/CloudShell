@@ -11,27 +11,35 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-15
 
-### ADR-20260615-004: Treat resource IDs as canonical and display names as presentation
+### ADR-20260615-004: Separate resource identity, name, and display name
 
-Resource IDs are the canonical identity for resources. They are the stable
-handles used by dependencies, permissions, resource events, activity logs,
-provider state, API calls, and automation. Activity logs should display or
-retain the resource ID as the canonical resource address even when display
-names are enabled. Resource display names are presentation labels for Resource
-Manager and other user-facing surfaces. Display names are useful during local
-development when resource IDs are less important to the immediate workflow,
-but they must remain optional. Programmatic registration APIs should therefore
-take resource IDs and domain-specific parameters; optional labels are applied
-with `WithDisplayName(...)`. Resource Manager create flows should ask for
-Resource ID first, then an optional display name when display names are
-enabled. Display names are enabled by default because they improve
-readability, but hosts and users may prefer ID-first workflows. Resource
-Manager should therefore make the resource ID explicit in detail and overview
-surfaces, provide a display-name preference, and later add display-name
-editing without changing the stable resource ID.
+CloudShell follows cloud-platform naming terminology. `Resource.Id` is the
+immutable platform identity or derived resource path used by dependencies,
+permissions, resource events, activity logs, provider state, API calls, and
+automation. `Resource.Name` is the scoped unique resource name users and
+programmatic declarations normally provide, such as `api` or `orders--api`.
+`Resource.DisplayName` is an optional presentation label, such as
+`Orders API`, for Resource Manager and other user-facing surfaces.
+
+Activity logs should display or retain the resource ID as the canonical
+resource address even when display names are enabled. Programmatic
+registration APIs should take resource names and domain-specific parameters;
+providers derive resource IDs from those names unless the caller passes an
+already-qualified resource ID for advanced or compatibility scenarios.
+Optional labels are applied with `WithDisplayName(...)`. Resource Manager
+create flows should ask for Name first, then an optional display name when
+display names are enabled.
+
+The current projected `Resource` model still has transitional surfaces where
+`Resource.Name` is used as the user-facing label. A future model cleanup should
+make display name explicit on projected resources while keeping `Name` as the
+scoped addressable name. Resource Manager should keep the resource ID visible
+in detail and overview surfaces, provide a display-name preference, and later
+add display-name editing without changing the stable resource ID, name, type,
+provider identity, dependencies, permissions, or other stable references.
 
 CloudShell does not require one global naming scheme, but teams may use
-structured resource IDs, configuration keys, and secret names when that helps
+structured resource names, configuration keys, and secret names when that helps
 map resource hierarchy into JSON configuration, environment variables, or
 DNS-safe projections. The optional `--` separator is acceptable guidance for
 hierarchy that needs to travel through systems where `:` has configuration

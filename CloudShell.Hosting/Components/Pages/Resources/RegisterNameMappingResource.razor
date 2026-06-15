@@ -18,7 +18,7 @@
 
         <ResourceIdentityFields ResourceIdInputId="name-mapping-resource-id"
                                 DisplayNameInputId="name-mapping-display-name"
-                                ResourceIdPlaceholder="dns:cloudshell-local:name:app-cloudshell-local"
+                                ResourceIdPlaceholder="app-cloudshell-local"
                                 DisplayNamePlaceholder="App local name"
                                 @bind-ResourceId="ResourceId"
                                 @bind-DisplayName="Name" />
@@ -290,8 +290,9 @@
 
         var resourceId = string.IsNullOrWhiteSpace(ResourceId)
             ? CreateMappingId(SelectedZoneResourceId, HostName)
-            : ResourceId.Trim();
-        var name = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, resourceId);
+            : NormalizeMappingId(SelectedZoneResourceId, ResourceId);
+        var resourceName = string.IsNullOrWhiteSpace(ResourceId) ? HostName : ResourceId;
+        var name = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, resourceName);
         var definition = new DnsNameMappingResourceDefinition(
             SelectedZoneResourceId,
             resourceId,
@@ -335,6 +336,14 @@
 
     private static string CreateMappingId(string zoneResourceId, string hostName) =>
         $"{zoneResourceId.Trim()}:name:{CreateStableIdentifier(hostName)}";
+
+    private static string NormalizeMappingId(string zoneResourceId, string name)
+    {
+        var normalized = name.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : CreateMappingId(zoneResourceId, normalized);
+    }
 
     private static string CreateDefaultHostName(Resource target, Resource zone)
     {

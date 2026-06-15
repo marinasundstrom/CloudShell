@@ -96,8 +96,12 @@ In code, a resource is projected as `Resource`.
 
 Important properties:
 
-- `Id`: stable identifier.
-- `Name`: user-facing display name.
+- `Id`: immutable platform identity or derived resource path.
+- `Name`: scoped unique resource name. Current projections still use this
+  property as the display label in some surfaces until `DisplayName` is
+  modeled explicitly.
+- `DisplayName`: optional presentation label. This is an intended model
+  concept and is currently represented by provider/UI display-name metadata.
 - `TypeId` / `EffectiveTypeId`: stable resource type.
 - `ResourceClass`: broad resource classification such as executable, project,
   container, service, network, storage, configuration, or infrastructure.
@@ -127,15 +131,19 @@ owns all underlying provider configuration or runtime state.
 inspect resource details. Activity logs should use the resource ID as the
 canonical resource address so lifecycle actions, provider-scoped events, and
 procedure milestones remain traceable even when display names are enabled.
-`Name` is a display name used for readability in Resource Manager and other
-presentation surfaces. Display names are enabled by default, but UI hosts can
-disable display-name presentation with
-`ResourceManager:EnableDisplayNames` so Resource Manager uses resource IDs as
-the primary labels. User settings can override that default where the host
-allows Resource Manager settings changes. Display-name editing is a future
+`Name` is the scoped unique name that users and programmatic declarations
+normally provide. Providers derive internal resource IDs from names when the
+backing platform needs a typed path, such as `application:api`.
+`DisplayName` is an optional presentation label for readability in Resource
+Manager and other presentation surfaces. Display-name editing is a future
 Resource Manager capability; it should update only the presentation label and
-must not change the resource ID, type, provider identity, dependencies,
-permissions, or other stable references.
+must not change the resource ID, resource name, type, provider identity,
+dependencies, permissions, or other stable references.
+
+The current `Resource` projection predates the explicit `DisplayName` field,
+so some providers still project the presentation label through `Name`. New
+authoring surfaces and documentation should keep the conceptual distinction
+clear while the runtime model migrates.
 
 Not every resource exposes lifecycle status. Runtime resources such as
 applications, container hosts, containers, configuration services, secrets

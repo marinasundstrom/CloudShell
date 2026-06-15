@@ -40,12 +40,12 @@ public static class ApplicationProviderServiceCollectionExtensions
 
     public static IExecutableResourceBuilder AddExecutable(
         this IResourceDeclarationBuilder builder,
-        string id) =>
-        builder.AddExecutableApplication(id, executablePath: string.Empty);
+        string name) =>
+        builder.AddExecutableApplication(name, executablePath: string.Empty);
 
     public static IExecutableResourceBuilder AddExecutableApplication(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         string executablePath,
         string? arguments = null,
         string? workingDirectory = null,
@@ -55,6 +55,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         bool useServiceDiscovery = false,
         ResourceObservability? observability = null)
     {
+        var id = CreateApplicationResourceId(name);
         var definition = new ApplicationResourceDefinition(
             id,
             CreateDisplayName(id),
@@ -92,7 +93,7 @@ public static class ApplicationProviderServiceCollectionExtensions
 
     public static IProjectResourceBuilder AddAspNetCoreProject(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         string projectPath,
         string? endpoint = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
@@ -105,6 +106,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(projectPath);
 
+        var id = CreateApplicationResourceId(name);
         var definition = new ApplicationResourceDefinition(
             id,
             CreateDisplayName(id),
@@ -220,7 +222,7 @@ public static class ApplicationProviderServiceCollectionExtensions
     /// </remarks>
     public static IContainerResourceBuilder AddContainer(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
@@ -229,7 +231,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         ResourceObservability? observability = null,
         string? registry = null) =>
         builder.AddContainerApplication(
-            CreateApplicationResourceId(id),
+            name,
             image,
             endpoints,
             environmentVariables,
@@ -239,8 +241,8 @@ public static class ApplicationProviderServiceCollectionExtensions
             registry);
 
     /// <summary>
-    /// Declares a standalone container app resource with an explicit resource
-    /// ID.
+    /// Declares a standalone container app resource with a scoped resource
+    /// name.
     /// </summary>
     /// <remarks>
     /// The declared resource is the stable deployment target for image updates
@@ -250,7 +252,7 @@ public static class ApplicationProviderServiceCollectionExtensions
     /// </remarks>
     public static IContainerResourceBuilder AddContainerApplication(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         string image,
         IReadOnlyList<ResourceEndpoint>? endpoints = null,
         IReadOnlyList<EnvironmentVariableAssignment>? environmentVariables = null,
@@ -262,6 +264,7 @@ public static class ApplicationProviderServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
 
+        var id = CreateApplicationResourceId(name);
         var endpoint = endpoints?.FirstOrDefault(endpoint =>
             !string.IsNullOrWhiteSpace(endpoint.Address))?.Address;
         var definition = new ApplicationResourceDefinition(
@@ -305,17 +308,7 @@ public static class ApplicationProviderServiceCollectionExtensions
 
     private static string CreateApplicationResourceId(string name)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-
-        var slug = string.Join(
-                "-",
-                name.Trim().ToLowerInvariant().Split(
-                    [' ', '.', '_', ':', '/', '\\'],
-                    StringSplitOptions.RemoveEmptyEntries))
-            .Trim('-');
-        return string.IsNullOrWhiteSpace(slug)
-            ? $"application:{Guid.NewGuid():N}"
-            : $"application:{slug}";
+        return ResourceId.FromName("application", name).Value;
     }
 
     private static string CreateDisplayName(string resourceId)

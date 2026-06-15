@@ -26,7 +26,7 @@ var controlPlane = builder
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:example")
+        .AddConfigurationStore("example")
         .WithDisplayName("Example Configuration")
         .WithEntries(
         [
@@ -91,16 +91,19 @@ relationships:
 - String IDs remain available as a lower-level escape hatch, but typed builders
   should be preferred when both resources are declared in the same callback.
 
-Resource IDs are the canonical addresses used by dependencies, permissions,
-activity logs, DNS/name mapping targets, provider state, API calls, and
-automation. Display names are optional presentation labels. Use
-`.WithDisplayName(...)` when a local development dashboard or sample benefits
-from a friendlier label; otherwise prefer the resource ID as the visible
-label.
+Programmatic resource APIs take scoped resource names such as `api`,
+`orders--api`, or `sample-app`. Providers derive the canonical resource ID
+from the name when they need a typed internal path, such as `application:api`.
+String IDs remain available as lower-level references for existing resources
+and advanced scenarios, but new declarations should treat the authored value
+as a resource name unless the API explicitly asks for a resource ID.
 
-Resource IDs and item names can be structured when users want a logical
+Display names are optional presentation labels. Use `.WithDisplayName(...)`
+when a local development dashboard or sample benefits from a friendlier label.
+
+Resource names and item names can be structured when users want a logical
 hierarchy. See [Naming conventions](naming-conventions.md) for optional
-resource ID, configuration key, and secret naming guidance.
+resource name, configuration key, and secret naming guidance.
 
 Executable applications and ASP.NET Core projects have one additional
 Aspire-compatible concept: endpoint references. `WithReference(resource)`
@@ -140,7 +143,7 @@ override provider defaults for a single resource.
 ```csharp
 resources
     .AddAspNetCoreProject(
-        "application:api",
+        "api",
         "src/API/API.csproj")
     .WithOtlpExporter("http://localhost:4317");
 
@@ -185,7 +188,7 @@ provider:
 
 ```csharp
 var appNetwork = resources
-    .AddNetwork("network:app", isDefault: true)
+    .AddNetwork("app", isDefault: true)
     .WithDisplayName("App Network");
 
 var publicEndpoint = appNetwork.AddTcpEndpoint(
@@ -205,7 +208,7 @@ projecting a richer network capability:
 
 ```csharp
 var appNetwork = resources
-    .AddVirtualNetwork("network:app", isDefault: true)
+    .AddVirtualNetwork("app", isDefault: true)
     .WithDisplayName("App Network");
 
 var publicEndpoint = appNetwork.RequestHttpEndpoint(
@@ -222,7 +225,7 @@ provider while keeping the logical network as the boundary:
 
 ```csharp
 var appNetwork = resources
-    .AddNetwork("network:app", isDefault: true)
+    .AddNetwork("app", isDefault: true)
     .WithDisplayName("App Network");
 
 var api = resources.Declare("applications", "application:example-web-api");
@@ -281,7 +284,7 @@ workload internally. Top-level container applications use the same shape:
 cloudShell.Resources(resources =>
 {
     resources
-        .AddContainerApplication("application:redis", "redis:7.2")
+        .AddContainerApplication("redis", "redis:7.2")
         .WithRegistry("http://localhost:5000")
         .WithRegistryCredentialsFromEnvironment("registry-user", "REGISTRY_PASSWORD")
         .WithImage("redis:7.2-alpine");
@@ -300,7 +303,7 @@ types are host facts rather than logical resource parentage.
 
 ```csharp
 var configuration = resources
-    .AddConfigurationStore("configuration:example")
+    .AddConfigurationStore("example")
     .WithDisplayName("Example Configuration");
 
 var database = resources.Declare("managed", "postgres-main");
@@ -311,7 +314,7 @@ var redis = resources
 
 resources
     .AddAspNetCoreProject(
-        "application:example-web-api",
+        "example-web-api",
         "samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj")
     .WithDisplayName("Example Web API")
     .AsContainer()
@@ -320,7 +323,7 @@ resources
     .DependsOn(redis);
 
 var appNetwork = resources
-    .AddNetwork("network:app")
+    .AddNetwork("app")
     .WithDisplayName("App Network");
 
 resources
@@ -385,10 +388,10 @@ add containers from the returned Docker resource builder:
 
 ```csharp
 var devDocker = resources
-    .AddDocker("docker:dev")
+    .AddDocker("dev")
     .WithDisplayName("Development Docker");
 var testDocker = resources
-    .AddDocker("docker:test")
+    .AddDocker("test")
     .WithDisplayName("Test Docker")
     .WithRegistry("https://registry.example.com");
 
@@ -476,7 +479,7 @@ controlPlane.Resources(resources =>
 
     resources
         .AddAspNetCoreProject(
-            "application:api",
+        "api",
             "API",
             "src/Api/Api.csproj")
         .WithAutoStart(false);
@@ -506,7 +509,7 @@ controlPlane.Resources(resources =>
 
     resources
         .AddAspNetCoreProject(
-            "application:api",
+        "api",
             "API",
             "src/Api/Api.csproj")
         .DependsOn(database);
@@ -579,7 +582,7 @@ setup logic as the UI:
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:shared")
+        .AddConfigurationStore("shared")
         .WithDisplayName("Shared Configuration")
         .WithEntry("FeatureFlags:UseNewFlow", "true")
         .Persist();
@@ -598,7 +601,7 @@ current persisted provider configuration and registration metadata:
 controlPlane.Resources(resources =>
 {
     resources
-        .AddConfigurationStore("configuration:shared")
+        .AddConfigurationStore("shared")
         .WithDisplayName("Shared Configuration")
         .WithEntry("FeatureFlags:UseNewFlow", "true")
         .Persist(overwrite: true);

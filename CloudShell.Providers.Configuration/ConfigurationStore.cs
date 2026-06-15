@@ -143,7 +143,7 @@ public sealed class ConfigurationStore
         {
             Id = string.IsNullOrWhiteSpace(definition.Id)
                 ? ConfigurationResourceProvider.CreateId(definition.Name)
-                : definition.Id.Trim(),
+                : NormalizeId(definition.Id),
             Name = definition.Name.Trim(),
             Endpoint = string.IsNullOrWhiteSpace(definition.Endpoint)
                 ? null
@@ -178,6 +178,14 @@ public sealed class ConfigurationStore
         return normalized is not "." and not ".." &&
             !normalized.Contains('%', StringComparison.Ordinal) &&
             !normalized.Any(char.IsControl);
+    }
+
+    private static string NormalizeId(string id)
+    {
+        var normalized = id.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : ConfigurationResourceProvider.CreateId(normalized);
     }
 
 }

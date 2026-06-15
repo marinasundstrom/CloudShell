@@ -371,9 +371,7 @@ public sealed partial class SecretsVaultProvider(
 
     private static SecretsVaultDefinition Normalize(SecretsVaultDefinition vault)
     {
-        var id = string.IsNullOrWhiteSpace(vault.Id)
-            ? CreateId(vault.Name)
-            : vault.Id.Trim();
+        var id = NormalizeSecretsVaultId(vault.Id, vault.Name);
 
         return vault with
         {
@@ -404,6 +402,19 @@ public sealed partial class SecretsVaultProvider(
         return string.IsNullOrWhiteSpace(slug)
             ? $"secrets-vault:{Guid.NewGuid():N}"
             : $"secrets-vault:{slug}";
+    }
+
+    private static string NormalizeSecretsVaultId(string? id, string name)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return CreateId(name);
+        }
+
+        var normalized = id.Trim();
+        return normalized.Contains(':', StringComparison.Ordinal)
+            ? normalized
+            : CreateId(normalized);
     }
 
     private string CreateUniqueId(string name)

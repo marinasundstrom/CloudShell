@@ -2769,19 +2769,13 @@ public sealed class PlatformResourceProvider(
     {
         if (!string.IsNullOrWhiteSpace(resourceId))
         {
-            return resourceId.Trim();
+            var normalized = resourceId.Trim();
+            return normalized.Contains(':', StringComparison.Ordinal)
+                ? normalized
+                : ResourceId.FromName(prefix, normalized).Value;
         }
 
-        var slug = string.Join(
-                "-",
-                name.Trim().ToLowerInvariant().Split(
-                    [' ', '.', '_', ':', '/', '\\'],
-                    StringSplitOptions.RemoveEmptyEntries))
-            .Trim('-');
-
-        return string.IsNullOrWhiteSpace(slug)
-            ? $"{prefix}:{Guid.NewGuid():N}"
-            : $"{prefix}:{slug}";
+        return ResourceId.FromName(prefix, name).Value;
     }
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>

@@ -8,11 +8,12 @@ public static class PlatformResourceDeclarationExtensions
 {
     public static INetworkResourceBuilder AddNetwork(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         bool isDefault = false)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        var id = NormalizeResourceId(name, "network");
         var definition = new NetworkResourceDefinition(id, CreateDisplayName(id), isDefault);
         var declared = new DeclaredNetworkResource(definition);
         builder.Services
@@ -38,11 +39,12 @@ public static class PlatformResourceDeclarationExtensions
 
     public static INetworkResourceBuilder AddVirtualNetwork(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         bool isDefault = false)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        var id = NormalizeResourceId(name, "network");
         var definition = new NetworkResourceDefinition(
             id,
             CreateDisplayName(id),
@@ -72,10 +74,11 @@ public static class PlatformResourceDeclarationExtensions
 
     public static IServiceResourceBuilder AddService(
         this IResourceDeclarationBuilder builder,
-        string id)
+        string name)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        var id = NormalizeResourceId(name, "service");
         var definition = new ServiceResourceDefinition(id, CreateDisplayName(id), [], [], []);
         var declared = new DeclaredServiceResource(definition);
         builder.Services
@@ -104,12 +107,12 @@ public static class PlatformResourceDeclarationExtensions
 
     public static ILoadBalancerResourceBuilder AddLoadBalancer(
         this IResourceDeclarationBuilder builder,
-        string id)
+        string name)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var normalizedId = NormalizeLoadBalancerId(id);
+        var normalizedId = NormalizeResourceId(name, "load-balancer");
         var definition = new LoadBalancerResourceDefinition(
             normalizedId,
             CreateDisplayName(normalizedId),
@@ -138,13 +141,13 @@ public static class PlatformResourceDeclarationExtensions
 
     public static IDnsZoneResourceBuilder AddDnsZone(
         this IResourceDeclarationBuilder builder,
-        string id,
+        string name,
         string? zoneName = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var normalizedId = NormalizeDnsZoneId(id);
+        var normalizedId = NormalizeResourceId(name, "dns");
         var definition = new DnsZoneResourceDefinition(
             normalizedId,
             CreateDisplayName(normalizedId),
@@ -179,12 +182,12 @@ public static class PlatformResourceDeclarationExtensions
 
     public static IStorageResourceBuilder AddLocalStorage(
         this IResourceDeclarationBuilder builder,
-        string id)
+        string name)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var normalizedId = NormalizeStorageId(id);
+        var normalizedId = NormalizeResourceId(name, "storage");
         var definition = new StorageResourceDefinition(
             normalizedId,
             CreateDisplayName(normalizedId),
@@ -220,12 +223,12 @@ public static class PlatformResourceDeclarationExtensions
 
     public static IVolumeResourceBuilder AddVolume(
         this IResourceDeclarationBuilder builder,
-        string id)
+        string name)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        var normalizedId = NormalizeVolumeId(id);
+        var normalizedId = NormalizeResourceId(name, "volume");
         var definition = new VolumeResourceDefinition(
             normalizedId,
             CreateDisplayName(normalizedId));
@@ -322,37 +325,8 @@ public static class PlatformResourceDeclarationExtensions
         return options;
     }
 
-    private static string NormalizeLoadBalancerId(string id)
-    {
-        var normalized = id.Trim();
-        return normalized.Contains(':', StringComparison.Ordinal)
-            ? normalized
-            : $"load-balancer:{normalized}";
-    }
-
-    private static string NormalizeVolumeId(string id)
-    {
-        var normalized = id.Trim();
-        return normalized.Contains(':', StringComparison.Ordinal)
-            ? normalized
-            : $"volume:{normalized}";
-    }
-
-    private static string NormalizeStorageId(string id)
-    {
-        var normalized = id.Trim();
-        return normalized.Contains(':', StringComparison.Ordinal)
-            ? normalized
-            : $"storage:{normalized}";
-    }
-
-    private static string NormalizeDnsZoneId(string id)
-    {
-        var normalized = id.Trim();
-        return normalized.Contains(':', StringComparison.Ordinal)
-            ? normalized
-            : $"dns:{normalized}";
-    }
+    private static string NormalizeResourceId(string name, string prefix)
+        => ResourceId.FromName(prefix, name).Value;
 
     private static string CreateDisplayName(string resourceId)
     {

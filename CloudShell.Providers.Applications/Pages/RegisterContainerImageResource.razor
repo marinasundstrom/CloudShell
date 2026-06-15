@@ -20,7 +20,7 @@
 
         <ResourceIdentityFields ResourceIdInputId="container-resource-id"
                                 DisplayNameInputId="container-display-name"
-                                ResourceIdPlaceholder="application:redis"
+                                ResourceIdPlaceholder="redis"
                                 @bind-ResourceId="ResourceId"
                                 @bind-DisplayName="Name" />
 
@@ -151,7 +151,7 @@
         ErrorMessage = null;
         if (string.IsNullOrWhiteSpace(ResourceId) || string.IsNullOrWhiteSpace(Image))
         {
-            ErrorMessage = "Resource ID and image are required.";
+            ErrorMessage = "Name and image are required.";
             return;
         }
 
@@ -178,15 +178,15 @@
             return;
         }
 
-        var normalizedResourceId = ResourceId.Trim();
+        var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "application");
         if (!string.IsNullOrWhiteSpace(normalizedResourceId) &&
             IsResourceIdInUse(normalizedResourceId))
         {
-            ErrorMessage = $"Resource ID '{normalizedResourceId}' is already in use.";
+            ErrorMessage = $"Name '{ResourceId.Trim()}' resolves to existing resource '{normalizedResourceId}'.";
             return;
         }
 
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, normalizedResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
         var references = SelectedReferenceIds.ToArray();
         var volumeMounts = BuildVolumeMounts();
         var volumeReferences = volumeMounts
