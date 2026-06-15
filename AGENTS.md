@@ -33,20 +33,20 @@ For focused areas, read the relevant documentation:
 
 ## Solution Shape
 
-- CloudShell.Abstractions — public domain abstractions, extension SDK,
+- `CloudShell.Abstractions` — public domain abstractions, extension SDK,
   shell contribution contracts, and resource model contracts.
-- CloudShell.ControlPlane — Control Plane services, APIs, authorization,
+- `CloudShell.ControlPlane` — Control Plane services, APIs, authorization,
   orchestration, persistence integration, and operational data management.
-- CloudShell.ControlPlane.Client — remote Control Plane adapter that maps
+- `CloudShell.ControlPlane.Client` — remote Control Plane adapter that maps
   HTTP APIs back to domain managers.
-- CloudShell.Hosting — Blazor shell UI, Resource Manager UI, shell layout,
+- `CloudShell.Hosting` — Blazor shell UI, Resource Manager UI, shell layout,
   and extension-hosted views.
-- CloudShell.Host — combined development host.
-- CloudShell.Persistence — EF Core persistence for registrations, groups,
+- `CloudShell.Host` — combined development host.
+- `CloudShell.Persistence` — EF Core persistence for registrations, groups,
   identity, and platform state.
-- CloudShell.Providers.* — built-in and reference provider extensions.
-- samples/ — focused hosting scenarios.
-- CloudShell.*.Tests — abstraction, Control Plane, client/API, and sample
+- `CloudShell.Providers.*` — built-in and reference provider extensions.
+- `samples/` — focused hosting scenarios.
+- `CloudShell.*.Tests` — abstraction, Control Plane, client/API, and sample
   test projects.
 
 ## Architecture Rules
@@ -59,18 +59,18 @@ provider-backed operational data.
 
 Consumers should depend on domain managers such as:
 
-- IResourceManager
-- IResourceTemplateManager
-- ILogManager
-- ITraceManager
+- `IResourceManager`
+- `IResourceTemplateManager`
+- `ILogManager`
+- `ITraceManager`
 
 Avoid depending directly on internal stores or generated HTTP clients.
 
 Internal Control Plane services may depend on lower-level contracts such as:
 
-- IResourceManagerStore
-- IResourceRegistrationStore
-- ILogStore
+- `IResourceManagerStore`
+- `IResourceRegistrationStore`
+- `ILogStore`
 
 These are implementation details of the Control Plane.
 
@@ -108,7 +108,7 @@ documentation.
 ## Workflow
 
 Follow the shared workflow defined in
-CONTRIBUTIONS.md.
+`CONTRIBUTIONS.md`.
 
 That document defines:
 
@@ -123,11 +123,11 @@ That document defines:
 
 For new product features:
 
-- .codex/skills/cloudshell-feature-development/SKILL.md
+- `.codex/skills/cloudshell-feature-development/SKILL.md`
 
 For stabilization and MVP hardening:
 
-- .codex/skills/cloudshell-stabilization/SKILL.md
+- `.codex/skills/cloudshell-stabilization/SKILL.md`
 
 Keep skills concise and update referenced documentation instead of duplicating
 project guidance.
@@ -139,4 +139,6 @@ Use targeted tests while developing.
 For changes affecting the resource model, Control Plane, API/client layer, or
 samples, run:
 
+```
 bash dotnet build CloudShell.sln --no-restore  dotnet test CloudShell.ControlPlane.Tests/CloudShell.ControlPlane.Tests.csproj --no-restore  dotnet test CloudShell.ControlPlane.Client.Tests/CloudShell.ControlPlane.Client.Tests.csproj --no-restore  dotnet test CloudShell.Abstractions.Tests/CloudShell.Abstractions.Tests.csproj --no-restore  dotnet test CloudShell.Sample.Tests/CloudShell.Sample.Tests.csproj --no-restore 
+```
