@@ -78,6 +78,34 @@ else
         </dl>
     </section>
 
+    @if (ServiceDiscoveryReferences.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Service discovery</h3>
+            <div class="generated-list">
+                @foreach (var reference in ServiceDiscoveryReferences)
+                {
+                    <div>
+                        <strong>
+                            @if (reference.Resource is null)
+                            {
+                                @reference.ResourceId
+                            }
+                            else
+                            {
+                                <a class="resource-link" href="@BuildResourceRoute(reference.Resource.Id)">
+                                    @reference.Resource.Name
+                                </a>
+                            }
+                        </strong>
+                        <span>@FormatServiceDiscoveryReference(reference)</span>
+                        <small>@FormatServiceDiscoveryBindings(reference)</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     @if (InboundNetworkMappings.Count > 0)
     {
         <section class="blade-section">
@@ -251,6 +279,7 @@ else
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
     private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
     private IReadOnlyList<VolumeMountView> VolumeMounts { get; set; } = [];
+    private IReadOnlyList<ServiceDiscoveryReferenceView> ServiceDiscoveryReferences { get; set; } = [];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -278,6 +307,9 @@ else
         VolumeMounts = Application is null
             ? []
             : GetVolumeMounts(Application.VolumeMounts);
+        ServiceDiscoveryReferences = Application is null
+            ? []
+            : GetServiceDiscoveryReferences(Application);
         PermissionGrantEvaluator = new ResourcePermissionGrantEvaluator(
             await ResourceManagerClient.ListResourcePermissionGrantsAsync());
     }
@@ -359,6 +391,80 @@ else
                 ResolveRuntimeVolumeMount(mount)))
             .OrderBy(mount => mount.Mount.NormalizedTargetPath, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private IReadOnlyList<ServiceDiscoveryReferenceView> GetServiceDiscoveryReferences(
+        ApplicationResourceDefinition application) =>
+        application.References
+            .Where(reference => !string.IsNullOrWhiteSpace(reference))
+            .Select(reference => reference.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(reference =>
+            {
+                var resource = ResourceManager.GetResource(reference);
+                return new ServiceDiscoveryReferenceView(
+                    reference,
+                    resource,
+                    resource is not null && application.UseServiceDiscovery
+                        ? ApplicationServiceDiscoveryDisplay.GetServiceNames(resource)
+                        : [],
+                    resource is not null && application.UseServiceDiscovery
+                        ? ApplicationServiceDiscoveryDisplay.GetEndpointBindings(resource)
+                        : []);
+            })
+            .OrderBy(reference => reference.Resource?.Name ?? reference.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private string FormatServiceDiscoveryReference(ServiceDiscoveryReferenceView reference)
+    {
+        if (Application?.UseServiceDiscovery != true)
+        {
+            return "Reference is not projected because service discovery is disabled.";
+        }
+
+        if (reference.Resource is null)
+        {
+            return "Referenced resource is unavailable.";
+        }
+
+        if (reference.ServiceNames.Count == 0)
+        {
+            return "No service discovery aliases are available.";
+        }
+
+        return $"Aliases: {string.Join(", ", reference.ServiceNames)}";
+    }
+
+    private string FormatServiceDiscoveryBindings(ServiceDiscoveryReferenceView reference)
+    {
+        if (Application?.UseServiceDiscovery != true)
+        {
+            return "Enable service discovery to inject referenced endpoints.";
+        }
+
+        if (reference.Resource is null)
+        {
+            return "The reference will not be injected until the resource can be resolved.";
+        }
+
+        if (reference.EndpointBindings.Count == 0)
+        {
+            return "No reachable endpoints are available for discovery.";
+        }
+
+        var firstAddress = reference.EndpointBindings[0].Address;
+        var keys = reference.EndpointBindings
+            .Where(binding => string.Equals(binding.Address, firstAddress, StringComparison.OrdinalIgnoreCase))
+            .Select(binding => binding.EnvironmentVariableName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(3)
+            .ToArray();
+        var more = reference.EndpointBindings.Count - keys.Length;
+        var suffix = more > 0
+            ? $" (+{more} more)"
+            : string.Empty;
+
+        return $"{string.Join(", ", keys)}{suffix} -> {firstAddress}";
+    }
 
     private ResourceVolumeMountMaterialization? ResolveRuntimeVolumeMount(ResourceVolumeMount mount) =>
         RuntimeState?.RuntimeVolumeMounts.FirstOrDefault(runtimeMount =>
@@ -692,4 +798,10 @@ else
         ResourceVolumeMount Mount,
         Resource? Volume,
         ResourceVolumeMountMaterialization? RuntimeMount);
+
+    private sealed record ServiceDiscoveryReferenceView(
+        string ResourceId,
+        Resource? Resource,
+        IReadOnlyList<string> ServiceNames,
+        IReadOnlyList<ServiceDiscoveryEndpointBinding> EndpointBindings);
 }

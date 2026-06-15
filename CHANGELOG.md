@@ -82,6 +82,11 @@ on `git blame --follow`, and then by the broad type of change.
   materialization status when showing inbound DNS-style names, so users can see
   whether a name is logical-only, provider-selected, published, or failed from
   the target resource page.
+- Application overview pages now show service discovery references, projected
+  aliases, and representative `services__...` environment variable bindings so
+  developers can inspect how referenced endpoints will resolve at runtime.
+  The provider and UI now share the same service discovery display helper for
+  alias and endpoint-key normalization.
 
 #### Samples
 

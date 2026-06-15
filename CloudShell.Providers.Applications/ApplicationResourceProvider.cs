@@ -1145,8 +1145,8 @@ public sealed partial class ApplicationResourceProvider(
         {
             new("OTEL_SERVICE_NAME", FirstNonEmpty(
                 observability.ServiceName,
-                CreateServiceDiscoveryConfigurationSegment(definition.Name),
-                CreateServiceDiscoveryConfigurationSegment(definition.Id)) ?? definition.Id),
+                ApplicationServiceDiscoveryDisplay.CreateConfigurationSegment(definition.Name),
+                ApplicationServiceDiscoveryDisplay.CreateConfigurationSegment(definition.Id)) ?? definition.Id),
             new("OTEL_RESOURCE_ATTRIBUTES", CreateOtelResourceAttributes(definition, observability))
         };
 
@@ -1863,62 +1863,11 @@ public sealed partial class ApplicationResourceProvider(
     private static IEnumerable<EnvironmentVariableAssignment> CreateServiceDiscoveryEndpointEnvironmentVariables(
         Resource resource)
     {
-        var serviceNames = CreateServiceDiscoveryServiceNames(resource).ToArray();
-        if (serviceNames.Length == 0)
+        foreach (var binding in ApplicationServiceDiscoveryDisplay.GetEndpointBindings(resource))
         {
-            yield break;
-        }
-
-        foreach (var endpoint in resource.Endpoints)
-        {
-            if (string.IsNullOrWhiteSpace(endpoint.Address) ||
-                endpoint.Protocol.Equals("process", StringComparison.OrdinalIgnoreCase) ||
-                endpoint.Address.StartsWith("process://", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            foreach (var endpointKey in CreateServiceDiscoveryEndpointKeys(endpoint))
-            {
-                foreach (var serviceName in serviceNames)
-                {
-                    yield return new EnvironmentVariableAssignment(
-                        $"services__{serviceName}__{endpointKey}__0",
-                        endpoint.Address);
-                }
-            }
-        }
-    }
-
-    private static IEnumerable<string> CreateServiceDiscoveryServiceNames(Resource resource)
-    {
-        var names = new[]
-            {
-                CreateServiceDiscoveryConfigurationSegment(resource.Name),
-                CreateServiceDiscoveryConfigurationSegment(resource.Id)
-            }
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var name in names)
-        {
-            yield return name;
-        }
-    }
-
-    private static IEnumerable<string> CreateServiceDiscoveryEndpointKeys(ResourceEndpoint endpoint)
-    {
-        var keys = new[]
-            {
-                CreateServiceDiscoveryConfigurationSegment(endpoint.Name),
-                CreateServiceDiscoveryConfigurationSegment(endpoint.Protocol)
-            }
-            .Where(key => !string.IsNullOrWhiteSpace(key))
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var key in keys)
-        {
-            yield return key;
+            yield return new EnvironmentVariableAssignment(
+                binding.EnvironmentVariableName,
+                binding.Address);
         }
     }
 
@@ -4579,11 +4528,6 @@ public sealed partial class ApplicationResourceProvider(
     private static string EscapeWindowsCommandArgument(string value) =>
         value.Replace("\"", "\\\"", StringComparison.Ordinal);
 
-    private static string CreateServiceDiscoveryConfigurationSegment(string value) =>
-        ServiceDiscoveryConfigurationSegmentPattern()
-            .Replace(value.Trim().ToLowerInvariant(), "-")
-            .Trim('-');
-
     private static string GetLogId(string applicationId) => $"{applicationId}:logs";
 
     private static bool TryGetApplicationLogId(
@@ -4612,9 +4556,6 @@ public sealed partial class ApplicationResourceProvider(
 
     [GeneratedRegex("[^a-z0-9]+")]
     private static partial Regex SlugPattern();
-
-    [GeneratedRegex("[^a-z0-9_.-]+")]
-    private static partial Regex ServiceDiscoveryConfigurationSegmentPattern();
 
     private sealed record ApplicationProcessState(
         Process Process,

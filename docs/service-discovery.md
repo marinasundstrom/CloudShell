@@ -33,10 +33,21 @@ resource ID, normalized to lower-case dash-separated service names. Endpoint
 keys are emitted from both the endpoint name and protocol when they differ.
 Process-only endpoints are not projected.
 
+Application Resource Manager overview pages show the service discovery
+references that will be projected, including their aliases and the first
+environment variable names that bind those aliases to concrete endpoint
+addresses.
+
 Service discovery variables are generated from references, not from lifecycle
 dependencies. Use `WithReference(...)` when the application should discover a
 resource endpoint. Use `DependsOn(...)` when the resource graph needs startup
 ordering. A resource can use both relationships.
+
+Service discovery is one addressing layer in CloudShell. Concrete endpoint
+addresses, topology-scoped reachability, application service discovery
+aliases, future network-level discovery names, and DNS/name mappings have
+different uses; see [Networking](networking.md#addressing-layers) for the
+shared terminology.
 
 ## Application Requirements
 

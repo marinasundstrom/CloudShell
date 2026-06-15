@@ -5742,6 +5742,14 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             "http://catalog.local:8080",
             environment?["services__service-catalog__http__0"]);
+        Assert.Equal(
+            ["catalog-api", "service-catalog"],
+            ApplicationServiceDiscoveryDisplay.GetServiceNames(catalogResource));
+        Assert.Contains(
+            ApplicationServiceDiscoveryDisplay.GetEndpointBindings(catalogResource),
+            binding =>
+                binding.EnvironmentVariableName == "services__service-catalog__http__0" &&
+                binding.Address == "http://catalog.local:8080");
         Assert.DoesNotContain(
             environment ?? [],
             variable => variable.Key.StartsWith("CLOUDSHELL_SECRETS_", StringComparison.OrdinalIgnoreCase));
