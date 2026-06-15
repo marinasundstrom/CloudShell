@@ -2,10 +2,8 @@
 
 @if (Store is null)
 {
-    <div class="empty-state">
-        <strong>Configuration Store is unavailable</strong>
-        <span>The resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="Configuration Store is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
 }
 else
 {

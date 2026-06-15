@@ -1,0 +1,24 @@
+<div class="@CssClass">
+    <strong>@Title</strong>
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <span>@Message</span>
+    }
+    @ChildContent
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public bool Compact { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private string CssClass => Compact ? "empty-state compact" : "empty-state";
+}

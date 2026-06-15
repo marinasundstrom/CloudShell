@@ -2,10 +2,8 @@
 
 @if (DnsZone is null)
 {
-    <div class="empty-state">
-        <strong>DNS zone unavailable</strong>
-        <span>The DNS zone resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="DNS zone unavailable"
+                Message="The DNS zone resource may have been removed or is no longer visible." />
 }
 else
 {

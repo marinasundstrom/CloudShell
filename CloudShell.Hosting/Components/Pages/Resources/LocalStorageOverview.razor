@@ -2,10 +2,8 @@
 
 @if (Storage is null)
 {
-    <div class="empty-state">
-        <strong>Storage unavailable</strong>
-        <span>The storage resource may have been removed or is no longer visible.</span>
-    </div>
+    <EmptyState Title="Storage unavailable"
+                Message="The storage resource may have been removed or is no longer visible." />
 }
 else
 {
