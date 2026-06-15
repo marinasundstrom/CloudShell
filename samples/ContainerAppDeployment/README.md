@@ -30,6 +30,12 @@ revision flow safe to run even when the mock image has not actually been pushed.
 When you do start the resources, Docker expects the referenced image tags to
 exist in the configured registry address.
 
+For local runs, use `create-registry.sh` to materialize the registry container
+in Docker before pushing images to it. The declared Docker container resource
+keeps the registry visible in CloudShell and preserves the dependency and
+endpoint relationship, but the current sample does not create the registry
+container from the resource declaration.
+
 The app declaration keeps the lifecycle dependency and endpoint discovery
 relationship explicit:
 

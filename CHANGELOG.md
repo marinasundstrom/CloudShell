@@ -78,6 +78,10 @@ on `git blame --follow`, and then by the broad type of change.
   `SAMPLE_REGISTRY` value from `CONTAINER_APP_DEPLOYMENT_REGISTRY_PORT`, so
   the registry creation and mock deployment scripts use the same port
   convention.
+- The Container App Deployment README now clarifies that the declared local
+  registry resource models and tracks the registry in CloudShell, while
+  `create-registry.sh` still materializes the Docker registry container for
+  local runs.
 - Added the shared `IResourceVolumeMountMaterializationStore` contract for
   runtime-observed volume mount facts. The application runtime state store now
   implements it, and Docker Compose records materialized/not-active mount
