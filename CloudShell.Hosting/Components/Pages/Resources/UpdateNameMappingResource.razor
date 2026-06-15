@@ -40,7 +40,7 @@ else
             {
                 <div class="resource-alert info" role="status">
                     <strong>Local host-name publishing</strong>
-                    <span>This DNS zone uses local host-name publishing. Reconcile name mappings on the DNS zone to write exact host mappings to the configured hosts-file target.</span>
+                    <span>This DNS zone uses local host-name publishing. Applying this mapping reconciles the DNS zone and writes exact host mappings to the configured hosts-file target.</span>
                 </div>
             }
 
@@ -103,6 +103,7 @@ else
     private const string NetworkResourceType = "cloudshell.network";
     private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
     private const string LocalHostNamesProvider = "local-hostnames";
+    private const string ReconcileNameMappingsActionId = "reconcileNameMappings";
 
     [CascadingParameter]
     public ResourceConfigurationContext? Configuration { get; set; }
@@ -256,8 +257,23 @@ else
                 ResourceClass.Network),
             cancellationToken);
 
+        if (ShouldReconcileNameMappingsAfterApply())
+        {
+            var result = await ResourceManager.ExecuteResourceActionAsync(
+                new ExecuteResourceActionCommand(
+                    DnsZone.Id,
+                    ReconcileNameMappingsActionId,
+                    TriggeredBy: "resource-manager"),
+                cancellationToken);
+            return ResourceProcedureResult.Completed($"Name mapping updated. {result.Message}");
+        }
+
         return ResourceProcedureResult.Completed("Name mapping updated.");
     }
+
+    private bool ShouldReconcileNameMappingsAfterApply() =>
+        DnsZone?.ResourceActions.Any(action =>
+            string.Equals(action.Id, ReconcileNameMappingsActionId, StringComparison.OrdinalIgnoreCase)) == true;
 
     private string? GetTargetEndpointName()
     {

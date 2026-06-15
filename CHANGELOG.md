@@ -138,6 +138,10 @@ on `git blame --follow`, and then by the broad type of change.
   Identity user with a resource-scoped permission claim, obtains a password
   grant token from the built-in authority, and verifies the protected API can
   inspect the managed resource with that user account.
+- Applying an existing DNS name-mapping resource in Resource Manager now
+  reconciles the parent DNS zone when it exposes the name-mapping reconcile
+  action, so local host-name mappings attempt to update the configured hosts
+  file from the same UI Apply flow.
 - Resource detail pages now use Resource Manager operation capabilities for
   apply-button visibility and apply execution guards, keeping update affordance
   checks aligned with inventory manage/delete/action checks.
