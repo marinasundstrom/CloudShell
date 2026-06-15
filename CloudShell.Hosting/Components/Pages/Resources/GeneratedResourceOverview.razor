@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
+@inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
@@ -446,6 +447,8 @@
     public EventCallback<Resource> ResourceUpdated { get; set; }
 
     private IReadOnlyList<Resource> ChildResources { get; set; } = [];
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
     private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
@@ -465,7 +468,10 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        ChildResources = await ResourceManager.ListResourceChildrenAsync(Resource.Id);
+        DisplaySelection = await DisplaySettings.GetAsync();
+        ChildResources = (await ResourceManager.ListResourceChildrenAsync(Resource.Id))
+            .Where(DisplaySelection.ShowsResource)
+            .ToArray();
         Logs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: Resource.Id));
         Capabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(Resource);
         InboundNetworkMappings = await LoadInboundNetworkMappingsAsync();

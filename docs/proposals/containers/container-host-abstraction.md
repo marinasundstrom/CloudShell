@@ -320,13 +320,28 @@ but that is optional:
 
 - A Traefik implementation container can be hidden provider-owned state.
 - A Docker provider may project discovered containers as `docker.container`
-  children for inspection.
+  children for inspection, but those raw discoveries should be hidden
+  runtime-managed artifacts by default.
 - If projected, the child resource should name its owner or parent and should
   not become the stable deployment target for user actions such as app image
   updates.
 
 Default UI behavior should keep the stable resource primary and show runtime
 children as diagnostics/implementation detail.
+
+Dependency relationships should not automatically become child-resource UI.
+For example, a container app depending on a storage volume, DNS zone, or
+container host does not make those dependencies sub-resources of the app.
+Providers choose when a child relationship is part of their resource model, and
+the generic Resource Manager child list still honors resource visibility.
+
+For Docker specifically, the `docker.host` resource is the user-facing host
+boundary. Raw Docker containers discovered from the host are useful operational
+observations, but they should not appear in the global resource inventory by
+default. A later Docker host Containers tab can intentionally show those
+containers to users who can view the host, while normal global inventory stays
+focused on stable user-authored resources and explicitly declared Docker
+container resources.
 
 ### Remote Client/API Boundary
 

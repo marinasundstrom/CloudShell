@@ -827,21 +827,7 @@
         }
     }
 
-    private bool IsVisibleInInventory(Resource resource)
-    {
-        if (resource.Visibility == ResourceVisibility.Normal)
-        {
-            return true;
-        }
-
-        if (!DisplaySelection.ShowHiddenResources)
-        {
-            return false;
-        }
-
-        return resource.ManagementMode != ResourceManagementMode.RuntimeManaged ||
-            DisplaySelection.ShowRuntimeManagedResources;
-    }
+    private bool IsVisibleInInventory(Resource resource) => DisplaySelection.ShowsResource(resource);
 
     private static bool IsUserManagedResource(Resource resource) =>
         resource.Source == ResourceSource.User &&

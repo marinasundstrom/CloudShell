@@ -19,13 +19,18 @@ resources. Hidden resources stay out of the standard inventory by default
 while remaining available in the loaded graph for parent/detail inspection.
 Resource Manager can opt into showing hidden resources, and hidden
 runtime-managed artifacts additionally require a runtime-managed inspection
-setting and permission. This is an internal foundation for container app
-runtime artifacts before broad runtime resource projection is announced as a
-public product surface.
+setting and permission. Generic child-resource lists now use the same
+visibility gates as the global inventory so hidden implementation details do
+not appear merely because they are parented to a stable resource. This is an
+internal foundation for container app runtime artifacts before broad runtime
+resource projection is announced as a public product surface.
 Container apps now use this foundation to project desired runtime container
 replicas as hidden children of the stable container app resource. Provider-
 observed container IDs, health, placement, and materialization details remain
 future enrichment.
+Docker host discovery also projects raw Docker containers as hidden
+runtime-managed observations by default. Explicit `AddDockerContainer(...)`
+resources remain normal user-managed resources.
 
 Runtime-managed resources are one important case, but the broader problem is
 that provider-created, orchestrator-created, and runtime-created resources need
@@ -187,6 +192,21 @@ Ownership should allow the Resource Manager to determine:
 
 The relationship should be explicit rather than inferred from naming
 conventions or provider state.
+
+Ownership and dependency are different relationships. A dependency means one
+resource needs another resource to exist or be running. It does not mean the
+dependent resource should be displayed as a child or sub-resource. Child
+projection is reserved for ownership or provider-authored inspection
+relationships, and the UI should still respect the child's visibility metadata.
+
+Providers can deliberately expose provider-owned or runtime-owned children in
+one of three ways:
+
+* make them normal resources when they are part of the user-facing model
+* keep them hidden but allow advanced inventory inspection through the global
+  Resource Manager display settings
+* show selected artifacts in provider-specific tabs, such as a future Docker
+  host Containers tab, without making them normal global inventory items
 
 ## Provider-Created and Runtime-Created Resource Examples
 

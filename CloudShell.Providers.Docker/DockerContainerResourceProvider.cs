@@ -1019,7 +1019,10 @@ public sealed partial class DockerContainerResourceProvider :
             TypeId: "docker.container",
             Actions: CreateContainerActions(container.State),
             ResourceClass: ResourceClass.Container,
-            Attributes: CreateContainerAttributes(container.Image, DockerProviderOptions.DefaultRegistry, endpoints.Count));
+            Attributes: CreateContainerAttributes(container.Image, DockerProviderOptions.DefaultRegistry, endpoints.Count),
+            Source: ResourceSource.RuntimeController,
+            ManagementMode: ResourceManagementMode.RuntimeManaged,
+            Visibility: ResourceVisibility.Hidden);
     }
 
     private IReadOnlyList<Resource> GetDeclaredContainerResources(

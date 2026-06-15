@@ -129,6 +129,13 @@ on `git blame --follow`, and then by the broad type of change.
   and hidden runtime-managed artifacts are separate opt-ins, runtime-managed
   inspection requires permission, and non-normal resources remain view-only.
   Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
+- Docker host raw container discoveries are now projected as hidden
+  runtime-managed observations instead of normal global inventory resources.
+  Explicit `AddDockerContainer(...)` declarations remain normal user-managed
+  Docker container resources, and generated child-resource sections now honor
+  the same visibility gates as the Resource Manager inventory so provider or
+  runtime artifacts do not appear as sub-resources by default.
+  Decision: [ADR-20260615-002](ADR.md#adr-20260615-002).
 
 #### Samples
 

@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Authorization;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
 using Microsoft.Extensions.Options;
 
@@ -75,4 +76,20 @@ internal sealed record ResourceManagerDisplaySelection(
         false,
         false,
         false);
+
+    public bool ShowsResource(Resource resource)
+    {
+        if (resource.Visibility == ResourceVisibility.Normal)
+        {
+            return true;
+        }
+
+        if (!ShowHiddenResources)
+        {
+            return false;
+        }
+
+        return resource.ManagementMode != ResourceManagementMode.RuntimeManaged ||
+            ShowRuntimeManagedResources;
+    }
 }

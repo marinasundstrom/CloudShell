@@ -20,6 +20,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using DockerContainerListResponse = Docker.DotNet.Models.ContainerListResponse;
 
 namespace CloudShell.Abstractions.Tests;
 
@@ -3117,6 +3118,39 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceLifetime.Detached, workload?.Lifetime);
         Assert.Equal("http://registry.local:5000", workload?.Registry);
         Assert.Equal("http://registry.local:5000", resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
+        Assert.Equal(ResourceSource.User, resource.Source);
+        Assert.Equal(ResourceManagementMode.UserManaged, resource.ManagementMode);
+        Assert.Equal(ResourceVisibility.Normal, resource.Visibility);
+    }
+
+    [Fact]
+    public void DockerProvider_ProjectsDiscoveredContainersAsHiddenRuntimeManagedArtifacts()
+    {
+        var mapContainer = typeof(DockerContainerResourceProvider)
+            .GetMethod("MapContainer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        var container = new DockerContainerListResponse
+        {
+            ID = "0123456789abcdef",
+            Names = ["/redis-runtime"],
+            Image = "redis:7.2",
+            State = "running",
+            Created = DateTime.UtcNow,
+            Ports = []
+        };
+
+        var resource = Assert.IsType<Resource>(mapContainer?.Invoke(
+            null,
+            [container, DockerContainerResourceProvider.DefaultHostResourceId]));
+
+        Assert.Equal("docker:container:0123456789abcdef", resource.Id);
+        Assert.Equal("redis-runtime", resource.Name);
+        Assert.Equal("docker.container", resource.EffectiveTypeId);
+        Assert.Equal(DockerContainerResourceProvider.DefaultHostResourceId, resource.ParentResourceId);
+        Assert.Equal(ResourceClass.Container, resource.ResourceClass);
+        Assert.Equal(ResourceSource.RuntimeController, resource.Source);
+        Assert.Equal(ResourceManagementMode.RuntimeManaged, resource.ManagementMode);
+        Assert.Equal(ResourceVisibility.Hidden, resource.Visibility);
+        Assert.Equal(ResourceCleanupBehavior.None, resource.CleanupBehavior);
     }
 
     [Fact]
