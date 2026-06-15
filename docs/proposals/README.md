@@ -35,6 +35,7 @@ changes. Milestone scope remains authoritative in [Roadmap](../roadmap.md).
 | 14 | [Deployments and revisions](deployment/deployments-and-revisions.md) | In progress | MVP internal foundation, with current-revision support | Internal orchestrator deployment/revision data contracts exist for container app/provider/orchestrator use. Rich rollout history, rollback, retention, traffic splitting, and public management APIs remain deferred. |
 | 15 | [Deployment projection](deployment/deployment-projection.md) | In progress | Later portability | Tracks external deployment artifact projection and should not displace the MVP control-plane milestone. |
 | 16 | [Resource graph import and code generation](core/resource-graph-import.md) | Proposed | Later portability and advanced authoring | Tracks external file import into CloudShell graph drafts, starting with Docker Compose YAML, with generated programmatic declarations as the preferred first output. |
+| 17 | [Managed SQL Server resource](resources/managed-sql-server.md) | Proposed | Post-MVP managed database resource shape | Tracks the future SQL Server managed resource surface. The current `application.sql-server` implementation remains a local-development container-backed bridge, but future SQL Server UX should not expose generic container-app deployment controls by default. |
 
 ## Current proposal order
 

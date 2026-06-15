@@ -20,6 +20,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Added a portable local host networking provider resource, endpoint-mapping
   provisioner contract, Resource Manager UI readiness/provider display, and a
   Host Virtual Network sample.
+- Added a Managed SQL Server resource proposal and updated the SQL Server
+  resource documentation to clarify that the current container-backed
+  implementation is transitional. Future SQL Server UX should be
+  database-oriented and should not expose generic container app deployment
+  controls by default.
+  Decision: [ADR-20260615-003](ADR.md#adr-20260615-003).
 
 #### Changed
 

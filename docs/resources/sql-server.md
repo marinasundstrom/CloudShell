@@ -6,7 +6,24 @@ container-backed application using the SQL Server Linux container image.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For the underlying
-container app model, see [Container apps](container-apps.md).
+container app model, see [Container apps](container-apps.md). For the desired
+future managed database shape, see the
+[Managed SQL Server proposal](../proposals/resources/managed-sql-server.md).
+
+## Modeling Boundary
+
+The current SQL Server resource reuses the container-backed application runtime
+because it is an MVP-local development implementation. That is a transitional
+provider detail, not the desired long-term Resource Manager experience.
+
+A future managed SQL Server resource should not expose generic container app
+controls such as image deployment, revisions, replicas, or app ingress by
+default. It should present SQL Server-oriented configuration and operations:
+connectivity, storage, administrator credentials, identity-backed access,
+database children, backup/restore, diagnostics, and provider-specific
+maintenance. If a provider uses a container internally, that container should
+remain a runtime detail or contextual diagnostic artifact rather than the main
+management surface.
 
 ## Registration
 

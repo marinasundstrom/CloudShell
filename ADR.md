@@ -11,6 +11,20 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-15
 
+### ADR-20260615-003: Keep managed SQL Server distinct from container apps
+
+SQL Server is a managed database service resource, not a generic container
+application. The current `application.sql-server` implementation may continue
+to use the container-backed application runtime as a transitional local
+development bridge, but future SQL Server Resource Manager UX should present
+database-oriented configuration and operations instead of generic container app
+deployment controls such as image rollout, revisions, replicas, or app
+ingress. If a provider uses a container internally, that runtime artifact is an
+implementation detail or contextual diagnostic child, not the SQL Server
+resource's primary management model.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260615-002: Introduce deployment and runtime-owned resource metadata before public rollout features
 
 Container apps need deployment, revision, and runtime-owned resource relationships to become a useful managed-service primitive. Add the shared abstractions and resource metadata first, use them internally for container apps and provider/orchestrator runtime artifacts, and keep them out of the normal public product surface until the model is proven. A container app remains the user-facing resource; orchestrator deployments/revisions and runtime-managed containers, replicas, endpoint registrations, or provider-owned artifacts are lower-level implementation and diagnostic entities that may be hidden from normal Resource Manager lists.
