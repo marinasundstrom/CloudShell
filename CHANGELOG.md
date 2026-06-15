@@ -121,6 +121,11 @@ on `git blame --follow`, and then by the broad type of change.
   lookups and checking group-aware resource access. A new resource permission
   boundary component keeps permission-gated UI actions from repeating the
   same authorization and presentation plumbing across management views.
+- Resource Manager permission coverage now exercises user-account
+  `cloudshell.resource-permission` claims through operation capabilities,
+  lifecycle action execution, storage-owned volume creation, and resource
+  identity provisioning so the UI-first identity path is covered by the same
+  Control Plane service behavior.
 - Resource detail pages now use Resource Manager operation capabilities for
   apply-button visibility and apply execution guards, keeping update affordance
   checks aligned with inventory manage/delete/action checks.

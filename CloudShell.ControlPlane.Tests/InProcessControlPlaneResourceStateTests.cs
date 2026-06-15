@@ -4,13 +4,16 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Logs;
 using CloudShell.ControlPlane.ResourceManager;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace CloudShell.ControlPlane.Tests;
@@ -90,6 +93,34 @@ public sealed class InProcessControlPlaneResourceStateTests
         Assert.Equal(
             "The 'CloudShell.Resources/resources/actions/execute/action' or 'resources.manage' permission is required for resource 'target'.",
             capability.GetActionUnavailableReason("custom"));
+    }
+
+    [Fact]
+    public async Task GetResourceOperationCapabilities_UsesUserResourcePermissionClaims()
+    {
+        var resource = CreateResource("target", ResourceState.Running);
+        var controlPlane = CreateControlPlane(
+            [resource],
+            authorization: CreateClaimsAuthorization(
+                CreateResourcePermissionClaim(
+                    resource.Id,
+                    CloudShellPermissions.Resources.Actions.Lifecycle)));
+
+        var capabilities = await controlPlane.GetResourceOperationCapabilitiesAsync([resource.Id]);
+
+        var capability = Assert.Single(capabilities).Value;
+        Assert.False(capability.CanManage);
+        Assert.False(capability.CanDelete);
+        Assert.Equal(
+            [
+                ResourceActionIds.Pause,
+                ResourceActionIds.Restart,
+                ResourceActionIds.Stop
+            ],
+            capability.ExecutableActionIds.Order(StringComparer.OrdinalIgnoreCase));
+        Assert.True(capability.CanExecuteAction(ResourceActionIds.Stop));
+        Assert.True(capability.CanExecuteAction(ResourceActionIds.Pause));
+        Assert.False(capability.CanExecuteAction(ResourceActionIds.Start));
     }
 
     [Fact]
@@ -321,6 +352,24 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_AllowsUserResourcePermissionClaim()
+    {
+        var provider = new TestResourceProvider();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            authorization: CreateClaimsAuthorization(
+                CreateResourcePermissionClaim(
+                    "target",
+                    CloudShellPermissions.Resources.Actions.Lifecycle)));
+
+        await controlPlane.ExecuteResourceActionAsync(
+            new ExecuteResourceActionCommand("target", ResourceActionIds.Stop));
+
+        Assert.Equal(["target:stop"], provider.ExecutedActions);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_KeepsManagePermissionAsActionSuperset()
     {
         var provider = new TestResourceProvider();
@@ -457,6 +506,45 @@ public sealed class InProcessControlPlaneResourceStateTests
             authorization: new ResourceScopedAuthorizationService(
                 ("api", CloudShellPermissions.Resources.Manage),
                 ("identity:dev", ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities)),
+            identityProviders:
+            [
+                new(
+                    "identity:dev",
+                    "Development identity",
+                    ResourceIdentityProviderKind.BuiltIn,
+                    ProvisioningResourceId: "identity:dev")
+            ],
+            identityProvisioners: [provisioner],
+            configureDeclarations: declarations => declarations.Declare(
+                new TestCloudShellBuilder(),
+                "test",
+                "api",
+                identity: new ResourceIdentityBinding("identity:dev", Name: "api-service")));
+
+        var result = await controlPlane.ProvisionResourceIdentityAsync("api");
+
+        Assert.Equal("identity:dev", result.ProviderId);
+        var request = Assert.Single(provisioner.Requests);
+        Assert.Equal("identity:dev", request.Provider.Id);
+        Assert.Equal("api", Assert.Single(request.Identities).Identity.ResourceId);
+    }
+
+    [Fact]
+    public async Task ProvisionResourceIdentityAsync_AllowsUserResourcePermissionClaims()
+    {
+        var provisioner = new TestResourceIdentityProvisioner("identity:dev");
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("api", ResourceState.Running),
+                CreateResource("identity:dev", ResourceState.Running)
+            ],
+            authorization: CreateClaimsAuthorization(
+                CreateResourcePermissionClaim(
+                    "api",
+                    CloudShellPermissions.Resources.Manage),
+                CreateResourcePermissionClaim(
+                    "identity:dev",
+                    ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities)),
             identityProviders:
             [
                 new(
@@ -1225,6 +1313,34 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task CreateResourceAsync_AllowsStorageOwnedVolumeWithUserResourcePermissionClaim()
+    {
+        var options = new PlatformResourceOptions();
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var storage = CreateStorageResource("storage:local");
+        var controlPlane = CreateControlPlane(
+            [storage],
+            provider,
+            authorization: CreateClaimsAuthorization(
+                CreateResourcePermissionClaim(
+                    storage.Id,
+                    CloudShellPermissions.Resources.Manage)),
+            resourceTypeClasses: new Dictionary<string, ResourceClass>
+            {
+                [PlatformResourceProvider.VolumeResourceType] = ResourceClass.Storage
+            });
+
+        await controlPlane.CreateResourceAsync(CreateStorageOwnedVolumeCommand());
+
+        var volume = Assert.Single(provider.GetResources(), resource => resource.Id == "volume:data");
+        Assert.Equal("storage:local", volume.ParentResourceId);
+        Assert.Equal(ResourceVisibility.Hidden, volume.Visibility);
+    }
+
+    [Fact]
     public async Task DefaultOrchestrator_ExecutesOrchestratorServiceInstancesForReplicas()
     {
         var resource = CreateResource("application:api", ResourceState.Stopped);
@@ -1426,6 +1542,31 @@ public sealed class InProcessControlPlaneResourceStateTests
                 StorageResourceId: "storage:local",
                 SubPath: "data")),
             ResourceClass: ResourceClass.Storage);
+
+    private static ClaimsCloudShellAuthorizationService CreateClaimsAuthorization(params Claim[] claims)
+    {
+        var options = new CloudShellAuthenticationOptions { Enabled = true };
+        var identity = new ClaimsIdentity(
+            claims,
+            "Test",
+            ClaimTypes.Name,
+            options.RoleClaimType);
+        var context = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(identity)
+        };
+
+        return new ClaimsCloudShellAuthorizationService(
+            new HttpContextAccessor { HttpContext = context },
+            Options.Create(options));
+    }
+
+    private static Claim CreateResourcePermissionClaim(string resourceId, string permission) =>
+        new(
+            CloudShellAuthenticationOptions.ResourcePermissionClaimType,
+            ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+                resourceId,
+                permission));
 
     private static ResourceOrchestratorSelectionStore CreateSelectionStore()
     {
