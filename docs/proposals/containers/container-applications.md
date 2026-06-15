@@ -149,7 +149,7 @@ Implemented pieces include:
   `AddContainer(...)` declarations
 * Resource Manager registration and configuration UI for container apps
 * image, registry, environment-variable, endpoint, lifetime, replica, and
-  container-host configuration
+  container-host configuration, including create and update host selection
 * `AsContainer(...)` conversion for ASP.NET Core project resources
 * current revision projection when a container app image is updated
 * Resource Manager image update action
@@ -173,8 +173,9 @@ Implemented pieces include:
    for overview, configuration, storage, activity, logs, traces, exposure
    relationships, and attached volume visibility.
 2. Keep container host selection explicit or defaulted through the host
-   resolver. Initial resolver and diagnostics exist; richer credential and
-   readiness diagnostics continue in the host proposal.
+   resolver. Initial resolver, create/update host selection, and missing-host
+   diagnostics exist; richer credential and readiness diagnostics continue in
+   the host proposal.
 3. Materialize volume mounts in the runtime providers and surface mount
    compatibility diagnostics from host/storage medium capabilities.
 4. Finish the Resource Manager exposure path from the application resource:
@@ -201,6 +202,9 @@ Implemented pieces include:
   start/update where possible.
 * Add host capability diagnostics for unsupported storage media, ingress,
   public endpoint, or DNS/name publication choices.
+* Add a richer container-host readiness surface on the container app page,
+  including selected/default host status, credential availability, and
+  unsupported capability warnings before update/start.
 * Improve restart/update behavior around image, replica, environment, endpoint,
   identity, and storage changes.
 * Keep supported samples green with a broad container app scenario that uses

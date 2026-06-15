@@ -1,7 +1,10 @@
+@using System.Text.Json
 @inject ApplicationResourceProvider ApplicationProvider
 @inject IResourceManagerStore ResourceManager
 @inject IResourceGroupStore ResourceGroups
 @inject IResourceRegistrationStore Registrations
+@inject IEnumerable<IContainerHostProvider> ContainerHostProviders
+@inject IEnumerable<IResourceOrchestrationDescriptorProvider> DescriptorProviders
 
 @if (Application is null)
 {
@@ -97,6 +100,29 @@ else
                 <FluentTextField Id="application-update-dockerfile" @bind-Value="ContainerDockerfile" Placeholder="Dockerfile" />
             }
 
+            @if (CanConfigureContainerHost)
+            {
+                @if (!HasImplicitContainerHost() && string.IsNullOrWhiteSpace(SelectedHostId))
+                {
+                    <div class="procedure-confirmation">
+                        <strong>No default container host</strong>
+                        <span>Select a container host for this resource or register a default host with UseDocker().</span>
+                    </div>
+                }
+
+                <label for="application-update-container-host">Container host</label>
+                <FluentSelect TOption="string"
+                              Id="application-update-container-host"
+                              @bind-Value="SelectedHostId"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">Default host</FluentOption>
+                    @foreach (var host in GetContainerHosts())
+                    {
+                        <FluentOption TOption="string" Value="@host.Id">@GetHostLabel(host)</FluentOption>
+                    }
+                </FluentSelect>
+            }
+
             @if (CanConfigureReplicas)
             {
                 <label for="application-update-replicas">Replicas</label>
@@ -182,6 +208,7 @@ else
     private string? RegistryPasswordEnvironmentVariable { get; set; }
     private string? ContainerBuildContext { get; set; }
     private string? ContainerDockerfile { get; set; }
+    private string SelectedHostId { get; set; } = string.Empty;
     private int Replicas { get; set; } = 1;
     private string SelectedGroupId { get; set; } = string.Empty;
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
@@ -222,6 +249,9 @@ else
     private bool CanConfigureContainerBuildSettings =>
         IsContainerApp;
 
+    private bool CanConfigureContainerHost =>
+        IsContainerApp || IsSqlServer;
+
     private bool CanConfigureReplicas =>
         IsContainerApp;
 
@@ -254,6 +284,7 @@ else
             RegistryPasswordEnvironmentVariable = Application.ContainerRegistryCredentials?.PasswordEnvironmentVariable;
             ContainerBuildContext = Application.ContainerBuildContext;
             ContainerDockerfile = Application.ContainerDockerfile;
+            SelectedHostId = Application.ContainerHostId ?? string.Empty;
             Replicas = Application.Replicas;
             ReferenceIds = Application.References;
             SelectedGroupId = ResourceManager.GetGroupForResource(Application.Id)?.Id ?? string.Empty;
@@ -293,6 +324,11 @@ else
             return ResourceProcedureResult.Completed("Registry username and password environment variable are required together.");
         }
 
+        if (GetContainerHostValidationError() is { } containerHostError)
+        {
+            return ResourceProcedureResult.Completed(containerHostError);
+        }
+
         var definition = new ApplicationResourceDefinition(
             Application.Id,
             Name,
@@ -308,7 +344,7 @@ else
             CanConfigureContainerImage ? NormalizeNullable(ContainerImage) : Application.ContainerImage,
             CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerBuildContext) : Application.ContainerBuildContext,
             CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerDockerfile) : Application.ContainerDockerfile,
-            Application.ContainerHostId,
+            CanConfigureContainerHost ? NormalizeNullable(SelectedHostId) : Application.ContainerHostId,
             CanConfigureReplicas ? Math.Max(1, Replicas) : Math.Max(1, Application.Replicas),
             CanConfigureEndpoint ? BuildEndpointPorts(Application.ResourceType, Endpoint) : Application.EndpointPorts,
             resourceType: Application.ResourceType,
@@ -556,6 +592,84 @@ else
 
     private static string NormalizeRegistry(string? value) =>
         string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Default : value.Trim();
+
+    private string? GetContainerHostValidationError()
+    {
+        if (!CanConfigureContainerHost)
+        {
+            return null;
+        }
+
+        var hosts = GetContainerHosts();
+        if (!string.IsNullOrWhiteSpace(SelectedHostId))
+        {
+            return hosts.Any(host => string.Equals(host.Id, SelectedHostId, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : $"Container host '{SelectedHostId}' is not registered.";
+        }
+
+        return hosts.Any(host => host.IsDefault)
+            ? null
+            : "A default container host is required unless this resource selects an explicit host.";
+    }
+
+    private bool HasImplicitContainerHost() =>
+        GetContainerHosts().Any(host => host.IsDefault);
+
+    private IReadOnlyList<ContainerHostDescriptor> GetContainerHosts()
+    {
+        var configuredHosts = ContainerHostProviders
+            .Select(provider => provider.GetDefaultHost())
+            .Where(host => !string.IsNullOrWhiteSpace(host.Id));
+        var resourceHosts = ResourceManager
+            .GetResources()
+            .Select(TryReadContainerHost)
+            .Where(host => host is not null)
+            .Select(host => host!);
+
+        return configuredHosts
+            .Concat(resourceHosts)
+            .GroupBy(host => host.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .OrderByDescending(host => host.IsDefault)
+            .ThenBy(host => host.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private ContainerHostDescriptor? TryReadContainerHost(Resource resource)
+    {
+        var provider = DescriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
+        if (provider is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var descriptor = provider.DescribeAsync(
+                    resource,
+                    new ResourceOrchestrationDescriptorContext(
+                        Registrations.GetRegistration(resource.Id),
+                        ResourceManager.GetGroupForResource(resource.Id),
+                        ResourceManager))
+                .GetAwaiter()
+                .GetResult();
+            if (!descriptor.ResourceType.Equals(ContainerHostResourceTypes.ContainerHost, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return descriptor.Configuration.Deserialize<ContainerHostDescriptor>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string GetHostLabel(ContainerHostDescriptor host) =>
+        host.IsDefault ? $"{host.Name} (default)" : host.Name;
 
     private bool ValidateRegistryCredentials()
     {
