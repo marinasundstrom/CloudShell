@@ -16,7 +16,7 @@ else
             <div class="environment-editor">
                 <div class="environment-header">
                     <strong>Entries</strong>
-                    <FluentButton Appearance="Appearance.Neutral" OnClick="AddEntry">
+                    <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="AddEntry">
                         Add entry
                     </FluentButton>
                 </div>
@@ -24,9 +24,9 @@ else
                 @foreach (var entry in Entries)
                 {
                     <div class="environment-row configuration-entry-row">
-                        <FluentTextField AriaLabel="Configuration entry name" @bind-Value="entry.Name" />
-                        <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" />
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => RemoveEntry(entry)">
+                        <FluentTextField AriaLabel="Configuration entry name" @bind-Value="entry.Name" Disabled="@IsReadOnly" />
+                        <FluentTextField AriaLabel="Configuration entry value" @bind-Value="entry.Value" Disabled="@IsReadOnly" />
+                        <FluentButton Appearance="Appearance.Neutral" Disabled="@IsReadOnly" OnClick="() => RemoveEntry(entry)">
                             Remove
                         </FluentButton>
                     </div>
@@ -39,6 +39,9 @@ else
 @code {
     [CascadingParameter]
     public ResourceConfigurationContext? Configuration { get; set; }
+
+    [CascadingParameter(Name = ResourceManagerCascadingParameterNames.ReadOnly)]
+    public bool IsReadOnly { get; set; }
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -84,6 +87,11 @@ else
 
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
+        if (IsReadOnly)
+        {
+            return ResourceProcedureResult.Completed("Resource Manager is in read-only mode.");
+        }
+
         if (Store is null)
         {
             return ResourceProcedureResult.Completed("Configuration Store is unavailable.");

@@ -89,6 +89,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Docker host configuration now consumes the shared Resource Manager
   read-only cascade, disabling editable fields and guarding apply execution
   when Resource Manager is read-only.
+- Configuration Store and Secrets Vault edit tabs now consume the shared
+  Resource Manager read-only cascade, disabling metadata, entry, and secret
+  editors and guarding apply execution in read-only mode.
 - Host-provided virtual networking now has a portable local host networking
   provider. `networking:host-local` is an activated resource on macOS, Linux,
   and Windows that can materialize virtual endpoint mappings as local TCP

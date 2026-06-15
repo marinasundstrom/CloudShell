@@ -15,15 +15,16 @@ else
     <div class="type-registration">
         <div class="form-panel">
             <label for="configuration-update-name">Name</label>
-            <FluentTextField Id="configuration-update-name" @bind-Value="Name" />
+            <FluentTextField Id="configuration-update-name" @bind-Value="Name" Disabled="@IsReadOnly" />
 
             <label for="configuration-update-endpoint">Endpoint</label>
-            <FluentTextField Id="configuration-update-endpoint" @bind-Value="Endpoint" />
+            <FluentTextField Id="configuration-update-endpoint" @bind-Value="Endpoint" Disabled="@IsReadOnly" />
 
             <label for="configuration-update-group">Resource group</label>
             <FluentSelect TOption="string"
                           Id="configuration-update-group"
                           @bind-Value="SelectedGroupId"
+                          Disabled="@IsReadOnly"
                           Appearance="Appearance.Outline">
                 <FluentOption TOption="string" Value="">Default group</FluentOption>
                 @foreach (var group in ResourceGroups.GetResourceGroups())
@@ -39,6 +40,9 @@ else
 @code {
     [CascadingParameter]
     public ResourceConfigurationContext? Configuration { get; set; }
+
+    [CascadingParameter(Name = ResourceManagerCascadingParameterNames.ReadOnly)]
+    public bool IsReadOnly { get; set; }
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -72,6 +76,11 @@ else
 
     private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
     {
+        if (IsReadOnly)
+        {
+            return ResourceProcedureResult.Completed("Resource Manager is in read-only mode.");
+        }
+
         if (Store is null)
         {
             return ResourceProcedureResult.Completed("Configuration Store is unavailable.");
