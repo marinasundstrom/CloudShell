@@ -141,14 +141,6 @@ public sealed class KeycloakResourceIdentityProvisioner(
             var grants = request.PermissionGrants
                 .Where(grant => Matches(entry.Identity, grant.Identity))
                 .ToArray();
-            await EnsureResourcePermissionMapperAsync(
-                client,
-                request.Provider,
-                token,
-                keycloakClient.Id,
-                keycloakClient.ClientId,
-                cancellationToken);
-
             var roles = new List<KeycloakRoleRepresentation>();
             foreach (var grant in grants)
             {
@@ -172,6 +164,15 @@ public sealed class KeycloakResourceIdentityProvisioner(
                     roles,
                     cancellationToken);
             }
+
+            await EnsureResourcePermissionMappersAsync(
+                client,
+                request.Provider,
+                token,
+                keycloakClient.Id,
+                keycloakClient.ClientId,
+                grants,
+                cancellationToken);
 
             diagnostics.Add(new ResourceIdentityProvisioningDiagnostic(
                 ResourceIdentityProvisioningDiagnosticSeverity.Information,
@@ -427,12 +428,13 @@ public sealed class KeycloakResourceIdentityProvisioner(
             throw new InvalidOperationException("Keycloak service-account user response could not be read.");
     }
 
-    private static async Task EnsureResourcePermissionMapperAsync(
+    private static async Task EnsureResourcePermissionMappersAsync(
         HttpClient client,
         ResourceIdentityProviderDefinition provider,
         string token,
         string internalClientId,
         string clientId,
+        IReadOnlyList<ResourcePermissionGrant> grants,
         CancellationToken cancellationToken)
     {
         const string mapperName = "CloudShell resource permissions";
@@ -446,6 +448,14 @@ public sealed class KeycloakResourceIdentityProvisioner(
             cancellationToken) ?? [];
         if (mappers.Any(mapper => string.Equals(mapper.Name, mapperName, StringComparison.Ordinal)))
         {
+            await EnsureHardcodedResourcePermissionMappersAsync(
+                client,
+                provider,
+                token,
+                internalClientId,
+                grants,
+                mappers,
+                cancellationToken);
             return;
         }
 
@@ -470,6 +480,56 @@ public sealed class KeycloakResourceIdentityProvisioner(
             });
         using var createResponse = await client.SendAsync(createRequest, cancellationToken);
         await EnsureSuccessAsync(createResponse, cancellationToken);
+
+        await EnsureHardcodedResourcePermissionMappersAsync(
+            client,
+            provider,
+            token,
+            internalClientId,
+            grants,
+            mappers,
+            cancellationToken);
+    }
+
+    private static async Task EnsureHardcodedResourcePermissionMappersAsync(
+        HttpClient client,
+        ResourceIdentityProviderDefinition provider,
+        string token,
+        string internalClientId,
+        IReadOnlyList<ResourcePermissionGrant> grants,
+        IReadOnlyList<KeycloakProtocolMapperRepresentation> existingMappers,
+        CancellationToken cancellationToken)
+    {
+        foreach (var grant in grants)
+        {
+            var claimValue = CreateGrantRoleName(grant);
+            var mapperName = $"CloudShell resource permission {claimValue}";
+            if (existingMappers.Any(mapper => string.Equals(mapper.Name, mapperName, StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            using var createRequest = CreateJsonRequest(
+                HttpMethod.Post,
+                CreateAdminUri(provider, $"clients/{Uri.EscapeDataString(internalClientId)}/protocol-mappers/models"),
+                token,
+                new
+                {
+                    name = mapperName,
+                    protocol = "openid-connect",
+                    protocolMapper = "oidc-hardcoded-claim-mapper",
+                    consentRequired = false,
+                    config = new Dictionary<string, string>
+                    {
+                        ["access.token.claim"] = "true",
+                        ["claim.name"] = CloudShellAuthorizationClaimTypes.ResourcePermission,
+                        ["claim.value"] = claimValue,
+                        ["jsonType.label"] = "String"
+                    }
+                });
+            using var createResponse = await client.SendAsync(createRequest, cancellationToken);
+            await EnsureSuccessAsync(createResponse, cancellationToken);
+        }
     }
 
     private static async Task EnsureRealmRoleMapperAsync(

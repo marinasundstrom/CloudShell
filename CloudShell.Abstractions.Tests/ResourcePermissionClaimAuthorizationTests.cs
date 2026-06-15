@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 
 namespace CloudShell.Abstractions.Tests;
@@ -43,6 +44,33 @@ public sealed class ResourcePermissionClaimAuthorizationTests
         Assert.False(ResourcePermissionClaimAuthorization.HasResourcePermission(
             wildcardResource,
             "configuration:sample-app",
+            SecretsVaultResourceOperationPermissions.ReadSecrets));
+    }
+
+    [Fact]
+    public void HasResourcePermission_MatchesNestedCloudShellResourcePermissionClaim()
+    {
+        var resourcePermission = ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+            "configuration:sample-app",
+            ConfigurationStoreResourceOperationPermissions.ReadEntries);
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(
+                    "cloudshell",
+                    JsonSerializer.Serialize(new Dictionary<string, string[]>
+                    {
+                        ["resource-permission"] = [resourcePermission]
+                    }))
+            ],
+            authenticationType: "Test"));
+
+        Assert.True(ResourcePermissionClaimAuthorization.HasResourcePermission(
+            user,
+            "configuration:sample-app",
+            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+        Assert.False(ResourcePermissionClaimAuthorization.HasResourcePermission(
+            user,
+            "secrets-vault:sample-app",
             SecretsVaultResourceOperationPermissions.ReadSecrets));
     }
 

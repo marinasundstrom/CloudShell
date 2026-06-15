@@ -26,6 +26,12 @@ Start Keycloak:
 docker compose -f samples/ThirdPartyIdentity/docker-compose.yml up -d
 ```
 
+To avoid a local port conflict, set `KEYCLOAK_PORT`:
+
+```bash
+KEYCLOAK_PORT=18080 docker compose -f samples/ThirdPartyIdentity/docker-compose.yml up -d
+```
+
 Run CloudShell:
 
 ```bash
@@ -90,6 +96,9 @@ CloudShell provisioning request into Keycloak admin operations:
 - assigns those roles to the client's service-account user
 - adds a protocol mapper that emits assigned client roles as
   `cloudshell.resource-permission` claims in access tokens
+- adds explicit resource-permission claim mappers for declared grants so
+  service-account tokens carry the CloudShell access boundary even when the
+  provider emits dotted claim names as nested JSON
 - exposes the standard `CLOUDSHELL_IDENTITY_*` environment variables for
   workloads that use the provisioned identity
 - reports provisioning status by checking whether the Keycloak client exists
@@ -125,6 +134,8 @@ a Keycloak access token, and calls the protected Configuration Store service.
 The expected response has `status` set to `connected` and includes
 `Sample:Message`.
 
-The remaining gap is automated smoke coverage for this Keycloak-backed
-workload path. The sample is ready for manual validation, but the baseline test
-suite does not start Keycloak containers.
+The sample smoke tests can start Keycloak with Docker Compose, run the
+CloudShell host, verify that `identity-provisioning:keycloak` is projected as
+a resource boundary, confirm provisioning status for the workload identity,
+start the dependent Configuration Store and API resources, and assert the API
+can read the protected configuration entry with a Keycloak-issued token.

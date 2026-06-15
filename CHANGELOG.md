@@ -23,6 +23,18 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Identity providers that name a provisioning resource now declare that
+  resource boundary automatically, and the Control Plane projects
+  `identity.provisioning` declarations as stateless infrastructure resources
+  for permission checks, setup hooks, and provisioning-status reads.
+- Protected-service resource-permission evaluation now accepts both direct
+  `cloudshell.resource-permission` claims and nested Keycloak-style
+  `cloudshell.resource-permission` JSON claim output.
+- The Third-party Identity sample now has automated Docker Compose smoke
+  coverage for the Keycloak-provisioned workload path: the test starts
+  Keycloak, verifies the provisioning resource boundary and provisioning
+  status, starts dependent resources, and confirms the API reads Configuration
+  Store with a Keycloak-issued token.
 - ApplicationTopology now declares Configuration Store and Secrets Vault
   resources and injects referenced setting/secret values into the backend API,
   with the frontend `/upstream` response including a redacted settings check.

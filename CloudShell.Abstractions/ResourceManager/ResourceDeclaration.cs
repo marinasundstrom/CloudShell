@@ -190,6 +190,19 @@ public static class ResourceDeclarationBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        if (!string.IsNullOrWhiteSpace(provisioningResourceId))
+        {
+            builder.Declare(
+                ResourceIdentityProvisioningResources.ProviderId,
+                provisioningResourceId.Trim(),
+                resourceClass: ResourceClass.Infrastructure,
+                attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    [ResourceAttributeNames.InfrastructureKind] = "identity-provisioning",
+                    ["identity.provider"] = name.Trim()
+                });
+        }
+
         var provider = new ResourceIdentityProviderDefinition(id, name, kind, settings, provisioningResourceId);
         return GetOrAddDeclarationStore(builder.Services)
             .AddIdentityProvider(provider, useAsDefault);

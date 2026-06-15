@@ -243,6 +243,10 @@ Implemented pieces include:
 * Add deeper container-host readiness diagnostics for unsupported ingress,
   public endpoint, DNS/name publication, registry credential, and storage
   choices before update/start.
+* Add local container-registry diagnostics and configuration so CloudShell does
+  not assume `localhost:5000`. On macOS, port `5000` is commonly occupied by
+  the host OS, so registry-backed samples and providers should detect conflicts
+  and suggest or allocate a different port.
 * Improve restart/update behavior around image, replica, environment, endpoint,
   identity, and storage changes.
 * Keep supported samples green with a broad container app scenario that uses

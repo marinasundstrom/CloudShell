@@ -31,6 +31,13 @@ public sealed class ResourceIdentityProviderOptions
         new(Id, Name, Kind, Settings, ProvisioningResourceId);
 }
 
+public static class ResourceIdentityProvisioningResources
+{
+    public const string ProviderId = "identity.provisioning";
+
+    public const string ResourceType = "cloudshell.identity-provisioning";
+}
+
 public sealed record ResourceIdentityProviderDefinition(
     string Id,
     string Name,

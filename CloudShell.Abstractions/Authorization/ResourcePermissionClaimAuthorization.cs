@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace CloudShell.Abstractions.Authorization;
 
@@ -17,11 +18,8 @@ public static class ResourcePermissionClaimAuthorization
         string permission) =>
         user?.Identity?.IsAuthenticated == true &&
         user.Claims
-            .Where(claim => string.Equals(
-                claim.Type,
-                CloudShellAuthorizationClaimTypes.ResourcePermission,
-                StringComparison.OrdinalIgnoreCase))
-            .Any(claim => ResourcePermissionClaimMatches(claim.Value, resourceId, permission));
+            .SelectMany(GetResourcePermissionClaimValues)
+            .Any(value => ResourcePermissionClaimMatches(value, resourceId, permission));
 
     public static string CreateResourcePermissionClaimValue(
         string resourceId,
@@ -34,6 +32,62 @@ public static class ResourcePermissionClaimAuthorization
             CloudShellAuthorizationClaimTypes.ResourcePermissionSeparator,
             resourceId.Trim(),
             permission.Trim());
+    }
+
+    private static IEnumerable<string> GetResourcePermissionClaimValues(Claim claim)
+    {
+        if (string.Equals(
+                claim.Type,
+                CloudShellAuthorizationClaimTypes.ResourcePermission,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            yield return claim.Value;
+            yield break;
+        }
+
+        if (!string.Equals(claim.Type, "cloudshell", StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(claim.Value))
+        {
+            yield break;
+        }
+
+        using var document = TryParseJson(claim.Value);
+        if (document is null ||
+            !document.RootElement.TryGetProperty("resource-permission", out var resourcePermission))
+        {
+            yield break;
+        }
+
+        if (resourcePermission.ValueKind == JsonValueKind.String)
+        {
+            yield return resourcePermission.GetString() ?? string.Empty;
+            yield break;
+        }
+
+        if (resourcePermission.ValueKind != JsonValueKind.Array)
+        {
+            yield break;
+        }
+
+        foreach (var item in resourcePermission.EnumerateArray())
+        {
+            if (item.ValueKind == JsonValueKind.String)
+            {
+                yield return item.GetString() ?? string.Empty;
+            }
+        }
+    }
+
+    private static JsonDocument? TryParseJson(string value)
+    {
+        try
+        {
+            return JsonDocument.Parse(value);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static bool ResourcePermissionClaimMatches(

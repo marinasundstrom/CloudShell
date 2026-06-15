@@ -159,7 +159,10 @@ Implemented today:
   translates the provisioning request into Keycloak confidential clients and
   client roles for declared CloudShell grants, assigns those roles to the
   service-account user, and maps them into access-token
-  `cloudshell.resource-permission` claims.
+  `cloudshell.resource-permission` claims. Protected-service authorization
+  accepts both direct resource-permission claims and the nested JSON claim
+  shape emitted by providers such as Keycloak when dotted claim names are
+  represented as objects.
 - Provider-neutral runtime credential delivery through
   `IResourceIdentityCredentialEnvironmentProvider`. The Keycloak sample uses
   this hook to expose the same `CLOUDSHELL_IDENTITY_*` contract as the
@@ -171,15 +174,16 @@ Implemented today:
 - A Keycloak-provisioned workload path in the Third-party Identity sample. The
   sample declares an ASP.NET Core project resource, injects the standard
   `CLOUDSHELL_IDENTITY_*` credential environment, grants it Configuration
-  Store read access, and exposes `/configuration` for manual validation against
-  a Keycloak-issued token.
+  Store read access, and exposes `/configuration` for validation against a
+  Keycloak-issued token.
+- Automated end-to-end sample smoke coverage that starts Keycloak with Docker
+  Compose when available, verifies the `identity-provisioning:keycloak`
+  resource boundary and provisioning status, starts the dependent workload,
+  and confirms the workload reads Configuration Store through a
+  Keycloak-issued token.
 
 Not implemented yet:
 
-- Automated end-to-end sample smoke coverage that starts Keycloak and the
-  Keycloak-provisioned workload, acquires a token through
-  `DefaultCloudShellResourceCredential`, and calls Configuration Store or
-  Secrets Vault with the Keycloak-issued token.
 - Durable external authority registration for protected API audiences and
   provider-backed client secret storage. The current Keycloak sample keeps
   deterministic local-development client secrets so workload credential
@@ -528,10 +532,11 @@ service-principal automation flows.
    The first Keycloak sample validates external user authentication, CloudShell
    role claim mapping, and a sample-scoped resource identity provisioner that
    creates Keycloak clients, grant roles, service-account role assignments, and
-   resource-permission token mappers. Next, wire provisioned credentials into
-   workloads so they can use the external authority for protected service
-   calls. Add an identity-provider setup/reconcile hook before pushing provider
-   setup work into individual resource provisioning.
+   resource-permission token mappers. It now wires provisioned credentials into
+   a workload that calls a protected Configuration Store with the external
+   authority. Next, move beyond the sample implementation with durable
+   provider-backed secret storage and production-style protected API audience
+   registration.
 4. Microsoft Entra ID compatibility.
    Map the same resource identity and grant model to Entra app registrations,
    service principals, app roles or groups, token validation, and automation

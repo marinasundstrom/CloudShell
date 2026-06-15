@@ -59,7 +59,7 @@ builder.Services.TryAddEnumerable(
 cloudShell.Resources(resources =>
 {
     var provisioningResource = resources
-        .Declare("identity.provisioning", "identity-provisioning:keycloak")
+        .Declare(ResourceIdentityProvisioningResources.ProviderId, "identity-provisioning:keycloak")
         .WithResourceClass(ResourceClass.Infrastructure)
         .WithResourceAttribute(ResourceAttributeNames.InfrastructureKind, "identity-provisioning")
         .WithResourceAttribute("identity.provider", "Keycloak")
@@ -110,6 +110,7 @@ cloudShell.Resources(resources =>
         })
         .WithReference(settings)
         .WithServiceDiscovery()
+        .DependsOn(settings)
         .WithAutoStart(false)
         .ProvisionIdentityOnStartup();
 

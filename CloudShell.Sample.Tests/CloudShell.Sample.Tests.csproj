@@ -29,6 +29,8 @@
     <ProjectReference Include="..\samples\SettingsAndSecrets\CloudShell.SettingsAndSecrets.csproj" />
     <ProjectReference Include="..\samples\SplitHosting\ControlPlane\CloudShell.SplitHosting.ControlPlane.csproj" />
     <ProjectReference Include="..\samples\SplitHosting\UI\CloudShell.SplitHosting.UI.csproj" />
+    <ProjectReference Include="..\samples\ThirdPartyIdentity\CloudShell.ThirdPartyIdentity.csproj" />
+    <ProjectReference Include="..\samples\ThirdPartyIdentity\Api\CloudShell.ThirdPartyIdentity.Api.csproj" />
   </ItemGroup>
 
 </Project>

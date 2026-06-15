@@ -4678,6 +4678,37 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void AddIdentityProvider_DeclaresProvisioningResourceBoundary()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources.AddIdentityProvider(
+                    "identity:keycloak",
+                    "Keycloak",
+                    ResourceIdentityProviderKind.Oidc,
+                    provisioningResourceId: "identity-provisioning:keycloak",
+                    useAsDefault: true);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var declarations = serviceProvider.GetRequiredService<ResourceDeclarationStore>();
+        var provisioning = declarations.GetDeclaration("identity-provisioning:keycloak");
+
+        Assert.NotNull(provisioning);
+        Assert.Equal(ResourceIdentityProvisioningResources.ProviderId, provisioning.ProviderId);
+        Assert.Equal(ResourceClass.Infrastructure, provisioning.ResourceClassOverride);
+        Assert.Equal(
+            "identity-provisioning",
+            provisioning.ResourceAttributes[ResourceAttributeNames.InfrastructureKind]);
+        Assert.Equal("Keycloak", provisioning.ResourceAttributes["identity.provider"]);
+        Assert.Equal("identity:keycloak", declarations.DefaultIdentityProviderId);
+    }
+
+    [Fact]
     public void PlatformResources_DeclareNetworkEndpointRequestsAndMappings()
     {
         var services = new ServiceCollection();

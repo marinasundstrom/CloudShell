@@ -462,6 +462,104 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ThirdPartyIdentitySample_KeycloakProvisionedWorkloadReadsConfiguration()
+    {
+        if (!await DockerComposeStack.IsAvailableAsync())
+        {
+            return;
+        }
+
+        var keycloakPort = await GetFreePortAsync();
+        var apiPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:third-party-identity");
+        var root = SampleProcess.FindRepositoryRoot();
+        var projectName = $"cloudshell-third-party-identity-test-{Guid.NewGuid():N}";
+        using var keycloak = await DockerComposeStack.StartAsync(
+            root,
+            "samples/ThirdPartyIdentity/docker-compose.yml",
+            projectName,
+            [("KEYCLOAK_PORT", keycloakPort.ToString(CultureInfo.InvariantCulture))]);
+
+        var authority = $"http://localhost:{keycloakPort}/realms/cloudshell";
+        await WaitForHttpSuccessAsync(
+            $"{authority}/.well-known/openid-configuration",
+            TimeSpan.FromMinutes(2));
+
+        using var host = await SampleProcess.StartAsync(
+            "samples/ThirdPartyIdentity/CloudShell.ThirdPartyIdentity.csproj",
+            await GetFreePortAsync(),
+            [
+                ("Authentication__Enabled", "false"),
+                ("Authentication__OpenIdConnect__Authority", authority),
+                ("Authentication__OpenIdConnect__RequireHttpsMetadata", "false"),
+                ("Keycloak__AdminBaseAddress", $"http://localhost:{keycloakPort}"),
+                ("Keycloak__TokenEndpoint", $"{authority}/protocol/openid-connect/token"),
+                ("Samples__ThirdPartyIdentity__ApiEndpoint", $"http://localhost:{apiPort}"),
+                ("Samples__ThirdPartyIdentity__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var resourcesJson = await host.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resources = resourcesDocument.RootElement.EnumerateArray().ToArray();
+        var provisioning = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "identity-provisioning:keycloak");
+        var settings = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "configuration:third-party-identity");
+        var api = Assert.Single(resources, resource =>
+            resource.GetProperty("id").GetString() == "application:keycloak-provisioned-api");
+        var identity = api.GetProperty("identity");
+
+        Assert.Equal(ResourceIdentityProvisioningResources.ResourceType, provisioning.GetProperty("typeId").GetString());
+        Assert.Equal("Keycloak Identity Provisioning", provisioning.GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Null, provisioning.GetProperty("state").ValueKind);
+        Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
+        Assert.Equal("identity:keycloak", identity.GetProperty("providerId").GetString());
+        Assert.Equal("keycloak-provisioned-api", identity.GetProperty("name").GetString());
+        Assert.Contains(
+            "configuration:third-party-identity",
+            api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+
+        var provisioningStatusJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resources/application%3Akeycloak-provisioned-api/identity/provisioning-status");
+        using var provisioningStatusDocument = JsonDocument.Parse(provisioningStatusJson);
+        Assert.Equal(
+            "identity:keycloak",
+            provisioningStatusDocument.RootElement.GetProperty("providerId").GetString());
+        var provisioningStatus = Assert.Single(
+            provisioningStatusDocument.RootElement.GetProperty("statuses").EnumerateArray());
+        var provisioningState = provisioningStatus.GetProperty("state");
+        if (provisioningState.ValueKind == JsonValueKind.String)
+        {
+            Assert.Equal("provisioned", provisioningState.GetString()?.ToLowerInvariant());
+        }
+        else
+        {
+            Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, provisioningState.GetInt32());
+        }
+
+        await host.SendAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/resources/application%3Akeycloak-provisioned-api/actions/start?startDependencies=true");
+
+        var configurationJson = await WaitForJsonStatusAsync(
+            $"http://localhost:{apiPort}/configuration",
+            "connected",
+            TimeSpan.FromMinutes(1));
+        using var configurationDocument = JsonDocument.Parse(configurationJson);
+        var configurationRoot = configurationDocument.RootElement;
+
+        Assert.Equal("connected", configurationRoot.GetProperty("status").GetString());
+        Assert.Equal("cloudshell-keycloak-provisioned-api", configurationRoot.GetProperty("clientId").GetString());
+        Assert.Contains(
+            configurationRoot.GetProperty("entries").EnumerateArray(),
+            entry =>
+                entry.GetProperty("name").GetString() == "Sample:Message" &&
+                entry.GetProperty("value").GetString() == "Hello from a Keycloak-provisioned resource identity");
+    }
+
+    [Fact]
     public async Task SplitHostingSample_RendersUiThroughRemoteControlPlane()
     {
         var controlPlanePort = await GetFreePortAsync();
@@ -753,6 +851,82 @@ public sealed class SampleSmokeTests
         }
     }
 
+    private static async Task WaitForHttpSuccessAsync(string url, TimeSpan timeout)
+    {
+        using var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(3)
+        };
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        Exception? lastException = null;
+        string? lastStatus = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                using var response = await client.GetAsync(url);
+                if (response.IsSuccessStatusCode)
+                {
+                    return;
+                }
+
+                lastStatus = $"{(int)response.StatusCode} {response.ReasonPhrase}";
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                lastException = exception;
+            }
+
+            await Task.Delay(500);
+        }
+
+        throw new TimeoutException(
+            $"Endpoint '{url}' did not become ready within {timeout}." +
+            $"{Environment.NewLine}{lastStatus ?? lastException?.Message}");
+    }
+
+    private static async Task<string> WaitForJsonStatusAsync(
+        string url,
+        string expectedStatus,
+        TimeSpan timeout)
+    {
+        using var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(5)
+        };
+        var deadline = DateTimeOffset.UtcNow.Add(timeout);
+        Exception? lastException = null;
+        string? lastBody = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            try
+            {
+                lastBody = await client.GetStringAsync(url);
+                using var document = JsonDocument.Parse(lastBody);
+                if (string.Equals(
+                        document.RootElement.GetProperty("status").GetString(),
+                        expectedStatus,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return lastBody;
+                }
+            }
+            catch (Exception exception) when (
+                exception is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException)
+            {
+                lastException = exception;
+            }
+
+            await Task.Delay(500);
+        }
+
+        throw new TimeoutException(
+            $"Endpoint '{url}' did not return status '{expectedStatus}' within {timeout}." +
+            $"{Environment.NewLine}{lastBody ?? lastException?.Message}");
+    }
+
     private static async Task<int> GetServiceBasePortAsync(string resourceId)
     {
         var offset = GetStableServicePortOffset(resourceId);
@@ -879,6 +1053,151 @@ public sealed class SampleSmokeTests
             new NullFileProvider();
     }
 
+    private sealed class DockerComposeStack : IDisposable
+    {
+        private readonly string root;
+        private readonly string composeFile;
+        private readonly string projectName;
+        private bool disposed;
+
+        private DockerComposeStack(string root, string composeFile, string projectName)
+        {
+            this.root = root;
+            this.composeFile = composeFile;
+            this.projectName = projectName;
+        }
+
+        public static async Task<bool> IsAvailableAsync()
+        {
+            try
+            {
+                var result = await RunDockerAsync(
+                    SampleProcess.FindRepositoryRoot(),
+                    ["compose", "version"],
+                    null,
+                    TimeSpan.FromSeconds(10),
+                    throwOnError: false);
+                return result.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static async Task<DockerComposeStack> StartAsync(
+            string root,
+            string composeFile,
+            string projectName,
+            IReadOnlyList<(string Key, string Value)> environment)
+        {
+            var stack = new DockerComposeStack(root, composeFile, projectName);
+            await RunDockerAsync(
+                root,
+                ["compose", "-f", composeFile, "-p", projectName, "up", "-d"],
+                environment,
+                TimeSpan.FromMinutes(3),
+                throwOnError: true);
+            return stack;
+        }
+
+        public void Dispose()
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            disposed = true;
+            try
+            {
+                RunDockerAsync(
+                        root,
+                        ["compose", "-f", composeFile, "-p", projectName, "down", "-v", "--remove-orphans"],
+                        null,
+                        TimeSpan.FromMinutes(1),
+                        throwOnError: false)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch
+            {
+                // Test cleanup should not hide the original test failure.
+            }
+        }
+
+        private static async Task<ProcessResult> RunDockerAsync(
+            string workingDirectory,
+            IReadOnlyList<string> arguments,
+            IReadOnlyList<(string Key, string Value)>? environment,
+            TimeSpan timeout,
+            bool throwOnError)
+        {
+            var output = new StringBuilder();
+            var startInfo = new ProcessStartInfo("docker")
+            {
+                WorkingDirectory = workingDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            };
+            foreach (var argument in arguments)
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
+
+            if (environment is not null)
+            {
+                foreach (var (key, value) in environment)
+                {
+                    startInfo.Environment[key] = value;
+                }
+            }
+
+            using var process = Process.Start(startInfo) ??
+                throw new InvalidOperationException("Could not start Docker.");
+            var outputTask = CaptureAsync(process.StandardOutput, output);
+            var errorTask = CaptureAsync(process.StandardError, output);
+            try
+            {
+                await process.WaitForExitAsync().WaitAsync(timeout);
+            }
+            catch (TimeoutException)
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+
+                throw;
+            }
+
+            await Task.WhenAll(outputTask, errorTask);
+
+            var result = new ProcessResult(process.ExitCode, output.ToString());
+            if (throwOnError && result.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"Docker command failed with exit code {result.ExitCode}.{Environment.NewLine}{result.Output}");
+            }
+
+            return result;
+
+            static async Task CaptureAsync(StreamReader reader, StringBuilder output)
+            {
+                while (await reader.ReadLineAsync() is { } line)
+                {
+                    lock (output)
+                    {
+                        output.AppendLine(line);
+                    }
+                }
+            }
+        }
+
+        private sealed record ProcessResult(int ExitCode, string Output);
+    }
+
     private sealed class SampleProcess : IDisposable
     {
         private readonly Process process;
@@ -993,8 +1312,14 @@ public sealed class SampleSmokeTests
             }
 
             using var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsStringAsync();
+            var content = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException(
+                    $"Response status code does not indicate success: {(int)response.StatusCode} ({response.ReasonPhrase}).{Environment.NewLine}{content}");
+            }
+
+            return content;
         }
 
         public async Task WaitForAbsoluteHttpOkAsync(

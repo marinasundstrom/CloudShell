@@ -263,6 +263,48 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_ProjectsIdentityProvisioningDeclarationResource()
+    {
+        var declarations = new ResourceDeclarationStore();
+        declarations.Declare(
+            new TestCloudShellBuilder(),
+            ResourceIdentityProvisioningResources.ProviderId,
+            "identity-provisioning:keycloak",
+            resourceClass: ResourceClass.Infrastructure,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.InfrastructureKind] = "identity-provisioning",
+                ["identity.provider"] = "Keycloak"
+            });
+        var registration = new ResourceRegistration(
+            "identity-provisioning:keycloak",
+            ResourceIdentityProvisioningResources.ProviderId,
+            null,
+            DateTimeOffset.UtcNow,
+            []);
+        var store = new ResourceManagerStore(
+            [new ResourceIdentityProvisioningResourceProvider(declarations)],
+            new TestResourceGroupStore([]),
+            new TestResourceRegistrationStore([registration]),
+            declarations,
+            new ResourceIdentityProviderCatalog(),
+            new CloudShellExtensionRegistry(),
+            new InMemoryCloudShellExtensionActivationStore());
+
+        var resource = Assert.Single(store.GetResources());
+
+        Assert.Equal("identity-provisioning:keycloak", resource.Id);
+        Assert.Equal("Keycloak Identity Provisioning", resource.Name);
+        Assert.Equal(ResourceIdentityProvisioningResources.ResourceType, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Infrastructure, resource.ResourceClass);
+        Assert.Null(resource.State);
+        Assert.Equal(
+            "identity-provisioning",
+            resource.ResourceAttributes[ResourceAttributeNames.InfrastructureKind]);
+        Assert.Equal("Keycloak", resource.ResourceAttributes["identity.provider"]);
+    }
+
+    [Fact]
     public void GetGroupForResource_InheritsGroupFromRegisteredParent()
     {
         var group = new ResourceGroup("group-one", "Group One", "Test group", []);
