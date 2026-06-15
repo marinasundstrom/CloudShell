@@ -65,17 +65,9 @@
             Enable observability
         </FluentCheckbox>
 
-        <label for="application-group">Resource group</label>
-        <FluentSelect TOption="string"
-                      Id="application-group"
-                      @bind-Value="SelectedGroupId"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups.GetResourceGroups())
-            {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-            }
-        </FluentSelect>
+        <ResourceGroupSelect Id="application-group"
+                             ResourceGroups="ResourceGroups.GetResourceGroups()"
+                             @bind-Value="SelectedGroupId" />
 
         <ResourceSelectionSection Title="Dependencies"
                                   Resources="GetDependencyCandidates()"

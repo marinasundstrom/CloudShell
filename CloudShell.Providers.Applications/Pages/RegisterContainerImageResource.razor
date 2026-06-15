@@ -87,17 +87,9 @@
             </FluentSelect>
         }
 
-        <label for="container-group">Resource group</label>
-        <FluentSelect TOption="string"
-                      Id="container-group"
-                      @bind-Value="SelectedGroupId"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default group</FluentOption>
-            @foreach (var group in ResourceGroups.GetResourceGroups())
-            {
-                <FluentOption TOption="string" Value="@group.Id">@group.Name</FluentOption>
-            }
-        </FluentSelect>
+        <ResourceGroupSelect Id="container-group"
+                             ResourceGroups="ResourceGroups.GetResourceGroups()"
+                             @bind-Value="SelectedGroupId" />
 
         <ResourceSelectionSection Title="References"
                                   Resources="GetReferenceCandidates()"
