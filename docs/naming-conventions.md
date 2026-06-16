@@ -52,8 +52,8 @@ when needed. For example, an application named `api` can become
 `application:api`, while a Configuration Store named `sample-app` can become
 `configuration:sample-app`.
 
-The Resource Manager create UI should ask for **Name** first, not Resource ID.
-Display name comes after it and remains optional.
+The Resource Manager create UI should ask for **Name**, not Resource ID. It
+does not expose display-name editing for MVP management workflows.
 
 ## Display Name
 
@@ -71,6 +71,11 @@ automation targets.
 
 Programmatic declarations should use `.WithDisplayName(...)` only when a
 friendly label adds value.
+
+For now, display names are a local-development and programmatic-declaration
+affordance. Managed Resource Manager UI flows should keep users focused on the
+resource name and treat display names as read-only presentation metadata when a
+provider or declaration supplies one.
 
 ## Optional Hierarchy Separator
 

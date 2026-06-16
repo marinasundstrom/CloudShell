@@ -312,7 +312,8 @@ listed here before pulling in broader proposal work.
   should appear first in details and overview identity surfaces, while create
   flows ask for the scoped resource name. Resource Manager now has a
   display-name preference and projected resources now carry explicit
-  `DisplayName`; follow-up work is a managed display-name edit flow.
+  `DisplayName`, but UI create and update flows should not edit display names
+  for the MVP.
 - Keep lifecycle actions and resource activity consistent: `Start` is the
   canonical action, every lifecycle action records the requested action and
   resulting events, and dependencies started by orchestration get their own

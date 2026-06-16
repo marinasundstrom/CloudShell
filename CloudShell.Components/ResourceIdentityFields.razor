@@ -5,15 +5,6 @@
                      ValueChanged="@ResourceIdChanged"
                      Disabled="@ResourceIdDisabled"
                      Placeholder="@ResourceIdPlaceholder" />
-
-    @if (EnableDisplayNames)
-    {
-        <label for="@DisplayNameInputId">@DisplayNameLabel</label>
-        <FluentTextField Id="@DisplayNameInputId"
-                         Value="@DisplayName"
-                         ValueChanged="@DisplayNameChanged"
-                         Placeholder="@DisplayNamePlaceholder" />
-    }
 </div>
 
 @code {

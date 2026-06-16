@@ -6,7 +6,5 @@ public static class ResourceDisplayNameDefaults
         bool enableDisplayNames,
         string? displayName,
         string resourceName) =>
-        enableDisplayNames && !string.IsNullOrWhiteSpace(displayName)
-            ? displayName.Trim()
-            : resourceName.Trim();
+        resourceName.Trim();
 }

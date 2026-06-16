@@ -37,6 +37,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager permission boundaries can now combine global and
   resource-scoped permissions, and the Storage volumes tab uses that shared
   boundary for the Add volume action.
+- Resource Manager create forms no longer expose display-name editing. UI
+  registrations use the resource name as the canonical create command name,
+  leaving display names as programmatic/local-development presentation labels.
 - Projected resources now carry explicit `DisplayName` separately from the
   scoped `Name`, and the Control Plane API/client maps that field so Resource
   Manager labels can stay friendly while details, logs, and automation keep

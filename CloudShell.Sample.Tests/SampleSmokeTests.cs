@@ -188,6 +188,22 @@ public sealed class SampleSmokeTests
     }
 
     [Fact]
+    public async Task ProjectReferenceHost_AddResourceUsesNameWithoutDisplayNameInput()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/ProjectReference/Host/CloudShell.ProjectReferenceHost.csproj",
+            await GetFreePortAsync());
+
+        await host.WaitForHttpOkAsync("/", StartupTimeout);
+
+        var addResourceHtml = await host.GetStringAsync(
+            "/resources/add?type=application.aspnet-core-project");
+        Assert.Contains("Name", addResourceHtml);
+        Assert.DoesNotContain("Display name", addResourceHtml);
+        Assert.DoesNotContain("web-application-display-name", addResourceHtml);
+    }
+
+    [Fact]
     public async Task ApplicationTopologyHost_ProjectsSqlStorageAndServiceDiscoveryTopology()
     {
         var frontendPort = await GetFreePortAsync();
