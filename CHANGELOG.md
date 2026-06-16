@@ -34,6 +34,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource inventory blades now show the generated Details action for
   resources with custom detail routes when the user has read access, instead
   of requiring manage access for an inspection-only navigation path.
+- Resource Manager permission boundaries can now combine global and
+  resource-scoped permissions, and the Storage volumes tab uses that shared
+  boundary for the Add volume action.
 - Projected resources now carry explicit `DisplayName` separately from the
   scoped `Name`, and the Control Plane API/client maps that field so Resource
   Manager labels can stay friendly while details, logs, and automation keep

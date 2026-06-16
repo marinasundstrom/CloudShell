@@ -28,6 +28,12 @@ else if (NotAuthorized is not null)
     public IReadOnlyCollection<string>? Permissions { get; set; }
 
     [Parameter]
+    public string? GlobalPermission { get; set; }
+
+    [Parameter]
+    public IReadOnlyCollection<string>? GlobalPermissions { get; set; }
+
+    [Parameter]
     public bool RequireAll { get; set; } = true;
 
     [Parameter]
@@ -41,7 +47,7 @@ else if (NotAuthorized is not null)
 
     private bool IsAuthorized()
     {
-        if (Resource is null || ChildContent is null)
+        if (ChildContent is null)
         {
             return false;
         }
@@ -51,39 +57,57 @@ else if (NotAuthorized is not null)
             return false;
         }
 
-        var permissions = GetPermissions();
-        if (permissions.Count == 0)
+        var resourcePermissions = GetResourcePermissions();
+        var globalPermissions = GetGlobalPermissions();
+        if (resourcePermissions.Count == 0 && globalPermissions.Count == 0)
         {
             return false;
         }
 
-        var groupId = ResourceGroupId ??
-            (ResourceGroupsByResourceId is null
-                ? null
-                : ResourceManagerUiAccess.GetResourceGroupId(ResourceGroupsByResourceId, Resource.Id));
-
-        return RequireAll
-            ? permissions.All(permission => CanAccessResource(permission, groupId))
-            : permissions.Any(permission => CanAccessResource(permission, groupId));
-    }
-
-    private bool CanAccessResource(string permission, string? resourceGroupId) =>
-        string.Equals(permission, CloudShellPermissions.Resources.Read, StringComparison.OrdinalIgnoreCase)
-            ? ResourceManagerUiAccess.CanReadResource(Authorization, Resource!, resourceGroupId)
-            : Authorization.CanAccessResource(Resource!.Id, resourceGroupId, permission);
-
-    private IReadOnlyList<string> GetPermissions()
-    {
-        var permissions = Permissions?
-            .Where(permission => !string.IsNullOrWhiteSpace(permission))
-            .ToArray();
-        if (permissions is { Length: > 0 })
+        if (resourcePermissions.Count > 0 && Resource is null)
         {
-            return permissions;
+            return false;
         }
 
-        return string.IsNullOrWhiteSpace(Permission)
+        var groupId = Resource is null
+            ? ResourceGroupId
+            : ResourceGroupId ??
+                (ResourceGroupsByResourceId is null
+                    ? null
+                    : ResourceManagerUiAccess.GetResourceGroupId(ResourceGroupsByResourceId, Resource.Id));
+
+        return RequireAll
+            ? globalPermissions.All(Authorization.HasPermission) &&
+                resourcePermissions.All(permission => CanAccessResource(Resource!, permission, groupId))
+            : globalPermissions.Any(Authorization.HasPermission) ||
+                resourcePermissions.Any(permission => CanAccessResource(Resource!, permission, groupId));
+    }
+
+    private bool CanAccessResource(Resource resource, string permission, string? resourceGroupId) =>
+        string.Equals(permission, CloudShellPermissions.Resources.Read, StringComparison.OrdinalIgnoreCase)
+            ? ResourceManagerUiAccess.CanReadResource(Authorization, resource, resourceGroupId)
+            : Authorization.CanAccessResource(resource.Id, resourceGroupId, permission);
+
+    private IReadOnlyList<string> GetResourcePermissions() =>
+        GetPermissions(Permissions, Permission);
+
+    private IReadOnlyList<string> GetGlobalPermissions() =>
+        GetPermissions(GlobalPermissions, GlobalPermission);
+
+    private static IReadOnlyList<string> GetPermissions(
+        IReadOnlyCollection<string>? permissions,
+        string? permission)
+    {
+        var configuredPermissions = permissions?
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToArray();
+        if (configuredPermissions is { Length: > 0 })
+        {
+            return configuredPermissions;
+        }
+
+        return string.IsNullOrWhiteSpace(permission)
             ? []
-            : [Permission];
+            : [permission];
     }
 }

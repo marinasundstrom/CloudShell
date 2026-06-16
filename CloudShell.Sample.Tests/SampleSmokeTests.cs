@@ -306,6 +306,11 @@ public sealed class SampleSmokeTests
             "ProviderSelected",
             nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingMaterializationStatus).GetString());
 
+        var storageVolumesHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("storage:application-topology-local")}/details?tab=volumes");
+        Assert.Contains("Add volume", storageVolumesHtml);
+        Assert.Contains("This Storage resource cannot be deleted while it owns volumes.", storageVolumesHtml);
+
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
         AssertResourceTabsInOrder(
