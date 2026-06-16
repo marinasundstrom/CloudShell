@@ -1,4 +1,9 @@
-.add-resource-heading > div,
+.add-resource-layout {
+    display: grid;
+    gap: 1rem;
+    width: min(100%, 56rem);
+}
+
 .add-resource-layout,
 .add-resource-layout .registration-options,
 .add-resource-layout .registration-host,
@@ -7,13 +12,48 @@
     min-width: 0;
 }
 
-.add-resource-layout .form-panel {
-    width: 100%;
-    max-width: 100%;
+.add-resource-type-panel,
+.add-resource-form-panel {
+    display: grid;
+    gap: 1rem;
 }
 
-@container (max-width: 62rem) {
-    .add-resource-layout {
-        grid-template-columns: 1fr;
-    }
+.add-resource-type-panel h2,
+.add-resource-form-header h2 {
+    margin: 0;
+}
+
+.add-resource-type-picker {
+    display: grid;
+    gap: .45rem;
+}
+
+.add-resource-type-panel fluent-select {
+    width: 100%;
+}
+
+.selected-type-card.compact {
+    align-items: start;
+    padding: .85rem;
+}
+
+.selected-type-card.compact p,
+.add-resource-form-header p {
+    margin: .2rem 0 0;
+    color: var(--cloudshell-text-muted);
+}
+
+.add-resource-type-actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.add-resource-form-header {
+    display: grid;
+    gap: .35rem;
+}
+
+.add-resource-layout .form-panel {
+    width: min(100%, 48rem);
+    max-width: 100%;
 }

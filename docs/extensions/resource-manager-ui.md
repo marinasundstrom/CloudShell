@@ -31,6 +31,30 @@ Resource providers are not shown as a product concept in the UI. They are
 implementation services that resource types use to map external systems into
 CloudShell resources.
 
+## Create Experiences
+
+CloudShell should support more than one Resource Manager create experience
+over the same underlying resource-creation contract.
+
+The intended model is:
+
+- **Resource gallery** as the default `/resources/add` entry point. It should
+  help users discover resource types through search, categories, and
+  provider-owned descriptions.
+- **Quick create** as the direct
+  `/resources/add?type=<resource-type-id>` shortcut. This is the compact,
+  single-page form path for experienced users, bookmarks, deep links, and
+  app-centric or provider-centric "add related resource" actions.
+- **Guided create** as a future wizard-based path for resource types that need
+  prerequisites, multi-step configuration, provider selection, or richer
+  validation. This should remain a presentation choice over the same create
+  command model rather than a separate resource-registration mechanism.
+
+For MVP, the priority is keeping quick-create flows understandable and stable.
+The gallery and wizard paths should be added without changing the underlying
+resource-type contribution model or the registration components' ownership of
+type-specific inputs and validation.
+
 ## Health Check Defaults
 
 Resource types can provide default health checks through

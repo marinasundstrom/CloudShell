@@ -34,24 +34,26 @@
 }
 else
 {
-    <section class="registration-layout add-resource-layout">
-        <aside class="panel registration-options">
+    <section class="add-resource-layout">
+        <aside class="panel registration-options add-resource-type-panel">
             <h2>@L["Resource type"]</h2>
-            <label for="resource-type">@L["Type"]</label>
-            <FluentSelect TOption="string"
-                          Id="resource-type"
-                          Value="@SelectedTypeId"
-                          ValueChanged="ChangeSelectedType"
-                          Appearance="Appearance.Outline">
-                @foreach (var type in resourceTypes)
-                {
-                    <FluentOption TOption="string" Value="@type.Id">@type.DisplayName</FluentOption>
-                }
-            </FluentSelect>
+            <div class="add-resource-type-picker">
+                <label for="resource-type">@L["Type"]</label>
+                <FluentSelect TOption="string"
+                              Id="resource-type"
+                              Value="@SelectedTypeId"
+                              ValueChanged="ChangeSelectedType"
+                              Appearance="Appearance.Outline">
+                    @foreach (var type in resourceTypes)
+                    {
+                        <FluentOption TOption="string" Value="@type.Id">@type.DisplayName</FluentOption>
+                    }
+                </FluentSelect>
+            </div>
 
             @if (selectedType is not null)
             {
-                <div class="selected-type-card">
+                <div class="selected-type-card compact">
                     <span class="resource-kind-icon">@GetTypeGlyph(selectedType)</span>
                     <div>
                         <strong>@selectedType.DisplayName</strong>
@@ -60,10 +62,12 @@ else
                 </div>
             }
 
-            <a href="/resources/groups/new">@L["Create a resource group"]</a>
+            <div class="add-resource-type-actions">
+                <a href="/resources/groups/new">@L["Create a resource group"]</a>
+            </div>
         </aside>
 
-        <div class="panel registration-host">
+        <div class="panel registration-host add-resource-form-panel">
             @if (selectedType is null)
             {
                 <div class="empty-state">
@@ -74,14 +78,10 @@ else
             else
             {
                 var probeContext = GetProbeContext(selectedType);
-                <div class="provider-summary compact">
-                    <div class="provider-status">
-                        <div>
-                            <strong>@selectedType.DisplayName</strong>
-                            <span>@selectedType.Description</span>
-                        </div>
-                    </div>
-                </div>
+                <header class="add-resource-form-header">
+                    <h2>@selectedType.DisplayName</h2>
+                    <p>@selectedType.Description</p>
+                </header>
                 <CascadingValue Value="probeContext">
                     <CascadingValue Value="selectedType">
                         <DynamicComponent Type="selectedType.RegistrationComponentType" />

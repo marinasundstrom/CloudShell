@@ -44,10 +44,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The shell topbar is now separated from layout state handling so navigation
   persistence, shell chrome, and command-surface UI are easier to evolve
   independently.
-- The Add Resource page now constrains its registration panes and stacks them
-  based on the actual shell content width, avoiding horizontal clipping when a
-  resource registration form and type selector compete for space in a narrow
-  shell viewport.
+- The Add Resource page now uses a compact single-column registration flow
+  with a dedicated resource-type header panel and a constrained form surface,
+  avoiding horizontal clipping and type-picker overlap across shell sizes.
 - Log and trace source filters now use native select controls in the
   observability views, avoiding Fluent UI popup state during source changes and
   periodic trace refreshes.

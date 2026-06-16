@@ -108,6 +108,10 @@ listed here before pulling in broader proposal work.
    logs, traces, activity, and inbound name mappings. Fix UI consistency and
    generated details when they block understanding of those resources, but do
    not start broad new shell areas before the supported samples are stable.
+   Keep the current quick-create path as a compact shortcut flow, but plan for
+   a Resource Manager resource gallery to become the default Add Resource entry
+   point, with future wizard-based guided setup for resource types that need a
+   multi-step UX.
 3. Stateful application foundation: continue the storage and volume-mapping
    path now that `cloudshell.storage`, `cloudshell.volume`, `AddVolume(...)`,
    and container app volume mounts exist. Runtime materialization diagnostics
