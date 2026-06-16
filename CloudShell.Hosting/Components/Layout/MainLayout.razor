@@ -1,11 +1,13 @@
 ﻿@inherits LayoutComponentBase
 @inject Microsoft.Extensions.Options.IOptionsMonitor<CloudShellDisplayOptions> DisplayOptions
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
+@inject ICloudShellUserSettingsProvider Settings
+@inject IJSRuntime JSRuntime
 @inject IStringLocalizer<SharedResource> L
 
-<div class="shell">
+<div class="shell @CollapsedClass">
     <aside class="shell-sidebar">
-        <NavMenu />
+        <NavMenu IsCollapsed="IsNavCollapsed" IsCollapsedChanged="SetCollapsedStateAsync" />
     </aside>
 
     <main class="shell-main">
@@ -47,8 +49,52 @@
 </div>
 
 @code {
+    private bool IsNavCollapsed { get; set; }
+
+    private string? CollapsedClass => IsNavCollapsed ? "nav-collapsed" : null;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        IsNavCollapsed = await LoadCollapsedStateAsync();
+        await StoreCollapsedStateAsync(persistBrowser: true);
+        StateHasChanged();
+    }
+
     private string GetEnvironmentName() =>
         string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.EnvironmentName)
             ? HostEnvironment.EnvironmentName
             : DisplayOptions.CurrentValue.EnvironmentName.Trim();
+
+    private async Task SetCollapsedStateAsync(bool collapsed)
+    {
+        IsNavCollapsed = collapsed;
+        await StoreCollapsedStateAsync(persistBrowser: true);
+
+        StateHasChanged();
+    }
+
+    private async Task<bool> LoadCollapsedStateAsync()
+    {
+        var browserValue = await JSRuntime.InvokeAsync<bool?>("cloudShellNav.getStoredCollapsed");
+        if (browserValue.HasValue)
+        {
+            return browserValue.Value;
+        }
+
+        var storedValue = await Settings.GetSettingAsync(CloudShellUserSettingKeys.NavigationCollapsed);
+        return string.Equals(storedValue?.Value, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task StoreCollapsedStateAsync(bool persistBrowser)
+    {
+        await Settings.SetSettingAsync(
+            CloudShellUserSettingKeys.NavigationCollapsed,
+            IsNavCollapsed ? "true" : "false");
+        await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", IsNavCollapsed, persistBrowser);
+    }
 }

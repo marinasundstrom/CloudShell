@@ -1,8 +1,5 @@
-﻿@rendermode InteractiveServer
-@inject ShellCatalog ShellCatalog
+﻿@inject ShellCatalog ShellCatalog
 @inject Microsoft.Extensions.Options.IOptionsMonitor<CloudShellDisplayOptions> DisplayOptions
-@inject ICloudShellUserSettingsProvider Settings
-@inject IJSRuntime JSRuntime
 @inject IStringLocalizer<SharedResource> L
 
 <div class="brand">
@@ -11,12 +8,8 @@
         <div class="brand-name">@GetApplicationName()</div>
         <div class="brand-subtitle">@L["Platform control plane"]</div>
     </div>
-    <button type="button"
-            class="nav-toggle @CollapsedClass"
-            title="@L["Toggle navigation"]"
-            aria-label="@L["Toggle navigation"]"
-            aria-expanded="@AriaExpanded"
-            @onclick="ToggleNavigation">
+    <button type="button" class="nav-toggle @CollapsedClass" title="@L["Toggle navigation"]"
+            aria-label="@L["Toggle navigation"]" aria-expanded="@AriaExpanded" @onclick="ToggleNavigation">
         <span class="nav-toggle-icon" aria-hidden="true"></span>
     </button>
 </div>
@@ -44,22 +37,14 @@
 </div>
 
 @code {
-    private bool IsNavCollapsed { get; set; }
+    [Parameter]
+    public bool IsCollapsed { get; set; }
 
-    private string AriaExpanded => IsNavCollapsed ? "false" : "true";
-    private string? CollapsedClass => IsNavCollapsed ? "collapsed" : null;
+    [Parameter]
+    public EventCallback<bool> IsCollapsedChanged { get; set; }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender)
-        {
-            return;
-        }
-
-        IsNavCollapsed = await LoadCollapsedStateAsync();
-        await StoreCollapsedStateAsync();
-        StateHasChanged();
-    }
+    private string AriaExpanded => IsCollapsed ? "false" : "true";
+    private string? CollapsedClass => IsCollapsed ? "collapsed" : null;
 
     private static NavLinkMatch GetMatch(string href) =>
         href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
@@ -69,29 +54,6 @@
             ? "CloudShell"
             : DisplayOptions.CurrentValue.ApplicationName.Trim();
 
-    private async Task ToggleNavigation()
-    {
-        IsNavCollapsed = !IsNavCollapsed;
-        await StoreCollapsedStateAsync();
-    }
-
-    private async Task<bool> LoadCollapsedStateAsync()
-    {
-        var browserValue = await JSRuntime.InvokeAsync<bool?>("cloudShellNav.getStoredCollapsed");
-        if (browserValue.HasValue)
-        {
-            return browserValue.Value;
-        }
-
-        var storedValue = await Settings.GetSettingAsync(CloudShellUserSettingKeys.NavigationCollapsed);
-        return string.Equals(storedValue?.Value, "true", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private async Task StoreCollapsedStateAsync()
-    {
-        await Settings.SetSettingAsync(
-            CloudShellUserSettingKeys.NavigationCollapsed,
-            IsNavCollapsed ? "true" : "false");
-        await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", IsNavCollapsed, true);
-    }
+    private Task ToggleNavigation() =>
+        IsCollapsedChanged.InvokeAsync(!IsCollapsed);
 }
