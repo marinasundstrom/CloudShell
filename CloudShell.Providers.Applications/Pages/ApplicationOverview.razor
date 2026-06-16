@@ -184,7 +184,7 @@ else
         </section>
     }
 
-    @if (IsContainerBacked(Application) || InboundLoadBalancerRoutes.Count > 0)
+    @if (HasExposureTarget(Application) || InboundLoadBalancerRoutes.Count > 0)
     {
         <section class="blade-section">
             <h3>Load balancer exposure</h3>
@@ -218,7 +218,7 @@ else
         </section>
     }
 
-    @if (IsContainerBacked(Application) || InboundNameMappings.Count > 0)
+    @if (HasExposureTarget(Application) || InboundNameMappings.Count > 0)
     {
         <section class="blade-section">
             <h3>DNS and domain names</h3>
@@ -467,6 +467,10 @@ else
     private static bool IsContainerBacked(ApplicationResourceDefinition application) =>
         !string.IsNullOrWhiteSpace(application.ContainerImage) ||
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
+
+    private static bool HasExposureTarget(ApplicationResourceDefinition application) =>
+        application.EndpointPorts.Count > 0 ||
+        !string.IsNullOrWhiteSpace(GetEndpointAddress(application));
 
     private static bool IsSqlServer(ApplicationResourceDefinition application) =>
         string.Equals(

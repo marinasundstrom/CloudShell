@@ -90,6 +90,9 @@ on `git blame --follow`, and then by the broad type of change.
   identifiers.
 - Application resource overviews now include app-scoped diagnostics links for
   activity, logs, and traces when those resource signals are available.
+- Application resource overviews now show add-route and add-name-mapping entry
+  points for any application resource with an addressable endpoint, not only
+  container-backed applications.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or
