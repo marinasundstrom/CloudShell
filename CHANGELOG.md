@@ -110,6 +110,9 @@ on `git blame --follow`, and then by the broad type of change.
   `Configuration` groups into `General`, so provider-owned resource tabs match
   the generated resource detail grouping. Normalized groups are aggregated even
   when tab ordering places other groups between contributed tabs.
+- Application resource overviews now summarize essentials, container-host
+  status, networking, storage, environment, and diagnostics while linking to
+  dedicated tabs for endpoint, DNS, storage, and environment details.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

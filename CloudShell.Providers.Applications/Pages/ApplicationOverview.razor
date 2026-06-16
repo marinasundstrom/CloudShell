@@ -19,7 +19,7 @@
 else
 {
     <section class="blade-section">
-        <h3>@GetConfigurationHeading(Application)</h3>
+        <h3>Essentials</h3>
         <dl class="detail-list">
             @if (IsAspNetCoreProject(Application))
             {
@@ -75,22 +75,29 @@ else
             }
             <dt>Lifetime</dt>
             <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
-            <dt>Dependencies</dt>
-            <dd>
-                @if (EffectiveDependencies.Count == 0)
-                {
-                    <span>none</span>
-                }
-                else
-                {
-                    <div class="dependency-list">
-                        @foreach (var dependency in EffectiveDependencies.Order(StringComparer.OrdinalIgnoreCase))
-                        {
-                            @DependencyLink(dependency)
-                        }
-                    </div>
-                }
-            </dd>
+            @if (EffectiveDependencies.Count > 0)
+            {
+                <dt>Dependencies</dt>
+                <dd>@FormatCount(EffectiveDependencies.Count, "dependency", "dependencies")</dd>
+            }
+            @if (VolumeMounts.Count > 0)
+            {
+                <dt>Storage</dt>
+                <dd>
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, "storage")">
+                        @FormatCount(VolumeMounts.Count, "mount", "mounts")
+                    </a>
+                </dd>
+            }
+            @if (Application.AppSettings.Count > 0 || Application.EnvironmentVariables.Count > 0)
+            {
+                <dt>Environment</dt>
+                <dd>
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, "environment")">
+                        @FormatEnvironmentSummary()
+                    </a>
+                </dd>
+            }
             <dt>Observability</dt>
             <dd>@GetObservabilityLabel(Application.Observability)</dd>
         </dl>
@@ -99,10 +106,8 @@ else
     @if (IsContainerBacked(Application))
     {
         <section class="blade-section">
-            <h3>Container host placement</h3>
+            <h3>Container host</h3>
             <dl class="detail-list">
-                <dt>Selection</dt>
-                <dd>@GetContainerHostSelectionLabel(Application)</dd>
                 <dt>Status</dt>
                 <dd>@GetContainerHostStatusLabel()</dd>
                 @if (ContainerHostPlacement?.Host is { } host)
@@ -120,16 +125,10 @@ else
                             @host.Name
                         }
                     </dd>
-                    <dt>Kind</dt>
-                    <dd>@host.Kind</dd>
                     <dt>Endpoint</dt>
                     <dd>@host.Endpoint</dd>
-                    <dt>Registry</dt>
-                    <dd>@NormalizeRegistry(host.Registry)</dd>
                     <dt>Credentials</dt>
                     <dd>@(host.CredentialsAvailable ? "available" : "unavailable")</dd>
-                    <dt>Capabilities</dt>
-                    <dd>@GetContainerHostCapabilitiesLabel(host)</dd>
                 }
             </dl>
         </section>
@@ -163,120 +162,40 @@ else
         </section>
     }
 
-    @if (InboundNetworkMappings.Count > 0)
+    @if (HasExposureTarget(Application) ||
+        InboundNetworkMappings.Count > 0 ||
+        InboundLoadBalancerRoutes.Count > 0 ||
+        InboundNameMappings.Count > 0)
     {
         <section class="blade-section">
-            <h3>Network exposure</h3>
-            <div class="generated-list">
-                @foreach (var exposure in InboundNetworkMappings)
+            <h3>Networking</h3>
+            <dl class="detail-list">
+                @if (InboundNetworkMappings.Count > 0)
                 {
-                    <div>
-                        <strong>
-                            <a class="resource-link" href="@BuildResourceRoute(exposure.Network.Id)">
-                                @exposure.Network.Name
-                            </a>
-                        </strong>
-                        <span>@FormatMappingSummary(exposure.Mapping, exposure.Network, Application.Id)</span>
-                        <small>@FormatMappingProvider(exposure.Mapping)</small>
-                    </div>
+                    <dt>Network mappings</dt>
+                    <dd>@FormatCount(InboundNetworkMappings.Count, "mapping", "mappings")</dd>
                 }
-            </div>
-        </section>
-    }
-
-    @if (HasExposureTarget(Application) || InboundLoadBalancerRoutes.Count > 0)
-    {
-        <section class="blade-section">
-            <h3>Load balancer exposure</h3>
-            @if (InboundLoadBalancerRoutes.Count == 0)
-            {
-                <p class="muted">No load-balancer routes target this app.</p>
-            }
-            else
-            {
-                <div class="generated-list">
-                    @foreach (var exposure in InboundLoadBalancerRoutes)
-                    {
-                        <div>
-                            <strong>
-                                <a class="resource-link" href="@BuildResourceRoute(exposure.LoadBalancer.Id)">
-                                    @exposure.LoadBalancer.Name
-                                </a>
-                            </strong>
-                            <span>@FormatLoadBalancerRoute(exposure.Route)</span>
-                            <small>Entrypoint: @exposure.Route.EntrypointName</small>
-                        </div>
-                    }
-                </div>
-            }
-            <div class="form-actions">
-                <FluentButton Appearance="Appearance.Neutral"
-                              OnClick="() => Navigation.NavigateTo(BuildAddLoadBalancerRoute(Application))">
-                    Add load-balancer route
-                </FluentButton>
-            </div>
-        </section>
-    }
-
-    @if (HasExposureTarget(Application) || InboundNameMappings.Count > 0)
-    {
-        <section class="blade-section">
-            <h3>DNS and domain names</h3>
-            @if (InboundNameMappings.Count == 0)
-            {
-                <p class="muted">No DNS or domain names target this app.</p>
-            }
-            else
-            {
-                <div class="generated-list">
-                    @foreach (var exposure in InboundNameMappings)
-                    {
-                        <div>
-                            <strong>
-                                <a class="resource-link" href="@BuildResourceRoute(exposure.Mapping.Id)">
-                                    @ApplicationNameMappingDisplay.GetHostName(exposure.Mapping)
-                                </a>
-                            </strong>
-                            <span>@ApplicationNameMappingDisplay.GetSummary(exposure.Mapping, Application.Name)</span>
-                            <small>@FormatNameMappingMetadata(exposure)</small>
-                        </div>
-                    }
-                </div>
-            }
-            <div class="form-actions">
-                <FluentButton Appearance="Appearance.Neutral"
-                              OnClick="() => Navigation.NavigateTo(BuildAddNameMappingRoute(Application))">
-                    Add name mapping
-                </FluentButton>
-            </div>
-        </section>
-    }
-
-    @if (VolumeMounts.Count > 0)
-    {
-        <section class="blade-section">
-            <h3>Storage mounts</h3>
-            <div class="generated-list">
-                @foreach (var volumeMount in VolumeMounts)
+                @if (InboundLoadBalancerRoutes.Count > 0)
                 {
-                    <div>
-                        <strong>
-                            @if (volumeMount.Volume is null)
-                            {
-                                @ApplicationVolumeResourceDisplay.GetMountSourceLabel(volumeMount.Mount, null)
-                            }
-                            else
-                            {
-                                <a class="resource-link" href="@BuildResourceRoute(volumeMount.Volume.Id)">
-                                    @ApplicationVolumeResourceDisplay.GetMountSourceLabel(volumeMount.Mount, volumeMount.Volume)
-                                </a>
-                            }
-                        </strong>
-                        <span>@ApplicationVolumeResourceDisplay.GetMountSummary(volumeMount.Mount, volumeMount.Volume)</span>
-                        <small>@GetMountRuntimeLabel(volumeMount)</small>
-                    </div>
+                    <dt>Load-balancer routes</dt>
+                    <dd>@FormatCount(InboundLoadBalancerRoutes.Count, "route", "routes")</dd>
                 }
-            </div>
+                @if (InboundNameMappings.Count > 0)
+                {
+                    <dt>DNS names</dt>
+                    <dd>
+                        <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, "dns")">
+                            @FormatNameMappingOverview()
+                        </a>
+                    </dd>
+                }
+                <dt>Endpoint details</dt>
+                <dd>
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, "endpoints")">
+                        Open Endpoints
+                    </a>
+                </dd>
+            </dl>
         </section>
     }
 
@@ -319,73 +238,6 @@ else
         </div>
     </section>
 
-    <section class="blade-section">
-        <h3>App settings</h3>
-        @if (Application.AppSettings.Count == 0)
-        {
-            <p class="muted">No app settings are configured.</p>
-        }
-        else
-        {
-            <table class="settings-reference-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Source</th>
-                        <th>Status</th>
-                        <th>Value or reference</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @foreach (var row in Application.AppSettings.Select(CreateSettingRow))
-                {
-                    <tr>
-                        <td><strong>@row.Name</strong></td>
-                        <td>@row.Source</td>
-                        <td><span class="@row.StatusCssClass">@row.Status</span></td>
-                        <td>
-                            <ApplicationSettingValueCell Row="row" />
-                        </td>
-                    </tr>
-                }
-                </tbody>
-            </table>
-        }
-    </section>
-
-    <section class="blade-section">
-        <h3>Environment variables</h3>
-        @if (Application.EnvironmentVariables.Count == 0)
-        {
-            <p class="muted">No environment variables are configured.</p>
-        }
-        else
-        {
-            <table class="settings-reference-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Source</th>
-                        <th>Status</th>
-                        <th>Value or reference</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @foreach (var row in Application.EnvironmentVariables.Select(CreateSettingRow))
-                {
-                    <tr>
-                        <td><strong>@row.Name</strong></td>
-                        <td>@row.Source</td>
-                        <td><span class="@row.StatusCssClass">@row.Status</span></td>
-                        <td>
-                            <ApplicationSettingValueCell Row="row" />
-                        </td>
-                    </tr>
-                }
-                </tbody>
-            </table>
-        }
-    </section>
 }
 
 @code {
@@ -905,6 +757,35 @@ else
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private static string FormatCount(int count, string singular, string plural) =>
+        count == 1 ? $"1 {singular}" : $"{count} {plural}";
+
+    private string FormatEnvironmentSummary()
+    {
+        var parts = new List<string>();
+        if (Application?.AppSettings.Count > 0)
+        {
+            parts.Add(FormatCount(Application.AppSettings.Count, "app setting", "app settings"));
+        }
+
+        if (Application?.EnvironmentVariables.Count > 0)
+        {
+            parts.Add(FormatCount(Application.EnvironmentVariables.Count, "environment variable", "environment variables"));
+        }
+
+        return parts.Count == 0 ? "none" : string.Join(", ", parts);
+    }
+
+    private string FormatNameMappingOverview()
+    {
+        if (InboundNameMappings.Count == 1)
+        {
+            return ApplicationNameMappingDisplay.GetHostName(InboundNameMappings[0].Mapping);
+        }
+
+        return FormatCount(InboundNameMappings.Count, "name mapping", "name mappings");
+    }
+
     private ApplicationSettingDisplayRow CreateSettingRow(AppSetting setting) =>
         ApplicationSettingReferenceDisplay.Create(
             setting,
@@ -923,6 +804,9 @@ else
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+
+    private static string BuildResourceTabRoute(string resourceId, string tabId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId)}";
 
     private static string BuildAddNameMappingRoute(ApplicationResourceDefinition application)
     {
