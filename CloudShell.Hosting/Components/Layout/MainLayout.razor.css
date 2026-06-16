@@ -34,100 +34,6 @@
     min-width: 0;
 }
 
-.brand {
-    display: flex;
-    gap: .7rem;
-    align-items: center;
-    padding: 1rem;
-    border-bottom: 1px solid var(--cloudshell-stroke);
-}
-
-.brand-mark {
-    width: 2.25rem;
-    height: 2.25rem;
-    display: grid;
-    place-items: center;
-    border-radius: 6px;
-    background: var(--cloudshell-accent);
-    color: var(--cloudshell-on-accent);
-    font-size: .8rem;
-    font-weight: 700;
-}
-
-.brand-name {
-    font-weight: 700;
-}
-
-.brand-subtitle {
-    color: var(--cloudshell-text-subtle);
-    font-size: .76rem;
-}
-
-.brand-text {
-    min-width: 0;
-}
-
-.shell.nav-collapsed .brand,
-:root.nav-collapsed .shell .brand {
-    justify-content: center;
-    padding-inline: .7rem;
-    gap: 0;
-}
-
-.shell.nav-collapsed .brand-text,
-.shell.nav-collapsed .brand-mark,
-.shell.nav-collapsed .sidebar-footer-text,
-.shell.nav-collapsed ::deep .nav-group-title,
-.shell.nav-collapsed ::deep .nav-label,
-:root.nav-collapsed .shell .brand-text,
-:root.nav-collapsed .shell .brand-mark,
-:root.nav-collapsed .shell .sidebar-footer-text,
-:root.nav-collapsed .shell ::deep .nav-group-title,
-:root.nav-collapsed .shell ::deep .nav-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-
-.shell.nav-collapsed ::deep .nav-link,
-:root.nav-collapsed .shell ::deep .nav-link {
-    justify-content: center;
-    padding-inline: .45rem;
-}
-
-.shell.nav-collapsed ::deep .nav-shell,
-:root.nav-collapsed .shell ::deep .nav-shell {
-    padding-inline: .55rem;
-}
-
-.shell.nav-collapsed .sidebar-footer,
-:root.nav-collapsed .shell .sidebar-footer {
-    justify-content: center;
-}
-
-.sidebar-footer {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    padding: .85rem 1rem;
-    border-top: 1px solid var(--cloudshell-stroke);
-    color: var(--cloudshell-text-muted);
-    font-size: .82rem;
-}
-
-.status-dot {
-    width: .55rem;
-    height: .55rem;
-    border-radius: 999px;
-    background: #22c55e;
-}
-
 .shell-topbar {
     position: sticky;
     top: 0;
@@ -187,35 +93,6 @@
         z-index: auto;
         width: auto;
         height: auto;
-    }
-
-    .shell.nav-collapsed .brand,
-    :root.nav-collapsed .shell .brand {
-        justify-content: flex-start;
-        padding: 1rem;
-        gap: .7rem;
-    }
-
-    .shell.nav-collapsed .brand-text,
-    .shell.nav-collapsed .brand-mark,
-    :root.nav-collapsed .shell .brand-text,
-    :root.nav-collapsed .shell .brand-mark {
-        position: static;
-        width: auto;
-        height: auto;
-        padding: initial;
-        margin: initial;
-        overflow: visible;
-        clip: auto;
-        white-space: normal;
-        border: 0;
-    }
-
-    .shell.nav-collapsed ::deep .nav-shell,
-    :root.nav-collapsed .shell ::deep .nav-shell,
-    .shell.nav-collapsed .sidebar-footer,
-    :root.nav-collapsed .shell .sidebar-footer {
-        display: none;
     }
 
     .shell-topbar {

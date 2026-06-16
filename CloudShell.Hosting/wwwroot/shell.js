@@ -1,7 +1,7 @@
 (function () {
     var navCollapsedStorageKey = "cloudshell.navigation.collapsed";
 
-    setNavCollapsed(readStoredNavCollapsed());
+    setNavCollapsed(readStoredNavCollapsed() === true);
 
     window.cloudShellNav = {
         setCollapsed: function (collapsed, persist) {
@@ -10,6 +10,12 @@
             if (persist) {
                 writeStoredNavCollapsed(collapsed);
             }
+        },
+        isCollapsed: function () {
+            return readStoredNavCollapsed() === true;
+        },
+        getStoredCollapsed: function () {
+            return readStoredNavCollapsed();
         }
     };
 
@@ -47,9 +53,19 @@
 
     function readStoredNavCollapsed() {
         try {
-            return localStorage.getItem(navCollapsedStorageKey) === "true";
+            var value = localStorage.getItem(navCollapsedStorageKey);
+
+            if (value === "true") {
+                return true;
+            }
+
+            if (value === "false") {
+                return false;
+            }
+
+            return null;
         } catch {
-            return false;
+            return null;
         }
     }
 

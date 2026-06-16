@@ -5,21 +5,7 @@
 
 <div class="shell">
     <aside class="shell-sidebar">
-        <div class="brand">
-            <div class="brand-mark">CS</div>
-            <div class="brand-text">
-                <div class="brand-name">@GetApplicationName()</div>
-                <div class="brand-subtitle">@L["Platform control plane"]</div>
-            </div>
-            <NavToggle />
-        </div>
-
         <NavMenu />
-
-        <div class="sidebar-footer">
-            <span class="status-dot"></span>
-            <span class="sidebar-footer-text">@L["Local workspace"]</span>
-        </div>
     </aside>
 
     <main class="shell-main">
@@ -61,11 +47,6 @@
 </div>
 
 @code {
-    private string GetApplicationName() =>
-        string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.ApplicationName)
-            ? "CloudShell"
-            : DisplayOptions.CurrentValue.ApplicationName.Trim();
-
     private string GetEnvironmentName() =>
         string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.EnvironmentName)
             ? HostEnvironment.EnvironmentName
