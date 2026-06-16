@@ -1718,7 +1718,7 @@ resourceGroups) =>
         string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
 
     private string GetLifecycleStatusLabel(Resource resource) =>
-        GetLifecycleProgressLabel(resource) ?? resource.State.ToString();
+        GetLifecycleProgressLabel(resource) ?? resource.State?.ToString() ?? ResourceState.Unknown.ToString();
 
     private string? GetLifecycleProgressLabel(Resource resource)
     {
@@ -2017,6 +2017,7 @@ resourceGroups) =>
     {
         ResourceState.Running => "state-running",
         ResourceState.Starting => "state-starting",
+        ResourceState.Stopping => "state-stopping",
         ResourceState.Paused => "state-paused",
         ResourceState.Degraded => "state-degraded",
         ResourceState.Stopped => "state-stopped",

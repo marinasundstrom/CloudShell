@@ -47,7 +47,7 @@ else
     private bool ShowProgress =>
         Busy ||
         !string.IsNullOrWhiteSpace(ProgressLabel) ||
-        State == ResourceState.Starting;
+        State is ResourceState.Starting or ResourceState.Stopping;
 
     private bool IsPill => string.Equals(Variant, PillVariant, StringComparison.OrdinalIgnoreCase);
 
@@ -86,6 +86,7 @@ else
     {
         ResourceState.Running => "state-running",
         ResourceState.Starting => "state-starting",
+        ResourceState.Stopping => "state-stopping",
         ResourceState.Paused => "state-paused",
         ResourceState.Degraded => "state-degraded",
         ResourceState.Stopped => "state-stopped",

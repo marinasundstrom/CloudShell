@@ -206,7 +206,7 @@ else
     }
 
     private static bool IsActive(ResourceState? state) =>
-        state is ResourceState.Running or ResourceState.Starting or ResourceState.Degraded;
+        state is ResourceState.Running or ResourceState.Starting or ResourceState.Stopping or ResourceState.Degraded;
 
     private sealed record ResourceMountRecommendation(
         string TargetPath,

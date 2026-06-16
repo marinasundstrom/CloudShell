@@ -73,6 +73,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource status indicators now show a compact Fluent progress indicator for
   starting, stopping, pausing, and restarting transitions in Resource Manager
   views.
+- Resource state now includes an explicit `Stopping` transition, and
+  application resources persist that transient state while stop procedures are
+  in progress.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

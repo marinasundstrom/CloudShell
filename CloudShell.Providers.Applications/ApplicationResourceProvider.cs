@@ -1985,6 +1985,7 @@ public sealed partial class ApplicationResourceProvider(
 
         if (application is not null)
         {
+            MarkStopping(applicationId);
             procedureContext?.AppendProviderEvent(
                 Id,
                 "application.stop.preparing",
@@ -2015,6 +2016,7 @@ public sealed partial class ApplicationResourceProvider(
                 "Stopped application resource {ResourceId} ({ResourceType}).",
                 application.Id,
                 application.ResourceType);
+            ClearStopping(applicationId);
             return;
         }
 
@@ -2039,11 +2041,13 @@ public sealed partial class ApplicationResourceProvider(
                     "Stopped application resource {ResourceId} ({ResourceType}).",
                     application.Id,
                     application.ResourceType);
+                ClearStopping(applicationId);
             }
         }
 
         if (!TryGetRunningProcess(application, out var process))
         {
+            ClearStopping(applicationId);
             return;
         }
 
@@ -2068,6 +2072,7 @@ public sealed partial class ApplicationResourceProvider(
             Id,
             "application.process.stopped",
             $"Application provider stopped tracked process for '{application?.Name ?? applicationId}'.");
+        ClearStopping(applicationId);
     }
 
     private async Task StopContainerAsync(
@@ -2793,10 +2798,10 @@ public sealed partial class ApplicationResourceProvider(
     private ResourceState GetState(string applicationId)
     {
         var runtimeState = runtimeStates.Get(applicationId);
-        if (runtimeState?.State is ResourceState.Starting &&
+        if (runtimeState?.State is ResourceState.Starting or ResourceState.Stopping &&
             DateTimeOffset.UtcNow - runtimeState.LastObservedAt <= StartingStateTimeout)
         {
-            return ResourceState.Starting;
+            return runtimeState.State.Value;
         }
 
         return IsRunning(applicationId)
@@ -2805,7 +2810,7 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private static IReadOnlyList<ResourceAction> CreateActions(ResourceState state) =>
-        state is ResourceState.Running or ResourceState.Starting
+        state is ResourceState.Running or ResourceState.Starting or ResourceState.Stopping
             ? [ResourceAction.Stop, ResourceAction.Restart]
             : [ResourceAction.Start];
 
@@ -2831,6 +2836,39 @@ public sealed partial class ApplicationResourceProvider(
         var state = runtimeStates.Get(definition.Id);
         if (state?.State is not ResourceState.Starting ||
             IsRunning(definition.Id))
+        {
+            return;
+        }
+
+        runtimeStates.Save(state with
+        {
+            LastObservedAt = DateTimeOffset.UtcNow,
+            State = ResourceState.Stopped
+        });
+    }
+
+    private void MarkStopping(string applicationId)
+    {
+        var state = runtimeStates.Get(applicationId);
+        runtimeStates.Save(state is null
+            ? new ApplicationRuntimeState(
+                applicationId,
+                null,
+                null,
+                DateTimeOffset.UtcNow,
+                State: ResourceState.Stopping)
+            : state with
+            {
+                LastObservedAt = DateTimeOffset.UtcNow,
+                State = ResourceState.Stopping
+            });
+    }
+
+    private void ClearStopping(string applicationId)
+    {
+        var state = runtimeStates.Get(applicationId);
+        if (state?.State is not ResourceState.Stopping ||
+            IsRunning(applicationId))
         {
             return;
         }
@@ -3863,7 +3901,7 @@ public sealed partial class ApplicationResourceProvider(
         ResourceState state) =>
         state switch
         {
-            ResourceState.Starting => ResourceOrchestratorDeploymentStatus.Applying,
+            ResourceState.Starting or ResourceState.Stopping => ResourceOrchestratorDeploymentStatus.Applying,
             ResourceState.Running => ResourceOrchestratorDeploymentStatus.Active,
             ResourceState.Degraded => ResourceOrchestratorDeploymentStatus.Failed,
             _ => ResourceOrchestratorDeploymentStatus.Pending

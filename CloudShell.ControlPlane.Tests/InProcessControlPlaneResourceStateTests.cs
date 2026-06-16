@@ -25,6 +25,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             { ResourceState.Running, [ResourceActionIds.Stop, ResourceActionIds.Pause, ResourceActionIds.Restart] },
             { ResourceState.Starting, [ResourceActionIds.Stop, ResourceActionIds.Restart] },
+            { ResourceState.Stopping, [ResourceActionIds.Stop] },
             { ResourceState.Paused, [ResourceActionIds.Start, ResourceActionIds.Stop] },
             { ResourceState.Degraded, [ResourceActionIds.Stop, ResourceActionIds.Pause, ResourceActionIds.Restart] },
             { ResourceState.Stopped, [ResourceActionIds.Start] },
@@ -210,6 +211,8 @@ public sealed class InProcessControlPlaneResourceStateTests
 
     [Theory]
     [InlineData(ResourceState.Running, ResourceActionIds.Start)]
+    [InlineData(ResourceState.Stopping, ResourceActionIds.Start)]
+    [InlineData(ResourceState.Stopping, ResourceActionIds.Restart)]
     [InlineData(ResourceState.Stopped, ResourceActionIds.Stop)]
     [InlineData(ResourceState.Paused, ResourceActionIds.Restart)]
     [InlineData(ResourceState.Unknown, ResourceActionIds.Pause)]
@@ -723,6 +726,7 @@ public sealed class InProcessControlPlaneResourceStateTests
 
     [Theory]
     [InlineData(ResourceState.Starting, ResourceActionIds.Restart)]
+    [InlineData(ResourceState.Stopping, ResourceActionIds.Stop)]
     [InlineData(ResourceState.Paused, ResourceActionIds.Stop)]
     [InlineData(ResourceState.Unknown, ResourceActionIds.Start)]
     public async Task ExecuteResourceActionAsync_AllowsStateValidActions(

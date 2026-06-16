@@ -254,6 +254,10 @@ h3 {
     background: #f59e0b;
 }
 
+.state-stopping {
+    background: #f97316;
+}
+
 .state-paused {
     background: #7c3aed;
 }

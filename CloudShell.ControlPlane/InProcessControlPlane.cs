@@ -868,12 +868,13 @@ public sealed class InProcessControlPlane(
             ResourceActionKind.Stop when resource.State is not (
                 ResourceState.Running or
                 ResourceState.Starting or
+                ResourceState.Stopping or
                 ResourceState.Paused or
                 ResourceState.Degraded) =>
                 $"Resource '{resource.Name}' cannot stop while it is {FormatState(resource.State)}.",
             ResourceActionKind.Pause when resource.State is not (ResourceState.Running or ResourceState.Degraded) =>
                 $"Resource '{resource.Name}' cannot pause while it is {FormatState(resource.State)}.",
-            ResourceActionKind.Restart when resource.State is ResourceState.Stopped or ResourceState.Paused or ResourceState.Unknown =>
+            ResourceActionKind.Restart when resource.State is ResourceState.Stopping or ResourceState.Stopped or ResourceState.Paused or ResourceState.Unknown =>
                 $"Resource '{resource.Name}' cannot restart while it is {FormatState(resource.State)}.",
             _ => null
         };

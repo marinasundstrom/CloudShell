@@ -204,6 +204,7 @@ public enum ResourceState
 {
     Running,
     Starting,
+    Stopping,
     Paused,
     Degraded,
     Stopped,
