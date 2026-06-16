@@ -93,6 +93,55 @@ You can override the SQL Server development password with:
 Runtime state is stored under `samples/ApplicationTopology/Host/Data/` and is
 ignored by git.
 
+## Configuring Local Hostnames
+
+CloudShell can expose applications through generated hostnames such as:
+
+```text
+app.application-topology.cloudshell.local
+```
+
+Currently, CloudShell does not automatically register these hostnames with the operating system. As a temporary workaround, you must manually add the hostname to your local hosts file.
+
+### macOS and Linux
+
+Edit `/etc/hosts` and add an entry similar to:
+
+```text
+127.0.0.1 app.application-topology.cloudshell.local
+```
+
+For example:
+
+```bash
+sudo nano /etc/hosts
+```
+
+### Windows
+
+Edit:
+
+```text
+C:\Windows\System32\drivers\etc\hosts
+```
+
+and add:
+
+```text
+127.0.0.1 app.application-topology.cloudshell.local
+```
+
+### Why is this required?
+
+The operating system must be able to resolve the hostname to an IP address before a browser can connect to the application. Until CloudShell provides local DNS integration, the hosts file serves as a simple way to map generated hostnames to the local machine.
+
+### Future Improvements
+
+Manual hosts file configuration is intended as a temporary development-time workaround.
+
+A future version of CloudShell may include a local system service or daemon responsible for hostname registration and DNS integration. This would allow CloudShell to automatically register and remove application hostnames without requiring manual edits to the hosts file.
+
+
 ## MVP Direction
 
 This sample is intended to become the full-fidelity local development sample
