@@ -106,6 +106,9 @@ on `git blame --follow`, and then by the broad type of change.
   diagnostics, relationship, and observability summaries instead of repeating
   detailed endpoint, DNS, load-balancer, attribute, action, and health-check
   lists owned by specific tabs or command surfaces.
+- Resource detail tab grouping now normalizes contributed `Overview` and
+  `Configuration` groups into `General`, so provider-owned resource tabs match
+  the generated resource detail grouping.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

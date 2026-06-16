@@ -723,9 +723,7 @@
         var groups = new List<ResourceTabGroup>();
         foreach (var tab in tabs)
         {
-            var groupTitle = string.IsNullOrWhiteSpace(tab.GroupTitle)
-                ? string.Empty
-                : tab.GroupTitle;
+            var groupTitle = NormalizeResourceTabGroupTitle(tab.GroupTitle);
             var currentGroup = groups.LastOrDefault();
             if (currentGroup is null ||
                 !string.Equals(currentGroup.Title, groupTitle, StringComparison.OrdinalIgnoreCase))
@@ -738,6 +736,20 @@
         }
 
         return groups;
+    }
+
+    private static string NormalizeResourceTabGroupTitle(string? groupTitle)
+    {
+        if (string.IsNullOrWhiteSpace(groupTitle))
+        {
+            return string.Empty;
+        }
+
+        var title = groupTitle.Trim();
+        return title.Equals("Overview", StringComparison.OrdinalIgnoreCase) ||
+            title.Equals("Configuration", StringComparison.OrdinalIgnoreCase)
+                ? GeneralTabGroup
+                : title;
     }
 
     private string GetTabButtonClass(
