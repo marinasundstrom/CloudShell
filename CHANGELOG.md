@@ -31,6 +31,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Fluent UI navigation actions now use `FluentAnchor` instead of
   `FluentButton Href`, and agent/system guidance links to the Fluent UI Blazor
   documentation for component behavior.
+- Trace span detail headers now align the service color indicator with the
+  selected span title.
 - Log and trace source filters now use native select controls in the
   observability views, avoiding Fluent UI popup state during source changes and
   periodic trace refreshes.

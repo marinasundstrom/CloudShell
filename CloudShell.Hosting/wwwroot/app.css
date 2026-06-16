@@ -2380,6 +2380,10 @@ h3 {
     align-items: start;
 }
 
+.trace-detail-header > .trace-service-color {
+    margin-top: .85rem;
+}
+
 .trace-detail-header h3,
 .trace-detail-header p,
 .trace-attributes h3,
