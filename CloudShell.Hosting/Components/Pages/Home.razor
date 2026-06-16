@@ -89,7 +89,7 @@
             @foreach (var item in navigationItems.Take(8))
             {
                 <a class="activity-row" href="@item.Href">
-                    <span class="resource-kind-icon">@GetIconGlyph(item.Icon, item.Text)</span>
+                    <ShellNavigationIcon Icon="@item.Icon" />
                     <div>
                         <strong>@L[item.Text]</strong>
                         <span>@L[item.Group]</span>
@@ -110,14 +110,4 @@
         }
     }
 
-    private static string GetIconGlyph(string icon, string title) => icon switch
-    {
-        "grid" => "O",
-        "server" => "R",
-        "pulse" => "T",
-        "plug" => "E",
-        "docker" => "D",
-        "document" => "L",
-        _ => string.IsNullOrWhiteSpace(icon) ? title[..1].ToUpperInvariant() : icon[..1].ToUpperInvariant()
-    };
 }

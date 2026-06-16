@@ -10,8 +10,8 @@
             @foreach (var item in group)
             {
                 <NavLink class="nav-link" href="@item.Href" Match="@GetMatch(item.Href)">
-                    <span class="nav-icon" data-icon="@GetIconGlyph(item.Icon)" aria-hidden="true"></span>
-                    <span>@L[item.Text]</span>
+                    <ShellNavigationIcon Icon="@item.Icon" />
+                    <span class="nav-label">@L[item.Text]</span>
                 </NavLink>
             }
         </section>
@@ -21,14 +21,4 @@
 @code {
     private static NavLinkMatch GetMatch(string href) =>
         href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix;
-
-    private static string GetIconGlyph(string icon) => icon switch
-    {
-        "grid" => "O",
-        "server" => "R",
-        "pulse" => "T",
-        "plug" => "E",
-        "docker" => "D",
-        _ => icon[..1].ToUpperInvariant()
-    };
 }

@@ -78,12 +78,12 @@
 .shell.nav-collapsed .brand-mark,
 .shell.nav-collapsed .sidebar-footer-text,
 .shell.nav-collapsed ::deep .nav-group-title,
-.shell.nav-collapsed ::deep .nav-link span:not(.nav-icon),
+.shell.nav-collapsed ::deep .nav-label,
 :root.nav-collapsed .shell .brand-text,
 :root.nav-collapsed .shell .brand-mark,
 :root.nav-collapsed .shell .sidebar-footer-text,
 :root.nav-collapsed .shell ::deep .nav-group-title,
-:root.nav-collapsed .shell ::deep .nav-link span:not(.nav-icon) {
+:root.nav-collapsed .shell ::deep .nav-label {
     position: absolute;
     width: 1px;
     height: 1px;

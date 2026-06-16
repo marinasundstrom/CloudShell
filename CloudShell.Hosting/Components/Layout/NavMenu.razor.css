@@ -40,19 +40,15 @@
     box-shadow: inset 3px 0 0 var(--cloudshell-accent);
 }
 
-.nav-icon {
+.shell-navigation-icon {
     width: 1.25rem;
     height: 1.25rem;
     display: grid;
     place-items: center;
     flex: 0 0 1.25rem;
-    border-radius: 4px;
-    background: var(--cloudshell-surface-muted);
     color: currentColor;
-    font-size: .72rem;
-    font-weight: 700;
 }
 
-.nav-icon::before {
-    content: attr(data-icon);
+.shell-navigation-icon ::deep svg {
+    display: block;
 }

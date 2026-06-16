@@ -1,0 +1,26 @@
+<span class="shell-navigation-icon" aria-hidden="true">
+    <FluentIcon TIcon="Microsoft.FluentUI.AspNetCore.Components.Icon"
+                Value="@IconValue"
+                Color="Color.Neutral" />
+</span>
+
+@code {
+    [Parameter]
+    public string Icon { get; set; } = string.Empty;
+
+    private Microsoft.FluentUI.AspNetCore.Components.Icon IconValue => Icon.Trim().ToLowerInvariant() switch
+    {
+        "grid" or "overview" or "home" => new Icons.Regular.Size20.HomeMore(),
+        "server" or "resources" or "resource" => new Icons.Regular.Size20.AppFolder(),
+        "pulse" or "observability" => new Icons.Regular.Size20.DataUsage(),
+        "document" or "logs" or "log" => new Icons.Regular.Size20.SlideTextSparkle(),
+        "traces" or "trace" => new Icons.Regular.Size20.GanttChart(),
+        "metrics" or "metric" => new Icons.Regular.Size20.ChartMultiple(),
+        "plug" or "extensions" or "extension" => new Icons.Regular.Size20.PuzzlePiece(),
+        "docker" or "container" => new Icons.Regular.Size20.CubeTree(),
+        "network" => new Icons.Regular.Size20.Connector(),
+        "storage" => new Icons.Regular.Size20.Storage(),
+        "database" => new Icons.Regular.Size20.DatabaseMultiple(),
+        _ => new Icons.Regular.Size20.WindowApps()
+    };
+}

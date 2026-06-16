@@ -21,6 +21,6 @@ public sealed class ObservabilityExtension : ICloudShellExtension
             .RegisterView<Components.Pages.Logs.Logs>(ObservabilityViews.Logs)
             .AddNavigationItem<Components.Pages.Logs.Logs>("Logs", "document", 21)
             .RegisterView<Components.Pages.Observability.Traces>(ObservabilityViews.Traces)
-            .AddNavigationItem<Components.Pages.Observability.Traces>("Traces", "pulse", 22);
+            .AddNavigationItem<Components.Pages.Observability.Traces>("Traces", "traces", 22);
     }
 }
