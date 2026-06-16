@@ -8,14 +8,12 @@
 else
 {
     <span>@DisplayedValue</span>
-    <FluentButton Appearance="Appearance.Neutral"
-                  Title="@(IsRevealed ? HideTitle : RevealTitle)"
+    <FluentButton Appearance="Appearance.Neutral" Title="@(IsRevealed ? HideTitle : RevealTitle)"
+                  IconStart="@(IsRevealed ? new Icons.Regular.Size20.EyeOff() : new Icons.Regular.Size20.Eye())"
                   OnClick="ToggleRevealed">
-        @(IsRevealed ? HideText : RevealText)
+
     </FluentButton>
-    <FluentButton Appearance="Appearance.Neutral"
-                  Title="@CopyTitle"
-                  OnClick="CopyValue">
+    <FluentButton Appearance="Appearance.Neutral" Title="@CopyTitle" OnClick="CopyValue">
         @CopyText
     </FluentButton>
 }
