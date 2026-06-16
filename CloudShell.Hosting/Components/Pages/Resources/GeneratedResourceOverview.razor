@@ -44,7 +44,9 @@
             @if (ResourceLifecycleDisplay.ShouldShowStatus(Resource))
             {
                 <dt>@L["State"]</dt>
-                <dd>@Resource.State</dd>
+                <dd>
+                    <ResourceStateIndicator State="Resource.State" Variant="inline" />
+                </dd>
             }
             <dt>@L["Version"]</dt>
             <dd>@Resource.Version</dd>

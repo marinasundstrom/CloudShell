@@ -295,6 +295,38 @@ h3 {
     font-weight: 650;
 }
 
+.state-progress-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    color: var(--cloudshell-text);
+}
+
+.state-progress-control {
+    width: 1.35rem;
+    min-width: 1.35rem;
+}
+
+.state-progress-dot {
+    width: 1.35rem;
+    flex: 0 0 1.35rem;
+}
+
+.state-progress-pill {
+    min-width: 4.6rem;
+    justify-content: center;
+    border-radius: 999px;
+    padding: .18rem .45rem;
+    color: var(--cloudshell-text);
+    background: var(--neutral-layer-2);
+    font-size: .76rem;
+    font-weight: 650;
+}
+
+.state-progress-inline {
+    min-width: 6rem;
+}
+
 .health-pill {
     display: inline-flex;
     align-items: center;

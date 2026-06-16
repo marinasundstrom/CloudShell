@@ -36,8 +36,9 @@
         <div class="resource-title-line">
             @if (resource?.State is { } state)
             {
-                <span class="state-dot @GetStateClass(state)" title="@L["State: {0}", state]"
-                      aria-label="@L["State: {0}", state]"></span>
+                <ResourceStateIndicator State="state"
+                                        ProgressLabel="@GetLifecycleProgressLabel(resource)"
+                                        Title="@L["State: {0}", GetLifecycleStatusLabel(resource)]" />
             }
             <h1>@(resource is null ? L["Resource"] : GetResourceLabel(resource))</h1>
         </div>
@@ -773,6 +774,22 @@
 
     private bool IsExecutingAction(ResourceAction action) =>
         ExecutingActionIds.Contains(action.Id);
+
+    private string GetLifecycleStatusLabel(Resource resource) =>
+        GetLifecycleProgressLabel(resource) ?? resource.State.ToString();
+
+    private string? GetLifecycleProgressLabel(Resource resource)
+    {
+        var action = resource.ResourceActions.FirstOrDefault(IsExecutingAction);
+        return action?.Kind switch
+        {
+            ResourceActionKind.Start => L["Starting"].Value,
+            ResourceActionKind.Stop => L["Stopping"].Value,
+            ResourceActionKind.Pause => L["Pausing"].Value,
+            ResourceActionKind.Restart => L["Restarting"].Value,
+            _ => null
+        };
+    }
 
     private async Task ExecuteAction(ResourceAction action)
     {

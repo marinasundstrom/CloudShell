@@ -218,7 +218,9 @@
                     <span>
                         @if (ResourceLifecycleDisplay.ShouldShowStatus(resource))
                         {
-                            <span class="state-pill @GetStateClass(resource.State)">@resource.State</span>
+                            <ResourceStateIndicator State="resource.State"
+                                                    ProgressLabel="@GetLifecycleProgressLabel(resource)"
+                                                    Variant="pill" />
                         }
                     </span>
                     <span>@HealthIndicator(resource)</span>
@@ -309,8 +311,9 @@
             @if (ResourceLifecycleDisplay.ShouldShowStatus(selected))
             {
                 <div class="blade-status">
-                    <span class="state-dot @GetStateClass(selected.State)"></span>
-                    <strong>@selected.State</strong>
+                    <ResourceStateIndicator State="selected.State"
+                                            ProgressLabel="@GetLifecycleProgressLabel(selected)" />
+                    <strong>@GetLifecycleStatusLabel(selected)</strong>
                     <span>@L["Updated {0}", selected.LastUpdated.ToLocalTime().ToString("HH:mm:ss")]</span>
                 </div>
             }
@@ -437,7 +440,8 @@
                                 </span>
                                 @if (ResourceLifecycleDisplay.ShouldShowStatus(child))
                                 {
-                                    <span class="state-dot @GetStateClass(child.State)"></span>
+                                    <ResourceStateIndicator State="child.State"
+                                                            ProgressLabel="@GetLifecycleProgressLabel(child)" />
                                 }
                             </button>
                         }
@@ -1715,6 +1719,22 @@ resourceGroups) =>
 
     private bool IsExecutingAction(Resource resource, ResourceAction action) =>
         string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
+
+    private string GetLifecycleStatusLabel(Resource resource) =>
+        GetLifecycleProgressLabel(resource) ?? resource.State.ToString();
+
+    private string? GetLifecycleProgressLabel(Resource resource)
+    {
+        var action = resource.ResourceActions.FirstOrDefault(action => IsExecutingAction(resource, action));
+        return action?.Kind switch
+        {
+            ResourceActionKind.Start => L["Starting"].Value,
+            ResourceActionKind.Stop => L["Stopping"].Value,
+            ResourceActionKind.Pause => L["Pausing"].Value,
+            ResourceActionKind.Restart => L["Restarting"].Value,
+            _ => null
+        };
+    }
 
     private ResourceHealthSummary? GetHealthSummary(Resource resource) =>
         HealthResults.GetValueOrDefault(resource.Id);

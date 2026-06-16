@@ -1,0 +1,94 @@
+@using CloudShell.Abstractions.ResourceManager
+
+@if (ShowProgress)
+{
+    <span class="@GetProgressClass()" title="@EffectiveTitle" aria-label="@EffectiveTitle" role="status">
+        <FluentProgress Class="state-progress-control"></FluentProgress>
+        @if (ShowsText)
+        {
+            <span>@DisplayText</span>
+        }
+    </span>
+}
+else if (IsPill)
+{
+    <span class="state-pill @GetStateClass(State)" title="@EffectiveTitle" aria-label="@EffectiveTitle">
+        @State
+    </span>
+}
+else if (IsInline)
+{
+    <span title="@EffectiveTitle" aria-label="@EffectiveTitle">@State</span>
+}
+else
+{
+    <span class="state-dot @GetStateClass(State)" title="@EffectiveTitle" aria-label="@EffectiveTitle"></span>
+}
+
+@code {
+    private const string PillVariant = "pill";
+    private const string InlineVariant = "inline";
+
+    [Parameter]
+    public ResourceState? State { get; set; }
+
+    [Parameter]
+    public bool Busy { get; set; }
+
+    [Parameter]
+    public string? ProgressLabel { get; set; }
+
+    [Parameter]
+    public string Variant { get; set; } = "dot";
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    private bool ShowProgress =>
+        Busy ||
+        !string.IsNullOrWhiteSpace(ProgressLabel) ||
+        State == ResourceState.Starting;
+
+    private bool IsPill => string.Equals(Variant, PillVariant, StringComparison.OrdinalIgnoreCase);
+
+    private bool IsInline => string.Equals(Variant, InlineVariant, StringComparison.OrdinalIgnoreCase);
+
+    private bool ShowsText => IsPill || IsInline;
+
+    private string DisplayText => !string.IsNullOrWhiteSpace(ProgressLabel)
+        ? ProgressLabel
+        : State?.ToString() ?? "Unknown";
+
+    private string EffectiveTitle => string.IsNullOrWhiteSpace(Title)
+        ? $"State: {DisplayText}"
+        : Title;
+
+    private string GetProgressClass()
+    {
+        var classes = new List<string> { "state-progress-indicator" };
+        if (IsPill)
+        {
+            classes.Add("state-progress-pill");
+        }
+        else if (IsInline)
+        {
+            classes.Add("state-progress-inline");
+        }
+        else
+        {
+            classes.Add("state-progress-dot");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private static string GetStateClass(ResourceState? state) => state switch
+    {
+        ResourceState.Running => "state-running",
+        ResourceState.Starting => "state-starting",
+        ResourceState.Paused => "state-paused",
+        ResourceState.Degraded => "state-degraded",
+        ResourceState.Stopped => "state-stopped",
+        _ => "state-unknown"
+    };
+}
