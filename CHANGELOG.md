@@ -68,6 +68,8 @@ on `git blame --follow`, and then by the broad type of change.
   selected labels, rich description rows, and Fluent UI icons for built-in
   resource types instead of initial-letter badges. The Extensions page now
   shows the same resource-type icon mapping.
+- Resource detail pages now expose the same capability-gated delete
+  confirmation flow as the Resource Manager inventory blade.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

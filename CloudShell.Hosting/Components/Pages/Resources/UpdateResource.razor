@@ -55,6 +55,13 @@
                         @GetLogsActionLabel(ResourceLogs.Count)
                     </FluentButton>
                 }
+                @if (CanDeleteResource(resource))
+                {
+                    <FluentButton Appearance="Appearance.Neutral" Disabled="@IsDeleting"
+                                  IconStart="new Icons.Regular.Size20.Delete()" OnClick="() => PromptDelete(resource)">
+                        @L["Delete"]
+                    </FluentButton>
+                }
             }
             <FluentButton Appearance="Appearance.Neutral" IconStart="new Icons.Regular.Size20.Dismiss()" OnClick="Cancel">
                 @L["Close"]
@@ -77,6 +84,22 @@
     @if (isReadOnly)
     {
         <div class="procedure-message">@L["Resource Manager is in read-only mode. Resource lifecycle actions and updates are disabled in this UI."]</div>
+    }
+
+    @if (ConfirmDelete && resource is not null)
+    {
+        <div class="procedure-confirmation">
+            <strong>@L["Delete registration?"]</strong>
+            <span>@L["The provider will commit the delete procedure for this resource."]</span>
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Neutral" Disabled="@IsDeleting" OnClick="CancelDelete">
+                    @L["Cancel"]
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Accent" Disabled="@IsDeleting" OnClick="DeleteResource">
+                    @(IsDeleting ? L["Deleting"] : L["Delete"])
+                </FluentButton>
+            </div>
+        </div>
     }
 
     @if (PendingRestart is not null)
@@ -220,6 +243,8 @@
     private PendingResourceRestart? PendingRestart { get; set; }
     private bool IsApplying { get; set; }
     private bool IsRestarting { get; set; }
+    private bool IsDeleting { get; set; }
+    private bool ConfirmDelete { get; set; }
     private int ResourceContentVersion { get; set; }
 
     protected override void OnInitialized()
@@ -382,6 +407,62 @@
     }
 
     private void DismissRestartPrompt() => PendingRestart = null;
+
+    private void PromptDelete(Resource resource)
+    {
+        if (!CanDeleteResource(resource))
+        {
+            if (IsReadOnly)
+            {
+                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            }
+
+            return;
+        }
+
+        ProcedureMessage = null;
+        PendingRestart = null;
+        ConfirmDelete = true;
+    }
+
+    private void CancelDelete() => ConfirmDelete = false;
+
+    private async Task DeleteResource()
+    {
+        if (Resource is null)
+        {
+            ConfirmDelete = false;
+            return;
+        }
+
+        if (!CanDeleteResource(Resource))
+        {
+            if (IsReadOnly)
+            {
+                ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            }
+
+            ConfirmDelete = false;
+            return;
+        }
+
+        IsDeleting = true;
+        ProcedureMessage = null;
+        try
+        {
+            await ResourceManager.DeleteResourceAsync(Resource.Id);
+            ConfirmDelete = false;
+            Navigation.NavigateTo("/resources");
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            IsDeleting = false;
+        }
+    }
 
     private void HandleConfigurationStateChanged() => InvokeAsync(StateHasChanged);
 
@@ -682,6 +763,13 @@
 
     private bool CanApplyResourceChanges() =>
         !IsReadOnly && OperationCapabilities.CanManage;
+
+    private bool CanDeleteResource(Resource resource) =>
+        !IsReadOnly &&
+        resource.IsNormalResource &&
+        resource.Source == ResourceSource.User &&
+        resource.ManagementMode == ResourceManagementMode.UserManaged &&
+        OperationCapabilities.CanDelete;
 
     private bool IsExecutingAction(ResourceAction action) =>
         ExecutingActionIds.Contains(action.Id);
