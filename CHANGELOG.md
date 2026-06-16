@@ -108,7 +108,8 @@ on `git blame --follow`, and then by the broad type of change.
   lists owned by specific tabs or command surfaces.
 - Resource detail tab grouping now normalizes contributed `Overview` and
   `Configuration` groups into `General`, so provider-owned resource tabs match
-  the generated resource detail grouping.
+  the generated resource detail grouping. Normalized groups are aggregated even
+  when tab ordering places other groups between contributed tabs.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

@@ -724,9 +724,9 @@
         foreach (var tab in tabs)
         {
             var groupTitle = NormalizeResourceTabGroupTitle(tab.GroupTitle);
-            var currentGroup = groups.LastOrDefault();
-            if (currentGroup is null ||
-                !string.Equals(currentGroup.Title, groupTitle, StringComparison.OrdinalIgnoreCase))
+            var currentGroup = groups.FirstOrDefault(group =>
+                string.Equals(group.Title, groupTitle, StringComparison.OrdinalIgnoreCase));
+            if (currentGroup is null)
             {
                 currentGroup = new ResourceTabGroup(groupTitle, []);
                 groups.Add(currentGroup);
