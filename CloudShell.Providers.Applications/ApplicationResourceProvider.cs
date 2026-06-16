@@ -2767,7 +2767,7 @@ public sealed partial class ApplicationResourceProvider(
         {
             ApplicationResourceTypes.AspNetCoreProject => ResourceClass.Project,
             var type when ApplicationResourceTypes.IsContainerApp(type) => ResourceClass.Container,
-            ApplicationResourceTypes.SqlServer => ResourceClass.Container,
+            ApplicationResourceTypes.SqlServer => ResourceClass.Service,
             _ => IsContainerBacked(application) ? ResourceClass.Container : ResourceClass.Executable
         };
 

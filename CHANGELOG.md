@@ -79,6 +79,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource registration components no longer receive display-name cascading
   state or display-name field parameters now that Resource Manager create flows
   only ask for resource names.
+- SQL Server now projects as a managed service resource instead of a container
+  app class, and SQL Server guidance now treats arbitrary image override as a
+  temporary sample/container bridge rather than the future managed service API.
+  Decision: [ADR-20260615-003](ADR.md#adr-20260615-003).
 - Projected resources now carry explicit `DisplayName` separately from the
   scoped `Name`, and the Control Plane API/client maps that field so Resource
   Manager labels can stay friendly while details, logs, and automation keep

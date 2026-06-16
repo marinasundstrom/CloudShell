@@ -1076,12 +1076,14 @@ public sealed class ResourceDeclarationTests
         AssertDeploymentTab(containerAppType);
         AssertReplicaTab(containerAppType);
         AssertStorageTab(containerAppType);
-        AssertStorageTab(resourceTypes[ApplicationResourceTypes.SqlServer]);
+        var sqlServerType = resourceTypes[ApplicationResourceTypes.SqlServer];
+        Assert.Equal(ResourceClass.Service, sqlServerType.ResourceClass);
+        AssertStorageTab(sqlServerType);
         Assert.DoesNotContain(
-            resourceTypes[ApplicationResourceTypes.SqlServer].ResourceTabs,
+            sqlServerType.ResourceTabs,
             tab => string.Equals(tab.Id, "replicas", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(
-            resourceTypes[ApplicationResourceTypes.SqlServer].ResourceTabs,
+            sqlServerType.ResourceTabs,
             tab => string.Equals(tab.Id, "deployment", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
@@ -1936,6 +1938,44 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:worker")?.Lifetime);
         Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:api")?.Lifetime);
         Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:redis")?.Lifetime);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_ProjectsSqlServerAsServiceResource()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        await provider.SetupApplicationAsync(
+            new ApplicationResourceDefinition(
+                "application:sql-server",
+                "SQL Server",
+                string.Empty,
+                containerImage: "mcr.microsoft.com/mssql/server:2022-latest",
+                resourceType: ApplicationResourceTypes.SqlServer),
+            resourceGroupId: null,
+            registrations: new MutableResourceRegistrationStore());
+
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:sql-server");
+
+        Assert.Equal(ApplicationResourceTypes.SqlServer, resource.EffectiveTypeId);
+        Assert.Equal(ResourceClass.Service, resource.ResourceClass);
+        Assert.Equal(
+            "mcr.microsoft.com/mssql/server:2022-latest",
+            resource.ResourceAttributes[ResourceAttributeNames.ContainerImage]);
     }
 
     [Fact]

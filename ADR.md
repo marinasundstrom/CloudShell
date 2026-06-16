@@ -68,6 +68,12 @@ ingress. If a provider uses a container internally, that runtime artifact is an
 implementation detail or contextual diagnostic child, not the SQL Server
 resource's primary management model.
 
+`application.sql-server` should project as a managed service, not as a
+container app, unless the user explicitly declares a generic container app.
+Future SQL Server authoring should expose validated SQL Server concepts such as
+version and edition instead of arbitrary image override APIs such as
+`WithImage(...)`.
+
 Related changes: [Changelog](CHANGELOG.md).
 
 ### ADR-20260615-002: Introduce deployment and runtime-owned resource metadata before public rollout features

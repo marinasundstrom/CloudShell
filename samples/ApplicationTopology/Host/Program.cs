@@ -90,7 +90,6 @@ cloudShell.Resources(resources =>
             dataVolume: sqlData,
             port: sqlPort)
         .WithResourceGroup(groupId)
-        .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
         .WithAutoStart(false);
 
     var settings = resources

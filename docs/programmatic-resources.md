@@ -273,12 +273,16 @@ cloudShell.Resources(resources =>
 {
     resources
         .AddSqlServer("sql:main")
+        .WithVersion("2022")
+        .WithEdition("Developer")
         .WithDisplayName("Main SQL Server");
 });
 ```
 
-That SQL Server provider can describe the resource as a container-backed
-workload internally. Top-level container applications use the same shape:
+That SQL Server provider can use a container internally, but callers choose
+SQL Server concepts such as version and edition rather than an arbitrary
+container image. Top-level container applications are the place where image
+selection is part of the logical declaration:
 
 ```csharp
 cloudShell.Resources(resources =>
@@ -551,12 +555,14 @@ Low-level project builders still expose `AsContainerImage(...)` and
 build metadata directly. A resource declared through `AddContainer(...)` is
 already a top-level container app. A plain local executable without container
 image or build metadata remains a default-orchestrator workload.
-Container-backed resource builders expose `WithImage(...)` so provider-specific
-resources such as `AddSqlServer(...)` can let callers override their default
-image without exposing Docker in the logical graph. The Resource Manager
-settings can record a preferred container host, but application and service
-declarations do not need to be tied to a specific runtime implementation in the
-user-facing graph.
+Container-app builders expose `WithImage(...)` because image selection is part
+of the container app domain. Provider-specific service builders should expose
+domain settings instead. For example, a SQL Server builder should expose
+validated SQL Server version/edition choices and let the provider map those to
+known runtime images or non-container implementations behind the provider
+boundary. The Resource Manager settings can record a preferred container host,
+but application and service declarations do not need to be tied to a specific
+runtime implementation in the user-facing graph.
 
 The explicit Docker resource model remains available separately. Use
 `AddDockerProvider()` plus `resources.AddDocker()` when Docker itself should

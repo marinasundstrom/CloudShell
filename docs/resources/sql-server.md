@@ -2,7 +2,9 @@
 
 SQL Server resources project as `application.sql-server`. They are authored as
 a first-class resource type, but the current provider materializes them as a
-container-backed application using the SQL Server Linux container image.
+container-backed application using the SQL Server Linux container image. The
+projected resource is a managed service, not a container app; the container
+image is implementation configuration for the local provider.
 
 For shared application-provider behavior, see
 [Application resources](application-resources.md). For the underlying
@@ -19,11 +21,12 @@ provider detail, not the desired long-term Resource Manager experience.
 A future managed SQL Server resource should not expose generic container app
 controls such as image deployment, revisions, replicas, or app ingress by
 default. It should present SQL Server-oriented configuration and operations:
-connectivity, storage, administrator credentials, identity-backed access,
-database children, backup/restore, diagnostics, and provider-specific
-maintenance. If a provider uses a container internally, that container should
-remain a runtime detail or contextual diagnostic artifact rather than the main
-management surface.
+version, edition, connectivity, storage, administrator credentials,
+identity-backed access, database children, backup/restore, diagnostics, and
+provider-specific maintenance. It should not let users provide an arbitrary
+container image while keeping the SQL Server resource type. If a provider uses
+a container internally, that container should remain a runtime detail or
+contextual diagnostic artifact rather than the main management surface.
 
 ## Registration
 
@@ -36,6 +39,10 @@ The Resource Manager SQL Server create flow asks for:
 - local TDS endpoint
 - resource group
 - optional data volume
+
+The image field is part of the current local-development bridge. The future
+managed SQL Server surface should replace arbitrary image entry with validated
+SQL Server version/edition choices or provider policy.
 
 The default image is:
 

@@ -37,17 +37,17 @@ var sqlData = resources
     .UseStorage(localStorage, "sql-server");
 
 resources
-    .AddSqlServer("sql-server", dataVolume: sqlData)
-    .WithImage("mcr.microsoft.com/mssql/server:2022-latest");
+    .AddSqlServer("sql-server", dataVolume: sqlData);
 ```
 
 `AddSqlServer(...)` is implemented locally by composing the core
 `AddContainer(...)` method, declaring a `tds` endpoint on the resource itself,
 optionally mounting a data volume at `/var/opt/mssql`, and returning
-`IContainerResourceBuilder`, so callers can override the image without knowing
-which container host will run it. Service resources are optional in local
-development; resource-owned endpoints are enough for direct access and service
-discovery.
+`IContainerResourceBuilder`. This is a sample shortcut, not the future managed
+SQL Server service API. A provider-owned SQL Server builder should expose
+validated SQL Server settings such as version and edition rather than arbitrary
+container image override. Service resources are optional in local development;
+resource-owned endpoints are enough for direct access and service discovery.
 
 The storage graph is intentionally explicit. The Local Storage resource is a
 `Storage` class resource that announces the `FileSystem` medium. The SQL data

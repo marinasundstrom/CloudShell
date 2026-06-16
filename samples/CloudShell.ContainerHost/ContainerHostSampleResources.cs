@@ -20,7 +20,6 @@ public static class ContainerHostSampleResources
             .WithAccessMode(VolumeAccessMode.ReadWriteOnce);
 
         resources
-            .AddSqlServer("sql-server", dataVolume: sqlData)
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest");
+            .AddSqlServer("sql-server", dataVolume: sqlData);
     }
 }

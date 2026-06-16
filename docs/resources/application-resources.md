@@ -84,7 +84,8 @@ configuration, such as:
 - executable path, arguments, and working directory
 - project path, project application arguments, and ASP.NET Core hot reload mode
 - container image, registry, host binding, endpoints, and environment variables
-- SQL Server image, TDS endpoint, and data-volume mount
+- SQL Server TDS endpoint, data-volume mount, and current provider image
+  payload until the managed SQL Server model moves to version/edition settings
 - lifetime and service discovery opt-in where supported
 
 Import creates a new application definition in the provider's configuration

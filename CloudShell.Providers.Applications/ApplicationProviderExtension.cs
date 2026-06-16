@@ -82,7 +82,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "Register a local SQL Server container with a TDS endpoint for direct access and service discovery.",
                 "database",
                 23,
-                resourceClass: ResourceClass.Container)
+                resourceClass: ResourceClass.Service)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ExecutableApplication,
                 "overview",
