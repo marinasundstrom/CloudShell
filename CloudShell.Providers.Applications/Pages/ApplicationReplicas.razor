@@ -56,8 +56,15 @@ else
                         {
                             <tr>
                                 <td>
-                                    <strong>@replica.Name</strong>
-                                    <span>@FormatReplicaOrdinal(replica)</span>
+                                    <div class="resource-table-identity">
+                                        <span class="resource-kind-icon">
+                                            <FluentIcon Value="@(new Icons.Regular.Size20.CubeTree())" />
+                                        </span>
+                                        <span>
+                                            <strong>@replica.Name</strong>
+                                            <span>@FormatReplicaOrdinal(replica)</span>
+                                        </span>
+                                    </div>
                                 </td>
                                 <td>
                                     <span class="state-pill @GetStateClass(replica.State)">

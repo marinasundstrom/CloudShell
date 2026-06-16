@@ -53,14 +53,15 @@
             @foreach (var resource in Resources.Take(8))
             {
                 <div class="activity-row">
-                    @if (ResourceLifecycleDisplay.ShouldShowStatus(resource))
-                    {
-                        <span class="state-dot @GetStateClass(resource.State)"></span>
-                    }
+                    <ResourceKindIcon Resource="resource" />
                     <div>
                         <strong>@resource.Name</strong>
                         <span>@resource.Kind</span>
                     </div>
+                    @if (ResourceLifecycleDisplay.ShouldShowStatus(resource))
+                    {
+                        <span class="state-dot @GetStateClass(resource.State)"></span>
+                    }
                 </div>
             }
         </div>

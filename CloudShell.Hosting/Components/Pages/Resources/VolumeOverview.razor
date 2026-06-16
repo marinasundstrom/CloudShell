@@ -51,25 +51,28 @@ else
             <div class="generated-list">
                 @foreach (var consumer in Consumers)
                 {
-                    <div>
-                        <strong>
-                            <a class="resource-link" href="@BuildResourceRoute(consumer.Resource.Id)">
-                                @consumer.Resource.Name
-                            </a>
-                        </strong>
-                        @if (consumer.Mounts.Count == 0)
-                        {
-                            <span>@consumer.Resource.Kind</span>
-                            <small>@consumer.Resource.Id</small>
-                        }
-                        else
-                        {
-                            @foreach (var mount in consumer.Mounts)
+                    <div class="resource-list-item">
+                        <ResourceKindIcon Resource="consumer.Resource" />
+                        <span class="resource-list-item-content">
+                            <strong>
+                                <a class="resource-link" href="@BuildResourceRoute(consumer.Resource.Id)">
+                                    @consumer.Resource.Name
+                                </a>
+                            </strong>
+                            @if (consumer.Mounts.Count == 0)
                             {
-                                <span>@GetMountSummary(mount)</span>
-                                <small>@GetConsumerMountMetadata(consumer.Resource)</small>
+                                <span>@consumer.Resource.Kind</span>
+                                <small>@consumer.Resource.Id</small>
                             }
-                        }
+                            else
+                            {
+                                @foreach (var mount in consumer.Mounts)
+                                {
+                                    <span>@GetMountSummary(mount)</span>
+                                    <small>@GetConsumerMountMetadata(consumer.Resource)</small>
+                                }
+                            }
+                        </span>
                     </div>
                 }
             </div>

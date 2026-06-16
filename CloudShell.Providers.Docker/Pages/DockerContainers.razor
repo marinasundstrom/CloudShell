@@ -339,10 +339,7 @@ else
                     () => RequestContainerAction(container, action)));
             builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
             {
-                buttonBuilder.OpenElement(0, "span");
-                buttonBuilder.AddAttribute(1, "class", $"action-icon {GetActionIconClass(action)}");
-                buttonBuilder.AddAttribute(2, "aria-hidden", "true");
-                buttonBuilder.CloseElement();
+                AddActionIcon(buttonBuilder, action.EffectivePresentation.Icon);
             }));
             builder.CloseComponent();
         }
@@ -366,11 +363,7 @@ else
         builder.AddAttribute(sequence++, "ButtonStyle", "width: 2rem; min-width: 2rem;");
         builder.AddAttribute(sequence++, "ButtonContent", (RenderFragment)(buttonBuilder =>
         {
-            buttonBuilder.OpenElement(0, "span");
-            buttonBuilder.AddAttribute(1, "class", "action-overflow-label");
-            buttonBuilder.AddAttribute(2, "aria-label", "More actions");
-            buttonBuilder.AddContent(3, "⋮");
-            buttonBuilder.CloseElement();
+            AddIcon(buttonBuilder, new Icons.Regular.Size20.MoreVertical());
         }));
         builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(menuBuilder =>
         {
@@ -388,10 +381,7 @@ else
                 {
                     itemBuilder.OpenElement(0, "span");
                     itemBuilder.AddAttribute(1, "class", "menu-action-content");
-                    itemBuilder.OpenElement(2, "span");
-                    itemBuilder.AddAttribute(3, "class", $"action-icon {GetActionIconClass(action)}");
-                    itemBuilder.AddAttribute(4, "aria-hidden", "true");
-                    itemBuilder.CloseElement();
+                    AddActionIcon(itemBuilder, action.EffectivePresentation.Icon, 2);
                     itemBuilder.OpenElement(5, "span");
                     itemBuilder.AddContent(6, IsExecutingAction(container, action)
                         ? "Working"
@@ -428,10 +418,7 @@ else
                 () => OpenLogs(resource)));
         builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
         {
-            buttonBuilder.OpenElement(0, "span");
-            buttonBuilder.AddAttribute(1, "class", "action-icon action-icon-logs");
-            buttonBuilder.AddAttribute(2, "aria-hidden", "true");
-            buttonBuilder.CloseElement();
+            AddIcon(buttonBuilder, new Icons.Regular.Size20.DocumentText());
         }));
         builder.CloseComponent();
     }
@@ -451,10 +438,7 @@ else
         {
             itemBuilder.OpenElement(0, "span");
             itemBuilder.AddAttribute(1, "class", "menu-action-content");
-            itemBuilder.OpenElement(2, "span");
-            itemBuilder.AddAttribute(3, "class", "action-icon action-icon-logs");
-            itemBuilder.AddAttribute(4, "aria-hidden", "true");
-            itemBuilder.CloseElement();
+            AddIcon(itemBuilder, new Icons.Regular.Size20.DocumentText(), 2);
             itemBuilder.OpenElement(5, "span");
             itemBuilder.AddContent(6, GetLogsActionLabel(logCount));
             itemBuilder.CloseElement();
@@ -471,13 +455,30 @@ else
     private static bool IsInlineAction(ResourceAction action) =>
         action.EffectivePresentation.DisplayStyle == ResourceActionDisplayStyle.Inline;
 
-    private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
+    private static void AddActionIcon(
+        RenderTreeBuilder builder,
+        ResourceActionIcon actionIcon,
+        int sequence = 0) =>
+        AddIcon(builder, GetActionIcon(actionIcon), sequence);
+
+    private static void AddIcon(
+        RenderTreeBuilder builder,
+        Icon icon,
+        int sequence = 0)
     {
-        ResourceActionIcon.Start => "action-icon-start",
-        ResourceActionIcon.Stop => "action-icon-stop",
-        ResourceActionIcon.Pause => "action-icon-pause",
-        ResourceActionIcon.Restart => "action-icon-restart",
-        _ => "action-icon-custom"
+        builder.OpenComponent<FluentIcon<Icon>>(sequence);
+        builder.AddAttribute(sequence + 1, "Class", "action-icon");
+        builder.AddAttribute(sequence + 2, "Value", icon);
+        builder.CloseComponent();
+    }
+
+    private static Icon GetActionIcon(ResourceActionIcon actionIcon) => actionIcon switch
+    {
+        ResourceActionIcon.Start => new Icons.Regular.Size20.PlayCircle(),
+        ResourceActionIcon.Stop => new Icons.Regular.Size20.RecordStop(),
+        ResourceActionIcon.Pause => new Icons.Regular.Size20.PauseCircle(),
+        ResourceActionIcon.Restart => new Icons.Regular.Size20.ArrowSync(),
+        _ => new Icons.Regular.Size20.AppsListDetail()
     };
 
     private static string GetConfirmationMessage(Resource resource, ResourceAction action) =>

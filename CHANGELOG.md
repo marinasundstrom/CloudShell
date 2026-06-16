@@ -22,6 +22,12 @@ on `git blame --follow`, and then by the broad type of change.
   initial-letter badges for resource and sub-resource identity.
 - Resource Manager settings summary cards and custom shell view summary cards
   now use Fluent icons instead of initial-letter badges.
+- Resource-like lists in observability, generated resource overviews, DNS
+  zones, storage volumes, volume consumers, and container app replicas now show
+  consistent Fluent resource icons.
+- Resource action buttons and action menus now render lifecycle, logs,
+  details, and overflow affordances with Fluent icons instead of CSS-drawn
+  glyphs.
 - Resource Manager primary actions now use Fluent button icon slots for
   create, add-volume, import/export, and apply commands where the icon
   clarifies the command behavior.

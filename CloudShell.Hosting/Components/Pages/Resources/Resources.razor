@@ -36,7 +36,8 @@
         <p>@L["Explore registered resources, project groups, endpoints, dependencies, and nested sub-resources."]</p>
     </div>
     <div class="heading-actions">
-        <FluentButton Appearance="Appearance.Neutral" OnClick="RefreshResourcesAsync">
+        <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      OnClick="RefreshResourcesAsync">
             @(IsCheckingHealth ? L["Checking..."] : L["Refresh"])
         </FluentButton>
         <FluentButton Appearance="Appearance.Neutral" OnClick="OpenTemplates">
@@ -44,7 +45,8 @@
         </FluentButton>
         @if (CanOpenSettings)
         {
-            <FluentButton Appearance="Appearance.Neutral" OnClick="OpenSettings">
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.Settings())"
+                          OnClick="OpenSettings">
                 @L["Settings"]
             </FluentButton>
         }
@@ -58,8 +60,7 @@
         }
         @if (!IsReadOnly && Authorization.HasPermission(CloudShellPermissions.Resources.Create))
         {
-            <FluentButton Appearance="Appearance.Accent"
-                          IconStart="@(new Icons.Regular.Size20.AddCircle())"
+            <FluentButton Appearance="Appearance.Accent" IconStart="@(new Icons.Regular.Size20.AddCircle())"
                           OnClick="AddResource">
                 @L["Add resource"]
             </FluentButton>
@@ -128,43 +129,32 @@
             <div class="inventory-filters">
                 <div class="inventory-filter name-filter">
                     <label for="resource-name-filter">@L["Name"]</label>
-                    <FluentSearch Id="resource-name-filter" @bind-Value="NameFilter" Placeholder="@L["Filter by resource"]" />
+                    <FluentSearch Id="resource-name-filter" @bind-Value="NameFilter"
+                                  Placeholder="@L["Filter by resource"]" />
                 </div>
                 <div class="inventory-filter">
                     <label for="resource-class-filter">@L["Class"]</label>
-                    <FluentSelect TOption="ResourceClassFilterOption"
-                                  Id="resource-class-filter"
-                                  Class="inventory-select"
-                                  Items="@resourceClasses"
+                    <FluentSelect TOption="ResourceClassFilterOption" Id="resource-class-filter"
+                                  Class="inventory-select" Items="@resourceClasses"
                                   OptionText="@(resourceClass => resourceClass.DisplayName)"
                                   OptionValue="@(resourceClass => resourceClass.Id)"
                                   SelectedOption="@GetSelectedClassOption(resourceClasses)"
-                                  SelectedOptionChanged="ChangeClassFilter"
-                                  Appearance="Appearance.Neutral" />
+                                  SelectedOptionChanged="ChangeClassFilter" Appearance="Appearance.Neutral" />
                 </div>
                 <div class="inventory-filter">
                     <label for="resource-type-filter">@L["Type"]</label>
-                    <FluentSelect TOption="ResourceTypeFilterOption"
-                                  Id="resource-type-filter"
-                                  Class="inventory-select"
-                                  Items="@resourceTypes"
-                                  OptionText="@(type => type.DisplayName)"
-                                  OptionValue="@(type => type.Id)"
-                                  SelectedOption="@GetSelectedTypeOption(resourceTypes)"
-                                  SelectedOptionChanged="ChangeTypeFilter"
+                    <FluentSelect TOption="ResourceTypeFilterOption" Id="resource-type-filter" Class="inventory-select"
+                                  Items="@resourceTypes" OptionText="@(type => type.DisplayName)" OptionValue="@(type => type.Id)"
+                                  SelectedOption="@GetSelectedTypeOption(resourceTypes)" SelectedOptionChanged="ChangeTypeFilter"
                                   Appearance="Appearance.Neutral" />
                 </div>
                 <div class="inventory-filter">
                     <label for="resource-group-filter">@L["Resource group"]</label>
-                    <FluentSelect TOption="ResourceGroupFilterOption"
-                                  Id="resource-group-filter"
-                                  Class="inventory-select"
-                                  Items="@resourceGroupFilters"
-                                  OptionText="@(group => group.DisplayName)"
-                                  OptionValue="@(group => group.Id)"
+                    <FluentSelect TOption="ResourceGroupFilterOption" Id="resource-group-filter"
+                                  Class="inventory-select" Items="@resourceGroupFilters"
+                                  OptionText="@(group => group.DisplayName)" OptionValue="@(group => group.Id)"
                                   SelectedOption="@GetSelectedResourceGroupOption(resourceGroupFilters)"
-                                  SelectedOptionChanged="ChangeResourceGroupFilter"
-                                  Appearance="Appearance.Neutral" />
+                                  SelectedOptionChanged="ChangeResourceGroupFilter" Appearance="Appearance.Neutral" />
                 </div>
                 @if (HasActiveFilters)
                 {
@@ -191,16 +181,13 @@
             {
                 var resource = row.Resource;
                 var group = GetGroup(resource);
-                <div class="resource-tree-row @(selected?.Id == resource.Id ? "selected" : null)"
-                     role="row"
+                <div class="resource-tree-row @(selected?.Id == resource.Id ? "selected" : null)" role="row"
                      @onclick="() => OpenResource(resource)">
                     <div class="resource-name-cell" style="--resource-depth: @row.Depth">
                         @if (row.ChildCount > 0)
                         {
-                            <button class="tree-toggle"
-                                    title="@L["Toggle sub-resources"]"
-                                    @onclick="() => ToggleResource(resource.Id)"
-                                    @onclick:stopPropagation="true">
+                            <button class="tree-toggle" title="@L["Toggle sub-resources"]"
+                                    @onclick="() => ToggleResource(resource.Id)" @onclick:stopPropagation="true">
                                 @(CollapsedResourceIds.Contains(resource.Id) ? "+" : "-")
                             </button>
                         }
@@ -213,8 +200,7 @@
                         <div>
                             @if (resource.DetailRoute is not null)
                             {
-                                <a class="resource-link"
-                                   href="@resource.DetailRoute"
+                                <a class="resource-link" href="@resource.DetailRoute"
                                    @onclick:stopPropagation="true">@GetResourceLabel(resource)</a>
                             }
                             else
@@ -257,40 +243,29 @@
             <div class="resource-pagination">
                 <div class="inventory-filter page-size-filter">
                     <label for="resource-page-size">@L["Rows per page"]</label>
-                    <FluentSelect TOption="int"
-                                  Id="resource-page-size"
-                                  Class="page-size-select"
-                                  Items="@PageSizes"
-                                  OptionText="@(size => size.ToString())"
-                                  OptionValue="@(size => size.ToString())"
-                                  SelectedOption="@Pagination.ItemsPerPage"
-                                  SelectedOptionChanged="ChangePageSizeAsync"
+                    <FluentSelect TOption="int" Id="resource-page-size" Class="page-size-select" Items="@PageSizes"
+                                  OptionText="@(size => size.ToString())" OptionValue="@(size => size.ToString())"
+                                  SelectedOption="@Pagination.ItemsPerPage" SelectedOptionChanged="ChangePageSizeAsync"
                                   Appearance="Appearance.Neutral" />
                 </div>
                 <div class="pagination-controls">
                     <span class="pagination-range">@GetPaginationRangeLabel(rows.Count)</span>
-                    <FluentButton Appearance="Appearance.Neutral"
-                                  Disabled="@(Pagination.CurrentPageIndex == 0)"
-                                  Title="@L["First page"]"
-                                  OnClick="GoToFirstPageAsync">
+                    <FluentButton Appearance="Appearance.Neutral" Disabled="@(Pagination.CurrentPageIndex == 0)"
+                                  Title="@L["First page"]" OnClick="GoToFirstPageAsync">
                         &lt;&lt;
                     </FluentButton>
-                    <FluentButton Appearance="Appearance.Neutral"
-                                  Disabled="@(Pagination.CurrentPageIndex == 0)"
-                                  Title="@L["Previous page"]"
-                                  OnClick="GoToPreviousPageAsync">
+                    <FluentButton Appearance="Appearance.Neutral" Disabled="@(Pagination.CurrentPageIndex == 0)"
+                                  Title="@L["Previous page"]" OnClick="GoToPreviousPageAsync">
                         &lt;
                     </FluentButton>
                     <span>@L["Page {0} of {1}", Pagination.CurrentPageIndex + 1, GetLastPageIndex(rows.Count) + 1]</span>
                     <FluentButton Appearance="Appearance.Neutral"
-                                  Disabled="@(Pagination.CurrentPageIndex >= GetLastPageIndex(rows.Count))"
-                                  Title="@L["Next page"]"
+                                  Disabled="@(Pagination.CurrentPageIndex >= GetLastPageIndex(rows.Count))" Title="@L["Next page"]"
                                   OnClick="() => GoToNextPageAsync(rows.Count)">
                         &gt;
                     </FluentButton>
                     <FluentButton Appearance="Appearance.Neutral"
-                                  Disabled="@(Pagination.CurrentPageIndex >= GetLastPageIndex(rows.Count))"
-                                  Title="@L["Last page"]"
+                                  Disabled="@(Pagination.CurrentPageIndex >= GetLastPageIndex(rows.Count))" Title="@L["Last page"]"
                                   OnClick="() => GoToLastPageAsync(rows.Count)">
                         &gt;&gt;
                     </FluentButton>
@@ -325,10 +300,7 @@
                     <h2>@GetResourceLabel(selected)</h2>
                     <p>@selected.Kind</p>
                 </div>
-                <button type="button"
-                        class="blade-dismiss"
-                        title="@L["Dismiss details"]"
-                        aria-label="@L["Dismiss details"]"
+                <button type="button" class="blade-dismiss" title="@L["Dismiss details"]" aria-label="@L["Dismiss details"]"
                         @onclick="DismissResource">
                     x
                 </button>
@@ -386,7 +358,8 @@
                     </FluentButton>
                     @if (CanDelete(selected))
                     {
-                        <FluentButton Appearance="Appearance.Neutral" OnClick="() => PromptDelete(selected)">
+                        <FluentButton Appearance="Appearance.Neutral" IconStart="new Icons.Regular.Size20.Delete()"
+                                      OnClick="() => PromptDelete(selected)">
                             @L["Delete"]
                         </FluentButton>
                     }
@@ -505,136 +478,137 @@
                             }
                         </dd>
                         <dt>@L["Entrypoints"]</dt>
-                        <dd>@GetAttributeValue(selected, ResourceAttributeNames.LoadBalancerEntrypointCount, selected.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
-                        <dt>@L["Routes"]</dt>
-                        <dd>@FormatLoadBalancerRouteCounts(selected)</dd>
-                    </dl>
-                </section>
-            }
+                        <dd>@GetAttributeValue(selected, ResourceAttributeNames.LoadBalancerEntrypointCount,
+                                                                                                                                    selected.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
+                            <dt>@L["Routes"]</dt>
+                            <dd>@FormatLoadBalancerRouteCounts(selected)</dd>
+                        </dl>
+                    </section>
+                }
 
-            @if (IsNetworkResource(selected) && !IsLoadBalancerResource(selected))
-            {
-                <section class="blade-section">
-                    <h3>@L["Networking"]</h3>
-                    <dl class="detail-list">
-                        <dt>@L["Kind"]</dt>
-                        <dd>@GetAttributeValue(selected, ResourceAttributeNames.NetworkKind, selected.Kind)</dd>
-                        <dt>@L["Host readiness"]</dt>
-                        <dd>@FormatNetworkReadiness(selected)</dd>
-                        @if (selected.ResourceAttributes.ContainsKey(ResourceAttributeNames.NetworkProvisionedMappingCount))
-                        {
-                            <dt>@L["Provisioned mappings"]</dt>
-                            <dd>@GetAttributeValue(selected, ResourceAttributeNames.NetworkProvisionedMappingCount, "0")</dd>
-                        }
-                        @if (GetMappingProviderIds(selected).Length > 0)
-                        {
-                            <dt>@L["Mapping providers"]</dt>
-                            <dd>@string.Join(", ", GetMappingProviderIds(selected))</dd>
-                        }
-                    </dl>
-                </section>
-            }
+                @if (IsNetworkResource(selected) && !IsLoadBalancerResource(selected))
+                {
+                    <section class="blade-section">
+                        <h3>@L["Networking"]</h3>
+                        <dl class="detail-list">
+                            <dt>@L["Kind"]</dt>
+                            <dd>@GetAttributeValue(selected, ResourceAttributeNames.NetworkKind, selected.Kind)</dd>
+                            <dt>@L["Host readiness"]</dt>
+                            <dd>@FormatNetworkReadiness(selected)</dd>
+                            @if (selected.ResourceAttributes.ContainsKey(ResourceAttributeNames.NetworkProvisionedMappingCount))
+                            {
+                                <dt>@L["Provisioned mappings"]</dt>
+                                <dd>@GetAttributeValue(selected, ResourceAttributeNames.NetworkProvisionedMappingCount, "0")</dd>
+                            }
+                            @if (GetMappingProviderIds(selected).Length > 0)
+                            {
+                                <dt>@L["Mapping providers"]</dt>
+                                <dd>@string.Join(", ", GetMappingProviderIds(selected))</dd>
+                            }
+                        </dl>
+                    </section>
+                }
 
-            @if (selected.ResourceEndpointMappings.Count > 0)
-            {
-                <section class="blade-section">
-                    <h3>@L["Endpoint mappings"]</h3>
-                    <div class="endpoint-list">
-                        @foreach (var mapping in selected.ResourceEndpointMappings)
-                        {
-                            <div>
-                                <strong>@mapping.Name</strong>
-                                <span>@FormatMappingSummary(mapping, selected)</span>
-                                <small>@FormatMappingProvider(mapping)</small>
-                            </div>
-                        }
-                    </div>
-                </section>
-            }
+                @if (selected.ResourceEndpointMappings.Count > 0)
+                {
+                    <section class="blade-section">
+                        <h3>@L["Endpoint mappings"]</h3>
+                        <div class="endpoint-list">
+                            @foreach (var mapping in selected.ResourceEndpointMappings)
+                            {
+                                <div>
+                                    <strong>@mapping.Name</strong>
+                                    <span>@FormatMappingSummary(mapping, selected)</span>
+                                    <small>@FormatMappingProvider(mapping)</small>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
 
-            @if (selected.ResourceLoadBalancerRoutes.Count > 0)
-            {
-                <section class="blade-section">
-                    <h3>@L["Load balancer routes"]</h3>
-                    <div class="endpoint-list">
-                        @foreach (var route in selected.ResourceLoadBalancerRoutes)
-                        {
-                            <div>
-                                <strong>@route.Name</strong>
-                                <span>@FormatLoadBalancerRoute(route)</span>
-                                <small>@L["Entrypoint: {0}", route.EntrypointName]</small>
-                            </div>
-                        }
-                    </div>
-                </section>
-            }
+                @if (selected.ResourceLoadBalancerRoutes.Count > 0)
+                {
+                    <section class="blade-section">
+                        <h3>@L["Load balancer routes"]</h3>
+                        <div class="endpoint-list">
+                            @foreach (var route in selected.ResourceLoadBalancerRoutes)
+                            {
+                                <div>
+                                    <strong>@route.Name</strong>
+                                    <span>@FormatLoadBalancerRoute(route)</span>
+                                    <small>@L["Entrypoint: {0}", route.EntrypointName]</small>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
 
-            @if (GetInboundNetworkMappings(selected).Length > 0)
-            {
-                <section class="blade-section">
-                    <h3>@L["Network exposure"]</h3>
-                    <div class="endpoint-list">
-                        @foreach (var exposure in GetInboundNetworkMappings(selected))
-                        {
-                            <div>
-                                <strong>@GetResourceLabel(exposure.Network)</strong>
-                                <span>@FormatMappingSummary(exposure.Mapping, exposure.Network)</span>
-                                <small>@FormatMappingProvider(exposure.Mapping)</small>
-                            </div>
-                        }
-                    </div>
-                </section>
-            }
+                @if (GetInboundNetworkMappings(selected).Length > 0)
+                {
+                    <section class="blade-section">
+                        <h3>@L["Network exposure"]</h3>
+                        <div class="endpoint-list">
+                            @foreach (var exposure in GetInboundNetworkMappings(selected))
+                            {
+                                <div>
+                                    <strong>@GetResourceLabel(exposure.Network)</strong>
+                                    <span>@FormatMappingSummary(exposure.Mapping, exposure.Network)</span>
+                                    <small>@FormatMappingProvider(exposure.Mapping)</small>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
 
-            @if (GetInboundLoadBalancerRoutes(selected).Length > 0)
-            {
-                <section class="blade-section">
-                    <h3>@L["Load balancer exposure"]</h3>
-                    <div class="endpoint-list">
-                        @foreach (var exposure in GetInboundLoadBalancerRoutes(selected))
-                        {
-                            <div>
-                                <strong>@GetResourceLabel(exposure.LoadBalancer)</strong>
-                                <span>@FormatLoadBalancerRoute(exposure.Route)</span>
-                                <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
-                            </div>
-                        }
-                    </div>
-                </section>
-            }
+                @if (GetInboundLoadBalancerRoutes(selected).Length > 0)
+                {
+                    <section class="blade-section">
+                        <h3>@L["Load balancer exposure"]</h3>
+                        <div class="endpoint-list">
+                            @foreach (var exposure in GetInboundLoadBalancerRoutes(selected))
+                            {
+                                <div>
+                                    <strong>@GetResourceLabel(exposure.LoadBalancer)</strong>
+                                    <span>@FormatLoadBalancerRoute(exposure.Route)</span>
+                                    <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
 
-            @if (GetInboundNameMappings(selected).Length > 0)
-            {
-                <section class="blade-section">
-                    <h3>@L["DNS and domain names"]</h3>
-                    <div class="endpoint-list">
-                        @foreach (var exposure in GetInboundNameMappings(selected))
-                        {
-                            <div>
-                                <strong>@GetNameMappingHostName(exposure.Mapping)</strong>
-                                <span>@FormatNameMappingSummary(exposure.Mapping, selected)</span>
-                                <small>@FormatNameMappingMetadata(exposure.Mapping)</small>
-                            </div>
-                        }
-                    </div>
-                </section>
-            }
+                @if (GetInboundNameMappings(selected).Length > 0)
+                {
+                    <section class="blade-section">
+                        <h3>@L["DNS and domain names"]</h3>
+                        <div class="endpoint-list">
+                            @foreach (var exposure in GetInboundNameMappings(selected))
+                            {
+                                <div>
+                                    <strong>@GetNameMappingHostName(exposure.Mapping)</strong>
+                                    <span>@FormatNameMappingSummary(exposure.Mapping, selected)</span>
+                                    <small>@FormatNameMappingMetadata(exposure.Mapping)</small>
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
 
-            @if (selected.DependsOn.Count > 0)
-            {
-                <section class="blade-section">
-                    <h3>@L["Dependencies"]</h3>
-                    <div class="dependency-list">
-                        @foreach (var dependency in selected.DependsOn)
-                        {
-                            <span>@dependency</span>
-                        }
-                    </div>
-                </section>
-            }
-        </aside>
-    }
-</section>
+                @if (selected.DependsOn.Count > 0)
+                {
+                    <section class="blade-section">
+                        <h3>@L["Dependencies"]</h3>
+                        <div class="dependency-list">
+                            @foreach (var dependency in selected.DependsOn)
+                            {
+                                <span>@dependency</span>
+                            }
+                        </div>
+                    </section>
+                }
+            </aside>
+        }
+    </section>
 
 @code {
     private const string PageQueryParameter = "page";
@@ -777,7 +751,8 @@
         var childrenByParent = scoped
             .Where(resource => resource.ParentResourceId is not null)
             .GroupBy(resource => resource.ParentResourceId!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.OrderBy(GetResourceSortLabel).ToArray(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(group => group.Key, group => group.OrderBy(GetResourceSortLabel).ToArray(),
+StringComparer.OrdinalIgnoreCase);
 
         HashSet<string>? visibleIds = null;
         if (HasActiveListFilters())
@@ -959,7 +934,8 @@
             string.Equals(resourceClass.Id, SelectedClassFilter, StringComparison.OrdinalIgnoreCase))
         ?? resourceClasses[0];
 
-    private ResourceGroupFilterOption GetSelectedResourceGroupOption(IReadOnlyList<ResourceGroupFilterOption> resourceGroups) =>
+    private ResourceGroupFilterOption GetSelectedResourceGroupOption(IReadOnlyList<ResourceGroupFilterOption>
+resourceGroups) =>
         resourceGroups.FirstOrDefault(group =>
             string.Equals(group.Id, SelectedResourceGroupFilter, StringComparison.OrdinalIgnoreCase))
         ?? resourceGroups[0];
@@ -1814,10 +1790,7 @@
                     () => RequestResourceAction(resource, action)));
             builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
             {
-                buttonBuilder.OpenElement(0, "span");
-                buttonBuilder.AddAttribute(1, "class", $"action-icon {GetActionIconClass(action)}");
-                buttonBuilder.AddAttribute(2, "aria-hidden", "true");
-                buttonBuilder.CloseElement();
+                AddActionIcon(buttonBuilder, action.EffectivePresentation.Icon);
             }));
             builder.CloseComponent();
         }
@@ -1841,10 +1814,7 @@
                         () => OpenLogs(resource)));
                 builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
                 {
-                    buttonBuilder.OpenElement(0, "span");
-                    buttonBuilder.AddAttribute(1, "class", "action-icon action-icon-logs");
-                    buttonBuilder.AddAttribute(2, "aria-hidden", "true");
-                    buttonBuilder.CloseElement();
+                    AddIcon(buttonBuilder, new Icons.Regular.Size20.DocumentText());
                 }));
                 builder.CloseComponent();
             }
@@ -1859,11 +1829,7 @@
         builder.AddAttribute(sequence++, "ButtonStyle", "width: 2rem; min-width: 2rem;");
         builder.AddAttribute(sequence++, "ButtonContent", (RenderFragment)(buttonBuilder =>
         {
-            buttonBuilder.OpenElement(0, "span");
-            buttonBuilder.AddAttribute(1, "class", "action-overflow-label");
-            buttonBuilder.AddAttribute(2, "aria-label", L["More actions"]);
-            buttonBuilder.AddContent(3, "⋮");
-            buttonBuilder.CloseElement();
+            AddIcon(buttonBuilder, new Icons.Regular.Size20.MoreVertical());
         }));
         builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(menuBuilder =>
         {
@@ -1881,10 +1847,7 @@
                 {
                     itemBuilder.OpenElement(0, "span");
                     itemBuilder.AddAttribute(1, "class", "menu-action-content");
-                    itemBuilder.OpenElement(2, "span");
-                    itemBuilder.AddAttribute(3, "class", $"action-icon {GetActionIconClass(action)}");
-                    itemBuilder.AddAttribute(4, "aria-hidden", "true");
-                    itemBuilder.CloseElement();
+                    AddActionIcon(itemBuilder, action.EffectivePresentation.Icon, 2);
                     itemBuilder.OpenElement(5, "span");
                     itemBuilder.AddContent(6, IsExecutingAction(resource, action)
                         ? L["Working"]
@@ -1906,10 +1869,7 @@
                 {
                     itemBuilder.OpenElement(0, "span");
                     itemBuilder.AddAttribute(1, "class", "menu-action-content");
-                    itemBuilder.OpenElement(2, "span");
-                    itemBuilder.AddAttribute(3, "class", "action-icon action-icon-logs");
-                    itemBuilder.AddAttribute(4, "aria-hidden", "true");
-                    itemBuilder.CloseElement();
+                    AddIcon(itemBuilder, new Icons.Regular.Size20.DocumentText(), 2);
                     itemBuilder.OpenElement(5, "span");
                     itemBuilder.AddContent(6, GetLogsActionLabel(logs.Count));
                     itemBuilder.CloseElement();
@@ -1929,10 +1889,7 @@
                 {
                     itemBuilder.OpenElement(0, "span");
                     itemBuilder.AddAttribute(1, "class", "menu-action-content");
-                    itemBuilder.OpenElement(2, "span");
-                    itemBuilder.AddAttribute(3, "class", "action-icon action-icon-details");
-                    itemBuilder.AddAttribute(4, "aria-hidden", "true");
-                    itemBuilder.CloseElement();
+                    AddIcon(itemBuilder, new Icons.Regular.Size20.AppsListDetail(), 2);
                     itemBuilder.OpenElement(5, "span");
                     itemBuilder.AddContent(6, L["Details"]);
                     itemBuilder.CloseElement();
@@ -1947,13 +1904,30 @@
     private static bool IsInlineAction(ResourceAction action) =>
         action.EffectivePresentation.DisplayStyle == ResourceActionDisplayStyle.Inline;
 
-    private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
+    private static void AddActionIcon(
+        RenderTreeBuilder builder,
+        ResourceActionIcon actionIcon,
+        int sequence = 0) =>
+        AddIcon(builder, GetActionIcon(actionIcon), sequence);
+
+    private static void AddIcon(
+        RenderTreeBuilder builder,
+        Icon icon,
+        int sequence = 0)
     {
-        ResourceActionIcon.Start => "action-icon-start",
-        ResourceActionIcon.Stop => "action-icon-stop",
-        ResourceActionIcon.Pause => "action-icon-pause",
-        ResourceActionIcon.Restart => "action-icon-restart",
-        _ => "action-icon-custom"
+        builder.OpenComponent<FluentIcon<Icon>>(sequence);
+        builder.AddAttribute(sequence + 1, "Class", "action-icon");
+        builder.AddAttribute(sequence + 2, "Value", icon);
+        builder.CloseComponent();
+    }
+
+    private static Icon GetActionIcon(ResourceActionIcon actionIcon) => actionIcon switch
+    {
+        ResourceActionIcon.Start => new Icons.Regular.Size20.PlayCircle(),
+        ResourceActionIcon.Stop => new Icons.Regular.Size20.RecordStop(),
+        ResourceActionIcon.Pause => new Icons.Regular.Size20.PauseCircle(),
+        ResourceActionIcon.Restart => new Icons.Regular.Size20.ArrowSync(),
+        _ => new Icons.Regular.Size20.AppsListDetail()
     };
 
     private string GetConfirmationMessage(Resource resource, ResourceAction action) =>

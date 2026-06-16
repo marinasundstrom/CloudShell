@@ -39,14 +39,17 @@ else
             <div class="generated-list">
                 @foreach (var mapping in NameMappings)
                 {
-                    <div>
-                        <strong>
-                            <a class="resource-link" href="@BuildResourceRoute(mapping.Id, "overview")">
-                                @GetNameMappingHostName(mapping)
-                            </a>
-                        </strong>
-                        <span>@GetMappingSummary(mapping)</span>
-                        <small>@GetMappingMetadata(mapping)</small>
+                    <div class="resource-list-item">
+                        <ResourceKindIcon Resource="mapping" />
+                        <span class="resource-list-item-content">
+                            <strong>
+                                <a class="resource-link" href="@BuildResourceRoute(mapping.Id, "overview")">
+                                    @GetNameMappingHostName(mapping)
+                                </a>
+                            </strong>
+                            <span>@GetMappingSummary(mapping)</span>
+                            <small>@GetMappingMetadata(mapping)</small>
+                        </span>
                     </div>
                 }
             </div>

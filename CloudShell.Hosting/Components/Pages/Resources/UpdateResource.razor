@@ -36,167 +36,154 @@
         <div class="resource-title-line">
             @if (resource?.State is { } state)
             {
-                <span class="state-dot @GetStateClass(state)"
-                      title="@L["State: {0}", state]"
+                <span class="state-dot @GetStateClass(state)" title="@L["State: {0}", state]"
                       aria-label="@L["State: {0}", state]"></span>
             }
             <h1>@(resource is null ? L["Resource"] : GetResourceLabel(resource))</h1>
         </div>
-        <p>@(resource is null ? L["Generated details and provider-contributed views for this resource."] : GetResourceSubtitle(resource))</p>
-    </div>
-    <div class="heading-actions resource-detail-actions">
-        @if (resource is not null)
-        {
-            @ResourceActionControls(resource)
-            @if (ResourceLogs.Count > 0)
+        <p>@(resource is null ? L["Generated details and provider-contributed views for this resource."] :
+                                                                                    GetResourceSubtitle(resource))</p>
+        </div>
+        <div class="heading-actions resource-detail-actions">
+            @if (resource is not null)
             {
-                <FluentButton Appearance="Appearance.Neutral"
-                              Title="@GetLogsActionLabel(ResourceLogs.Count)"
-                              OnClick="OpenLogs">
-                    @GetLogsActionLabel(ResourceLogs.Count)
+                @ResourceActionControls(resource)
+                @if (ResourceLogs.Count > 0)
+                {
+                    <FluentButton Appearance="Appearance.Neutral" Title="@GetLogsActionLabel(ResourceLogs.Count)"
+                                  IconStart="new Icons.Regular.Size20.DocumentText()" OnClick="OpenLogs">
+                        @GetLogsActionLabel(ResourceLogs.Count)
+                    </FluentButton>
+                }
+            }
+            <FluentButton Appearance="Appearance.Neutral" IconStart="new Icons.Regular.Size20.Dismiss()" OnClick="Cancel">
+                @L["Close"]
+            </FluentButton>
+            @if (canApplyResourceChanges)
+            {
+                <FluentButton Appearance="Appearance.Accent" Disabled="@(ConfigurationContext?.CanApply != true || IsApplying)"
+                              IconStart="new Icons.Regular.Size20.Checkmark()" OnClick="ApplyChanges">
+                    @(IsApplying ? L["Applying"] : L["Apply"])
                 </FluentButton>
             }
-        }
-        <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
-            @L["Close"]
-        </FluentButton>
-        @if (canApplyResourceChanges)
-        {
-            <FluentButton Appearance="Appearance.Accent"
-                          Disabled="@(ConfigurationContext?.CanApply != true || IsApplying)"
-                          OnClick="ApplyChanges">
-                @(IsApplying ? L["Applying"] : L["Apply"])
-            </FluentButton>
-        }
-    </div>
-</section>
-
-@if (ProcedureMessage is not null)
-{
-    <div class="procedure-message">@ProcedureMessage</div>
-}
-
-@if (isReadOnly)
-{
-    <div class="procedure-message">@L["Resource Manager is in read-only mode. Resource lifecycle actions and updates are disabled in this UI."]</div>
-}
-
-@if (PendingRestart is not null)
-{
-    <div class="procedure-confirmation" role="alert">
-        <strong>@L["Restart {0}?", PendingRestart.ResourceName]</strong>
-        <span>@PendingRestart.Message</span>
-        <div class="form-actions">
-            <FluentButton Appearance="Appearance.Accent"
-                          Disabled="@(IsRestarting || IsReadOnly)"
-                          OnClick="RestartPendingResource">
-                @(IsRestarting ? L["Restarting"] : L["Restart now"])
-            </FluentButton>
-            <FluentButton Appearance="Appearance.Neutral"
-                          Disabled="@IsRestarting"
-                          OnClick="DismissRestartPrompt">
-                @L["Later"]
-            </FluentButton>
         </div>
-    </div>
-}
+    </section>
 
-<section class="registration-layout">
-    <aside class="panel registration-options">
-        <h2>@L["Resource"]</h2>
-        @if (resource is not null)
-        {
-            <div class="selected-type-card">
-                <ResourceKindIcon Resource="resource" />
-                <div>
-                    <strong>@GetResourceLabel(resource)</strong>
-                    <p>@resource.Kind</p>
-                </div>
-            </div>
-            <dl class="detail-list">
-                <dt>@L["Resource ID"]</dt>
-                <dd>@resource.Id</dd>
-                <dt>@L["Name"]</dt>
-                <dd>@DisplaySelection.GetResourceName(resource)</dd>
-                @if (DisplaySelection.ShouldShowDisplayName(resource))
-                {
-                    <dt>@L["Display name"]</dt>
-                    <dd>@resource.DisplayName</dd>
-                }
-                <dt>@L["Group"]</dt>
-                <dd>@(group?.Name ?? L["Default group"])</dd>
-                <dt>@L["Provider"]</dt>
-                <dd>@resource.Provider</dd>
-            </dl>
-        }
+    @if (ProcedureMessage is not null)
+    {
+        <div class="procedure-message">@ProcedureMessage</div>
+    }
 
-        @if (tabs.Count > 0)
-        {
-            <div class="resource-tab-list" role="tablist" aria-label="@L["Resource views"]">
-                @foreach (var tabGroup in BuildTabGroups(tabs))
-                {
-                    <div class="resource-tab-group"
-                         role="group"
-                         aria-label="@tabGroup.Title">
-                        @if (!string.IsNullOrWhiteSpace(tabGroup.Title))
-                        {
-                            <span class="resource-tab-group-title">@tabGroup.Title</span>
-                        }
-                        @foreach (var tab in tabGroup.Tabs)
-                        {
-                            <button class="@GetTabButtonClass(tab, selectedTab)"
-                                    type="button"
-                                    role="tab"
-                                    aria-selected="@(selectedTab?.Id == tab.Id)"
-                                    @onclick="() => SelectTab(tab.Id)">
-                                @tab.Title
-                            </button>
-                        }
-                    </div>
-                }
-            </div>
-        }
-    </aside>
+    @if (isReadOnly)
+    {
+        <div class="procedure-message">@L["Resource Manager is in read-only mode. Resource lifecycle actions and updates are disabled in this UI."]</div>
+    }
 
-    <div class="panel registration-host">
-        @if (resource is null)
-        {
-            <EmptyState Title="@L["Resource not found"].Value"
-                        Message="@L["The resource may have been removed or is no longer visible."].Value" />
-        }
-        else if (selectedTab is null)
-        {
-            <EmptyState Title="@L["No resource selected"].Value"
-                        Message="@L["Select a resource to inspect its projected details."].Value" />
-        }
-        else
-        {
-            <div class="panel-header">
-                <div>
-                    <h2>@selectedTab.Title</h2>
-                    <p>@(resourceType?.DisplayName ?? resource.EffectiveTypeId)</p>
-                </div>
+    @if (PendingRestart is not null)
+    {
+        <div class="procedure-confirmation" role="alert">
+            <strong>@L["Restart {0}?", PendingRestart.ResourceName]</strong>
+            <span>@PendingRestart.Message</span>
+            <div class="form-actions">
+                <FluentButton Appearance="Appearance.Accent" Disabled="@(IsRestarting || IsReadOnly)"
+                              OnClick="RestartPendingResource">
+                    @(IsRestarting ? L["Restarting"] : L["Restart now"])
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Neutral" Disabled="@IsRestarting" OnClick="DismissRestartPrompt">
+                    @L["Later"]
+                </FluentButton>
             </div>
-            @if (isGeneratedOverview)
+        </div>
+    }
+
+    <section class="registration-layout">
+        <aside class="panel registration-options">
+            <h2>@L["Resource"]</h2>
+            @if (resource is not null)
             {
-                <GeneratedResourceOverview Resource="resource"
-                                           ResourceGroup="group"
-                                           ResourceType="resourceType"
-                                           ResourceUpdated="HandleResourceUpdated" />
+                <div class="selected-type-card">
+                    <ResourceKindIcon Resource="resource" />
+                    <div>
+                        <strong>@GetResourceLabel(resource)</strong>
+                        <p>@resource.Kind</p>
+                    </div>
+                </div>
+                <dl class="detail-list">
+                    <dt>@L["Resource ID"]</dt>
+                    <dd>@resource.Id</dd>
+                    <dt>@L["Name"]</dt>
+                    <dd>@DisplaySelection.GetResourceName(resource)</dd>
+                    @if (DisplaySelection.ShouldShowDisplayName(resource))
+                    {
+                        <dt>@L["Display name"]</dt>
+                        <dd>@resource.DisplayName</dd>
+                    }
+                    <dt>@L["Group"]</dt>
+                    <dd>@(group?.Name ?? L["Default group"])</dd>
+                    <dt>@L["Provider"]</dt>
+                    <dd>@resource.Provider</dd>
+                </dl>
+            }
+
+            @if (tabs.Count > 0)
+            {
+                <div class="resource-tab-list" role="tablist" aria-label="@L["Resource views"]">
+                    @foreach (var tabGroup in BuildTabGroups(tabs))
+                    {
+                        <div class="resource-tab-group" role="group" aria-label="@tabGroup.Title">
+                            @if (!string.IsNullOrWhiteSpace(tabGroup.Title))
+                            {
+                                <span class="resource-tab-group-title">@tabGroup.Title</span>
+                            }
+                            @foreach (var tab in tabGroup.Tabs)
+                            {
+                                <button class="@GetTabButtonClass(tab, selectedTab)" type="button" role="tab"
+                                        aria-selected="@(selectedTab?.Id == tab.Id)" @onclick="() => SelectTab(tab.Id)">
+                                    @tab.Title
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </aside>
+
+        <div class="panel registration-host">
+            @if (resource is null)
+            {
+                <EmptyState Title="@L["Resource not found"].Value"
+                            Message="@L["The resource may have been removed or is no longer visible."].Value" />
+            }
+            else if (selectedTab is null)
+            {
+                <EmptyState Title="@L["No resource selected"].Value"
+                            Message="@L["Select a resource to inspect its projected details."].Value" />
             }
             else
             {
-                <CascadingValue Value="ConfigurationContext">
-                    <CascadingValue Name="@ResourceManagerCascadingParameterNames.ReadOnly" Value="IsReadOnly">
-                        <DynamicComponent Type="selectedTab.ComponentType"
-                                          @key="GetContentKey(resource, selectedTab)"
-                                          Parameters="@BuildComponentParameters(resource, selectedTab)" />
+                <div class="panel-header">
+                    <div>
+                        <h2>@selectedTab.Title</h2>
+                        <p>@(resourceType?.DisplayName ?? resource.EffectiveTypeId)</p>
+                    </div>
+                </div>
+                @if (isGeneratedOverview)
+                {
+                    <GeneratedResourceOverview Resource="resource" ResourceGroup="group" ResourceType="resourceType"
+                                               ResourceUpdated="HandleResourceUpdated" />
+                }
+                else
+                {
+                    <CascadingValue Value="ConfigurationContext">
+                        <CascadingValue Name="@ResourceManagerCascadingParameterNames.ReadOnly" Value="IsReadOnly">
+                            <DynamicComponent Type="selectedTab.ComponentType" @key="GetContentKey(resource, selectedTab)"
+                                              Parameters="@BuildComponentParameters(resource, selectedTab)" />
+                        </CascadingValue>
                     </CascadingValue>
-                </CascadingValue>
+                }
             }
-        }
-    </div>
-</section>
+        </div>
+    </section>
 
 @code {
     private const string GeneratedOverviewTabId = "overview";
@@ -641,10 +628,7 @@
                 EventCallback.Factory.Create<MouseEventArgs>(this, () => ExecuteAction(action)));
             builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(buttonBuilder =>
             {
-                buttonBuilder.OpenElement(0, "span");
-                buttonBuilder.AddAttribute(1, "class", $"action-icon {GetActionIconClass(action)}");
-                buttonBuilder.AddAttribute(2, "aria-hidden", "true");
-                buttonBuilder.CloseElement();
+                AddActionIcon(buttonBuilder, action.EffectivePresentation.Icon);
             }));
             builder.CloseComponent();
         }
@@ -660,11 +644,7 @@
             builder.AddAttribute(sequence++, "ButtonAppearance", Appearance.Neutral);
             builder.AddAttribute(sequence++, "ButtonContent", (RenderFragment)(buttonBuilder =>
             {
-                buttonBuilder.OpenElement(0, "span");
-                buttonBuilder.AddAttribute(1, "class", "action-overflow-label");
-                buttonBuilder.AddAttribute(2, "aria-label", L["More actions"]);
-                buttonBuilder.AddContent(3, "...");
-                buttonBuilder.CloseElement();
+                AddIcon(buttonBuilder, new Icons.Regular.Size20.MoreVertical());
             }));
             builder.AddAttribute(sequence++, "ChildContent", (RenderFragment)(menuBuilder =>
             {
@@ -679,10 +659,7 @@
                     {
                         itemBuilder.OpenElement(0, "span");
                         itemBuilder.AddAttribute(1, "class", "menu-action-content");
-                        itemBuilder.OpenElement(2, "span");
-                        itemBuilder.AddAttribute(3, "class", $"action-icon {GetActionIconClass(action)}");
-                        itemBuilder.AddAttribute(4, "aria-hidden", "true");
-                        itemBuilder.CloseElement();
+                        AddActionIcon(itemBuilder, action.EffectivePresentation.Icon, 2);
                         itemBuilder.OpenElement(5, "span");
                         itemBuilder.AddContent(6, IsExecutingAction(action) ? L["Working"] : action.DisplayName);
                         itemBuilder.CloseElement();
@@ -784,13 +761,30 @@
     private static bool ShouldStartDependencies(ResourceAction action) =>
         action.Kind is ResourceActionKind.Start or ResourceActionKind.Restart;
 
-    private static string GetActionIconClass(ResourceAction action) => action.EffectivePresentation.Icon switch
+    private static void AddActionIcon(
+        RenderTreeBuilder builder,
+        ResourceActionIcon actionIcon,
+        int sequence = 0) =>
+        AddIcon(builder, GetActionIcon(actionIcon), sequence);
+
+    private static void AddIcon(
+        RenderTreeBuilder builder,
+        Icon icon,
+        int sequence = 0)
     {
-        ResourceActionIcon.Start => "action-icon-start",
-        ResourceActionIcon.Stop => "action-icon-stop",
-        ResourceActionIcon.Pause => "action-icon-pause",
-        ResourceActionIcon.Restart => "action-icon-restart",
-        _ => "action-icon-custom"
+        builder.OpenComponent<FluentIcon<Icon>>(sequence);
+        builder.AddAttribute(sequence + 1, "Class", "action-icon");
+        builder.AddAttribute(sequence + 2, "Value", icon);
+        builder.CloseComponent();
+    }
+
+    private static Icon GetActionIcon(ResourceActionIcon actionIcon) => actionIcon switch
+    {
+        ResourceActionIcon.Start => new Icons.Regular.Size20.PlayCircle(),
+        ResourceActionIcon.Stop => new Icons.Regular.Size20.RecordStop(),
+        ResourceActionIcon.Pause => new Icons.Regular.Size20.PauseCircle(),
+        ResourceActionIcon.Restart => new Icons.Regular.Size20.ArrowSync(),
+        _ => new Icons.Regular.Size20.AppsListDetail()
     };
 
     private static string GetStateClass(ResourceState? state) => state switch

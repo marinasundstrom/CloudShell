@@ -347,10 +347,21 @@
     {
         <section class="generated-section">
             <h3>@L["Children"]</h3>
-            <div class="dependency-list">
+            <div class="generated-list">
                 @foreach (var child in ChildResources)
                 {
-                    @ResourceLink(child)
+                    <div class="resource-list-item">
+                        <ResourceKindIcon Resource="child" />
+                        <span class="resource-list-item-content">
+                            <strong>
+                                <a class="resource-link" href="@BuildResourceRoute(child.Id)">
+                                    @GetResourceLabel(child)
+                                </a>
+                            </strong>
+                            <span>@child.EffectiveTypeId</span>
+                            <small>@child.Id</small>
+                        </span>
+                    </div>
                 }
             </div>
         </section>
