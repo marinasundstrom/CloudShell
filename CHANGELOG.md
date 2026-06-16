@@ -113,6 +113,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Application resource overviews now summarize essentials, container-host
   status, networking, storage, environment, and diagnostics while linking to
   dedicated tabs for endpoint, DNS, storage, and environment details.
+- Application resource overviews now display the best available endpoint:
+  inbound DNS/name mappings first, then projected resource endpoints, then the
+  definition endpoint fallback, so container apps with endpoint ports expose an
+  address on the Overview tab.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

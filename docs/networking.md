@@ -177,6 +177,15 @@ provisioned endpoint mappings through `network.provisionedMappings`, so the
 provider resource can show whether local proxy mappings have been materialized
 after reconciliation.
 
+Localhost exposure is a local-development convenience, not a default security
+posture for shared or on-premise environments. A managed environment should be
+able to disable user-created mappings that bind to `localhost`, loopback
+interfaces, low ports, or other host-machine addresses unless an administrator
+or privileged provider explicitly allows them. In those environments, users
+should normally expose resources through provider-managed virtual networks,
+ingress, load balancers, DNS/name mappings, or network-level service discovery
+instead of direct host-local sockets.
+
 ## DNS and Name Mapping
 
 DNS and name mapping are modeled separately from virtual networks and load

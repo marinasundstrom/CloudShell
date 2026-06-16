@@ -52,8 +52,17 @@ else
                 <dt>Working directory</dt>
                 <dd>@(Application.WorkingDirectory ?? "executable directory")</dd>
             }
+            @{
+                var overviewEndpoint = GetOverviewEndpoint(Application);
+            }
             <dt>Endpoint</dt>
-            <dd>@EndpointLink(GetEndpointAddress(Application))</dd>
+            <dd>
+                @EndpointLink(overviewEndpoint.Address)
+                @if (!string.IsNullOrWhiteSpace(overviewEndpoint.Source))
+                {
+                    <small>@overviewEndpoint.Source</small>
+                }
+            </dd>
             @if (IsSqlServer(Application) && GetSqlServerConnectionString(Application) is { } connectionString)
             {
                 <dt>Connection string</dt>
@@ -865,6 +874,112 @@ else
             : $"{port.Protocol}://localhost:{port.Port.Value}";
     }
 
+    private OverviewEndpoint GetOverviewEndpoint(ApplicationResourceDefinition application)
+    {
+        if (GetPreferredNameMappingEndpoint() is { } mappedEndpoint)
+        {
+            return mappedEndpoint;
+        }
+
+        var projectedEndpoint = GetPreferredProjectedEndpoint(application);
+        if (projectedEndpoint is not null)
+        {
+            return new OverviewEndpoint(projectedEndpoint.Address, $"{projectedEndpoint.Name} endpoint");
+        }
+
+        return new OverviewEndpoint(GetEndpointAddress(application), null);
+    }
+
+    private OverviewEndpoint? GetPreferredNameMappingEndpoint()
+    {
+        var mapping = InboundNameMappings
+            .Select(view => view.Mapping)
+            .OrderBy(GetNameMappingExposureRank)
+            .ThenBy(ApplicationNameMappingDisplay.GetHostName, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+        if (mapping is null)
+        {
+            return null;
+        }
+
+        var hostName = ApplicationNameMappingDisplay.GetHostName(mapping);
+        if (string.IsNullOrWhiteSpace(hostName))
+        {
+            return null;
+        }
+
+        var endpointName = ApplicationNameMappingDisplay.GetTargetEndpointName(mapping);
+        var endpoint = ProjectedResource?.Endpoints.FirstOrDefault(endpoint =>
+                string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase)) ??
+            ProjectedResource?.Endpoints.FirstOrDefault();
+        var address = CreateMappedEndpointAddress(hostName, endpoint?.Address);
+        return new OverviewEndpoint(
+            address,
+            $"{ApplicationNameMappingDisplay.GetExposureLabel(mapping)} DNS name");
+    }
+
+    private static int GetNameMappingExposureRank(Resource mapping) =>
+        ApplicationNameMappingDisplay.GetExposureLabel(mapping) switch
+        {
+            nameof(ResourceExposureScope.Public) => 0,
+            nameof(ResourceExposureScope.Network) => 1,
+            nameof(ResourceExposureScope.Private) => 2,
+            nameof(ResourceExposureScope.Local) => 3,
+            _ => 4
+        };
+
+    private static string CreateMappedEndpointAddress(string hostName, string? endpointAddress)
+    {
+        if (!Uri.TryCreate(endpointAddress, UriKind.Absolute, out var endpointUri))
+        {
+            return hostName;
+        }
+
+        var builder = new UriBuilder(endpointUri)
+        {
+            Host = hostName
+        };
+        return builder.Uri.ToString();
+    }
+
+    private ResourceEndpoint? GetPreferredProjectedEndpoint(ApplicationResourceDefinition application)
+    {
+        if (ProjectedResource?.Endpoints.Count > 0)
+        {
+            return ProjectedResource.Endpoints
+                .OrderBy(endpoint => GetEndpointExposureRank(endpoint.Exposure))
+                .ThenBy(endpoint => GetEndpointProtocolRank(endpoint.Protocol))
+                .ThenBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+        }
+
+        var address = GetEndpointAddress(application);
+        return string.IsNullOrWhiteSpace(address)
+            ? null
+            : ResourceEndpoint.FromAddress("application", address, GetProtocol(address));
+    }
+
+    private static int GetEndpointExposureRank(ResourceExposureScope exposure) =>
+        exposure switch
+        {
+            ResourceExposureScope.Public => 0,
+            ResourceExposureScope.Network => 1,
+            ResourceExposureScope.Private => 2,
+            ResourceExposureScope.Local => 3,
+            _ => 4
+        };
+
+    private static int GetEndpointProtocolRank(string protocol) =>
+        protocol switch
+        {
+            "https" => 0,
+            "http" => 1,
+            _ => 2
+        };
+
+    private static string GetProtocol(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) ? uri.Scheme : "tcp";
+
     private async Task<IReadOnlyList<LogDescriptor>> GetLogsAsync(string resourceId)
     {
         var logs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resourceId));
@@ -1067,4 +1182,8 @@ else
         string? RequestedHostId,
         ContainerHostDescriptor? Host,
         Resource? HostResource);
+
+    private sealed record OverviewEndpoint(
+        string? Address,
+        string? Source);
 }
