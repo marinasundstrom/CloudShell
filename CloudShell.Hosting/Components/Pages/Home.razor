@@ -23,82 +23,84 @@
         <p>@L["Extension-driven navigation, hosted workspaces, and opt-in capabilities for controlled shell customization."]</p>
     </div>
     <div class="heading-actions">
-        <FluentAnchor Appearance="Appearance.Neutral" Href="/extensions">@L["Extensions"]</FluentAnchor>
-    </div>
-</section>
-
-<section class="metric-grid">
-    <article class="metric-card">
-        <span>@L["Extensions"]</span>
-        <strong>@ShellCatalog.Extensions.Count</strong>
-        <small>@L["Registered through DI"]</small>
-    </article>
-    <article class="metric-card">
-        <span>@L["Shell views"]</span>
-        <strong>@navigationItems.Count</strong>
-        <small>@L["Navigation contributions"]</small>
-    </article>
-    <article class="metric-card">
-        <span>@L["View menu items"]</span>
-        <strong>@viewMenuItems</strong>
-        <small>@L["Across {0} shell views", customViews.Count]</small>
-    </article>
-    <article class="metric-card">
-        <span>@L["Capabilities"]</span>
-        <strong>@capabilities.Length</strong>
-        <small>@L["Opt-in feature contracts"]</small>
-    </article>
-</section>
-
-<section class="dashboard-grid">
-    <article class="panel panel-wide">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Installed capabilities"]</h2>
-                <p>@L["Features contributed by the installed extension set."]</p>
-            </div>
+        <FluentAnchor Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.PuzzlePiece())"
+                      Href="/extensions">
+            @L["Extensions"]</FluentAnchor>
         </div>
+    </section>
 
-        @if (capabilities.Length == 0)
-        {
-            <div class="empty-state compact">
-                <strong>@L["No capabilities"]</strong>
-                <span>@L["Install extensions to add shell features."]</span>
+    <section class="metric-grid">
+        <article class="metric-card">
+            <span>@L["Extensions"]</span>
+            <strong>@ShellCatalog.Extensions.Count</strong>
+            <small>@L["Registered through DI"]</small>
+        </article>
+        <article class="metric-card">
+            <span>@L["Shell views"]</span>
+            <strong>@navigationItems.Count</strong>
+            <small>@L["Navigation contributions"]</small>
+        </article>
+        <article class="metric-card">
+            <span>@L["View menu items"]</span>
+            <strong>@viewMenuItems</strong>
+            <small>@L["Across {0} shell views", customViews.Count]</small>
+        </article>
+        <article class="metric-card">
+            <span>@L["Capabilities"]</span>
+            <strong>@capabilities.Length</strong>
+            <small>@L["Opt-in feature contracts"]</small>
+        </article>
+    </section>
+
+    <section class="dashboard-grid">
+        <article class="panel panel-wide">
+            <div class="panel-header">
+                <div>
+                    <h2>@L["Installed capabilities"]</h2>
+                    <p>@L["Features contributed by the installed extension set."]</p>
+                </div>
             </div>
-        }
-        else
-        {
-            <div class="tag-row">
-                @foreach (var capability in capabilities)
+
+            @if (capabilities.Length == 0)
+            {
+                <div class="empty-state compact">
+                    <strong>@L["No capabilities"]</strong>
+                    <span>@L["Install extensions to add shell features."]</span>
+                </div>
+            }
+            else
+            {
+                <div class="tag-row">
+                    @foreach (var capability in capabilities)
+                    {
+                        <span>@capability</span>
+                    }
+                </div>
+            }
+        </article>
+
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>@L["Navigation"]</h2>
+                    <p>@L["Current shell content areas."]</p>
+                </div>
+            </div>
+
+            <div class="activity-list">
+                @foreach (var item in navigationItems.Take(8))
                 {
-                    <span>@capability</span>
+                    <a class="activity-row" href="@item.Href">
+                        <ShellNavigationIcon Icon="@item.Icon" />
+                        <div>
+                            <strong>@L[item.Text]</strong>
+                            <span>@L[item.Group]</span>
+                        </div>
+                    </a>
                 }
             </div>
-        }
-    </article>
-
-    <article class="panel">
-        <div class="panel-header">
-            <div>
-                <h2>@L["Navigation"]</h2>
-                <p>@L["Current shell content areas."]</p>
-            </div>
-        </div>
-
-        <div class="activity-list">
-            @foreach (var item in navigationItems.Take(8))
-            {
-                <a class="activity-row" href="@item.Href">
-                    <ShellNavigationIcon Icon="@item.Icon" />
-                    <div>
-                        <strong>@L[item.Text]</strong>
-                        <span>@L[item.Group]</span>
-                    </div>
-                </a>
-            }
-        </div>
-    </article>
-</section>
+        </article>
+    </section>
 
 @code {
     protected override void OnInitialized()

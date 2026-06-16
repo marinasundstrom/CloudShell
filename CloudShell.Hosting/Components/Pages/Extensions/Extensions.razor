@@ -24,7 +24,9 @@ else
             <p>@L["Extensions registered through the service container. Host configuration or this UI can activate their contributions."]</p>
         </div>
         <div class="heading-actions">
-            <FluentButton Appearance="Appearance.Neutral">@L["Reload"]</FluentButton>
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())">
+                @L["Reload"]
+            </FluentButton>
         </div>
     </section>
 
@@ -110,14 +112,14 @@ else
                 {
                     <div class="provider-row">
                         <div>
-                            <strong>@resourceType.DisplayName</strong>
-                            <span>@resourceType.Id</span>
-                        </div>
-                        <div>
                             <span class="resource-kind-icon" aria-hidden="true">
                                 <FluentIcon Value="@ResourceTypeIcons.FromName(resourceType.Icon)" />
                             </span>
                             <span>@L["type"]</span>
+                        </div>
+                        <div>
+                            <strong>@resourceType.DisplayName</strong>
+                            <span>@resourceType.Id</span>
                         </div>
                     </div>
                 }

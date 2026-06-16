@@ -209,12 +209,16 @@ h3 {
 .provider-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: .8rem;
     padding: .65rem .7rem;
     border: 1px solid var(--cloudshell-divider);
     border-radius: 4px;
     background: var(--cloudshell-surface-muted);
+}
+
+.activity-row span:last-child {
+    margin-left: auto;
 }
 
 .group-row strong,
@@ -454,13 +458,7 @@ h3 {
 .resource-tree-row {
     display: grid;
     grid-template-columns:
-        minmax(16rem, 1.6fr)
-        minmax(8rem, .85fr)
-        minmax(8rem, .9fr)
-        5.5rem
-        5.8rem
-        minmax(12rem, 1fr)
-        minmax(10rem, .85fr);
+        minmax(16rem, 1.6fr) minmax(8rem, .85fr) minmax(8rem, .9fr) 5.5rem 5.8rem minmax(12rem, 1fr) minmax(10rem, .85fr);
     align-items: center;
     column-gap: .6rem;
 }
@@ -612,7 +610,7 @@ h3 {
     padding-left: calc(var(--resource-depth) * 1.25rem);
 }
 
-.resource-name-cell > div {
+.resource-name-cell>div {
     min-width: 0;
 }
 
@@ -680,7 +678,7 @@ h3 {
     min-width: 0;
 }
 
-.resource-table-identity > span:last-child {
+.resource-table-identity>span:last-child {
     display: grid;
     gap: .1rem;
     min-width: 0;
@@ -740,7 +738,7 @@ h3 {
     padding-top: .2rem;
 }
 
-.blade-section + .blade-section {
+.blade-section+.blade-section {
     margin-top: .85rem;
     border-top: 1px solid var(--cloudshell-divider);
 }
@@ -882,7 +880,7 @@ h3 {
     min-height: 18rem;
 }
 
-.registration-host > .provider-summary.compact {
+.registration-host>.provider-summary.compact {
     margin-bottom: .85rem;
 }
 
@@ -915,7 +913,7 @@ h3 {
     gap: .45rem;
 }
 
-.generated-list > div {
+.generated-list>div {
     display: grid;
     gap: .12rem;
     padding: .55rem;
@@ -939,7 +937,7 @@ h3 {
     overflow-wrap: anywhere;
 }
 
-.generated-list > .resource-list-item {
+.generated-list>.resource-list-item {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
     gap: .65rem;
@@ -1055,7 +1053,7 @@ h3 {
     background: var(--cloudshell-surface-muted);
 }
 
-.resource-activity-event > div,
+.resource-activity-event>div,
 .resource-activity-event footer {
     display: flex;
     align-items: center;
@@ -1549,7 +1547,7 @@ h3 {
     margin-bottom: .9rem;
 }
 
-.detail-heading > div {
+.detail-heading>div {
     min-width: 0;
 }
 
@@ -1710,7 +1708,7 @@ h3 {
     margin-top: .55rem;
 }
 
-.endpoint-list > div {
+.endpoint-list>div {
     display: grid;
     gap: .1rem;
     padding: .55rem;
@@ -2103,7 +2101,7 @@ h3 {
     gap: .5rem;
 }
 
-.trace-summary-grid > div {
+.trace-summary-grid>div {
     min-width: 0;
     padding: .65rem;
     border: 1px solid var(--cloudshell-divider);
@@ -2174,7 +2172,7 @@ h3 {
     border-radius: 2px;
 }
 
-.trace-service-row > span:nth-child(2) {
+.trace-service-row>span:nth-child(2) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2333,7 +2331,7 @@ h3 {
     align-items: start;
 }
 
-.trace-detail-header > .trace-service-color {
+.trace-detail-header>.trace-service-color {
     margin-top: .85rem;
 }
 
@@ -2624,6 +2622,7 @@ h3 {
         min-width: var(--cloudshell-resource-grid-min-width);
     }
 }
+
 /* Authentication */
 .account-shell {
     min-height: 100vh;
@@ -2641,7 +2640,7 @@ h3 {
     justify-content: space-between;
 }
 
-.account-brand > div {
+.account-brand>div {
     min-width: 0;
 }
 
@@ -2664,15 +2663,15 @@ h3 {
     gap: 12px;
 }
 
-.account-panel form > fluent-text-field {
+.account-panel form>fluent-text-field {
     width: 100%;
 }
 
-.account-panel form > fluent-text-field::part(control) {
+.account-panel form>fluent-text-field::part(control) {
     width: 100%;
 }
 
-.account-panel form > small {
+.account-panel form>small {
     color: var(--cloudshell-text-muted);
 }
 
