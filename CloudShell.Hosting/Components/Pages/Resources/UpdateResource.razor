@@ -211,13 +211,13 @@
 
 @code {
     private const string GeneratedOverviewTabId = "overview";
-    private const string GeneratedNetworkingTabId = "networking";
+    private const string GeneratedEndpointsTabId = "endpoints";
+    private const string GeneratedDnsTabId = "dns";
     private const string GeneratedIdentityTabId = "identity";
     private const string GeneratedStorageVolumesTabId = "volumes";
     private const string GeneratedActivityTabId = "activity";
-    private const string OverviewTabGroup = "Overview";
+    private const string GeneralTabGroup = "General";
     private const string NetworkingTabGroup = "Networking";
-    private const string ConfigurationTabGroup = "Configuration";
     private const string StorageTabGroup = "Storage";
     private const string EnvironmentTabGroup = "Environment";
     private const string ManagementTabGroup = "Management";
@@ -577,18 +577,30 @@
                 "Overview",
                 -100,
                 typeof(GeneratedResourceOverview),
-                GroupTitle: OverviewTabGroup));
+                GroupTitle: GeneralTabGroup));
         }
 
-        if (HasNetworkingTab(resource) &&
+        if (HasEndpointsTab(resource) &&
             !contributedTabs.Any(tab =>
-                string.Equals(tab.Id, GeneratedNetworkingTabId, StringComparison.OrdinalIgnoreCase)))
+                string.Equals(tab.Id, GeneratedEndpointsTabId, StringComparison.OrdinalIgnoreCase)))
         {
             tabs.Add(new ResourceTabContribution(
-                GeneratedNetworkingTabId,
-                "Networking",
+                GeneratedEndpointsTabId,
+                "Endpoints",
                 -80,
-                typeof(GeneratedResourceNetworking),
+                typeof(GeneratedResourceEndpoints),
+                GroupTitle: NetworkingTabGroup));
+        }
+
+        if (HasDnsTab(resource) &&
+            !contributedTabs.Any(tab =>
+                string.Equals(tab.Id, GeneratedDnsTabId, StringComparison.OrdinalIgnoreCase)))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedDnsTabId,
+                "DNS",
+                -70,
+                typeof(GeneratedResourceDns),
                 GroupTitle: NetworkingTabGroup));
         }
 
@@ -637,7 +649,7 @@
                 0,
                 resourceType.UpdateComponentType,
                 ShowsApplyButton: true,
-                GroupTitle: ConfigurationTabGroup));
+                GroupTitle: GeneralTabGroup));
         }
 
         if (resource?.HasCapability(ResourceCapabilityIds.EnvironmentVariables) == true &&
@@ -685,7 +697,7 @@
         return tab.Order;
     }
 
-    private static bool HasNetworkingTab(Resource? resource) =>
+    private static bool HasEndpointsTab(Resource? resource) =>
         resource is not null &&
         (resource.Endpoints.Count > 0 ||
          resource.ResourceEndpointMappings.Count > 0 ||
@@ -694,6 +706,16 @@
          resource.HasCapability(ResourceCapabilityIds.EndpointSource) ||
          resource.ResourceCapabilities.Any(capability =>
              capability.Id.StartsWith("networking.", StringComparison.OrdinalIgnoreCase)));
+
+    private static bool HasDnsTab(Resource? resource) =>
+        resource is not null &&
+        (resource.Endpoints.Count > 0 ||
+         resource.HasCapability(ResourceCapabilityIds.NetworkingDnsZone) ||
+         resource.HasCapability(ResourceCapabilityIds.NetworkingNameMapping) ||
+         resource.HasCapability(ResourceCapabilityIds.NetworkingNamePublisher) ||
+         resource.HasCapability(ResourceCapabilityIds.NetworkingNameResolver) ||
+         string.Equals(resource.EffectiveTypeId, "cloudshell.dnsZone", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(resource.EffectiveTypeId, "cloudshell.nameMapping", StringComparison.OrdinalIgnoreCase));
 
     private static IReadOnlyList<ResourceTabGroup> BuildTabGroups(
         IReadOnlyList<ResourceTabContribution> tabs)

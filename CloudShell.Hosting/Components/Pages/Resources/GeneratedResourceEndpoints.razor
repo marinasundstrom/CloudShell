@@ -4,6 +4,7 @@
 @inject IResourceManager ResourceManager
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
 
@@ -22,6 +23,20 @@
     }
     else
     {
+        <section class="generated-section">
+            <div class="blade-section-header">
+                <div>
+                    <h3>@L["Endpoint configuration"]</h3>
+                    <p>@GetEndpointConfigurationMessage()</p>
+                </div>
+                <FluentButton Appearance="Appearance.Neutral"
+                              Disabled="@(!CanEditNetworking)"
+                              OnClick="OpenConfiguration">
+                    @L["Configure endpoints"]
+                </FluentButton>
+            </div>
+        </section>
+
         @if (Resource.Endpoints.Count > 0)
         {
             <section class="generated-section">
@@ -93,23 +108,6 @@
                                 @FormatLoadBalancerRouteTarget(exposure.Route.Target)
                             </span>
                             <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (InboundNameMappings.Count > 0)
-        {
-            <section class="generated-section">
-                <h3>@L["DNS and domain names"]</h3>
-                <div class="generated-list">
-                    @foreach (var exposure in InboundNameMappings)
-                    {
-                        <div>
-                            <strong>@ResourceLink(exposure.Mapping)</strong>
-                            <span>@FormatNameMappingSummary(exposure.Mapping)</span>
-                            <small>@FormatNameMappingMetadata(exposure)</small>
                         </div>
                     }
                 </div>
@@ -252,7 +250,6 @@
         ResourceManagerDisplaySelection.Default;
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
-    private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
 
@@ -263,7 +260,6 @@
          Resource.ResourceLoadBalancerRoutes.Count > 0 ||
          InboundNetworkMappings.Count > 0 ||
          InboundLoadBalancerRoutes.Count > 0 ||
-         InboundNameMappings.Count > 0 ||
          IsNetworkResource ||
          IsLoadBalancerResource);
 
@@ -272,6 +268,13 @@
          Resource.HasCapability(ResourceCapabilityIds.NetworkingProvider));
 
     private bool IsLoadBalancerResource => Resource is not null && HasLoadBalancerShape(Resource);
+
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
+
+    private bool CanEditNetworking =>
+        Resource is not null &&
+        !IsReadOnly &&
+        Resource.State is null or ResourceState.Stopped or ResourceState.Paused;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -283,18 +286,31 @@
         {
             InboundNetworkMappings = [];
             InboundLoadBalancerRoutes = [];
-            InboundNameMappings = [];
             RelatedResources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
             return;
         }
 
         InboundNetworkMappings = await LoadInboundNetworkMappingsAsync();
         InboundLoadBalancerRoutes = await LoadInboundLoadBalancerRoutesAsync();
-        InboundNameMappings = await LoadInboundNameMappingsAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
     }
 
     private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
+
+    private string GetEndpointConfigurationMessage()
+    {
+        if (IsReadOnly)
+        {
+            return L["Resource Manager is in read-only mode."].Value;
+        }
+
+        if (Resource?.State is ResourceState.Running or ResourceState.Starting or ResourceState.Stopping)
+        {
+            return L["Stop the resource before changing endpoint configuration."].Value;
+        }
+
+        return L["Define or update endpoints in the resource configuration view."].Value;
+    }
 
     private string FormatNetworkReadiness()
     {
@@ -371,22 +387,6 @@
             .ToArray();
     }
 
-    private async Task<IReadOnlyList<NameMappingView>> LoadInboundNameMappingsAsync()
-    {
-        if (Resource is null)
-        {
-            return [];
-        }
-
-        var mappings = await ResourceManager.ListResourcesAsync(
-            new ResourceQuery(ResourceType: "cloudshell.nameMapping"));
-        return mappings
-            .Where(mapping => TargetsResource(mapping, Resource.Id))
-            .Select(mapping => new NameMappingView(mapping))
-            .OrderBy(mapping => GetNameMappingHostName(mapping.Mapping), StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
-
     private async Task<IReadOnlyDictionary<string, Resource>> LoadRelatedResourcesAsync()
     {
         if (Resource is null)
@@ -396,9 +396,6 @@
 
         var ids = InboundNetworkMappings.Select(mapping => mapping.Network.Id)
             .Concat(InboundLoadBalancerRoutes.Select(route => route.LoadBalancer.Id))
-            .Concat(InboundNameMappings.Select(mapping => mapping.Mapping.Id))
-            .Concat(InboundNameMappings.Select(mapping => mapping.Mapping.ParentResourceId))
-            .Concat(InboundNameMappings.Select(mapping => GetNameMappingProviderResourceId(mapping.Mapping)))
             .Concat(Resource.ResourceEndpointMappings.SelectMany(GetMappingResourceIds))
             .Concat(InboundNetworkMappings.SelectMany(mapping => GetMappingResourceIds(mapping.Mapping)))
             .Concat(Resource.ResourceLoadBalancerRoutes.Select(route => route.Target.ResourceId))
@@ -578,76 +575,6 @@
             : $"{label}:{target.Port.Value}";
     }
 
-    private string FormatNameMappingSummary(Resource mapping) =>
-        Resource is null
-            ? GetNameMappingHostName(mapping)
-            : L["{0} -> {1}/{2}",
-                GetNameMappingHostName(mapping),
-                GetResourceLabel(Resource),
-                GetNameMappingTargetEndpointName(mapping)].Value;
-
-    private string FormatNameMappingMetadata(NameMappingView view)
-    {
-        var parts = new List<string>
-        {
-            L["Exposure: {0}", GetNameMappingExposure(view.Mapping)].Value,
-            FormatNameMappingProvider(view.Mapping),
-            L["Materialization: {0}", GetNameMappingMaterializationLabel(view.Mapping)].Value
-        };
-
-        var zone = string.IsNullOrWhiteSpace(view.Mapping.ParentResourceId)
-            ? null
-            : FindRelatedResource(view.Mapping.ParentResourceId);
-        if (zone is not null)
-        {
-            parts.Insert(0, L["Zone: {0}", zone.Name].Value);
-        }
-
-        return string.Join(" | ", parts);
-    }
-
-    private string FormatNameMappingProvider(Resource mapping)
-    {
-        var providerResourceId = GetNameMappingProviderResourceId(mapping);
-        if (!string.IsNullOrWhiteSpace(providerResourceId))
-        {
-            var provider = FindRelatedResource(providerResourceId);
-            return provider is null
-                ? L["Provider: {0}", providerResourceId].Value
-                : L["Provider: {0}", provider.Name].Value;
-        }
-
-        return L["Provider: {0}", GetAttributeValue(mapping, ResourceAttributeNames.DnsProvider, "logical")].Value;
-    }
-
-    private static bool TargetsResource(Resource mapping, string resourceId) =>
-        string.Equals(
-            GetAttributeValue(mapping, ResourceAttributeNames.NameMappingTargetResourceId, string.Empty),
-            resourceId,
-            StringComparison.OrdinalIgnoreCase);
-
-    private static string GetNameMappingHostName(Resource mapping) =>
-        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingHostName, mapping.Name);
-
-    private static string GetNameMappingTargetEndpointName(Resource mapping) =>
-        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingTargetEndpointName, "default");
-
-    private static string GetNameMappingExposure(Resource mapping) =>
-        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingExposure, ResourceExposureScope.Public.ToString());
-
-    private static string GetNameMappingProviderResourceId(Resource mapping) =>
-        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingProviderResourceId, string.Empty);
-
-    private static string GetNameMappingMaterializationLabel(Resource mapping) =>
-        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingMaterializationStatus, "unknown") switch
-        {
-            "LogicalOnly" => "logical only",
-            "ProviderSelected" => "provider selected",
-            "Published" => "published",
-            "PublishFailed" => "publish failed",
-            var value => value
-        };
-
     private string FormatLoadBalancerRouteCounts(Resource resource)
     {
         var routeCount = GetAttributeValue(
@@ -690,6 +617,9 @@
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
 
+    private static string BuildResourceTabRoute(string resourceId, string tabId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId)}";
+
     private static bool IsLinkEndpoint(string address) =>
         Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
@@ -705,6 +635,14 @@
     private void OpenEndpoint(string address) =>
         Navigation.NavigateTo(address, forceLoad: true);
 
+    private void OpenConfiguration()
+    {
+        if (Resource is not null)
+        {
+            Navigation.NavigateTo(BuildResourceTabRoute(Resource.Id, "configuration"));
+        }
+    }
+
     private sealed record NetworkEndpointMappingView(
         Resource Network,
         ResourceEndpointMappingDefinition Mapping);
@@ -713,5 +651,4 @@
         Resource LoadBalancer,
         LoadBalancerRoute Route);
 
-    private sealed record NameMappingView(Resource Mapping);
 }

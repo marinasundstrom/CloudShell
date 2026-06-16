@@ -97,6 +97,11 @@ on `git blame --follow`, and then by the broad type of change.
   endpoints, networking capabilities, endpoint mappings, load-balancer routes,
   or network resource shape, so endpoint and exposure inspection can move
   into a standard concern view.
+- Resource details now split networking concerns into separate Endpoints and
+  DNS tabs under the Networking group. Those views provide non-running,
+  read-only-aware entry points for endpoint configuration and name-mapping
+  creation while overview remains the summary surface. Overview and the
+  resource-specific Configuration tab now sit under the General tab group.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or
