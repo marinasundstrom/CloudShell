@@ -211,10 +211,12 @@
 
 @code {
     private const string GeneratedOverviewTabId = "overview";
+    private const string GeneratedNetworkingTabId = "networking";
     private const string GeneratedIdentityTabId = "identity";
     private const string GeneratedStorageVolumesTabId = "volumes";
     private const string GeneratedActivityTabId = "activity";
     private const string OverviewTabGroup = "Overview";
+    private const string NetworkingTabGroup = "Networking";
     private const string ConfigurationTabGroup = "Configuration";
     private const string StorageTabGroup = "Storage";
     private const string EnvironmentTabGroup = "Environment";
@@ -578,6 +580,18 @@
                 GroupTitle: OverviewTabGroup));
         }
 
+        if (HasNetworkingTab(resource) &&
+            !contributedTabs.Any(tab =>
+                string.Equals(tab.Id, GeneratedNetworkingTabId, StringComparison.OrdinalIgnoreCase)))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedNetworkingTabId,
+                "Networking",
+                -80,
+                typeof(GeneratedResourceNetworking),
+                GroupTitle: NetworkingTabGroup));
+        }
+
         if (resource?.IdentityBinding is not null &&
             !contributedTabs.Any(tab =>
                 string.Equals(tab.Id, GeneratedIdentityTabId, StringComparison.OrdinalIgnoreCase)))
@@ -670,6 +684,16 @@
 
         return tab.Order;
     }
+
+    private static bool HasNetworkingTab(Resource? resource) =>
+        resource is not null &&
+        (resource.Endpoints.Count > 0 ||
+         resource.ResourceEndpointMappings.Count > 0 ||
+         resource.ResourceLoadBalancerRoutes.Count > 0 ||
+         resource.ResourceClass == ResourceClass.Network ||
+         resource.HasCapability(ResourceCapabilityIds.EndpointSource) ||
+         resource.ResourceCapabilities.Any(capability =>
+             capability.Id.StartsWith("networking.", StringComparison.OrdinalIgnoreCase)));
 
     private static IReadOnlyList<ResourceTabGroup> BuildTabGroups(
         IReadOnlyList<ResourceTabContribution> tabs)

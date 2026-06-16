@@ -1,0 +1,717 @@
+@using System.Globalization
+@using CloudShell.Abstractions.ControlPlane
+@using CloudShell.Abstractions.ResourceManager
+@inject IResourceManager ResourceManager
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject ResourceManagerDisplaySettings DisplaySettings
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    @if (Resource is null)
+    {
+        <EmptyState Title="@L["Resource not found"].Value"
+                    Message="@L["The resource may have been removed or is no longer visible."].Value"
+                    Compact="true" />
+    }
+    else if (!HasNetworkingContent)
+    {
+        <EmptyState Title="@L["No networking"].Value"
+                    Message="@L["This resource does not project endpoints or networking relationships."].Value"
+                    Compact="true" />
+    }
+    else
+    {
+        @if (Resource.Endpoints.Count > 0)
+        {
+            <section class="generated-section">
+                <h3>@L["Endpoints"]</h3>
+                <div class="endpoint-list">
+                    @foreach (var endpoint in Resource.Endpoints)
+                    {
+                        <div class="generated-endpoint">
+                            <div class="generated-endpoint-main">
+                                <strong>@endpoint.Name</strong>
+                                @EndpointLink(endpoint.Address)
+                                <small>@endpoint.Protocol @endpoint.Exposure</small>
+                            </div>
+                            <div class="generated-row-actions">
+                                <FluentButton Appearance="Appearance.Neutral"
+                                              Title="@L["Copy endpoint"]"
+                                              Disabled="@string.IsNullOrWhiteSpace(endpoint.Address)"
+                                              OnClick="() => CopyEndpoint(endpoint.Address)">
+                                    @L["Copy"]
+                                </FluentButton>
+                                @if (IsLinkEndpoint(endpoint.Address))
+                                {
+                                    <FluentButton Appearance="Appearance.Neutral"
+                                                  Title="@L["Open endpoint"]"
+                                                  OnClick="() => OpenEndpoint(endpoint.Address)">
+                                        @L["Open"]
+                                    </FluentButton>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (InboundNetworkMappings.Count > 0)
+        {
+            <section class="generated-section">
+                <h3>@L["Network exposure"]</h3>
+                <div class="generated-list">
+                    @foreach (var exposure in InboundNetworkMappings)
+                    {
+                        <div>
+                            <strong>@ResourceLink(exposure.Network)</strong>
+                            <span>
+                                @EndpointReference(exposure.Mapping.Source, exposure.Network)
+                                <span aria-hidden="true">-&gt;</span>
+                                @EndpointReference(exposure.Mapping.Target, Resource)
+                            </span>
+                            <small>@MappingProviderLabel(exposure.Mapping)</small>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (InboundLoadBalancerRoutes.Count > 0)
+        {
+            <section class="generated-section">
+                <h3>@L["Load balancer exposure"]</h3>
+                <div class="generated-list">
+                    @foreach (var exposure in InboundLoadBalancerRoutes)
+                    {
+                        <div>
+                            <strong>@ResourceLink(exposure.LoadBalancer)</strong>
+                            <span>
+                                @FormatLoadBalancerRouteMatch(exposure.Route)
+                                <span aria-hidden="true">-&gt;</span>
+                                @FormatLoadBalancerRouteTarget(exposure.Route.Target)
+                            </span>
+                            <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (InboundNameMappings.Count > 0)
+        {
+            <section class="generated-section">
+                <h3>@L["DNS and domain names"]</h3>
+                <div class="generated-list">
+                    @foreach (var exposure in InboundNameMappings)
+                    {
+                        <div>
+                            <strong>@ResourceLink(exposure.Mapping)</strong>
+                            <span>@FormatNameMappingSummary(exposure.Mapping)</span>
+                            <small>@FormatNameMappingMetadata(exposure)</small>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (IsLoadBalancerResource)
+        {
+            <section class="generated-section">
+                <h3>@L["Load balancing"]</h3>
+                <dl class="detail-list">
+                    <dt>@L["Provider"]</dt>
+                    <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerProvider, Resource.Provider)</dd>
+                    <dt>@L["Host"]</dt>
+                    <dd>
+                        @if (GetLoadBalancerHostResourceId(Resource) is { } hostResourceId)
+                        {
+                            @ResourceLink(hostResourceId)
+                        }
+                        else
+                        {
+                            @L["Default container host"]
+                        }
+                    </dd>
+                    <dt>@L["Entrypoints"]</dt>
+                    <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerEntrypointCount, Resource.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
+                    <dt>@L["Routes"]</dt>
+                    <dd>@FormatLoadBalancerRouteCounts(Resource)</dd>
+                    <dt>@L["TLS"]</dt>
+                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingTls))</dd>
+                </dl>
+            </section>
+        }
+
+        @if (IsNetworkResource && !IsLoadBalancerResource)
+        {
+            <section class="generated-section">
+                <h3>@L["Networking"]</h3>
+                <dl class="detail-list">
+                    <dt>@L["Kind"]</dt>
+                    <dd>@GetAttributeValue(ResourceAttributeNames.NetworkKind, Resource.Kind)</dd>
+                    <dt>@L["Host readiness"]</dt>
+                    <dd>@FormatNetworkReadiness()</dd>
+                    @if (Resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.NetworkProvisionedMappingCount))
+                    {
+                        <dt>@L["Provisioned mappings"]</dt>
+                        <dd>@GetAttributeValue(ResourceAttributeNames.NetworkProvisionedMappingCount, "0")</dd>
+                    }
+                    @if (GetMappingProviderIds().Length > 0)
+                    {
+                        <dt>@L["Mapping providers"]</dt>
+                        <dd>
+                            <div class="dependency-list">
+                                @foreach (var providerId in GetMappingProviderIds())
+                                {
+                                    @ResourceLink(providerId)
+                                }
+                            </div>
+                        </dd>
+                    }
+                    <dt>@L["Endpoint mapper"]</dt>
+                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper))</dd>
+                    <dt>@L["Virtual network"]</dt>
+                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork))</dd>
+                    <dt>@L["Ingress"]</dt>
+                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingIngress))</dd>
+                    <dt>@L["Host network"]</dt>
+                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingHostNetwork))</dd>
+                </dl>
+            </section>
+        }
+
+        @if (Resource.ResourceEndpointMappings.Count > 0)
+        {
+            <section class="generated-section">
+                <h3>@L["Endpoint mappings"]</h3>
+                <div class="generated-list">
+                    @foreach (var mapping in Resource.ResourceEndpointMappings)
+                    {
+                        <div>
+                            <strong>@mapping.Name</strong>
+                            <span>
+                                @EndpointReference(mapping.Source, Resource)
+                                <span aria-hidden="true">-&gt;</span>
+                                @EndpointReference(mapping.Target)
+                            </span>
+                            <small>@MappingProviderLabel(mapping)</small>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (Resource.ResourceLoadBalancerRoutes.Count > 0)
+        {
+            <section class="generated-section">
+                <h3>@L["Load balancer routes"]</h3>
+                <div class="generated-list">
+                    @foreach (var route in Resource.ResourceLoadBalancerRoutes)
+                    {
+                        <div>
+                            <strong>@route.Name</strong>
+                            <span>
+                                @FormatLoadBalancerRouteMatch(route)
+                                <span aria-hidden="true">-&gt;</span>
+                                @FormatLoadBalancerRouteTarget(route.Target)
+                            </span>
+                            <small>@L["Entrypoint: {0}", route.EntrypointName]</small>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (ResourceDiagnosticDisplay.GetDiagnostics(Resource, RelatedResources) is { Count: > 0 } diagnostics)
+        {
+            <section class="generated-section">
+                <h3>@L["Diagnostics"]</h3>
+                <div class="generated-list">
+                    @foreach (var diagnostic in diagnostics)
+                    {
+                        <div class="@GetDiagnosticClass(diagnostic)">
+                            <strong>@diagnostic.Title</strong>
+                            <span>@diagnostic.Message</span>
+                            <small>@diagnostic.Severity</small>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string ResourceId { get; set; } = string.Empty;
+
+    private Resource? Resource { get; set; }
+    private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
+        ResourceManagerDisplaySelection.Default;
+    private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
+    private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
+    private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
+    private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+
+    private bool HasNetworkingContent =>
+        Resource is not null &&
+        (Resource.Endpoints.Count > 0 ||
+         Resource.ResourceEndpointMappings.Count > 0 ||
+         Resource.ResourceLoadBalancerRoutes.Count > 0 ||
+         InboundNetworkMappings.Count > 0 ||
+         InboundLoadBalancerRoutes.Count > 0 ||
+         InboundNameMappings.Count > 0 ||
+         IsNetworkResource ||
+         IsLoadBalancerResource);
+
+    private bool IsNetworkResource => Resource is not null &&
+        (Resource.ResourceClass == ResourceClass.Network ||
+         Resource.HasCapability(ResourceCapabilityIds.NetworkingProvider));
+
+    private bool IsLoadBalancerResource => Resource is not null && HasLoadBalancerShape(Resource);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        DisplaySelection = await DisplaySettings.GetAsync();
+        if (Resource is null)
+        {
+            InboundNetworkMappings = [];
+            InboundLoadBalancerRoutes = [];
+            InboundNameMappings = [];
+            RelatedResources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+            return;
+        }
+
+        InboundNetworkMappings = await LoadInboundNetworkMappingsAsync();
+        InboundLoadBalancerRoutes = await LoadInboundLoadBalancerRoutesAsync();
+        InboundNameMappings = await LoadInboundNameMappingsAsync();
+        RelatedResources = await LoadRelatedResourcesAsync();
+    }
+
+    private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
+
+    private string FormatNetworkReadiness()
+    {
+        if (Resource is null)
+        {
+            return L["Unknown"].Value;
+        }
+
+        var readiness = GetAttributeValue(ResourceAttributeNames.NetworkHostReadiness, "unknown");
+        return readiness switch
+        {
+            "logicalOnly" => L["Logical only"].Value,
+            "providerRequired" when GetMissingMappingProviderIds().Length == 0 => L["Ready"].Value,
+            "providerRequired" => L["Provider missing"].Value,
+            "ready" => L["Ready"].Value,
+            _ => readiness
+        };
+    }
+
+    private string[] GetMappingProviderIds() =>
+        Resource?.ResourceAttributes.TryGetValue(ResourceAttributeNames.NetworkMappingProviders, out var providers) == true
+            ? providers
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : [];
+
+    private string[] GetMissingMappingProviderIds() =>
+        GetMappingProviderIds()
+            .Where(providerId => !RelatedResources.ContainsKey(providerId) &&
+                !string.Equals(Resource?.Id, providerId, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+    private async Task<IReadOnlyList<NetworkEndpointMappingView>> LoadInboundNetworkMappingsAsync()
+    {
+        if (Resource is null)
+        {
+            return [];
+        }
+
+        var networks = await ResourceManager.ListResourcesAsync(
+            new ResourceQuery(ResourceClass: ResourceClass.Network));
+        return networks
+            .SelectMany(network => network.ResourceEndpointMappings
+                .Where(mapping => string.Equals(
+                    mapping.Target.ResourceId,
+                    Resource.Id,
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(mapping => new NetworkEndpointMappingView(network, mapping)))
+            .OrderBy(mapping => mapping.Network.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<LoadBalancerRouteView>> LoadInboundLoadBalancerRoutesAsync()
+    {
+        if (Resource is null)
+        {
+            return [];
+        }
+
+        var networks = await ResourceManager.ListResourcesAsync(
+            new ResourceQuery(ResourceClass: ResourceClass.Network));
+        return networks
+            .Where(loadBalancer => !string.Equals(loadBalancer.Id, Resource.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(HasLoadBalancerShape)
+            .SelectMany(loadBalancer => loadBalancer.ResourceLoadBalancerRoutes
+                .Where(route => string.Equals(
+                    route.Target.ResourceId,
+                    Resource.Id,
+                    StringComparison.OrdinalIgnoreCase))
+                .Select(route => new LoadBalancerRouteView(loadBalancer, route)))
+            .OrderBy(route => route.LoadBalancer.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(route => route.Route.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<NameMappingView>> LoadInboundNameMappingsAsync()
+    {
+        if (Resource is null)
+        {
+            return [];
+        }
+
+        var mappings = await ResourceManager.ListResourcesAsync(
+            new ResourceQuery(ResourceType: "cloudshell.nameMapping"));
+        return mappings
+            .Where(mapping => TargetsResource(mapping, Resource.Id))
+            .Select(mapping => new NameMappingView(mapping))
+            .OrderBy(mapping => GetNameMappingHostName(mapping.Mapping), StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyDictionary<string, Resource>> LoadRelatedResourcesAsync()
+    {
+        if (Resource is null)
+        {
+            return new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var ids = InboundNetworkMappings.Select(mapping => mapping.Network.Id)
+            .Concat(InboundLoadBalancerRoutes.Select(route => route.LoadBalancer.Id))
+            .Concat(InboundNameMappings.Select(mapping => mapping.Mapping.Id))
+            .Concat(InboundNameMappings.Select(mapping => mapping.Mapping.ParentResourceId))
+            .Concat(InboundNameMappings.Select(mapping => GetNameMappingProviderResourceId(mapping.Mapping)))
+            .Concat(Resource.ResourceEndpointMappings.SelectMany(GetMappingResourceIds))
+            .Concat(InboundNetworkMappings.SelectMany(mapping => GetMappingResourceIds(mapping.Mapping)))
+            .Concat(Resource.ResourceLoadBalancerRoutes.Select(route => route.Target.ResourceId))
+            .Concat(InboundLoadBalancerRoutes.Select(route => route.Route.Target.ResourceId))
+            .Concat(GetMappingProviderIds())
+            .Append(GetLoadBalancerHostResourceId(Resource))
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        var resources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in ids)
+        {
+            var resource = string.Equals(Resource.Id, id, StringComparison.OrdinalIgnoreCase)
+                ? Resource
+                : await ResourceManager.GetResourceAsync(id);
+            if (resource is not null)
+            {
+                resources[resource.Id] = resource;
+            }
+        }
+
+        return resources;
+    }
+
+    private IEnumerable<string?> GetMappingResourceIds(ResourceEndpointMappingDefinition mapping)
+    {
+        yield return mapping.Source.ResourceId;
+        yield return mapping.Target.ResourceId;
+        yield return mapping.NetworkResourceId;
+        yield return mapping.ProviderResourceId;
+    }
+
+    private RenderFragment EndpointReference(
+        ResourceEndpointReference reference,
+        Resource? fallbackResource = null) => builder =>
+    {
+        var resource = FindMappingResource(reference.ResourceId, fallbackResource);
+        var endpoint = resource?.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
+        builder.OpenElement(0, "span");
+        builder.OpenElement(1, "span");
+        builder.AddContent(2, resource?.Name ?? reference.ResourceId);
+        builder.CloseElement();
+        builder.AddContent(3, " / ");
+        builder.OpenElement(4, "strong");
+        builder.AddContent(5, reference.EndpointName);
+        builder.CloseElement();
+        if (!string.IsNullOrWhiteSpace(endpoint?.Address))
+        {
+            builder.AddContent(6, " ");
+            builder.OpenElement(7, "small");
+            builder.AddContent(8, endpoint.Address);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+
+    private string MappingProviderLabel(ResourceEndpointMappingDefinition mapping)
+    {
+        var providerId = GetMappingProviderId(mapping);
+        if (string.IsNullOrWhiteSpace(providerId))
+        {
+            return L["Provider: network"].Value;
+        }
+
+        var provider = FindRelatedResource(providerId);
+        return provider is null
+            ? L["Provider: {0}", providerId].Value
+            : L["Provider: {0}", provider.Name].Value;
+    }
+
+    private string? GetMappingProviderId(ResourceEndpointMappingDefinition mapping) =>
+        FirstNonEmpty(mapping.ProviderResourceId, mapping.NetworkResourceId, mapping.Source.ResourceId);
+
+    private Resource? FindMappingResource(string resourceId, Resource? fallbackResource = null)
+    {
+        if (fallbackResource is not null &&
+            string.Equals(fallbackResource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return fallbackResource;
+        }
+
+        return FindRelatedResource(resourceId);
+    }
+
+    private RenderFragment EndpointLink(string address) => builder =>
+    {
+        if (Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+        {
+            builder.OpenElement(0, "a");
+            builder.AddAttribute(1, "class", "endpoint-link");
+            builder.AddAttribute(2, "href", address);
+            builder.AddAttribute(3, "target", "_blank");
+            builder.AddAttribute(4, "rel", "noopener noreferrer");
+            builder.AddContent(5, address);
+            builder.CloseElement();
+            return;
+        }
+
+        builder.OpenElement(6, "span");
+        builder.AddContent(7, string.IsNullOrWhiteSpace(address) ? L["none"] : address);
+        builder.CloseElement();
+    };
+
+    private RenderFragment ResourceLink(string resourceId) => builder =>
+    {
+        var resource = FindRelatedResource(resourceId);
+        var label = resource is null ? resourceId : GetResourceLabel(resource);
+        builder.OpenElement(0, "a");
+        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
+        builder.AddContent(3, label);
+        if (resource is not null)
+        {
+            builder.OpenElement(4, "small");
+            builder.AddContent(5, resource.EffectiveTypeId);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+
+    private RenderFragment ResourceLink(Resource resource) => builder =>
+    {
+        builder.OpenElement(0, "a");
+        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(2, "href", BuildResourceRoute(resource.Id));
+        builder.AddContent(3, GetResourceLabel(resource));
+        builder.OpenElement(4, "small");
+        builder.AddContent(5, resource.EffectiveTypeId);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private Resource? FindRelatedResource(string resourceId)
+    {
+        if (Resource is not null &&
+            string.Equals(Resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return Resource;
+        }
+
+        return RelatedResources.GetValueOrDefault(resourceId);
+    }
+
+    private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
+
+    private string FormatLoadBalancerRouteMatch(LoadBalancerRoute route)
+    {
+        if (route.Kind == LoadBalancerRouteKind.Tcp)
+        {
+            return L["TCP {0}", route.Match.Port?.ToString() ?? route.EntrypointName].Value;
+        }
+
+        var host = string.IsNullOrWhiteSpace(route.Match.Host)
+            ? L["any host"].Value
+            : route.Match.Host;
+        return string.IsNullOrWhiteSpace(route.Match.PathPrefix)
+            ? host
+            : $"{host}{route.Match.PathPrefix}";
+    }
+
+    private string FormatLoadBalancerRouteTarget(LoadBalancerRouteTarget target)
+    {
+        var resource = FindRelatedResource(target.ResourceId);
+        var label = resource is null ? target.ResourceId : GetResourceLabel(resource);
+        if (!string.IsNullOrWhiteSpace(target.EndpointName))
+        {
+            return $"{label}/{target.EndpointName}";
+        }
+
+        return target.Port is null
+            ? label
+            : $"{label}:{target.Port.Value}";
+    }
+
+    private string FormatNameMappingSummary(Resource mapping) =>
+        Resource is null
+            ? GetNameMappingHostName(mapping)
+            : L["{0} -> {1}/{2}",
+                GetNameMappingHostName(mapping),
+                GetResourceLabel(Resource),
+                GetNameMappingTargetEndpointName(mapping)].Value;
+
+    private string FormatNameMappingMetadata(NameMappingView view)
+    {
+        var parts = new List<string>
+        {
+            L["Exposure: {0}", GetNameMappingExposure(view.Mapping)].Value,
+            FormatNameMappingProvider(view.Mapping),
+            L["Materialization: {0}", GetNameMappingMaterializationLabel(view.Mapping)].Value
+        };
+
+        var zone = string.IsNullOrWhiteSpace(view.Mapping.ParentResourceId)
+            ? null
+            : FindRelatedResource(view.Mapping.ParentResourceId);
+        if (zone is not null)
+        {
+            parts.Insert(0, L["Zone: {0}", zone.Name].Value);
+        }
+
+        return string.Join(" | ", parts);
+    }
+
+    private string FormatNameMappingProvider(Resource mapping)
+    {
+        var providerResourceId = GetNameMappingProviderResourceId(mapping);
+        if (!string.IsNullOrWhiteSpace(providerResourceId))
+        {
+            var provider = FindRelatedResource(providerResourceId);
+            return provider is null
+                ? L["Provider: {0}", providerResourceId].Value
+                : L["Provider: {0}", provider.Name].Value;
+        }
+
+        return L["Provider: {0}", GetAttributeValue(mapping, ResourceAttributeNames.DnsProvider, "logical")].Value;
+    }
+
+    private static bool TargetsResource(Resource mapping, string resourceId) =>
+        string.Equals(
+            GetAttributeValue(mapping, ResourceAttributeNames.NameMappingTargetResourceId, string.Empty),
+            resourceId,
+            StringComparison.OrdinalIgnoreCase);
+
+    private static string GetNameMappingHostName(Resource mapping) =>
+        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingHostName, mapping.Name);
+
+    private static string GetNameMappingTargetEndpointName(Resource mapping) =>
+        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingTargetEndpointName, "default");
+
+    private static string GetNameMappingExposure(Resource mapping) =>
+        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingExposure, ResourceExposureScope.Public.ToString());
+
+    private static string GetNameMappingProviderResourceId(Resource mapping) =>
+        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingProviderResourceId, string.Empty);
+
+    private static string GetNameMappingMaterializationLabel(Resource mapping) =>
+        GetAttributeValue(mapping, ResourceAttributeNames.NameMappingMaterializationStatus, "unknown") switch
+        {
+            "LogicalOnly" => "logical only",
+            "ProviderSelected" => "provider selected",
+            "Published" => "published",
+            "PublishFailed" => "publish failed",
+            var value => value
+        };
+
+    private string FormatLoadBalancerRouteCounts(Resource resource)
+    {
+        var routeCount = GetAttributeValue(
+            ResourceAttributeNames.LoadBalancerRouteCount,
+            resource.ResourceLoadBalancerRoutes.Count.ToString(CultureInfo.InvariantCulture));
+        var httpCount = GetAttributeValue(ResourceAttributeNames.LoadBalancerHttpRouteCount, "0");
+        var tcpCount = GetAttributeValue(ResourceAttributeNames.LoadBalancerTcpRouteCount, "0");
+        return L["{0} total ({1} HTTP, {2} TCP)", routeCount, httpCount, tcpCount].Value;
+    }
+
+    private static bool HasLoadBalancerShape(Resource resource) =>
+        resource.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer) ||
+        resource.ResourceLoadBalancerRoutes.Count > 0 ||
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.LoadBalancerProvider);
+
+    private static string? GetLoadBalancerHostResourceId(Resource resource)
+    {
+        var hostResourceId = resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.LoadBalancerHostResourceId);
+        return string.IsNullOrWhiteSpace(hostResourceId) ||
+            string.Equals(hostResourceId, "default", StringComparison.OrdinalIgnoreCase)
+                ? null
+                : hostResourceId;
+    }
+
+    private static string GetAttributeValue(Resource resource, string name, string fallback) =>
+        resource.ResourceAttributes.TryGetValue(name, out var value) &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private string GetAttributeValue(string name, string fallback) =>
+        Resource is null ? fallback : GetAttributeValue(Resource, name, fallback);
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+
+    private static string GetDiagnosticClass(ResourceDiagnosticView diagnostic) =>
+        $"generated-diagnostic {diagnostic.Severity.ToLowerInvariant()}";
+
+    private static string BuildResourceRoute(string resourceId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+
+    private static bool IsLinkEndpoint(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private async Task CopyEndpoint(string address)
+    {
+        if (!string.IsNullOrWhiteSpace(address))
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", address);
+        }
+    }
+
+    private void OpenEndpoint(string address) =>
+        Navigation.NavigateTo(address, forceLoad: true);
+
+    private sealed record NetworkEndpointMappingView(
+        Resource Network,
+        ResourceEndpointMappingDefinition Mapping);
+
+    private sealed record LoadBalancerRouteView(
+        Resource LoadBalancer,
+        LoadBalancerRoute Route);
+
+    private sealed record NameMappingView(Resource Mapping);
+}

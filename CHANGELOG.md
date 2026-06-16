@@ -93,6 +93,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Application resource overviews now show add-route and add-name-mapping entry
   points for any application resource with an addressable endpoint, not only
   container-backed applications.
+- Resource details now add a shared Networking tab for resources with
+  endpoints, networking capabilities, endpoint mappings, load-balancer routes,
+  or network resource shape, so endpoint and exposure inspection can move
+  into a standard concern view.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or
