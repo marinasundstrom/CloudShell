@@ -114,7 +114,9 @@ else
                             <span>@resourceType.Id</span>
                         </div>
                         <div>
-                            <strong>@resourceType.Icon</strong>
+                            <span class="resource-kind-icon" aria-hidden="true">
+                                <FluentIcon Value="@ResourceTypeIcons.FromName(resourceType.Icon)" />
+                            </span>
                             <span>@L["type"]</span>
                         </div>
                     </div>

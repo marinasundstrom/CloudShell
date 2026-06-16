@@ -50,6 +50,51 @@ public sealed class ControlPlaneUserSettingsProviderTests
         Assert.Equal("true", setting?.Value);
     }
 
+    [Fact]
+    public async Task ConcurrentProvidersShareOneSettingsDocumentWithoutLosingUsers()
+    {
+        var contentRoot = CreateContentRoot();
+        const int providerCount = 8;
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var providers = Enumerable.Range(1, providerCount)
+            .Select(index =>
+            {
+                var accessor = new HttpContextAccessor
+                {
+                    HttpContext = CreateHttpContext($"user-{index}")
+                };
+                var userId = $"user-{index}";
+
+                return (
+                    UserId: userId,
+                    Accessor: accessor,
+                    Provider: new ControlPlaneUserSettingsProvider(
+                        accessor,
+                        new AllowAllAuthorizationService(),
+                        new TestHostEnvironment(contentRoot)));
+            })
+            .ToArray();
+
+        var writes = providers
+            .Select(tuple => Task.Run(async () =>
+            {
+                await start.Task;
+                tuple.Accessor.HttpContext = CreateHttpContext(tuple.UserId);
+                await tuple.Provider.SetSettingAsync("shell.theme", $"theme-{tuple.UserId}");
+            }))
+            .ToArray();
+
+        start.SetResult();
+        await Task.WhenAll(writes);
+
+        foreach (var tuple in providers)
+        {
+            tuple.Accessor.HttpContext = CreateHttpContext(tuple.UserId);
+            var setting = await tuple.Provider.GetSettingAsync("shell.theme");
+            Assert.Equal($"theme-{tuple.UserId}", setting?.Value);
+        }
+    }
+
     private static DefaultHttpContext CreateHttpContext(string userId)
     {
         var identity = new ClaimsIdentity(

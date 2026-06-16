@@ -17,7 +17,7 @@ public sealed class ControlPlaneUserSettingsProvider(
         WriteIndented = true
     };
 
-    private readonly SemaphoreSlim gate = new(1, 1);
+    private static readonly SemaphoreSlim Gate = new(1, 1);
     private readonly string settingsPath = Path.GetFullPath(
         "Data/environment-settings.json",
         environment.ContentRootPath);
@@ -26,7 +26,7 @@ public sealed class ControlPlaneUserSettingsProvider(
         CancellationToken cancellationToken = default)
     {
         var userKey = GetUserKey();
-        await gate.WaitAsync(cancellationToken);
+        await Gate.WaitAsync(cancellationToken);
         try
         {
             var document = await LoadAsync(cancellationToken);
@@ -36,7 +36,7 @@ public sealed class ControlPlaneUserSettingsProvider(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
@@ -46,7 +46,7 @@ public sealed class ControlPlaneUserSettingsProvider(
     {
         key = NormalizeKey(key);
         var userKey = GetUserKey();
-        await gate.WaitAsync(cancellationToken);
+        await Gate.WaitAsync(cancellationToken);
         try
         {
             var document = await LoadAsync(cancellationToken);
@@ -57,7 +57,7 @@ public sealed class ControlPlaneUserSettingsProvider(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
@@ -68,7 +68,7 @@ public sealed class ControlPlaneUserSettingsProvider(
     {
         key = NormalizeKey(key);
         var userKey = GetUserKey();
-        await gate.WaitAsync(cancellationToken);
+        await Gate.WaitAsync(cancellationToken);
         try
         {
             var document = await LoadAsync(cancellationToken);
@@ -83,7 +83,7 @@ public sealed class ControlPlaneUserSettingsProvider(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
@@ -93,7 +93,7 @@ public sealed class ControlPlaneUserSettingsProvider(
     {
         key = NormalizeKey(key);
         var userKey = GetUserKey();
-        await gate.WaitAsync(cancellationToken);
+        await Gate.WaitAsync(cancellationToken);
         try
         {
             var document = await LoadAsync(cancellationToken);
@@ -105,7 +105,7 @@ public sealed class ControlPlaneUserSettingsProvider(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
@@ -139,7 +139,13 @@ public sealed class ControlPlaneUserSettingsProvider(
             return new SettingsDocument();
         }
 
-        await using var stream = File.OpenRead(settingsPath);
+        await using var stream = new FileStream(
+            settingsPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            bufferSize: 4096,
+            useAsync: true);
         var document = await JsonSerializer.DeserializeAsync<SettingsDocument>(
             stream,
             SerializerOptions,
@@ -153,8 +159,30 @@ public sealed class ControlPlaneUserSettingsProvider(
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-        await using var stream = File.Create(settingsPath);
-        await JsonSerializer.SerializeAsync(stream, document, SerializerOptions, cancellationToken);
+        var temporaryPath = $"{settingsPath}.{Guid.NewGuid():N}.tmp";
+
+        try
+        {
+            await using (var stream = new FileStream(
+                temporaryPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                useAsync: true))
+            {
+                await JsonSerializer.SerializeAsync(stream, document, SerializerOptions, cancellationToken);
+            }
+
+            File.Move(temporaryPath, settingsPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
     }
 
     private static string NormalizeKey(string key)

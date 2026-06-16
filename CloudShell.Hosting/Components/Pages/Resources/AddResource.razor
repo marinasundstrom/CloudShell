@@ -39,28 +39,59 @@ else
             <h2>@L["Resource type"]</h2>
             <div class="add-resource-type-picker">
                 <label for="resource-type">@L["Type"]</label>
-                <FluentSelect TOption="string"
-                              Id="resource-type"
-                              Value="@SelectedTypeId"
-                              ValueChanged="ChangeSelectedType"
-                              Appearance="Appearance.Outline">
-                    @foreach (var type in resourceTypes)
+                <button id="resource-type"
+                        type="button"
+                        class="add-resource-type-trigger"
+                        aria-haspopup="listbox"
+                        aria-expanded="@IsTypePickerOpen"
+                        @onclick="ToggleTypePicker">
+                    @if (selectedType is null)
                     {
-                        <FluentOption TOption="string" Value="@type.Id">@type.DisplayName</FluentOption>
+                        <span class="add-resource-type-trigger-text">@L["Select a resource type"]</span>
                     }
-                </FluentSelect>
-            </div>
+                    else
+                    {
+                        <span class="add-resource-option selected-trigger-option">
+                            <span class="add-resource-type-icon" aria-hidden="true">
+                                <FluentIcon Value="@ResourceTypeIcons.FromName(selectedType.Icon)" />
+                            </span>
+                            <span class="add-resource-option-text">
+                                <strong>@selectedType.DisplayName</strong>
+                                <span>@selectedType.Description</span>
+                            </span>
+                        </span>
+                    }
+                    <span class="add-resource-type-trigger-chevron" aria-hidden="true">▾</span>
+                </button>
 
-            @if (selectedType is not null)
-            {
-                <div class="selected-type-card compact">
-                    <span class="resource-kind-icon">@GetTypeGlyph(selectedType)</span>
-                    <div>
-                        <strong>@selectedType.DisplayName</strong>
-                        <p>@selectedType.Description</p>
+                @if (IsTypePickerOpen)
+                {
+                    <div class="add-resource-type-list" role="listbox" aria-labelledby="resource-type">
+                        @foreach (var resourceType in resourceTypes)
+                        {
+                            var isSelected = string.Equals(
+                                resourceType.Id,
+                                selectedType?.Id,
+                                StringComparison.OrdinalIgnoreCase);
+                            <button type="button"
+                                    role="option"
+                                    class="add-resource-type-item @(isSelected ? "selected" : null)"
+                                    aria-selected="@isSelected"
+                                    @onclick="@(() => SelectType(resourceType.Id))">
+                                <div class="add-resource-option">
+                                    <span class="add-resource-type-icon" aria-hidden="true">
+                                        <FluentIcon Value="@ResourceTypeIcons.FromName(resourceType.Icon)" />
+                                    </span>
+                                    <div class="add-resource-option-text">
+                                        <strong>@resourceType.DisplayName</strong>
+                                        <span>@resourceType.Description</span>
+                                    </div>
+                                </div>
+                            </button>
+                        }
                     </div>
-                </div>
-            }
+                }
+            </div>
 
             <div class="add-resource-type-actions">
                 <a href="/resources/groups/new">@L["Create a resource group"]</a>
@@ -78,10 +109,6 @@ else
             else
             {
                 var probeContext = GetProbeContext(selectedType);
-                <header class="add-resource-form-header">
-                    <h2>@selectedType.DisplayName</h2>
-                    <p>@selectedType.Description</p>
-                </header>
                 <CascadingValue Value="probeContext">
                     <CascadingValue Value="selectedType">
                         <DynamicComponent Type="selectedType.RegistrationComponentType" />
@@ -95,6 +122,7 @@ else
 @code {
     private const string ResourceTypeQueryParameter = "type";
     private string? SelectedTypeId { get; set; }
+    private bool IsTypePickerOpen { get; set; }
     private Dictionary<string, ResourceRegistrationProbeContext> ProbeContexts { get; } =
         new(StringComparer.OrdinalIgnoreCase);
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
@@ -124,12 +152,19 @@ else
 
     private void ChangeSelectedType(string? resourceTypeId)
     {
+        IsTypePickerOpen = false;
         SelectedTypeId = resourceTypeId;
         var target = Navigation.GetUriWithQueryParameter(
             ResourceTypeQueryParameter,
             string.IsNullOrWhiteSpace(resourceTypeId) ? null : resourceTypeId);
         Navigation.NavigateTo(target, replace: true);
     }
+
+    private void ToggleTypePicker() =>
+        IsTypePickerOpen = !IsTypePickerOpen;
+
+    private void SelectType(string resourceTypeId) =>
+        ChangeSelectedType(resourceTypeId);
 
     private string? GetRequestedResourceTypeId()
     {
@@ -162,11 +197,4 @@ else
 
         return context;
     }
-
-    private static string GetTypeGlyph(ResourceTypeContribution type) =>
-        type.Icon switch
-        {
-            "docker" => "D",
-            _ => type.DisplayName[..1].ToUpperInvariant()
-        };
 }

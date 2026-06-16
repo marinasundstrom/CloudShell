@@ -47,6 +47,17 @@ on `git blame --follow`, and then by the broad type of change.
 - The Add Resource page now uses a compact single-column registration flow
   with a dedicated resource-type header panel and a constrained form surface,
   avoiding horizontal clipping and type-picker overlap across shell sizes.
+  The constrained create flow now centers within the shell content area and
+  no longer repeats the selected resource type title/description above the
+  registration form fields.
+- The Add Resource page now uses a custom resource-type picker with compact
+  selected labels, rich description rows, and Fluent UI icons for built-in
+  resource types instead of initial-letter badges. The Extensions page now
+  shows the same resource-type icon mapping.
+- Local UI-host and Control Plane user-settings providers now serialize access
+  to `Data/environment-settings.json` through a shared in-process gate and
+  atomic file replacement, preventing shell circuit failures during reloads or
+  reconnects when navigation or display preferences are persisted.
 - Log and trace source filters now use native select controls in the
   observability views, avoiding Fluent UI popup state during source changes and
   periodic trace refreshes.

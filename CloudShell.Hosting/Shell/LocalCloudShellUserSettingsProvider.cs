@@ -15,7 +15,7 @@ internal sealed class LocalCloudShellUserSettingsProvider(
         WriteIndented = true
     };
 
-    private readonly SemaphoreSlim gate = new(1, 1);
+    private static readonly SemaphoreSlim Gate = new(1, 1);
     private readonly string settingsPath = Path.GetFullPath(
         "Data/environment-settings.json",
         environment.ContentRootPath);
@@ -24,7 +24,7 @@ internal sealed class LocalCloudShellUserSettingsProvider(
         CancellationToken cancellationToken = default)
     {
         var userKey = await GetUserKeyAsync();
-        await gate.WaitAsync(cancellationToken);
+        await Gate.WaitAsync(cancellationToken);
         try
         {
             var document = await LoadAsync(cancellationToken);
@@ -34,7 +34,7 @@ internal sealed class LocalCloudShellUserSettingsProvider(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
@@ -44,7 +44,7 @@ internal sealed class LocalCloudShellUserSettingsProvider(
     {
         key = NormalizeKey(key);
         var userKey = await GetUserKeyAsync();
-        await gate.WaitAsync(cancellationToken);
+        await Gate.WaitAsync(cancellationToken);
         try
         {
             var document = await LoadAsync(cancellationToken);
@@ -55,7 +55,7 @@ internal sealed class LocalCloudShellUserSettingsProvider(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
@@ -66,7 +66,7 @@ internal sealed class LocalCloudShellUserSettingsProvider(
     {
         key = NormalizeKey(key);
         var userKey = await GetUserKeyAsync();
-        await gate.WaitAsync(cancellationToken);
+        await Gate.WaitAsync(cancellationToken);
         try
         {
             var document = await LoadAsync(cancellationToken);
@@ -81,7 +81,7 @@ internal sealed class LocalCloudShellUserSettingsProvider(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
@@ -91,7 +91,7 @@ internal sealed class LocalCloudShellUserSettingsProvider(
     {
         key = NormalizeKey(key);
         var userKey = await GetUserKeyAsync();
-        await gate.WaitAsync(cancellationToken);
+        await Gate.WaitAsync(cancellationToken);
         try
         {
             var document = await LoadAsync(cancellationToken);
@@ -103,7 +103,7 @@ internal sealed class LocalCloudShellUserSettingsProvider(
         }
         finally
         {
-            gate.Release();
+            Gate.Release();
         }
     }
 
@@ -132,7 +132,13 @@ internal sealed class LocalCloudShellUserSettingsProvider(
             return new SettingsDocument();
         }
 
-        await using var stream = File.OpenRead(settingsPath);
+        await using var stream = new FileStream(
+            settingsPath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            bufferSize: 4096,
+            useAsync: true);
         var document = await JsonSerializer.DeserializeAsync<SettingsDocument>(
             stream,
             SerializerOptions,
@@ -146,8 +152,30 @@ internal sealed class LocalCloudShellUserSettingsProvider(
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
-        await using var stream = File.Create(settingsPath);
-        await JsonSerializer.SerializeAsync(stream, document, SerializerOptions, cancellationToken);
+        var temporaryPath = $"{settingsPath}.{Guid.NewGuid():N}.tmp";
+
+        try
+        {
+            await using (var stream = new FileStream(
+                temporaryPath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                useAsync: true))
+            {
+                await JsonSerializer.SerializeAsync(stream, document, SerializerOptions, cancellationToken);
+            }
+
+            File.Move(temporaryPath, settingsPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporaryPath))
+            {
+                File.Delete(temporaryPath);
+            }
+        }
     }
 
     private static string NormalizeKey(string key)

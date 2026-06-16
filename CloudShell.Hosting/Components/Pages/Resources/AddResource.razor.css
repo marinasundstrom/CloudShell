@@ -2,6 +2,7 @@
     display: grid;
     gap: 1rem;
     width: min(100%, 56rem);
+    margin-inline: auto;
 }
 
 .add-resource-layout,
@@ -18,39 +19,142 @@
     gap: 1rem;
 }
 
-.add-resource-type-panel h2,
-.add-resource-form-header h2 {
+.add-resource-type-panel h2 {
     margin: 0;
 }
 
 .add-resource-type-picker {
     display: grid;
     gap: .45rem;
+    position: relative;
 }
 
-.add-resource-type-panel fluent-select {
+.add-resource-type-trigger {
+    width: 100%;
+    min-height: 4.5rem;
+    padding: .75rem 1rem;
+    border: 1px solid var(--neutral-stroke-rest);
+    border-radius: .5rem;
+    background: var(--neutral-layer-1);
+    color: var(--neutral-foreground-rest);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+    text-align: left;
+}
+
+.add-resource-type-trigger:hover {
+    background: var(--neutral-layer-2);
+}
+
+.add-resource-type-trigger-value,
+.add-resource-type-trigger-text {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 0;
+}
+
+.add-resource-type-trigger-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.selected-trigger-option {
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.selected-trigger-option .add-resource-option-text {
+    min-width: 0;
+}
+
+.selected-trigger-option .add-resource-option-text span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.add-resource-type-trigger-chevron {
+    flex: none;
+    color: var(--cloudshell-text-muted);
+    align-self: center;
+}
+
+.add-resource-type-list {
+    position: absolute;
+    top: calc(100% + .35rem);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    display: grid;
+    gap: .35rem;
+    padding: .5rem;
+    border: 1px solid var(--neutral-stroke-rest);
+    border-radius: .75rem;
+    background: var(--neutral-layer-1);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+}
+
+.add-resource-type-item {
+    width: 100%;
+    padding: .75rem;
+    border: 1px solid transparent;
+    border-radius: .6rem;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+}
+
+.add-resource-type-item:hover,
+.add-resource-type-item.selected {
+    border-color: var(--accent-stroke-control-rest);
+    background: var(--neutral-layer-2);
+}
+
+.add-resource-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: .65rem;
     width: 100%;
 }
 
-.selected-type-card.compact {
-    align-items: start;
-    padding: .85rem;
+.add-resource-type-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--neutral-stroke-rest);
+    border-radius: .45rem;
+    background: var(--neutral-layer-2);
+    color: var(--accent-fill-rest);
+    flex: none;
 }
 
-.selected-type-card.compact p,
-.add-resource-form-header p {
-    margin: .2rem 0 0;
+.add-resource-option-text {
+    display: block;
+    min-width: 0;
+}
+
+.add-resource-option-text strong {
+    display: block;
+}
+
+.add-resource-option-text span {
+    display: block;
+    margin-top: .1rem;
     color: var(--cloudshell-text-muted);
+    line-height: 1.35;
 }
 
 .add-resource-type-actions {
     display: flex;
     justify-content: flex-start;
-}
-
-.add-resource-form-header {
-    display: grid;
-    gap: .35rem;
 }
 
 .add-resource-layout .form-panel {
