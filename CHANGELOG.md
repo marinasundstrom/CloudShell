@@ -31,6 +31,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Log and trace source filters now use native select controls in the
   observability views, avoiding Fluent UI popup state during source changes and
   periodic trace refreshes.
+- Resource inventory blades now show the generated Details action for
+  resources with custom detail routes when the user has read access, instead
+  of requiring manage access for an inspection-only navigation path.
 - Projected resources now carry explicit `DisplayName` separately from the
   scoped `Name`, and the Control Plane API/client maps that field so Resource
   Manager labels can stay friendly while details, logs, and automation keep

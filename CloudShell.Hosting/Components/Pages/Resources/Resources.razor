@@ -361,7 +361,7 @@
                         @L["Open resource"]
                     </FluentButton>
                     @ResourceActionControls(selected)
-                    @if (CanManage(selected) && HasProviderConfiguration(selected))
+                    @if (CanOpenGeneratedDetails(selected))
                     {
                         <FluentButton Appearance="Appearance.Neutral" OnClick="() => OpenResourceDetails(selected)">
                             @L["Details"]
@@ -1462,10 +1462,11 @@
         IsUserManagedNormalResource(resource) &&
         GetCapabilities(resource).CanManage;
 
-    private bool HasProviderConfiguration(Resource resource) =>
-        ShellCatalog.ResourceTypes.Any(type =>
-            string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase) &&
-            (type.UpdateComponentType is not null || type.ResourceTabs.Count > 0));
+    private bool CanOpenGeneratedDetails(Resource resource)
+    {
+        var group = GetGroup(resource);
+        return ResourceManagerUiAccess.CanReadResource(Authorization, resource, group?.Id);
+    }
 
     private bool CanDelete(Resource resource) =>
         !IsReadOnly &&
