@@ -479,6 +479,7 @@
         TrackResourceActionNotification(notification);
         _ = InvokeAsync(async () =>
         {
+            StateHasChanged();
             await ReloadResourceAsync();
             ResourceContentVersion++;
             StateHasChanged();

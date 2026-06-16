@@ -82,6 +82,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager pages now use action-start/action-complete notifications to
   show lifecycle transition indicators for dependency auto-starts and other
   externally triggered in-process resource actions.
+- Resource Manager now renders lifecycle transition indicators immediately
+  when action-start notifications arrive, before the resource model refresh
+  completes.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

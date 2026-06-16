@@ -1122,7 +1122,12 @@ resourceGroups) =>
         }
 
         TrackResourceActionNotification(notification);
-        _ = InvokeAsync(RefreshResourcesAsync);
+        _ = InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await RefreshResourcesAsync();
+            StateHasChanged();
+        });
     }
 
     private async Task RefreshResourceHealthAsync(CancellationToken cancellationToken = default)
