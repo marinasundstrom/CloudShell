@@ -29,14 +29,18 @@
     <aside class="panel registration-options">
         <h2>@L["Orchestration"]</h2>
         <div class="selected-type-card">
-            <span class="resource-kind-icon">O</span>
+            <span class="resource-kind-icon" aria-hidden="true">
+                <FluentIcon Value="@(new Icons.Regular.Size20.SettingsCogMultiple())" />
+            </span>
             <div>
                 <strong>@GetCurrentOrchestratorName()</strong>
                 <p>@L["Active orchestrator"]</p>
             </div>
         </div>
         <div class="selected-type-card">
-            <span class="resource-kind-icon">H</span>
+            <span class="resource-kind-icon" aria-hidden="true">
+                <FluentIcon Value="@(new Icons.Regular.Size20.DataUsage())" />
+            </span>
             <div>
                 <strong>@L["{0}s", GetEffectiveHealthCheckInterval().Seconds]</strong>
                 <p>@(GetEffectiveHealthCheckInterval().IsConfigured
@@ -45,14 +49,18 @@
             </div>
         </div>
         <div class="selected-type-card">
-            <span class="resource-kind-icon">L</span>
+            <span class="resource-kind-icon" aria-hidden="true">
+                <FluentIcon Value="@(new Icons.Regular.Size20.SlideTextSparkle())" />
+            </span>
             <div>
                 <strong>@GetLabelSummary()</strong>
                 <p>@L["Resource labels"]</p>
             </div>
         </div>
         <div class="selected-type-card">
-            <span class="resource-kind-icon">V</span>
+            <span class="resource-kind-icon" aria-hidden="true">
+                <FluentIcon Value="@(new Icons.Regular.Size20.WindowApps())" />
+            </span>
             <div>
                 <strong>@GetVisibilitySummary()</strong>
                 <p>@L["Inventory visibility"]</p>

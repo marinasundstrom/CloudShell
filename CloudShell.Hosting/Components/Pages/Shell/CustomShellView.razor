@@ -40,7 +40,9 @@ else
     <section class="registration-layout">
         <aside class="panel registration-options">
             <div class="selected-type-card">
-                <span class="resource-kind-icon">@GetIconGlyph(view.Icon, view.Title)</span>
+                <span class="resource-kind-icon" aria-hidden="true">
+                    <FluentIcon Value="@ShellNavigationIcons.FromName(view.Icon)" />
+                </span>
                 <div>
                     <strong>@view.Title</strong>
                     @if (!string.IsNullOrWhiteSpace(view.Description))
@@ -126,17 +128,4 @@ else
 
     private static string NormalizeRoute(string? route) =>
         string.IsNullOrWhiteSpace(route) ? "/" : "/" + route.Trim('/');
-
-    private static string GetIconGlyph(string icon, string title) => icon switch
-    {
-        "grid" => "O",
-        "server" => "R",
-        "pulse" => "T",
-        "plug" => "E",
-        "docker" => "D",
-        "document" => "L",
-        "folder" => "F",
-        "plus" => "+",
-        _ => string.IsNullOrWhiteSpace(icon) ? title[..1].ToUpperInvariant() : icon[..1].ToUpperInvariant()
-    };
 }
