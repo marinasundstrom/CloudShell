@@ -6,10 +6,8 @@
 <div class="type-registration">
     <div class="form-panel">
         <ResourceIdentityFields ResourceIdInputId="volume-resource-id"
-                                DisplayNameInputId="volume-display-name"
                                 ResourceIdPlaceholder="data"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <ResourceGroupSelect Id="volume-group"
                              ResourceGroups="ResourceGroups"
@@ -80,9 +78,6 @@
     private bool HasSelectedStorage =>
         !string.IsNullOrWhiteSpace(SelectedStorageResourceId);
 
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
-
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
@@ -117,7 +112,7 @@
         }
 
         var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "volume");
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var definition = new VolumeResourceDefinition(
             normalizedResourceId,
             displayName,

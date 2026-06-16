@@ -82,12 +82,9 @@ else
                         </div>
                     </div>
                 </div>
-                <CascadingValue Name="@ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName"
-                                Value="DisplaySelection.EnableDisplayNames">
-                    <CascadingValue Value="probeContext">
-                        <CascadingValue Value="selectedType">
-                            <DynamicComponent Type="selectedType.RegistrationComponentType" />
-                        </CascadingValue>
+                <CascadingValue Value="probeContext">
+                    <CascadingValue Value="selectedType">
+                        <DynamicComponent Type="selectedType.RegistrationComponentType" />
                     </CascadingValue>
                 </CascadingValue>
             }

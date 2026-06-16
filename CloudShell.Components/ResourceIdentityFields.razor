@@ -8,23 +8,11 @@
 </div>
 
 @code {
-    public const string DisplayNamesEnabledCascadingParameterName =
-        "ResourceManagerEnableDisplayNames";
-
-    [CascadingParameter(Name = DisplayNamesEnabledCascadingParameterName)]
-    public bool EnableDisplayNames { get; set; } = true;
-
     [Parameter]
     public string ResourceIdInputId { get; set; } = "resource-id";
 
     [Parameter]
-    public string DisplayNameInputId { get; set; } = "resource-display-name";
-
-    [Parameter]
     public string ResourceIdLabel { get; set; } = "Name";
-
-    [Parameter]
-    public string DisplayNameLabel { get; set; } = "Display name (optional)";
 
     [Parameter]
     public string? ResourceIdPlaceholder { get; set; }
@@ -33,17 +21,8 @@
     public bool ResourceIdDisabled { get; set; }
 
     [Parameter]
-    public string? DisplayNamePlaceholder { get; set; }
-
-    [Parameter]
     public string? ResourceId { get; set; }
 
     [Parameter]
     public EventCallback<string?> ResourceIdChanged { get; set; }
-
-    [Parameter]
-    public string? DisplayName { get; set; }
-
-    [Parameter]
-    public EventCallback<string?> DisplayNameChanged { get; set; }
 }

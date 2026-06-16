@@ -30,12 +30,9 @@
     </FluentSelect>
 
     <ResourceIdentityFields ResourceIdInputId="docker-host-resource-id"
-                            DisplayNameInputId="docker-host-display-name"
                             ResourceId="@BuildResourceId(BuildHostDefinitionOrDefault())"
                             ResourceIdChanged="@IgnoreResourceIdChange"
-                            ResourceIdDisabled="true"
-                            DisplayName="@HostName"
-                            DisplayNameChanged="@ChangeHostName" />
+                            ResourceIdDisabled="true" />
 
     @if (IsRemoteHost)
     {
@@ -76,9 +73,6 @@
     [CascadingParameter]
     public ResourceRegistrationProbeContext? ProbeContext { get; set; }
 
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
-
     private string SelectedGroupId { get; set; } = string.Empty;
     private string HostMode { get; set; } = "local";
     private string HostName { get; set; } = "Local Docker Host";
@@ -104,7 +98,7 @@
             var resourceId = BuildResourceId(hostDefinition);
             await DockerProvider.SetupHostAsync(
                 resourceId,
-                ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, HostName, resourceId),
+                ResourceDisplayNameDefaults.Resolve(resourceId),
                 hostDefinition,
                 SelectedGroupId,
                 Registrations,

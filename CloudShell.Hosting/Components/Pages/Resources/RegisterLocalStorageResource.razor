@@ -5,10 +5,8 @@
 <div class="type-registration">
     <div class="form-panel">
         <ResourceIdentityFields ResourceIdInputId="local-storage-resource-id"
-                                DisplayNameInputId="local-storage-display-name"
                                 ResourceIdPlaceholder="local"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <ResourceGroupSelect Id="local-storage-group"
                              ResourceGroups="ResourceGroups"
@@ -39,9 +37,6 @@
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
 
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
-
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
@@ -57,7 +52,7 @@
         }
 
         var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "storage");
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var definition = new StorageResourceDefinition(
             normalizedResourceId,
             displayName,

@@ -5,10 +5,8 @@
 <div class="type-registration">
     <div class="form-panel">
         <ResourceIdentityFields ResourceIdInputId="dns-zone-resource-id"
-                                DisplayNameInputId="dns-zone-display-name"
                                 ResourceIdPlaceholder="cloudshell-local"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <label for="dns-zone-name-value">Zone name</label>
         <FluentTextField Id="dns-zone-name-value" @bind-Value="ZoneName" Placeholder="cloudshell.local" />
@@ -142,9 +140,6 @@
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         ResourceManagerUiAccess.EmptyGroupLookup;
 
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
-
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
@@ -214,7 +209,7 @@
         }
 
         var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "dns");
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var definition = new DnsZoneResourceDefinition(
             normalizedResourceId,
             displayName,

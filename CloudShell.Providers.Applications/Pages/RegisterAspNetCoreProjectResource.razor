@@ -8,10 +8,8 @@
 <div class="type-registration">
     <div class="form-panel">
         <ResourceIdentityFields ResourceIdInputId="web-application-resource-id"
-                                DisplayNameInputId="web-application-display-name"
                                 ResourceIdPlaceholder="example-web-api"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <label for="web-application-project">Project path</label>
         <FluentTextField Id="web-application-project" @bind-Value="ProjectPath" Placeholder="samples/CloudShell.ExampleWebApi/CloudShell.ExampleWebApi.csproj" />
@@ -109,9 +107,6 @@
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
 
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
-
     private bool HealthChecksEnabled
     {
         get => ProbeContext?.EnableHealthChecks == true;
@@ -149,7 +144,7 @@
             return;
         }
 
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var references = SelectedReferenceIds.ToArray();
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,

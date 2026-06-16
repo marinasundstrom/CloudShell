@@ -40,6 +40,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager create forms no longer expose display-name editing. UI
   registrations use the resource name as the canonical create command name,
   leaving display names as programmatic/local-development presentation labels.
+- Resource registration components no longer receive display-name cascading
+  state or display-name field parameters now that Resource Manager create flows
+  only ask for resource names.
 - Projected resources now carry explicit `DisplayName` separately from the
   scoped `Name`, and the Control Plane API/client maps that field so Resource
   Manager labels can stay friendly while details, logs, and automation keep

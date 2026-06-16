@@ -7,10 +7,8 @@
 <div class="type-registration">
     <div class="form-panel">
         <ResourceIdentityFields ResourceIdInputId="configuration-store-resource-id"
-                                DisplayNameInputId="configuration-store-display-name"
                                 ResourceIdPlaceholder="local"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <label for="configuration-store-endpoint">Endpoint</label>
         <FluentTextField Id="configuration-store-endpoint" @bind-Value="Endpoint" Placeholder="Generated from the name" />
@@ -41,9 +39,6 @@
     private string? ErrorMessage { get; set; }
     private List<ConfigurationEntryInput> Entries { get; } = [new()];
 
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
-
     private async Task Register()
     {
         ErrorMessage = null;
@@ -61,7 +56,7 @@
             return;
         }
 
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var definition = new ConfigurationStoreDefinition(
             normalizedResourceId,
             displayName,

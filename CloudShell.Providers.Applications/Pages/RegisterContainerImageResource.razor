@@ -19,10 +19,8 @@
         }
 
         <ResourceIdentityFields ResourceIdInputId="container-resource-id"
-                                DisplayNameInputId="container-display-name"
                                 ResourceIdPlaceholder="redis"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <label for="container-image">Image</label>
         <FluentTextField Id="container-image" @bind-Value="Image" Placeholder="redis:7.2" />
@@ -143,9 +141,6 @@
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
 
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
-
     private async Task Register()
     {
         ErrorMessage = null;
@@ -186,7 +181,7 @@
             return;
         }
 
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var references = SelectedReferenceIds.ToArray();
         var volumeMounts = BuildVolumeMounts();
         var volumeReferences = volumeMounts

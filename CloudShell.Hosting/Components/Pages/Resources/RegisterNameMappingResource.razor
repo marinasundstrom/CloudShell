@@ -17,11 +17,8 @@
         </FluentSelect>
 
         <ResourceIdentityFields ResourceIdInputId="name-mapping-resource-id"
-                                DisplayNameInputId="name-mapping-display-name"
                                 ResourceIdPlaceholder="app-cloudshell-local"
-                                DisplayNamePlaceholder="App local name"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <label for="name-mapping-host">Host name</label>
         <FluentTextField Id="name-mapping-host" @bind-Value="HostName" Placeholder="app.cloudshell.local" />
@@ -119,9 +116,6 @@
     private IReadOnlyList<Resource> Resources { get; set; } = [];
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         ResourceManagerUiAccess.EmptyGroupLookup;
-
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -292,7 +286,7 @@
             ? CreateMappingId(SelectedZoneResourceId, HostName)
             : NormalizeMappingId(SelectedZoneResourceId, ResourceId);
         var resourceName = string.IsNullOrWhiteSpace(ResourceId) ? HostName : ResourceId;
-        var name = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, resourceName);
+        var name = ResourceDisplayNameDefaults.Resolve(resourceName);
         var definition = new DnsNameMappingResourceDefinition(
             SelectedZoneResourceId,
             resourceId,

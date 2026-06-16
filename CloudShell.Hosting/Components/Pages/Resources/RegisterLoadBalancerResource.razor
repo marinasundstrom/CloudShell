@@ -5,10 +5,8 @@
 <div class="type-registration">
     <div class="form-panel">
         <ResourceIdentityFields ResourceIdInputId="load-balancer-resource-id"
-                                DisplayNameInputId="load-balancer-display-name"
                                 ResourceIdPlaceholder="public"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <label for="load-balancer-provider">Provider</label>
         <FluentSelect TOption="string"
@@ -192,9 +190,6 @@
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         ResourceManagerUiAccess.EmptyGroupLookup;
 
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
-
     protected override async Task OnInitializedAsync()
     {
         ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
@@ -341,7 +336,7 @@
         }
 
         var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "load-balancer");
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var definition = new LoadBalancerResourceDefinition(
             normalizedResourceId,
             displayName,

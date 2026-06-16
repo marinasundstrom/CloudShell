@@ -21,10 +21,8 @@
         </FluentSelect>
 
         <ResourceIdentityFields ResourceIdInputId="application-resource-id"
-                                DisplayNameInputId="application-display-name"
                                 ResourceIdPlaceholder="example-api"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <label for="application-executable">Executable path</label>
         <FluentTextField Id="application-executable" @bind-Value="ExecutablePath" />
@@ -109,9 +107,6 @@
 
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
-
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
 
     private void SelectTemplate(string? applicationId)
     {
@@ -208,7 +203,7 @@
             return;
         }
 
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
             displayName,

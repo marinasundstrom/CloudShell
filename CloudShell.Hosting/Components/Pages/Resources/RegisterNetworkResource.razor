@@ -5,10 +5,8 @@
 <div class="type-registration">
     <div class="form-panel">
         <ResourceIdentityFields ResourceIdInputId="network-resource-id"
-                                DisplayNameInputId="network-display-name"
                                 ResourceIdPlaceholder="app"
-                                @bind-ResourceId="ResourceId"
-                                @bind-DisplayName="Name" />
+                                @bind-ResourceId="ResourceId" />
 
         <FluentCheckbox @bind-Value="IsDefault">
             Default network
@@ -93,9 +91,6 @@
     private static readonly IReadOnlyList<ResourceEndpointAssignment> AllEndpointAssignments =
         Enum.GetValues<ResourceEndpointAssignment>();
 
-    [CascadingParameter(Name = ResourceIdentityFields.DisplayNamesEnabledCascadingParameterName)]
-    private bool EnableDisplayNames { get; set; } = true;
-
     private bool IsPredefinedAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Predefined;
 
@@ -123,7 +118,7 @@
         }
 
         var normalizedResourceId = ResourceNameNormalizer.Normalize(ResourceId, "network");
-        var displayName = ResourceDisplayNameDefaults.Resolve(EnableDisplayNames, Name, ResourceId);
+        var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         await ResourceManager.CreateResourceAsync(
             new CreateResourceCommand(
                 PlatformProviderId,
