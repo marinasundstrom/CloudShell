@@ -1,10 +1,15 @@
 (function () {
+    var navCollapsedStorageKey = "cloudshell.navigation.collapsed";
+
+    setNavCollapsed(readStoredNavCollapsed());
+
     window.cloudShellNav = {
-        setCollapsed: function (collapsed) {
-            document.documentElement.classList.toggle("nav-collapsed", collapsed);
-            document.querySelectorAll(".shell").forEach(function (shell) {
-                shell.classList.toggle("nav-collapsed", collapsed);
-            });
+        setCollapsed: function (collapsed, persist) {
+            setNavCollapsed(collapsed);
+
+            if (persist) {
+                writeStoredNavCollapsed(collapsed);
+            }
         }
     };
 
@@ -38,6 +43,28 @@
         return value === "dark" || value === "light"
             ? value
             : null;
+    }
+
+    function readStoredNavCollapsed() {
+        try {
+            return localStorage.getItem(navCollapsedStorageKey) === "true";
+        } catch {
+            return false;
+        }
+    }
+
+    function writeStoredNavCollapsed(collapsed) {
+        try {
+            localStorage.setItem(navCollapsedStorageKey, collapsed ? "true" : "false");
+        } catch {
+        }
+    }
+
+    function setNavCollapsed(collapsed) {
+        document.documentElement.classList.toggle("nav-collapsed", collapsed);
+        document.querySelectorAll(".shell").forEach(function (shell) {
+            shell.classList.toggle("nav-collapsed", collapsed);
+        });
     }
 
     window.cloudShellForms = {

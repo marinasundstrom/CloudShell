@@ -28,7 +28,7 @@
         var storedValue = await Settings.GetSettingAsync(CloudShellUserSettingKeys.NavigationCollapsed);
 
         IsNavCollapsed = string.Equals(storedValue?.Value, "true", StringComparison.OrdinalIgnoreCase);
-        await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", IsNavCollapsed);
+        await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", IsNavCollapsed, true);
         StateHasChanged();
     }
 
@@ -38,6 +38,6 @@
         await Settings.SetSettingAsync(
             CloudShellUserSettingKeys.NavigationCollapsed,
             IsNavCollapsed ? "true" : "false");
-        await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", IsNavCollapsed);
+        await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", IsNavCollapsed, true);
     }
 }

@@ -35,6 +35,8 @@ on `git blame --follow`, and then by the broad type of change.
   selected span title.
 - Shell navigation now renders aligned Fluent UI icons for built-in views
   instead of initial-letter badges.
+- Collapsed shell navigation now restores from browser state immediately and
+  remains compact when navigating between shell views.
 - Log and trace source filters now use native select controls in the
   observability views, avoiding Fluent UI popup state during source changes and
   periodic trace refreshes.
