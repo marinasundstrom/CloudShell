@@ -10,6 +10,14 @@ customization, resource tabs, detail routes, and resource UI actions. Pair it
 with a [Control Plane resource provider](control-plane-resource-providers.md)
 when the resource type needs provider-backed behavior.
 
+A Control Plane resource provider may be paired with a Resource UI provider.
+The Resource UI provider owns the interactive presentation for that resource
+type and can compose with standardized Resource Manager views in two ways:
+
+1. Add provider-owned sections to a standardized tab such as Endpoints or DNS.
+2. Add a new tab or replace a standardized tab entirely with provider-owned
+   content.
+
 ## Resource Types
 
 Resource types are the user-facing contract for adding resources. An extension
@@ -119,6 +127,75 @@ operational workspace.
 
 Resource types can also contribute tabs or an update component. Those
 provider-owned views override the generated default for resources of that type.
+
+## Standard Resource Views
+
+CloudShell has standardized resource detail views for common concerns such as
+Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and
+Activity. These views are identified by the constants in
+`ResourceStandardViewIds`.
+
+Use the constants instead of hard-coded string literals when registering tabs,
+building links, or contributing sections:
+
+```csharp
+ResourceStandardViewIds.Endpoints
+ResourceStandardViewIds.Dns
+ResourceStandardViewIds.Configuration
+```
+
+Standard views are capability and shape driven. For example, the Resource
+Manager can show Endpoints or DNS for resources that project endpoint data,
+networking capabilities, or name-mapping shape even when a provider does not
+own a custom tab. This keeps common concepts discoverable across providers.
+
+The Resource UI provider should choose the smallest extension point that
+matches its need:
+
+- **Use a normal resource tab** when the provider owns a complete workflow or
+  view, such as SQL Server storage, container app deployment, or provider
+  configuration.
+- **Use the same standard tab ID** when the provider intentionally replaces a
+  standard view for its resource type.
+- **Use a standard view section** when the provider wants to add
+  provider-specific interpretation inside a common concern view without
+  replacing the generated sections.
+
+Standard view sections are registered against a resource type and a standard
+view ID:
+
+```csharp
+builder.AddResourceStandardViewSection<Pages.AcmeEndpointPolicy>(
+    "acme.gateway",
+    ResourceStandardViewIds.Endpoints,
+    "acme.endpoint-policy",
+    "Endpoint policy",
+    50);
+```
+
+The section component receives the following parameters:
+
+```csharp
+[Parameter]
+public string ResourceId { get; set; } = string.Empty;
+
+[Parameter]
+public string ViewId { get; set; } = string.Empty;
+
+[Parameter]
+public string SectionId { get; set; } = string.Empty;
+```
+
+The section should load resource data through public domain managers such as
+`IResourceManager`. It should not depend directly on provider stores or
+Control Plane internals unless the UI and provider intentionally ship as one
+in-process capability package.
+
+Standard view sections are currently appended to generated standardized views.
+The first implemented standard section hosts are Endpoints and DNS. Future
+slices should extend this to other common views and add capability-driven
+section visibility when a section applies to more than one concrete resource
+type.
 
 ## Resource Actions and UI Actions
 

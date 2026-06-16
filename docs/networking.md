@@ -74,6 +74,21 @@ Network resources have three current kinds:
 CloudShell should be explicit about the different ways a resource can be
 addressed. These mechanisms are related, but they are not interchangeable.
 
+The Resource Manager UI should use the same distinction:
+
+- **Endpoint**: the resource-owned address or port contract. It describes what
+  the resource exposes, such as a named HTTP port, TCP port, container port, or
+  provider-assigned endpoint.
+- **Exposure**: the provider- or network-owned route to an endpoint. This can
+  be a virtual-network endpoint mapping, load-balancer route, ingress rule, or
+  another provider-owned reachability path.
+- **DNS/name mapping**: the human-facing or integration-facing name for a
+  reachable endpoint or exposure route.
+- **Overview address**: the best current display address for the user. It may
+  be a public URL, private or virtual-network URL, DNS name, local development
+  endpoint, or resource-specific convenience value such as a SQL connection
+  string. It is not the complete endpoint model.
+
 | Layer | Shape | Primary use |
 | --- | --- | --- |
 | Concrete endpoint address | `http://127.0.0.1:5218`, `tcp://10.0.0.5:1433`, `http://container-name:8080` | A provider-observed address that can be used directly when the caller is already in the right network context. |
