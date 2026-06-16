@@ -17,7 +17,7 @@
     }
 
     <section class="generated-section">
-        <h3>@L["Identity"]</h3>
+        <h3>@L["Essentials"]</h3>
         <dl class="detail-list">
             <dt>@L["Resource ID"]</dt>
             <dd>@Resource.Id</dd>
@@ -55,249 +55,58 @@
         </dl>
     </section>
 
-    @if (Resource.IdentityBinding is { } identity)
+    @if (Resource.IdentityBinding is not null ||
+        Resource.Endpoints.Count > 0 ||
+        InboundNetworkMappings.Count > 0 ||
+        InboundLoadBalancerRoutes.Count > 0 ||
+        InboundNameMappings.Count > 0 ||
+        IsNetworkResource ||
+        IsLoadBalancerResource)
     {
         <section class="generated-section">
-            <h3>@L["Resource identity"]</h3>
+            <h3>@L["Runtime"]</h3>
             <dl class="detail-list">
-                <dt>@L["Name"]</dt>
-                <dd>@FormatIdentityName(identity)</dd>
-                <dt>@L["Kind"]</dt>
-                <dd>@identity.Kind</dd>
-                <dt>@L["Provider"]</dt>
-                <dd>@FormatIdentityProvider(identity)</dd>
-                <dt>@L["Subject"]</dt>
-                <dd>@FormatIdentitySubject(identity)</dd>
-                @if (identity.IdentityScopes.Count > 0)
+                @if (Resource.IdentityBinding is { } identity)
                 {
-                    <dt>@L["Scopes"]</dt>
+                    <dt>@L["Identity"]</dt>
+                    <dd>@FormatIdentitySummary(identity)</dd>
+                }
+                @if (Resource.Endpoints.Count > 0)
+                {
+                    <dt>@L["Primary endpoint"]</dt>
+                    <dd>@EndpointLink(Resource.Endpoints[0].Address)</dd>
+                    <dt>@L["Endpoints"]</dt>
                     <dd>
-                        <div class="dependency-list">
-                            @foreach (var scope in identity.IdentityScopes.Order(StringComparer.OrdinalIgnoreCase))
-                            {
-                                <span class="generated-pill-link">@scope</span>
-                            }
-                        </div>
+                        <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, "endpoints")">
+                            @L["{0} endpoint(s)", Resource.Endpoints.Count]
+                        </a>
                     </dd>
                 }
-                @if (identity.IdentityClaims.Count > 0)
+                @if (InboundNetworkMappings.Count > 0 || InboundLoadBalancerRoutes.Count > 0)
                 {
-                    <dt>@L["Claims"]</dt>
+                    <dt>@L["Exposure"]</dt>
+                    <dd>@FormatExposureSummary()</dd>
+                }
+                @if (InboundNameMappings.Count > 0)
+                {
+                    <dt>@L["DNS"]</dt>
                     <dd>
-                        <div class="generated-list">
-                            @foreach (var claim in identity.IdentityClaims.OrderBy(claim => claim.Key, StringComparer.OrdinalIgnoreCase))
-                            {
-                                <div>
-                                    <strong>@claim.Key</strong>
-                                    <span>@claim.Value</span>
-                                </div>
-                            }
-                        </div>
+                        <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, "dns")">
+                            @FormatDnsSummary()
+                        </a>
                     </dd>
                 }
+                @if (IsLoadBalancerResource)
+                {
+                    <dt>@L["Load balancing"]</dt>
+                    <dd>@FormatLoadBalancerRouteCounts(Resource)</dd>
+                }
+                @if (IsNetworkResource && !IsLoadBalancerResource)
+                {
+                    <dt>@L["Network readiness"]</dt>
+                    <dd>@FormatNetworkReadiness()</dd>
+                }
             </dl>
-        </section>
-    }
-
-    @if (Resource.Endpoints.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Endpoints"]</h3>
-            <div class="endpoint-list">
-                @foreach (var endpoint in Resource.Endpoints)
-                {
-                    <div class="generated-endpoint">
-                        <div class="generated-endpoint-main">
-                            <strong>@endpoint.Name</strong>
-                            @EndpointLink(endpoint.Address)
-                            <small>@endpoint.Protocol @endpoint.Exposure</small>
-                        </div>
-                        <div class="generated-row-actions">
-                            <FluentButton Appearance="Appearance.Neutral"
-                                          Title="@L["Copy endpoint"]"
-                                          Disabled="@string.IsNullOrWhiteSpace(endpoint.Address)"
-                                          OnClick="() => CopyEndpoint(endpoint.Address)">
-                                @L["Copy"]
-                            </FluentButton>
-                            @if (IsLinkEndpoint(endpoint.Address))
-                            {
-                                <FluentButton Appearance="Appearance.Neutral"
-                                              Title="@L["Open endpoint"]"
-                                              OnClick="() => OpenEndpoint(endpoint.Address)">
-                                    @L["Open"]
-                                </FluentButton>
-                            }
-                        </div>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (InboundNetworkMappings.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Network exposure"]</h3>
-            <div class="generated-list">
-                @foreach (var exposure in InboundNetworkMappings)
-                {
-                    <div>
-                        <strong>@ResourceLink(exposure.Network)</strong>
-                        <span>
-                            @EndpointReference(exposure.Mapping.Source, exposure.Network)
-                            <span aria-hidden="true">-&gt;</span>
-                            @EndpointReference(exposure.Mapping.Target, Resource)
-                        </span>
-                        <small>@MappingProviderLabel(exposure.Mapping)</small>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (InboundLoadBalancerRoutes.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Load balancer exposure"]</h3>
-            <div class="generated-list">
-                @foreach (var exposure in InboundLoadBalancerRoutes)
-                {
-                    <div>
-                        <strong>@ResourceLink(exposure.LoadBalancer)</strong>
-                        <span>
-                            @FormatLoadBalancerRouteMatch(exposure.Route)
-                            <span aria-hidden="true">-&gt;</span>
-                            @FormatLoadBalancerRouteTarget(exposure.Route.Target)
-                        </span>
-                        <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (InboundNameMappings.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["DNS and domain names"]</h3>
-            <div class="generated-list">
-                @foreach (var exposure in InboundNameMappings)
-                {
-                    <div>
-                        <strong>@ResourceLink(exposure.Mapping)</strong>
-                        <span>@FormatNameMappingSummary(exposure.Mapping)</span>
-                        <small>@FormatNameMappingMetadata(exposure)</small>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (IsLoadBalancerResource)
-    {
-        <section class="generated-section">
-            <h3>@L["Load balancing"]</h3>
-            <dl class="detail-list">
-                <dt>@L["Provider"]</dt>
-                <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerProvider, Resource.Provider)</dd>
-                <dt>@L["Host"]</dt>
-                <dd>
-                    @if (GetLoadBalancerHostResourceId(Resource) is { } hostResourceId)
-                    {
-                        @ResourceLink(hostResourceId)
-                    }
-                    else
-                    {
-                        @L["Default container host"]
-                    }
-                </dd>
-                <dt>@L["Entrypoints"]</dt>
-                <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerEntrypointCount, Resource.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
-                <dt>@L["Routes"]</dt>
-                <dd>@FormatLoadBalancerRouteCounts(Resource)</dd>
-                <dt>@L["TLS"]</dt>
-                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingTls))</dd>
-            </dl>
-        </section>
-    }
-
-    @if (IsNetworkResource && !IsLoadBalancerResource)
-    {
-        <section class="generated-section">
-            <h3>@L["Networking"]</h3>
-            <dl class="detail-list">
-                <dt>@L["Kind"]</dt>
-                <dd>@GetAttributeValue(ResourceAttributeNames.NetworkKind, Resource.Kind)</dd>
-                <dt>@L["Host readiness"]</dt>
-                <dd>@FormatNetworkReadiness()</dd>
-                @if (Resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.NetworkProvisionedMappingCount))
-                {
-                    <dt>@L["Provisioned mappings"]</dt>
-                    <dd>@GetAttributeValue(ResourceAttributeNames.NetworkProvisionedMappingCount, "0")</dd>
-                }
-                @if (GetMappingProviderIds().Length > 0)
-                {
-                    <dt>@L["Mapping providers"]</dt>
-                    <dd>
-                        <div class="dependency-list">
-                            @foreach (var providerId in GetMappingProviderIds())
-                            {
-                                @ResourceLink(providerId)
-                            }
-                        </div>
-                    </dd>
-                }
-                <dt>@L["Endpoint mapper"]</dt>
-                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper))</dd>
-                <dt>@L["Virtual network"]</dt>
-                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork))</dd>
-                <dt>@L["Ingress"]</dt>
-                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingIngress))</dd>
-                <dt>@L["Host network"]</dt>
-                <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingHostNetwork))</dd>
-            </dl>
-        </section>
-    }
-
-    @if (IsNetworkResource && Resource.ResourceEndpointMappings.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Endpoint mappings"]</h3>
-            <div class="generated-list">
-                @foreach (var mapping in Resource.ResourceEndpointMappings)
-                {
-                    <div>
-                        <strong>@mapping.Name</strong>
-                        <span>
-                            @EndpointReference(mapping.Source, Resource)
-                            <span aria-hidden="true">-&gt;</span>
-                            @EndpointReference(mapping.Target)
-                        </span>
-                        <small>@MappingProviderLabel(mapping)</small>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (Resource.ResourceLoadBalancerRoutes.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Load balancer routes"]</h3>
-            <div class="generated-list">
-                @foreach (var route in Resource.ResourceLoadBalancerRoutes)
-                {
-                    <div>
-                        <strong>@route.Name</strong>
-                        <span>
-                            @FormatLoadBalancerRouteMatch(route)
-                            <span aria-hidden="true">-&gt;</span>
-                            @FormatLoadBalancerRouteTarget(route.Target)
-                        </span>
-                        <small>@L["Entrypoint: {0}", route.EntrypointName]</small>
-                    </div>
-                }
-            </div>
         </section>
     }
 
@@ -318,132 +127,52 @@
         </section>
     }
 
-    @if (Resource.ResourceAttributes.Count > 0)
+    @if (Resource.DependsOn.Count > 0 || ChildResources.Count > 0)
     {
         <section class="generated-section">
-            <h3>@L["Attributes"]</h3>
+            <h3>@L["Relationships"]</h3>
             <dl class="detail-list">
-                @foreach (var item in Resource.ResourceAttributes.OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase))
+                @if (Resource.DependsOn.Count > 0)
                 {
-                    <dt>@item.Key</dt>
-                    <dd>@item.Value</dd>
+                    <dt>@L["Dependencies"]</dt>
+                    <dd>
+                        <div class="dependency-list">
+                            @foreach (var dependency in Resource.DependsOn.Order(StringComparer.OrdinalIgnoreCase).Take(4))
+                            {
+                                @ResourceLink(dependency)
+                            }
+                            @if (Resource.DependsOn.Count > 4)
+                            {
+                                <span class="generated-pill-link">@L["+{0} more", Resource.DependsOn.Count - 4]</span>
+                            }
+                        </div>
+                    </dd>
+                }
+                @if (ChildResources.Count > 0)
+                {
+                    <dt>@L["Children"]</dt>
+                    <dd>@L["{0} child resource(s)", ChildResources.Count]</dd>
                 }
             </dl>
         </section>
     }
 
-    @if (Resource.DependsOn.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Dependencies"]</h3>
-            <div class="dependency-list">
-                @foreach (var dependency in Resource.DependsOn.Order(StringComparer.OrdinalIgnoreCase))
-                {
-                    @ResourceLink(dependency)
-                }
-            </div>
-        </section>
-    }
-
-    @if (ChildResources.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Children"]</h3>
-            <div class="generated-list">
-                @foreach (var child in ChildResources)
-                {
-                    <div class="resource-list-item">
-                        <ResourceKindIcon Resource="child" />
-                        <span class="resource-list-item-content">
-                            <strong>
-                                <a class="resource-link" href="@BuildResourceRoute(child.Id)">
-                                    @GetResourceLabel(child)
-                                </a>
-                            </strong>
-                            <span>@child.EffectiveTypeId</span>
-                            <small>@child.Id</small>
-                        </span>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (Resource.ResourceHealthChecks.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Health checks"]</h3>
-            <div class="generated-list">
-                @foreach (var healthCheck in Resource.ResourceHealthChecks)
-                {
-                    <div>
-                        <strong>@healthCheck.Name</strong>
-                        <span>@healthCheck.Path</span>
-                        <small>@FormatHealthCheckDetails(healthCheck)</small>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (Resource.ResourceActions.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Actions"]</h3>
-            <div class="generated-list">
-                @foreach (var action in Resource.ResourceActions.OrderBy(action => action.DisplayName, StringComparer.OrdinalIgnoreCase))
-                {
-                    var capability = Capabilities.GetActionCapability(action.Id);
-                    <div>
-                        <strong>@action.DisplayName</strong>
-                        <span>@(CanExecuteAction(action) ? L["Available"] : L["Unavailable"])</span>
-                        <FluentButton Appearance="Appearance.Neutral"
-                                      Disabled="@(!CanExecuteAction(action) || IsExecutingAction(action))"
-                                      OnClick="() => ExecuteAction(action)">
-                            @GetActionButtonLabel(action)
-                        </FluentButton>
-                        @if (!string.IsNullOrWhiteSpace(capability?.Reason))
-                        {
-                            <small>@capability.Reason</small>
-                        }
-                        else if (!string.IsNullOrWhiteSpace(action.Description))
-                        {
-                            <small>@action.Description</small>
-                        }
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (Logs.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Logs"]</h3>
-            <div class="generated-list">
-                @foreach (var log in Logs)
-                {
-                    <div>
-                        <strong>@log.Name</strong>
-                        <a class="resource-link" href="@BuildLogRoute(log)">@L["Open log"]</a>
-                        <small>@log.SourceKind</small>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (Resource.EffectiveObservability != ResourceObservability.None)
+    @if (Logs.Count > 0 || Resource.EffectiveObservability != ResourceObservability.None)
     {
         <section class="generated-section">
             <h3>@L["Observability"]</h3>
             <dl class="detail-list">
-                <dt>@L["Logs"]</dt>
-                <dd>@FormatEnabled(Resource.EffectiveObservability.Logs)</dd>
-                <dt>@L["Traces"]</dt>
-                <dd>@FormatEnabled(Resource.EffectiveObservability.Traces)</dd>
-                <dt>@L["Metrics"]</dt>
-                <dd>@FormatEnabled(Resource.EffectiveObservability.Metrics)</dd>
+                @if (Logs.Count > 0)
+                {
+                    <dt>@L["Logs"]</dt>
+                    <dd>
+                        <a class="resource-link" href="@BuildLogRoute(Logs[0])">
+                            @L["Open logs"]
+                        </a>
+                    </dd>
+                }
+                <dt>@L["Signals"]</dt>
+                <dd>@FormatObservabilitySummary()</dd>
             </dl>
             @if (Resource.EffectiveObservability.Traces)
             {
@@ -516,6 +245,63 @@
         string.IsNullOrWhiteSpace(identity.Subject)
             ? L["Not assigned"].Value
             : identity.Subject;
+
+    private string FormatIdentitySummary(ResourceIdentityBinding identity)
+    {
+        var name = FormatIdentityName(identity);
+        return string.IsNullOrWhiteSpace(identity.Subject)
+            ? L["{0} ({1})", name, identity.Kind].Value
+            : L["{0} ({1})", name, identity.Subject].Value;
+    }
+
+    private string FormatExposureSummary()
+    {
+        var parts = new List<string>();
+        if (InboundNetworkMappings.Count > 0)
+        {
+            parts.Add(L["{0} network mapping(s)", InboundNetworkMappings.Count].Value);
+        }
+
+        if (InboundLoadBalancerRoutes.Count > 0)
+        {
+            parts.Add(L["{0} load-balancer route(s)", InboundLoadBalancerRoutes.Count].Value);
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private string FormatDnsSummary()
+    {
+        var firstHost = InboundNameMappings.Count == 0
+            ? null
+            : GetNameMappingHostName(InboundNameMappings[0].Mapping);
+        return InboundNameMappings.Count == 1 && !string.IsNullOrWhiteSpace(firstHost)
+            ? firstHost
+            : L["{0} name mapping(s)", InboundNameMappings.Count].Value;
+    }
+
+    private string FormatObservabilitySummary()
+    {
+        var signals = new List<string>();
+        if (Resource.EffectiveObservability.Logs)
+        {
+            signals.Add(L["logs"].Value);
+        }
+
+        if (Resource.EffectiveObservability.Traces)
+        {
+            signals.Add(L["traces"].Value);
+        }
+
+        if (Resource.EffectiveObservability.Metrics)
+        {
+            signals.Add(L["metrics"].Value);
+        }
+
+        return signals.Count == 0
+            ? L["No projected signals"].Value
+            : string.Join(", ", signals);
+    }
 
     private bool CanExecuteAction(ResourceAction action) =>
         !IsReadOnly && Capabilities.CanExecuteAction(action.Id);
@@ -975,6 +761,9 @@
 
     private static string BuildResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+
+    private static string BuildResourceTabRoute(string resourceId, string tabId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId)}";
 
     private string BuildLogRoute(LogDescriptor log)
     {

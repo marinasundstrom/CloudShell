@@ -102,6 +102,10 @@ on `git blame --follow`, and then by the broad type of change.
   read-only-aware entry points for endpoint configuration and name-mapping
   creation while overview remains the summary surface. Overview and the
   resource-specific Configuration tab now sit under the General tab group.
+- Generated resource overviews now focus on essential identity, runtime,
+  diagnostics, relationship, and observability summaries instead of repeating
+  detailed endpoint, DNS, load-balancer, attribute, action, and health-check
+  lists owned by specific tabs or command surfaces.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or
