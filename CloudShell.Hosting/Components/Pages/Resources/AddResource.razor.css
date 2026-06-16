@@ -1,0 +1,19 @@
+.add-resource-heading > div,
+.add-resource-layout,
+.add-resource-layout .registration-options,
+.add-resource-layout .registration-host,
+.add-resource-layout .type-registration,
+.add-resource-layout .form-panel {
+    min-width: 0;
+}
+
+.add-resource-layout .form-panel {
+    width: 100%;
+    max-width: 100%;
+}
+
+@media (max-width: 980px) {
+    .add-resource-layout {
+        grid-template-columns: 1fr;
+    }
+}
