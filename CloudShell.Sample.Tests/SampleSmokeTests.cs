@@ -333,12 +333,13 @@ public sealed class SampleSmokeTests
         AssertResourceTabsInOrder(
             sqlDetailsHtml,
             ">Overview<",
-            ">Runtime<",
+            ">Configuration<",
+            ">Endpoints<",
+            ">DNS<",
             ">Deployment<",
             ">Replicas<",
-            ">Configuration<",
             ">Storage<",
-            ">Management<",
+            ">Environment<",
             ">Activity<");
     }
 

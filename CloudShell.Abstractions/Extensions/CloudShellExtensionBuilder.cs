@@ -286,6 +286,8 @@ internal sealed class CloudShellExtensionBuilder(
                 $"Resource type '{resourceTypeId}' must be added before adding resource tabs.");
         }
 
+        ValidateStandardViewReplacement(id);
+
         var resourceType = _resourceTypes[typeIndex];
         var tabs = resourceType.ResourceTabs
             .Append(new ResourceTabContribution(
@@ -323,6 +325,8 @@ internal sealed class CloudShellExtensionBuilder(
                 $"Resource type '{resourceTypeId}' must be added before adding standard view sections.");
         }
 
+        ValidateStandardViewSectionHost(viewId);
+
         var resourceType = _resourceTypes[typeIndex];
         var sections = resourceType.ResourceStandardViewSections
             .Append(new ResourceStandardViewSectionContribution(
@@ -337,6 +341,35 @@ internal sealed class CloudShellExtensionBuilder(
 
         _resourceTypes[typeIndex] = resourceType with { StandardViewSections = sections };
         return this;
+    }
+
+    private static void ValidateStandardViewReplacement(string id)
+    {
+        if (!ResourceStandardViews.TryGet(id, out var definition))
+        {
+            return;
+        }
+
+        if (!definition.SupportsReplacement)
+        {
+            throw new InvalidOperationException(
+                $"Standard resource view '{definition.Id}' cannot be replaced by a provider-owned tab.");
+        }
+    }
+
+    private static void ValidateStandardViewSectionHost(string viewId)
+    {
+        if (!ResourceStandardViews.TryGet(viewId, out var definition))
+        {
+            throw new InvalidOperationException(
+                $"Standard resource view sections can only target known standard views. '{viewId}' is not registered.");
+        }
+
+        if (!definition.SupportsSections)
+        {
+            throw new InvalidOperationException(
+                $"Standard resource view '{definition.Id}' does not accept provider-owned sections.");
+        }
     }
 
     private static string? NormalizeGroupTitle(string? groupTitle) =>

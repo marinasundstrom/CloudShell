@@ -192,10 +192,34 @@ Control Plane internals unless the UI and provider intentionally ship as one
 in-process capability package.
 
 Standard view sections are currently appended to generated standardized views.
+The current standard-view contract is explicit and enforced by the extension
+builder:
+
+| Standard view | Provider may replace tab by reusing the view ID | Provider may add sections |
+| --- | --- | --- |
+| `overview` | Yes | No |
+| `configuration` | Yes | No |
+| `endpoints` | Yes | Yes |
+| `dns` | Yes | Yes |
+| `identity` | Yes | No |
+| `volumes` | Yes | No |
+| `activity` | Yes | No |
+| `environment` | Yes | No |
+| `storage` | Yes | No |
+
+This means:
+
+- A provider can replace a standard view by contributing a normal resource tab
+  with the same standard view ID when replacement is allowed.
+- A provider can contribute a standard view section only for a view that
+  explicitly supports sections.
+- Unknown or non-extensible standard-view section targets are rejected during
+  extension registration instead of being accepted silently.
+
 The first implemented standard section hosts are Endpoints and DNS. Future
-slices should extend this to other common views and add capability-driven
-section visibility when a section applies to more than one concrete resource
-type.
+slices can extend the contract to other common views, but that should be a
+deliberate platform decision rather than an implicit side effect of the
+current shell implementation.
 
 ## Resource Actions and UI Actions
 

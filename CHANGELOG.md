@@ -121,6 +121,11 @@ on `git blame --follow`, and then by the broad type of change.
   standardized resource views such as Endpoints and DNS without replacing the
   whole tab. Standard view IDs are exposed through `ResourceStandardViewIds`
   so providers and shell components use the same tab/view vocabulary.
+- Standard resource views now have an explicit extension contract in
+  `ResourceStandardViews`. The extension builder validates whether a built-in
+  view can be replaced by a provider-owned tab and whether it accepts
+  provider-owned sections, rejecting unknown or non-extensible standard-view
+  targets during extension registration.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

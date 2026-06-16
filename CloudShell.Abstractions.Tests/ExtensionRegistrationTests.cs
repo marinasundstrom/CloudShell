@@ -123,6 +123,57 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void AddResourceStandardViewSection_RecordsSectionsForResourceType()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<StandardViewSectionsExtension>();
+
+        var registry = GetRegistry(services);
+        var resourceType = Assert.Single(
+            Assert.Single(registry.Extensions).ResourceTypes);
+        var sections = resourceType.ResourceStandardViewSections;
+
+        Assert.Collection(
+            sections,
+            section =>
+            {
+                Assert.Equal(ResourceStandardViewIds.Endpoints, section.ViewId);
+                Assert.Equal("sample.endpoint-policy", section.Id);
+                Assert.Equal("Endpoint policy", section.Title);
+                Assert.Equal(typeof(SampleOverviewPage), section.ComponentType);
+            });
+    }
+
+    [Fact]
+    public void AddResourceStandardViewSection_RejectsUnknownStandardView()
+    {
+        var services = new ServiceCollection();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            services
+                .AddCloudShell()
+                .AddExtension<UnknownStandardViewSectionsExtension>());
+
+        Assert.Contains("missing-standard-view", exception.Message);
+    }
+
+    [Fact]
+    public void AddResourceStandardViewSection_RejectsViewsThatDoNotSupportSections()
+    {
+        var services = new ServiceCollection();
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            services
+                .AddCloudShell()
+                .AddExtension<NonExtensibleStandardViewSectionsExtension>());
+
+        Assert.Contains(ResourceStandardViewIds.Overview, exception.Message);
+    }
+
+    [Fact]
     public void AddCustomView_RecordsMenuItemsAndStartRoute()
     {
         var services = new ServiceCollection();
@@ -729,6 +780,90 @@ public sealed class ExtensionRegistrationTests
                     "sample.tabs",
                     "overview",
                     "Overview",
+                    10);
+        }
+    }
+
+    private sealed class StandardViewSectionsExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.standard-view-sections",
+            "Sample standard view sections",
+            "Contributes sections to generated standard views.",
+            "1.0.0",
+            ["sample.standard-view-sections"],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .AddResourceType<SampleRegistrationPage>(
+                    "sample.standard-view-sections",
+                    "Sample standard view sections",
+                    "A resource with standard view sections.",
+                    "sample",
+                    10)
+                .AddResourceStandardViewSection<SampleOverviewPage>(
+                    "sample.standard-view-sections",
+                    ResourceStandardViewIds.Endpoints,
+                    "sample.endpoint-policy",
+                    "Endpoint policy",
+                    10);
+        }
+    }
+
+    private sealed class UnknownStandardViewSectionsExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.unknown-standard-view-sections",
+            "Unknown standard view sections",
+            "Contributes sections to an unknown standard view.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .AddResourceType<SampleRegistrationPage>(
+                    "sample.unknown-standard-view-sections",
+                    "Sample unknown standard view sections",
+                    "A resource with invalid standard view sections.",
+                    "sample",
+                    10)
+                .AddResourceStandardViewSection<SampleOverviewPage>(
+                    "sample.unknown-standard-view-sections",
+                    "missing-standard-view",
+                    "sample.endpoint-policy",
+                    "Endpoint policy",
+                    10);
+        }
+    }
+
+    private sealed class NonExtensibleStandardViewSectionsExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.non-extensible-standard-view-sections",
+            "Non-extensible standard view sections",
+            "Contributes sections to a non-extensible standard view.",
+            "1.0.0",
+            [],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .AddResourceType<SampleRegistrationPage>(
+                    "sample.non-extensible-standard-view-sections",
+                    "Sample non-extensible standard view sections",
+                    "A resource with invalid standard view sections.",
+                    "sample",
+                    10)
+                .AddResourceStandardViewSection<SampleOverviewPage>(
+                    "sample.non-extensible-standard-view-sections",
+                    ResourceStandardViewIds.Overview,
+                    "sample.summary",
+                    "Summary",
                     10);
         }
     }
