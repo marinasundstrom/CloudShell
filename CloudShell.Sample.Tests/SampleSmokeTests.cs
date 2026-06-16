@@ -115,15 +115,51 @@ public sealed class SampleSmokeTests
         Assert.Contains(resources, resource =>
             resource.GetProperty("id").GetString() == "application:project-reference-frontend");
 
+        const string traceId = "4bf92f3577b34da6a3ce929d0e0e4736";
+        await host.SendJsonAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/traces/ingest",
+            $$"""
+            {
+              "spans": [
+                {
+                  "traceId": "{{traceId}}",
+                  "spanId": "00f067aa0ba902b7",
+                  "parentSpanId": null,
+                  "name": "GET /upstream",
+                  "resourceId": "application:project-reference-frontend",
+                  "serviceName": "project-reference-frontend",
+                  "kind": "Server",
+                  "status": "Unset",
+                  "startTime": "2026-06-16T00:00:00Z",
+                  "duration": "00:00:00.1250000",
+                  "attributes": {
+                    "http.route": "/upstream"
+                  }
+                }
+              ]
+            }
+            """);
+
+        var traceHtml = await host.GetStringAsync(
+            $"/observability/traces?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
+        Assert.Contains("Trace chart", traceHtml);
+        Assert.Contains("Related logs", traceHtml);
+        Assert.Contains("Related activity", traceHtml);
+        Assert.Contains("Open resource", traceHtml);
+        Assert.Contains("/logs?resourceId=application%3Aproject-reference-frontend&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736", traceHtml);
+        Assert.Contains("/resources/application%3Aproject-reference-frontend/details?tab=activity&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736", traceHtml);
+        Assert.Contains("/resources/application%3Aproject-reference-frontend/details", traceHtml);
+
         var relatedLogsHtml = await host.GetStringAsync(
-            "/logs?resourceId=application%3Aproject-reference-frontend&traceId=4bf92f3577b34da6a3ce929d0e0e4736");
+            $"/logs?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
         Assert.Contains("Project Reference Frontend", relatedLogsHtml);
         Assert.Contains("Console logs", relatedLogsHtml);
         Assert.Contains("Showing entries correlated with trace", relatedLogsHtml);
         Assert.Contains("Clear trace filter", relatedLogsHtml);
 
         var relatedActivityHtml = await host.GetStringAsync(
-            "/resources/application%3Aproject-reference-frontend/details?tab=activity&traceId=4bf92f3577b34da6a3ce929d0e0e4736");
+            $"/resources/application%3Aproject-reference-frontend/details?tab=activity&traceId={traceId}");
         Assert.Contains("Activity", relatedActivityHtml);
         Assert.Contains("Showing activity correlated with trace", relatedActivityHtml);
         Assert.Contains("Clear", relatedActivityHtml);

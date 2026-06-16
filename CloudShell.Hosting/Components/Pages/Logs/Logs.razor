@@ -229,7 +229,7 @@
                                     @if (!string.IsNullOrWhiteSpace(selectedStructuredEntry.TraceId))
                                     {
                                         <FluentButton Appearance="Appearance.Neutral"
-                                                      OnClick="() => OpenTrace(selected.ResourceId, selectedStructuredEntry.TraceId)">
+                                                      Href="@BuildTraceRoute(selected.ResourceId, selectedStructuredEntry.TraceId)">
                                             @L["Open trace"]
                                         </FluentButton>
                                     }
@@ -887,9 +887,6 @@
             "/observability/traces",
             query);
     }
-
-    private void OpenTrace(string? resourceId, string traceId) =>
-        Navigation.NavigateTo(BuildTraceRoute(resourceId, traceId));
 
     private static string FormatTraceId(string traceId) =>
         traceId.Length <= 12
