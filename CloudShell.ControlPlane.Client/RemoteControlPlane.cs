@@ -668,6 +668,7 @@ public sealed class RemoteControlPlane : IControlPlane
 file sealed record ResourceResponse(
     string Id,
     string Name,
+    string? DisplayName,
     string Kind,
     string TypeId,
     ResourceClass ResourceClass,
@@ -944,7 +945,8 @@ file static class RemoteControlPlaneMapper
             ManagementMode: response.ManagementMode,
             Visibility: response.Visibility,
             OwnerResourceId: response.OwnerResourceId,
-            CleanupBehavior: response.CleanupBehavior);
+            CleanupBehavior: response.CleanupBehavior,
+            DisplayName: response.DisplayName);
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
         new(

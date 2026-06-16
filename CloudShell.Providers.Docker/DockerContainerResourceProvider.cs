@@ -1082,7 +1082,7 @@ public sealed partial class DockerContainerResourceProvider :
 
         return new Resource(
             definition.Id,
-            definition.Name,
+            GetResourceName(definition.Id),
             "Docker Container",
             "Docker",
             "local",
@@ -1101,7 +1101,8 @@ public sealed partial class DockerContainerResourceProvider :
             Attributes: CreateContainerAttributes(
                 container?.Image ?? definition.Image,
                 definition.Registry,
-                endpoints.Count));
+                endpoints.Count),
+            DisplayName: definition.Name);
     }
 
     private static IReadOnlyDictionary<string, string> CreateContainerAttributes(
@@ -1337,6 +1338,11 @@ public sealed partial class DockerContainerResourceProvider :
     private static string GetContainerLookupName(string resourceId) =>
         resourceId.StartsWith(ContainerResourceIdPrefix, StringComparison.OrdinalIgnoreCase)
             ? resourceId[ContainerResourceIdPrefix.Length..]
+            : resourceId;
+
+    private static string GetResourceName(string resourceId) =>
+        ResourceId.TryParse(resourceId, out var id) && !string.IsNullOrWhiteSpace(id.Name)
+            ? id.Name
             : resourceId;
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>

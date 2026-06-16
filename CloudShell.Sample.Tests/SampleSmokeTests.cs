@@ -516,7 +516,8 @@ public sealed class SampleSmokeTests
         var identity = api.GetProperty("identity");
 
         Assert.Equal(ResourceIdentityProvisioningResources.ResourceType, provisioning.GetProperty("typeId").GetString());
-        Assert.Equal("Keycloak Identity Provisioning", provisioning.GetProperty("name").GetString());
+        Assert.Equal("keycloak", provisioning.GetProperty("name").GetString());
+        Assert.Equal("Keycloak Identity Provisioning", provisioning.GetProperty("displayName").GetString());
         Assert.Equal(JsonValueKind.Null, provisioning.GetProperty("state").ValueKind);
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("identity:keycloak", identity.GetProperty("providerId").GetString());

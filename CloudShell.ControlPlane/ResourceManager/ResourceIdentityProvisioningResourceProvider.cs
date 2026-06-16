@@ -28,7 +28,7 @@ public sealed class ResourceIdentityProvisioningResourceProvider(
 
         return new Resource(
             declaration.ResourceId,
-            GetDisplayName(declaration),
+            GetResourceName(declaration.ResourceId),
             "Identity Provisioning",
             DisplayName,
             "local",
@@ -41,8 +41,14 @@ public sealed class ResourceIdentityProvisioningResourceProvider(
             TypeId: ResourceIdentityProvisioningResources.ResourceType,
             ResourceClass: ResourceClass.Infrastructure,
             Attributes: attributes,
-            Source: ResourceSource.User);
+            Source: ResourceSource.User,
+            DisplayName: GetDisplayName(declaration));
     }
+
+    private static string GetResourceName(string resourceId) =>
+        ResourceId.TryParse(resourceId, out var id) && !string.IsNullOrWhiteSpace(id.Name)
+            ? id.Name
+            : resourceId;
 
     private static string GetDisplayName(ResourceDeclaration declaration)
     {

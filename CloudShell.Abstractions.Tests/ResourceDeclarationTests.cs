@@ -4376,7 +4376,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("group:network", registrations.GetRegistration("dns:local")?.ResourceGroupId);
         Assert.Equal("group:network", registrations.GetRegistration("dns:local:name:api-local")?.ResourceGroupId);
         Assert.Equal(["application:web"], registrations.GetRegistration("dns:local")?.DependsOn);
-        Assert.Equal("Web local", mapping.Name);
+        Assert.Equal("api-local", mapping.Name);
+        Assert.Equal("Web local", mapping.DisplayName);
         Assert.Equal("web.local", mapping.ResourceAttributes[ResourceAttributeNames.NameMappingHostName]);
         Assert.Equal("application:web", mapping.ResourceAttributes[ResourceAttributeNames.NameMappingTargetResourceId]);
         Assert.Equal("https", mapping.ResourceAttributes[ResourceAttributeNames.NameMappingTargetEndpointName]);

@@ -28,6 +28,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Trace detail actions now use explicit navigation handlers for related logs,
   related activity, and resource details, so Fluent UI buttons navigate
   reliably from the trace span details panel.
+- Projected resources now carry explicit `DisplayName` separately from the
+  scoped `Name`, and the Control Plane API/client maps that field so Resource
+  Manager labels can stay friendly while details, logs, and automation keep
+  canonical resource names.
+  Decision: [ADR-20260615-004](ADR.md#adr-20260615-004).
 
 ### 2026-06-15
 

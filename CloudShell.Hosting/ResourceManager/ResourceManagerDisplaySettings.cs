@@ -110,18 +110,20 @@ internal sealed record ResourceManagerDisplaySelection(
     }
 
     public string GetResourceLabel(Resource resource) =>
-        EnableDisplayNames ? resource.Name : resource.Id;
+        EnableDisplayNames ? resource.EffectiveDisplayName : resource.Id;
 
     public string GetResourceSortLabel(Resource resource) =>
-        EnableDisplayNames ? resource.Name : resource.Id;
+        EnableDisplayNames ? resource.EffectiveDisplayName : resource.Id;
 
     public string GetResourceName(Resource resource) =>
-        ResourceId.TryParse(resource.Id, out var resourceId)
-            ? resourceId.Name
-            : resource.Id;
+        string.IsNullOrWhiteSpace(resource.Name)
+            ? ResourceId.TryParse(resource.Id, out var resourceId)
+                ? resourceId.Name
+                : resource.Id
+            : resource.Name;
 
     public bool ShouldShowDisplayName(Resource resource) =>
         EnableDisplayNames &&
-        !string.Equals(resource.Name, resource.Id, StringComparison.Ordinal) &&
-        !string.Equals(resource.Name, GetResourceName(resource), StringComparison.Ordinal);
+        !string.IsNullOrWhiteSpace(resource.DisplayName) &&
+        !string.Equals(resource.DisplayName, GetResourceName(resource), StringComparison.Ordinal);
 }

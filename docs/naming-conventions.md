@@ -8,11 +8,8 @@ Resource.Name        // scoped unique resource name, such as "api" or "orders--a
 Resource.DisplayName // optional presentation label, such as "Orders API"
 ```
 
-The current runtime model still has transitional surfaces where `Resource.Name`
-is used as the display label. New authoring, UI, and documentation should use
-the cloud-platform distinction above. A future model cleanup should make
-`DisplayName` explicit on projected resources and keep `Name` as the
-addressable scoped name.
+Resource Manager can show `DisplayName` as the primary label when display
+names are enabled, but `Name` remains the scoped addressable name.
 
 ## Resource ID
 

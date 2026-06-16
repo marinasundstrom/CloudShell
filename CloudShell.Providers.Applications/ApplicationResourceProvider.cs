@@ -2525,7 +2525,7 @@ public sealed partial class ApplicationResourceProvider(
         var endpoints = CreateEndpoints(application);
         return new Resource(
             application.Id,
-            application.Name,
+            GetResourceName(application.Id),
             GetResourceKind(application),
             DisplayName,
             "local",
@@ -2546,7 +2546,8 @@ public sealed partial class ApplicationResourceProvider(
             Observability: GetEffectiveObservability(application),
             ResourceClass: GetResourceClass(application),
             Attributes: CreateAttributes(application, state),
-            Capabilities: CreateCapabilities(application, endpoints));
+            Capabilities: CreateCapabilities(application, endpoints),
+            DisplayName: application.Name);
     }
 
     private IReadOnlyList<Resource> CreateRuntimeContainerResources(ApplicationResourceDefinition application)
@@ -4796,6 +4797,11 @@ public sealed partial class ApplicationResourceProvider(
 
     private static string EscapeWindowsCommandArgument(string value) =>
         value.Replace("\"", "\\\"", StringComparison.Ordinal);
+
+    private static string GetResourceName(string resourceId) =>
+        ResourceId.TryParse(resourceId, out var id) && !string.IsNullOrWhiteSpace(id.Name)
+            ? id.Name
+            : resourceId;
 
     private static string GetLogId(string applicationId) => $"{applicationId}:logs";
 

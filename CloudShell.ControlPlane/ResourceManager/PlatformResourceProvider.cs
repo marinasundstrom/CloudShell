@@ -436,8 +436,12 @@ public sealed class PlatformResourceProvider(
                 cancellationToken);
         }
 
+        var hostName = context.Resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NameMappingHostName, out var value) &&
+            !string.IsNullOrWhiteSpace(value)
+                ? value.Trim()
+                : context.Resource.EffectiveDisplayName;
         return ResourceProcedureResult.Completed(
-            $"Name mapping '{context.Resource.Name}' removed from DNS zone '{updated.Name}'.");
+            $"Name mapping '{hostName}' removed from DNS zone '{updated.Name}'.");
     }
 
     private static void EnsureVolumeIsNotInUse(ResourceProcedureContext context)
@@ -920,7 +924,7 @@ public sealed class PlatformResourceProvider(
 
         return new(
             definition.Id,
-            definition.Name,
+            GetResourceName(definition.Id),
             "Network",
             "CloudShell",
             "logical",
@@ -936,7 +940,8 @@ public sealed class PlatformResourceProvider(
             ResourceClass: ResourceClass.Network,
             Attributes: attributes,
             Capabilities: CreateNetworkCapabilities(definition),
-            EndpointMappings: definition.NetworkEndpointMappings);
+            EndpointMappings: definition.NetworkEndpointMappings,
+            DisplayName: definition.Name);
     }
 
     private async Task<ResourceProcedureResult> ReconcileEndpointMappingsAsync(
@@ -1717,7 +1722,7 @@ public sealed class PlatformResourceProvider(
     private Resource CreateServiceResource(ServiceResourceDefinition definition) =>
         new(
             definition.Id,
-            definition.Name,
+            GetResourceName(definition.Id),
             "Service",
             "CloudShell",
             "logical",
@@ -1738,7 +1743,8 @@ public sealed class PlatformResourceProvider(
                 [ResourceAttributeNames.EndpointCount] =
                     definition.Ports.Count.ToString(CultureInfo.InvariantCulture)
             },
-            Capabilities: [new(ResourceCapabilityIds.EndpointSource)]);
+            Capabilities: [new(ResourceCapabilityIds.EndpointSource)],
+            DisplayName: definition.Name);
 
     private Resource CreateStorageResource(StorageResourceDefinition definition)
     {
@@ -1746,7 +1752,7 @@ public sealed class PlatformResourceProvider(
             string.Equals(volume.StorageResourceId, definition.Id, StringComparison.OrdinalIgnoreCase));
         return new(
             definition.Id,
-            definition.Name,
+            GetResourceName(definition.Id),
             definition.Provider,
             definition.Provider,
             "local",
@@ -1780,7 +1786,8 @@ public sealed class PlatformResourceProvider(
                     {
                         [ResourceAttributeNames.StorageMedium] = definition.Medium
                     })
-            ]);
+            ],
+            DisplayName: definition.Name);
     }
 
     private Resource CreateVolumeResource(VolumeResourceDefinition definition)
@@ -1818,7 +1825,7 @@ public sealed class PlatformResourceProvider(
 
         return new(
             definition.Id,
-            definition.Name,
+            GetResourceName(definition.Id),
             "Volume",
             "CloudShell",
             "logical",
@@ -1835,7 +1842,8 @@ public sealed class PlatformResourceProvider(
             Visibility: string.IsNullOrWhiteSpace(definition.StorageResourceId)
                 ? ResourceVisibility.Normal
                 : ResourceVisibility.Hidden,
-            OwnerResourceId: NormalizeNullable(definition.StorageResourceId));
+            OwnerResourceId: NormalizeNullable(definition.StorageResourceId),
+            DisplayName: definition.Name);
     }
 
     private Resource CreateDnsZoneResource(DnsZoneResourceDefinition definition)
@@ -1859,7 +1867,7 @@ public sealed class PlatformResourceProvider(
 
         return new(
             definition.Id,
-            definition.Name,
+            GetResourceName(definition.Id),
             "DNS Zone",
             "CloudShell",
             "logical",
@@ -1874,7 +1882,8 @@ public sealed class PlatformResourceProvider(
                 : null,
             ResourceClass: ResourceClass.Network,
             Attributes: attributes,
-            Capabilities: [new(ResourceCapabilityIds.NetworkingDnsZone)]);
+            Capabilities: [new(ResourceCapabilityIds.NetworkingDnsZone)],
+            DisplayName: definition.Name);
     }
 
     private IReadOnlyList<Resource> CreateNameMappingResources(DnsZoneResourceDefinition zone) =>
@@ -1934,7 +1943,7 @@ public sealed class PlatformResourceProvider(
 
         return new(
             mapping.Id,
-            mapping.Name,
+            GetResourceName(mapping.Id),
             "Name Mapping",
             "CloudShell",
             "logical",
@@ -1947,7 +1956,8 @@ public sealed class PlatformResourceProvider(
             TypeId: NameMappingResourceType,
             ResourceClass: ResourceClass.Network,
             Attributes: attributes,
-            Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
+            Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)],
+            DisplayName: mapping.Name);
     }
 
     private static HashSet<string> GetConflictingNameMappingIds(DnsZoneResourceDefinition zone) =>
@@ -2056,7 +2066,7 @@ public sealed class PlatformResourceProvider(
             : null;
         return new(
             definition.Id,
-            definition.Name,
+            GetResourceName(definition.Id),
             "Load Balancer",
             "CloudShell",
             "logical",
@@ -2087,7 +2097,8 @@ public sealed class PlatformResourceProvider(
                     endpoints.Count.ToString(CultureInfo.InvariantCulture)
             },
             Capabilities: CreateLoadBalancerCapabilities(definition),
-            LoadBalancerRoutes: definition.LoadBalancerRoutes);
+            LoadBalancerRoutes: definition.LoadBalancerRoutes,
+            DisplayName: definition.Name);
     }
 
     private IReadOnlyList<ResourceAction> CreateLoadBalancerActions(
@@ -2777,6 +2788,11 @@ public sealed class PlatformResourceProvider(
 
         return ResourceId.FromName(prefix, name).Value;
     }
+
+    private static string GetResourceName(string resourceId) =>
+        ResourceId.TryParse(resourceId, out var id) && !string.IsNullOrWhiteSpace(id.Name)
+            ? id.Name
+            : resourceId;
 
     private static string? NormalizeGroupId(string? resourceGroupId) =>
         string.IsNullOrWhiteSpace(resourceGroupId) ? null : resourceGroupId.Trim();

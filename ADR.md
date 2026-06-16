@@ -30,13 +30,13 @@ Optional labels are applied with `WithDisplayName(...)`. Resource Manager
 create flows should ask for Name first, then an optional display name when
 display names are enabled.
 
-The current projected `Resource` model still has transitional surfaces where
-`Resource.Name` is used as the user-facing label. A future model cleanup should
-make display name explicit on projected resources while keeping `Name` as the
-scoped addressable name. Resource Manager should keep the resource ID visible
-in detail and overview surfaces, provide a display-name preference, and later
-add display-name editing without changing the stable resource ID, name, type,
-provider identity, dependencies, permissions, or other stable references.
+The projected `Resource` model carries explicit `Name` and `DisplayName`
+values, and Resource Manager should use `DisplayName` only as a presentation
+label when display names are enabled. Resource Manager should keep the resource
+ID visible in detail and overview surfaces, provide a display-name preference,
+and later add display-name editing without changing the stable resource ID,
+name, type, provider identity, dependencies, permissions, or other stable
+references.
 
 CloudShell does not require one global naming scheme, but teams may use
 structured resource names, configuration keys, and secret names when that helps

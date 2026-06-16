@@ -33,7 +33,7 @@ public sealed class ResourceTemplateService(
             if (registration is null)
             {
                 diagnostics.Add(ResourceTemplateDiagnostic.Warning(
-                    resource.Name,
+                    resource.EffectiveDisplayName,
                     "Resource registration is unavailable."));
                 continue;
             }
@@ -44,7 +44,7 @@ public sealed class ResourceTemplateService(
                 !templateProvider.CanExport(resource))
             {
                 diagnostics.Add(ResourceTemplateDiagnostic.Warning(
-                    resource.Name,
+                    resource.EffectiveDisplayName,
                     "Provider does not support template export for this resource."));
                 continue;
             }

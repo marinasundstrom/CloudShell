@@ -31,7 +31,7 @@ public readonly record struct ResourceId
                 return null;
             }
 
-            var separator = Value.IndexOf(':', StringComparison.Ordinal);
+            var separator = Value.LastIndexOf(':');
             return separator <= 0 ? null : Value[..separator];
         }
     }
@@ -45,7 +45,7 @@ public readonly record struct ResourceId
                 return Value ?? string.Empty;
             }
 
-            var separator = Value.IndexOf(':', StringComparison.Ordinal);
+            var separator = Value.LastIndexOf(':');
             return separator >= Value.Length - 1 ? string.Empty : Value[(separator + 1)..];
         }
     }

@@ -27,7 +27,8 @@ public sealed record Resource(
     ResourceManagementMode ManagementMode = ResourceManagementMode.UserManaged,
     ResourceVisibility Visibility = ResourceVisibility.Normal,
     string? OwnerResourceId = null,
-    ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None)
+    ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None,
+    string? DisplayName = null)
 {
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -73,6 +74,9 @@ public sealed record Resource(
     public bool IsRuntimeManaged =>
         ManagementMode == ResourceManagementMode.RuntimeManaged ||
         ManagementMode == ResourceManagementMode.OrchestratorManaged;
+
+    public string EffectiveDisplayName =>
+        string.IsNullOrWhiteSpace(DisplayName) ? Name : DisplayName;
 
     public bool HasCapability(string capabilityId) =>
         ResourceCapabilities.Any(capability =>

@@ -9,6 +9,7 @@ namespace CloudShell.ControlPlane.Api;
 public sealed record ResourceResponse(
     string Id,
     string Name,
+    string? DisplayName,
     string Kind,
     string TypeId,
     ResourceClass ResourceClass,
@@ -261,6 +262,7 @@ internal static class CloudShellControlPlaneDtoMapper
         new(
             resource.Id,
             resource.Name,
+            resource.DisplayName,
             resource.Kind,
             resource.EffectiveTypeId,
             resource.ResourceClass,

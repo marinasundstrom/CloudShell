@@ -97,11 +97,8 @@ In code, a resource is projected as `Resource`.
 Important properties:
 
 - `Id`: immutable platform identity or derived resource path.
-- `Name`: scoped unique resource name. Current projections still use this
-  property as the display label in some surfaces until `DisplayName` is
-  modeled explicitly.
-- `DisplayName`: optional presentation label. This is an intended model
-  concept and is currently represented by provider/UI display-name metadata.
+- `Name`: scoped unique resource name.
+- `DisplayName`: optional presentation label.
 - `TypeId` / `EffectiveTypeId`: stable resource type.
 - `ResourceClass`: broad resource classification such as executable, project,
   container, service, network, storage, configuration, or infrastructure.
@@ -139,11 +136,6 @@ Manager and other presentation surfaces. Display-name editing is a future
 Resource Manager capability; it should update only the presentation label and
 must not change the resource ID, resource name, type, provider identity,
 dependencies, permissions, or other stable references.
-
-The current `Resource` projection predates the explicit `DisplayName` field,
-so some providers still project the presentation label through `Name`. New
-authoring surfaces and documentation should keep the conceptual distinction
-clear while the runtime model migrates.
 
 Not every resource exposes lifecycle status. Runtime resources such as
 applications, container hosts, containers, configuration services, secrets

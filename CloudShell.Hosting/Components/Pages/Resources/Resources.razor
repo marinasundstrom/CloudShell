@@ -417,7 +417,7 @@
                     @if (DisplaySelection.ShouldShowDisplayName(selected))
                     {
                         <dt>@L["Display name"]</dt>
-                        <dd>@selected.Name</dd>
+                        <dd>@selected.DisplayName</dd>
                     }
                     <dt>@L["Type"]</dt>
                     <dd>@selected.EffectiveTypeId</dd>
@@ -871,6 +871,7 @@
 
     private bool MatchesNameFilter(Resource resource) =>
         string.IsNullOrWhiteSpace(NameFilter) ||
+        resource.EffectiveDisplayName.Contains(NameFilter, StringComparison.OrdinalIgnoreCase) ||
         resource.Name.Contains(NameFilter, StringComparison.OrdinalIgnoreCase) ||
         resource.Id.Contains(NameFilter, StringComparison.OrdinalIgnoreCase);
 

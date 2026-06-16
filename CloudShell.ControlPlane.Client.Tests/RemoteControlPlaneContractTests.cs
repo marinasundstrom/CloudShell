@@ -33,7 +33,8 @@ public sealed class RemoteControlPlaneContractTests
 
         var network = Assert.Single(resources);
         Assert.Equal("network:contract", network.Id);
-        Assert.Equal("Contract Network", network.Name);
+        Assert.Equal("contract", network.Name);
+        Assert.Equal("Contract Network", network.DisplayName);
         Assert.Equal(PlatformResourceProvider.NetworkResourceType, network.EffectiveTypeId);
         Assert.Equal(ResourceClass.Network, network.ResourceClass);
         Assert.Equal("Default", network.ResourceAttributes[ResourceAttributeNames.NetworkKind]);
@@ -104,7 +105,8 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Single(networkResources);
 
         Assert.Equal("service:contract", service.Id);
-        Assert.Equal("Contract Service", service.Name);
+        Assert.Equal("contract", service.Name);
+        Assert.Equal("Contract Service", service.DisplayName);
         Assert.Equal(["network:contract"], service.DependsOn);
         Assert.Equal("http://localhost:5080", service.PrimaryEndpoint);
         Assert.Equal(ResourceExposureScope.Local, Assert.Single(service.Endpoints).Exposure);

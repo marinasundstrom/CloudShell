@@ -294,7 +294,8 @@ public sealed class ResourceManagerStoreProjectionTests
         var resource = Assert.Single(store.GetResources());
 
         Assert.Equal("identity-provisioning:keycloak", resource.Id);
-        Assert.Equal("Keycloak Identity Provisioning", resource.Name);
+        Assert.Equal("keycloak", resource.Name);
+        Assert.Equal("Keycloak Identity Provisioning", resource.DisplayName);
         Assert.Equal(ResourceIdentityProvisioningResources.ResourceType, resource.EffectiveTypeId);
         Assert.Equal(ResourceClass.Infrastructure, resource.ResourceClass);
         Assert.Null(resource.State);
