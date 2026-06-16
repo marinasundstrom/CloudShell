@@ -1,0 +1,15 @@
+.shell-navigation-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 1.5rem;
+    line-height: 0;
+    color: currentColor;
+}
+
+.shell-navigation-icon ::deep fluent-icon,
+.shell-navigation-icon ::deep svg {
+    display: block;
+    transform: translateY(.08rem);
+}

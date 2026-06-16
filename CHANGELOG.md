@@ -33,8 +33,8 @@ on `git blame --follow`, and then by the broad type of change.
   documentation for component behavior.
 - Trace span detail headers now align the service color indicator with the
   selected span title.
-- Shell navigation now renders Fluent UI icons for built-in views instead of
-  initial-letter badges.
+- Shell navigation now renders aligned Fluent UI icons for built-in views
+  instead of initial-letter badges.
 - Log and trace source filters now use native select controls in the
   observability views, avoiding Fluent UI popup state during source changes and
   periodic trace refreshes.
