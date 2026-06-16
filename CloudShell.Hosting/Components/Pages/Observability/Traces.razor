@@ -30,7 +30,8 @@
         <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllResources">
             @L["All trace resources"]
         </FluentButton>
-        <FluentButton Appearance="Appearance.Neutral" OnClick="RefreshSpansAsync">
+        <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                      OnClick="RefreshSpansAsync">
             @L["Refresh"]
         </FluentButton>
     </div>
@@ -58,9 +59,7 @@
                 <div class="log-viewer-actions">
                     <label class="trace-source-filter" for="trace-source-filter">
                         <span>@L["Trace source"]</span>
-                        <select id="trace-source-filter"
-                                class="trace-source-select"
-                                value="@selected.Id"
+                        <select id="trace-source-filter" class="trace-source-select" value="@selected.Id"
                                 @onchange="SelectResource">
                             @foreach (var resource in resources)
                             {
@@ -68,8 +67,7 @@
                             }
                         </select>
                     </label>
-                    <FluentAnchor Appearance="Appearance.Neutral"
-                                  Href="@BuildResourceRoute(selected.Id)">
+                    <FluentAnchor Appearance="Appearance.Neutral" Href="@BuildResourceRoute(selected.Id)">
                         @L["Open resource"]
                     </FluentAnchor>
                 </div>
@@ -175,8 +173,7 @@
                                         @foreach (var row in trace.Rows)
                                         {
                                             var isSelected = selectedSpan?.SpanId == row.Span.SpanId;
-                                            <button class="trace-span-row @(isSelected ? "selected" : null)"
-                                                    role="treeitem"
+                                            <button class="trace-span-row @(isSelected ? "selected" : null)" role="treeitem"
                                                     @onclick="() => SelectSpan(row.Span)">
                                                 <span class="trace-span-label" style="@GetTraceRowIndentStyle(row.Depth)">
                                                     <strong>@row.Span.Name</strong>
@@ -187,8 +184,7 @@
                                                     <span>@row.Span.ServiceName</span>
                                                 </span>
                                                 <span class="trace-span-track">
-                                                    <span class="trace-span-bar"
-                                                          style="@GetTraceSpanBarStyle(row)"></span>
+                                                    <span class="trace-span-bar" style="@GetTraceSpanBarStyle(row)"></span>
                                                 </span>
                                                 <span class="trace-span-duration">@FormatDuration(row.Span.Duration)</span>
                                             </button>
@@ -208,7 +204,8 @@
                                 else
                                 {
                                     <div class="trace-detail-header">
-                                        <span class="trace-service-color" style="@GetServiceColorStyle(GetServiceColor(selectedSpan.ServiceName))"></span>
+                                        <span class="trace-service-color"
+                                              style="@GetServiceColorStyle(GetServiceColor(selectedSpan.ServiceName))"></span>
                                         <div>
                                             <h3>@selectedSpan.Name</h3>
                                             <p>@selectedSpan.ServiceName</p>
@@ -260,7 +257,8 @@
                                         else
                                         {
                                             <dl class="log-entry-metadata">
-                                                @foreach (var spanAttribute in selectedSpan.SpanAttributes.OrderBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase))
+                                                @foreach (var spanAttribute in selectedSpan.SpanAttributes.OrderBy(attribute =>
+                            attribute.Key, StringComparer.OrdinalIgnoreCase))
                                                 {
                                                     <dt>@spanAttribute.Key</dt>
                                                     <dd>@spanAttribute.Value</dd>
@@ -281,8 +279,7 @@
                         <div class="recent-trace-list" aria-label="@L["Recent traces"]">
                             @foreach (var trace in traceSummaries)
                             {
-                                <a class="recent-trace-item"
-                                   href="@BuildTraceRoute(selected.Id, trace.TraceId)">
+                                <a class="recent-trace-item" href="@BuildTraceRoute(selected.Id, trace.TraceId)">
                                     <span>
                                         <strong>@trace.EntryOperation</strong>
                                         <small>@FormatTraceId(trace.TraceId) / @trace.Services</small>
@@ -639,7 +636,8 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             .ToArray();
 
     private TraceSpan? GetSelectedSpan(TraceViewModel trace) =>
-        trace.Rows.FirstOrDefault(row => string.Equals(row.Span.SpanId, SelectedSpanId, StringComparison.OrdinalIgnoreCase))?.Span
+        trace.Rows.FirstOrDefault(row => string.Equals(row.Span.SpanId, SelectedSpanId,
+StringComparison.OrdinalIgnoreCase))?.Span
         ?? trace.Rows.FirstOrDefault()?.Span;
 
     private static bool IsErrorSpan(TraceSpan span) =>

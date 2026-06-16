@@ -10,9 +10,8 @@
                 <h3>@L["Activity"]</h3>
                 <span>@GetEventCountLabel()</span>
             </div>
-            <FluentButton Appearance="Appearance.Neutral"
-                          Disabled="@IsLoading"
-                          OnClick="Refresh">
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          Disabled="@IsLoading" OnClick="Refresh">
                 @(IsLoading ? L["Refreshing"] : L["Refresh"])
             </FluentButton>
         </div>
@@ -20,21 +19,17 @@
         <div class="resource-activity-filters">
             <div>
                 <label for="resource-activity-event-type">@L["Event type"]</label>
-                <FluentTextField Id="resource-activity-event-type"
-                                 @bind-Value="EventTypeFilter"
+                <FluentTextField Id="resource-activity-event-type" @bind-Value="EventTypeFilter"
                                  Placeholder="@L["Exact event type"]" />
             </div>
             <div>
                 <label for="resource-activity-triggered-by">@L["Triggered by"]</label>
-                <FluentTextField Id="resource-activity-triggered-by"
-                                 @bind-Value="TriggeredByFilter"
+                <FluentTextField Id="resource-activity-triggered-by" @bind-Value="TriggeredByFilter"
                                  Placeholder="@L["Exact actor"]" />
             </div>
             <div>
                 <label for="resource-activity-time-range">@L["Time range"]</label>
-                <FluentSelect TOption="string"
-                              Id="resource-activity-time-range"
-                              @bind-Value="SelectedTimeRange"
+                <FluentSelect TOption="string" Id="resource-activity-time-range" @bind-Value="SelectedTimeRange"
                               Appearance="Appearance.Neutral">
                     <FluentOption TOption="string" Value="@TimeRangeAll">@L["All"]</FluentOption>
                     <FluentOption TOption="string" Value="@TimeRangeOneHour">@L["Last hour"]</FluentOption>
@@ -43,16 +38,12 @@
                 </FluentSelect>
             </div>
             <div class="resource-activity-filter-actions">
-                <FluentButton Appearance="Appearance.Neutral"
-                              Disabled="@IsLoading"
-                              OnClick="ApplyFilters">
+                <FluentButton Appearance="Appearance.Neutral" Disabled="@IsLoading" OnClick="ApplyFilters">
                     @L["Apply"]
                 </FluentButton>
                 @if (HasActiveFilters)
                 {
-                    <FluentButton Appearance="Appearance.Neutral"
-                                  Disabled="@IsLoading"
-                                  OnClick="ClearFilters">
+                    <FluentButton Appearance="Appearance.Neutral" Disabled="@IsLoading" OnClick="ClearFilters">
                         @L["Clear"]
                     </FluentButton>
                 }
@@ -65,9 +56,7 @@
 
         @if (Events.Count == 0)
         {
-            <EmptyState Title="@L["No activity"].Value"
-                        Message="@GetEmptyStateMessage()"
-                        Compact="true" />
+            <EmptyState Title="@L["No activity"].Value" Message="@GetEmptyStateMessage()" Compact="true" />
         }
         else
         {
@@ -101,7 +90,8 @@
                                 @FormatTimestamp(resourceEvent.Timestamp)
                             </time>
                             <div class="resource-activity-badges">
-                                <span class="resource-activity-group @ResourceEventDisplayNames.GetGroupClass(resourceEvent.EventType)">
+                                <span
+                                    class="resource-activity-group @ResourceEventDisplayNames.GetGroupClass(resourceEvent.EventType)">
                                     @ResourceEventDisplayNames.GetGroupName(resourceEvent.EventType, L)
                                 </span>
                                 <span class="resource-activity-level @GetLevelClass(resourceEvent.Level)">
