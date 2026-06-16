@@ -81,6 +81,7 @@
 }
 
 .shell-content {
+    container-type: inline-size;
     padding: 1.1rem;
 }
 

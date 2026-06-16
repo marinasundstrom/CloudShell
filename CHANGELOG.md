@@ -45,8 +45,9 @@ on `git blame --follow`, and then by the broad type of change.
   persistence, shell chrome, and command-surface UI are easier to evolve
   independently.
 - The Add Resource page now constrains its registration panes and stacks them
-  earlier on narrower viewports, avoiding horizontal clipping when a resource
-  registration form and type selector compete for width.
+  based on the actual shell content width, avoiding horizontal clipping when a
+  resource registration form and type selector compete for space in a narrow
+  shell viewport.
 - Log and trace source filters now use native select controls in the
   observability views, avoiding Fluent UI popup state during source changes and
   periodic trace refreshes.
