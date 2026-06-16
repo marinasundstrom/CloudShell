@@ -44,7 +44,8 @@
 .shell.nav-collapsed ::deep .brand-mark,
 .shell.nav-collapsed ::deep .sidebar-footer-text,
 .shell.nav-collapsed ::deep .nav-group-title,
-.shell.nav-collapsed ::deep .nav-label {
+.shell.nav-collapsed ::deep .nav-label,
+.shell.nav-collapsed ::deep .fluent-nav-text {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -56,9 +57,19 @@
     border: 0;
 }
 
-.shell.nav-collapsed ::deep .nav-link {
+.shell.nav-collapsed ::deep .fluent-nav-link {
     justify-content: center;
     padding-inline: .45rem;
+}
+
+.shell.nav-collapsed ::deep .fluent-nav-link .positioning-region {
+    justify-content: center;
+    padding-inline: .45rem;
+}
+
+.shell.nav-collapsed ::deep .fluent-nav-link .content-region {
+    justify-content: center;
+    margin-inline-start: 0;
 }
 
 .shell.nav-collapsed ::deep .nav-shell {

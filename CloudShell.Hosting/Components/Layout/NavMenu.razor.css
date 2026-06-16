@@ -101,27 +101,84 @@
     text-transform: uppercase;
 }
 
-::deep .nav-link {
+::deep .fluent-nav-menu {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0;
+}
+
+::deep .fluent-nav-item.expander,
+::deep .expand-collapse-button {
+    display: none;
+}
+
+::deep .fluent-nav-item {
+    width: 100%;
+    margin: 0;
+}
+
+::deep .fluent-nav-link {
+    width: 100%;
+    min-height: 2.25rem;
+    color: var(--cloudshell-text);
+    font-size: .9rem;
+    text-decoration: none;
+}
+
+::deep .fluent-nav-link .positioning-region {
     display: flex;
     align-items: center;
-    gap: .6rem;
+    width: 100%;
     min-height: 2.25rem;
     padding: .5rem .55rem;
     border-radius: 4px;
     color: var(--cloudshell-text);
-    font-size: .9rem;
+    gap: .6rem;
 }
 
-::deep .nav-link:hover {
+::deep .fluent-nav-link .content-region {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    margin-inline-start: 0;
+    white-space: nowrap;
+}
+
+::deep .fluent-nav-link .fluent-nav-text {
+    min-width: 0;
+    width: auto;
+    margin-inline-start: .6rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+::deep .fluent-nav-link .positioning-region:hover {
     background: var(--cloudshell-hover);
     color: var(--cloudshell-text);
     text-decoration: none;
 }
 
-::deep .nav-link.active {
+::deep .fluent-nav-link.active .positioning-region {
     background: var(--cloudshell-selected);
     color: var(--cloudshell-accent-foreground);
     box-shadow: inset 3px 0 0 var(--cloudshell-accent);
+}
+
+::deep .fluent-nav-link.active .positioning-region::before {
+    display: none;
+}
+
+::deep .fluent-nav-icon:not(fluent-menu-item) {
+    min-width: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+::deep .fluent-nav-icon fluent-icon,
+::deep .fluent-nav-icon svg {
+    display: block;
+    transform: translateY(.08rem);
 }
 
 .sidebar-footer {

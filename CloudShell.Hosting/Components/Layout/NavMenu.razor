@@ -8,13 +8,16 @@
         <div class="brand-name">@GetApplicationName()</div>
         <div class="brand-subtitle">@L["Platform control plane"]</div>
     </div>
-    <button type="button" class="nav-toggle @CollapsedClass" title="@L["Toggle navigation"]"
+    <button type="button" id="navmenu-toggle" class="nav-toggle @CollapsedClass" title="@L["Toggle navigation"]"
             aria-label="@L["Toggle navigation"]" aria-expanded="@AriaExpanded" @onclick="ToggleNavigation">
         <span class="nav-toggle-icon" aria-hidden="true"></span>
     </button>
 </div>
 
 <nav class="nav-shell" aria-label="@L["Primary"]">
+    <FluentNavMenu Class="cloudshell-nav-menu"
+                   Title="@L["Primary"]"
+                   Margin="0">
     @foreach (var group in ShellCatalog.NavigationItems.GroupBy(item => item.Group))
     {
         <section class="nav-group">
@@ -22,13 +25,19 @@
 
             @foreach (var item in group)
             {
-                <NavLink class="nav-link" href="@item.Href" Match="@GetMatch(item.Href)">
-                    <ShellNavigationIcon Icon="@item.Icon" />
+                <FluentNavLink Class="cloudshell-nav-link"
+                               Href="@item.Href"
+                               Match="@GetMatch(item.Href)"
+                               Icon="@ShellNavigationIcons.FromName(item.Icon)"
+                               IconColor="Color.Neutral"
+                               Tooltip="@L[item.Text]"
+                               ActiveClass="active">
                     <span class="nav-label">@L[item.Text]</span>
-                </NavLink>
+                </FluentNavLink>
             }
         </section>
     }
+    </FluentNavMenu>
 </nav>
 
 <div class="sidebar-footer">
