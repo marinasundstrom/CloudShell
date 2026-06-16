@@ -79,6 +79,9 @@ on `git blame --follow`, and then by the broad type of change.
 - In-process resource action procedures now emit Resource Manager change
   notifications when lifecycle actions start and when they complete, including
   dependency auto-start actions.
+- Resource Manager pages now use action-start/action-complete notifications to
+  show lifecycle transition indicators for dependency auto-starts and other
+  externally triggered in-process resource actions.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

@@ -634,7 +634,7 @@
     private Resource? SelectedResource { get; set; }
     private string? DeleteConfirmationResourceId { get; set; }
     private string? ProcedureMessage { get; set; }
-    private string? ExecutingActionKey { get; set; }
+    private HashSet<string> ExecutingActionKeys { get; } = new(StringComparer.OrdinalIgnoreCase);
     private PendingResourceAction? PendingAction { get; set; }
     private bool IsCheckingHealth { get; set; }
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
@@ -1121,6 +1121,7 @@ resourceGroups) =>
             return;
         }
 
+        TrackResourceActionNotification(notification);
         _ = InvokeAsync(RefreshResourcesAsync);
     }
 
@@ -1370,7 +1371,7 @@ resourceGroups) =>
             return;
         }
 
-        ExecutingActionKey = GetActionKey(resource, action);
+        ExecutingActionKeys.Add(GetActionKey(resource, action));
         ProcedureMessage = null;
         try
         {
@@ -1387,7 +1388,7 @@ resourceGroups) =>
         }
         finally
         {
-            ExecutingActionKey = null;
+            ExecutingActionKeys.Remove(GetActionKey(resource, action));
         }
     }
 
@@ -1715,7 +1716,7 @@ resourceGroups) =>
     }
 
     private bool IsExecutingAction(Resource resource, ResourceAction action) =>
-        string.Equals(ExecutingActionKey, GetActionKey(resource, action), StringComparison.Ordinal);
+        ExecutingActionKeys.Contains(GetActionKey(resource, action));
 
     private string GetLifecycleStatusLabel(Resource resource) =>
         GetLifecycleProgressLabel(resource) ?? resource.State?.ToString() ?? ResourceState.Unknown.ToString();
@@ -1779,7 +1780,29 @@ resourceGroups) =>
         };
 
     private static string GetActionKey(Resource resource, ResourceAction action) =>
-        $"{resource.Id}:{action.Id}";
+        GetActionKey(resource.Id, action.Id);
+
+    private static string GetActionKey(string resourceId, string actionId) =>
+        $"{resourceId}:{actionId}";
+
+    private void TrackResourceActionNotification(ResourceChangeNotification notification)
+    {
+        if (string.IsNullOrWhiteSpace(notification.ResourceId) ||
+            string.IsNullOrWhiteSpace(notification.ActionId))
+        {
+            return;
+        }
+
+        var key = GetActionKey(notification.ResourceId, notification.ActionId);
+        if (notification.Kind == ResourceChangeKind.ResourceActionStarted)
+        {
+            ExecutingActionKeys.Add(key);
+        }
+        else if (notification.Kind == ResourceChangeKind.ResourceActionExecuted)
+        {
+            ExecutingActionKeys.Remove(key);
+        }
+    }
 
     private RenderFragment ResourceActionControls(
         Resource resource,

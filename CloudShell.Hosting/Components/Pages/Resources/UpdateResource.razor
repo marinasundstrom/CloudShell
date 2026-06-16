@@ -476,6 +476,7 @@
             return;
         }
 
+        TrackResourceActionNotification(notification);
         _ = InvokeAsync(async () =>
         {
             await ReloadResourceAsync();
@@ -521,6 +522,23 @@
         string.Equals(notification.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase) ||
         notification.Resources.Any(affectedResourceId =>
             string.Equals(affectedResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
+
+    private void TrackResourceActionNotification(ResourceChangeNotification notification)
+    {
+        if (string.IsNullOrWhiteSpace(notification.ActionId))
+        {
+            return;
+        }
+
+        if (notification.Kind == ResourceChangeKind.ResourceActionStarted)
+        {
+            ExecutingActionIds.Add(notification.ActionId);
+        }
+        else if (notification.Kind == ResourceChangeKind.ResourceActionExecuted)
+        {
+            ExecutingActionIds.Remove(notification.ActionId);
+        }
+    }
 
     private string GetContentKey(Resource resource, ResourceTabContribution selectedTab) =>
         $"{resource.Id}:{selectedTab.Id}:{ResourceContentVersion}";
