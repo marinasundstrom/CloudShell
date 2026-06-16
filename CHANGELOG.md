@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Resource Manager primary actions now use Fluent button icon slots for
+  create, add-volume, import/export, and apply commands where the icon
+  clarifies the command behavior.
 - Resource Manager identity views now show scoped resource Name between
   Resource ID and optional display name, so users can distinguish the canonical
   platform identity from the authored resource name.

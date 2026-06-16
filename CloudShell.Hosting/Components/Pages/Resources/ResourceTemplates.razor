@@ -68,6 +68,7 @@
         }
 
         <FormPrimaryAction Text="@L["Export JSON"].Value"
+                           IconStart="@(new Icons.Regular.Size20.DocumentSave())"
                            Disabled="@(selectedGroup is null || IsBusy)"
                            OnClick="ExportSelectedGroup" />
 
@@ -108,6 +109,7 @@
                 @L["Clear"]
             </FluentButton>
             <FluentButton Appearance="Appearance.Accent"
+                          IconStart="@(new Icons.Regular.Size20.ArrowUpload())"
                           Disabled="@(!canImport || string.IsNullOrWhiteSpace(ImportJson) || IsBusy)"
                           OnClick="ImportTemplate">
                 @L["Import group"]

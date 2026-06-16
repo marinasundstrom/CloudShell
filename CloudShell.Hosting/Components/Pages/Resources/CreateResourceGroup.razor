@@ -35,7 +35,10 @@ else
             <FluentButton Appearance="Appearance.Neutral" OnClick="Cancel">
                 @L["Cancel"]
             </FluentButton>
-            <FluentButton Appearance="Appearance.Accent" Disabled="@string.IsNullOrWhiteSpace(Name)" OnClick="CreateGroup">
+            <FluentButton Appearance="Appearance.Accent"
+                          IconStart="@(new Icons.Regular.Size20.FolderAdd())"
+                          Disabled="@string.IsNullOrWhiteSpace(Name)"
+                          OnClick="CreateGroup">
                 @L["Create"]
             </FluentButton>
         </div>

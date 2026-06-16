@@ -54,11 +54,14 @@ For focused areas, read the relevant documentation:
 
 CloudShell uses Fluent UI Blazor. When working on Blazor UI, check the
 [Fluent UI Blazor documentation](https://fluentui-blazor.azurewebsites.net/)
-for component-specific behavior.
+for component-specific behavior. Prefer Fluent UI components, layout
+primitives, and design tokens before adding custom shell markup or styling.
 
 Use `FluentAnchor` for navigational links that need `Href`; use
 `FluentButton` for button actions such as submit, command execution, and
-`OnClick` handlers.
+`OnClick` handlers. Use Fluent icons where they clarify behavior, artifact
+type, or navigation target, especially on primary commands and links to
+resource-owned artifacts.
 
 ## Architecture Rules
 

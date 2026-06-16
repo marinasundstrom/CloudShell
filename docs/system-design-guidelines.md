@@ -87,9 +87,13 @@ providers, or generated HTTP clients.
 
 CloudShell uses Fluent UI Blazor for shell components. Check the
 [Fluent UI Blazor documentation](https://fluentui-blazor.azurewebsites.net/)
-when choosing component behavior. Use `FluentAnchor` for navigational links
-that need `Href`; use `FluentButton` for button actions such as submit,
-command execution, and `OnClick` handlers.
+when choosing component behavior. Prefer Fluent UI components, layout
+primitives, and design tokens before adding custom shell markup or styling.
+Use `FluentAnchor` for navigational links that need `Href`; use
+`FluentButton` for button actions such as submit, command execution, and
+`OnClick` handlers. Use Fluent icons where they clarify behavior, artifact
+type, or navigation target, especially on primary commands and links to
+resource-owned artifacts.
 
 Internal Control Plane services can use lower-level provider and store
 interfaces such as `IResourceManagerStore`, `IResourceRegistrationStore`, and

@@ -20,7 +20,9 @@ else
                                         Permission="@CloudShellPermissions.Resources.Manage"
                                         GlobalPermission="@CloudShellPermissions.Resources.Create"
                                         RequireWritableResourceManager="true">
-                <FluentButton Appearance="Appearance.Accent" OnClick="CreateVolume">
+                <FluentButton Appearance="Appearance.Accent"
+                              IconStart="@(new Icons.Regular.Size20.AddCircle())"
+                              OnClick="CreateVolume">
                     Add volume
                 </FluentButton>
             </ResourcePermissionBoundary>

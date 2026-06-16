@@ -58,7 +58,9 @@
         }
         @if (!IsReadOnly && Authorization.HasPermission(CloudShellPermissions.Resources.Create))
         {
-            <FluentButton Appearance="Appearance.Accent" OnClick="AddResource">
+            <FluentButton Appearance="Appearance.Accent"
+                          IconStart="@(new Icons.Regular.Size20.AddCircle())"
+                          OnClick="AddResource">
                 @L["Add resource"]
             </FluentButton>
         }
