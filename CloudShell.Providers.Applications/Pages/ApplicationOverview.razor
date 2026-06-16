@@ -1,6 +1,7 @@
 @using System.Text.Json
 @using Microsoft.JSInterop
 @inject ApplicationResourceProvider ApplicationProvider
+@inject ILogManager LogManager
 @inject IResourceManagerStore ResourceManager
 @inject IResourceManager ResourceManagerClient
 @inject IResourceRegistrationStore Registrations
@@ -280,6 +281,45 @@ else
     }
 
     <section class="blade-section">
+        <h3>Diagnostics</h3>
+        <div class="generated-list">
+            <div>
+                <strong>
+                    <a class="resource-link" href="@BuildActivityRoute(Application.Id)">
+                        Activity
+                    </a>
+                </strong>
+                <span>Lifecycle and provider events for this application.</span>
+                <small>Resource activity</small>
+            </div>
+            @if (Logs.Count > 0)
+            {
+                <div>
+                    <strong>
+                        <a class="resource-link" href="@BuildLogsRoute(Application.Id, Logs)">
+                            Logs
+                        </a>
+                    </strong>
+                    <span>@GetLogsSummary(Logs)</span>
+                    <small>@GetLogSourcesSummary(Logs)</small>
+                </div>
+            }
+            @if (HasTraceObservability(Application))
+            {
+                <div>
+                    <strong>
+                        <a class="resource-link" href="@BuildTraceRoute(Application.Id)">
+                            Traces
+                        </a>
+                    </strong>
+                    <span>Distributed traces attributed to this application.</span>
+                    <small>Observability signal enabled</small>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="blade-section">
         <h3>App settings</h3>
         @if (Application.AppSettings.Count == 0)
         {
@@ -362,6 +402,7 @@ else
     private IReadOnlyList<NameMappingView> InboundNameMappings { get; set; } = [];
     private IReadOnlyList<VolumeMountView> VolumeMounts { get; set; } = [];
     private IReadOnlyList<ServiceDiscoveryReferenceView> ServiceDiscoveryReferences { get; set; } = [];
+    private IReadOnlyList<LogDescriptor> Logs { get; set; } = [];
     private ContainerHostPlacementView? ContainerHostPlacement { get; set; }
 
     protected override async Task OnParametersSetAsync()
@@ -393,6 +434,9 @@ else
         ServiceDiscoveryReferences = Application is null
             ? []
             : GetServiceDiscoveryReferences(Application);
+        Logs = Application is null
+            ? []
+            : await GetLogsAsync(Application.Id);
         ContainerHostPlacement = Application is null || !IsContainerBacked(Application)
             ? null
             : GetContainerHostPlacement(Application);
@@ -910,16 +954,7 @@ else
 
     private static string BuildResourceAddRoute(Dictionary<string, string?> query)
     {
-        var queryString = string.Join(
-            "&",
-            query
-                .Where(parameter => !string.IsNullOrWhiteSpace(parameter.Value))
-                .Select(parameter =>
-                    $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(parameter.Value!)}"));
-
-        return string.IsNullOrWhiteSpace(queryString)
-            ? "/resources/add"
-            : $"/resources/add?{queryString}";
+        return BuildRoute("/resources/add", query);
     }
 
     private static string? GetEndpointAddress(ApplicationResourceDefinition application)
@@ -940,6 +975,76 @@ else
         return port?.Port is null
             ? null
             : $"{port.Protocol}://localhost:{port.Port.Value}";
+    }
+
+    private async Task<IReadOnlyList<LogDescriptor>> GetLogsAsync(string resourceId)
+    {
+        var logs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resourceId));
+
+        return logs
+            .OrderBy(log => log.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(log => log.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static bool HasTraceObservability(ApplicationResourceDefinition application) =>
+        (application.Observability ?? ResourceObservability.Default).Traces;
+
+    private static string GetLogsSummary(IReadOnlyList<LogDescriptor> logs) =>
+        logs.Count == 1
+            ? "1 log source is available for this application."
+            : $"{logs.Count} log sources are available for this application.";
+
+    private static string GetLogSourcesSummary(IReadOnlyList<LogDescriptor> logs)
+    {
+        var sourceKinds = logs
+            .Select(log => log.SourceKind.ToString())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return sourceKinds.Length == 0
+            ? "No source kind metadata"
+            : $"Sources: {string.Join(", ", sourceKinds)}";
+    }
+
+    private static string BuildLogsRoute(string resourceId, IReadOnlyList<LogDescriptor> logs)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["resourceId"] = resourceId
+        };
+
+        if (logs.Count == 1)
+        {
+            query["logId"] = logs[0].Id;
+        }
+
+        return BuildRoute("/logs", query);
+    }
+
+    private static string BuildTraceRoute(string resourceId) =>
+        BuildRoute(
+            "/observability/traces",
+            new Dictionary<string, string?> { ["resourceId"] = resourceId });
+
+    private static string BuildActivityRoute(string resourceId) =>
+        BuildRoute(
+            $"/resources/{Uri.EscapeDataString(resourceId)}/details",
+            new Dictionary<string, string?> { ["tab"] = "activity" });
+
+    private static string BuildRoute(string path, Dictionary<string, string?> query)
+    {
+        var queryString = string.Join(
+            "&",
+            query
+                .Where(parameter => !string.IsNullOrWhiteSpace(parameter.Value))
+                .Select(parameter =>
+                    $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(parameter.Value!)}"));
+
+        return string.IsNullOrWhiteSpace(queryString)
+            ? path
+            : $"{path}?{queryString}";
     }
 
     private RenderFragment DependencyLink(string resourceId) => builder =>

@@ -88,6 +88,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Application resource overviews now render dependencies as navigable resource
   links with resolved names and resource types instead of comma-separated raw
   identifiers.
+- Application resource overviews now include app-scoped diagnostics links for
+  activity, logs, and traces when those resource signals are available.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or
