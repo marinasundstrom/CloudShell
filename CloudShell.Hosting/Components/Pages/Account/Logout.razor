@@ -20,7 +20,9 @@
     <FluentButton Appearance="Appearance.Accent" Type="ButtonType.Submit">
         @L["Sign out"]
     </FluentButton>
-    <FluentButton Appearance="Appearance.Neutral" Href="/">
+    <FluentButton Appearance="Appearance.Neutral"
+                  Type="ButtonType.Button"
+                  OnClick="Cancel">
         @L["Cancel"]
     </FluentButton>
 </EditForm>
@@ -33,6 +35,8 @@
     {
         Input ??= new LogoutInput();
     }
+
+    private void Cancel() => Navigation.NavigateTo("/");
 
     private async Task SignOut()
     {

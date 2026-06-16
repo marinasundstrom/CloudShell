@@ -226,10 +226,10 @@
                                 <div class="structured-log-detail-actions">
                                     @if (!string.IsNullOrWhiteSpace(selectedStructuredEntry.TraceId))
                                     {
-                                        <FluentButton Appearance="Appearance.Neutral"
+                                        <FluentAnchor Appearance="Appearance.Neutral"
                                                       Href="@BuildTraceRoute(selected.ResourceId, selectedStructuredEntry.TraceId)">
                                             @L["Open trace"]
-                                        </FluentButton>
+                                        </FluentAnchor>
                                     }
                                 </div>
 

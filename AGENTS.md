@@ -50,6 +50,16 @@ For focused areas, read the relevant documentation:
 - `CloudShell.*.Tests` — abstraction, Control Plane, client/API, and sample
   test projects.
 
+## UI Component Guidance
+
+CloudShell uses Fluent UI Blazor. When working on Blazor UI, check the
+[Fluent UI Blazor documentation](https://fluentui-blazor.azurewebsites.net/)
+for component-specific behavior.
+
+Use `FluentAnchor` for navigational links that need `Href`; use
+`FluentButton` for button actions such as submit, command execution, and
+`OnClick` handlers.
+
 ## Architecture Rules
 
 ### Ownership Boundaries

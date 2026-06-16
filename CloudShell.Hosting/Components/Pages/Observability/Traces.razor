@@ -68,10 +68,10 @@
                             }
                         </select>
                     </label>
-                    <FluentButton Appearance="Appearance.Neutral"
+                    <FluentAnchor Appearance="Appearance.Neutral"
                                   Href="@BuildResourceRoute(selected.Id)">
                         @L["Open resource"]
-                    </FluentButton>
+                    </FluentAnchor>
                 </div>
             </div>
 
@@ -237,18 +237,18 @@
                                     </dl>
 
                                     <div class="trace-related-actions">
-                                        <FluentButton Appearance="Appearance.Neutral"
+                                        <FluentAnchor Appearance="Appearance.Neutral"
                                                       Href="@BuildLogsRoute(selectedSpan.ResourceId, selectedSpan.TraceId)">
                                             @L["Related logs"]
-                                        </FluentButton>
-                                        <FluentButton Appearance="Appearance.Neutral"
+                                        </FluentAnchor>
+                                        <FluentAnchor Appearance="Appearance.Neutral"
                                                       Href="@BuildActivityRoute(selectedSpan.ResourceId, selectedSpan.TraceId)">
                                             @L["Related activity"]
-                                        </FluentButton>
-                                        <FluentButton Appearance="Appearance.Neutral"
+                                        </FluentAnchor>
+                                        <FluentAnchor Appearance="Appearance.Neutral"
                                                       Href="@BuildResourceRoute(selectedSpan.ResourceId)">
                                             @L["Open resource"]
-                                        </FluentButton>
+                                        </FluentAnchor>
                                     </div>
 
                                     <div class="trace-attributes">

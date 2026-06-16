@@ -85,6 +85,12 @@ to in-process services. In split hosts they map to remote clients. UI and
 extension code should not depend directly on internal Control Plane stores,
 providers, or generated HTTP clients.
 
+CloudShell uses Fluent UI Blazor for shell components. Check the
+[Fluent UI Blazor documentation](https://fluentui-blazor.azurewebsites.net/)
+when choosing component behavior. Use `FluentAnchor` for navigational links
+that need `Href`; use `FluentButton` for button actions such as submit,
+command execution, and `OnClick` handlers.
+
 Internal Control Plane services can use lower-level provider and store
 interfaces such as `IResourceManagerStore`, `IResourceRegistrationStore`, and
 `ILogStore`. These are implementation contracts for the service process, not

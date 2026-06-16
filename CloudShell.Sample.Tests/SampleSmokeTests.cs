@@ -148,9 +148,10 @@ public sealed class SampleSmokeTests
         Assert.Contains("Related logs", traceHtml);
         Assert.Contains("Related activity", traceHtml);
         Assert.Contains("Open resource", traceHtml);
-        Assert.Contains("/logs?resourceId=application%3Aproject-reference-frontend&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736", traceHtml);
-        Assert.Contains("/resources/application%3Aproject-reference-frontend/details?tab=activity&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736", traceHtml);
-        Assert.Contains("/resources/application%3Aproject-reference-frontend/details", traceHtml);
+        Assert.Contains("<fluent-anchor", traceHtml);
+        Assert.Contains("href=\"/logs?resourceId=application%3Aproject-reference-frontend&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"", traceHtml);
+        Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend/details?tab=activity&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"", traceHtml);
+        Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend/details\"", traceHtml);
 
         var relatedLogsHtml = await host.GetStringAsync(
             $"/logs?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
