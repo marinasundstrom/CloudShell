@@ -75,7 +75,21 @@ else
             <dt>Lifetime</dt>
             <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
             <dt>Dependencies</dt>
-            <dd>@(EffectiveDependencies.Count == 0 ? "none" : string.Join(", ", EffectiveDependencies))</dd>
+            <dd>
+                @if (EffectiveDependencies.Count == 0)
+                {
+                    <span>none</span>
+                }
+                else
+                {
+                    <div class="dependency-list">
+                        @foreach (var dependency in EffectiveDependencies.Order(StringComparer.OrdinalIgnoreCase))
+                        {
+                            @DependencyLink(dependency)
+                        }
+                    </div>
+                }
+            </dd>
             <dt>Observability</dt>
             <dd>@GetObservabilityLabel(Application.Observability)</dd>
         </dl>
@@ -927,6 +941,23 @@ else
             ? null
             : $"{port.Protocol}://localhost:{port.Port.Value}";
     }
+
+    private RenderFragment DependencyLink(string resourceId) => builder =>
+    {
+        var resource = ResolveMappingResource(resourceId);
+        builder.OpenElement(0, "a");
+        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
+        builder.AddContent(3, resource?.Name ?? resourceId);
+        if (resource is not null)
+        {
+            builder.OpenElement(4, "small");
+            builder.AddContent(5, resource.EffectiveTypeId);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
 
     private static string? GetSqlServerConnectionString(ApplicationResourceDefinition application)
     {

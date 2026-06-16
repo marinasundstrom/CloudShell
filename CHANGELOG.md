@@ -85,6 +85,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager now renders lifecycle transition indicators immediately
   when action-start notifications arrive, before the resource model refresh
   completes.
+- Application resource overviews now render dependencies as navigable resource
+  links with resolved names and resource types instead of comma-separated raw
+  identifiers.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or
