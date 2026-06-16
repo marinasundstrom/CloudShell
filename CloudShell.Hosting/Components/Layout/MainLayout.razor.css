@@ -80,25 +80,6 @@
     justify-content: center;
 }
 
-.shell-topbar {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    min-height: 3.9rem;
-    padding: .7rem 1.2rem;
-    border-bottom: 1px solid var(--cloudshell-stroke);
-    background: color-mix(in srgb, var(--cloudshell-surface) 92%, transparent);
-    backdrop-filter: blur(10px);
-}
-
-.environment-picker strong {
-    display: block;
-}
-
 .shell-content {
     padding: 1.1rem;
 }
@@ -167,12 +148,6 @@
     .shell.nav-collapsed ::deep .nav-shell,
     .shell.nav-collapsed ::deep .sidebar-footer {
         display: none;
-    }
-
-    .shell-topbar {
-        position: relative;
-        align-items: stretch;
-        flex-direction: column;
     }
 
     .shell-main {

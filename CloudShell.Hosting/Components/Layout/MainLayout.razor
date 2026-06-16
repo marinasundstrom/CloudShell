@@ -1,6 +1,4 @@
 ﻿@inherits LayoutComponentBase
-@inject Microsoft.Extensions.Options.IOptionsMonitor<CloudShellDisplayOptions> DisplayOptions
-@inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject ICloudShellUserSettingsProvider Settings
 @inject IJSRuntime JSRuntime
 @inject IStringLocalizer<SharedResource> L
@@ -11,24 +9,7 @@
     </aside>
 
     <main class="shell-main">
-        <header class="shell-topbar">
-            <div class="environment-picker">
-                <span class="eyebrow">@L["Environment"]</span>
-                <strong>@GetEnvironmentName()</strong>
-            </div>
-            <div class="command-surface">
-                <LanguageSelector />
-                <ThemeSelector />
-                <AuthorizeView>
-                    <Authorized Context="authentication">
-                        <span class="signed-in-user">
-                            @(authentication.User.Identity?.Name ?? L["Authenticated user"])
-                        </span>
-                        <a href="/account/logout">@L["Sign out"]</a>
-                    </Authorized>
-                </AuthorizeView>
-            </div>
-        </header>
+        <ShellTopbar />
 
         <article class="shell-content">
             @Body
@@ -64,11 +45,6 @@
         await StoreCollapsedStateAsync(persistBrowser: true);
         StateHasChanged();
     }
-
-    private string GetEnvironmentName() =>
-        string.IsNullOrWhiteSpace(DisplayOptions.CurrentValue.EnvironmentName)
-            ? HostEnvironment.EnvironmentName
-            : DisplayOptions.CurrentValue.EnvironmentName.Trim();
 
     private async Task SetCollapsedStateAsync(bool collapsed)
     {
