@@ -218,8 +218,7 @@
                     <span>
                         @if (ResourceLifecycleDisplay.ShouldShowStatus(resource))
                         {
-                            <ResourceStateIndicator State="resource.State"
-                                                    ProgressLabel="@GetLifecycleProgressLabel(resource)"
+                            <ResourceStateIndicator State="resource.State" ProgressLabel="@GetLifecycleProgressLabel(resource)"
                                                     Variant="pill" />
                         }
                     </span>
@@ -302,17 +301,16 @@
                     <h2>@GetResourceLabel(selected)</h2>
                     <p>@selected.Kind</p>
                 </div>
-                <button type="button" class="blade-dismiss" title="@L["Dismiss details"]" aria-label="@L["Dismiss details"]"
-                        @onclick="DismissResource">
-                    x
-                </button>
+                <FluentButton class="blade-dismiss" IconStart="new Icons.Regular.Size20.Dismiss()"
+                              title="@L["Dismiss details"]" aria-label="@L["Dismiss details"]" OnClick="DismissResource">
+
+                </FluentButton>
             </div>
 
             @if (ResourceLifecycleDisplay.ShouldShowStatus(selected))
             {
                 <div class="blade-status">
-                    <ResourceStateIndicator State="selected.State"
-                                            ProgressLabel="@GetLifecycleProgressLabel(selected)" />
+                    <ResourceStateIndicator State="selected.State" ProgressLabel="@GetLifecycleProgressLabel(selected)" />
                     <strong>@GetLifecycleStatusLabel(selected)</strong>
                     <span>@L["Updated {0}", selected.LastUpdated.ToLocalTime().ToString("HH:mm:ss")]</span>
                 </div>
@@ -440,8 +438,7 @@
                                 </span>
                                 @if (ResourceLifecycleDisplay.ShouldShowStatus(child))
                                 {
-                                    <ResourceStateIndicator State="child.State"
-                                                            ProgressLabel="@GetLifecycleProgressLabel(child)" />
+                                    <ResourceStateIndicator State="child.State" ProgressLabel="@GetLifecycleProgressLabel(child)" />
                                 }
                             </button>
                         }
@@ -483,7 +480,7 @@
                         </dd>
                         <dt>@L["Entrypoints"]</dt>
                         <dd>@GetAttributeValue(selected, ResourceAttributeNames.LoadBalancerEntrypointCount,
-                                                                                                                                    selected.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
+                                                                                                                                                                selected.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
                             <dt>@L["Routes"]</dt>
                             <dd>@FormatLoadBalancerRouteCounts(selected)</dd>
                         </dl>
