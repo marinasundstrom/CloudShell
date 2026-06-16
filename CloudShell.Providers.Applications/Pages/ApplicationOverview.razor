@@ -93,7 +93,7 @@ else
             {
                 <dt>Storage</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, "storage")">
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourceStandardViewIds.Storage)">
                         @FormatCount(VolumeMounts.Count, "mount", "mounts")
                     </a>
                 </dd>
@@ -102,7 +102,7 @@ else
             {
                 <dt>Environment</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, "environment")">
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourceStandardViewIds.Environment)">
                         @FormatEnvironmentSummary()
                     </a>
                 </dd>
@@ -193,14 +193,14 @@ else
                 {
                     <dt>DNS names</dt>
                     <dd>
-                        <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, "dns")">
+                        <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourceStandardViewIds.Dns)">
                             @FormatNameMappingOverview()
                         </a>
                     </dd>
                 }
                 <dt>Endpoint details</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, "endpoints")">
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourceStandardViewIds.Endpoints)">
                         Open Endpoints
                     </a>
                 </dd>
@@ -812,7 +812,7 @@ else
             PermissionGrantEvaluator);
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={ResourceStandardViewIds.Overview}";
 
     private static string BuildResourceTabRoute(string resourceId, string tabId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId)}";
@@ -1034,7 +1034,7 @@ else
     private static string BuildActivityRoute(string resourceId) =>
         BuildRoute(
             $"/resources/{Uri.EscapeDataString(resourceId)}/details",
-            new Dictionary<string, string?> { ["tab"] = "activity" });
+            new Dictionary<string, string?> { ["tab"] = ResourceStandardViewIds.Activity });
 
     private static string BuildRoute(string path, Dictionary<string, string?> query)
     {

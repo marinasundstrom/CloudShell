@@ -105,6 +105,13 @@ public interface ICloudShellExtensionBuilder
         bool showsApplyButton = false,
         string? groupTitle = null);
 
+    ICloudShellExtensionBuilder AddResourceStandardViewSection<TComponent>(
+        string resourceTypeId,
+        string viewId,
+        string id,
+        string title,
+        int order);
+
     ICloudShellExtensionBuilder AddSingleton<TService>()
         where TService : class;
 

@@ -238,12 +238,22 @@
                 </div>
             </section>
         }
+
+        @if (ResourceType is not null)
+        {
+            <ResourceStandardViewSections ResourceType="ResourceType"
+                                          ResourceId="ResourceId"
+                                          ViewId="@ResourceStandardViewIds.Endpoints" />
+        }
     }
 </div>
 
 @code {
     [Parameter, EditorRequired]
     public string ResourceId { get; set; } = string.Empty;
+
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
 
     private Resource? Resource { get; set; }
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
@@ -615,7 +625,7 @@
         $"generated-diagnostic {diagnostic.Severity.ToLowerInvariant()}";
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={ResourceStandardViewIds.Overview}";
 
     private static string BuildResourceTabRoute(string resourceId, string tabId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId)}";
@@ -639,7 +649,7 @@
     {
         if (Resource is not null)
         {
-            Navigation.NavigateTo(BuildResourceTabRoute(Resource.Id, "configuration"));
+            Navigation.NavigateTo(BuildResourceTabRoute(Resource.Id, ResourceStandardViewIds.Configuration));
         }
     }
 

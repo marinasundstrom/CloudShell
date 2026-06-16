@@ -1,0 +1,39 @@
+@using CloudShell.Abstractions.ResourceManager
+
+@if (MatchingSections.Count > 0)
+{
+    @foreach (var section in MatchingSections)
+    {
+        <section class="generated-section">
+            <h3>@section.Title</h3>
+            <DynamicComponent Type="section.ComponentType"
+                              Parameters="@BuildParameters(section)" />
+        </section>
+    }
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ResourceTypeContribution ResourceType { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public string ResourceId { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string ViewId { get; set; } = string.Empty;
+
+    private IReadOnlyList<ResourceStandardViewSectionContribution> MatchingSections =>
+        ResourceType.ResourceStandardViewSections
+            .Where(section => string.Equals(section.ViewId, ViewId, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(section => section.Order)
+            .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private Dictionary<string, object?> BuildParameters(ResourceStandardViewSectionContribution section) =>
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ResourceId"] = ResourceId,
+            ["ViewId"] = ViewId,
+            ["SectionId"] = section.Id
+        };
+}

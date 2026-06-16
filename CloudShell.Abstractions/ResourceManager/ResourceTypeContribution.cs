@@ -9,10 +9,14 @@ public sealed record ResourceTypeContribution(
     Type RegistrationComponentType,
     Type? UpdateComponentType = null,
     IReadOnlyList<ResourceTabContribution>? Tabs = null,
+    IReadOnlyList<ResourceStandardViewSectionContribution>? StandardViewSections = null,
     ResourceTypeProbeOptions? ProbeOptions = null,
     ResourceClass ResourceClass = ResourceClass.Generic)
 {
     public IReadOnlyList<ResourceTabContribution> ResourceTabs => Tabs ?? [];
+
+    public IReadOnlyList<ResourceStandardViewSectionContribution> ResourceStandardViewSections =>
+        StandardViewSections ?? [];
 
     public ResourceTypeProbeOptions ResourceProbeOptions => ProbeOptions ?? ResourceTypeProbeOptions.None;
 

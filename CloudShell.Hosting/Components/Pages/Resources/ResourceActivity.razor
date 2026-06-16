@@ -242,7 +242,7 @@
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
             $"/resources/{Uri.EscapeDataString(resourceId)}/details",
             "tab",
-            "activity");
+            ResourceStandardViewIds.Activity);
 
     private static string FormatTraceId(string traceId) =>
         traceId.Length <= 12

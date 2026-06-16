@@ -1215,7 +1215,7 @@ resourceGroups) =>
     }
 
     private void OpenResourceDetails(Resource resource) =>
-        Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/details?tab=overview");
+        Navigation.NavigateTo($"/resources/{Uri.EscapeDataString(resource.Id)}/details?tab={ResourceStandardViewIds.Overview}");
 
     private void OpenLogs(Resource resource)
     {

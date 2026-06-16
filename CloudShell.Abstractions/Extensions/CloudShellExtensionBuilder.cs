@@ -303,6 +303,42 @@ internal sealed class CloudShellExtensionBuilder(
         return this;
     }
 
+    public ICloudShellExtensionBuilder AddResourceStandardViewSection<TComponent>(
+        string resourceTypeId,
+        string viewId,
+        string id,
+        string title,
+        int order)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceTypeId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(viewId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+
+        var typeIndex = _resourceTypes.FindIndex(type =>
+            string.Equals(type.Id, resourceTypeId, StringComparison.OrdinalIgnoreCase));
+        if (typeIndex < 0)
+        {
+            throw new InvalidOperationException(
+                $"Resource type '{resourceTypeId}' must be added before adding standard view sections.");
+        }
+
+        var resourceType = _resourceTypes[typeIndex];
+        var sections = resourceType.ResourceStandardViewSections
+            .Append(new ResourceStandardViewSectionContribution(
+                viewId.Trim(),
+                id.Trim(),
+                title.Trim(),
+                order,
+                typeof(TComponent)))
+            .OrderBy(section => section.Order)
+            .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        _resourceTypes[typeIndex] = resourceType with { StandardViewSections = sections };
+        return this;
+    }
+
     private static string? NormalizeGroupTitle(string? groupTitle) =>
         string.IsNullOrWhiteSpace(groupTitle) ? null : groupTitle.Trim();
 

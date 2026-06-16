@@ -51,12 +51,22 @@
                 </div>
             </section>
         }
+
+        @if (ResourceType is not null)
+        {
+            <ResourceStandardViewSections ResourceType="ResourceType"
+                                          ResourceId="ResourceId"
+                                          ViewId="@ResourceStandardViewIds.Dns" />
+        }
     }
 </div>
 
 @code {
     [Parameter, EditorRequired]
     public string ResourceId { get; set; } = string.Empty;
+
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
 
     private Resource? Resource { get; set; }
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
@@ -260,7 +270,7 @@
             : fallback;
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={ResourceStandardViewIds.Overview}";
 
     private static string BuildAddNameMappingRoute(Resource resource)
     {

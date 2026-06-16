@@ -201,7 +201,7 @@
                     <CascadingValue Value="ConfigurationContext">
                         <CascadingValue Name="@ResourceManagerCascadingParameterNames.ReadOnly" Value="IsReadOnly">
                             <DynamicComponent Type="selectedTab.ComponentType" @key="GetContentKey(resource, selectedTab)"
-                                              Parameters="@BuildComponentParameters(resource, selectedTab)" />
+                                              Parameters="@BuildComponentParameters(resource, resourceType, selectedTab)" />
                         </CascadingValue>
                     </CascadingValue>
                 }
@@ -210,12 +210,12 @@
     </section>
 
 @code {
-    private const string GeneratedOverviewTabId = "overview";
-    private const string GeneratedEndpointsTabId = "endpoints";
-    private const string GeneratedDnsTabId = "dns";
-    private const string GeneratedIdentityTabId = "identity";
-    private const string GeneratedStorageVolumesTabId = "volumes";
-    private const string GeneratedActivityTabId = "activity";
+    private const string GeneratedOverviewTabId = ResourceStandardViewIds.Overview;
+    private const string GeneratedEndpointsTabId = ResourceStandardViewIds.Endpoints;
+    private const string GeneratedDnsTabId = ResourceStandardViewIds.Dns;
+    private const string GeneratedIdentityTabId = ResourceStandardViewIds.Identity;
+    private const string GeneratedStorageVolumesTabId = ResourceStandardViewIds.Volumes;
+    private const string GeneratedActivityTabId = ResourceStandardViewIds.Activity;
     private const string GeneralTabGroup = "General";
     private const string NetworkingTabGroup = "Networking";
     private const string StorageTabGroup = "Storage";
@@ -548,12 +548,18 @@
 
     private Dictionary<string, object?> BuildComponentParameters(
         Resource resource,
+        ResourceTypeContribution? resourceType,
         ResourceTabContribution selectedTab)
     {
         var parameters = new Dictionary<string, object?>
         {
             ["ResourceId"] = resource.Id
         };
+
+        if (resourceType is not null && IsGeneratedStandardView(selectedTab))
+        {
+            parameters["ResourceType"] = resourceType;
+        }
 
         if (string.Equals(selectedTab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase))
         {
@@ -562,6 +568,10 @@
 
         return parameters;
     }
+
+    private static bool IsGeneratedStandardView(ResourceTabContribution tab) =>
+        tab.ComponentType == typeof(GeneratedResourceEndpoints) ||
+        tab.ComponentType == typeof(GeneratedResourceDns);
 
     private static IReadOnlyList<ResourceTabContribution> BuildTabs(
         Resource? resource,
@@ -641,10 +651,10 @@
 
         if (resourceType?.UpdateComponentType is not null &&
             !contributedTabs.Any(tab =>
-                string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase)))
+                string.Equals(tab.Id, ResourceStandardViewIds.Configuration, StringComparison.OrdinalIgnoreCase)))
         {
             tabs.Add(new ResourceTabContribution(
-                "configuration",
+                ResourceStandardViewIds.Configuration,
                 "Configuration",
                 0,
                 resourceType.UpdateComponentType,
@@ -654,10 +664,10 @@
 
         if (resource?.HasCapability(ResourceCapabilityIds.EnvironmentVariables) == true &&
             !contributedTabs.Any(tab =>
-                string.Equals(tab.Id, "environment", StringComparison.OrdinalIgnoreCase)))
+                string.Equals(tab.Id, ResourceStandardViewIds.Environment, StringComparison.OrdinalIgnoreCase)))
         {
             tabs.Add(new ResourceTabContribution(
-                "environment",
+                ResourceStandardViewIds.Environment,
                 "Environment",
                 80,
                 typeof(ResourceEnvironmentVariables),
@@ -689,7 +699,7 @@
             return int.MaxValue;
         }
 
-        if (string.Equals(tab.Id, "environment", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(tab.Id, ResourceStandardViewIds.Environment, StringComparison.OrdinalIgnoreCase))
         {
             return int.MaxValue - 2;
         }
