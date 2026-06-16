@@ -144,6 +144,7 @@ public sealed class SampleSmokeTests
         var traceHtml = await host.GetStringAsync(
             $"/observability/traces?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
         Assert.Contains("Trace chart", traceHtml);
+        Assert.Contains("id=\"trace-source-filter\"", traceHtml);
         Assert.Contains("Related logs", traceHtml);
         Assert.Contains("Related activity", traceHtml);
         Assert.Contains("Open resource", traceHtml);
@@ -155,6 +156,7 @@ public sealed class SampleSmokeTests
             $"/logs?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
         Assert.Contains("Project Reference Frontend", relatedLogsHtml);
         Assert.Contains("Console logs", relatedLogsHtml);
+        Assert.Contains("id=\"log-source-filter\"", relatedLogsHtml);
         Assert.Contains("Showing entries correlated with trace", relatedLogsHtml);
         Assert.Contains("Clear trace filter", relatedLogsHtml);
 

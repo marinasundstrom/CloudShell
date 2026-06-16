@@ -58,17 +58,15 @@
                 <div class="log-viewer-actions">
                     <label class="trace-source-filter" for="trace-source-filter">
                         <span>@L["Trace source"]</span>
-                        <FluentSelect TOption="string"
-                                      Id="trace-source-filter"
-                                      Class="trace-source-select"
-                                      Value="@selected.Id"
-                                      ValueChanged="SelectResource"
-                                      Appearance="Appearance.Neutral">
+                        <select id="trace-source-filter"
+                                class="trace-source-select"
+                                value="@selected.Id"
+                                @onchange="SelectResource">
                             @foreach (var resource in resources)
                             {
-                                <FluentOption TOption="string" Value="@resource.Id">@resource.Name</FluentOption>
+                                <option value="@resource.Id">@resource.Name</option>
                             }
-                        </FluentSelect>
+                        </select>
                     </label>
                     <FluentButton Appearance="Appearance.Neutral"
                                   Href="@BuildResourceRoute(selected.Id)">
@@ -412,6 +410,9 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             IsRefreshingSpans = false;
         }
     }
+
+    private void SelectResource(ChangeEventArgs args) =>
+        SelectResource(args.Value?.ToString());
 
     private void SelectResource(string? resourceId)
     {

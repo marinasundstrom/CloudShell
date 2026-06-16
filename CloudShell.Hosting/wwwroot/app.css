@@ -1846,6 +1846,12 @@ h3 {
 
 .trace-source-select {
     min-width: 14rem;
+    min-height: 2rem;
+    border: 1px solid var(--cloudshell-input-stroke);
+    border-radius: 4px;
+    background: var(--cloudshell-input);
+    color: var(--cloudshell-text);
+    padding: 0 .6rem;
     text-transform: none;
 }
 

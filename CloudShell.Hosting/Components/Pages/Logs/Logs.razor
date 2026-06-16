@@ -60,17 +60,15 @@
                 <div class="log-viewer-actions">
                     <label class="trace-source-filter" for="log-source-filter">
                         <span>@L["Log source"]</span>
-                        <FluentSelect TOption="string"
-                                      Id="log-source-filter"
-                                      Class="trace-source-select"
-                                      Value="@selected.Id"
-                                      ValueChanged="SelectLog"
-                                      Appearance="Appearance.Neutral">
+                        <select id="log-source-filter"
+                                class="trace-source-select"
+                                value="@selected.Id"
+                                @onchange="SelectLog">
                             @foreach (var log in logs)
                             {
-                                <FluentOption TOption="string" Value="@log.Id">@($"{log.SourceName} / {log.Name}")</FluentOption>
+                                <option value="@log.Id">@($"{log.SourceName} / {log.Name}")</option>
                             }
-                        </FluentSelect>
+                        </select>
                     </label>
                     <FluentCheckbox Class="log-wrap-toggle" @bind-Value="WrapLogMessages">
                         @L["Wrap"]
@@ -467,6 +465,9 @@
 
         return logs.FirstOrDefault();
     }
+
+    private void SelectLog(ChangeEventArgs args) =>
+        SelectLog(args.Value?.ToString());
 
     private void SelectLog(string? logId)
     {
