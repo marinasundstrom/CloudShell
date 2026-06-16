@@ -751,11 +751,22 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         await controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand("target", ResourceActionIds.Stop));
 
-        var notification = Assert.Single(notifications);
-        Assert.Equal(ResourceChangeKind.ResourceActionExecuted, notification.Kind);
-        Assert.Equal("target", notification.ResourceId);
-        Assert.Equal(ResourceActionIds.Stop, notification.ActionId);
-        Assert.Contains("target", notification.Resources);
+        Assert.Collection(
+            notifications,
+            notification =>
+            {
+                Assert.Equal(ResourceChangeKind.ResourceActionStarted, notification.Kind);
+                Assert.Equal("target", notification.ResourceId);
+                Assert.Equal(ResourceActionIds.Stop, notification.ActionId);
+                Assert.Contains("target", notification.Resources);
+            },
+            notification =>
+            {
+                Assert.Equal(ResourceChangeKind.ResourceActionExecuted, notification.Kind);
+                Assert.Equal("target", notification.ResourceId);
+                Assert.Equal(ResourceActionIds.Stop, notification.ActionId);
+                Assert.Contains("target", notification.Resources);
+            });
     }
 
     [Fact]
@@ -804,6 +815,8 @@ public sealed class InProcessControlPlaneResourceStateTests
             ],
             provider,
             resourceEvents: resourceEvents);
+        var notifications = new List<ResourceChangeNotification>();
+        controlPlane.ResourcesChanged += (_, notification) => notifications.Add(notification);
 
         await controlPlane.ExecuteResourceActionAsync(
             new ExecuteResourceActionCommand(
@@ -813,6 +826,22 @@ public sealed class InProcessControlPlaneResourceStateTests
                 TriggeredBy: "operator"));
 
         Assert.Equal(["vault:start", "api:start"], provider.ExecutedActions);
+        Assert.Equal(
+            [
+                ResourceChangeKind.ResourceActionStarted,
+                ResourceChangeKind.ResourceActionExecuted,
+                ResourceChangeKind.ResourceActionStarted,
+                ResourceChangeKind.ResourceActionExecuted
+            ],
+            notifications.Select(notification => notification.Kind).ToArray());
+        Assert.Equal(
+            ["vault", "vault", "api", "api"],
+            notifications.Select(notification => notification.ResourceId!).ToArray());
+        Assert.All(notifications, notification =>
+        {
+            Assert.Equal(ResourceActionIds.Start, notification.ActionId);
+            Assert.Contains(notification.ResourceId!, notification.Resources);
+        });
 
         var dependencyEvents = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: "vault"));
         Assert.Contains(dependencyEvents, resourceEvent =>

@@ -193,6 +193,7 @@ public enum ResourceChangeKind
     ResourceGroupAssigned,
     ResourceDependenciesChanged,
     ResourceDeleted,
+    ResourceActionStarted,
     ResourceActionExecuted,
     ResourceImageUpdated,
     ResourceReplicasUpdated

@@ -50,7 +50,8 @@ public sealed class ResourceOrchestrationService(
         ICloudShellAuthorizationService authorization,
         CancellationToken cancellationToken = default,
         string? triggeredBy = null,
-        string? cause = null)
+        string? cause = null,
+        Action<ResourceChangeNotification>? notifyResourceChange = null)
     {
         if (startDependencies && ShouldStartDependencies(action))
         {
@@ -62,6 +63,7 @@ public sealed class ResourceOrchestrationService(
                 new HashSet<string>(StringComparer.OrdinalIgnoreCase),
                 [],
                 triggeredBy,
+                notifyResourceChange,
                 cancellationToken);
         }
 
@@ -70,7 +72,8 @@ public sealed class ResourceOrchestrationService(
             action,
             cancellationToken,
             triggeredBy,
-            cause);
+            cause,
+            notifyResourceChange);
     }
 
     private async Task<ResourceProcedureResult> ExecuteActionCoreAsync(
@@ -78,7 +81,8 @@ public sealed class ResourceOrchestrationService(
         ResourceAction action,
         CancellationToken cancellationToken,
         string? triggeredBy = null,
-        string? cause = null)
+        string? cause = null,
+        Action<ResourceChangeNotification>? notifyResourceChange = null)
     {
         var context = CreateContext(resource, triggeredBy, cause);
         var unavailableReason = await GetActionUnavailableReasonAsync(context, action, cancellationToken);
@@ -99,6 +103,11 @@ public sealed class ResourceOrchestrationService(
             GetLifecycleStartingMessage(action),
             cause,
             triggeredBy);
+        NotifyResourceChange(
+            notifyResourceChange,
+            ResourceChangeKind.ResourceActionStarted,
+            resource,
+            action);
 
         try
         {
@@ -109,6 +118,11 @@ public sealed class ResourceOrchestrationService(
                 $"{GetLifecycleCompletedMessage(action)} Result: {result.Message}",
                 cause,
                 triggeredBy);
+            NotifyResourceChange(
+                notifyResourceChange,
+                ResourceChangeKind.ResourceActionExecuted,
+                resource,
+                action);
 
             return result;
         }
@@ -149,6 +163,7 @@ public sealed class ResourceOrchestrationService(
         HashSet<string> completed,
         List<Resource> path,
         string? triggeredBy,
+        Action<ResourceChangeNotification>? notifyResourceChange,
         CancellationToken cancellationToken)
     {
         if (!visiting.Add(resource.Id))
@@ -204,6 +219,7 @@ public sealed class ResourceOrchestrationService(
                     completed,
                     path,
                     triggeredBy,
+                    notifyResourceChange,
                     cancellationToken);
 
                 var runAction = dependency.ResourceActions.FirstOrDefault(action =>
@@ -237,7 +253,8 @@ public sealed class ResourceOrchestrationService(
                         runAction,
                         cancellationToken,
                         triggeredBy ?? rootResource.Id,
-                        $"Dependency auto-start for '{rootResource.Name}' ({rootResource.Id}).");
+                        $"Dependency auto-start for '{rootResource.Name}' ({rootResource.Id}).",
+                        notifyResourceChange);
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
@@ -272,6 +289,17 @@ public sealed class ResourceOrchestrationService(
             DateTimeOffset.UtcNow,
             triggeredBy,
             level));
+
+    private static void NotifyResourceChange(
+        Action<ResourceChangeNotification>? notifyResourceChange,
+        ResourceChangeKind kind,
+        Resource resource,
+        ResourceAction action) =>
+        notifyResourceChange?.Invoke(new ResourceChangeNotification(
+            kind,
+            resource.Id,
+            action.Id,
+            [resource.Id]));
 
     private void AppendLifecycleEvent(
         Resource resource,

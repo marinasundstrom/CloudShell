@@ -76,6 +76,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource state now includes an explicit `Stopping` transition, and
   application resources persist that transient state while stop procedures are
   in progress.
+- In-process resource action procedures now emit Resource Manager change
+  notifications when lifecycle actions start and when they complete, including
+  dependency auto-start actions.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and
   atomic file replacement, preventing shell circuit failures during reloads or

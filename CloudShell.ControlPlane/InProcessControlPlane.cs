@@ -450,13 +450,8 @@ public sealed class InProcessControlPlane(
             command.StartDependencies,
             CreateAuthorizationService(command.ActingIdentity),
             cancellationToken,
-            command.TriggeredBy);
-
-        NotifyResourcesChanged(new ResourceChangeNotification(
-            ResourceChangeKind.ResourceActionExecuted,
-            resource.Id,
-            action.Id,
-            [resource.Id]));
+            command.TriggeredBy,
+            notifyResourceChange: NotifyResourcesChanged);
 
         return result;
     }
