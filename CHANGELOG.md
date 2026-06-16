@@ -17,6 +17,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Resource inventory rows, Resource Manager detail blades, resource detail
+  cards, and Docker container lists now use Fluent resource icons instead of
+  initial-letter badges for resource and sub-resource identity.
 - Resource Manager primary actions now use Fluent button icon slots for
   create, add-volume, import/export, and apply commands where the icon
   clarifies the command behavior.

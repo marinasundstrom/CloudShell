@@ -124,8 +124,15 @@ else
                     {
                         <tr>
                             <td>
-                                <strong>@container.Name</strong>
-                                <span>@ShortId(container.Id)</span>
+                                <div class="resource-table-identity">
+                                    <span class="resource-kind-icon">
+                                        <FluentIcon Value="@(new Icons.Regular.Size20.CubeTree())" />
+                                    </span>
+                                    <span>
+                                        <strong>@container.Name</strong>
+                                        <span>@ShortId(container.Id)</span>
+                                    </span>
+                                </div>
                             </td>
                             <td>@container.Version</td>
                             <td>

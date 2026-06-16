@@ -1,0 +1,38 @@
+@inject ShellCatalog ShellCatalog
+
+<span class="@CssClass" title="@TitleText" aria-label="@TitleText">
+    <FluentIcon Value="@ResolveIcon()" />
+</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public Resource Resource { get; set; } = default!;
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    private string CssClass =>
+        string.IsNullOrWhiteSpace(Class) ? "resource-kind-icon" : Class;
+
+    private string TitleText =>
+        string.IsNullOrWhiteSpace(Title) ? Resource.Kind : Title;
+
+    private Icon ResolveIcon()
+    {
+        var resourceType = ShellCatalog.ResourceTypes.FirstOrDefault(type =>
+            string.Equals(type.Id, Resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
+        if (!string.IsNullOrWhiteSpace(resourceType?.Icon))
+        {
+            return ResourceTypeIcons.FromName(resourceType.Icon);
+        }
+
+        return ResourceTypeIcons.FromName(
+            FirstNonEmpty(Resource.EffectiveTypeId, Resource.ResourceClass.ToString(), Resource.Kind));
+    }
+
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+}

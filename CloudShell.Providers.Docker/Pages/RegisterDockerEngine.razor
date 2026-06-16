@@ -55,13 +55,16 @@
     }
 
     <div class="candidate-row single">
-        <span class="resource-kind-icon">D</span>
+        <span class="resource-kind-icon">
+            <FluentIcon Value="@(new Icons.Regular.Size20.Server())" />
+        </span>
         <div>
             <strong>@(string.IsNullOrWhiteSpace(HostName) ? "Docker Host" : HostName)</strong>
             <span>Container host · @HostMode</span>
             <small>@DockerProvider.GetContainers().Count discovered containers can appear as sub-resources.</small>
         </div>
         <FluentButton Appearance="Appearance.Accent"
+                      IconStart="@(new Icons.Regular.Size20.AddCircle())"
                       Disabled="@(host is null && !IsRemoteHost)"
                       OnClick="Register">
             Add

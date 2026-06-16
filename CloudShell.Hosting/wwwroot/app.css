@@ -734,15 +734,25 @@ h3 {
     border-radius: 4px;
     background: var(--cloudshell-surface-muted);
     color: var(--cloudshell-accent-foreground);
-    font-size: .65rem;
-    font-weight: 700;
 }
 
 .resource-kind-icon.large {
     width: 2.3rem;
     height: 2.3rem;
     flex-basis: 2.3rem;
-    font-size: .8rem;
+}
+
+.resource-table-identity {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 0;
+}
+
+.resource-table-identity > span:last-child {
+    display: grid;
+    gap: .1rem;
+    min-width: 0;
 }
 
 .resource-blade {

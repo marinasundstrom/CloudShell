@@ -209,7 +209,7 @@
                             <span class="tree-spacer"></span>
                         }
 
-                        <span class="resource-kind-icon">@GetResourceGlyph(resource.Kind)</span>
+                        <ResourceKindIcon Resource="resource" />
                         <div>
                             @if (resource.DetailRoute is not null)
                             {
@@ -320,7 +320,7 @@
             }
 
             <div class="detail-heading">
-                <span class="resource-kind-icon large">@GetResourceGlyph(selected.Kind)</span>
+                <ResourceKindIcon Resource="selected" Class="resource-kind-icon large" />
                 <div>
                     <h2>@GetResourceLabel(selected)</h2>
                     <p>@selected.Kind</p>
@@ -457,7 +457,7 @@
                         @foreach (var child in children)
                         {
                             <button @onclick="() => SelectResource(child)">
-                                <span class="resource-kind-icon">@GetResourceGlyph(child.Kind)</span>
+                                <ResourceKindIcon Resource="child" />
                                 <span>
                                     <strong>@GetResourceLabel(child)</strong>
                                     <small>@child.Kind</small>
@@ -2021,16 +2021,6 @@
         Uri.TryCreate(address, UriKind.Absolute, out var uri) &&
         (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
          uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
-
-    private static string GetResourceGlyph(string kind) =>
-        kind.Contains("Docker Engine", StringComparison.OrdinalIgnoreCase) ? "D" :
-        kind.Contains("Container", StringComparison.OrdinalIgnoreCase) ? "C" :
-        kind.Contains("Database", StringComparison.OrdinalIgnoreCase) || kind.Contains("SQL", StringComparison.OrdinalIgnoreCase) ? "DB" :
-        kind.Contains("Redis", StringComparison.OrdinalIgnoreCase) ? "R" :
-        kind.Contains("Collector", StringComparison.OrdinalIgnoreCase) ? "T" :
-        kind.Contains("Worker", StringComparison.OrdinalIgnoreCase) ? "W" :
-        kind.Contains("Broker", StringComparison.OrdinalIgnoreCase) ? "Q" :
-        "S";
 
     private static string GetStateClass(ResourceState? state) => state switch
     {

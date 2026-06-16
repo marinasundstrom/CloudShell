@@ -107,7 +107,7 @@
         @if (resource is not null)
         {
             <div class="selected-type-card">
-                <span class="resource-kind-icon">@GetTypeGlyph(resource)</span>
+                <ResourceKindIcon Resource="resource" />
                 <div>
                     <strong>@GetResourceLabel(resource)</strong>
                     <p>@resource.Kind</p>
@@ -812,10 +812,6 @@
             ConfigurationContext.StateChanged -= HandleConfigurationStateChanged;
         }
     }
-
-    private static string GetTypeGlyph(Resource resource) =>
-        resource.Kind.Contains("Docker", StringComparison.OrdinalIgnoreCase) ? "D" :
-        resource.Name[..1].ToUpperInvariant();
 
     private string GetResourceLabel(Resource resource) => DisplaySelection.GetResourceLabel(resource);
 
