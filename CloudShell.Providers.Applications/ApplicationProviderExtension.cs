@@ -85,78 +85,78 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 resourceClass: ResourceClass.Service)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ExecutableApplication,
-                "overview",
+                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                 "Overview",
                 10,
-                groupTitle: "Overview")
+                groupTitle: "General")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ExecutableApplication,
-                "configuration",
+                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
                 "Configuration",
                 20,
                 showsApplyButton: true,
-                groupTitle: "Configuration")
+                groupTitle: "General")
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.AspNetCoreProject,
-                "overview",
+                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                 "Overview",
                 10,
-                groupTitle: "Overview")
+                groupTitle: "General")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.AspNetCoreProject,
-                "configuration",
+                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
                 "Configuration",
                 20,
                 showsApplyButton: true,
-                groupTitle: "Configuration")
+                groupTitle: "General")
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ContainerApp,
-                "overview",
+                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                 "Overview",
                 10,
-                groupTitle: "Overview")
+                groupTitle: "General")
             .AddResourceTab<Pages.ApplicationDeployment>(
                 ApplicationResourceTypes.ContainerApp,
-                "deployment",
+                new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"),
                 "Deployment",
                 20,
                 groupTitle: "Runtime")
             .AddResourceTab<Pages.ApplicationReplicas>(
                 ApplicationResourceTypes.ContainerApp,
-                "replicas",
+                new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"),
                 "Replicas",
                 30,
                 groupTitle: "Runtime")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ContainerApp,
-                "configuration",
+                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
                 "Configuration",
                 40,
                 showsApplyButton: true,
-                groupTitle: "Configuration")
+                groupTitle: "General")
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.ContainerApp,
-                "storage",
+                new ResourceViewId(ResourceTabGroupIds.Storage, "storage"),
                 "Storage",
                 50,
                 showsApplyButton: true,
                 groupTitle: "Storage")
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.SqlServer,
-                "overview",
+                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                 "Overview",
                 10,
-                groupTitle: "Overview")
+                groupTitle: "General")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.SqlServer,
-                "configuration",
+                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
                 "Configuration",
                 20,
                 showsApplyButton: true,
-                groupTitle: "Configuration")
+                groupTitle: "General")
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.SqlServer,
-                "storage",
+                new ResourceViewId(ResourceTabGroupIds.Storage, "storage"),
                 "Storage",
                 30,
                 showsApplyButton: true,

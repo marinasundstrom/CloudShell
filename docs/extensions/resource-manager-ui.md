@@ -118,8 +118,9 @@ The shell generates a default resource detail view from the projected
 `Resource` when a provider does not contribute a specialized view. The
 generated view shows stable identity, class, endpoints, attributes,
 dependencies, health checks, actions, and observability details. The built-in
-route is `/resources/{resourceId}/details?tab=overview`; provider-contributed
-tabs use the same route with their tab ID in the `tab` query parameter.
+route is `/resources/{resourceId}/details?tab=general:overview`;
+provider-contributed tabs use the same route with their tab ID in the `tab`
+query parameter.
 
 Resources can set `DetailRoute` to link to an extension-owned view. This
 supports the familiar cloud-portal pattern where a resource opens its own
@@ -134,6 +135,18 @@ CloudShell has standardized resource detail views for common concerns such as
 Overview, Configuration, Endpoints, DNS, Environment, Storage, Identity, and
 Activity. These views are identified by the constants in
 `ResourceStandardViewIds`.
+
+Standard view IDs are logical hierarchical IDs represented by
+`ResourceViewId`:
+
+- `GroupId` identifies the concern group, such as `general` or `networking`.
+- `Identifier` identifies the view inside that group, such as `overview` or
+  `endpoints`.
+- `Value` is the canonical serialized form used in routes and query strings,
+  for example `general:overview` or `networking:endpoints`.
+
+Use `ResourceTabGroupIds` and `ResourceStandardViewIds` instead of creating
+raw string literals in providers or shell UI code.
 
 Use the constants instead of hard-coded string literals when registering tabs,
 building links, or contributing sections:
@@ -197,15 +210,15 @@ builder:
 
 | Standard view | Provider may replace tab by reusing the view ID | Provider may add sections |
 | --- | --- | --- |
-| `overview` | Yes | No |
-| `configuration` | Yes | No |
-| `endpoints` | Yes | Yes |
-| `dns` | Yes | Yes |
-| `identity` | Yes | No |
-| `volumes` | Yes | No |
-| `activity` | Yes | No |
-| `environment` | Yes | No |
-| `storage` | Yes | No |
+| `general:overview` | Yes | No |
+| `general:configuration` | Yes | No |
+| `networking:endpoints` | Yes | Yes |
+| `networking:dns` | Yes | Yes |
+| `management:identity` | Yes | No |
+| `storage:volumes` | Yes | No |
+| `management:activity` | Yes | No |
+| `environment:environment` | Yes | No |
+| `storage:storage` | Yes | No |
 
 This means:
 

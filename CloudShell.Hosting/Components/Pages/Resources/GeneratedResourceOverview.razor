@@ -760,10 +760,10 @@
     }
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={ResourceStandardViewIds.Overview}";
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Overview.Value)}";
 
-    private static string BuildResourceTabRoute(string resourceId, string tabId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId)}";
+    private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}";
 
     private string BuildLogRoute(LogDescriptor log)
     {

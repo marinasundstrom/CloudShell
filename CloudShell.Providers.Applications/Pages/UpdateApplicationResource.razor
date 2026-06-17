@@ -536,7 +536,7 @@ else
         values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab=overview";
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Overview.Value)}";
 
     private bool IsInSelectedGroup(string resourceId)
     {

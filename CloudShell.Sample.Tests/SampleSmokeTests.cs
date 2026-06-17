@@ -150,7 +150,9 @@ public sealed class SampleSmokeTests
         Assert.Contains("Open resource", traceHtml);
         Assert.Contains("<fluent-anchor", traceHtml);
         Assert.Contains("href=\"/logs?resourceId=application%3Aproject-reference-frontend&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"", traceHtml);
-        Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend/details?tab=activity&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"", traceHtml);
+        Assert.Contains(
+            $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Activity.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
+            traceHtml);
         Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend/details\"", traceHtml);
 
         var relatedLogsHtml = await host.GetStringAsync(
@@ -162,7 +164,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Clear trace filter", relatedLogsHtml);
 
         var relatedActivityHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab=activity&traceId={traceId}");
+            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Activity.Value)}&traceId={traceId}");
         Assert.Contains("Activity", relatedActivityHtml);
         Assert.Contains("Showing activity correlated with trace", relatedActivityHtml);
         Assert.Contains("Clear", relatedActivityHtml);
@@ -324,7 +326,7 @@ public sealed class SampleSmokeTests
             nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingMaterializationStatus).GetString());
 
         var storageVolumesHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("storage:application-topology-local")}/details?tab=volumes");
+            $"/resources/{Uri.EscapeDataString("storage:application-topology-local")}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Volumes.Value)}");
         Assert.Contains("Add volume", storageVolumesHtml);
         Assert.Contains("This Storage resource cannot be deleted while it owns volumes.", storageVolumesHtml);
 
@@ -700,7 +702,7 @@ public sealed class SampleSmokeTests
         Assert.True(stoppedResource.GetProperty("resourceActions").TryGetProperty("start", out _));
 
         var activityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("sample:api")}/details?tab=activity");
+            $"/resources/{Uri.EscapeDataString("sample:api")}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Activity.Value)}");
         Assert.Contains("Activity", activityHtml);
         Assert.Contains("Event type", activityHtml);
         Assert.Contains("Triggered by", activityHtml);

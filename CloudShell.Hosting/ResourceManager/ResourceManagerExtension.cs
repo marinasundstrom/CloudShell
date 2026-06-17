@@ -51,23 +51,23 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 resourceClass: ResourceClass.Storage)
             .AddResourceTab<LocalStorageOverview>(
                 "cloudshell.storage",
-                "overview",
+                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                 "Overview",
                 10,
-                groupTitle: "Overview")
+                groupTitle: "General")
             .AddResourceTab<StorageVolumes>(
                 "cloudshell.storage",
-                "volumes",
+                new ResourceViewId(ResourceTabGroupIds.Storage, "volumes"),
                 "Volumes",
                 20,
                 groupTitle: "Storage")
             .AddResourceTab<UpdateLocalStorageResource>(
                 "cloudshell.storage",
-                "configuration",
+                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
                 "Configuration",
                 30,
                 showsApplyButton: true,
-                groupTitle: "Configuration")
+                groupTitle: "General")
             .AddResourceType<RegisterVolumeResource, UpdateVolumeResource>(
                 "cloudshell.volume",
                 "Volume",
@@ -77,17 +77,17 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 resourceClass: ResourceClass.Storage)
             .AddResourceTab<VolumeOverview>(
                 "cloudshell.volume",
-                "overview",
+                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                 "Overview",
                 10,
-                groupTitle: "Overview")
+                groupTitle: "General")
             .AddResourceTab<UpdateVolumeResource>(
                 "cloudshell.volume",
-                "configuration",
+                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
                 "Configuration",
                 20,
                 showsApplyButton: true,
-                groupTitle: "Configuration")
+                groupTitle: "General")
             .AddResourceType<RegisterLoadBalancerResource>(
                 "cloudshell.loadBalancer",
                 "Load Balancer",
@@ -104,10 +104,10 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 resourceClass: ResourceClass.Network)
             .AddResourceTab<DnsZoneOverview>(
                 "cloudshell.dnsZone",
-                "overview",
+                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                 "Overview",
                 10,
-                groupTitle: "Overview")
+                groupTitle: "General")
             .AddResourceType<RegisterNameMappingResource, UpdateNameMappingResource>(
                 "cloudshell.nameMapping",
                 "Name Mapping",

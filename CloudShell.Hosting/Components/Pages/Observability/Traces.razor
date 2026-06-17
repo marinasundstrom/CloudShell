@@ -692,7 +692,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
             $"/resources/{Uri.EscapeDataString(resourceId)}/details",
             new Dictionary<string, string?>
             {
-                ["tab"] = "activity",
+                ["tab"] = ResourceStandardViewIds.Activity.Value,
                 ["traceId"] = traceId
             });
 

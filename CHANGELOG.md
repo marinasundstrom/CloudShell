@@ -13,6 +13,19 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-17
+
+#### Changed
+
+- Standard Resource Manager tab IDs now use the `ResourceViewId` value object
+  with explicit `GroupId`, `Identifier`, and serialized `Value` parts, so
+  providers and shell UI use the same hierarchical view vocabulary such as
+  `general:overview` and `networking:endpoints`.
+- Resource detail routes, generated tab grouping, standard-view sections, and
+  extension registration now treat tab IDs as logical view identities instead
+  of free-form strings, with query-string serialization only at navigation
+  boundaries.
+
 ### 2026-06-16
 
 #### Changed

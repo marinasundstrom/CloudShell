@@ -210,12 +210,12 @@
     </section>
 
 @code {
-    private const string GeneratedOverviewTabId = ResourceStandardViewIds.Overview;
-    private const string GeneratedEndpointsTabId = ResourceStandardViewIds.Endpoints;
-    private const string GeneratedDnsTabId = ResourceStandardViewIds.Dns;
-    private const string GeneratedIdentityTabId = ResourceStandardViewIds.Identity;
-    private const string GeneratedStorageVolumesTabId = ResourceStandardViewIds.Volumes;
-    private const string GeneratedActivityTabId = ResourceStandardViewIds.Activity;
+    private static readonly ResourceViewId GeneratedOverviewTabId = ResourceStandardViewIds.Overview;
+    private static readonly ResourceViewId GeneratedEndpointsTabId = ResourceStandardViewIds.Endpoints;
+    private static readonly ResourceViewId GeneratedDnsTabId = ResourceStandardViewIds.Dns;
+    private static readonly ResourceViewId GeneratedIdentityTabId = ResourceStandardViewIds.Identity;
+    private static readonly ResourceViewId GeneratedStorageVolumesTabId = ResourceStandardViewIds.Volumes;
+    private static readonly ResourceViewId GeneratedActivityTabId = ResourceStandardViewIds.Activity;
     private const string GeneralTabGroup = "General";
     private const string NetworkingTabGroup = "Networking";
     private const string StorageTabGroup = "Storage";
@@ -241,7 +241,7 @@
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
-    private string? SelectedTabId { get; set; }
+    private ResourceViewId? SelectedTabId { get; set; }
     private string? ProcedureMessage { get; set; }
     private PendingResourceRestart? PendingRestart { get; set; }
     private bool IsApplying { get; set; }
@@ -281,9 +281,9 @@
             await LoadResourceAffordancesAsync(Resource);
         }
 
-        if (!string.IsNullOrWhiteSpace(RequestedQueryTabId))
+        if (ResourceViewId.TryParse(RequestedQueryTabId, out var requestedTabId))
         {
-            SelectedTabId = RequestedQueryTabId;
+            SelectedTabId = requestedTabId;
         }
 
         if (Resource is not null && ConfigurationContext?.ResourceId != Resource.Id)
@@ -300,7 +300,7 @@
 
     private void Cancel() => Navigation.NavigateTo("/resources");
 
-    private void SelectTab(string tabId)
+    private void SelectTab(ResourceViewId tabId)
     {
         SelectedTabId = tabId;
         ProcedureMessage = null;
@@ -308,7 +308,7 @@
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
             Navigation.NavigateTo(
-                $"/resources/{Uri.EscapeDataString(ResourceId)}/details?tab={Uri.EscapeDataString(tabId)}",
+                $"/resources/{Uri.EscapeDataString(ResourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}",
                 replace: true);
         }
 
@@ -561,7 +561,7 @@
             parameters["ResourceType"] = resourceType;
         }
 
-        if (string.Equals(selectedTab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase))
+        if (selectedTab.Id == GeneratedActivityTabId)
         {
             parameters["TraceId"] = RequestedTraceId;
         }
@@ -579,8 +579,7 @@
     {
         var contributedTabs = resourceType?.ResourceTabs ?? [];
         var tabs = new List<ResourceTabContribution>();
-        if (!contributedTabs.Any(tab =>
-                string.Equals(tab.Id, GeneratedOverviewTabId, StringComparison.OrdinalIgnoreCase)))
+        if (!contributedTabs.Any(tab => tab.Id == GeneratedOverviewTabId))
         {
             tabs.Add(new ResourceTabContribution(
                 GeneratedOverviewTabId,
@@ -591,8 +590,7 @@
         }
 
         if (HasEndpointsTab(resource) &&
-            !contributedTabs.Any(tab =>
-                string.Equals(tab.Id, GeneratedEndpointsTabId, StringComparison.OrdinalIgnoreCase)))
+            !contributedTabs.Any(tab => tab.Id == GeneratedEndpointsTabId))
         {
             tabs.Add(new ResourceTabContribution(
                 GeneratedEndpointsTabId,
@@ -603,8 +601,7 @@
         }
 
         if (HasDnsTab(resource) &&
-            !contributedTabs.Any(tab =>
-                string.Equals(tab.Id, GeneratedDnsTabId, StringComparison.OrdinalIgnoreCase)))
+            !contributedTabs.Any(tab => tab.Id == GeneratedDnsTabId))
         {
             tabs.Add(new ResourceTabContribution(
                 GeneratedDnsTabId,
@@ -615,8 +612,7 @@
         }
 
         if (resource?.IdentityBinding is not null &&
-            !contributedTabs.Any(tab =>
-                string.Equals(tab.Id, GeneratedIdentityTabId, StringComparison.OrdinalIgnoreCase)))
+            !contributedTabs.Any(tab => tab.Id == GeneratedIdentityTabId))
         {
             tabs.Add(new ResourceTabContribution(
                 GeneratedIdentityTabId,
@@ -627,8 +623,7 @@
         }
 
         if (resource?.HasCapability(ResourceCapabilityIds.StorageProvider) == true &&
-            !contributedTabs.Any(tab =>
-                string.Equals(tab.Id, GeneratedStorageVolumesTabId, StringComparison.OrdinalIgnoreCase)))
+            !contributedTabs.Any(tab => tab.Id == GeneratedStorageVolumesTabId))
         {
             tabs.Add(new ResourceTabContribution(
                 GeneratedStorageVolumesTabId,
@@ -638,8 +633,7 @@
                 GroupTitle: StorageTabGroup));
         }
 
-        if (!contributedTabs.Any(tab =>
-                string.Equals(tab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase)))
+        if (!contributedTabs.Any(tab => tab.Id == GeneratedActivityTabId))
         {
             tabs.Add(new ResourceTabContribution(
                 GeneratedActivityTabId,
@@ -650,8 +644,7 @@
         }
 
         if (resourceType?.UpdateComponentType is not null &&
-            !contributedTabs.Any(tab =>
-                string.Equals(tab.Id, ResourceStandardViewIds.Configuration, StringComparison.OrdinalIgnoreCase)))
+            !contributedTabs.Any(tab => tab.Id == ResourceStandardViewIds.Configuration))
         {
             tabs.Add(new ResourceTabContribution(
                 ResourceStandardViewIds.Configuration,
@@ -663,8 +656,7 @@
         }
 
         if (resource?.HasCapability(ResourceCapabilityIds.EnvironmentVariables) == true &&
-            !contributedTabs.Any(tab =>
-                string.Equals(tab.Id, ResourceStandardViewIds.Environment, StringComparison.OrdinalIgnoreCase)))
+            !contributedTabs.Any(tab => tab.Id == ResourceStandardViewIds.Environment))
         {
             tabs.Add(new ResourceTabContribution(
                 ResourceStandardViewIds.Environment,
@@ -684,22 +676,22 @@
 
     private static int GetResourceTabOrder(ResourceTabContribution tab)
     {
-        if (string.Equals(tab.Id, GeneratedOverviewTabId, StringComparison.OrdinalIgnoreCase))
+        if (tab.Id == GeneratedOverviewTabId)
         {
             return int.MinValue;
         }
 
-        if (string.Equals(tab.Id, GeneratedIdentityTabId, StringComparison.OrdinalIgnoreCase))
+        if (tab.Id == GeneratedIdentityTabId)
         {
             return int.MaxValue - 1;
         }
 
-        if (string.Equals(tab.Id, GeneratedActivityTabId, StringComparison.OrdinalIgnoreCase))
+        if (tab.Id == GeneratedActivityTabId)
         {
             return int.MaxValue;
         }
 
-        if (string.Equals(tab.Id, ResourceStandardViewIds.Environment, StringComparison.OrdinalIgnoreCase))
+        if (tab.Id == ResourceStandardViewIds.Environment)
         {
             return int.MaxValue - 2;
         }
@@ -733,12 +725,13 @@
         var groups = new List<ResourceTabGroup>();
         foreach (var tab in tabs)
         {
-            var groupTitle = NormalizeResourceTabGroupTitle(tab.GroupTitle);
+            var groupId = tab.GroupId;
+            var groupTitle = ResolveResourceTabGroupTitle(tab);
             var currentGroup = groups.FirstOrDefault(group =>
-                string.Equals(group.Title, groupTitle, StringComparison.OrdinalIgnoreCase));
+                string.Equals(group.Id, groupId, StringComparison.OrdinalIgnoreCase));
             if (currentGroup is null)
             {
-                currentGroup = new ResourceTabGroup(groupTitle, []);
+                currentGroup = new ResourceTabGroup(groupId, groupTitle, []);
                 groups.Add(currentGroup);
             }
 
@@ -748,19 +741,19 @@
         return groups;
     }
 
-    private static string NormalizeResourceTabGroupTitle(string? groupTitle)
-    {
-        if (string.IsNullOrWhiteSpace(groupTitle))
-        {
-            return string.Empty;
-        }
-
-        var title = groupTitle.Trim();
-        return title.Equals("Overview", StringComparison.OrdinalIgnoreCase) ||
-            title.Equals("Configuration", StringComparison.OrdinalIgnoreCase)
-                ? GeneralTabGroup
-                : title;
-    }
+    private static string ResolveResourceTabGroupTitle(ResourceTabContribution tab) =>
+        !string.IsNullOrWhiteSpace(tab.GroupTitle)
+            ? tab.GroupTitle.Trim()
+            : tab.GroupId switch
+            {
+                ResourceTabGroupIds.General => GeneralTabGroup,
+                ResourceTabGroupIds.Networking => NetworkingTabGroup,
+                ResourceTabGroupIds.Storage => StorageTabGroup,
+                ResourceTabGroupIds.Environment => EnvironmentTabGroup,
+                ResourceTabGroupIds.Management => ManagementTabGroup,
+                ResourceTabGroupIds.Runtime => "Runtime",
+                _ => tab.GroupId
+            };
 
     private string GetTabButtonClass(
         ResourceTabContribution tab,
@@ -1013,6 +1006,7 @@
         string Message);
 
     private sealed record ResourceTabGroup(
+        string Id,
         string Title,
         List<ResourceTabContribution> Tabs);
 }

@@ -268,15 +268,15 @@ internal sealed class CloudShellExtensionBuilder(
 
     public ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,
-        string id,
+        ResourceViewId id,
         string title,
         int order,
         bool showsApplyButton = false,
         string? groupTitle = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceTypeId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ValidateTabId(id);
 
         var typeIndex = _resourceTypes.FindIndex(type =>
             string.Equals(type.Id, resourceTypeId, StringComparison.OrdinalIgnoreCase));
@@ -307,13 +307,12 @@ internal sealed class CloudShellExtensionBuilder(
 
     public ICloudShellExtensionBuilder AddResourceStandardViewSection<TComponent>(
         string resourceTypeId,
-        string viewId,
+        ResourceViewId viewId,
         string id,
         string title,
         int order)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceTypeId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(viewId);
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
 
@@ -330,7 +329,7 @@ internal sealed class CloudShellExtensionBuilder(
         var resourceType = _resourceTypes[typeIndex];
         var sections = resourceType.ResourceStandardViewSections
             .Append(new ResourceStandardViewSectionContribution(
-                viewId.Trim(),
+                viewId,
                 id.Trim(),
                 title.Trim(),
                 order,
@@ -343,7 +342,7 @@ internal sealed class CloudShellExtensionBuilder(
         return this;
     }
 
-    private static void ValidateStandardViewReplacement(string id)
+    private static void ValidateStandardViewReplacement(ResourceViewId id)
     {
         if (!ResourceStandardViews.TryGet(id, out var definition))
         {
@@ -357,7 +356,7 @@ internal sealed class CloudShellExtensionBuilder(
         }
     }
 
-    private static void ValidateStandardViewSectionHost(string viewId)
+    private static void ValidateStandardViewSectionHost(ResourceViewId viewId)
     {
         if (!ResourceStandardViews.TryGet(viewId, out var definition))
         {
@@ -369,6 +368,15 @@ internal sealed class CloudShellExtensionBuilder(
         {
             throw new InvalidOperationException(
                 $"Standard resource view '{definition.Id}' does not accept provider-owned sections.");
+        }
+    }
+
+    private static void ValidateTabId(ResourceViewId id)
+    {
+        if (string.IsNullOrWhiteSpace(id.GroupId) || string.IsNullOrWhiteSpace(id.Identifier))
+        {
+            throw new InvalidOperationException(
+                $"Resource tab ID '{id}' is invalid. Expected '<group-id>:<identifier>'.");
         }
     }
 

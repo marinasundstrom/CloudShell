@@ -1,7 +1,7 @@
 namespace CloudShell.Abstractions.ResourceManager;
 
 public sealed record ResourceStandardViewDefinition(
-    string Id,
+    ResourceViewId Id,
     string Title,
     bool SupportsReplacement = true,
     bool SupportsSections = false);
@@ -21,27 +21,21 @@ public static class ResourceStandardViews
         new(ResourceStandardViewIds.Storage, "Storage", SupportsSections: false)
     ];
 
-    private static readonly IReadOnlyDictionary<string, ResourceStandardViewDefinition> DefinitionsById =
+    private static readonly IReadOnlyDictionary<ResourceViewId, ResourceStandardViewDefinition> DefinitionsById =
         Definitions.ToDictionary(
             definition => definition.Id,
-            StringComparer.OrdinalIgnoreCase);
+            definition => definition);
 
     public static IReadOnlyList<ResourceStandardViewDefinition> All => Definitions;
 
     public static bool TryGet(
-        string id,
-        out ResourceStandardViewDefinition definition)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        return DefinitionsById.TryGetValue(id.Trim(), out definition!);
-    }
+        ResourceViewId id,
+        out ResourceStandardViewDefinition definition) =>
+        DefinitionsById.TryGetValue(id, out definition!);
 
-    public static ResourceStandardViewDefinition Get(string id)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        return TryGet(id, out var definition)
+    public static ResourceStandardViewDefinition Get(ResourceViewId id) =>
+        TryGet(id, out var definition)
             ? definition
             : throw new InvalidOperationException(
                 $"'{id}' is not a known standard resource view.");
-    }
 }

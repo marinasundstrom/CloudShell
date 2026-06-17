@@ -812,10 +812,10 @@ else
             PermissionGrantEvaluator);
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={ResourceStandardViewIds.Overview}";
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Overview.Value)}";
 
-    private static string BuildResourceTabRoute(string resourceId, string tabId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId)}";
+    private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}";
 
     private static string BuildAddNameMappingRoute(ApplicationResourceDefinition application)
     {
@@ -1034,7 +1034,7 @@ else
     private static string BuildActivityRoute(string resourceId) =>
         BuildRoute(
             $"/resources/{Uri.EscapeDataString(resourceId)}/details",
-            new Dictionary<string, string?> { ["tab"] = ResourceStandardViewIds.Activity });
+            new Dictionary<string, string?> { ["tab"] = ResourceStandardViewIds.Activity.Value });
 
     private static string BuildRoute(string path, Dictionary<string, string?> query)
     {

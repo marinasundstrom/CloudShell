@@ -51,20 +51,20 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                 resourceClass: ResourceClass.Configuration)
             .AddResourceTab<Pages.ConfigurationStoreOverview>(
                 "configuration.store",
-                "overview",
+                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                 "Overview",
                 10,
-                groupTitle: "Overview")
+                groupTitle: "General")
             .AddResourceTab<Pages.UpdateConfigurationStore>(
                 "configuration.store",
-                "settings",
+                new ResourceViewId(ResourceTabGroupIds.General, "settings"),
                 "Settings",
                 20,
                 showsApplyButton: true,
-                groupTitle: "Configuration")
+                groupTitle: "General")
             .AddResourceTab<Pages.ConfigurationStoreEntries>(
                 "configuration.store",
-                "entries",
+                new ResourceViewId(ResourceTabGroupIds.Entries, "entries"),
                 "Entries",
                 30,
                 showsApplyButton: true,
@@ -104,20 +104,20 @@ public sealed class SecretsProviderExtension : ICloudShellExtension
                 resourceClass: ResourceClass.SecretsVault)
             .AddResourceTab<Pages.SecretsVaultOverview>(
                 SecretsVaultProvider.ResourceType,
-                "overview",
+                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                 "Overview",
                 10,
-                groupTitle: "Overview")
+                groupTitle: "General")
             .AddResourceTab<Pages.UpdateSecretsVault>(
                 SecretsVaultProvider.ResourceType,
-                "settings",
+                new ResourceViewId(ResourceTabGroupIds.General, "settings"),
                 "Settings",
                 20,
                 showsApplyButton: true,
-                groupTitle: "Configuration")
+                groupTitle: "General")
             .AddResourceTab<Pages.SecretsVaultSecrets>(
                 SecretsVaultProvider.ResourceType,
-                "secrets",
+                new ResourceViewId(ResourceTabGroupIds.Secrets, "secrets"),
                 "Secrets",
                 30,
                 showsApplyButton: true,

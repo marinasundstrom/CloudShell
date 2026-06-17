@@ -110,16 +110,24 @@ public sealed class ExtensionRegistrationTests
             tabs,
             tab =>
             {
-                Assert.Equal("overview", tab.Id);
+                Assert.Equal(new ResourceViewId(ResourceTabGroupIds.General, "overview"), tab.Id);
                 Assert.Equal(typeof(SampleOverviewPage), tab.ComponentType);
                 Assert.False(tab.ShowsApplyButton);
             },
             tab =>
             {
-                Assert.Equal("configuration", tab.Id);
+                Assert.Equal(new ResourceViewId(ResourceTabGroupIds.General, "configuration"), tab.Id);
                 Assert.Equal(typeof(SampleUpdatePage), tab.ComponentType);
                 Assert.True(tab.ShowsApplyButton);
             });
+    }
+
+    [Fact]
+    public void ResourceViewId_ParseRejectsFlatViewIds()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() => ResourceViewId.Parse("overview"));
+
+        Assert.Contains("Expected '<group-id>:<identifier>'", exception.Message);
     }
 
     [Fact]
@@ -170,7 +178,7 @@ public sealed class ExtensionRegistrationTests
                 .AddCloudShell()
                 .AddExtension<NonExtensibleStandardViewSectionsExtension>());
 
-        Assert.Contains(ResourceStandardViewIds.Overview, exception.Message);
+        Assert.Contains(ResourceStandardViewIds.Overview.Value, exception.Message);
     }
 
     [Fact]
@@ -772,13 +780,13 @@ public sealed class ExtensionRegistrationTests
                     10)
                 .AddResourceTab<SampleUpdatePage>(
                     "sample.tabs",
-                    "configuration",
+                    new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
                     "Configuration",
                     20,
                     showsApplyButton: true)
                 .AddResourceTab<SampleOverviewPage>(
                     "sample.tabs",
-                    "overview",
+                    new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                     "Overview",
                     10);
         }
@@ -833,7 +841,7 @@ public sealed class ExtensionRegistrationTests
                     10)
                 .AddResourceStandardViewSection<SampleOverviewPage>(
                     "sample.unknown-standard-view-sections",
-                    "missing-standard-view",
+                    new ResourceViewId(ResourceTabGroupIds.General, "missing-standard-view"),
                     "sample.endpoint-policy",
                     "Endpoint policy",
                     10);

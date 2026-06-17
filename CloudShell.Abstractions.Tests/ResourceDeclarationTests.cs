@@ -1081,19 +1081,19 @@ public sealed class ResourceDeclarationTests
         AssertStorageTab(sqlServerType);
         Assert.DoesNotContain(
             sqlServerType.ResourceTabs,
-            tab => string.Equals(tab.Id, "replicas", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
         Assert.DoesNotContain(
             sqlServerType.ResourceTabs,
-            tab => string.Equals(tab.Id, "deployment", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
-            tab => string.Equals(tab.Id, "replicas", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
-            tab => string.Equals(tab.Id, "storage", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Storage, "storage"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
-            tab => string.Equals(tab.Id, "deployment", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"));
     }
 
     [Fact]
@@ -1116,13 +1116,13 @@ public sealed class ResourceDeclarationTests
 
         var overviewTab = Assert.Single(
             hostType.ResourceTabs,
-            tab => string.Equals(tab.Id, "overview", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.General, "overview"));
         var containersTab = Assert.Single(
             hostType.ResourceTabs,
-            tab => string.Equals(tab.Id, "containers", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "containers"));
         var configurationTab = Assert.Single(
             hostType.ResourceTabs,
-            tab => string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.General, "configuration"));
 
         Assert.Equal(typeof(CloudShell.Providers.Docker.Pages.DockerEngineOverview), overviewTab.ComponentType);
         Assert.Equal(typeof(CloudShell.Providers.Docker.Pages.DockerContainers), containersTab.ComponentType);
@@ -1157,10 +1157,10 @@ public sealed class ResourceDeclarationTests
 
         var overview = Assert.Single(
             volumeType.ResourceTabs,
-            tab => string.Equals(tab.Id, "overview", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.General, "overview"));
         var configuration = Assert.Single(
             volumeType.ResourceTabs,
-            tab => string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.General, "configuration"));
 
         Assert.Equal(typeof(VolumeOverview), overview.ComponentType);
         Assert.False(overview.ShowsApplyButton);
@@ -1192,13 +1192,13 @@ public sealed class ResourceDeclarationTests
 
         var overview = Assert.Single(
             storageType.ResourceTabs,
-            tab => string.Equals(tab.Id, "overview", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.General, "overview"));
         var configuration = Assert.Single(
             storageType.ResourceTabs,
-            tab => string.Equals(tab.Id, "configuration", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.General, "configuration"));
         var volumes = Assert.Single(
             storageType.ResourceTabs,
-            tab => string.Equals(tab.Id, "volumes", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Storage, "volumes"));
 
         Assert.Equal(typeof(LocalStorageOverview), overview.ComponentType);
         Assert.False(overview.ShowsApplyButton);
@@ -1233,7 +1233,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(typeof(RegisterDnsZoneResource), dnsZoneType.RegistrationComponentType);
         var dnsZoneOverview = Assert.Single(
             dnsZoneType.ResourceTabs,
-            tab => string.Equals(tab.Id, "overview", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.General, "overview"));
         Assert.Equal(typeof(DnsZoneOverview), dnsZoneOverview.ComponentType);
         Assert.False(dnsZoneOverview.ShowsApplyButton);
 
@@ -1248,7 +1248,7 @@ public sealed class ResourceDeclarationTests
     {
         var storageTab = Assert.Single(
             resourceType.ResourceTabs,
-            tab => string.Equals(tab.Id, "storage", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Storage, "storage"));
 
         Assert.Equal("Storage", storageTab.Title);
         Assert.True(storageTab.ShowsApplyButton);
@@ -1259,7 +1259,7 @@ public sealed class ResourceDeclarationTests
     {
         var deploymentTab = Assert.Single(
             resourceType.ResourceTabs,
-            tab => string.Equals(tab.Id, "deployment", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"));
 
         Assert.Equal("Deployment", deploymentTab.Title);
         Assert.False(deploymentTab.ShowsApplyButton);
@@ -1271,7 +1271,7 @@ public sealed class ResourceDeclarationTests
     {
         var replicaTab = Assert.Single(
             resourceType.ResourceTabs,
-            tab => string.Equals(tab.Id, "replicas", StringComparison.OrdinalIgnoreCase));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
 
         Assert.Equal("Replicas", replicaTab.Title);
         Assert.False(replicaTab.ShowsApplyButton);

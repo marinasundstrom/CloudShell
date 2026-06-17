@@ -1,7 +1,7 @@
 namespace CloudShell.Abstractions.ResourceManager;
 
 public sealed record ResourceStandardViewSectionContribution(
-    string ViewId,
+    ResourceViewId ViewId,
     string Id,
     string Title,
     int Order,

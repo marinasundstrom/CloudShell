@@ -99,7 +99,7 @@ public interface ICloudShellExtensionBuilder
 
     ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,
-        string id,
+        ResourceViewId id,
         string title,
         int order,
         bool showsApplyButton = false,
@@ -107,7 +107,7 @@ public interface ICloudShellExtensionBuilder
 
     ICloudShellExtensionBuilder AddResourceStandardViewSection<TComponent>(
         string resourceTypeId,
-        string viewId,
+        ResourceViewId viewId,
         string id,
         string title,
         int order);

@@ -20,11 +20,11 @@
     public string ResourceId { get; set; } = string.Empty;
 
     [Parameter, EditorRequired]
-    public string ViewId { get; set; } = string.Empty;
+    public ResourceViewId ViewId { get; set; }
 
     private IReadOnlyList<ResourceStandardViewSectionContribution> MatchingSections =>
         ResourceType.ResourceStandardViewSections
-            .Where(section => string.Equals(section.ViewId, ViewId, StringComparison.OrdinalIgnoreCase))
+            .Where(section => section.ViewId == ViewId)
             .OrderBy(section => section.Order)
             .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -33,7 +33,7 @@
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["ResourceId"] = ResourceId,
-            ["ViewId"] = ViewId,
+            ["ViewId"] = ViewId.Value,
             ["SectionId"] = section.Id
         };
 }

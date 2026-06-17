@@ -2,13 +2,13 @@ namespace CloudShell.Abstractions.ResourceManager;
 
 public static class ResourceStandardViewIds
 {
-    public const string Overview = "overview";
-    public const string Configuration = "configuration";
-    public const string Endpoints = "endpoints";
-    public const string Dns = "dns";
-    public const string Identity = "identity";
-    public const string Volumes = "volumes";
-    public const string Activity = "activity";
-    public const string Environment = "environment";
-    public const string Storage = "storage";
+    public static ResourceViewId Overview { get; } = new(ResourceTabGroupIds.General, "overview");
+    public static ResourceViewId Configuration { get; } = new(ResourceTabGroupIds.General, "configuration");
+    public static ResourceViewId Endpoints { get; } = new(ResourceTabGroupIds.Networking, "endpoints");
+    public static ResourceViewId Dns { get; } = new(ResourceTabGroupIds.Networking, "dns");
+    public static ResourceViewId Identity { get; } = new(ResourceTabGroupIds.Management, "identity");
+    public static ResourceViewId Volumes { get; } = new(ResourceTabGroupIds.Storage, "volumes");
+    public static ResourceViewId Activity { get; } = new(ResourceTabGroupIds.Management, "activity");
+    public static ResourceViewId Environment { get; } = new(ResourceTabGroupIds.Environment, "environment");
+    public static ResourceViewId Storage { get; } = new(ResourceTabGroupIds.Storage, "storage");
 }
