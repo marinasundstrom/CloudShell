@@ -5472,12 +5472,28 @@ public sealed class ResourceDeclarationTests
             endpoint =>
             {
                 Assert.Equal("http", endpoint.Name);
-                Assert.Equal("http://localhost:80", endpoint.Address);
+                Assert.Equal(string.Empty, endpoint.Address);
+                Assert.Equal("http", endpoint.Protocol);
+                Assert.Equal(80, endpoint.TargetPort);
             },
             endpoint =>
             {
                 Assert.Equal("https", endpoint.Name);
-                Assert.Equal("https://localhost:443", endpoint.Address);
+                Assert.Equal(string.Empty, endpoint.Address);
+                Assert.Equal("https", endpoint.Protocol);
+                Assert.Equal(443, endpoint.TargetPort);
+            });
+        Assert.Collection(
+            resource.ResourceEndpointNetworkMappings.OrderBy(mapping => mapping.Name, StringComparer.OrdinalIgnoreCase),
+            mapping =>
+            {
+                Assert.Equal("http", mapping.Name);
+                Assert.Equal("http://localhost:80", mapping.Address);
+            },
+            mapping =>
+            {
+                Assert.Equal("https", mapping.Name);
+                Assert.Equal("https://localhost:443", mapping.Address);
             });
     }
 

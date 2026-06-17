@@ -271,7 +271,7 @@ public sealed class PlatformResourceProvider(
         ValidateLoadBalancerRoutes(normalized);
         ValidatePlatformEndpointAssignments(
             normalized.Id,
-            CreateLoadBalancerEndpoints(normalized));
+            CreateLoadBalancerEndpointMappings(normalized));
         store.SaveLoadBalancer(normalized);
         await registrations.RegisterAsync(
             Id,
@@ -788,7 +788,7 @@ public sealed class PlatformResourceProvider(
         ValidateLoadBalancerRoutes(normalizedLoadBalancer);
         ValidatePlatformEndpointAssignments(
             normalizedLoadBalancer.Id,
-            CreateLoadBalancerEndpoints(normalizedLoadBalancer));
+            CreateLoadBalancerEndpointMappings(normalizedLoadBalancer));
         if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
         {
             store.SaveLoadBalancer(
@@ -2139,6 +2139,7 @@ public sealed class PlatformResourceProvider(
             },
             Capabilities: CreateLoadBalancerCapabilities(definition),
             LoadBalancerRoutes: definition.LoadBalancerRoutes,
+            EndpointNetworkMappings: CreateLoadBalancerEndpointMappings(definition),
             DisplayName: definition.Name);
     }
 
@@ -2239,6 +2240,16 @@ public sealed class PlatformResourceProvider(
     private static IReadOnlyList<ResourceEndpoint> CreateLoadBalancerEndpoints(
         LoadBalancerResourceDefinition definition) =>
         definition.LoadBalancerEntrypoints
+            .Select(entrypoint => ResourceEndpoint.Contract(
+                entrypoint.Name,
+                entrypoint.Protocol.ToString().ToLowerInvariant(),
+                entrypoint.Exposure,
+                entrypoint.Port))
+            .ToArray();
+
+    private static IReadOnlyList<ResourceEndpointNetworkMapping> CreateLoadBalancerEndpointMappings(
+        LoadBalancerResourceDefinition definition) =>
+        definition.LoadBalancerEntrypoints
             .Select(entrypoint =>
             {
                 var scheme = entrypoint.Protocol.ToString().ToLowerInvariant();
@@ -2248,11 +2259,13 @@ public sealed class PlatformResourceProvider(
                     ResourceEndpointProtocol.Https => $"https://localhost:{entrypoint.Port}",
                     _ => $"{scheme}://localhost:{entrypoint.Port}"
                 };
-                return ResourceEndpoint.FromAddress(
+                return new ResourceEndpointNetworkMapping(
+                    $"{definition.Id}:endpoint-network-mapping:{entrypoint.Name}",
                     entrypoint.Name,
+                    new ResourceEndpointReference(definition.Id, entrypoint.Name),
                     address,
-                    scheme,
-                    entrypoint.Exposure);
+                    entrypoint.Exposure,
+                    SourceEndpointName: entrypoint.Name);
             })
             .ToArray();
 
@@ -2374,7 +2387,7 @@ public sealed class PlatformResourceProvider(
                 continue;
             }
 
-            foreach (var endpoint in CreateLoadBalancerEndpoints(loadBalancer))
+            foreach (var endpoint in CreateLoadBalancerEndpointMappings(loadBalancer))
             {
                 var assignment = CreateEndpointAssignment(loadBalancer.Id, endpoint);
                 if (assignment is not null)

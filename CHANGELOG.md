@@ -62,6 +62,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Service resources now project service ports as address-less endpoint
   contracts and carry host-local resolved service addresses in endpoint network
   mappings.
+- Load balancer resources now project entrypoints as address-less endpoint
+  contracts and carry host-local entrypoint URLs in endpoint network mappings.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
