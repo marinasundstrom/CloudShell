@@ -32,6 +32,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application service-discovery environment variables now resolve endpoint
   binding addresses from endpoint network mappings before falling back to
   legacy endpoint addresses.
+- Application overview endpoint display now resolves projected and DNS-derived
+  endpoint addresses through endpoint network mappings before falling back to
+  legacy endpoint addresses.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
