@@ -128,9 +128,10 @@ listed here before pulling in broader proposal work.
    foundation internal and diagnostic first, and do not pull in broad rollout
    history, rollback, or traffic-splitting work for the MVP. Container apps
    default to single-instance mode; replicas are an explicit Scaling tab or
-   programmatic `WithReplicas(...)` opt-in. The remaining endpoint-bearing
-   replica UX should prompt users to assign or create ingress/load-balancer
-   support when scaling is enabled.
+   programmatic `WithReplicas(...)` opt-in. Endpoint-bearing apps now prompt
+   from the Scaling tab to create a load-balancer route when replicas are
+   enabled; deeper app-owned ingress provider diagnostics remain separate
+   hardening work.
 2. Resource Manager convergence for the same path: keep the app resource page
    as the operator entry point for endpoints, discovery, storage, identity,
    logs, traces, activity, and inbound name mappings. Fix UI consistency and

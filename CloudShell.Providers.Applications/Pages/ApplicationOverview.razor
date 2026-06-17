@@ -827,60 +827,15 @@ else
     private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
 
-    private static string BuildAddNameMappingRoute(ApplicationResourceDefinition application)
-    {
-        var query = BuildTargetResourceQuery("cloudshell.nameMapping", application);
+    private static string BuildAddNameMappingRoute(ApplicationResourceDefinition application) =>
+        ApplicationResourceExposureRoutes.BuildAddNameMappingRoute(
+            application,
+            ResourcePredefinedViewIds.Overview);
 
-        return BuildResourceAddRoute(query);
-    }
-
-    private static string BuildAddLoadBalancerRoute(ApplicationResourceDefinition application)
-    {
-        var query = BuildLoadBalancerQuery(application);
-
-        return BuildResourceAddRoute(query);
-    }
-
-    private static Dictionary<string, string?> BuildLoadBalancerQuery(ApplicationResourceDefinition application)
-    {
-        var query = BuildTargetResourceQuery("cloudshell.loadBalancer", application);
-        if (GetTargetEndpoint(application) is { } endpoint &&
-            string.Equals(endpoint.Protocol, "tcp", StringComparison.OrdinalIgnoreCase))
-        {
-            query["routeKind"] = "tcp";
-        }
-
-        return query;
-    }
-
-    private static Dictionary<string, string?> BuildTargetResourceQuery(
-        string type,
-        ApplicationResourceDefinition application)
-    {
-        var query = new Dictionary<string, string?>
-        {
-            ["type"] = type,
-            ["targetResourceId"] = application.Id,
-            ["returnUrl"] = BuildResourceTabRoute(application.Id, ResourcePredefinedViewIds.Overview)
-        };
-        var endpointName = GetTargetEndpoint(application)?.Name;
-        if (!string.IsNullOrWhiteSpace(endpointName))
-        {
-            query["targetEndpointName"] = endpointName;
-        }
-
-        return query;
-    }
-
-    private static ServicePort? GetTargetEndpoint(ApplicationResourceDefinition application) =>
-        application.EndpointPorts.FirstOrDefault(endpoint =>
-            string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase)) ??
-        application.EndpointPorts.FirstOrDefault();
-
-    private static string BuildResourceAddRoute(Dictionary<string, string?> query)
-    {
-        return BuildRoute("/resources/add", query);
-    }
+    private static string BuildAddLoadBalancerRoute(ApplicationResourceDefinition application) =>
+        ApplicationResourceExposureRoutes.BuildAddLoadBalancerRoute(
+            application,
+            ResourcePredefinedViewIds.Overview);
 
     private static string? GetEndpointAddress(ApplicationResourceDefinition application)
     {

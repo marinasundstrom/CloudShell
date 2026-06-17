@@ -40,7 +40,17 @@ else
             @if (HasInboundEndpoint)
             {
                 <div class="procedure-message compact">
-                    Replicated container apps with inbound endpoints may need ingress or a load balancer. The app keeps its stable endpoint while the provider connects that endpoint to the selected routing implementation.
+                    Replicated container apps with inbound endpoints need ingress or a load balancer for one stable address. Apply scaling, then create a route for this app endpoint.
+                    @if (!IsReadOnly)
+                    {
+                        <div class="generated-row-actions">
+                            <FluentAnchor Appearance="Appearance.Neutral"
+                                          IconStart="@(new Icons.Regular.Size20.ArrowRouting())"
+                                          Href="@BuildAddLoadBalancerRoute()">
+                                Add load-balancer route
+                            </FluentAnchor>
+                        </div>
+                    }
                 </div>
             }
         }
@@ -67,9 +77,18 @@ else
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private bool EnableReplicas { get; set; }
     private int Replicas { get; set; } = 2;
+    private static readonly ResourceViewId ScalingViewId =
+        new(ResourceTabGroupIds.Runtime, "scaling");
 
     private bool HasInboundEndpoint =>
         Application?.EndpointPorts.Count > 0;
+
+    private string BuildAddLoadBalancerRoute() =>
+        Application is null
+            ? ResourceManagerRoutes.Resources
+            : ApplicationResourceExposureRoutes.BuildAddLoadBalancerRoute(
+                Application,
+                ScalingViewId);
 
     protected override void OnParametersSet()
     {

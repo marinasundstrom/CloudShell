@@ -198,6 +198,10 @@ on `git blame --follow`, and then by the broad type of change.
   runtime replica child. The Deployment and Replicas tabs now distinguish
   single-instance mode from replicated mode.
   Decision: [ADR-20260617-001](ADR.md#adr-20260617-001).
+- The container app Scaling tab now prompts endpoint-bearing replicated apps to
+  create a prefilled load-balancer route, reusing the same exposure-link
+  behavior as application Overview and Endpoints views.
+  Decision: [ADR-20260617-001](ADR.md#adr-20260617-001).
 - Resource detail headers now show the resource icon before the resource name,
   while a shared resource status summary component shows lifecycle and health
   status above the canonical resource identity fields instead of repeating the

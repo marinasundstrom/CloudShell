@@ -77,67 +77,17 @@ else
     }
 
     private static string BuildAddNameMappingRoute(Resource resource) =>
-        BuildResourceAddRoute(BuildTargetResourceQuery("cloudshell.nameMapping", resource));
+        ApplicationResourceExposureRoutes.BuildAddNameMappingRoute(
+            resource,
+            ResourcePredefinedViewIds.Endpoints);
 
     private static string BuildAddLoadBalancerRoute(Resource resource) =>
-        BuildResourceAddRoute(BuildLoadBalancerQuery(resource));
-
-    private static Dictionary<string, string?> BuildLoadBalancerQuery(Resource resource)
-    {
-        var query = BuildTargetResourceQuery("cloudshell.loadBalancer", resource);
-        if (GetTargetEndpoint(resource) is { } endpoint &&
-            string.Equals(endpoint.Protocol, "tcp", StringComparison.OrdinalIgnoreCase))
-        {
-            query["routeKind"] = "tcp";
-        }
-
-        return query;
-    }
-
-    private static Dictionary<string, string?> BuildTargetResourceQuery(
-        string type,
-        Resource resource)
-    {
-        var query = new Dictionary<string, string?>
-        {
-            ["type"] = type,
-            ["targetResourceId"] = resource.Id,
-            ["returnUrl"] = BuildResourceTabRoute(resource.Id, ResourcePredefinedViewIds.Endpoints)
-        };
-        var endpointName = GetTargetEndpointName(resource);
-        if (!string.IsNullOrWhiteSpace(endpointName))
-        {
-            query["targetEndpointName"] = endpointName;
-        }
-
-        return query;
-    }
-
-    private static string? GetTargetEndpointName(Resource resource) =>
-        GetTargetEndpoint(resource)?.Name;
+        ApplicationResourceExposureRoutes.BuildAddLoadBalancerRoute(
+            resource,
+            ResourcePredefinedViewIds.Endpoints);
 
     private static ResourceEndpoint? GetTargetEndpoint(Resource resource) =>
         resource.Endpoints.FirstOrDefault(endpoint =>
             string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase)) ??
         resource.Endpoints.FirstOrDefault();
-
-    private static string BuildResourceAddRoute(Dictionary<string, string?> query) =>
-        BuildRoute("/resources/add", query);
-
-    private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
-
-    private static string BuildRoute(string path, Dictionary<string, string?> query)
-    {
-        var queryString = string.Join(
-            "&",
-            query
-                .Where(parameter => !string.IsNullOrWhiteSpace(parameter.Value))
-                .Select(parameter =>
-                    $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(parameter.Value!)}"));
-
-        return string.IsNullOrWhiteSpace(queryString)
-            ? path
-            : $"{path}?{queryString}";
-    }
 }

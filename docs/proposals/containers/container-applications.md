@@ -221,10 +221,12 @@ Implemented pieces include:
 6. Keep image update, current revision, explicit replica scaling, and hidden
    runtime ownership metadata as the MVP deployment surface. Container apps
    default to single-instance mode; enabling replicas is a deliberate Scaling
-   tab action or programmatic `WithReplicas(...)` declaration. Use the
-   internal orchestrator deployment/revision contracts for container app
-   implementation work, but defer public rollout history, rollback, and
-   traffic splitting to later deployment/revision slices.
+   tab action or programmatic `WithReplicas(...)` declaration. The Scaling tab
+   now prompts endpoint-bearing apps to create a load-balancer route when
+   replicas are enabled. Use the internal orchestrator deployment/revision
+   contracts for container app implementation work, but defer public rollout
+   history, rollback, and traffic splitting to later deployment/revision
+   slices.
 7. Keep the container app Replicas tab app-scoped. It shows app-owned
    replica/runtime diagnostics to users who can view or manage the container
    app without requiring the global runtime-managed inventory view; the global
@@ -246,9 +248,8 @@ Implemented pieces include:
   start/update where possible.
 * Add host capability diagnostics for unsupported storage media, ingress,
   public endpoint, or DNS/name publication choices.
-* Add the guided Resource Manager prompt that assigns or creates an
-  ingress/load-balancer provider when replicas are enabled for an
-  endpoint-bearing app. The endpoint remains owned by the container app: a
+* Add deeper app-owned ingress/provider guidance after the first Scaling tab
+  load-balancer prompt. The endpoint remains owned by the container app: a
   single container binds it in single-instance mode, and an ingress or load
   balancer binds it on behalf of the app in replicated mode. Worker-style
   replicated apps without inbound endpoints should not require a load balancer.
