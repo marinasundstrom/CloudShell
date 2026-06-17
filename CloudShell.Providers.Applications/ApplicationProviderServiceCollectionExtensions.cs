@@ -355,7 +355,7 @@ public static class ApplicationProviderServiceCollectionExtensions
 
     private static ServicePort? TryCreateEndpointPort(ResourceEndpoint endpoint)
     {
-        var hasAddress = Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) &&
+        var hasAddress = endpoint.TryGetUri(out var uri) &&
             uri.Port > 0;
         var targetPort = endpoint.TargetPort ?? (hasAddress ? uri!.Port : null);
         if (targetPort is null)

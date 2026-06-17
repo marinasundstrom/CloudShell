@@ -112,8 +112,7 @@ public sealed class LocalHostNetworkProvisioner : IResourceEndpointMappingProvis
         string role,
         string mappingId)
     {
-        var endpointAddress = endpointNetworkMapping?.Address ?? endpoint.Address;
-        if (!Uri.TryCreate(endpointAddress, UriKind.Absolute, out var uri) ||
+        if (!TryGetEndpointUri(endpoint, endpointNetworkMapping, out var uri) ||
             string.IsNullOrWhiteSpace(uri.Host) ||
             uri.Port <= 0)
         {
@@ -122,6 +121,19 @@ public sealed class LocalHostNetworkProvisioner : IResourceEndpointMappingProvis
         }
 
         return new HostEndpoint(uri.Host, uri.Port);
+    }
+
+    private static bool TryGetEndpointUri(
+        ResourceEndpoint endpoint,
+        ResourceEndpointNetworkMapping? endpointNetworkMapping,
+        out Uri uri)
+    {
+        if (endpointNetworkMapping is not null && endpointNetworkMapping.TryGetUri(out uri))
+        {
+            return true;
+        }
+
+        return endpoint.TryGetUri(out uri);
     }
 
     private sealed record HostEndpoint(string Host, int Port);

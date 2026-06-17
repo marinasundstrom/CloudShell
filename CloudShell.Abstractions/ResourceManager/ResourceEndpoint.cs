@@ -42,6 +42,19 @@ public sealed record ResourceEndpoint(
         return TryGetPort(Address, out port);
     }
 
+    public bool TryGetUri(out Uri uri)
+    {
+        if (Uri.TryCreate(Address, UriKind.Absolute, out var parsed) &&
+            !string.IsNullOrWhiteSpace(parsed.Host))
+        {
+            uri = parsed;
+            return true;
+        }
+
+        uri = null!;
+        return false;
+    }
+
     public static bool TryGetPort(string? address, out int port)
     {
         if (Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.Port > 0)

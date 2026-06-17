@@ -35,24 +35,44 @@ public sealed class LocalHostNetworkProvisionerTests
         Assert.Equal("ping", await targetTask);
     }
 
+    [Fact]
+    public async Task ProvisionEndpointMappingAsync_FallsBackToLegacyEndpointAddresses()
+    {
+        var sourcePort = GetFreePort();
+        var targetListener = new TcpListener(IPAddress.Loopback, 0);
+        targetListener.Start();
+        var targetPort = ((IPEndPoint)targetListener.LocalEndpoint).Port;
+        var targetTask = AcceptOneConnectionAsync(targetListener);
+        await using var provisioner = new LocalHostNetworkProvisioner();
+
+        var context = CreateContext(sourcePort, targetPort, includeEndpointNetworkMappings: false);
+        Assert.True(provisioner.CanProvisionEndpointMapping(context));
+
+        await provisioner.ProvisionEndpointMappingAsync(context);
+
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, sourcePort);
+        await using var stream = client.GetStream();
+        await using var writer = new StreamWriter(stream, leaveOpen: true) { AutoFlush = true };
+        using var reader = new StreamReader(stream, leaveOpen: true);
+
+        await writer.WriteLineAsync("ping");
+        var response = await reader.ReadLineAsync();
+
+        Assert.Equal("pong:ping", response);
+        Assert.Equal("ping", await targetTask);
+    }
+
     private static ResourceEndpointMappingProvisioningContext CreateContext(
         int sourcePort,
-        int targetPort)
+        int targetPort,
+        bool includeEndpointNetworkMappings = true)
     {
-        var network = new Resource(
-            "network:sample",
-            "Sample Network",
-            "Network",
-            "CloudShell",
-            "logical",
-            ResourceState.Running,
-            [ResourceEndpoint.Contract("public", "tcp", ResourceExposureScope.Public, sourcePort)],
-            "1.0",
-            DateTimeOffset.UtcNow,
-            [],
-            TypeId: PlatformResourceProvider.VirtualNetworkResourceType,
-            ResourceClass: ResourceClass.Network,
-            EndpointNetworkMappings:
+        ResourceEndpoint[] networkEndpoints = includeEndpointNetworkMappings
+            ? [ResourceEndpoint.Contract("public", "tcp", ResourceExposureScope.Public, sourcePort)]
+            : [ResourceEndpoint.Tcp("public", "localhost", sourcePort, ResourceExposureScope.Public)];
+        ResourceEndpointNetworkMapping[] networkEndpointNetworkMappings = includeEndpointNetworkMappings
+            ?
             [
                 new ResourceEndpointNetworkMapping(
                     "network:sample:endpoint-network-mapping:public",
@@ -61,19 +81,13 @@ public sealed class LocalHostNetworkProvisionerTests
                     $"tcp://localhost:{sourcePort}",
                     ResourceExposureScope.Public,
                     SourceEndpointName: "public")
-            ]);
-        var target = new Resource(
-            "application:api",
-            "API",
-            "Application",
-            "Applications",
-            "local",
-            ResourceState.Running,
-            [ResourceEndpoint.Contract("tcp", "tcp", ResourceExposureScope.Local, targetPort)],
-            "1.0",
-            DateTimeOffset.UtcNow,
-            [],
-            EndpointNetworkMappings:
+            ]
+            : [];
+        ResourceEndpoint[] targetEndpoints = includeEndpointNetworkMappings
+            ? [ResourceEndpoint.Contract("tcp", "tcp", ResourceExposureScope.Local, targetPort)]
+            : [ResourceEndpoint.Tcp("tcp", "localhost", targetPort, ResourceExposureScope.Local)];
+        ResourceEndpointNetworkMapping[] targetEndpointNetworkMappings = includeEndpointNetworkMappings
+            ?
             [
                 new ResourceEndpointNetworkMapping(
                     "application:api:endpoint-network-mapping:tcp",
@@ -82,7 +96,34 @@ public sealed class LocalHostNetworkProvisionerTests
                     $"tcp://localhost:{targetPort}",
                     ResourceExposureScope.Local,
                     SourceEndpointName: "tcp")
-            ]);
+            ]
+            : [];
+        var network = new Resource(
+            "network:sample",
+            "Sample Network",
+            "Network",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            networkEndpoints,
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.VirtualNetworkResourceType,
+            ResourceClass: ResourceClass.Network,
+            EndpointNetworkMappings: networkEndpointNetworkMappings);
+        var target = new Resource(
+            "application:api",
+            "API",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            targetEndpoints,
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            EndpointNetworkMappings: targetEndpointNetworkMappings);
         var provider = new Resource(
             LocalHostNetworkProvider.ResourceId,
             "Local Host Networking",

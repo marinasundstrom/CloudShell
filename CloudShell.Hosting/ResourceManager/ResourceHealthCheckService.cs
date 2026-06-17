@@ -154,7 +154,7 @@ public sealed class ResourceHealthCheckService
             return true;
         }
 
-        return Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) &&
+        return endpoint.TryGetUri(out var uri) &&
             IsHttpScheme(uri.Scheme);
     }
 
