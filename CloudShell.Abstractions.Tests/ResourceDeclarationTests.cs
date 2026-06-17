@@ -21,6 +21,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
 using DockerContainerListResponse = Docker.DotNet.Models.ContainerListResponse;
+using DockerPort = Docker.DotNet.Models.Port;
 
 namespace CloudShell.Abstractions.Tests;
 
@@ -3664,7 +3665,16 @@ public sealed class ResourceDeclarationTests
             Image = "redis:7.2",
             State = "running",
             Created = DateTime.UtcNow,
-            Ports = []
+            Ports =
+            [
+                new DockerPort
+                {
+                    IP = "0.0.0.0",
+                    PrivatePort = 6379,
+                    PublicPort = 16379,
+                    Type = "tcp"
+                }
+            ]
         };
 
         var resource = Assert.IsType<Resource>(mapContainer?.Invoke(
@@ -3680,6 +3690,14 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceManagementMode.RuntimeManaged, resource.ManagementMode);
         Assert.Equal(ResourceVisibility.Hidden, resource.Visibility);
         Assert.Equal(ResourceCleanupBehavior.None, resource.CleanupBehavior);
+        var endpoint = Assert.Single(resource.Endpoints);
+        Assert.Equal("port-1", endpoint.Name);
+        Assert.Equal(string.Empty, endpoint.Address);
+        Assert.Equal("tcp", endpoint.Protocol);
+        Assert.Equal(6379, endpoint.TargetPort);
+        var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+        Assert.Equal("tcp://localhost:16379", mapping.Address);
+        Assert.Equal(new ResourceEndpointReference(resource.Id, endpoint.Name), mapping.Target);
     }
 
     [Fact]

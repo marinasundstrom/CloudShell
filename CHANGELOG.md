@@ -47,6 +47,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application resources with declared endpoint ports now project address-less
   `ResourceEndpoint` contracts and put concrete local reachability in
   `ResourceEndpointNetworkMapping`.
+- Docker runtime container projections now expose published container ports as
+  address-less endpoint contracts and project Docker host/container reachability
+  through endpoint network mappings.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

@@ -1033,7 +1033,7 @@ public sealed partial class DockerContainerResourceProvider :
             .Select(value => value.Trim('/'))
             .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
             ?? container.ID[..Math.Min(container.ID.Length, 12)];
-        var endpoints = CreateEndpoints(name, container.Ports);
+        var endpointProjection = CreateEndpointProjection(id, name, container.Ports);
 
         return new Resource(
             id,
@@ -1042,7 +1042,7 @@ public sealed partial class DockerContainerResourceProvider :
             "Docker",
             "local",
             MapState(container.State),
-            endpoints,
+            endpointProjection.Endpoints,
             container.Image,
             new DateTimeOffset(container.Created.ToUniversalTime()),
             [],
@@ -1050,10 +1050,14 @@ public sealed partial class DockerContainerResourceProvider :
             TypeId: "docker.container",
             Actions: CreateContainerActions(container.State),
             ResourceClass: ResourceClass.Container,
-            Attributes: CreateContainerAttributes(container.Image, DockerProviderOptions.DefaultRegistry, endpoints.Count),
+            Attributes: CreateContainerAttributes(
+                container.Image,
+                DockerProviderOptions.DefaultRegistry,
+                endpointProjection.Endpoints.Count),
             Source: ResourceSource.RuntimeController,
             ManagementMode: ResourceManagementMode.RuntimeManaged,
-            Visibility: ResourceVisibility.Hidden);
+            Visibility: ResourceVisibility.Hidden,
+            EndpointNetworkMappings: endpointProjection.EndpointNetworkMappings);
     }
 
     private IReadOnlyList<Resource> GetDeclaredContainerResources(
@@ -1074,11 +1078,13 @@ public sealed partial class DockerContainerResourceProvider :
         DateTimeOffset lastUpdated)
     {
         var lookupName = GetContainerLookupName(definition.Id);
-        var endpoints = container is not null
-            ? CreateEndpoints(lookupName, container.Ports)
-            : definition.Endpoints.Count > 0
-                ? definition.Endpoints
-                : [ResourceEndpoint.Logical("container", $"container://{lookupName}", "container")];
+        var endpointProjection = container is not null
+            ? CreateEndpointProjection(definition.Id, lookupName, container.Ports)
+            : new DockerEndpointProjection(
+                definition.Endpoints.Count > 0
+                    ? definition.Endpoints
+                    : [ResourceEndpoint.Logical("container", $"container://{lookupName}", "container")],
+                null);
 
         return new Resource(
             definition.Id,
@@ -1087,7 +1093,7 @@ public sealed partial class DockerContainerResourceProvider :
             "Docker",
             "local",
             container is null ? ResourceState.Unknown : MapState(container.State),
-            endpoints,
+            endpointProjection.Endpoints,
             container?.Image ?? definition.Image,
             container is null
                 ? lastUpdated
@@ -1101,7 +1107,8 @@ public sealed partial class DockerContainerResourceProvider :
             Attributes: CreateContainerAttributes(
                 container?.Image ?? definition.Image,
                 definition.Registry,
-                endpoints.Count),
+                endpointProjection.Endpoints.Count),
+            EndpointNetworkMappings: endpointProjection.EndpointNetworkMappings,
             DisplayName: definition.Name);
     }
 
@@ -1225,37 +1232,62 @@ public sealed partial class DockerContainerResourceProvider :
             _ => []
         };
 
-    private static IReadOnlyList<ResourceEndpoint> CreateEndpoints(
+    private static DockerEndpointProjection CreateEndpointProjection(
+        string resourceId,
         string containerName,
         IList<Port>? ports)
     {
         if (ports is null || ports.Count == 0)
         {
-            return [ResourceEndpoint.Logical("container", $"container://{containerName}", "container")];
+            return new DockerEndpointProjection(
+                [ResourceEndpoint.Logical("container", $"container://{containerName}", "container")],
+                null);
         }
 
-        return ports
+        var endpoints = ports
             .Select((port, index) =>
             {
+                var protocol = string.IsNullOrWhiteSpace(port.Type) ? "tcp" : port.Type;
+                var isExternal = port.PublicPort > 0;
+
+                return ResourceEndpoint.Contract(
+                    $"port-{index + 1}",
+                    protocol,
+                    isExternal ? ResourceExposureScope.Public : ResourceExposureScope.Private,
+                    port.PrivatePort);
+            })
+            .ToArray();
+        var endpointMappings = ports
+            .Select((port, index) =>
+            {
+                var endpoint = endpoints[index];
                 var protocol = string.IsNullOrWhiteSpace(port.Type) ? "tcp" : port.Type;
                 var isExternal = port.PublicPort > 0;
                 var address = isExternal
                     ? $"{protocol}://{NormalizeHost(port.IP)}:{port.PublicPort}"
                     : $"{protocol}://{containerName}:{port.PrivatePort}";
 
-                return ResourceEndpoint.FromAddress(
-                    $"port-{index + 1}",
+                return new ResourceEndpointNetworkMapping(
+                    $"{resourceId}:endpoint-network-mapping:{endpoint.Name}",
+                    endpoint.Name,
+                    new ResourceEndpointReference(resourceId, endpoint.Name),
                     address,
-                    protocol,
-                    isExternal ? ResourceExposureScope.Public : ResourceExposureScope.Private);
+                    endpoint.Exposure,
+                    SourceEndpointName: endpoint.Name);
             })
             .ToArray();
+
+        return new DockerEndpointProjection(endpoints, endpointMappings);
     }
 
     private static string NormalizeHost(string? host) =>
         string.IsNullOrWhiteSpace(host) || host == "0.0.0.0" || host == "::"
             ? "localhost"
             : host;
+
+    private sealed record DockerEndpointProjection(
+        IReadOnlyList<ResourceEndpoint> Endpoints,
+        IReadOnlyList<ResourceEndpointNetworkMapping>? EndpointNetworkMappings);
 
     private static string? GetEndpointUnavailableReason(
         Resource resource,
