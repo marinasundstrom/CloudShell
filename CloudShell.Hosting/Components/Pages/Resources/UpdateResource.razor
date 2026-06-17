@@ -310,7 +310,7 @@
         if (!string.IsNullOrWhiteSpace(ResourceId))
         {
             Navigation.NavigateTo(
-                $"/resources/{Uri.EscapeDataString(ResourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}",
+                ResourceManagerRoutes.ResourceDetails(ResourceId, tabId),
                 replace: true);
         }
 

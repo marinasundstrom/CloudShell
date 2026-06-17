@@ -239,10 +239,7 @@
     }
 
     private static string BuildActivityRoute(string resourceId) =>
-        Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            $"/resources/{Uri.EscapeDataString(resourceId)}/details",
-            "tab",
-            ResourceStandardViewIds.Activity.Value);
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourceStandardViewIds.Activity);
 
     private static string FormatTraceId(string traceId) =>
         traceId.Length <= 12

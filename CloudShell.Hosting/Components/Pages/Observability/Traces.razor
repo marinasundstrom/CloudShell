@@ -689,7 +689,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
 
     private static string BuildActivityRoute(string resourceId, string traceId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-            $"/resources/{Uri.EscapeDataString(resourceId)}/details",
+            ResourceManagerRoutes.ResourceDetails(resourceId),
             new Dictionary<string, string?>
             {
                 ["tab"] = ResourceStandardViewIds.Activity.Value,
@@ -697,7 +697,7 @@ StringComparison.OrdinalIgnoreCase))?.Span
             });
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details";
+        ResourceManagerRoutes.ResourceDetails(resourceId);
 
     private static readonly string[] ServicePalette =
     [

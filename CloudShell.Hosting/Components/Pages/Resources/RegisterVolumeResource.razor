@@ -210,7 +210,7 @@
     }
 
     private static string BuildStorageVolumesRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Volumes.Value)}";
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourceStandardViewIds.Volumes);
 
     private string GetLocationPlaceholder() =>
         HasSelectedStorage ? "postgres-data" : "./data/postgres or /mnt/share/postgres";

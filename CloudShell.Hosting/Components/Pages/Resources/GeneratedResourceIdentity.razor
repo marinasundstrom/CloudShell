@@ -281,5 +281,5 @@
     }
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Identity.Value)}";
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourceStandardViewIds.Identity);
 }

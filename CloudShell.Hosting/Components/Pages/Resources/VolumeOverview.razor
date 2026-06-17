@@ -197,7 +197,7 @@ else
     }
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Overview.Value)}";
+        ResourceManagerRoutes.ResourceOverview(resourceId);
 
     private sealed record VolumeConsumerView(
         Resource Resource,

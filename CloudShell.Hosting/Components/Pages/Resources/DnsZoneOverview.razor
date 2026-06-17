@@ -172,5 +172,5 @@ else
             : fallback;
 
     private static string BuildResourceRoute(string resourceId, ResourceViewId tabId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}";
+        ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
 }

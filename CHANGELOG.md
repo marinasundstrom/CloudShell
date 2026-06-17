@@ -45,6 +45,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Built-in Resource Manager and provider tab registrations now use
   `ResourceStandardViewIds` for standard Overview, Configuration, Storage,
   and Volumes views instead of repeating ad hoc hierarchical tab IDs.
+- Resource Manager detail links now use a shared `ResourceManagerRoutes`
+  helper so shell pages and provider-owned views construct escaped resource
+  detail, overview, and tab routes consistently.
 
 ### 2026-06-16
 

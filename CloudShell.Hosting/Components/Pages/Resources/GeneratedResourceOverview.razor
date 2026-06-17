@@ -760,10 +760,10 @@
     }
 
     private static string BuildResourceRoute(string resourceId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Overview.Value)}";
+        ResourceManagerRoutes.ResourceOverview(resourceId);
 
     private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}";
+        ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
 
     private string BuildLogRoute(LogDescriptor log)
     {

@@ -111,7 +111,7 @@ else
         BuildRoute("/resources/add", query);
 
     private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
-        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}";
+        ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
 
     private static string BuildRoute(string path, Dictionary<string, string?> query)
     {
