@@ -328,8 +328,10 @@ listed here before pulling in broader proposal work.
   applying CloudShell scoped resource-permission claims. The Third-party
   Identity sample now includes automated smoke coverage for a
   Keycloak-provisioned workload that reads configuration with a provisioned
-  resource identity. Next identity work should keep that path stable while
-  improving setup and authorization diagnostics that directly affect MVP flows.
+  resource identity. The generated Identity tab now shows provisioning status
+  and status diagnostics for identity-bound resources. Next identity work
+  should keep that path stable while improving provider setup and
+  authorization diagnostics that directly affect MVP flows.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, third-party identity,

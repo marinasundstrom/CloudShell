@@ -333,9 +333,10 @@ execution or identity-management permission.
 The generated Resource Manager overview displays basic identity binding
 metadata when a resource has one. Resource identity actions are isolated in a
 separate generated Identity tab that appears only for resources with identity
-enabled; that tab lists declared permission grants and exposes the provisioning
-command. Editing identity bindings and permission grants in the CloudShell UI
-is future work.
+enabled; that tab lists declared permission grants, exposes the provisioning
+command, and shows provider-reported provisioning status and diagnostics for
+the selected resource identity. Editing identity bindings and permission
+grants in the CloudShell UI is future work.
 
 Managed identity behavior is also future work. A managed identity provider
 should be able to resolve a resource identity binding and, where supported,

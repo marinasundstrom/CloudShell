@@ -154,6 +154,37 @@ public sealed class ResourceIdentityProvisioningServiceTests
     }
 
     [Fact]
+    public async Task GetResourceStatusAsync_ReportsMissingStatusProvider()
+    {
+        var declarations = new ResourceDeclarationStore();
+        declarations.Declare(
+            new TestCloudShellBuilder(),
+            "test",
+            "api",
+            identity: new ResourceIdentityBinding("identity:keycloak", Name: "api-service"));
+        var service = new ResourceIdentityProvisioningService(
+            declarations,
+            new ResourceIdentityProviderCatalog(
+                [
+                    new("identity:keycloak", "Keycloak", ResourceIdentityProviderKind.Oidc)
+                ]),
+            []);
+
+        var result = await service.GetResourceStatusAsync("api");
+
+        Assert.Equal("identity:keycloak", result.ProviderId);
+        var status = Assert.Single(result.Statuses);
+        Assert.Equal(ResourceIdentityProvisioningState.Unknown, status.State);
+        Assert.Equal("Provisioning status is not available for this identity provider.", status.Detail);
+        var diagnostic = Assert.Single(result.ProvisioningDiagnostics);
+        Assert.Equal(ResourceIdentityProvisioningDiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Equal("identity:keycloak", diagnostic.ProviderId);
+        Assert.Equal(
+            "No resource identity provisioning status provider is registered for provider 'identity:keycloak'.",
+            diagnostic.Message);
+    }
+
+    [Fact]
     public async Task SetupAsync_InvokesMatchingSetupHandler()
     {
         var declarations = new ResourceDeclarationStore();

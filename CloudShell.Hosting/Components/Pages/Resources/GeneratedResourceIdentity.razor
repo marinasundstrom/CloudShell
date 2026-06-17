@@ -81,6 +81,68 @@
             }
         </section>
 
+        @if (Resource.IdentityBinding is not null)
+        {
+            <section class="generated-section">
+                <h3>@L["Provisioning status"]</h3>
+                @if (!string.IsNullOrWhiteSpace(ProvisioningStatusError))
+                {
+                    <div class="procedure-message compact">@ProvisioningStatusError</div>
+                }
+                else if (ProvisioningStatus is null)
+                {
+                    <p class="muted">@L["Provisioning status is unavailable."]</p>
+                }
+                else
+                {
+                    <dl class="detail-list">
+                        <dt>@L["Provider"]</dt>
+                        <dd>@FormatProvisioningProvider()</dd>
+                    </dl>
+                    @if (ProvisioningStatus.Statuses.Count == 0)
+                    {
+                        <p class="muted">@L["No provisioning status was reported for this resource identity."]</p>
+                    }
+                    else
+                    {
+                        <div class="generated-list">
+                            @foreach (var status in ProvisioningStatus.Statuses)
+                            {
+                                <div>
+                                    <strong>@FormatIdentityReference(status.Identity)</strong>
+                                    <span>@status.State</span>
+                                    @if (!string.IsNullOrWhiteSpace(status.Detail))
+                                    {
+                                        <small>@status.Detail</small>
+                                    }
+                                    @if (status.ObservedAt is { } observedAt)
+                                    {
+                                        <small>@L["Observed {0}", observedAt.ToLocalTime().ToString("g")]</small>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                    @if (ProvisioningStatus.ProvisioningDiagnostics.Count > 0)
+                    {
+                        <div class="generated-list">
+                            @foreach (var diagnostic in ProvisioningStatus.ProvisioningDiagnostics)
+                            {
+                                <div>
+                                    <strong>@diagnostic.Severity</strong>
+                                    <span>@diagnostic.Message</span>
+                                    @if (diagnostic.Identity is not null)
+                                    {
+                                        <small>@FormatIdentityReference(diagnostic.Identity)</small>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </section>
+        }
+
         @if (HasPermissionGrants)
         {
             <section class="generated-section">
@@ -125,6 +187,8 @@
     private IReadOnlyList<ResourcePermissionGrant> OutboundPermissionGrants { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> RelatedResources { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+    private ResourceIdentityProvisioningStatusResult? ProvisioningStatus { get; set; }
+    private string? ProvisioningStatusError { get; set; }
     private string? ProcedureMessage { get; set; }
     private bool ProvisioningIdentity { get; set; }
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
@@ -143,12 +207,15 @@
             InboundPermissionGrants = [];
             OutboundPermissionGrants = [];
             RelatedResources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+            ProvisioningStatus = null;
+            ProvisioningStatusError = null;
             return;
         }
 
         InboundPermissionGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
             new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id));
         OutboundPermissionGrants = await LoadOutboundPermissionGrantsAsync();
+        await LoadProvisioningStatusAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
     }
 
@@ -161,6 +228,11 @@
         string.IsNullOrWhiteSpace(identity.ProviderId)
             ? L["Default provider"].Value
             : identity.ProviderId;
+
+    private string FormatProvisioningProvider() =>
+        string.IsNullOrWhiteSpace(ProvisioningStatus?.ProviderId)
+            ? L["Not resolved"].Value
+            : ProvisioningStatus.ProviderId;
 
     private string FormatIdentitySubject(ResourceIdentityBinding identity) =>
         string.IsNullOrWhiteSpace(identity.Subject)
@@ -189,6 +261,25 @@
             new ResourcePermissionGrantQuery(
                 IdentityResourceId: Resource.Id,
                 IdentityName: identity.Name));
+    }
+
+    private async Task LoadProvisioningStatusAsync()
+    {
+        ProvisioningStatus = null;
+        ProvisioningStatusError = null;
+        if (Resource?.IdentityBinding is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ProvisioningStatus = await ResourceManager.GetResourceIdentityProvisioningStatusAsync(Resource.Id);
+        }
+        catch (Exception exception)
+        {
+            ProvisioningStatusError = exception.Message;
+        }
     }
 
     private async Task<IReadOnlyDictionary<string, Resource>> LoadRelatedResourcesAsync()
@@ -269,6 +360,7 @@
             ProcedureMessage = diagnostic is null
                 ? L["Provisioned an identity for this resource."].Value
                 : diagnostic.Message;
+            await LoadProvisioningStatusAsync();
         }
         catch (Exception exception)
         {

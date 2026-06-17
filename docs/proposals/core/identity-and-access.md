@@ -143,7 +143,9 @@ Implemented today:
   provider-backed Configuration Store and Secrets Vault HTTP services with
   scoped resource-permission claims.
 - Resource Manager overview identity metadata and a generated Identity tab for
-  identity-enabled resources.
+  identity-enabled resources. The Identity tab lists grants, exposes
+  provisioning, and shows provisioning status and diagnostics for the selected
+  resource.
 - HTTP tests proving built-in resource identity tokens respect read,
   lifecycle action, and identity-management permission boundaries.
 - Opt-in mock-principal permission-boundary evaluation for
@@ -482,8 +484,9 @@ Implemented projection:
 UI direction:
 
 - Generated overview displays basic identity binding metadata.
-- Generated Identity tab lists declared grants and exposes provisioning where
-  available.
+- Generated Identity tab lists declared grants, exposes provisioning where
+  available, and shows provisioning status and diagnostics for the selected
+  resource.
 - Future Resource Manager workflows should add guided management for identity
   bindings, permission grants, diagnostics, provider-resource selection, and
   provider-resource management.
@@ -543,7 +546,9 @@ service-principal automation flows.
    flows.
 5. UI management.
    Expand the generated Identity tab into guided identity binding, grant
-   editing, diagnostics, provisioning, and provider-resource management.
+   editing, richer diagnostics, provisioning, and provider-resource
+   management. The tab now shows provisioning status and status diagnostics
+   for identity-bound resources.
    The broader environment setup experience should also let an operator choose
    and configure the default identity provider for the CloudShell environment,
    run provider setup/reconcile hooks, and show whether the selected provider

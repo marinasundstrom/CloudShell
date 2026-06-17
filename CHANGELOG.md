@@ -13,6 +13,15 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-18
+
+#### Changed
+
+- The generated Resource Manager Identity tab now shows resource identity
+  provisioning status and status diagnostics, including missing
+  provisioning-status provider warnings, and refreshes status after invoking
+  provisioning.
+
 ### 2026-06-17
 
 #### Changed
