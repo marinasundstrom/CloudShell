@@ -39,6 +39,9 @@ on `git blame --follow`, and then by the broad type of change.
   standard views to light up from projected resource shape, capabilities, and
   resource type declarations before provider-owned sections or tabs add
   resource-specific depth.
+- Resource Manager standard view visibility rules now live in a shared helper
+  and the resource Identity tab lights up for resources that participate in
+  permission grants, even when the resource does not own an identity binding.
 
 ### 2026-06-16
 

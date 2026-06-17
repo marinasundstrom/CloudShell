@@ -22,7 +22,7 @@
         ? null
         : ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
-    var tabs = BuildTabs(resource, resourceType);
+    var tabs = BuildTabs(resource, resourceType, HasIdentityPermissionGrants);
     var selectedTab = tabs.FirstOrDefault(tab => tab.Id == SelectedTabId) ?? tabs.FirstOrDefault();
     var isGeneratedOverview = selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
     var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
@@ -235,6 +235,7 @@
     private Resource? Resource { get; set; }
     private ResourceGroup? ResourceGroup { get; set; }
     private IReadOnlyList<LogDescriptor> ResourceLogs { get; set; } = [];
+    private bool HasIdentityPermissionGrants { get; set; }
     private ResourceOperationCapabilities OperationCapabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
     private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -274,6 +275,7 @@
         if (Resource is null)
         {
             ResourceLogs = [];
+            HasIdentityPermissionGrants = false;
             OperationCapabilities = ResourceOperationCapabilities.None(string.Empty);
         }
         else
@@ -516,7 +518,29 @@
     private async Task LoadResourceAffordancesAsync(Resource resource)
     {
         ResourceLogs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resource.Id));
+        HasIdentityPermissionGrants = await HasPermissionGrantsAsync(resource);
         OperationCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
+    }
+
+    private async Task<bool> HasPermissionGrantsAsync(Resource resource)
+    {
+        var inboundGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(TargetResourceId: resource.Id));
+        if (inboundGrants.Count > 0)
+        {
+            return true;
+        }
+
+        if (resource.IdentityBinding is not { } identity)
+        {
+            return false;
+        }
+
+        var outboundGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(
+                IdentityResourceId: resource.Id,
+                IdentityName: identity.Name));
+        return outboundGrants.Count > 0;
     }
 
     private static bool AffectsResource(
@@ -575,7 +599,8 @@
 
     private static IReadOnlyList<ResourceTabContribution> BuildTabs(
         Resource? resource,
-        ResourceTypeContribution? resourceType)
+        ResourceTypeContribution? resourceType,
+        bool hasIdentityPermissionGrants)
     {
         var contributedTabs = resourceType?.ResourceTabs ?? [];
         var tabs = new List<ResourceTabContribution>();
@@ -589,7 +614,7 @@
                 GroupTitle: GeneralTabGroup));
         }
 
-        if (HasEndpointsTab(resource) &&
+        if (ResourceStandardViewVisibility.HasEndpointsView(resource) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedEndpointsTabId))
         {
             tabs.Add(new ResourceTabContribution(
@@ -600,7 +625,7 @@
                 GroupTitle: NetworkingTabGroup));
         }
 
-        if (HasDnsTab(resource) &&
+        if (ResourceStandardViewVisibility.HasDnsView(resource) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedDnsTabId))
         {
             tabs.Add(new ResourceTabContribution(
@@ -611,7 +636,7 @@
                 GroupTitle: NetworkingTabGroup));
         }
 
-        if (resource?.IdentityBinding is not null &&
+        if (ResourceStandardViewVisibility.HasIdentityView(resource, hasIdentityPermissionGrants) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedIdentityTabId))
         {
             tabs.Add(new ResourceTabContribution(
@@ -622,7 +647,7 @@
                 GroupTitle: ManagementTabGroup));
         }
 
-        if (resource?.HasCapability(ResourceCapabilityIds.StorageProvider) == true &&
+        if (ResourceStandardViewVisibility.HasStorageVolumesView(resource) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedStorageVolumesTabId))
         {
             tabs.Add(new ResourceTabContribution(
@@ -655,7 +680,7 @@
                 GroupTitle: GeneralTabGroup));
         }
 
-        if (resource?.HasCapability(ResourceCapabilityIds.EnvironmentVariables) == true &&
+        if (ResourceStandardViewVisibility.HasEnvironmentView(resource) &&
             !contributedTabs.Any(tab => tab.Id == ResourceStandardViewIds.Environment))
         {
             tabs.Add(new ResourceTabContribution(
@@ -698,26 +723,6 @@
 
         return tab.Order;
     }
-
-    private static bool HasEndpointsTab(Resource? resource) =>
-        resource is not null &&
-        (resource.Endpoints.Count > 0 ||
-         resource.ResourceEndpointMappings.Count > 0 ||
-         resource.ResourceLoadBalancerRoutes.Count > 0 ||
-         resource.ResourceClass == ResourceClass.Network ||
-         resource.HasCapability(ResourceCapabilityIds.EndpointSource) ||
-         resource.ResourceCapabilities.Any(capability =>
-             capability.Id.StartsWith("networking.", StringComparison.OrdinalIgnoreCase)));
-
-    private static bool HasDnsTab(Resource? resource) =>
-        resource is not null &&
-        (resource.Endpoints.Count > 0 ||
-         resource.HasCapability(ResourceCapabilityIds.NetworkingDnsZone) ||
-         resource.HasCapability(ResourceCapabilityIds.NetworkingNameMapping) ||
-         resource.HasCapability(ResourceCapabilityIds.NetworkingNamePublisher) ||
-         resource.HasCapability(ResourceCapabilityIds.NetworkingNameResolver) ||
-         string.Equals(resource.EffectiveTypeId, "cloudshell.dnsZone", StringComparison.OrdinalIgnoreCase) ||
-         string.Equals(resource.EffectiveTypeId, "cloudshell.nameMapping", StringComparison.OrdinalIgnoreCase));
 
     private static IReadOnlyList<ResourceTabGroup> BuildTabGroups(
         IReadOnlyList<ResourceTabContribution> tabs)
