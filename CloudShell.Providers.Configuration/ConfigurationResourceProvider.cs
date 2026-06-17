@@ -620,13 +620,12 @@ public sealed partial class ConfigurationResourceProvider :
             TryGetPort(GetServiceBaseUrl(definition)));
 
     private ResourceEndpointNetworkMapping CreateEntriesEndpointMapping(ConfigurationStoreDefinition definition) =>
-        new(
-            $"{definition.Id}:endpoint-network-mapping:entries",
+        ResourceEndpointNetworkMapping.ForEndpoint(
+            definition.Id,
             "entries",
-            new ResourceEndpointReference(definition.Id, "entries"),
             GetEntriesEndpoint(definition.Id),
             ResourceExposureScope.Local,
-            SourceEndpointName: "entries");
+            sourceEndpointName: "entries");
 
     private string CreateServiceEndpoint(int port) =>
         $"{options.ServiceUrlScheme.TrimEnd(':')}://{options.ServiceHost.Trim()}:{port}";

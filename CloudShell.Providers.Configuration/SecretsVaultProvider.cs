@@ -606,13 +606,12 @@ public sealed partial class SecretsVaultProvider(
             TryGetPort(GetServiceBaseUrl(definition)));
 
     private ResourceEndpointNetworkMapping CreateSecretsEndpointMapping(SecretsVaultDefinition definition) =>
-        new(
-            $"{definition.Id}:endpoint-network-mapping:secrets",
+        ResourceEndpointNetworkMapping.ForEndpoint(
+            definition.Id,
             "secrets",
-            new ResourceEndpointReference(definition.Id, "secrets"),
             GetSecretsEndpoint(definition.Id),
             ResourceExposureScope.Local,
-            SourceEndpointName: "secrets");
+            sourceEndpointName: "secrets");
 
     private string CreateServiceEndpoint(int port) =>
         $"{options.ServiceUrlScheme.TrimEnd(':')}://{options.ServiceHost.Trim()}:{port}";

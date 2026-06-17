@@ -96,13 +96,12 @@ public sealed class CloudShellResourceProvider : IResourceProvider
         string endpointName,
         string address,
         ResourceExposureScope exposure) =>
-        new(
-            $"{resourceId}:endpoint-network-mapping:{endpointName}",
+        ResourceEndpointNetworkMapping.ForEndpoint(
+            resourceId,
             endpointName,
-            new ResourceEndpointReference(resourceId, endpointName),
             address,
             exposure,
-            SourceEndpointName: endpointName);
+            sourceEndpointName: endpointName);
 
     private static int? TryGetPort(string address) =>
         Uri.TryCreate(address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort

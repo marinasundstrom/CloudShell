@@ -105,13 +105,12 @@ public sealed record Resource(
         IReadOnlyList<ResourceEndpoint> endpoints) =>
         endpoints
             .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
-            .Select(endpoint => new ResourceEndpointNetworkMapping(
-                $"{resourceId}:endpoint-network-mapping:{endpoint.Name}",
+            .Select(endpoint => ResourceEndpointNetworkMapping.ForEndpoint(
+                resourceId,
                 endpoint.Name,
-                new ResourceEndpointReference(resourceId, endpoint.Name),
                 endpoint.Address,
                 endpoint.Exposure,
-                SourceEndpointName: endpoint.Name))
+                sourceEndpointName: endpoint.Name))
             .ToArray();
 }
 

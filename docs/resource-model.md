@@ -295,6 +295,20 @@ public sealed record ResourceEndpointNetworkMapping(
     string? SourceEndpointName = null);
 ```
 
+Use `ResourceEndpointNetworkMapping.ForEndpoint(...)` when constructing a
+mapping for a target resource endpoint. It centralizes the canonical mapping ID
+shape, target reference, and source endpoint name defaults:
+
+```csharp
+ResourceEndpointNetworkMapping.ForEndpoint(
+    resourceId,
+    endpointName,
+    address,
+    exposure,
+    networkResourceId,
+    providerResourceId);
+```
+
 These mappings are projected on the target resource through:
 
 ```csharp

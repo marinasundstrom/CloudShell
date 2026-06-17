@@ -840,14 +840,13 @@ public sealed partial class DockerContainerResourceProvider :
             Capabilities: [new(ResourceCapabilityIds.ContainerHost)],
             EndpointNetworkMappings:
             [
-                new(
-                    $"{configured.Id}:endpoint-network-mapping:host",
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    configured.Id,
                     "host",
-                    new ResourceEndpointReference(configured.Id, "host"),
                     configured.Host.NormalizedEndpoint,
                     ResourceExposureScope.Private,
-                    ProviderResourceId: configured.Id,
-                    SourceEndpointName: "host")
+                    providerResourceId: configured.Id,
+                    sourceEndpointName: "host")
             ]);
 
     private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
@@ -1290,13 +1289,12 @@ public sealed partial class DockerContainerResourceProvider :
                     ? $"{protocol}://{NormalizeHost(port.IP)}:{port.PublicPort}"
                     : $"{protocol}://{containerName}:{port.PrivatePort}";
 
-                return new ResourceEndpointNetworkMapping(
-                    $"{resourceId}:endpoint-network-mapping:{endpoint.Name}",
+                return ResourceEndpointNetworkMapping.ForEndpoint(
+                    resourceId,
                     endpoint.Name,
-                    new ResourceEndpointReference(resourceId, endpoint.Name),
                     address,
                     endpoint.Exposure,
-                    SourceEndpointName: endpoint.Name);
+                    sourceEndpointName: endpoint.Name);
             })
             .ToArray();
 

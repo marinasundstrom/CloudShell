@@ -2244,13 +2244,12 @@ public sealed class PlatformResourceProvider(
                     ResourceEndpointProtocol.Https => $"https://localhost:{entrypoint.Port}",
                     _ => $"{scheme}://localhost:{entrypoint.Port}"
                 };
-                return new ResourceEndpointNetworkMapping(
-                    $"{definition.Id}:endpoint-network-mapping:{entrypoint.Name}",
+                return ResourceEndpointNetworkMapping.ForEndpoint(
+                    definition.Id,
                     entrypoint.Name,
-                    new ResourceEndpointReference(definition.Id, entrypoint.Name),
                     address,
                     entrypoint.Exposure,
-                    SourceEndpointName: entrypoint.Name);
+                    sourceEndpointName: entrypoint.Name);
             })
             .ToArray();
 

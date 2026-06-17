@@ -107,13 +107,12 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
             Actions: CreateActions(state),
             EndpointNetworkMappings:
             [
-                new(
-                    $"{id}:endpoint-network-mapping:default",
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    id,
                     "default",
-                    new ResourceEndpointReference(id, "default"),
                     endpoint,
                     ResourceExposureScope.Public,
-                    SourceEndpointName: "default")
+                    sourceEndpointName: "default")
             ]);
     }
 

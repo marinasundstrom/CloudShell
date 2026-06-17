@@ -40,14 +40,13 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
             ? $"{protocol}://{host}"
             : $"{protocol}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}";
 
-        return new ResourceEndpointNetworkMapping(
-            $"{networkId}:endpoint-network-mapping:{request.Name}",
+        return ResourceEndpointNetworkMapping.ForEndpoint(
+            networkId,
             request.Name,
-            new ResourceEndpointReference(networkId, request.Name),
             address,
             request.Exposure,
-            NetworkResourceId: networkId,
-            SourceEndpointName: request.Name);
+            networkResourceId: networkId,
+            sourceEndpointName: request.Name);
     }
 
     public ResourceEndpointNetworkMapping ResolveServiceEndpoint(
@@ -59,13 +58,12 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
         var host = FirstNonEmpty(port.IPAddress, port.Host, DefaultHost)!;
         var exposedPort = port.Port ??
             AssignLocalPort(serviceId, port.Name, autoLocalPortStart, autoLocalPortEnd);
-        return new ResourceEndpointNetworkMapping(
-            $"{serviceId}:endpoint-network-mapping:{port.Name}",
+        return ResourceEndpointNetworkMapping.ForEndpoint(
+            serviceId,
             port.Name,
-            new ResourceEndpointReference(serviceId, port.Name),
             $"{port.Protocol}://{host}:{exposedPort.ToString(CultureInfo.InvariantCulture)}",
             port.Exposure,
-            SourceEndpointName: port.Name);
+            sourceEndpointName: port.Name);
     }
 
     private static int AssignLocalPort(

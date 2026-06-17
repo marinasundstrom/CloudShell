@@ -8015,26 +8015,24 @@ public sealed class ResourceDeclarationTests
             ResourceEndpointRequest request,
             int autoLocalPortStart,
             int autoLocalPortEnd) =>
-            new(
-                $"{networkId}:endpoint-network-mapping:{request.Name}",
+            ResourceEndpointNetworkMapping.ForEndpoint(
+                networkId,
                 request.Name,
-                new ResourceEndpointReference(networkId, request.Name),
                 $"{request.ProtocolName}://{DefaultHost}:4123",
                 request.Exposure,
-                NetworkResourceId: networkId,
-                SourceEndpointName: request.Name);
+                networkResourceId: networkId,
+                sourceEndpointName: request.Name);
 
         public ResourceEndpointNetworkMapping ResolveServiceEndpoint(
             string serviceId,
             ServicePort port,
             int autoLocalPortStart,
             int autoLocalPortEnd) =>
-            new(
-                $"{serviceId}:endpoint-network-mapping:{port.Name}",
+            ResourceEndpointNetworkMapping.ForEndpoint(
+                serviceId,
                 port.Name,
-                new ResourceEndpointReference(serviceId, port.Name),
                 $"{port.Protocol}://{DefaultHost}:4124",
                 port.Exposure,
-                SourceEndpointName: port.Name);
+                sourceEndpointName: port.Name);
     }
 }

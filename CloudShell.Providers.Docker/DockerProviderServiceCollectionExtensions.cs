@@ -799,13 +799,12 @@ internal sealed class DockerContainerResourceBuilder(
     private ResourceEndpointNetworkMapping CreateEndpointNetworkMapping(
         ResourceEndpoint endpoint,
         string address) =>
-        new(
-            $"{declared.Definition.Id}:endpoint-network-mapping:{endpoint.Name}",
+        ResourceEndpointNetworkMapping.ForEndpoint(
+            declared.Definition.Id,
             endpoint.Name,
-            new ResourceEndpointReference(declared.Definition.Id, endpoint.Name),
             address,
             endpoint.Exposure,
-            SourceEndpointName: endpoint.Name);
+            sourceEndpointName: endpoint.Name);
 
     public IDockerContainerResourceBuilder WithHttpHealthCheck(
         string path,

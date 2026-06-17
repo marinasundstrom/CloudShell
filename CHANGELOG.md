@@ -86,6 +86,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Docker container declarations can now create address-less endpoint contracts
   plus endpoint network mappings directly, and the container deployment sample
   uses that mapping-native authoring path for the local registry.
+- Endpoint network mappings now have a `ForEndpoint(...)` factory that
+  standardizes mapping IDs, target references, and source endpoint names across
+  providers and samples.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

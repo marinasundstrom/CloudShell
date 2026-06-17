@@ -58,7 +58,33 @@ public sealed record ResourceEndpointNetworkMapping(
     ResourceExposureScope Exposure = ResourceExposureScope.Local,
     string? NetworkResourceId = null,
     string? ProviderResourceId = null,
-    string? SourceEndpointName = null);
+    string? SourceEndpointName = null)
+{
+    public static ResourceEndpointNetworkMapping ForEndpoint(
+        string resourceId,
+        string endpointName,
+        string address,
+        ResourceExposureScope exposure = ResourceExposureScope.Local,
+        string? networkResourceId = null,
+        string? providerResourceId = null,
+        string? sourceEndpointName = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(endpointName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(address);
+        var normalizedEndpointName = endpointName.Trim();
+
+        return new ResourceEndpointNetworkMapping(
+            $"{resourceId.Trim()}:endpoint-network-mapping:{normalizedEndpointName}",
+            normalizedEndpointName,
+            new ResourceEndpointReference(resourceId.Trim(), normalizedEndpointName),
+            address.Trim(),
+            exposure,
+            networkResourceId,
+            providerResourceId,
+            sourceEndpointName ?? normalizedEndpointName);
+    }
+}
 
 public sealed record ResourceEndpointMappingDefinition(
     string Id,

@@ -61,11 +61,10 @@ public sealed class ManagedResourceProvider : IResourceProvider
         string resourceId,
         string endpointName,
         string address) =>
-        new(
-            $"{resourceId}:endpoint-network-mapping:{endpointName}",
+        ResourceEndpointNetworkMapping.ForEndpoint(
+            resourceId,
             endpointName,
-            new ResourceEndpointReference(resourceId, endpointName),
             address,
             ResourceExposureScope.Private,
-            SourceEndpointName: endpointName);
+            sourceEndpointName: endpointName);
 }

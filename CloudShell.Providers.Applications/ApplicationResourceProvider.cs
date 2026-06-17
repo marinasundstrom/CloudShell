@@ -2961,14 +2961,13 @@ public sealed partial class ApplicationResourceProvider(
         if (application.EndpointPorts.Count > 0)
         {
             return application.EndpointPorts
-                .Select(port => new ResourceEndpointNetworkMapping(
-                    $"{application.Id}:endpoint-network-mapping:{port.Name}",
+                .Select(port => ResourceEndpointNetworkMapping.ForEndpoint(
+                    application.Id,
                     port.Name,
-                    new ResourceEndpointReference(application.Id, port.Name),
                     CreateServiceEndpointAddress(application.Id, port),
                     port.Exposure,
-                    NetworkResourceId: NormalizeNullable(port.NetworkResourceId),
-                    SourceEndpointName: port.Name))
+                    networkResourceId: NormalizeNullable(port.NetworkResourceId),
+                    sourceEndpointName: port.Name))
                 .ToArray();
         }
 
@@ -2979,13 +2978,12 @@ public sealed partial class ApplicationResourceProvider(
 
         return
         [
-            new ResourceEndpointNetworkMapping(
-                $"{application.Id}:endpoint-network-mapping:application",
+            ResourceEndpointNetworkMapping.ForEndpoint(
+                application.Id,
                 "application",
-                new ResourceEndpointReference(application.Id, "application"),
                 application.Endpoint,
                 ResourceExposureScope.Public,
-                SourceEndpointName: "application")
+                sourceEndpointName: "application")
         ];
     }
 
