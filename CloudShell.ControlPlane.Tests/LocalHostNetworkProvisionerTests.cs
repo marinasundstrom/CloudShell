@@ -36,31 +36,19 @@ public sealed class LocalHostNetworkProvisionerTests
     }
 
     [Fact]
-    public async Task ProvisionEndpointMappingAsync_FallsBackToLegacyEndpointAddresses()
+    public async Task ProvisionEndpointMappingAsync_RequiresEndpointNetworkMappings()
     {
         var sourcePort = GetFreePort();
-        var targetListener = new TcpListener(IPAddress.Loopback, 0);
-        targetListener.Start();
-        var targetPort = ((IPEndPoint)targetListener.LocalEndpoint).Port;
-        var targetTask = AcceptOneConnectionAsync(targetListener);
+        var targetPort = GetFreePort();
         await using var provisioner = new LocalHostNetworkProvisioner();
 
         var context = CreateContext(sourcePort, targetPort, includeEndpointNetworkMappings: false);
         Assert.True(provisioner.CanProvisionEndpointMapping(context));
 
-        await provisioner.ProvisionEndpointMappingAsync(context);
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provisioner.ProvisionEndpointMappingAsync(context));
 
-        using var client = new TcpClient();
-        await client.ConnectAsync(IPAddress.Loopback, sourcePort);
-        await using var stream = client.GetStream();
-        await using var writer = new StreamWriter(stream, leaveOpen: true) { AutoFlush = true };
-        using var reader = new StreamReader(stream, leaveOpen: true);
-
-        await writer.WriteLineAsync("ping");
-        var response = await reader.ReadLineAsync();
-
-        Assert.Equal("pong:ping", response);
-        Assert.Equal("ping", await targetTask);
+        Assert.Contains("must use a mapped absolute host:port address", exception.Message);
     }
 
     private static ResourceEndpointMappingProvisioningContext CreateContext(

@@ -133,7 +133,8 @@ public sealed class LocalHostNetworkProvisioner : IResourceEndpointMappingProvis
             return true;
         }
 
-        return endpoint.TryGetUri(out uri);
+        uri = null!;
+        return false;
     }
 
     private sealed record HostEndpoint(string Host, int Port);

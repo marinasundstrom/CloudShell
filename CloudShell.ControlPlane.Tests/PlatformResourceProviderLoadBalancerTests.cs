@@ -221,11 +221,29 @@ public sealed class PlatformResourceProviderLoadBalancerTests
                 CreateResource(
                     "application:api-a",
                     "API A",
-                    [ResourceEndpoint.Http("http", "api-a.internal", 8080)]),
+                    [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Network, 8080)],
+                    endpointNetworkMappings:
+                    [
+                        new ResourceEndpointNetworkMapping(
+                            "application:api-a:endpoint-network-mapping:http",
+                            "http",
+                            new ResourceEndpointReference("application:api-a", "http"),
+                            "http://api-a.internal:8080",
+                            ResourceExposureScope.Network)
+                    ]),
                 CreateResource(
                     "application:api-b",
                     "API B",
-                    [ResourceEndpoint.Http("http", "api-b.internal", 8080)])
+                    [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Network, 8080)],
+                    endpointNetworkMappings:
+                    [
+                        new ResourceEndpointNetworkMapping(
+                            "application:api-b:endpoint-network-mapping:http",
+                            "http",
+                            new ResourceEndpointReference("application:api-b", "http"),
+                            "http://api-b.internal:8080",
+                            ResourceExposureScope.Network)
+                    ])
             ]);
 
         var result = await provider.ExecuteActionAsync(
@@ -623,7 +641,16 @@ public sealed class PlatformResourceProviderLoadBalancerTests
                 CreateResource(
                     "application:web",
                     "Web",
-                    [ResourceEndpoint.Http("http", "web.internal", 8080)])
+                    [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Network, 8080)],
+                    endpointNetworkMappings:
+                    [
+                        new ResourceEndpointNetworkMapping(
+                            "application:web:endpoint-network-mapping:http",
+                            "http",
+                            new ResourceEndpointReference("application:web", "http"),
+                            "http://web.internal:8080",
+                            ResourceExposureScope.Network)
+                    ])
             ]);
 
     private static string CreateTempDirectory()

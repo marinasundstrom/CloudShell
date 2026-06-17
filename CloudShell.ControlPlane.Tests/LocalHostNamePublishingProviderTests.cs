@@ -105,7 +105,8 @@ public sealed class LocalHostNamePublishingProviderTests
         var result = await provider.ReconcileAsync(CreateContext(
             "cloudshell.local",
             "api.cloudshell.local",
-            ResourceEndpoint.Http("http", "localhost", 5080)));
+            ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Local, 5080),
+            "http://localhost:5080"));
 
         var content = await File.ReadAllTextAsync(hostsPath);
         Assert.Contains("Published 1 local host name mapping", result.Message);
@@ -160,7 +161,8 @@ public sealed class LocalHostNamePublishingProviderTests
         await provider.ReconcileAsync(CreateContext(
             "cloudshell.local",
             "api.cloudshell.local",
-            ResourceEndpoint.Http("http", "127.0.0.1", 5080)));
+            ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Local, 5080),
+            "http://127.0.0.1:5080"));
 
         var content = await File.ReadAllTextAsync(hostsPath);
         Assert.DoesNotContain("old.cloudshell.local", content);
@@ -181,7 +183,8 @@ public sealed class LocalHostNamePublishingProviderTests
         var result = await provider.ReconcileAsync(CreateContext(
             "local",
             "api.local",
-            ResourceEndpoint.Http("http", "localhost", 5080)));
+            ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Local, 5080),
+            "http://localhost:5080"));
 
         Assert.Contains(".local host names may conflict", result.Message);
     }
@@ -202,7 +205,8 @@ public sealed class LocalHostNamePublishingProviderTests
         var result = await provider.ReconcileAsync(CreateContext(
             "cloudshell.local",
             "api.cloudshell.local",
-            ResourceEndpoint.Http("http", "localhost", 5080)));
+            ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Local, 5080),
+            "http://localhost:5080"));
 
         Assert.False(refresher.Called);
         Assert.Contains("custom hosts-file target", result.Message);
@@ -249,7 +253,8 @@ public sealed class LocalHostNamePublishingProviderTests
             provider.ReconcileAsync(CreateContext(
                 "cloudshell.local",
                 "*.cloudshell.local",
-                ResourceEndpoint.Http("http", "localhost", 5080))));
+                ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Local, 5080),
+                "http://localhost:5080")));
 
         Assert.Contains("only supports exact host mappings", exception.Message);
     }
@@ -268,7 +273,8 @@ public sealed class LocalHostNamePublishingProviderTests
             provider.ReconcileAsync(CreateContext(
                 "cloudshell.local",
                 "api.cloudshell.local",
-                ResourceEndpoint.Http("http", "api.internal", 5080))));
+                ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Local, 5080),
+                "http://api.internal:5080")));
 
         Assert.Contains("is not a local or IP address", exception.Message);
     }

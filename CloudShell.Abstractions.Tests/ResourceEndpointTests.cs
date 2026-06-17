@@ -14,7 +14,6 @@ public sealed class ResourceEndpointTests
             ResourceExposureScope.Public);
 
         Assert.Equal("public", endpoint.Name);
-        Assert.Equal("http://localhost:5088", endpoint.Address);
         Assert.Equal("http", endpoint.Protocol);
         Assert.Equal(ResourceExposureScope.Public, endpoint.Exposure);
         Assert.Equal(5088, endpoint.TargetPort);
@@ -39,7 +38,6 @@ public sealed class ResourceEndpointTests
         var endpoint = ResourceEndpoint.Contract("http", "http", targetPort: 8080);
 
         Assert.Equal("http", endpoint.Name);
-        Assert.Equal(string.Empty, endpoint.Address);
         Assert.Equal("http", endpoint.Protocol);
         Assert.Equal(ResourceExposureScope.Private, endpoint.Exposure);
         Assert.Equal(8080, endpoint.TargetPort);
@@ -61,24 +59,6 @@ public sealed class ResourceEndpointTests
 
         Assert.True(endpoint.TryGetPort(out var port));
         Assert.Equal(5080, port);
-    }
-
-    [Fact]
-    public void TryGetUri_ParsesAbsoluteAddress()
-    {
-        var endpoint = ResourceEndpoint.FromAddress("http", "http://localhost:5080", "http");
-
-        Assert.True(endpoint.TryGetUri(out var uri));
-        Assert.Equal("localhost", uri.Host);
-        Assert.Equal(5080, uri.Port);
-    }
-
-    [Fact]
-    public void TryGetUri_ReturnsFalseForNonAbsoluteAddress()
-    {
-        var endpoint = ResourceEndpoint.FromAddress("http", "localhost:5080", "http");
-
-        Assert.False(endpoint.TryGetUri(out _));
     }
 
     [Fact]

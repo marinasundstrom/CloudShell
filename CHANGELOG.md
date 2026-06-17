@@ -22,6 +22,9 @@ on `git blame --follow`, and then by the broad type of change.
   relationships, endpoint descriptors, endpoint network mappings, configured
   endpoint mappings, actions, capabilities, attributes, ownership metadata, and
   resource/service terminology.
+- `ResourceEndpoint` no longer carries an address; endpoint factories now
+  create endpoint contracts, address-bearing compatibility factories only infer
+  target ports, and concrete reachability remains on endpoint-network mappings.
 - DNS/name publishing now resolves target addresses from
   `ResourceEndpointNetworkMapping` when available, with `ResourceEndpoint`
   address retained only as a compatibility fallback. The resource endpoint

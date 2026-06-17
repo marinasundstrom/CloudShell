@@ -1524,11 +1524,6 @@ public sealed class PlatformResourceProvider(
             return true;
         }
 
-        if (targetEndpoint is not null)
-        {
-            return targetEndpoint.TryGetUri(out uri);
-        }
-
         uri = null!;
         return false;
     }

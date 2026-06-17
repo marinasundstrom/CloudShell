@@ -355,24 +355,20 @@ public static class ApplicationProviderServiceCollectionExtensions
 
     private static ServicePort? TryCreateEndpointPort(ResourceEndpoint endpoint)
     {
-        var hasAddress = endpoint.TryGetUri(out var uri) &&
-            uri.Port > 0;
-        var targetPort = endpoint.TargetPort ?? (hasAddress ? uri!.Port : null);
-        if (targetPort is null)
+        if (endpoint.TargetPort is null)
         {
             return null;
         }
 
         return new ServicePort(
             string.IsNullOrWhiteSpace(endpoint.Name) ? "default" : endpoint.Name,
-            targetPort.Value,
-            hasAddress ? uri!.Port : null,
+            endpoint.TargetPort.Value,
+            null,
             string.IsNullOrWhiteSpace(endpoint.Protocol)
-                ? hasAddress ? uri!.Scheme : "tcp"
+                ? "tcp"
                 : endpoint.Protocol,
             endpoint.Exposure,
-            hasAddress ? ResourceEndpointAssignment.Manual : ResourceEndpointAssignment.ProviderDefault,
-            Host: hasAddress ? uri!.Host : null);
+            ResourceEndpointAssignment.ProviderDefault);
     }
 
     private static ApplicationProviderOptions GetOrAddApplicationProviderOptions(

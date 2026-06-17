@@ -1644,7 +1644,6 @@ public sealed class ResourceDeclarationTests
             Assert.Equal("application", endpoint.Name);
             Assert.Equal("http", endpoint.Protocol);
             Assert.Equal(port, endpoint.TargetPort);
-            Assert.Empty(endpoint.Address);
             var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
             Assert.Equal("application", mapping.Name);
             Assert.Equal(new ResourceEndpointReference(resource.Id, endpoint.Name), mapping.Target);
@@ -3168,7 +3167,6 @@ public sealed class ResourceDeclarationTests
             var endpoint = Assert.Single(resource.Endpoints);
 
             Assert.Equal("http", endpoint.Name);
-            Assert.Equal(string.Empty, endpoint.Address);
             Assert.Equal("http", endpoint.Protocol);
             Assert.Equal(80, endpoint.TargetPort);
 
@@ -3228,7 +3226,6 @@ public sealed class ResourceDeclarationTests
             var endpoint = Assert.Single(resource.Endpoints);
             var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
 
-            Assert.Equal(string.Empty, endpoint.Address);
             Assert.Equal(80, endpoint.TargetPort);
             Assert.Equal("network:tenant", mapping.NetworkResourceId);
             Assert.Equal("http://127.0.0.2:6000", mapping.Address);
@@ -3319,13 +3316,11 @@ public sealed class ResourceDeclarationTests
                 endpoint =>
                 {
                     Assert.Equal("http", endpoint.Name);
-                    Assert.Equal(string.Empty, endpoint.Address);
                     Assert.Equal("http", endpoint.Protocol);
                 },
                 endpoint =>
                 {
                     Assert.Equal("https", endpoint.Name);
-                    Assert.Equal(string.Empty, endpoint.Address);
                     Assert.Equal("https", endpoint.Protocol);
                 });
             Assert.Collection(
@@ -3393,7 +3388,6 @@ public sealed class ResourceDeclarationTests
             var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
 
             Assert.Equal("http", endpoint.Name);
-            Assert.Equal(string.Empty, endpoint.Address);
             Assert.Equal("http://localhost:6000", mapping.Address);
         }
         finally
@@ -3709,7 +3703,6 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceCleanupBehavior.None, resource.CleanupBehavior);
         var endpoint = Assert.Single(resource.Endpoints);
         Assert.Equal("port-1", endpoint.Name);
-        Assert.Equal(string.Empty, endpoint.Address);
         Assert.Equal("tcp", endpoint.Protocol);
         Assert.Equal(6379, endpoint.TargetPort);
         var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
@@ -3759,7 +3752,6 @@ public sealed class ResourceDeclarationTests
             Assert.Equal("http", endpoint.Name);
             Assert.Equal("http", endpoint.Protocol);
             Assert.Equal(5000, endpoint.TargetPort);
-            Assert.Empty(endpoint.Address);
             var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
             Assert.Equal("http", mapping.Name);
             Assert.Equal(new ResourceEndpointReference(resource.Id, endpoint.Name), mapping.Target);
@@ -3876,7 +3868,6 @@ public sealed class ResourceDeclarationTests
         var endpoint = Assert.Single(host.Endpoints);
         Assert.Equal("host", endpoint.Name);
         Assert.Equal(provider.Endpoint.Scheme, endpoint.Protocol);
-        Assert.Empty(endpoint.Address);
         var endpointMapping = Assert.Single(host.ResourceEndpointNetworkMappings);
         Assert.Equal("host", endpointMapping.Name);
         Assert.Equal(new ResourceEndpointReference(host.Id, "host"), endpointMapping.Target);
@@ -3954,7 +3945,6 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("host", endpoint.Name);
         Assert.Equal("tcp", endpoint.Protocol);
         Assert.Equal(2375, endpoint.TargetPort);
-        Assert.Empty(endpoint.Address);
         var endpointMapping = Assert.Single(host.ResourceEndpointNetworkMappings);
         Assert.Equal("host", endpointMapping.Name);
         Assert.Equal(new ResourceEndpointReference(host.Id, "host"), endpointMapping.Target);
@@ -4109,7 +4099,6 @@ public sealed class ResourceDeclarationTests
         var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
 
         Assert.Equal("http", endpoint.Name);
-        Assert.Equal(string.Empty, endpoint.Address);
         Assert.Equal("http", endpoint.Protocol);
         Assert.Equal(8080, endpoint.TargetPort);
         Assert.Equal("http://localhost:5080", mapping.Address);
@@ -5379,13 +5368,11 @@ public sealed class ResourceDeclarationTests
             endpoint =>
             {
                 Assert.Equal("api", endpoint.Name);
-                Assert.Equal(string.Empty, endpoint.Address);
                 Assert.Equal("http", endpoint.Protocol);
             },
             endpoint =>
             {
                 Assert.Equal("public", endpoint.Name);
-                Assert.Equal(string.Empty, endpoint.Address);
                 Assert.Equal("tcp", endpoint.Protocol);
             });
         Assert.Collection(
@@ -5509,14 +5496,12 @@ public sealed class ResourceDeclarationTests
             endpoint =>
             {
                 Assert.Equal("http", endpoint.Name);
-                Assert.Equal(string.Empty, endpoint.Address);
                 Assert.Equal("http", endpoint.Protocol);
                 Assert.Equal(80, endpoint.TargetPort);
             },
             endpoint =>
             {
                 Assert.Equal("https", endpoint.Name);
-                Assert.Equal(string.Empty, endpoint.Address);
                 Assert.Equal("https", endpoint.Protocol);
                 Assert.Equal(443, endpoint.TargetPort);
             });
@@ -5577,7 +5562,7 @@ public sealed class ResourceDeclarationTests
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingIngress));
-        Assert.Equal(string.Empty, Assert.Single(resource.Endpoints).Address);
+        Assert.Equal("api", Assert.Single(resource.Endpoints).Name);
         Assert.StartsWith("http://localhost:", Assert.Single(resource.ResourceEndpointNetworkMappings).Address);
     }
 
@@ -5598,7 +5583,9 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("Host", resource.ResourceAttributes[ResourceAttributeNames.NetworkKind]);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingHostNetwork));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointProvider));
-        Assert.Equal("network://network:host", Assert.Single(resource.Endpoints).Address);
+        var endpoint = Assert.Single(resource.Endpoints);
+        Assert.Equal("network", endpoint.Name);
+        Assert.Equal("network", endpoint.Protocol);
     }
 
     [Fact]
@@ -5614,13 +5601,11 @@ public sealed class ResourceDeclarationTests
         var cloudShellEndpoint = Assert.Single(
             cloudShellResource.Endpoints,
             endpoint => endpoint.Name == "public");
-        Assert.Equal(string.Empty, cloudShellEndpoint.Address);
         Assert.Equal("https", cloudShellEndpoint.Protocol);
         Assert.Equal("https://api.cloudshell.local", cloudShellResource.GetEndpointNetworkAddress("public"));
 
         var managedEndpoint = Assert.Single(managedResource.Endpoints);
         Assert.Equal("postgres", managedEndpoint.Name);
-        Assert.Equal(string.Empty, managedEndpoint.Address);
         Assert.Equal("postgres://main.internal", managedResource.GetEndpointNetworkAddress("postgres"));
     }
 
@@ -5650,7 +5635,7 @@ public sealed class ResourceDeclarationTests
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "network:app");
 
-        Assert.Equal(string.Empty, Assert.Single(resource.Endpoints).Address);
+        Assert.Equal("api", Assert.Single(resource.Endpoints).Name);
         Assert.Equal("http://loopback.test:4123", Assert.Single(resource.ResourceEndpointNetworkMappings).Address);
     }
 
@@ -6386,7 +6371,6 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceEndpointAssignment.Manual, port.Assignment);
         var endpoint = Assert.Single(resource.Endpoints);
         var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
-        Assert.Equal(string.Empty, endpoint.Address);
         Assert.Equal("tcp://localhost:14333", mapping.Address);
     }
 
@@ -6544,7 +6528,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public async Task ContainerApplicationBuilder_ConvertsAddressBearingEndpointsToMappings()
+    public async Task ContainerApplicationBuilder_IgnoresAddressBearingEndpointAddresses()
     {
         var services = new ServiceCollection();
 
@@ -6584,19 +6568,19 @@ public sealed class ResourceDeclarationTests
         Assert.Null(application.Endpoint);
         var endpoint = Assert.Single(resource.Endpoints);
         Assert.Equal("http", endpoint.Name);
-        Assert.Equal(string.Empty, endpoint.Address);
         Assert.Equal(5000, endpoint.TargetPort);
         var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
-        Assert.Equal("http://127.0.0.1:5055", mapping.Address);
+        Assert.StartsWith("http://localhost:", mapping.Address, StringComparison.Ordinal);
+        Assert.True(ResourceEndpoint.TryGetPort(mapping.Address, out var mappedPort));
 
         var port = Assert.Single(workload?.WorkloadPorts ?? []);
         Assert.Equal("http", port.Name);
         Assert.Equal(5000, port.TargetPort);
-        Assert.Equal(5055, port.Port);
+        Assert.Null(port.Port);
         Assert.Equal("http", port.Protocol);
         Assert.Equal(ResourceExposureScope.Public, port.Exposure);
-        Assert.Equal(ResourceEndpointAssignment.Manual, port.Assignment);
-        Assert.Equal("127.0.0.1", port.Host);
+        Assert.Equal(ResourceEndpointAssignment.ProviderDefault, port.Assignment);
+        Assert.Null(port.Host);
     }
 
     [Fact]
@@ -6789,11 +6773,7 @@ public sealed class ResourceDeclarationTests
             Endpoints = [ResourceEndpoint.Http("http", "legacy-catalog.local", 8080, ResourceExposureScope.Network)],
             EndpointNetworkMappings = []
         };
-        Assert.Contains(
-            ApplicationServiceDiscoveryDisplay.GetEndpointBindings(legacyCatalogResource),
-            binding =>
-                binding.EnvironmentVariableName == "services__service-catalog__http__0" &&
-                binding.Address == "http://legacy-catalog.local:8080");
+        Assert.Empty(ApplicationServiceDiscoveryDisplay.GetEndpointBindings(legacyCatalogResource));
         Assert.DoesNotContain(
             environment ?? [],
             variable => variable.Key.StartsWith("CLOUDSHELL_SECRETS_", StringComparison.OrdinalIgnoreCase));
@@ -7959,7 +7939,6 @@ public sealed class ResourceDeclarationTests
     {
         var endpoint = Assert.Single(resource.Endpoints);
         Assert.Equal(endpointName, endpoint.Name);
-        Assert.Equal(string.Empty, endpoint.Address);
         Assert.Equal("http", endpoint.Protocol);
         Assert.NotNull(endpoint.TargetPort);
 

@@ -143,8 +143,7 @@ public sealed class ResourceHealthCheckService
             return true;
         }
 
-        return endpoint.TryGetUri(out var uri) &&
-            IsHttpScheme(uri.Scheme);
+        return false;
     }
 
     private static bool IsHttpScheme(string? scheme) =>

@@ -4,17 +4,16 @@ namespace CloudShell.Abstractions.ResourceManager;
 
 /// <summary>
 /// Represents the endpoint a resource exposes. The endpoint name, protocol,
-/// and target port describe the resource-owned contract. The address is kept
-/// as a compatibility projection of the current endpoint-network mapping.
+/// and target port describe the resource-owned contract. Concrete addresses
+/// are projected through <see cref="ResourceEndpointNetworkMapping"/>.
 /// </summary>
 public sealed record ResourceEndpoint(
     string Name,
-    string Address,
     string Protocol,
     ResourceExposureScope Exposure = ResourceExposureScope.Local,
     int? TargetPort = null)
 {
-    [Obsolete("Use ResourceEndpoint.FromAddress or protocol-specific factories with ResourceExposureScope.")]
+    [Obsolete("Use ResourceEndpoint.Contract or protocol-specific factories with ResourceExposureScope.")]
     public ResourceEndpoint(
         string name,
         string address,
@@ -22,9 +21,9 @@ public sealed record ResourceEndpoint(
         bool isExternal)
         : this(
             name,
-            address,
             protocol,
-            isExternal ? ResourceExposureScope.Public : ResourceExposureScope.Local)
+            isExternal ? ResourceExposureScope.Public : ResourceExposureScope.Local,
+            TryGetPort(address, out var port) ? port : null)
     {
     }
 
@@ -39,12 +38,8 @@ public sealed record ResourceEndpoint(
             return true;
         }
 
-        return TryGetPort(Address, out port);
-    }
-
-    public bool TryGetUri(out Uri uri)
-    {
-        return TryGetUri(Address, out uri);
+        port = 0;
+        return false;
     }
 
     public static bool TryGetUri(string? address, out Uri uri)
@@ -88,14 +83,14 @@ public sealed record ResourceEndpoint(
         string protocol,
         ResourceExposureScope exposure = ResourceExposureScope.Local,
         int? targetPort = null) =>
-        new(name, address, protocol, exposure, targetPort);
+        new(name, protocol, exposure, targetPort ?? (TryGetPort(address, out var port) ? port : null));
 
     public static ResourceEndpoint Contract(
         string name,
         string protocol,
         ResourceExposureScope exposure = ResourceExposureScope.Private,
         int? targetPort = null) =>
-        FromAddress(name, string.Empty, protocol, exposure, targetPort);
+        new(name, protocol, exposure, targetPort);
 
     public static ResourceEndpoint Http(
         string name,
@@ -103,7 +98,7 @@ public sealed record ResourceEndpoint(
         int port,
         ResourceExposureScope exposure = ResourceExposureScope.Local,
         int? targetPort = null) =>
-        FromAddress(name, $"http://{host}:{port}", "http", exposure, targetPort ?? port);
+        Contract(name, "http", exposure, targetPort ?? port);
 
     public static ResourceEndpoint Https(
         string name,
@@ -111,7 +106,7 @@ public sealed record ResourceEndpoint(
         int port,
         ResourceExposureScope exposure = ResourceExposureScope.Local,
         int? targetPort = null) =>
-        FromAddress(name, $"https://{host}:{port}", "https", exposure, targetPort ?? port);
+        Contract(name, "https", exposure, targetPort ?? port);
 
     public static ResourceEndpoint Tcp(
         string name,
@@ -119,7 +114,7 @@ public sealed record ResourceEndpoint(
         int port,
         ResourceExposureScope exposure = ResourceExposureScope.Local,
         int? targetPort = null) =>
-        FromAddress(name, $"tcp://{host}:{port}", "tcp", exposure, targetPort ?? port);
+        Contract(name, "tcp", exposure, targetPort ?? port);
 
     public static ResourceEndpoint Udp(
         string name,
@@ -127,7 +122,7 @@ public sealed record ResourceEndpoint(
         int port,
         ResourceExposureScope exposure = ResourceExposureScope.Local,
         int? targetPort = null) =>
-        FromAddress(name, $"udp://{host}:{port}", "udp", exposure, targetPort ?? port);
+        Contract(name, "udp", exposure, targetPort ?? port);
 
     public static ResourceEndpoint Logical(
         string name,
