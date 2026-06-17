@@ -2582,7 +2582,7 @@ public sealed partial class ApplicationResourceProvider(
             ResourceClass: GetResourceClass(application),
             Attributes: CreateAttributes(application, state),
             Capabilities: CreateCapabilities(application, endpoints),
-            EndpointNetworkMappings: CreateEndpointNetworkMappings(application.Id, endpoints),
+            EndpointNetworkMappings: CreateEndpointNetworkMappings(application),
             DisplayName: application.Name);
     }
 
@@ -2927,7 +2927,7 @@ public sealed partial class ApplicationResourceProvider(
             return application.EndpointPorts
                 .Select(port => ResourceEndpoint.FromAddress(
                     port.Name,
-                    $"{NormalizeProtocol(port.Protocol)}://localhost:{ResolveLocalPort(application.Id, port)}",
+                    CreateServiceEndpointAddress(application.Id, port),
                     NormalizeProtocol(port.Protocol),
                     port.Exposure,
                     Math.Max(1, port.TargetPort)))
@@ -2953,24 +2953,44 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
-        ApplicationResourceDefinition application) =>
-        CreateEndpointNetworkMappings(application.Id, CreateEndpoints(application));
+        ApplicationResourceDefinition application)
+    {
+        var endpointPorts = application.EndpointPorts
+            .ToDictionary(port => port.Name, StringComparer.OrdinalIgnoreCase);
+        return CreateEndpointNetworkMappings(
+            application.Id,
+            CreateEndpoints(application),
+            endpoint => endpointPorts.GetValueOrDefault(endpoint.Name));
+    }
 
     private static IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
         string resourceId,
-        IReadOnlyList<ResourceEndpoint> endpoints) =>
+        IReadOnlyList<ResourceEndpoint> endpoints,
+        Func<ResourceEndpoint, ServicePort?>? resolvePort = null) =>
         endpoints
             .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
             .Where(endpoint => !endpoint.Protocol.Equals("process", StringComparison.OrdinalIgnoreCase))
             .Where(endpoint => !endpoint.Address.StartsWith("process://", StringComparison.OrdinalIgnoreCase))
-            .Select(endpoint => new ResourceEndpointNetworkMapping(
-                $"{resourceId}:endpoint-network-mapping:{endpoint.Name}",
-                endpoint.Name,
-                new ResourceEndpointReference(resourceId, endpoint.Name),
-                endpoint.Address,
-                endpoint.Exposure,
-                SourceEndpointName: endpoint.Name))
+            .Select(endpoint =>
+            {
+                var port = resolvePort?.Invoke(endpoint);
+                return new ResourceEndpointNetworkMapping(
+                    $"{resourceId}:endpoint-network-mapping:{endpoint.Name}",
+                    endpoint.Name,
+                    new ResourceEndpointReference(resourceId, endpoint.Name),
+                    endpoint.Address,
+                    endpoint.Exposure,
+                    NetworkResourceId: NormalizeNullable(port?.NetworkResourceId),
+                    SourceEndpointName: endpoint.Name);
+            })
             .ToArray();
+
+    private string CreateServiceEndpointAddress(string resourceId, ServicePort port)
+    {
+        var protocol = NormalizeProtocol(port.Protocol);
+        var host = FirstNonEmpty(port.IPAddress, port.Host, "localhost")!;
+        return $"{protocol}://{host}:{ResolveLocalPort(resourceId, port).ToString(CultureInfo.InvariantCulture)}";
+    }
 
     private string? GetEndpointUnavailableReason(
         ApplicationResourceDefinition application,
@@ -4175,7 +4195,11 @@ public sealed partial class ApplicationResourceProvider(
                 Name = port.Name.Trim(),
                 Protocol = NormalizeProtocol(port.Protocol),
                 TargetPort = Math.Max(1, port.TargetPort),
-                Port = port.Port is null ? null : Math.Max(1, port.Port.Value)
+                Port = port.Port is null ? null : Math.Max(1, port.Port.Value),
+                NetworkResourceId = NormalizeNullable(port.NetworkResourceId),
+                Host = NormalizeNullable(port.Host),
+                IPAddress = NormalizeNullable(port.IPAddress),
+                ProviderEndpointId = NormalizeNullable(port.ProviderEndpointId)
             })
             .DistinctBy(port => port.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();

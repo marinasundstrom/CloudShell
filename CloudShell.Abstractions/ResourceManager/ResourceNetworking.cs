@@ -121,7 +121,12 @@ public sealed record ServicePort(
     int TargetPort,
     int? Port = null,
     string Protocol = "tcp",
-    ResourceExposureScope Exposure = ResourceExposureScope.Local);
+    ResourceExposureScope Exposure = ResourceExposureScope.Local,
+    ResourceEndpointAssignment Assignment = ResourceEndpointAssignment.ProviderDefault,
+    string? NetworkResourceId = null,
+    string? Host = null,
+    string? IPAddress = null,
+    string? ProviderEndpointId = null);
 
 public enum LoadBalancerRouteKind
 {

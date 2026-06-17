@@ -22,8 +22,13 @@
                                   PortId="web-application-endpoint-port"
                                   PortLabel="Fixed local port"
                                   Assignments="AspNetCoreEndpointAssignments"
+                                  ShowNetwork="true"
+                                  NetworkCandidates="GetNetworkCandidates()"
+                                  ShowManualAddress="true"
                                   HelpText="@AspNetCoreEndpointHelpText"
                                   @bind-Assignment="EndpointAssignment"
+                                  @bind-NetworkResourceId="SelectedNetworkResourceId"
+                                  @bind-ManualAddress="ManualEndpointHost"
                                   @bind-Port="EndpointPort" />
 
         <EnumValueSelect TEnum="ApplicationLifetime"
@@ -90,6 +95,8 @@
     private string ProjectPath { get; set; } = string.Empty;
     private string? ApplicationArguments { get; set; }
     private int? EndpointPort { get; set; }
+    private string? SelectedNetworkResourceId { get; set; }
+    private string? ManualEndpointHost { get; set; }
     private ResourceEndpointAssignment EndpointAssignment { get; set; } =
         ResourceEndpointAssignment.ProviderDefault;
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
@@ -196,11 +203,38 @@
         if (IsManualEndpointAssignment && EndpointPort is { } port)
         {
             var fixedPort = Math.Max(1, port);
-            return [new ServicePort("http", fixedPort, fixedPort, "http", ResourceExposureScope.Local)];
+            return
+            [
+                new ServicePort(
+                    "http",
+                    fixedPort,
+                    fixedPort,
+                    "http",
+                    ResourceExposureScope.Local,
+                    EndpointAssignment,
+                    NormalizeNullable(SelectedNetworkResourceId),
+                    NormalizeNullable(ManualEndpointHost))
+            ];
         }
 
-        return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
+        return
+        [
+            new ServicePort(
+                "http",
+                80,
+                Protocol: "http",
+                Exposure: ResourceExposureScope.Local,
+                Assignment: EndpointAssignment,
+                NetworkResourceId: NormalizeNullable(SelectedNetworkResourceId))
+        ];
     }
+
+    private IReadOnlyList<Resource> GetNetworkCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => resource.ResourceClass == ResourceClass.Network)
+            .Where(IsInSelectedGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
     private IReadOnlyList<Resource> GetReferenceCandidates() =>
         ResourceManager.GetResources()
@@ -231,6 +265,9 @@
         Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)
             ? lifetime
             : ApplicationLifetime.Detached;
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
         lifetime switch

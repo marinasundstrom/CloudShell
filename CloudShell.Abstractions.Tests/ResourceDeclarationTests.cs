@@ -3110,6 +3110,62 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ApplicationProvider_ProjectsEndpointNetworkAssignmentMetadata()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options => options.DefinitionsPath = "application-resources.json");
+
+        try
+        {
+            using var serviceProvider = services.BuildServiceProvider();
+            var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+            await provider.SetupApplicationAsync(
+                new ApplicationResourceDefinition(
+                    "application:api",
+                    "API",
+                    string.Empty,
+                    endpointPorts:
+                    [
+                        new ServicePort(
+                            "http",
+                            80,
+                            6000,
+                            "http",
+                            ResourceExposureScope.Local,
+                            ResourceEndpointAssignment.Manual,
+                            "network:tenant",
+                            "127.0.0.2")
+                    ],
+                    resourceType: ApplicationResourceTypes.AspNetCoreProject,
+                    projectPath: "src/API/API.csproj"),
+                resourceGroupId: null,
+                registrations: new MutableResourceRegistrationStore());
+
+            var resource = Assert.Single(provider.GetResources(), resource =>
+                resource.Id == "application:api");
+            var endpoint = Assert.Single(resource.Endpoints);
+            var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+
+            Assert.Equal("http://127.0.0.2:6000", endpoint.Address);
+            Assert.Equal(80, endpoint.TargetPort);
+            Assert.Equal("network:tenant", mapping.NetworkResourceId);
+            Assert.Equal("http://127.0.0.2:6000", mapping.Address);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public void TypedAspNetCoreProjectBuilder_CanOptIntoLaunchSettingsEndpoints()
     {
         var services = new ServiceCollection();

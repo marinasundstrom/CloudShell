@@ -54,11 +54,12 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
         int autoLocalPortStart,
         int autoLocalPortEnd)
     {
+        var host = FirstNonEmpty(port.IPAddress, port.Host, DefaultHost)!;
         var exposedPort = port.Port ??
             AssignLocalPort(serviceId, port.Name, autoLocalPortStart, autoLocalPortEnd);
         return ResourceEndpoint.FromAddress(
             port.Name,
-            $"{port.Protocol}://{DefaultHost}:{exposedPort.ToString(CultureInfo.InvariantCulture)}",
+            $"{port.Protocol}://{host}:{exposedPort.ToString(CultureInfo.InvariantCulture)}",
             port.Protocol,
             port.Exposure,
             port.TargetPort);

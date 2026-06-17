@@ -90,6 +90,12 @@ exposure instead of asking users to choose host ports. If a future UI exposes
 launch-settings endpoint loading, that option should be disabled whenever
 explicit endpoints are configured.
 
+Resource Manager create and update forms also expose the selected network and,
+when manual assignment is selected, an optional manual host/address. The local
+development default remains **Local network** with provider assignment, but the
+same UI shape is ready for virtual networks and private DNS/name-mapping
+policies.
+
 Provider defaults are local development bindings, not a general exposure
 mechanism. Public or broader resource exposure should be declared explicitly by
 the resource author or operator.

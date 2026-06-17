@@ -15,6 +15,33 @@
     <p class="muted">@HelpText</p>
 }
 
+@if (ShowNetwork)
+{
+    <label for="@NetworkId">@NetworkLabel</label>
+    <FluentSelect TOption="string"
+                  Id="@NetworkId"
+                  Value="@NormalizeNetworkValue(NetworkResourceId)"
+                  ValueChanged="SetNetworkResourceId"
+                  Disabled="@Disabled"
+                  Appearance="Appearance.Outline">
+        <FluentOption TOption="string" Value="">@DefaultNetworkLabel</FluentOption>
+        @foreach (var network in EffectiveNetworks)
+        {
+            <FluentOption TOption="string" Value="@network.Id">@GetNetworkLabel(network)</FluentOption>
+        }
+    </FluentSelect>
+}
+
+@if (ShowManualAddress && ShouldShowManualAddress)
+{
+    <label for="@ManualAddressId">@ManualAddressLabel</label>
+    <FluentTextField Id="@ManualAddressId"
+                     Value="@ManualAddress"
+                     ValueChanged="SetManualAddress"
+                     Disabled="@Disabled"
+                     Placeholder="@ManualAddressPlaceholder" />
+}
+
 @if (ShowPort && ShouldShowPort)
 {
     <label for="@PortId">@PortLabel</label>
@@ -27,6 +54,45 @@
 
     [Parameter]
     public string AssignmentLabel { get; set; } = "Assignment";
+
+    [Parameter]
+    public string NetworkId { get; set; } = "endpoint-network";
+
+    [Parameter]
+    public string NetworkLabel { get; set; } = "Network";
+
+    [Parameter]
+    public string DefaultNetworkLabel { get; set; } = "Local network";
+
+    [Parameter]
+    public string? NetworkResourceId { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> NetworkResourceIdChanged { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<Resource>? NetworkCandidates { get; set; }
+
+    [Parameter]
+    public bool ShowNetwork { get; set; }
+
+    [Parameter]
+    public string ManualAddressId { get; set; } = "endpoint-manual-address";
+
+    [Parameter]
+    public string ManualAddressLabel { get; set; } = "Manual address";
+
+    [Parameter]
+    public string ManualAddressPlaceholder { get; set; } = "localhost or 127.0.0.1";
+
+    [Parameter]
+    public string? ManualAddress { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ManualAddressChanged { get; set; }
+
+    [Parameter]
+    public bool ShowManualAddress { get; set; }
 
     [Parameter]
     public string PortId { get; set; } = "endpoint-port";
@@ -69,9 +135,19 @@
             ResourceEndpointAssignment.Manual
         ];
 
+    private IReadOnlyList<Resource> EffectiveNetworks =>
+        NetworkCandidates?
+            .Where(network => !string.IsNullOrWhiteSpace(network.Id))
+            .OrderBy(network => network.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray()
+        ?? [];
+
     private bool ShouldShowPort =>
         Assignment == ResourceEndpointAssignment.Manual ||
         (ShowPortForAuto && Assignment == ResourceEndpointAssignment.Auto);
+
+    private bool ShouldShowManualAddress =>
+        Assignment == ResourceEndpointAssignment.Manual;
 
     private static string FormatAssignment(ResourceEndpointAssignment assignment) =>
         assignment switch
@@ -92,9 +168,29 @@
         await AssignmentChanged.InvokeAsync(assignment);
     }
 
+    private async Task SetNetworkResourceId(string? value)
+    {
+        NetworkResourceId = string.IsNullOrWhiteSpace(value) ? null : value;
+        await NetworkResourceIdChanged.InvokeAsync(NetworkResourceId);
+    }
+
+    private async Task SetManualAddress(string? value)
+    {
+        ManualAddress = value;
+        await ManualAddressChanged.InvokeAsync(value);
+    }
+
     private async Task SetPort(int? value)
     {
         Port = value;
         await PortChanged.InvokeAsync(value);
     }
+
+    private static string NormalizeNetworkValue(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? string.Empty : value;
+
+    private static string GetNetworkLabel(Resource network) =>
+        string.Equals(network.Name, network.Id, StringComparison.OrdinalIgnoreCase)
+            ? network.Name
+            : $"{network.Name} ({network.Id})";
 }

@@ -103,6 +103,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Networking docs now clarify that application resource endpoints are
   service-port contracts, while virtual-network addresses and private DNS
   names are endpoint/network and name mappings over those service ports.
+- Endpoint assignment UI can now show network selection and optional manual
+  host/address fields. ASP.NET project, container app, and SQL Server create
+  flows persist the selected network and manual endpoint metadata on their
+  service ports, and ASP.NET project edit flows preserve those values.
 - Projected resource endpoints now carry optional target-port metadata, so
   application endpoints can expose the resource-owned port while topology,
   network, exposure, and DNS mappings remain separate primitives.

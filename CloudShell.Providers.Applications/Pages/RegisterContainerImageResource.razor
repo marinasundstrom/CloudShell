@@ -84,7 +84,12 @@
             <EndpointAssignmentEditor AssignmentId="container-port-assignment"
                                       PortId="container-local-port"
                                       PortLabel="Local port"
+                                      ShowNetwork="true"
+                                      NetworkCandidates="GetNetworkCandidates()"
+                                      ShowManualAddress="true"
                                       @bind-Assignment="EndpointAssignment"
+                                      @bind-NetworkResourceId="SelectedNetworkResourceId"
+                                      @bind-ManualAddress="ManualEndpointHost"
                                       @bind-Port="LocalPort" />
 
             <label for="container-protocol">Protocol</label>
@@ -147,6 +152,8 @@
     private int TargetPort { get; set; } = 80;
     private int? LocalPort { get; set; }
     private ResourceEndpointAssignment EndpointAssignment { get; set; } = ResourceEndpointAssignment.Auto;
+    private string? SelectedNetworkResourceId { get; set; }
+    private string? ManualEndpointHost { get; set; }
     private string Protocol { get; set; } = "tcp";
     private string SelectedGroupId { get; set; } = string.Empty;
     private bool WaitForReferences { get; set; } = true;
@@ -276,7 +283,10 @@
                 TargetPort,
                 IsManualEndpointAssignment ? LocalPort : null,
                 Protocol,
-                ResourceExposureScope.Local)]
+                ResourceExposureScope.Local,
+                EndpointAssignment,
+                NormalizeNullable(SelectedNetworkResourceId),
+                NormalizeNullable(ManualEndpointHost))]
             : [];
 
     private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
@@ -310,6 +320,13 @@
             .Where(resource => !string.Equals(resource.Id, GetCurrentResourceId(), StringComparison.OrdinalIgnoreCase))
             .Where(IsInSelectedGroup)
             .Where(IsVolumeResource)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<Resource> GetNetworkCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => resource.ResourceClass == ResourceClass.Network)
+            .Where(IsInSelectedGroup)
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
