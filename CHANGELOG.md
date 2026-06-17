@@ -91,6 +91,8 @@ on `git blame --follow`, and then by the broad type of change.
   providers and samples.
 - `ResourceEndpointNetworkMapping.ForEndpoint(...)` now normalizes whitespace
   on resource IDs, endpoint names, addresses, and optional mapping metadata.
+- Endpoint references now have a `ResourceEndpointReference.ForEndpoint(...)`
+  factory used by endpoint mapping normalization paths.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

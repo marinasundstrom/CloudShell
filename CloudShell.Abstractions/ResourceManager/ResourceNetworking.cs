@@ -48,7 +48,18 @@ public sealed record ResourceEndpointRequest(
 
 public sealed record ResourceEndpointReference(
     string ResourceId,
-    string EndpointName);
+    string EndpointName)
+{
+    public static ResourceEndpointReference ForEndpoint(
+        string resourceId,
+        string endpointName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(endpointName);
+
+        return new ResourceEndpointReference(resourceId.Trim(), endpointName.Trim());
+    }
+}
 
 public sealed record ResourceEndpointNetworkMapping(
     string Id,
@@ -78,7 +89,7 @@ public sealed record ResourceEndpointNetworkMapping(
         return new ResourceEndpointNetworkMapping(
             $"{normalizedResourceId}:endpoint-network-mapping:{normalizedEndpointName}",
             normalizedEndpointName,
-            new ResourceEndpointReference(normalizedResourceId, normalizedEndpointName),
+            ResourceEndpointReference.ForEndpoint(normalizedResourceId, normalizedEndpointName),
             address.Trim(),
             exposure,
             NormalizeNullable(networkResourceId),

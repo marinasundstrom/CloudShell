@@ -94,6 +94,15 @@ public sealed class ResourceEndpointTests
         Assert.Equal("http", mapping.SourceEndpointName);
     }
 
+    [Fact]
+    public void EndpointReferenceFactory_NormalizesReferenceParts()
+    {
+        var reference = ResourceEndpointReference.ForEndpoint(" application:api ", " http ");
+
+        Assert.Equal("application:api", reference.ResourceId);
+        Assert.Equal("http", reference.EndpointName);
+    }
+
     private static Resource CreateResource(
         IReadOnlyList<ResourceEndpoint> endpoints,
         IReadOnlyList<ResourceEndpointNetworkMapping>? endpointNetworkMappings = null) =>

@@ -2813,12 +2813,12 @@ public sealed class PlatformResourceProvider(
             {
                 Id = mapping.Id.Trim(),
                 Name = string.IsNullOrWhiteSpace(mapping.Name) ? mapping.Id.Trim() : mapping.Name.Trim(),
-                Source = new ResourceEndpointReference(
-                    mapping.Source.ResourceId.Trim(),
-                    mapping.Source.EndpointName.Trim()),
-                Target = new ResourceEndpointReference(
-                    mapping.Target.ResourceId.Trim(),
-                    mapping.Target.EndpointName.Trim()),
+                Source = ResourceEndpointReference.ForEndpoint(
+                    mapping.Source.ResourceId,
+                    mapping.Source.EndpointName),
+                Target = ResourceEndpointReference.ForEndpoint(
+                    mapping.Target.ResourceId,
+                    mapping.Target.EndpointName),
                 NetworkResourceId = NormalizeNullable(mapping.NetworkResourceId),
                 ProviderResourceId = NormalizeNullable(mapping.ProviderResourceId)
             })
