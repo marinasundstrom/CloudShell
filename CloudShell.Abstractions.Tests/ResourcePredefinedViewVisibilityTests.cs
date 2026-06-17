@@ -2,7 +2,7 @@ using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.Abstractions.Tests;
 
-public sealed class ResourceStandardViewVisibilityTests
+public sealed class ResourcePredefinedViewVisibilityTests
 {
     [Fact]
     public void HasEndpointsView_LightsUpFromEndpointShape()
@@ -15,7 +15,7 @@ public sealed class ResourceStandardViewVisibilityTests
             ]
         };
 
-        Assert.True(ResourceStandardViewVisibility.HasEndpointsView(resource));
+        Assert.True(ResourcePredefinedViewVisibility.HasEndpointsView(resource));
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public sealed class ResourceStandardViewVisibilityTests
             Capabilities = [new(ResourceCapabilityIds.NetworkingLoadBalancer)]
         };
 
-        Assert.True(ResourceStandardViewVisibility.HasEndpointsView(resource));
+        Assert.True(ResourcePredefinedViewVisibility.HasEndpointsView(resource));
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class ResourceStandardViewVisibilityTests
     {
         var resource = CreateResource() with { TypeId = "cloudshell.nameMapping" };
 
-        Assert.True(ResourceStandardViewVisibility.HasDnsView(resource));
+        Assert.True(ResourcePredefinedViewVisibility.HasDnsView(resource));
     }
 
     [Fact]
@@ -45,13 +45,13 @@ public sealed class ResourceStandardViewVisibilityTests
             Identity = ResourceIdentityBinding.RequireIdentity()
         };
 
-        Assert.True(ResourceStandardViewVisibility.HasIdentityView(resource));
+        Assert.True(ResourcePredefinedViewVisibility.HasIdentityView(resource));
     }
 
     [Fact]
     public void HasIdentityView_LightsUpFromPermissionGrantContext()
     {
-        Assert.True(ResourceStandardViewVisibility.HasIdentityView(
+        Assert.True(ResourcePredefinedViewVisibility.HasIdentityView(
             CreateResource(),
             hasPermissionGrants: true));
     }
@@ -64,7 +64,7 @@ public sealed class ResourceStandardViewVisibilityTests
             Capabilities = [new(ResourceCapabilityIds.StorageProvider)]
         };
 
-        Assert.True(ResourceStandardViewVisibility.HasStorageVolumesView(resource));
+        Assert.True(ResourcePredefinedViewVisibility.HasStorageVolumesView(resource));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class ResourceStandardViewVisibilityTests
             Capabilities = [new(ResourceCapabilityIds.EnvironmentVariables)]
         };
 
-        Assert.True(ResourceStandardViewVisibility.HasEnvironmentView(resource));
+        Assert.True(ResourcePredefinedViewVisibility.HasEnvironmentView(resource));
     }
 
     private static Resource CreateResource() =>

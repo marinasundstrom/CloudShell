@@ -151,7 +151,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("<fluent-anchor", traceHtml);
         Assert.Contains("href=\"/logs?resourceId=application%3Aproject-reference-frontend&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"", traceHtml);
         Assert.Contains(
-            $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Activity.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
+            $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
             traceHtml);
         Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend/details\"", traceHtml);
 
@@ -164,7 +164,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Clear trace filter", relatedLogsHtml);
 
         var relatedActivityHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Activity.Value)}&traceId={traceId}");
+            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&traceId={traceId}");
         Assert.Contains("Activity", relatedActivityHtml);
         Assert.Contains("Showing activity correlated with trace", relatedActivityHtml);
         Assert.Contains("Clear", relatedActivityHtml);
@@ -326,12 +326,12 @@ public sealed class SampleSmokeTests
             nameMappingAttributes.GetProperty(ResourceAttributeNames.NameMappingMaterializationStatus).GetString());
 
         var storageVolumesHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("storage:application-topology-local")}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Volumes.Value)}");
+            $"/resources/{Uri.EscapeDataString("storage:application-topology-local")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Volumes.Value)}");
         Assert.Contains("Add volume", storageVolumesHtml);
         Assert.Contains("This Storage resource cannot be deleted while it owns volumes.", storageVolumesHtml);
 
         var apiEndpointsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Endpoints.Value)}");
+            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
         Assert.Contains("Application exposure", apiEndpointsHtml);
         Assert.Contains("Add load-balancer route", apiEndpointsHtml);
         Assert.Contains("Add name mapping", apiEndpointsHtml);
@@ -341,7 +341,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-api%2Fdetails%3Ftab%3Dnetworking%253Aendpoints", apiEndpointsHtml);
 
         var sqlEndpointsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Endpoints.Value)}");
+            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
         Assert.Contains("Application exposure", sqlEndpointsHtml);
         Assert.Contains("type=cloudshell.loadBalancer", sqlEndpointsHtml);
         Assert.Contains("targetResourceId=application%3Aapplication-topology-sql-server", sqlEndpointsHtml);
@@ -721,7 +721,7 @@ public sealed class SampleSmokeTests
         Assert.True(stoppedResource.GetProperty("resourceActions").TryGetProperty("start", out _));
 
         var activityHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("sample:api")}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Activity.Value)}");
+            $"/resources/{Uri.EscapeDataString("sample:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}");
         Assert.Contains("Activity", activityHtml);
         Assert.Contains("Event type", activityHtml);
         Assert.Contains("Triggered by", activityHtml);

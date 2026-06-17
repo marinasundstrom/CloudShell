@@ -25,14 +25,14 @@
     [Parameter, EditorRequired]
     public ResourceViewId ViewId { get; set; }
 
-    private IReadOnlyList<ResourceStandardViewSectionContribution> MatchingSections =>
-        ResourceType.ResourceStandardViewSections
+    private IReadOnlyList<ResourcePredefinedViewSectionContribution> MatchingSections =>
+        ResourceType.ResourcePredefinedViewSections
             .Where(section => section.ViewId == ViewId)
             .OrderBy(section => section.Order)
             .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private Dictionary<string, object?> BuildParameters(ResourceStandardViewSectionContribution section)
+    private Dictionary<string, object?> BuildParameters(ResourcePredefinedViewSectionContribution section)
     {
         var parameters = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {

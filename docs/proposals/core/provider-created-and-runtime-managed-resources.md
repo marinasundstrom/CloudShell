@@ -473,7 +473,7 @@ Provider-created and runtime-created resources are often the most useful
 resources when debugging.
 
 CloudShell should allow advanced inspection of provider-created and runtime-created resources
-without requiring them to appear in standard resource views.
+without requiring them to appear in predefined resource views.
 
 Examples:
 

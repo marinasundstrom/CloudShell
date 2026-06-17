@@ -15,7 +15,7 @@
                     Message="@L["The resource may have been removed or is no longer visible."].Value"
                     Compact="true" />
     }
-    else if (!HasNetworkingContent && !HasStandardViewSections)
+    else if (!HasNetworkingContent && !HasPredefinedViewSections)
     {
         <EmptyState Title="@L["No networking"].Value"
                     Message="@L["This resource does not project endpoints or networking relationships."].Value"
@@ -241,10 +241,10 @@
 
         @if (ResourceType is not null)
         {
-            <ResourceStandardViewSections ResourceType="ResourceType"
+            <ResourcePredefinedViewSections ResourceType="ResourceType"
                                           ResourceId="ResourceId"
                                           Resource="Resource"
-                                          ViewId="@ResourceStandardViewIds.Endpoints" />
+                                          ViewId="@ResourcePredefinedViewIds.Endpoints" />
         }
     }
 </div>
@@ -274,9 +274,9 @@
          IsNetworkResource ||
          IsLoadBalancerResource);
 
-    private bool HasStandardViewSections =>
-        ResourceType?.ResourceStandardViewSections.Any(section =>
-            section.ViewId == ResourceStandardViewIds.Endpoints) == true;
+    private bool HasPredefinedViewSections =>
+        ResourceType?.ResourcePredefinedViewSections.Any(section =>
+            section.ViewId == ResourcePredefinedViewIds.Endpoints) == true;
 
     private bool IsNetworkResource => Resource is not null &&
         (Resource.ResourceClass == ResourceClass.Network ||
@@ -654,7 +654,7 @@
     {
         if (Resource is not null)
         {
-            Navigation.NavigateTo(BuildResourceTabRoute(Resource.Id, ResourceStandardViewIds.Configuration));
+            Navigation.NavigateTo(BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Configuration));
         }
     }
 

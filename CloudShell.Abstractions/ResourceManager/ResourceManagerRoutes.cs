@@ -19,5 +19,5 @@ public static class ResourceManagerRoutes
     }
 
     public static string ResourceOverview(string resourceId) =>
-        ResourceDetails(resourceId, ResourceStandardViewIds.Overview);
+        ResourceDetails(resourceId, ResourcePredefinedViewIds.Overview);
 }

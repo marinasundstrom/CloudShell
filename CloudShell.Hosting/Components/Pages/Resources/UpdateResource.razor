@@ -210,12 +210,12 @@
     </section>
 
 @code {
-    private static readonly ResourceViewId GeneratedOverviewTabId = ResourceStandardViewIds.Overview;
-    private static readonly ResourceViewId GeneratedEndpointsTabId = ResourceStandardViewIds.Endpoints;
-    private static readonly ResourceViewId GeneratedDnsTabId = ResourceStandardViewIds.Dns;
-    private static readonly ResourceViewId GeneratedIdentityTabId = ResourceStandardViewIds.Identity;
-    private static readonly ResourceViewId GeneratedStorageVolumesTabId = ResourceStandardViewIds.Volumes;
-    private static readonly ResourceViewId GeneratedActivityTabId = ResourceStandardViewIds.Activity;
+    private static readonly ResourceViewId GeneratedOverviewTabId = ResourcePredefinedViewIds.Overview;
+    private static readonly ResourceViewId GeneratedEndpointsTabId = ResourcePredefinedViewIds.Endpoints;
+    private static readonly ResourceViewId GeneratedDnsTabId = ResourcePredefinedViewIds.Dns;
+    private static readonly ResourceViewId GeneratedIdentityTabId = ResourcePredefinedViewIds.Identity;
+    private static readonly ResourceViewId GeneratedStorageVolumesTabId = ResourcePredefinedViewIds.Volumes;
+    private static readonly ResourceViewId GeneratedActivityTabId = ResourcePredefinedViewIds.Activity;
     private const string GeneralTabGroup = "General";
     private const string NetworkingTabGroup = "Networking";
     private const string StorageTabGroup = "Storage";
@@ -580,7 +580,7 @@
             ["ResourceId"] = resource.Id
         };
 
-        if (resourceType is not null && IsGeneratedStandardView(selectedTab))
+        if (resourceType is not null && IsGeneratedPredefinedView(selectedTab))
         {
             parameters["ResourceType"] = resourceType;
         }
@@ -593,7 +593,7 @@
         return parameters;
     }
 
-    private static bool IsGeneratedStandardView(ResourceTabContribution tab) =>
+    private static bool IsGeneratedPredefinedView(ResourceTabContribution tab) =>
         tab.ComponentType == typeof(GeneratedResourceEndpoints) ||
         tab.ComponentType == typeof(GeneratedResourceDns);
 
@@ -614,7 +614,7 @@
                 GroupTitle: GeneralTabGroup));
         }
 
-        if (ResourceStandardViewVisibility.HasEndpointsView(resource) &&
+        if (ResourcePredefinedViewVisibility.HasEndpointsView(resource) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedEndpointsTabId))
         {
             tabs.Add(new ResourceTabContribution(
@@ -625,7 +625,7 @@
                 GroupTitle: NetworkingTabGroup));
         }
 
-        if (ResourceStandardViewVisibility.HasDnsView(resource) &&
+        if (ResourcePredefinedViewVisibility.HasDnsView(resource) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedDnsTabId))
         {
             tabs.Add(new ResourceTabContribution(
@@ -636,7 +636,7 @@
                 GroupTitle: NetworkingTabGroup));
         }
 
-        if (ResourceStandardViewVisibility.HasIdentityView(resource, hasIdentityPermissionGrants) &&
+        if (ResourcePredefinedViewVisibility.HasIdentityView(resource, hasIdentityPermissionGrants) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedIdentityTabId))
         {
             tabs.Add(new ResourceTabContribution(
@@ -647,7 +647,7 @@
                 GroupTitle: ManagementTabGroup));
         }
 
-        if (ResourceStandardViewVisibility.HasStorageVolumesView(resource) &&
+        if (ResourcePredefinedViewVisibility.HasStorageVolumesView(resource) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedStorageVolumesTabId))
         {
             tabs.Add(new ResourceTabContribution(
@@ -669,10 +669,10 @@
         }
 
         if (resourceType?.UpdateComponentType is not null &&
-            !contributedTabs.Any(tab => tab.Id == ResourceStandardViewIds.Configuration))
+            !contributedTabs.Any(tab => tab.Id == ResourcePredefinedViewIds.Configuration))
         {
             tabs.Add(new ResourceTabContribution(
-                ResourceStandardViewIds.Configuration,
+                ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 0,
                 resourceType.UpdateComponentType,
@@ -680,11 +680,11 @@
                 GroupTitle: GeneralTabGroup));
         }
 
-        if (ResourceStandardViewVisibility.HasEnvironmentView(resource) &&
-            !contributedTabs.Any(tab => tab.Id == ResourceStandardViewIds.Environment))
+        if (ResourcePredefinedViewVisibility.HasEnvironmentView(resource) &&
+            !contributedTabs.Any(tab => tab.Id == ResourcePredefinedViewIds.Environment))
         {
             tabs.Add(new ResourceTabContribution(
-                ResourceStandardViewIds.Environment,
+                ResourcePredefinedViewIds.Environment,
                 "Environment",
                 80,
                 typeof(ResourceEnvironmentVariables),
@@ -716,7 +716,7 @@
             return int.MaxValue;
         }
 
-        if (tab.Id == ResourceStandardViewIds.Environment)
+        if (tab.Id == ResourcePredefinedViewIds.Environment)
         {
             return int.MaxValue - 2;
         }

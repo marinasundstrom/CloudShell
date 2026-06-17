@@ -93,7 +93,7 @@ else
             {
                 <dt>Storage</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourceStandardViewIds.Storage)">
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourcePredefinedViewIds.Storage)">
                         @FormatCount(VolumeMounts.Count, "mount", "mounts")
                     </a>
                 </dd>
@@ -102,7 +102,7 @@ else
             {
                 <dt>Environment</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourceStandardViewIds.Environment)">
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourcePredefinedViewIds.Environment)">
                         @FormatEnvironmentSummary()
                     </a>
                 </dd>
@@ -193,14 +193,14 @@ else
                 {
                     <dt>DNS names</dt>
                     <dd>
-                        <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourceStandardViewIds.Dns)">
+                        <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourcePredefinedViewIds.Dns)">
                             @FormatNameMappingOverview()
                         </a>
                     </dd>
                 }
                 <dt>Endpoint details</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourceStandardViewIds.Endpoints)">
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourcePredefinedViewIds.Endpoints)">
                         Open Endpoints
                     </a>
                 </dd>
@@ -851,7 +851,7 @@ else
         {
             ["type"] = type,
             ["targetResourceId"] = application.Id,
-            ["returnUrl"] = BuildResourceTabRoute(application.Id, ResourceStandardViewIds.Overview)
+            ["returnUrl"] = BuildResourceTabRoute(application.Id, ResourcePredefinedViewIds.Overview)
         };
         var endpointName = GetTargetEndpoint(application)?.Name;
         if (!string.IsNullOrWhiteSpace(endpointName))
@@ -1052,7 +1052,7 @@ else
     private static string BuildActivityRoute(string resourceId) =>
         BuildRoute(
             ResourceManagerRoutes.ResourceDetails(resourceId),
-            new Dictionary<string, string?> { ["tab"] = ResourceStandardViewIds.Activity.Value });
+            new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Activity.Value });
 
     private static string BuildRoute(string path, Dictionary<string, string?> query)
     {

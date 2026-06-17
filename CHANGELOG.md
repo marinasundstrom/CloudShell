@@ -17,11 +17,11 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
-- Standard Resource Manager tab IDs now use the `ResourceViewId` value object
+- Predefined Resource Manager tab IDs now use the `ResourceViewId` value object
   with explicit `GroupId`, `Identifier`, and serialized `Value` parts, so
   providers and shell UI use the same hierarchical view vocabulary such as
   `general:overview` and `networking:endpoints`.
-- Resource detail routes, generated tab grouping, standard-view sections, and
+- Resource detail routes, generated tab grouping, predefined-view sections, and
   extension registration now treat tab IDs as logical view identities instead
   of free-form strings, with query-string serialization only at navigation
   boundaries.
@@ -36,18 +36,22 @@ on `git blame --follow`, and then by the broad type of change.
   tab through a sanitized `returnUrl`, and registration forms use that return
   path after Cancel or successful creation.
 - Resource Manager UI extension guidance now documents the direction for
-  standard views to light up from projected resource shape, capabilities, and
+  predefined views to light up from projected resource shape, capabilities, and
   resource type declarations before provider-owned sections or tabs add
   resource-specific depth.
-- Resource Manager standard view visibility rules now live in a shared helper
+- Resource Manager predefined view visibility rules now live in a shared helper
   and the resource Identity tab lights up for resources that participate in
   permission grants, even when the resource does not own an identity binding.
 - Built-in Resource Manager and provider tab registrations now use
-  `ResourceStandardViewIds` for standard Overview, Configuration, Storage,
+  `ResourcePredefinedViewIds` for predefined Overview, Configuration, Storage,
   and Volumes views instead of repeating ad hoc hierarchical tab IDs.
 - Resource Manager detail links now use a shared `ResourceManagerRoutes`
   helper so shell pages and provider-owned views construct escaped resource
   detail, overview, and tab routes consistently.
+- Resource Manager view terminology now distinguishes general Resource Views
+  from CloudShell-owned Predefined Resource Views, and the public extension
+  API now uses `ResourcePredefined*` names for predefined view IDs,
+  definitions, sections, and visibility rules.
 
 ### 2026-06-16
 
@@ -154,13 +158,13 @@ on `git blame --follow`, and then by the broad type of change.
   definition endpoint fallback, so container apps with endpoint ports expose an
   address on the Overview tab.
 - Resource Manager UI extensions can now contribute provider-owned sections to
-  standardized resource views such as Endpoints and DNS without replacing the
-  whole tab. Standard view IDs are exposed through `ResourceStandardViewIds`
+  predefined resource views such as Endpoints and DNS without replacing the
+  whole tab. Predefined view IDs are exposed through `ResourcePredefinedViewIds`
   so providers and shell components use the same tab/view vocabulary.
-- Standard resource views now have an explicit extension contract in
-  `ResourceStandardViews`. The extension builder validates whether a built-in
+- Predefined resource views now have an explicit extension contract in
+  `ResourcePredefinedViews`. The extension builder validates whether a built-in
   view can be replaced by a provider-owned tab and whether it accepts
-  provider-owned sections, rejecting unknown or non-extensible standard-view
+  provider-owned sections, rejecting unknown or non-extensible predefined-view
   targets during extension registration.
 - Local UI-host and Control Plane user-settings providers now serialize access
   to `Data/environment-settings.json` through a shared in-process gate and

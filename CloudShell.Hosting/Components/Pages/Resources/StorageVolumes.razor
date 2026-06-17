@@ -218,7 +218,7 @@ else
         ResourceManagerRoutes.ResourceOverview(resourceId);
 
     private static string BuildManageResourceRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, ResourceStandardViewIds.Configuration);
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Configuration);
 
     private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
@@ -230,7 +230,7 @@ else
             {
                 ["type"] = "cloudshell.volume",
                 ["storageResourceId"] = storageResourceId,
-                ["returnUrl"] = BuildResourceTabRoute(storageResourceId, ResourceStandardViewIds.Volumes)
+                ["returnUrl"] = BuildResourceTabRoute(storageResourceId, ResourcePredefinedViewIds.Volumes)
             });
 
     private void CreateVolume()

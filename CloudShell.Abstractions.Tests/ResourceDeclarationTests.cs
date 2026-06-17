@@ -1262,10 +1262,10 @@ public sealed class ResourceDeclarationTests
     private static void AssertApplicationExposureSection(ResourceTypeContribution resourceType)
     {
         var section = Assert.Single(
-            resourceType.ResourceStandardViewSections,
+            resourceType.ResourcePredefinedViewSections,
             section => section.Id == "application.exposure-actions");
 
-        Assert.Equal(ResourceStandardViewIds.Endpoints, section.ViewId);
+        Assert.Equal(ResourcePredefinedViewIds.Endpoints, section.ViewId);
         Assert.Equal("Application exposure", section.Title);
         Assert.Equal(10, section.Order);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationEndpointActions), section.ComponentType);

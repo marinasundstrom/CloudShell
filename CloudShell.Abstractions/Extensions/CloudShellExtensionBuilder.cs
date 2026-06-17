@@ -286,7 +286,7 @@ internal sealed class CloudShellExtensionBuilder(
                 $"Resource type '{resourceTypeId}' must be added before adding resource tabs.");
         }
 
-        ValidateStandardViewReplacement(id);
+        ValidatePredefinedViewReplacement(id);
 
         var resourceType = _resourceTypes[typeIndex];
         var tabs = resourceType.ResourceTabs
@@ -305,7 +305,7 @@ internal sealed class CloudShellExtensionBuilder(
         return this;
     }
 
-    public ICloudShellExtensionBuilder AddResourceStandardViewSection<TComponent>(
+    public ICloudShellExtensionBuilder AddResourcePredefinedViewSection<TComponent>(
         string resourceTypeId,
         ResourceViewId viewId,
         string id,
@@ -321,14 +321,14 @@ internal sealed class CloudShellExtensionBuilder(
         if (typeIndex < 0)
         {
             throw new InvalidOperationException(
-                $"Resource type '{resourceTypeId}' must be added before adding standard view sections.");
+                $"Resource type '{resourceTypeId}' must be added before adding predefined view sections.");
         }
 
-        ValidateStandardViewSectionHost(viewId);
+        ValidatePredefinedViewSectionHost(viewId);
 
         var resourceType = _resourceTypes[typeIndex];
-        var sections = resourceType.ResourceStandardViewSections
-            .Append(new ResourceStandardViewSectionContribution(
+        var sections = resourceType.ResourcePredefinedViewSections
+            .Append(new ResourcePredefinedViewSectionContribution(
                 viewId,
                 id.Trim(),
                 title.Trim(),
@@ -338,13 +338,13 @@ internal sealed class CloudShellExtensionBuilder(
             .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        _resourceTypes[typeIndex] = resourceType with { StandardViewSections = sections };
+        _resourceTypes[typeIndex] = resourceType with { PredefinedViewSections = sections };
         return this;
     }
 
-    private static void ValidateStandardViewReplacement(ResourceViewId id)
+    private static void ValidatePredefinedViewReplacement(ResourceViewId id)
     {
-        if (!ResourceStandardViews.TryGet(id, out var definition))
+        if (!ResourcePredefinedViews.TryGet(id, out var definition))
         {
             return;
         }
@@ -352,22 +352,22 @@ internal sealed class CloudShellExtensionBuilder(
         if (!definition.SupportsReplacement)
         {
             throw new InvalidOperationException(
-                $"Standard resource view '{definition.Id}' cannot be replaced by a provider-owned tab.");
+                $"Predefined resource view '{definition.Id}' cannot be replaced by a provider-owned tab.");
         }
     }
 
-    private static void ValidateStandardViewSectionHost(ResourceViewId viewId)
+    private static void ValidatePredefinedViewSectionHost(ResourceViewId viewId)
     {
-        if (!ResourceStandardViews.TryGet(viewId, out var definition))
+        if (!ResourcePredefinedViews.TryGet(viewId, out var definition))
         {
             throw new InvalidOperationException(
-                $"Standard resource view sections can only target known standard views. '{viewId}' is not registered.");
+                $"Predefined resource view sections can only target known predefined views. '{viewId}' is not registered.");
         }
 
         if (!definition.SupportsSections)
         {
             throw new InvalidOperationException(
-                $"Standard resource view '{definition.Id}' does not accept provider-owned sections.");
+                $"Predefined resource view '{definition.Id}' does not accept provider-owned sections.");
         }
     }
 

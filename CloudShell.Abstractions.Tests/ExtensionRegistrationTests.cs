@@ -131,24 +131,24 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
-    public void AddResourceStandardViewSection_RecordsSectionsForResourceType()
+    public void AddResourcePredefinedViewSection_RecordsSectionsForResourceType()
     {
         var services = new ServiceCollection();
 
         services
             .AddCloudShell()
-            .AddExtension<StandardViewSectionsExtension>();
+            .AddExtension<PredefinedViewSectionsExtension>();
 
         var registry = GetRegistry(services);
         var resourceType = Assert.Single(
             Assert.Single(registry.Extensions).ResourceTypes);
-        var sections = resourceType.ResourceStandardViewSections;
+        var sections = resourceType.ResourcePredefinedViewSections;
 
         Assert.Collection(
             sections,
             section =>
             {
-                Assert.Equal(ResourceStandardViewIds.Endpoints, section.ViewId);
+                Assert.Equal(ResourcePredefinedViewIds.Endpoints, section.ViewId);
                 Assert.Equal("sample.endpoint-policy", section.Id);
                 Assert.Equal("Endpoint policy", section.Title);
                 Assert.Equal(typeof(SampleOverviewPage), section.ComponentType);
@@ -156,29 +156,29 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
-    public void AddResourceStandardViewSection_RejectsUnknownStandardView()
+    public void AddResourcePredefinedViewSection_RejectsUnknownPredefinedView()
     {
         var services = new ServiceCollection();
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
             services
                 .AddCloudShell()
-                .AddExtension<UnknownStandardViewSectionsExtension>());
+                .AddExtension<UnknownPredefinedViewSectionsExtension>());
 
-        Assert.Contains("missing-standard-view", exception.Message);
+        Assert.Contains("missing-predefined-view", exception.Message);
     }
 
     [Fact]
-    public void AddResourceStandardViewSection_RejectsViewsThatDoNotSupportSections()
+    public void AddResourcePredefinedViewSection_RejectsViewsThatDoNotSupportSections()
     {
         var services = new ServiceCollection();
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
             services
                 .AddCloudShell()
-                .AddExtension<NonExtensibleStandardViewSectionsExtension>());
+                .AddExtension<NonExtensiblePredefinedViewSectionsExtension>());
 
-        Assert.Contains(ResourceStandardViewIds.Overview.Value, exception.Message);
+        Assert.Contains(ResourcePredefinedViewIds.Overview.Value, exception.Message);
     }
 
     [Fact]
@@ -792,40 +792,40 @@ public sealed class ExtensionRegistrationTests
         }
     }
 
-    private sealed class StandardViewSectionsExtension : ICloudShellExtension
+    private sealed class PredefinedViewSectionsExtension : ICloudShellExtension
     {
         public CloudShellExtensionManifest Manifest => new(
-            "sample.standard-view-sections",
-            "Sample standard view sections",
-            "Contributes sections to generated standard views.",
+            "sample.predefined-view-sections",
+            "Sample predefined view sections",
+            "Contributes sections to generated predefined views.",
             "1.0.0",
-            ["sample.standard-view-sections"],
+            ["sample.predefined-view-sections"],
             []);
 
         public void Configure(ICloudShellExtensionBuilder builder)
         {
             builder
                 .AddResourceType<SampleRegistrationPage>(
-                    "sample.standard-view-sections",
-                    "Sample standard view sections",
-                    "A resource with standard view sections.",
+                    "sample.predefined-view-sections",
+                    "Sample predefined view sections",
+                    "A resource with predefined view sections.",
                     "sample",
                     10)
-                .AddResourceStandardViewSection<SampleOverviewPage>(
-                    "sample.standard-view-sections",
-                    ResourceStandardViewIds.Endpoints,
+                .AddResourcePredefinedViewSection<SampleOverviewPage>(
+                    "sample.predefined-view-sections",
+                    ResourcePredefinedViewIds.Endpoints,
                     "sample.endpoint-policy",
                     "Endpoint policy",
                     10);
         }
     }
 
-    private sealed class UnknownStandardViewSectionsExtension : ICloudShellExtension
+    private sealed class UnknownPredefinedViewSectionsExtension : ICloudShellExtension
     {
         public CloudShellExtensionManifest Manifest => new(
-            "sample.unknown-standard-view-sections",
-            "Unknown standard view sections",
-            "Contributes sections to an unknown standard view.",
+            "sample.unknown-predefined-view-sections",
+            "Unknown predefined view sections",
+            "Contributes sections to an unknown predefined view.",
             "1.0.0",
             [],
             []);
@@ -834,26 +834,26 @@ public sealed class ExtensionRegistrationTests
         {
             builder
                 .AddResourceType<SampleRegistrationPage>(
-                    "sample.unknown-standard-view-sections",
-                    "Sample unknown standard view sections",
-                    "A resource with invalid standard view sections.",
+                    "sample.unknown-predefined-view-sections",
+                    "Sample unknown predefined view sections",
+                    "A resource with invalid predefined view sections.",
                     "sample",
                     10)
-                .AddResourceStandardViewSection<SampleOverviewPage>(
-                    "sample.unknown-standard-view-sections",
-                    new ResourceViewId(ResourceTabGroupIds.General, "missing-standard-view"),
+                .AddResourcePredefinedViewSection<SampleOverviewPage>(
+                    "sample.unknown-predefined-view-sections",
+                    new ResourceViewId(ResourceTabGroupIds.General, "missing-predefined-view"),
                     "sample.endpoint-policy",
                     "Endpoint policy",
                     10);
         }
     }
 
-    private sealed class NonExtensibleStandardViewSectionsExtension : ICloudShellExtension
+    private sealed class NonExtensiblePredefinedViewSectionsExtension : ICloudShellExtension
     {
         public CloudShellExtensionManifest Manifest => new(
-            "sample.non-extensible-standard-view-sections",
-            "Non-extensible standard view sections",
-            "Contributes sections to a non-extensible standard view.",
+            "sample.non-extensible-predefined-view-sections",
+            "Non-extensible predefined view sections",
+            "Contributes sections to a non-extensible predefined view.",
             "1.0.0",
             [],
             []);
@@ -862,14 +862,14 @@ public sealed class ExtensionRegistrationTests
         {
             builder
                 .AddResourceType<SampleRegistrationPage>(
-                    "sample.non-extensible-standard-view-sections",
-                    "Sample non-extensible standard view sections",
-                    "A resource with invalid standard view sections.",
+                    "sample.non-extensible-predefined-view-sections",
+                    "Sample non-extensible predefined view sections",
+                    "A resource with invalid predefined view sections.",
                     "sample",
                     10)
-                .AddResourceStandardViewSection<SampleOverviewPage>(
-                    "sample.non-extensible-standard-view-sections",
-                    ResourceStandardViewIds.Overview,
+                .AddResourcePredefinedViewSection<SampleOverviewPage>(
+                    "sample.non-extensible-predefined-view-sections",
+                    ResourcePredefinedViewIds.Overview,
                     "sample.summary",
                     "Summary",
                     10);

@@ -51,19 +51,19 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 resourceClass: ResourceClass.Storage)
             .AddResourceTab<LocalStorageOverview>(
                 "cloudshell.storage",
-                ResourceStandardViewIds.Overview,
+                ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<StorageVolumes>(
                 "cloudshell.storage",
-                ResourceStandardViewIds.Volumes,
+                ResourcePredefinedViewIds.Volumes,
                 "Volumes",
                 20,
                 groupTitle: "Storage")
             .AddResourceTab<UpdateLocalStorageResource>(
                 "cloudshell.storage",
-                ResourceStandardViewIds.Configuration,
+                ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 30,
                 showsApplyButton: true,
@@ -77,13 +77,13 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 resourceClass: ResourceClass.Storage)
             .AddResourceTab<VolumeOverview>(
                 "cloudshell.volume",
-                ResourceStandardViewIds.Overview,
+                ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<UpdateVolumeResource>(
                 "cloudshell.volume",
-                ResourceStandardViewIds.Configuration,
+                ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
@@ -104,7 +104,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 resourceClass: ResourceClass.Network)
             .AddResourceTab<DnsZoneOverview>(
                 "cloudshell.dnsZone",
-                ResourceStandardViewIds.Overview,
+                ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")

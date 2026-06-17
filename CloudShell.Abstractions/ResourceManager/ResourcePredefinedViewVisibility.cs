@@ -1,6 +1,6 @@
 namespace CloudShell.Abstractions.ResourceManager;
 
-public static class ResourceStandardViewVisibility
+public static class ResourcePredefinedViewVisibility
 {
     public static bool HasEndpointsView(Resource? resource) =>
         resource is not null &&

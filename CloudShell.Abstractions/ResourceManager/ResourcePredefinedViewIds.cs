@@ -1,6 +1,6 @@
 namespace CloudShell.Abstractions.ResourceManager;
 
-public static class ResourceStandardViewIds
+public static class ResourcePredefinedViewIds
 {
     public static ResourceViewId Overview { get; } = new(ResourceTabGroupIds.General, "overview");
     public static ResourceViewId Configuration { get; } = new(ResourceTabGroupIds.General, "configuration");

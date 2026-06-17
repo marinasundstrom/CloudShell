@@ -17,7 +17,7 @@ public sealed class ResourceManagerRoutesTests
     {
         var route = ResourceManagerRoutes.ResourceDetails(
             "application:api",
-            ResourceStandardViewIds.Endpoints);
+            ResourcePredefinedViewIds.Endpoints);
 
         Assert.Equal("/resources/application%3Aapi/details?tab=networking%3Aendpoints", route);
     }

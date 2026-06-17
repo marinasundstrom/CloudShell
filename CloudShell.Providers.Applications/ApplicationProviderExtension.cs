@@ -85,45 +85,45 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 resourceClass: ResourceClass.Service)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ExecutableApplication,
-                ResourceStandardViewIds.Overview,
+                ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ExecutableApplication,
-                ResourceStandardViewIds.Configuration,
+                ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
                 groupTitle: "General")
-            .AddResourceStandardViewSection<Pages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.ExecutableApplication,
-                ResourceStandardViewIds.Endpoints,
+                ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.AspNetCoreProject,
-                ResourceStandardViewIds.Overview,
+                ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.AspNetCoreProject,
-                ResourceStandardViewIds.Configuration,
+                ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
                 groupTitle: "General")
-            .AddResourceStandardViewSection<Pages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.AspNetCoreProject,
-                ResourceStandardViewIds.Endpoints,
+                ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ContainerApp,
-                ResourceStandardViewIds.Overview,
+                ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
@@ -141,47 +141,47 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 groupTitle: "Runtime")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ContainerApp,
-                ResourceStandardViewIds.Configuration,
+                ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 40,
                 showsApplyButton: true,
                 groupTitle: "General")
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.ContainerApp,
-                ResourceStandardViewIds.Storage,
+                ResourcePredefinedViewIds.Storage,
                 "Storage",
                 50,
                 showsApplyButton: true,
                 groupTitle: "Storage")
-            .AddResourceStandardViewSection<Pages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.ContainerApp,
-                ResourceStandardViewIds.Endpoints,
+                ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.SqlServer,
-                ResourceStandardViewIds.Overview,
+                ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.SqlServer,
-                ResourceStandardViewIds.Configuration,
+                ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
                 groupTitle: "General")
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.SqlServer,
-                ResourceStandardViewIds.Storage,
+                ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 showsApplyButton: true,
                 groupTitle: "Storage")
-            .AddResourceStandardViewSection<Pages.ApplicationEndpointActions>(
+            .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.SqlServer,
-                ResourceStandardViewIds.Endpoints,
+                ResourcePredefinedViewIds.Endpoints,
                 "application.exposure-actions",
                 "Application exposure",
                 10);

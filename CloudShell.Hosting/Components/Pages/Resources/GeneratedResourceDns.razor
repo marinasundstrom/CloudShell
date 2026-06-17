@@ -54,10 +54,10 @@
 
         @if (ResourceType is not null)
         {
-            <ResourceStandardViewSections ResourceType="ResourceType"
+            <ResourcePredefinedViewSections ResourceType="ResourceType"
                                           ResourceId="ResourceId"
                                           Resource="Resource"
-                                          ViewId="@ResourceStandardViewIds.Dns" />
+                                          ViewId="@ResourcePredefinedViewIds.Dns" />
         }
     }
 </div>
@@ -280,7 +280,7 @@
             ["type"] = "cloudshell.nameMapping",
             ["targetResourceId"] = resource.Id,
             ["targetEndpointName"] = resource.Endpoints.FirstOrDefault()?.Name,
-            ["returnUrl"] = BuildResourceTabRoute(resource.Id, ResourceStandardViewIds.Dns)
+            ["returnUrl"] = BuildResourceTabRoute(resource.Id, ResourcePredefinedViewIds.Dns)
         };
         var queryString = string.Join(
             "&",
