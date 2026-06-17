@@ -133,6 +133,8 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core project endpoint normalization now uses the same fixed-endpoint
   to service-port helper as the programmatic registration extensions, removing
   a duplicate provider-local conversion path.
+- Resource endpoint and endpoint-network mapping URI parsing now share the
+  same host-bearing absolute URI helper.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

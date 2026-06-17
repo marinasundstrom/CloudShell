@@ -84,18 +84,8 @@ public sealed record ResourceEndpointNetworkMapping(
             string.Equals(Name, normalized, StringComparison.OrdinalIgnoreCase);
     }
 
-    public bool TryGetUri(out Uri uri)
-    {
-        if (Uri.TryCreate(Address, UriKind.Absolute, out var parsed) &&
-            !string.IsNullOrWhiteSpace(parsed.Host))
-        {
-            uri = parsed;
-            return true;
-        }
-
-        uri = null!;
-        return false;
-    }
+    public bool TryGetUri(out Uri uri) =>
+        ResourceEndpoint.TryGetUri(Address, out uri);
 
     public bool TryGetPort(out int port) =>
         ResourceEndpoint.TryGetPort(Address, out port);

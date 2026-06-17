@@ -44,7 +44,12 @@ public sealed record ResourceEndpoint(
 
     public bool TryGetUri(out Uri uri)
     {
-        if (Uri.TryCreate(Address, UriKind.Absolute, out var parsed) &&
+        return TryGetUri(Address, out uri);
+    }
+
+    public static bool TryGetUri(string? address, out Uri uri)
+    {
+        if (Uri.TryCreate(address, UriKind.Absolute, out var parsed) &&
             !string.IsNullOrWhiteSpace(parsed.Host))
         {
             uri = parsed;

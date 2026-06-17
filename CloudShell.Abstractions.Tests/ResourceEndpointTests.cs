@@ -82,6 +82,20 @@ public sealed class ResourceEndpointTests
     }
 
     [Fact]
+    public void TryGetUriFromAddress_ParsesAbsoluteAddressWithHost()
+    {
+        Assert.True(ResourceEndpoint.TryGetUri("http://localhost:5080", out var uri));
+        Assert.Equal("localhost", uri.Host);
+        Assert.Equal(5080, uri.Port);
+    }
+
+    [Fact]
+    public void TryGetUriFromAddress_ReturnsFalseForAbsoluteAddressWithoutHost()
+    {
+        Assert.False(ResourceEndpoint.TryGetUri("localhost:5080", out _));
+    }
+
+    [Fact]
     public void TryGetPort_ReturnsFalseWhenNoPortIsAvailable()
     {
         var endpoint = ResourceEndpoint.Contract("http", "http");
