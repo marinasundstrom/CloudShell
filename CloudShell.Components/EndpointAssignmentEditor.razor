@@ -3,17 +3,18 @@
               Id="@AssignmentId"
               Value="@Assignment.ToString()"
               ValueChanged="SetAssignment"
+              Disabled="@Disabled"
               Appearance="Appearance.Outline">
     @foreach (var assignment in EffectiveAssignments)
     {
-        <FluentOption TOption="string" Value="@assignment.ToString()">@assignment</FluentOption>
+        <FluentOption TOption="string" Value="@assignment.ToString()">@FormatAssignment(assignment)</FluentOption>
     }
 </FluentSelect>
 
 @if (ShowPort && ShouldShowPort)
 {
     <label for="@PortId">@PortLabel</label>
-    <FluentNumberField TValue="int?" Id="@PortId" Min="1" Value="@Port" ValueChanged="SetPort" />
+    <FluentNumberField TValue="int?" Id="@PortId" Min="1" Value="@Port" ValueChanged="SetPort" Disabled="@Disabled" />
 }
 
 @code {
@@ -48,6 +49,9 @@
     public bool ShowPortForAuto { get; set; }
 
     [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
     public IReadOnlyList<ResourceEndpointAssignment>? Assignments { get; set; }
 
     private IReadOnlyList<ResourceEndpointAssignment> EffectiveAssignments =>
@@ -61,6 +65,16 @@
     private bool ShouldShowPort =>
         Assignment == ResourceEndpointAssignment.Manual ||
         (ShowPortForAuto && Assignment == ResourceEndpointAssignment.Auto);
+
+    private static string FormatAssignment(ResourceEndpointAssignment assignment) =>
+        assignment switch
+        {
+            ResourceEndpointAssignment.Auto => "Automatic",
+            ResourceEndpointAssignment.ProviderDefault => "Provider default",
+            ResourceEndpointAssignment.Manual => "Manual",
+            ResourceEndpointAssignment.Predefined => "Predefined",
+            _ => assignment.ToString()
+        };
 
     private async Task SetAssignment(string? value)
     {

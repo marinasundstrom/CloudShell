@@ -90,6 +90,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager networking views now present resource endpoints as
   protocol/target-port contracts and move copy/open actions to mapped
   addresses, including provider-owned application exposure actions.
+- ASP.NET Core project create and update views now use endpoint assignment
+  with an optional fixed local port instead of asking users to enter a raw
+  endpoint URI under resource-specific configuration.
 - Projected resource endpoints now carry optional target-port metadata, so
   application endpoints can expose the resource-owned port while topology,
   network, exposure, and DNS mappings remain separate primitives.

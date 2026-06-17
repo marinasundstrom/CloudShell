@@ -19,14 +19,11 @@
 
         <EndpointAssignmentEditor AssignmentId="web-application-endpoint-assignment"
                                   AssignmentLabel="Endpoint assignment"
-                                  ShowPort="false"
-                                  @bind-Assignment="EndpointAssignment" />
-
-        @if (IsManualEndpointAssignment)
-        {
-            <label for="web-application-endpoint">Endpoint</label>
-            <FluentTextField Id="web-application-endpoint" @bind-Value="Endpoint" Placeholder="http://localhost:5127" />
-        }
+                                  PortId="web-application-endpoint-port"
+                                  PortLabel="Fixed local port"
+                                  Assignments="AspNetCoreEndpointAssignments"
+                                  @bind-Assignment="EndpointAssignment"
+                                  @bind-Port="EndpointPort" />
 
         <EnumValueSelect TEnum="ApplicationLifetime"
                          Id="web-application-lifetime"
@@ -91,7 +88,7 @@
     private string Name { get; set; } = string.Empty;
     private string ProjectPath { get; set; } = string.Empty;
     private string? ApplicationArguments { get; set; }
-    private string? Endpoint { get; set; }
+    private int? EndpointPort { get; set; }
     private ResourceEndpointAssignment EndpointAssignment { get; set; } =
         ResourceEndpointAssignment.ProviderDefault;
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
@@ -104,6 +101,12 @@
     private string? ErrorMessage { get; set; }
     private List<ApplicationEnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    private static IReadOnlyList<ResourceEndpointAssignment> AspNetCoreEndpointAssignments { get; } =
+    [
+        ResourceEndpointAssignment.ProviderDefault,
+        ResourceEndpointAssignment.Manual
+    ];
 
     private bool SupportsHealthChecks => ProbeContext?.SupportsHealthChecks == true;
 
@@ -139,11 +142,10 @@
             return;
         }
 
-        Uri? endpointUri = null;
         if (IsManualEndpointAssignment &&
-            !Uri.TryCreate(Endpoint, UriKind.Absolute, out endpointUri))
+            (EndpointPort is null || EndpointPort <= 0))
         {
-            ErrorMessage = "Manual endpoint assignment requires an absolute endpoint URI.";
+            ErrorMessage = "Manual endpoint assignment requires a fixed local port.";
             return;
         }
 
@@ -158,7 +160,7 @@
             dependsOn: WaitForReferences ? references : [],
             references: references,
             useServiceDiscovery: UseServiceDiscovery && references.Length > 0,
-            endpointPorts: BuildEndpointPorts(IsManualEndpointAssignment ? endpointUri : null),
+            endpointPorts: BuildEndpointPorts(),
             resourceType: ApplicationResourceTypes.AspNetCoreProject,
             healthChecks: ProbeContext?.GetSelectedHealthChecks(),
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
@@ -185,13 +187,12 @@
             .Select(variable => new EnvironmentVariableAssignment(variable.Name!.Trim(), variable.Value ?? string.Empty))
             .ToArray();
 
-    private IReadOnlyList<ServicePort> BuildEndpointPorts(Uri? endpointUri)
+    private IReadOnlyList<ServicePort> BuildEndpointPorts()
     {
-        if (endpointUri is not null &&
-            endpointUri.Port > 0)
+        if (IsManualEndpointAssignment && EndpointPort is { } port)
         {
-            var protocol = string.IsNullOrWhiteSpace(endpointUri.Scheme) ? "http" : endpointUri.Scheme;
-            return [new ServicePort("http", endpointUri.Port, endpointUri.Port, protocol, ResourceExposureScope.Local)];
+            var fixedPort = Math.Max(1, port);
+            return [new ServicePort("http", fixedPort, fixedPort, "http", ResourceExposureScope.Local)];
         }
 
         return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];

@@ -80,17 +80,19 @@ ASP.NET Core project endpoint sources are resolved in this order:
 Explicit endpoint declarations always win. If endpoints are declared manually,
 CloudShell ignores launch settings even when launch-settings endpoint loading
 was enabled earlier in the builder chain. Resource Manager create and update
-flows configure endpoints manually; they do not read `launchSettings.json`. If a
-future UI exposes launch-settings endpoint loading, that option should be
+flows use the shared endpoint assignment pattern: the user can let CloudShell
+assign the local mapping or specify a fixed local port for convenience. These
+flows do not ask for a raw endpoint URI and do not read `launchSettings.json`.
+If a future UI exposes launch-settings endpoint loading, that option should be
 disabled whenever explicit endpoints are configured.
 
 Provider defaults are local development bindings, not a general exposure
 mechanism. Public or broader resource exposure should be declared explicitly by
 the resource author or operator.
 
-In all cases CloudShell injects the resolved URL into `ASPNETCORE_URLS` when
-the process starts, so the project listens on the same endpoint that Resource
-Manager displays.
+In all cases CloudShell injects the resolved endpoint-network mapping address
+into `ASPNETCORE_URLS` when the process starts, so the project listens on the
+address that the selected local development topology assigned.
 
 Use endpoint builder methods to model additional or named endpoints:
 

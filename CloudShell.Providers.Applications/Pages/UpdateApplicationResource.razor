@@ -43,10 +43,22 @@ else
                 </FluentCheckbox>
             }
 
-            @if (CanConfigureEndpoint)
+            @if (CanConfigureEndpoint && !IsAspNetCoreProject)
             {
                 <label for="application-update-endpoint">Endpoint</label>
                 <FluentTextField Id="application-update-endpoint" @bind-Value="Endpoint" Disabled="@IsReadOnly" />
+            }
+
+            @if (CanConfigureAspNetCoreEndpoint)
+            {
+                <EndpointAssignmentEditor AssignmentId="application-update-aspnet-endpoint-assignment"
+                                          AssignmentLabel="Endpoint assignment"
+                                          PortId="application-update-aspnet-endpoint-port"
+                                          PortLabel="Fixed local port"
+                                          Assignments="AspNetCoreEndpointAssignments"
+                                          Disabled="@IsReadOnly"
+                                          @bind-Assignment="EndpointAssignment"
+                                          @bind-Port="EndpointPort" />
             }
 
             @if (CanConfigureLifetime)
@@ -174,6 +186,9 @@ else
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
     private bool UseServiceDiscovery { get; set; }
     private bool EnableObservability { get; set; } = true;
+    private ResourceEndpointAssignment EndpointAssignment { get; set; } =
+        ResourceEndpointAssignment.ProviderDefault;
+    private int? EndpointPort { get; set; }
     private string? ContainerImage { get; set; }
     private string ContainerRegistry { get; set; } = ContainerRegistryDefaults.Default;
     private string? RegistryUsername { get; set; }
@@ -207,6 +222,15 @@ else
 
     private bool CanConfigureEndpoint =>
         IsExecutableApplication || IsAspNetCoreProject;
+
+    private bool CanConfigureAspNetCoreEndpoint =>
+        IsAspNetCoreProject;
+
+    private static IReadOnlyList<ResourceEndpointAssignment> AspNetCoreEndpointAssignments { get; } =
+    [
+        ResourceEndpointAssignment.ProviderDefault,
+        ResourceEndpointAssignment.Manual
+    ];
 
     private bool CanConfigureLifetime =>
         !IsSqlServer;
@@ -243,6 +267,7 @@ else
             ApplicationArguments = Application.ProjectArguments;
             UseHotReload = Application.AspNetCoreHotReload;
             Endpoint = GetConfiguredEndpoint(Application);
+            (EndpointAssignment, EndpointPort) = GetAspNetCoreEndpointAssignment(Application);
             SelectedLifetime = Application.Lifetime.ToString();
             UseServiceDiscovery = Application.UseServiceDiscovery;
             EnableObservability = (Application.Observability ?? ResourceObservability.Default).HasAnySignal;
@@ -291,6 +316,13 @@ else
             return ResourceProcedureResult.Completed("Project path is required.");
         }
 
+        if (CanConfigureAspNetCoreEndpoint &&
+            EndpointAssignment == ResourceEndpointAssignment.Manual &&
+            (EndpointPort is null || EndpointPort <= 0))
+        {
+            return ResourceProcedureResult.Completed("Manual endpoint assignment requires a fixed local port.");
+        }
+
         if (!ValidateRegistryCredentials())
         {
             return ResourceProcedureResult.Completed("Registry username and password environment variable are required together.");
@@ -318,7 +350,11 @@ else
             CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerDockerfile) : Application.ContainerDockerfile,
             CanConfigureContainerHost ? NormalizeNullable(SelectedHostId) : Application.ContainerHostId,
             Math.Max(1, Application.Replicas),
-            CanConfigureEndpoint ? BuildEndpointPorts(Application.ResourceType, Endpoint) : Application.EndpointPorts,
+            CanConfigureAspNetCoreEndpoint
+                ? BuildAspNetCoreEndpointPorts()
+                : CanConfigureEndpoint
+                    ? BuildEndpointPorts(Application.ResourceType, Endpoint)
+                    : Application.EndpointPorts,
             resourceType: Application.ResourceType,
             healthChecks: Application.HealthChecks,
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,
@@ -411,6 +447,18 @@ else
         return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
     }
 
+    private IReadOnlyList<ServicePort> BuildAspNetCoreEndpointPorts()
+    {
+        if (EndpointAssignment == ResourceEndpointAssignment.Manual &&
+            EndpointPort is { } port)
+        {
+            var fixedPort = Math.Max(1, port);
+            return [new ServicePort("http", fixedPort, fixedPort, "http", ResourceExposureScope.Local)];
+        }
+
+        return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
+    }
+
     private static string? GetConfiguredEndpoint(ApplicationResourceDefinition application)
     {
         if (!string.Equals(
@@ -427,6 +475,25 @@ else
         return port?.Port is null
             ? null
             : $"{port.Protocol}://localhost:{port.Port.Value}";
+    }
+
+    private static (ResourceEndpointAssignment Assignment, int? Port) GetAspNetCoreEndpointAssignment(
+        ApplicationResourceDefinition application)
+    {
+        if (!string.Equals(
+                application.ResourceType,
+                ApplicationResourceTypes.AspNetCoreProject,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return (ResourceEndpointAssignment.ProviderDefault, null);
+        }
+
+        var port = application.EndpointPorts.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, "http", StringComparison.OrdinalIgnoreCase)) ??
+            application.EndpointPorts.FirstOrDefault();
+        return port?.Port is { } fixedPort
+            ? (ResourceEndpointAssignment.Manual, fixedPort)
+            : (ResourceEndpointAssignment.ProviderDefault, null);
     }
 
     private IReadOnlyList<string> BuildDependencies() =>
