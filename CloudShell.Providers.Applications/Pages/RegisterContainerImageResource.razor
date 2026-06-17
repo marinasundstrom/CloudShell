@@ -138,6 +138,9 @@
     private List<ApplicationVolumeMountInput> VolumeMounts { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    [CascadingParameter]
+    public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
+
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
 
@@ -215,8 +218,12 @@
             await ResourceActions.StartResourceAsync(definition.Id, startDependencies: true);
         }
 
-        Navigation.NavigateTo("/resources");
+        Navigation.NavigateTo(GetReturnUrl());
     }
+
+    private string GetReturnUrl() =>
+        RegistrationNavigation?.GetReturnUrlOrDefault() ??
+        ResourceRegistrationNavigationContext.DefaultReturnUrl;
 
     private bool ValidateContainerHost()
     {

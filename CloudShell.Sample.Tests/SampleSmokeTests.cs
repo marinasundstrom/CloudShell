@@ -338,6 +338,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("type=cloudshell.loadBalancer", apiEndpointsHtml);
         Assert.Contains("targetResourceId=application%3Aapplication-topology-api", apiEndpointsHtml);
         Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
+        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-api%2Fdetails%3Ftab%3Dnetworking%253Aendpoints", apiEndpointsHtml);
 
         var sqlEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Endpoints.Value)}");
@@ -346,6 +347,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("targetResourceId=application%3Aapplication-topology-sql-server", sqlEndpointsHtml);
         Assert.Contains("targetEndpointName=tds", sqlEndpointsHtml);
         Assert.Contains("routeKind=tcp", sqlEndpointsHtml);
+        Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-sql-server%2Fdetails%3Ftab%3Dnetworking%253Aendpoints", sqlEndpointsHtml);
 
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");

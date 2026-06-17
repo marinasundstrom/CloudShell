@@ -105,6 +105,9 @@
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<string> ReferenceIds { get; set; } = [];
 
+    [CascadingParameter]
+    public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
+
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
 
@@ -230,8 +233,12 @@
             await ResourceActions.StartResourceAsync(definition.Id, startDependencies: true);
         }
 
-        Navigation.NavigateTo("/resources");
+        Navigation.NavigateTo(GetReturnUrl());
     }
+
+    private string GetReturnUrl() =>
+        RegistrationNavigation?.GetReturnUrlOrDefault() ??
+        ResourceRegistrationNavigationContext.DefaultReturnUrl;
 
     private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
         EnvironmentVariables

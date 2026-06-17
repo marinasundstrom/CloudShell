@@ -32,6 +32,9 @@
     [CascadingParameter]
     public ResourceRegistrationProbeContext? ProbeContext { get; set; }
 
+    [CascadingParameter]
+    public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
+
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string? Endpoint { get; set; }
@@ -65,8 +68,12 @@
             healthChecks: ProbeContext?.GetSelectedHealthChecks());
 
         await ConfigurationProvider.SetupStoreAsync(definition, SelectedGroupId, Registrations);
-        Navigation.NavigateTo("/resources");
+        Navigation.NavigateTo(GetReturnUrl());
     }
+
+    private string GetReturnUrl() =>
+        RegistrationNavigation?.GetReturnUrlOrDefault() ??
+        ResourceRegistrationNavigationContext.DefaultReturnUrl;
 
     private IReadOnlyList<ConfigurationEntry> BuildEntries() =>
         Entries

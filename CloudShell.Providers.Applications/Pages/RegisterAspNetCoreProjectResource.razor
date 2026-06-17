@@ -84,6 +84,9 @@
     [CascadingParameter]
     public ResourceRegistrationProbeContext? ProbeContext { get; set; }
 
+    [CascadingParameter]
+    public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
+
     private string ResourceId { get; set; } = string.Empty;
     private string Name { get; set; } = string.Empty;
     private string ProjectPath { get; set; } = string.Empty;
@@ -169,8 +172,12 @@
             await ResourceActions.StartResourceAsync(definition.Id, startDependencies: true);
         }
 
-        Navigation.NavigateTo("/resources");
+        Navigation.NavigateTo(GetReturnUrl());
     }
+
+    private string GetReturnUrl() =>
+        RegistrationNavigation?.GetReturnUrlOrDefault() ??
+        ResourceRegistrationNavigationContext.DefaultReturnUrl;
 
     private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
         EnvironmentVariables

@@ -89,6 +89,9 @@
     private string? ErrorMessage { get; set; }
     private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
 
+    [CascadingParameter]
+    public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
+
     private static readonly IReadOnlyList<ResourceEndpointAssignment> AllEndpointAssignments =
         Enum.GetValues<ResourceEndpointAssignment>();
 
@@ -133,8 +136,12 @@
                     endpointRequests)),
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId));
 
-        Navigation.NavigateTo("/resources");
+        Navigation.NavigateTo(GetReturnUrl());
     }
+
+    private string GetReturnUrl() =>
+        RegistrationNavigation?.GetReturnUrlOrDefault() ??
+        ResourceRegistrationNavigationContext.DefaultReturnUrl;
 
     private IReadOnlyList<ResourceEndpointRequest> BuildEndpointRequests()
     {

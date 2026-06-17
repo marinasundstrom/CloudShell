@@ -52,7 +52,10 @@ The intended model is:
 - **Quick create** as the direct
   `/resources/add?type=<resource-type-id>` shortcut. This is the compact,
   single-page form path for experienced users, bookmarks, deep links, and
-  app-centric or provider-centric "add related resource" actions.
+  app-centric or provider-centric "add related resource" actions. Contextual
+  quick-create links should pass a local `returnUrl` so Cancel and successful
+  registration return the user to the resource page and tab that initiated the
+  create flow.
 - **Inline create** as a contextual modal or drawer from a resource page when
   the user is creating a closely related resource, such as a DNS name mapping,
   route, volume, or permission grant. Inline create should prefill the current

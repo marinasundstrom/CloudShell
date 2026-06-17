@@ -118,6 +118,9 @@
     private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
         ResourceManagerUiAccess.EmptyGroupLookup;
 
+    [CascadingParameter]
+    public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         Resources = await ResourceManager.ListResourcesAsync();
@@ -308,8 +311,12 @@
                 JsonSerializer.SerializeToElement(definition),
                 zoneGroup?.Id));
 
-        Navigation.NavigateTo("/resources");
+        Navigation.NavigateTo(GetReturnUrl());
     }
+
+    private string GetReturnUrl() =>
+        RegistrationNavigation?.GetReturnUrlOrDefault() ??
+        ResourceRegistrationNavigationContext.DefaultReturnUrl;
 
     private string? GetTargetEndpointName()
     {

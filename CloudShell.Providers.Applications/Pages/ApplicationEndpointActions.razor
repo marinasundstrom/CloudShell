@@ -87,7 +87,8 @@ else
         var query = new Dictionary<string, string?>
         {
             ["type"] = type,
-            ["targetResourceId"] = resource.Id
+            ["targetResourceId"] = resource.Id,
+            ["returnUrl"] = BuildResourceTabRoute(resource.Id, ResourceStandardViewIds.Endpoints)
         };
         var endpointName = GetTargetEndpointName(resource);
         if (!string.IsNullOrWhiteSpace(endpointName))
@@ -108,6 +109,9 @@ else
 
     private static string BuildResourceAddRoute(Dictionary<string, string?> query) =>
         BuildRoute("/resources/add", query);
+
+    private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}";
 
     private static string BuildRoute(string path, Dictionary<string, string?> query)
     {

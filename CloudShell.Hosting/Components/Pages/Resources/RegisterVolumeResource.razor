@@ -76,6 +76,9 @@
     private IReadOnlyDictionary<string, ResourceGroup> StorageGroupsByResourceId { get; set; } =
         ResourceManagerUiAccess.EmptyGroupLookup;
 
+    [CascadingParameter]
+    public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
+
     private bool HasSelectedStorage =>
         !string.IsNullOrWhiteSpace(SelectedStorageResourceId);
 
@@ -134,9 +137,23 @@
                 string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId,
                 ResourceClass.Storage));
 
-        Navigation.NavigateTo(HasSelectedStorage
+        var explicitReturnUrl = GetExplicitReturnUrl();
+        Navigation.NavigateTo(explicitReturnUrl ??
+            (HasSelectedStorage
             ? BuildStorageVolumesRoute(SelectedStorageResourceId)
-            : "/resources");
+            : GetReturnUrl()));
+    }
+
+    private string GetReturnUrl() =>
+        RegistrationNavigation?.GetReturnUrlOrDefault() ??
+        ResourceRegistrationNavigationContext.DefaultReturnUrl;
+
+    private string? GetExplicitReturnUrl()
+    {
+        var returnUrl = RegistrationNavigation?.ReturnUrl;
+        return ResourceRegistrationNavigationContext.IsLocalReturnUrl(returnUrl)
+            ? returnUrl!.Trim()
+            : null;
     }
 
     private VolumeAccessMode ParseAccessMode() =>

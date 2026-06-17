@@ -279,7 +279,8 @@
         {
             ["type"] = "cloudshell.nameMapping",
             ["targetResourceId"] = resource.Id,
-            ["targetEndpointName"] = resource.Endpoints.FirstOrDefault()?.Name
+            ["targetEndpointName"] = resource.Endpoints.FirstOrDefault()?.Name,
+            ["returnUrl"] = BuildResourceTabRoute(resource.Id, ResourceStandardViewIds.Dns)
         };
         var queryString = string.Join(
             "&",
@@ -300,6 +301,9 @@
             Navigation.NavigateTo(BuildAddNameMappingRoute(Resource));
         }
     }
+
+    private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}";
 
     private sealed record NameMappingView(Resource Mapping);
 }

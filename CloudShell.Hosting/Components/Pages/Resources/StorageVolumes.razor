@@ -220,13 +220,17 @@ else
     private static string BuildManageResourceRoute(string resourceId) =>
         $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Configuration.Value)}";
 
+    private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
+        $"/resources/{Uri.EscapeDataString(resourceId)}/details?tab={Uri.EscapeDataString(tabId.Value)}";
+
     private static string BuildCreateVolumeRoute(string storageResourceId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
             "/resources/add",
             new Dictionary<string, string?>
             {
                 ["type"] = "cloudshell.volume",
-                ["storageResourceId"] = storageResourceId
+                ["storageResourceId"] = storageResourceId,
+                ["returnUrl"] = BuildResourceTabRoute(storageResourceId, ResourceStandardViewIds.Volumes)
             });
 
     private void CreateVolume()

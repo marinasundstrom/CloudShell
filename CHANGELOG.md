@@ -32,6 +32,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application exposure actions now deep-link TCP endpoints into the
   load-balancer quick-create flow with `routeKind=tcp`, so SQL Server and
   other TCP-only targets do not default to an HTTP route.
+- Contextual Add Resource links now preserve the originating resource-page
+  tab through a sanitized `returnUrl`, and registration forms use that return
+  path after Cancel or successful creation.
 
 ### 2026-06-16
 

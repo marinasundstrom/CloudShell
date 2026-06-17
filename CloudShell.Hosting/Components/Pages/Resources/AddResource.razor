@@ -111,7 +111,9 @@ else
                 var probeContext = GetProbeContext(selectedType);
                 <CascadingValue Value="probeContext">
                     <CascadingValue Value="selectedType">
-                        <DynamicComponent Type="selectedType.RegistrationComponentType" />
+                        <CascadingValue Value="RegistrationNavigation">
+                            <DynamicComponent Type="selectedType.RegistrationComponentType" />
+                        </CascadingValue>
                     </CascadingValue>
                 </CascadingValue>
             }
@@ -123,15 +125,19 @@ else
     private const string ResourceTypeQueryParameter = "type";
     private string? SelectedTypeId { get; set; }
     private bool IsTypePickerOpen { get; set; }
+    private string? ReturnUrl { get; set; }
     private Dictionary<string, ResourceRegistrationProbeContext> ProbeContexts { get; } =
         new(StringComparer.OrdinalIgnoreCase);
     private ResourceManagerDisplaySelection DisplaySelection { get; set; } =
         ResourceManagerDisplaySelection.Default;
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
+    private ResourceRegistrationNavigationContext RegistrationNavigation =>
+        new(ReturnUrl);
 
     protected override async Task OnInitializedAsync()
     {
         DisplaySelection = await DisplaySettings.GetAsync();
+        ReturnUrl = GetRequestedReturnUrl();
 
         if (IsReadOnly)
         {
@@ -148,7 +154,7 @@ else
             ShellCatalog.ResourceTypes.FirstOrDefault()?.Id;
     }
 
-    private void Cancel() => Navigation.NavigateTo("/resources");
+    private void Cancel() => Navigation.NavigateTo(RegistrationNavigation.GetReturnUrlOrDefault());
 
     private void ChangeSelectedType(string? resourceTypeId)
     {
@@ -185,6 +191,16 @@ else
             string.Equals(type.Id, requested, StringComparison.OrdinalIgnoreCase))
             ? requested
             : null;
+    }
+
+    private string? GetRequestedReturnUrl()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        return query.TryGetValue("returnUrl", out var values) &&
+            ResourceRegistrationNavigationContext.IsLocalReturnUrl(values.ToString())
+                ? values.ToString()
+                : null;
     }
 
     private ResourceRegistrationProbeContext GetProbeContext(ResourceTypeContribution type)
