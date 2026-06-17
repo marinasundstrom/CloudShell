@@ -64,7 +64,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource detail headers now show the resource icon before the resource name,
   while a shared resource status summary component shows lifecycle and health
   status above the canonical resource identity fields instead of repeating the
-  same resource identity card.
+  same resource identity card. The resource detail rail now also separates the
+  identity fields from grouped resource view navigation with a divider.
 
 ### 2026-06-16
 

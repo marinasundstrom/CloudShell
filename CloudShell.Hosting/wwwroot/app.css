@@ -854,7 +854,9 @@ h3 {
 .resource-tab-list {
     display: grid;
     gap: .65rem;
-    margin-top: .35rem;
+    margin-top: .85rem;
+    padding-top: .85rem;
+    border-top: 1px solid var(--cloudshell-divider);
 }
 
 .resource-tab-group {
