@@ -6350,6 +6350,50 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ContainerApplicationBuilder_CanUseAddresslessEndpointContracts()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources.AddContainer(
+                    "cache",
+                    "redis:7",
+                    endpoints:
+                    [
+                        ResourceEndpoint.Contract(
+                            "redis",
+                            "tcp",
+                            ResourceExposureScope.Private,
+                            6379)
+                    ]);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:cache");
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        var port = Assert.Single(workload?.WorkloadPorts ?? []);
+        Assert.Equal("redis", port.Name);
+        Assert.Equal(6379, port.TargetPort);
+        Assert.Null(port.Port);
+        Assert.Equal("tcp", port.Protocol);
+        Assert.Equal(ResourceExposureScope.Private, port.Exposure);
+        Assert.Equal(ResourceEndpointAssignment.ProviderDefault, port.Assignment);
+    }
+
+    [Fact]
     public async Task ContainerApplicationBuilder_DescribesResourceIdentityCredentialEnvironment()
     {
         var services = new ServiceCollection();
