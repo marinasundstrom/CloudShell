@@ -389,6 +389,12 @@ a general exposure mechanism; public or broader resource exposure should be
 declared explicitly. Named endpoints match the Aspire URI shape
 `https+http://_endpointName.serviceName`.
 
+Endpoint helpers compile down to the networking primitives. A fixed endpoint
+URI or fixed helper port becomes a manual endpoint mapping in the implied local
+network. An endpoint helper without a fixed port becomes an explicit
+auto-assigned mapping, allowing the local network/provider to choose the
+concrete address while keeping the resource-owned service port stable.
+
 `AddDocker()` declares the default local Docker host resource. The Docker
 resource can specify a registry with `WithRegistry(...)`; the registry defaults
 to Docker Hub (`docker.io`) and declared child containers inherit it. Add

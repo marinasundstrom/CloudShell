@@ -119,6 +119,12 @@ resources
     .WithEndpointPort("dashboard", targetPort: 18888, port: 18888, protocol: "http");
 ```
 
+Fixed endpoint URIs and fixed helper ports are stored as manual endpoint
+assignments in the implied local network. Calling `WithHttpEndpoint()` or
+`WithEndpointPort(...)` without a fixed port stores an explicit auto assignment,
+so the provider can choose the local address while the project keeps the
+declared service port.
+
 Use launch settings only when the project declaration should intentionally take
 its local endpoint shape from the ASP.NET Core development profile:
 

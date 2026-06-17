@@ -75,6 +75,10 @@ on `git blame --follow`, and then by the broad type of change.
   provider/runtime-owned exposure path for resource endpoints, keeping
   application resources as endpoint owners while reserving load balancers for
   explicit user-managed routing surfaces.
+- Application endpoint helper methods now project explicit assignment metadata:
+  fixed endpoint URIs and fixed helper ports become manual local endpoint
+  assignments, while helper calls without a fixed port become explicit
+  auto-assigned endpoint intents.
 - The CloudShell goal and networking docs now state the platform principle of
   exposing provider behavior through familiar, standardized concepts that
   transfer across use cases and systems, while keeping provider-specific

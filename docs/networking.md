@@ -14,10 +14,19 @@ operate the environment.
 
 ## Core Model
 
-Endpoints are projected facts on resources. They describe the resource-owned
-named port/protocol and target port that the resource exposes. An endpoint can
-be HTTP, HTTPS, TCP, UDP, or a logical endpoint, but the endpoint itself does
-not own the host or the concrete address.
+Resources first announce the services they expose: a stable endpoint name,
+protocol, and service target port. This is the resource-owned service contract
+and can exist before any concrete host address has been assigned.
+
+Concrete endpoints are created from that service contract by the selected
+network, runtime, or provider. In local development that concrete endpoint may
+be `localhost:<port>`. In a managed topology it may be a private address,
+provider-owned ingress endpoint, or internal DNS-backed address.
+
+Endpoint mappings and exposure paths are relationships over those concrete
+endpoints. A mapping can connect a network-owned frontend, load-balancer
+route, gateway, DNS/name mapping, or other topology artifact to the target
+resource service endpoint.
 
 Endpoint requests are intent. They ask a network or provider to reserve or
 assign an address. Requests can be manual, auto-assigned, provider-default, or
@@ -49,12 +58,13 @@ identity. It should not claim the endpoint reservation unless the assignment is
 part of CloudShell's resource graph or a persisted provider-owned runtime
 artifact being recovered.
 
-Endpoint-network mappings connect a resource endpoint to a network or topology
-and provide the concrete address for that topology. For local development, an
-Aspire-like helper such as `WithHttpEndpoint(port: 6000)` declares an HTTP
-resource endpoint and creates a mapping in the implied default local network
-whose address resolves to the supplied local port. That mapping address is what
-the resource provider passes to the service when it starts.
+Endpoint-network mappings connect a resource service endpoint to a network or
+topology and provide the concrete address for that topology. For local
+development, an Aspire-like helper such as `WithHttpEndpoint(port: 6000)`
+declares an HTTP service port and creates assignment intent in the implied
+default local network whose concrete endpoint resolves to the supplied local
+port. That resolved mapping address is what the resource provider passes to the
+service when it starts.
 
 In managed or on-premise topologies, the concrete port chosen by a user is
 often less important than the resource's network placement. A resource may be

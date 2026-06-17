@@ -337,7 +337,9 @@ public static class ApplicationProviderServiceCollectionExtensions
                     uri.Port,
                     uri.Port,
                     string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
-                    ResourceExposureScope.Local)
+                    ResourceExposureScope.Local,
+                    ResourceEndpointAssignment.Manual,
+                    Host: uri.Host)
             ];
         }
 
@@ -366,7 +368,9 @@ public static class ApplicationProviderServiceCollectionExtensions
             endpoint.TargetPort ?? uri.Port,
             uri.Port,
             string.IsNullOrWhiteSpace(endpoint.Protocol) ? uri.Scheme : endpoint.Protocol,
-            endpoint.Exposure);
+            endpoint.Exposure,
+            ResourceEndpointAssignment.Manual,
+            Host: uri.Host);
     }
 
     private static ApplicationProviderOptions GetOrAddApplicationProviderOptions(
@@ -461,7 +465,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
             UseLaunchSettingsEndpoints = false,
             EndpointPorts = declared.Definition.EndpointPorts
                 .Where(endpoint => !string.Equals(endpoint.Name, name, StringComparison.OrdinalIgnoreCase))
-                .Append(new ServicePort(name, targetPort, port, protocol, exposure))
+                .Append(CreateDeclaredServicePort(name, targetPort, port, protocol, exposure))
                 .ToArray()
         };
         return this;
@@ -761,7 +765,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
         declared.Definition = declared.Definition with
         {
             EndpointPorts = declared.Definition.EndpointPorts
-                .Append(new ServicePort(name, targetPort, port, protocol, exposure))
+                .Append(CreateDeclaredServicePort(name, targetPort, port, protocol, exposure))
                 .ToArray()
         };
         return this;
@@ -978,6 +982,22 @@ internal sealed class ExecutableApplicationResourceBuilder(
         inner.Persist(overwrite);
         return this;
     }
+
+    private static ServicePort CreateDeclaredServicePort(
+        string name,
+        int targetPort,
+        int? port,
+        string protocol,
+        ResourceExposureScope exposure) =>
+        new(
+            name,
+            targetPort,
+            port,
+            protocol,
+            exposure,
+            port is null
+                ? ResourceEndpointAssignment.Auto
+                : ResourceEndpointAssignment.Manual);
 
     IProjectResourceBuilder IProjectResourceBuilder.WithEndpoint(string? endpoint)
     {

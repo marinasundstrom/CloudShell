@@ -2868,6 +2868,8 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(5127, port.TargetPort);
         Assert.Equal(5127, port.Port);
         Assert.Equal("http", port.Protocol);
+        Assert.Equal(ResourceEndpointAssignment.Manual, port.Assignment);
+        Assert.Equal("localhost", port.Host);
         Assert.Equal(["configuration:settings"], application.References);
         Assert.True(application.UseServiceDiscovery);
 
@@ -2980,6 +2982,7 @@ public sealed class ResourceDeclarationTests
                 Assert.Equal(18888, port.TargetPort);
                 Assert.Equal(18888, port.Port);
                 Assert.Equal("http", port.Protocol);
+                Assert.Equal(ResourceEndpointAssignment.Manual, port.Assignment);
             },
             port =>
             {
@@ -2987,7 +2990,45 @@ public sealed class ResourceDeclarationTests
                 Assert.Equal(80, port.TargetPort);
                 Assert.Equal(5127, port.Port);
                 Assert.Equal("http", port.Protocol);
+                Assert.Equal(ResourceEndpointAssignment.Manual, port.Assignment);
             });
+    }
+
+    [Fact]
+    public void TypedAspNetCoreProjectBuilder_CanDeclareAutoAssignedEndpoint()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .Resources(resources =>
+            {
+                resources
+                    .AddAspNetCoreProject(
+                        "application:api",
+                        "src/API/API.csproj")
+                    .WithHttpEndpoint();
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<ApplicationProviderOptions>();
+        var declaredApplications = options
+            .GetType()
+            .GetProperty("DeclaredApplications", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .GetValue(options) as System.Collections.IEnumerable;
+        var declaredApplication = Assert.Single(declaredApplications!.Cast<object>());
+        var application = Assert.IsType<ApplicationResourceDefinition>(
+            declaredApplication
+                .GetType()
+                .GetProperty("Definition")!
+                .GetValue(declaredApplication));
+        var port = Assert.Single(application.EndpointPorts);
+
+        Assert.Equal("http", port.Name);
+        Assert.Equal(80, port.TargetPort);
+        Assert.Null(port.Port);
+        Assert.Equal("http", port.Protocol);
+        Assert.Equal(ResourceEndpointAssignment.Auto, port.Assignment);
     }
 
     [Fact]
@@ -6176,6 +6217,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("tds", port.Name);
         Assert.Equal(1433, port.TargetPort);
         Assert.Equal(14333, port.Port);
+        Assert.Equal(ResourceEndpointAssignment.Manual, port.Assignment);
         var endpoint = Assert.Single(resource.Endpoints);
         Assert.Equal("tcp://localhost:14333", endpoint.Address);
     }

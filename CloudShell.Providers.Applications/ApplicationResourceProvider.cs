@@ -4240,7 +4240,9 @@ public sealed partial class ApplicationResourceProvider(
                     uri.Port,
                     uri.Port,
                     string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
-                    ResourceExposureScope.Local)
+                    ResourceExposureScope.Local,
+                    ResourceEndpointAssignment.Manual,
+                    Host: uri.Host)
             ];
         }
 
