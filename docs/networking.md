@@ -7,7 +7,10 @@ host-managed or provider-managed networking for on-premise environments.
 CloudShell borrows familiar cloud terminology where it helps users understand
 the system, but keeps the underlying primitives explicit so application
 endpoints, exposure paths, and naming do not collapse into provider-specific
-concepts.
+concepts. The intent is not to hide networking artifacts; it is to expose them
+through consistent CloudShell concepts first, then let provider-specific
+implementation details remain inspectable where they help users diagnose or
+operate the environment.
 
 ## Core Model
 

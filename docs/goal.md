@@ -34,6 +34,13 @@ Resource Manager workflows, provider integrations, and API-driven automation.
   for common infrastructure concerns when they fit the product boundary. The
   platform should not leak provider-native implementation details as stable
   CloudShell concepts.
+- CloudShell should expose infrastructure through familiar, standardized
+  resource, capability, endpoint, exposure, identity, storage, and
+  observability concepts that transfer across local development, on-premise,
+  provider-backed use cases, and the systems those environments integrate with.
+  It should avoid hiding provider behavior or copying one provider's accidental
+  model. Provider-specific details should still be inspectable when they are
+  useful for diagnostics or operations.
 
 ## Platform Direction
 
