@@ -71,6 +71,10 @@ on `git blame --follow`, and then by the broad type of change.
   custom icons through the resource tab contribution API.
 - Internal shell navigation now resets the main view scroll position after
   route changes, including query-driven resource view switches.
+- Networking and application resource docs now define ingress as a
+  provider/runtime-owned exposure path for resource endpoints, keeping
+  application resources as endpoint owners while reserving load balancers for
+  explicit user-managed routing surfaces.
 
 ### 2026-06-16
 

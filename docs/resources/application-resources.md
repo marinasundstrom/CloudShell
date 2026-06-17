@@ -34,6 +34,50 @@ provider-native services, non-application targets, or advanced routing. A
 normal container app should not require a separate Service resource just to act
 like a managed service.
 
+## Endpoint And Exposure Model
+
+Application resources are the primary owners of service endpoints. The endpoint
+is the application-owned address or port contract: an HTTP endpoint, TCP
+endpoint, container target port, or provider-projected service address that
+callers should target when they are in the right topology.
+
+Exposure is separate. It describes how that endpoint becomes reachable from a
+specific network boundary:
+
+- a local development host binding can expose a single process or container
+  endpoint directly
+- a virtual network can map one of its endpoints to an application endpoint
+- provider-managed app ingress can expose a replicated container app endpoint
+  without making individual replica containers addressable
+- a load balancer can provide an explicit user-managed route, front door, or
+  backend pool for one or more stable resource targets
+- DNS/name mappings can assign a human-facing name to the reachable endpoint or
+  exposure route
+
+This keeps the application as the normal management surface. Users configure
+the app's endpoint contract on the app, then inspect or configure the exposure
+path through the app's Networking views or through explicit infrastructure
+resources such as networks, load balancers, and DNS zones when those resources
+are intentionally part of the topology.
+
+Resource Manager should apply the same model to all endpoint-capable
+application resources:
+
+- Overview shows the best current address to use, not the full networking
+  model.
+- Networking > Endpoints shows the app-owned endpoint contract and observed
+  concrete addresses.
+- Networking > DNS shows name mappings that target the app or its exposure
+  route.
+- Future exposure sections can show whether an endpoint is directly bound,
+  provider-ingressed, virtual-network mapped, or load-balancer routed.
+
+For shared on-premise environments, exposing an application endpoint can affect
+the host or network boundary. Public exposure, host-port publishing,
+host-name/DNS changes, and privileged local networking setup should be
+permission-gated and auditable even when the application resource itself is
+managed by a non-admin user.
+
 ## Shared Runtime State
 
 The provider persists runtime state separately from application configuration.

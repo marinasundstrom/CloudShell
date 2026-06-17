@@ -4,6 +4,10 @@ CloudShell models networking through resources, endpoints, endpoint requests,
 endpoint mappings, and resource capabilities. The goal is to start with a
 simple Aspire-like local workflow, then let the same resource graph grow into
 host-managed or provider-managed networking for on-premise environments.
+CloudShell borrows familiar cloud terminology where it helps users understand
+the system, but keeps the underlying primitives explicit so application
+endpoints, exposure paths, and naming do not collapse into provider-specific
+concepts.
 
 ## Core Model
 
@@ -102,6 +106,49 @@ mappings, Aspire-compatible developer service discovery aliases, and logical
 DNS/name mappings. Network-level service discovery is a later provider
 capability for host or virtual networks. It should not replace explicit
 endpoint mappings or public DNS/name mappings.
+
+## Ingress and Exposure
+
+Ingress is the provider- or runtime-owned exposure path that accepts traffic
+for a resource endpoint from a network boundary. It is a general exposure
+concept for endpoint-capable resources, not a replacement for the resource
+endpoint model:
+
+- the resource owns the endpoint contract
+- the network, runtime, or provider owns the exposure path to that endpoint
+- DNS/name mappings can name either the reachable endpoint or the route/front
+  that exposes it
+
+Application resources are the primary endpoint owners. An application, database,
+configuration service, secrets service, or other service-like resource should
+remain the thing users configure and operate. Ingress, load-balancers, gateways,
+host publishing, and virtual-network mappings describe how callers reach one of
+that resource's endpoints from a specific topology.
+
+Infrastructure resources usually provide exposure instead of owning the app
+contract. For example, a virtual network can own an endpoint mapping, a load
+balancer can own a route table, and a DNS zone can own name mappings. Resources
+without endpoint capability, such as a pure DNS zone or policy-like resource,
+do not need ingress or endpoint views.
+
+For the MVP, CloudShell should avoid a standalone `cloudshell.ingress` resource
+type. Ingress should appear as one of these shapes instead:
+
+- **App-owned ingress**: a provider-managed implementation detail for a
+  container app endpoint, especially when replicas are enabled and traffic must
+  be distributed across instances.
+- **Virtual-network exposure**: an endpoint request plus endpoint mapping owned
+  by a network resource and materialized by a provider with gateway/ingress
+  capability.
+- **Load balancer route**: an explicit user-managed front door when the user
+  wants gateway-level control, shared routes, host/path/TCP rules, public
+  endpoints, TLS, or multi-resource routing.
+
+The Resource Manager UI should therefore present ingress as part of the
+resource's Networking or Scaling experience before introducing a separate
+Ingress resource. A container app can say that its endpoint is exposed through
+provider-managed ingress, while a Load Balancer resource remains the explicit
+resource for advanced routing.
 
 ## Capabilities
 

@@ -252,6 +252,13 @@ binds that endpoint on behalf of the app and maps traffic to the replicated
 runtime instances. Callers do not address individual replica containers
 directly.
 
+For MVP, ingress is not a separate top-level resource type. Treat app ingress
+as provider-managed exposure for a container app endpoint. The container app
+remains the resource that users configure and operate; the provider decides
+whether that endpoint is backed by a directly published container port,
+provider-owned ingress infrastructure, or an explicit load balancer selected by
+the user.
+
 For the default Docker runner, that ingress is currently implemented as a
 provider-owned Traefik container attached to the same Docker network as the app
 replicas. It owns the host-published app port and balances to the convention
@@ -268,12 +275,23 @@ CloudShell resources.
 
 Load balancers should target the stable container app or another stable
 Resource Manager artifact when the user wants gateway-level control beyond a
-single app's ingress. Optional `cloudshell.service` resources can be used as
-logical facades for scenarios that need that extra indirection. They can also
-represent a manually composed service unit or replica set, for example several
-web application instance resources behind one shared Service frontend that a
-load balancer targets. The replica containers themselves still remain runtime
+single app's ingress. That is the path for shared host/path/TCP rules, public
+front doors, custom domains, TLS policy, or routing across more than one stable
+target. Optional `cloudshell.service` resources can be used as logical facades
+for scenarios that need that extra indirection. They can also represent a
+manually composed service unit or replica set, for example several web
+application instance resources behind one shared Service frontend that a load
+balancer targets. The replica containers themselves still remain runtime
 artifacts, not separate Resource Manager resources.
+
+Resource Manager should expose ingress through the Container App experience:
+
+- Overview shows the best reachable address.
+- Networking > Endpoints shows the app-owned endpoint contract.
+- Scaling warns that endpoint-bearing replicated apps need provider-managed
+  ingress or an explicit load balancer.
+- Future exposure sections can show whether the endpoint is directly bound,
+  provider-ingressed, virtual-network mapped, or load-balancer routed.
 
 ## Image Deployment Procedure
 

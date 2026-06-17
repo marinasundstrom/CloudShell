@@ -17,6 +17,14 @@ The resource is intentionally provider-neutral. The first provider is Traefik
 in file-provider mode, but the resource model does not require Traefik, Docker,
 or a container app implementation.
 
+Do not use a load balancer merely because a container app exists. A normal
+single-instance container app owns and binds its endpoint directly. A replicated
+container app can use provider-managed app ingress without creating a
+user-authored load balancer. Create a load balancer when the routing surface is
+itself something the user wants to manage: shared front doors, host/path/TCP
+rules, custom domains, TLS policy, backend pools, or routes across more than
+one stable target.
+
 For related resource types, see [Container apps](container-apps.md),
 [Application resources](application-resources.md), and the
 [Load Balancer Resource Proposal](../proposals/load-balancer-resource.md).
