@@ -3774,7 +3774,7 @@ public sealed class ResourceDeclarationTests
                 ResourceAction.Start);
 
             Assert.Equal(
-                $"Endpoint 'http' for Docker container resource 'docker:container:sample-registry' cannot use http://127.0.0.1:{port} because the address is already in use.",
+                $"Endpoint mapping 'http' for Docker container resource 'docker:container:sample-registry' cannot use http://127.0.0.1:{port} because the address is already in use.",
                 reason);
         }
         finally

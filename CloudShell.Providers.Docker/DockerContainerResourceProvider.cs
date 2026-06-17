@@ -442,9 +442,12 @@ public sealed partial class DockerContainerResourceProvider :
             return Task.FromResult<string?>(null);
         }
 
-        foreach (var endpoint in context.Resource.Endpoints)
+        foreach (var mapping in context.Resource.ResourceEndpointNetworkMappings)
         {
-            var reason = GetEndpointUnavailableReason(context.Resource, endpoint);
+            var endpoint = context.Resource.Endpoints.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, mapping.Target.EndpointName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(candidate.Name, mapping.Name, StringComparison.OrdinalIgnoreCase));
+            var reason = GetEndpointUnavailableReason(context.Resource, mapping, endpoint);
             if (!string.IsNullOrWhiteSpace(reason))
             {
                 return Task.FromResult<string?>(reason);
@@ -1309,10 +1312,11 @@ public sealed partial class DockerContainerResourceProvider :
 
     private static string? GetEndpointUnavailableReason(
         Resource resource,
-        ResourceEndpoint endpoint)
+        ResourceEndpointNetworkMapping mapping,
+        ResourceEndpoint? endpoint)
     {
-        if (endpoint.Exposure == ResourceExposureScope.Private ||
-            !Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) ||
+        if (mapping.Exposure == ResourceExposureScope.Private ||
+            !Uri.TryCreate(mapping.Address, UriKind.Absolute, out var uri) ||
             uri.Port <= 0 ||
             !IsTcpLikeEndpoint(endpoint, uri) ||
             !TryGetLocalBindAddress(uri.Host, out var address))
@@ -1329,13 +1333,13 @@ public sealed partial class DockerContainerResourceProvider :
         }
         catch (SocketException)
         {
-            return $"Endpoint '{endpoint.Name}' for Docker container resource '{resource.Id}' cannot use {endpoint.Address} because the address is already in use.";
+            return $"Endpoint mapping '{mapping.Name}' for Docker container resource '{resource.Id}' cannot use {mapping.Address} because the address is already in use.";
         }
     }
 
-    private static bool IsTcpLikeEndpoint(ResourceEndpoint endpoint, Uri uri)
+    private static bool IsTcpLikeEndpoint(ResourceEndpoint? endpoint, Uri uri)
     {
-        var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
+        var protocol = string.IsNullOrWhiteSpace(endpoint?.Protocol)
             ? uri.Scheme
             : endpoint.Protocol;
         return protocol.Equals("tcp", StringComparison.OrdinalIgnoreCase) ||

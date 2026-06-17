@@ -74,6 +74,9 @@ on `git blame --follow`, and then by the broad type of change.
   mapping.
 - The sample resource host now projects sample service addresses through
   endpoint network mappings instead of address-bearing endpoint contracts.
+- Docker container start availability checks now validate endpoint network
+  mappings so occupied published ports are still detected after endpoints
+  became address-less contracts.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
