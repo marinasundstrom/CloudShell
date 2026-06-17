@@ -189,7 +189,9 @@ public static class TraefikDynamicConfigurationWriter
     }
 
     private static string? ResolveTargetEndpointAddress(LoadBalancerRouteResolution resolution) =>
-        resolution.TargetEndpointNetworkMapping?.Address ?? resolution.TargetEndpoint?.Address;
+        resolution.TargetEndpoint is null
+            ? null
+            : resolution.TargetResource.GetResolvedEndpointAddress(resolution.TargetEndpoint);
 
     private static string CreateTargetHost(Resource resource)
     {
