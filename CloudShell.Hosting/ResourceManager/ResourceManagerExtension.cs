@@ -54,20 +54,20 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<StorageVolumes>(
                 "cloudshell.storage",
                 ResourcePredefinedViewIds.Volumes,
                 "Volumes",
                 20,
-                groupTitle: "Storage")
+                groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourceTab<UpdateLocalStorageResource>(
                 "cloudshell.storage",
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 30,
                 showsApplyButton: true,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceType<RegisterVolumeResource, UpdateVolumeResource>(
                 "cloudshell.volume",
                 "Volume",
@@ -80,14 +80,14 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<UpdateVolumeResource>(
                 "cloudshell.volume",
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceType<RegisterLoadBalancerResource>(
                 "cloudshell.loadBalancer",
                 "Load Balancer",
@@ -107,7 +107,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceType<RegisterNameMappingResource, UpdateNameMappingResource>(
                 "cloudshell.nameMapping",
                 "Name Mapping",

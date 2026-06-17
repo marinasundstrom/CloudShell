@@ -26,7 +26,7 @@ on `git blame --follow`, and then by the broad type of change.
   of free-form strings, with query-string serialization only at navigation
   boundaries.
 - Application resources now contribute provider-owned exposure actions to the
-  standard Endpoints tab, giving endpoint-capable applications direct
+  predefined Endpoints tab, giving endpoint-capable applications direct
   Resource Manager entry points for load-balancer routes and DNS/name
   mappings.
 - Application exposure actions now deep-link TCP endpoints into the
@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
   from CloudShell-owned Predefined Resource Views, and the public extension
   API now uses `ResourcePredefined*` names for predefined view IDs,
   definitions, sections, and visibility rules.
+- Built-in resource tab registrations now use shared `ResourceTabGroupTitles`
+  constants for predefined and provider-owned group labels instead of
+  repeating presentation strings in each provider.
 
 ### 2026-06-16
 

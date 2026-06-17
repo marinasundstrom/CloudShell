@@ -216,11 +216,6 @@
     private static readonly ResourceViewId GeneratedIdentityTabId = ResourcePredefinedViewIds.Identity;
     private static readonly ResourceViewId GeneratedStorageVolumesTabId = ResourcePredefinedViewIds.Volumes;
     private static readonly ResourceViewId GeneratedActivityTabId = ResourcePredefinedViewIds.Activity;
-    private const string GeneralTabGroup = "General";
-    private const string NetworkingTabGroup = "Networking";
-    private const string StorageTabGroup = "Storage";
-    private const string EnvironmentTabGroup = "Environment";
-    private const string ManagementTabGroup = "Management";
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -611,7 +606,7 @@
                 "Overview",
                 -100,
                 typeof(GeneratedResourceOverview),
-                GroupTitle: GeneralTabGroup));
+                GroupTitle: ResourceTabGroupTitles.General));
         }
 
         if (ResourcePredefinedViewVisibility.HasEndpointsView(resource) &&
@@ -622,7 +617,7 @@
                 "Endpoints",
                 -80,
                 typeof(GeneratedResourceEndpoints),
-                GroupTitle: NetworkingTabGroup));
+                GroupTitle: ResourceTabGroupTitles.Networking));
         }
 
         if (ResourcePredefinedViewVisibility.HasDnsView(resource) &&
@@ -633,7 +628,7 @@
                 "DNS",
                 -70,
                 typeof(GeneratedResourceDns),
-                GroupTitle: NetworkingTabGroup));
+                GroupTitle: ResourceTabGroupTitles.Networking));
         }
 
         if (ResourcePredefinedViewVisibility.HasIdentityView(resource, hasIdentityPermissionGrants) &&
@@ -644,7 +639,7 @@
                 "Identity",
                 -90,
                 typeof(GeneratedResourceIdentity),
-                GroupTitle: ManagementTabGroup));
+                GroupTitle: ResourceTabGroupTitles.Management));
         }
 
         if (ResourcePredefinedViewVisibility.HasStorageVolumesView(resource) &&
@@ -655,7 +650,7 @@
                 "Volumes",
                 20,
                 typeof(StorageVolumes),
-                GroupTitle: StorageTabGroup));
+                GroupTitle: ResourceTabGroupTitles.Storage));
         }
 
         if (!contributedTabs.Any(tab => tab.Id == GeneratedActivityTabId))
@@ -665,7 +660,7 @@
                 "Activity",
                 90,
                 typeof(ResourceActivity),
-                GroupTitle: ManagementTabGroup));
+                GroupTitle: ResourceTabGroupTitles.Management));
         }
 
         if (resourceType?.UpdateComponentType is not null &&
@@ -677,7 +672,7 @@
                 0,
                 resourceType.UpdateComponentType,
                 ShowsApplyButton: true,
-                GroupTitle: GeneralTabGroup));
+                GroupTitle: ResourceTabGroupTitles.General));
         }
 
         if (ResourcePredefinedViewVisibility.HasEnvironmentView(resource) &&
@@ -689,7 +684,7 @@
                 80,
                 typeof(ResourceEnvironmentVariables),
                 ShowsApplyButton: true,
-                GroupTitle: EnvironmentTabGroup));
+                GroupTitle: ResourceTabGroupTitles.Environment));
         }
 
         return tabs
@@ -751,12 +746,14 @@
             ? tab.GroupTitle.Trim()
             : tab.GroupId switch
             {
-                ResourceTabGroupIds.General => GeneralTabGroup,
-                ResourceTabGroupIds.Networking => NetworkingTabGroup,
-                ResourceTabGroupIds.Storage => StorageTabGroup,
-                ResourceTabGroupIds.Environment => EnvironmentTabGroup,
-                ResourceTabGroupIds.Management => ManagementTabGroup,
-                ResourceTabGroupIds.Runtime => "Runtime",
+                ResourceTabGroupIds.General => ResourceTabGroupTitles.General,
+                ResourceTabGroupIds.Networking => ResourceTabGroupTitles.Networking,
+                ResourceTabGroupIds.Storage => ResourceTabGroupTitles.Storage,
+                ResourceTabGroupIds.Environment => ResourceTabGroupTitles.Environment,
+                ResourceTabGroupIds.Management => ResourceTabGroupTitles.Management,
+                ResourceTabGroupIds.Runtime => ResourceTabGroupTitles.Runtime,
+                ResourceTabGroupIds.Entries => ResourceTabGroupTitles.Entries,
+                ResourceTabGroupIds.Secrets => ResourceTabGroupTitles.Secrets,
                 _ => tab.GroupId
             };
 

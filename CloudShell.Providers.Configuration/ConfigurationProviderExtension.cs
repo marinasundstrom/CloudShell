@@ -54,21 +54,21 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.UpdateConfigurationStore>(
                 "configuration.store",
                 new ResourceViewId(ResourceTabGroupIds.General, "settings"),
                 "Settings",
                 20,
                 showsApplyButton: true,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.ConfigurationStoreEntries>(
                 "configuration.store",
                 new ResourceViewId(ResourceTabGroupIds.Entries, "entries"),
                 "Entries",
                 30,
                 showsApplyButton: true,
-                groupTitle: "Entries");
+                groupTitle: ResourceTabGroupTitles.Entries);
     }
 }
 
@@ -107,20 +107,20 @@ public sealed class SecretsProviderExtension : ICloudShellExtension
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.UpdateSecretsVault>(
                 SecretsVaultProvider.ResourceType,
                 new ResourceViewId(ResourceTabGroupIds.General, "settings"),
                 "Settings",
                 20,
                 showsApplyButton: true,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.SecretsVaultSecrets>(
                 SecretsVaultProvider.ResourceType,
                 new ResourceViewId(ResourceTabGroupIds.Secrets, "secrets"),
                 "Secrets",
                 30,
                 showsApplyButton: true,
-                groupTitle: "Secrets");
+                groupTitle: ResourceTabGroupTitles.Secrets);
     }
 }

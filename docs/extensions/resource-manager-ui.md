@@ -159,8 +159,9 @@ Predefined view IDs are logical hierarchical IDs represented by
 - `Value` is the canonical serialized form used in routes and query strings,
   for example `general:overview` or `networking:endpoints`.
 
-Use `ResourceTabGroupIds` and `ResourcePredefinedViewIds` instead of creating
-raw string literals in providers or shell UI code.
+Use `ResourceTabGroupIds`, `ResourceTabGroupTitles`, and
+`ResourcePredefinedViewIds` instead of creating raw string literals in
+providers or shell UI code.
 
 Use the constants instead of hard-coded string literals when registering tabs,
 building links, or contributing sections:
@@ -169,6 +170,8 @@ building links, or contributing sections:
 ResourcePredefinedViewIds.Endpoints
 ResourcePredefinedViewIds.Dns
 ResourcePredefinedViewIds.Configuration
+ResourceTabGroupTitles.Networking
+ResourceTabGroupTitles.Storage
 ```
 
 Predefined views are capability and shape driven. For example, the Resource

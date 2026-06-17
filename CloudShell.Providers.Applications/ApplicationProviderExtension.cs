@@ -88,14 +88,14 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ExecutableApplication,
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.ExecutableApplication,
                 ResourcePredefinedViewIds.Endpoints,
@@ -107,14 +107,14 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 ResourcePredefinedViewIds.Endpoints,
@@ -126,33 +126,33 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.ApplicationDeployment>(
                 ApplicationResourceTypes.ContainerApp,
                 new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"),
                 "Deployment",
                 20,
-                groupTitle: "Runtime")
+                groupTitle: ResourceTabGroupTitles.Runtime)
             .AddResourceTab<Pages.ApplicationReplicas>(
                 ApplicationResourceTypes.ContainerApp,
                 new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"),
                 "Replicas",
                 30,
-                groupTitle: "Runtime")
+                groupTitle: ResourceTabGroupTitles.Runtime)
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 40,
                 showsApplyButton: true,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 50,
                 showsApplyButton: true,
-                groupTitle: "Storage")
+                groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Endpoints,
@@ -164,21 +164,21 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 ResourcePredefinedViewIds.Overview,
                 "Overview",
                 10,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.SqlServer,
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
-                groupTitle: "General")
+                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.SqlServer,
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
                 30,
                 showsApplyButton: true,
-                groupTitle: "Storage")
+                groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.SqlServer,
                 ResourcePredefinedViewIds.Endpoints,
