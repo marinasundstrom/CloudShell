@@ -1499,7 +1499,7 @@ public sealed class PlatformResourceProvider(
         targetResource.Endpoints.FirstOrDefault(endpoint =>
             string.Equals(endpoint.Name, servicePort.Name, StringComparison.OrdinalIgnoreCase)) ??
         targetResource.Endpoints.FirstOrDefault(endpoint =>
-            TryGetEndpointPort(endpoint, out var port) && port == servicePort.TargetPort);
+            endpoint.TryGetPort(out var port) && port == servicePort.TargetPort);
 
     private static string ResolveBackendHost(
         Resource targetResource,
@@ -1528,7 +1528,7 @@ public sealed class PlatformResourceProvider(
         }
 
         if (targetEndpoint is not null &&
-            TryGetEndpointPort(targetEndpoint, out var port))
+            targetEndpoint.TryGetPort(out var port))
         {
             return port;
         }
@@ -1575,7 +1575,7 @@ public sealed class PlatformResourceProvider(
         }
 
         return targetResource.Endpoints.FirstOrDefault(endpoint =>
-            TryGetEndpointPort(endpoint, out var port) && port == route.Target.Port);
+            endpoint.TryGetPort(out var port) && port == route.Target.Port);
     }
 
     private static void ValidateLoadBalancerRoutes(LoadBalancerResourceDefinition definition)
@@ -2829,34 +2829,6 @@ public sealed class PlatformResourceProvider(
         string.IsNullOrWhiteSpace(protocol)
             ? "tcp"
             : protocol.Trim().ToLowerInvariant();
-
-    private static bool TryGetEndpointPort(ResourceEndpoint endpoint, out int port)
-    {
-        if (endpoint.TargetPort is { } targetPort)
-        {
-            port = targetPort;
-            return true;
-        }
-
-        if (Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort)
-        {
-            port = uri.Port;
-            return true;
-        }
-
-        var separatorIndex = endpoint.Address.LastIndexOf(':');
-        if (separatorIndex >= 0 &&
-            int.TryParse(
-                endpoint.Address.AsSpan(separatorIndex + 1),
-                CultureInfo.InvariantCulture,
-                out port))
-        {
-            return true;
-        }
-
-        port = 0;
-        return false;
-    }
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

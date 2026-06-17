@@ -46,6 +46,33 @@ public sealed class ResourceEndpointTests
     }
 
     [Fact]
+    public void TryGetPort_PrefersTargetPort()
+    {
+        var endpoint = ResourceEndpoint.Http("http", "localhost", 5080, targetPort: 8080);
+
+        Assert.True(endpoint.TryGetPort(out var port));
+        Assert.Equal(8080, port);
+    }
+
+    [Fact]
+    public void TryGetPort_FallsBackToLegacyAddressPort()
+    {
+        var endpoint = ResourceEndpoint.FromAddress("http", "http://localhost:5080", "http");
+
+        Assert.True(endpoint.TryGetPort(out var port));
+        Assert.Equal(5080, port);
+    }
+
+    [Fact]
+    public void TryGetPort_ReturnsFalseWhenNoPortIsAvailable()
+    {
+        var endpoint = ResourceEndpoint.Contract("http", "http");
+
+        Assert.False(endpoint.TryGetPort(out var port));
+        Assert.Equal(0, port);
+    }
+
+    [Fact]
     public void GetEndpointNetworkAddress_PrefersProjectedMapping()
     {
         var resource = CreateResource(

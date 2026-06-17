@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace CloudShell.Abstractions.ResourceManager;
 
 /// <summary>
@@ -28,6 +30,34 @@ public sealed record ResourceEndpoint(
 
     public bool IsExternal =>
         Exposure is ResourceExposureScope.Network or ResourceExposureScope.Public;
+
+    public bool TryGetPort(out int port)
+    {
+        if (TargetPort is { } targetPort)
+        {
+            port = targetPort;
+            return true;
+        }
+
+        if (Uri.TryCreate(Address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort)
+        {
+            port = uri.Port;
+            return true;
+        }
+
+        var separatorIndex = Address.LastIndexOf(':');
+        if (separatorIndex >= 0 &&
+            int.TryParse(
+                Address.AsSpan(separatorIndex + 1),
+                CultureInfo.InvariantCulture,
+                out port))
+        {
+            return true;
+        }
+
+        port = 0;
+        return false;
+    }
 
     public static ResourceEndpoint FromAddress(
         string name,

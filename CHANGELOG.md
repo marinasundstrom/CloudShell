@@ -106,6 +106,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application provider local endpoint availability checks now keep only the
   endpoint-network-mapping path and remove the obsolete endpoint-address
   overload.
+- Resource endpoints now expose a shared port-resolution helper that prefers
+  `TargetPort` and falls back to legacy endpoint-address parsing; load-balancer
+  route resolution uses that helper instead of a Control Plane-local parser.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
