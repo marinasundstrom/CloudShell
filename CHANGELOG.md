@@ -26,6 +26,9 @@ on `git blame --follow`, and then by the broad type of change.
   `ResourceEndpointNetworkMapping` when available, with `ResourceEndpoint`
   address retained only as a compatibility fallback. The resource endpoint
   factory now supports address-less endpoint contracts.
+- Resources now expose endpoint-network mapping lookup helpers so consumers can
+  resolve reachable endpoint addresses by endpoint name. Resource health checks
+  use those mapped addresses before falling back to legacy endpoint addresses.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

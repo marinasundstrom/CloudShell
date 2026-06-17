@@ -347,6 +347,11 @@ They are different from endpoint network mappings:
 | `ResourceEndpointNetworkMapping` | Target resource | Current topology-specific resolved address for one resource endpoint. |
 | `ResourceEndpointMappingDefinition` | Network resource | Configured source endpoint -> target endpoint relationship, optionally materialized by a provider. |
 
+Consumers that need a reachable address for a resource endpoint should resolve
+the endpoint's network mapping by endpoint name. This preserves compatibility
+with legacy endpoint-address projections while keeping new provider behavior
+centered on explicit mappings.
+
 ## Actions
 
 `ResourceActions` exposes operations a resource supports.

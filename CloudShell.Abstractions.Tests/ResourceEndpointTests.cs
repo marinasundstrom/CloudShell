@@ -32,4 +32,59 @@ public sealed class ResourceEndpointTests
         Assert.Equal(ResourceExposureScope.Private, endpoint.Exposure);
         Assert.False(endpoint.IsExternal);
     }
+
+    [Fact]
+    public void ContractFactory_CreatesAddresslessEndpointContract()
+    {
+        var endpoint = ResourceEndpoint.Contract("http", "http", targetPort: 8080);
+
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(string.Empty, endpoint.Address);
+        Assert.Equal("http", endpoint.Protocol);
+        Assert.Equal(ResourceExposureScope.Private, endpoint.Exposure);
+        Assert.Equal(8080, endpoint.TargetPort);
+    }
+
+    [Fact]
+    public void GetEndpointNetworkAddress_PrefersProjectedMapping()
+    {
+        var resource = CreateResource(
+            [ResourceEndpoint.Contract("http", "http", targetPort: 8080)],
+            endpointNetworkMappings:
+            [
+                new ResourceEndpointNetworkMapping(
+                    "application:api:endpoint-network-mapping:http",
+                    "public-http",
+                    new ResourceEndpointReference("application:api", "http"),
+                    "http://localhost:5080",
+                    ResourceExposureScope.Local)
+            ]);
+
+        Assert.Equal("http://localhost:5080", resource.GetEndpointNetworkAddress("http"));
+    }
+
+    [Fact]
+    public void GetEndpointNetworkAddress_FallsBackToLegacyEndpointAddress()
+    {
+        var resource = CreateResource(
+            [ResourceEndpoint.Http("http", "localhost", 5080)]);
+
+        Assert.Equal("http://localhost:5080", resource.GetEndpointNetworkAddress("http"));
+    }
+
+    private static Resource CreateResource(
+        IReadOnlyList<ResourceEndpoint> endpoints,
+        IReadOnlyList<ResourceEndpointNetworkMapping>? endpointNetworkMappings = null) =>
+        new(
+            "application:api",
+            "api",
+            "Application",
+            "Applications",
+            "local",
+            ResourceState.Running,
+            endpoints,
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            EndpointNetworkMappings: endpointNetworkMappings);
 }

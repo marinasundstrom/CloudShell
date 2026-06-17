@@ -1192,8 +1192,7 @@ public sealed class PlatformResourceProvider(
             return null;
         }
 
-        return target.ResourceEndpointNetworkMappings.FirstOrDefault(mapping =>
-            string.Equals(mapping.Target.EndpointName, targetEndpoint.Name, StringComparison.OrdinalIgnoreCase));
+        return target.GetEndpointNetworkMapping(targetEndpoint.Name);
     }
 
     private static ResourceEndpoint? ResolveNameMappingTargetEndpoint(
