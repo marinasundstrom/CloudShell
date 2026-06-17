@@ -477,37 +477,53 @@ explicitly.
 
 ### Endpoint and networking
 
-Endpoints are projected resource facts. They describe reachable addresses that
-exist now, such as HTTP, HTTPS, TCP, UDP, process, container, or logical network
-endpoints. A projected `ResourceEndpoint` includes a stable name, address,
-protocol, and explicit `ResourceExposureScope`. Use protocol-specific endpoint
-factories such as `ResourceEndpoint.Http(...)`, `Tcp(...)`, or
-`FromAddress(...)` instead of positional construction so the address, protocol,
-and exposure intent stay clear.
+Endpoint descriptors describe the services a resource can expose before a
+concrete address exists. A `ResourceEndpointDescriptor` belongs to the resource
+type, kind, or instance contract and includes a stable endpoint name, protocol,
+target port, default exposure, assignment default, and whether the provider can
+remap that endpoint to a different concrete port in a given topology.
+
+Resolved endpoints are projected resource facts. They describe reachable
+addresses that exist now, such as HTTP, HTTPS, TCP, UDP, process, container, or
+logical network endpoints. A projected `ResourceEndpoint` includes a stable
+name, address, protocol, and explicit `ResourceExposureScope`. Use
+protocol-specific endpoint factories such as `ResourceEndpoint.Http(...)`,
+`Tcp(...)`, or `FromAddress(...)` instead of positional construction so the
+address, protocol, and exposure intent stay clear.
 
 Endpoint requests are networking intent. They describe what should be assigned
 or reserved, including protocol, host or IP address, port, exposure scope, and
 assignment mode. Manual assignments require the caller to provide the concrete
 address details. Auto or provider-default assignments let a networking provider
-resource choose an address from its configured policy.
+resource choose an address from its configured policy. Endpoint requests are
+resolved against endpoint descriptors by a network, runtime, or provider.
 
-Endpoint mappings connect a source endpoint to a target endpoint. A mapping may
-be realized by the same network resource that owns the source endpoint, or by a
-specialized networking provider resource such as a gateway, load balancer,
-service discovery system, or custom controller running as a managed resource.
+Endpoint network mappings connect a resource service endpoint to a topology and
+provide the current resolved address for that topology. Resources project these
+topology-specific addresses through `Resource.ResourceEndpointNetworkMappings`.
+For local development, an Aspire-compatible helper such as
+`WithHttpEndpoint(port: 6000)` declares an HTTP endpoint descriptor and creates
+assignment intent for the implied local network; the resulting network mapping
+is the address the provider passes to the service when it starts.
 
-Network resources project endpoint mappings through
-`Resource.ResourceEndpointMappings`. A mapping is a resource relationship in
-the resource model, not a provider-specific attribute. API-backed clients
-receive the same source endpoint, target endpoint, network reference, and
-provider resource reference as in-process consumers. The Resource Manager uses
-that projection to show mappings on network resources and read-only network
-exposure on target resources.
+Configured endpoint mappings connect a source endpoint to a target endpoint. A
+mapping may be realized by the same network resource that owns the source
+endpoint, or by a specialized networking provider resource such as a gateway,
+load balancer, service discovery system, or custom controller running as a
+managed resource.
 
-The mapping records both the logical network boundary and the provider resource
-that should materialize or validate the mapping. The provider resource must
-advertise `networking.endpointMapper`; resources that assign or reserve
-endpoints advertise `networking.endpointProvider`.
+Network resources project configured endpoint mappings through
+`Resource.ResourceEndpointMappings`. A configured mapping is a resource
+relationship in the resource model, not a provider-specific attribute.
+API-backed clients receive the same source endpoint, target endpoint, network
+reference, and provider resource reference as in-process consumers. The
+Resource Manager uses that projection to show mappings on network resources and
+read-only network exposure on target resources.
+
+The configured mapping records both the logical network boundary and the
+provider resource that should materialize or validate the mapping. The provider
+resource must advertise `networking.endpointMapper`; resources that assign or
+reserve endpoints advertise `networking.endpointProvider`.
 
 CloudShell uses three basic network resource kinds:
 
@@ -521,13 +537,13 @@ CloudShell uses three basic network resource kinds:
 
 The built-in `cloudshell.network` resource represents host or logical network
 boundaries. The built-in `cloudshell.virtualNetwork` resource represents a
-virtual network boundary using the same endpoint request and endpoint mapping
-model. For local development, the default host-local implementation can reserve
-manual localhost endpoints or auto-assign stable localhost ports from the
-configured range on Windows, macOS, and Linux. Richer network topology, routing,
-policy, TLS, DNS, clustering, and load-balancing behavior should be expressed
-as capabilities on authored resources and implemented by provider-owned
-configuration behind those resources.
+virtual network boundary using the same endpoint request and configured
+endpoint mapping model. For local development, the default host-local
+implementation can reserve manual localhost endpoints or auto-assign stable
+localhost ports from the configured range on Windows, macOS, and Linux. Richer
+network topology, routing, policy, TLS, DNS, clustering, and load-balancing
+behavior should be expressed as capabilities on authored resources and
+implemented by provider-owned configuration behind those resources.
 
 When a virtual network is projected by the default host-local implementation
 without external mapping providers, it carries
@@ -540,16 +556,22 @@ publisher, service mesh, firewall manager, or cluster network controller.
 
 The first built-in host networking provider is the portable local host
 networking provider. It projects `networking:host-local` on macOS, Linux, and
-Windows and can materialize HTTP, HTTPS, and TCP endpoint mappings as local TCP
-proxies. OS-native providers can later materialize the same endpoint mapping
-model through Linux, Windows, macOS, or runtime-specific networking facilities.
+Windows and can materialize HTTP, HTTPS, and TCP configured endpoint mappings
+as local TCP proxies. OS-native providers can later materialize the same
+configured endpoint mapping model through Linux, Windows, macOS, or
+runtime-specific networking facilities.
 
-When endpoint mappings are declared, the network resource exposes a reconcile
-action. The Control Plane action validates that the source endpoint exists, the
-target endpoint exists, and the selected provider resource advertises endpoint
-mapping capability. Provider-owned controllers can then use their own resource
-configuration and actions to apply routing, DNS, load-balancing, policy, TLS,
-or other runtime-specific behavior.
+`network:host` and `networking:host-local` are intentionally separate. The
+former is the default topology boundary; the latter is the provider resource
+that can materialize local proxies, host publishing, and other host-local
+mapping behavior.
+
+When configured endpoint mappings are declared, the network resource exposes a
+reconcile action. The Control Plane action validates that the source endpoint
+exists, the target endpoint exists, and the selected provider resource
+advertises endpoint mapping capability. Provider-owned controllers can then use
+their own resource configuration and actions to apply routing, DNS,
+load-balancing, policy, TLS, or other runtime-specific behavior.
 
 ### Resource action
 

@@ -1,8 +1,9 @@
 # Networking
 
-CloudShell models networking through resources, endpoints, endpoint requests,
-endpoint mappings, and resource capabilities. The goal is to start with a
-simple Aspire-like local workflow, then let the same resource graph grow into
+CloudShell models networking through resources, endpoint descriptors, endpoint
+requests, resolved endpoints, topology mappings, exposure paths, DNS/name
+mappings, and resource capabilities. The goal is to start with a simple
+Aspire-like local workflow, then let the same resource graph grow into
 host-managed or provider-managed networking for on-premise environments.
 CloudShell borrows familiar cloud terminology where it helps users understand
 the system, but keeps the underlying primitives explicit so application
@@ -12,38 +13,59 @@ through consistent CloudShell concepts first, then let provider-specific
 implementation details remain inspectable where they help users diagnose or
 operate the environment.
 
+## Terminology
+
+CloudShell uses these terms deliberately:
+
+| Term | Model type | Meaning |
+| --- | --- | --- |
+| Endpoint descriptor | `ResourceEndpointDescriptor` | Resource type/kind metadata that announces a service endpoint a resource can expose by default: endpoint name, protocol, target port, exposure default, assignment default, and whether the provider supports remapping that endpoint to another concrete port. |
+| Endpoint request | `ResourceEndpointRequest` | Assignment intent asking a network or provider to reserve or assign an address for a service endpoint. Requests can be manual, auto-assigned, provider-default, or predefined. |
+| Resolved endpoint | `ResourceEndpoint` | A projected reachable endpoint that exists now, with a concrete address in the relevant topology. |
+| Endpoint network mapping | `ResourceEndpointNetworkMapping` | A topology-specific resolved address for a resource endpoint, such as the local host address, virtual-network address, provider-owned ingress address, or public route address. |
+| Configured endpoint mapping | `ResourceEndpointMappingDefinition` | A source-to-target mapping owned by a network resource, such as a network-owned frontend endpoint mapped to an application endpoint through a selected provider. |
+| Exposure | Capability/resource relationship | A provider- or network-owned route from a boundary to a target endpoint, such as ingress, load-balancer route, gateway route, or host publishing. |
+| DNS/name mapping | DNS/name resource | A human-facing or integration-facing name for a reachable endpoint or exposure route. |
+
 ## Core Model
 
-Resources first announce the services they expose: a stable endpoint name,
-protocol, and service target port. This is the resource-owned service contract
-and can exist before any concrete host address has been assigned.
+Resources first announce the services they can expose through endpoint
+descriptors. A descriptor is the resource-owned service contract: stable
+endpoint name, protocol, service target port, default exposure, default
+assignment behavior, and whether the provider supports port remapping. It can
+exist before any concrete host address has been assigned.
 
-Concrete endpoints are created from that service contract by the selected
-network, runtime, or provider. In local development that concrete endpoint may
-be `localhost:<port>`. In a managed topology it may be a private address,
-provider-owned ingress endpoint, or internal DNS-backed address.
+Endpoint requests turn that service contract into assignment intent. They ask a
+network, runtime, or provider to reserve or assign an address for one service
+endpoint. Manual requests provide concrete address details. Auto or
+provider-default requests let the selected network/provider choose from its
+configured policy. Predefined requests describe an address chosen by provider
+configuration outside the user's create flow.
+
+Resolved endpoints are created from endpoint descriptors plus endpoint requests
+by the selected network, runtime, or provider. In local development that
+resolved endpoint may be `localhost:<port>`. In a managed topology it may be a
+private address, provider-owned ingress endpoint, or internal DNS-backed
+address.
+
 Containers are the typical case where this distinction matters: the container
 image exposes an inner container port, while the runtime maps an external host,
-virtual-network, load-balancer, or ingress endpoint to that inner port.
-That remapping support is provider-owned. A resource provider declares whether
-an endpoint can be remapped for the resource type and topology; the shell can
-then show or disable the concrete port mapping controls accordingly.
+virtual-network, load-balancer, or ingress endpoint to that inner port. That
+remapping support is provider-owned. A resource provider declares whether an
+endpoint can be remapped for the resource type and topology; the shell can then
+show or disable the concrete port mapping controls accordingly.
 
-Endpoint mappings and exposure paths are relationships over those concrete
-endpoints. A mapping can connect a network-owned frontend, load-balancer
-route, gateway, DNS/name mapping, or other topology artifact to the target
-resource service endpoint.
+Port remapping does not bypass network topology. It only decides which concrete
+port a provider binds or publishes for a resource endpoint. The resulting
+resolved endpoint still belongs to a topology, such as the implied local
+network, a container-host network, a virtual network, or a public exposure
+path. Endpoint network mappings still decide where that endpoint is reachable
+and which provider materializes that reachability.
 
-Port remapping does not bypass network topology. It only decides which
-concrete port a provider binds or publishes for a resource endpoint. The
-resulting concrete endpoint still belongs to a topology, such as the implied
-local network, a container-host network, a virtual network, or a public
-exposure path. Network endpoint mappings still decide where that endpoint is
-reachable and which provider materializes that reachability.
-
-Endpoint requests are intent. They ask a network or provider to reserve or
-assign an address. Requests can be manual, auto-assigned, provider-default, or
-predefined by a provider.
+Exposure paths and DNS/name mappings are relationships over resolved endpoints.
+They can connect a network-owned frontend, load-balancer route, gateway,
+DNS/name mapping, or other topology artifact to the target resource service
+endpoint.
 
 Platform-owned endpoint assignments are validated before the platform saves a
 network, service, or load-balancer resource. Concrete assignments are compared
@@ -71,13 +93,13 @@ identity. It should not claim the endpoint reservation unless the assignment is
 part of CloudShell's resource graph or a persisted provider-owned runtime
 artifact being recovered.
 
-Endpoint-network mappings connect a resource service endpoint to a network or
-topology and provide the concrete address for that topology. For local
+Endpoint network mappings connect a resource service endpoint to a network or
+topology and provide the resolved address for that topology. For local
 development, an Aspire-like helper such as `WithHttpEndpoint(port: 6000)`
-declares an HTTP service port and creates assignment intent in the implied
-default local network whose concrete endpoint resolves to the supplied local
-port. That resolved mapping address is what the resource provider passes to the
-service when it starts.
+declares an HTTP endpoint descriptor and creates assignment intent in the
+implied default local network whose resolved endpoint maps to the supplied
+local port. That resolved mapping address is what the resource provider passes
+to the service when it starts.
 
 In managed or on-premise topologies, the concrete port chosen by a user is
 often less important than the resource's network placement. A resource may be
@@ -87,19 +109,19 @@ environment's naming policy. The endpoint still carries the protocol and
 target port, but the topology, DNS provider, and exposure policy decide which
 address users and other services should call.
 
-For application-style resources, the resource endpoint is the service-port
+For application-style resources, the endpoint descriptor is the service-port
 contract. A virtual network can assign a virtual address to that service port,
 and a DNS provider can publish a private name based on the resource name and
-environment suffix. Those are endpoint-network mappings and name mappings over
-the resource endpoint; they do not change the resource's declared service
-port.
+environment suffix. Those are endpoint network mappings and name mappings over
+the resource endpoint; they do not change the resource's declared service port.
 
 Configured endpoint mappings connect one source endpoint to one target
-endpoint. A mapping can be validated by the network resource itself or
-materialized by a selected networking provider resource.
+endpoint. They are source-to-target mapping definitions owned by network
+resources. A configured mapping can be validated by the network resource itself
+or materialized by a selected networking provider resource.
 
-Endpoint mappings are projected on network resources as first-class resource
-data. They are not encoded as dependency metadata or comma-separated
+Configured endpoint mappings are projected on network resources as first-class
+resource data. They are not encoded as dependency metadata or comma-separated
 attributes. This lets the Control Plane API, remote clients, and Resource
 Manager UI show the mapping itself: source endpoint, target endpoint, and the
 provider selected to materialize it.
@@ -130,10 +152,11 @@ addressed. These mechanisms are related, but they are not interchangeable.
 
 The Resource Manager UI should use the same distinction:
 
-- **Endpoint**: the resource-owned named protocol and target port. It describes
-  what the resource exposes, such as a named HTTP port, TCP port, container
-  target port, or provider-assigned logical endpoint. The current address is
-  resolved by topology and provider behavior.
+- **Endpoint descriptor**: the resource-owned named protocol and target port.
+  It describes what the resource can expose, such as a named HTTP port, TCP
+  port, container target port, or provider-assigned logical endpoint.
+- **Resolved endpoint**: the current address for an endpoint descriptor in a
+  specific topology, resolved by network, runtime, or provider behavior.
 - **Exposure**: the provider- or network-owned route to an endpoint. This can
   be a virtual-network endpoint mapping, load-balancer route, ingress rule, or
   another provider-owned reachability path.
@@ -146,6 +169,7 @@ The Resource Manager UI should use the same distinction:
 
 | Layer | Shape | Primary use |
 | --- | --- | --- |
+| Service endpoint descriptor | `http:80`, `tds:1433`, `metrics:9090` | Resource type/kind or instance contract that announces what service port the resource can expose. |
 | Concrete endpoint address | `http://127.0.0.1:5218`, `tcp://10.0.0.5:1433`, `http://container-name:8080` | A provider-observed address that can be used directly when the caller is already in the right network context. |
 | Topology-scoped reachability | host network, virtual network, container-host network, load-balancer backend | Defines where an endpoint is reachable and what provider may route, proxy, isolate, or materialize it. |
 | Developer service discovery alias | `services__catalog-api__http__0`, `https+http://catalog-api` | Aspire-compatible per-workload configuration for local/programmatic development flows. |
@@ -153,17 +177,17 @@ The Resource Manager UI should use the same distinction:
 | DNS/name mapping | `api.cloudshell.local`, `api.example.com` | Human-facing or integration-facing names mapped to a resource endpoint, load-balancer route, or other exposure target. |
 
 The immediate MVP uses concrete endpoint addresses, topology-scoped endpoint
-mappings, Aspire-compatible developer service discovery aliases, and logical
-DNS/name mappings. Network-level service discovery is a later provider
+network mappings, Aspire-compatible developer service discovery aliases, and
+logical DNS/name mappings. Network-level service discovery is a later provider
 capability for host or virtual networks. It should not replace explicit
-endpoint mappings or public DNS/name mappings.
+configured endpoint mappings or public DNS/name mappings.
 
 ## Endpoint Topology And Network Policy
 
-Endpoint mappings and topology-resolved addresses must stay separate. A
-resource can declare that it exposes an `http` endpoint on target port `8080`
-without deciding that the endpoint must be reachable through `localhost`, a
-public IP, or a tenant virtual network.
+Configured endpoint mappings and topology-resolved addresses must stay
+separate. A resource can declare that it exposes an `http` endpoint on target
+port `8080` without deciding that the endpoint must be reachable through
+`localhost`, a public IP, or a tenant virtual network.
 
 The current address is topology-specific:
 
@@ -191,8 +215,9 @@ DNS and public endpoints remain explicit exposure choices.
 
 Resource configuration should therefore follow this order:
 
-1. The resource declares endpoints, such as endpoint name, protocol, target
-   port, and any provider-supported endpoint intent.
+1. The resource type or instance declares endpoint descriptors, such as
+   endpoint name, protocol, target port, and whether provider-supported port
+   remapping is available.
 2. The environment or network policy decides which binding modes are allowed:
    host-local, virtual-network-only, public exposure, DNS/name mapping, or
    provider-managed ingress.
@@ -202,13 +227,17 @@ Resource configuration should therefore follow this order:
 4. Exposure is configured separately when callers outside that topology need to
    reach the endpoint.
 
-Resource Manager should eventually let users choose the network or topology for
-each resource endpoint when the environment allows it. In local development the
-implied local network can remain the default. In managed environments, the
-available choices should come from environment policy, tenant membership,
-resource permissions, and provider capabilities. A disabled or unavailable
-network choice should explain whether the reason is policy, permission, missing
-provider capability, or missing setup.
+Resource Manager has initial support for choosing endpoint assignment mode,
+network, and manual host/port values in supported application registration
+flows. This is intentionally the first UI layer over the domain model, not the
+complete managed networking experience. Over time, Resource Manager should let
+users choose the network or topology for each resource endpoint whenever the
+environment allows it. In local development the implied local network can
+remain the default. In managed environments, the available choices should come
+from environment policy, tenant membership, resource permissions, and provider
+capabilities. A disabled or unavailable network choice should explain whether
+the reason is policy, permission, missing provider capability, or missing
+setup.
 
 When a resource with network capabilities is created, Resource Manager should
 offer the available network choices, defaulting to **Local network** when that
@@ -252,8 +281,9 @@ address such as `localhost:<port>` or `127.0.0.1:<port>`. The helper should
 compile down to the same primitives rather than becoming the canonical model.
 The canonical model is:
 
-- the resource exposes a named protocol and target-port endpoint
-- a network or topology maps that endpoint into a reachable address
+- the resource type or instance declares a named protocol and target-port
+  endpoint descriptor
+- a network or topology resolves that descriptor into a reachable endpoint
 - exposure resources or providers route traffic across boundaries when needed
 - DNS/name mappings assign human-facing names to reachable endpoints or routes
 
@@ -317,13 +347,19 @@ runtime state remain behind provider contracts.
 ## Default Behavior
 
 When no network has been created, CloudShell projects the default host network
-as `network:host`. This keeps local development simple: resources can still
-expose localhost endpoints without forcing the user to create a network first.
+as `network:host`. This is the topology boundary for the implied local network.
+It keeps local development simple: resources can still expose localhost
+endpoints without forcing the user to create a network first.
 
-Logical and virtual networks use the same endpoint request and endpoint mapping
-model. Without an activated provider, virtual networks are still useful for
-declaring intent and validating the graph, but they do not imply real network
-isolation or routing.
+The built-in host-local networking provider, `networking:host-local`, is
+separate from `network:host`. `network:host` is the default topology boundary;
+`networking:host-local` is the provider resource that can materialize local
+proxies, host publishing, and other host-local mapping behavior.
+
+Logical and virtual networks use the same endpoint request and configured
+endpoint mapping model. Without an activated provider, virtual networks are
+still useful for declaring intent and validating the graph, but they do not
+imply real network isolation or routing.
 
 ## Local Host Networking
 
@@ -377,12 +413,13 @@ cloudShell.Resources(resources =>
 ```
 
 The Resource Manager UI shows network kind, host readiness, mapping providers,
-endpoints, endpoint mappings, dependencies, and the reconcile action. Target
-resources show a separate read-only "Network exposure" section when a network
-mapping points at one of their endpoints. This is intentionally separate from
-dependencies: a resource can be exposed through a network without the resource
-owning or configuring that network. The settings page warns when a virtual
-network requires a provider that is not active on the current host.
+endpoints, configured endpoint mappings, dependencies, and the reconcile
+action. Target resources show a separate read-only "Network exposure" section
+when a configured network mapping points at one of their endpoints. This is
+intentionally separate from dependencies: a resource can be exposed through a
+network without the resource owning or configuring that network. The settings
+page warns when a virtual network requires a provider that is not active on the
+current host.
 
 The local host networking provider also projects the number of currently
 provisioned endpoint mappings through `network.provisionedMappings`, so the

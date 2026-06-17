@@ -89,6 +89,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Networking docs now clarify that port remapping does not bypass topology:
   the remapped concrete endpoint still belongs to a local, container-host,
   virtual-network, or public exposure path that endpoint mappings materialize.
+- Networking and domain-model docs now use the same endpoint vocabulary:
+  endpoint descriptors, endpoint requests, resolved endpoints, endpoint
+  network mappings, and configured endpoint mappings. They also clarify that
+  `network:host` is the default topology boundary while
+  `networking:host-local` is the provider resource that materializes
+  host-local behavior.
 - The CloudShell goal and networking docs now state the platform principle of
   exposing provider behavior through familiar, standardized concepts that
   transfer across use cases and systems, while keeping provider-specific
