@@ -66,6 +66,9 @@ on `git blame --follow`, and then by the broad type of change.
   contracts and carry host-local entrypoint URLs in endpoint network mappings.
 - Static CloudShell and managed sample resource providers now project endpoint
   addresses through endpoint network mappings instead of endpoint contracts.
+- Docker host resources now project their `host` endpoint as an address-less
+  endpoint contract and carry the configured Docker host URI as an endpoint
+  network mapping.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

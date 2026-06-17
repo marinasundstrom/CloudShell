@@ -595,6 +595,9 @@ public sealed partial class DockerContainerResourceProvider :
             _ => false
         };
 
+    private static int? GetPortOrNull(Uri endpoint) =>
+        endpoint.Port > 0 ? endpoint.Port : null;
+
     private string GetHostName(string hostResourceId) =>
         GetConfiguredHosts()
             .FirstOrDefault(host => string.Equals(host.Id, hostResourceId, StringComparison.OrdinalIgnoreCase))
@@ -812,7 +815,11 @@ public sealed partial class DockerContainerResourceProvider :
             DisplayName,
             configured.Host.Kind.ToString().ToLowerInvariant(),
             state,
-            [ResourceEndpoint.FromAddress("host", configured.Host.NormalizedEndpoint, configured.Host.Endpoint.Scheme, ResourceExposureScope.Private)],
+            [ResourceEndpoint.Contract(
+                "host",
+                configured.Host.Endpoint.Scheme,
+                ResourceExposureScope.Private,
+                GetPortOrNull(configured.Host.Endpoint))],
             version,
             lastUpdated,
             [],
@@ -827,7 +834,18 @@ public sealed partial class DockerContainerResourceProvider :
                 ["docker.host.kind"] = configured.Host.Kind.ToString().ToLowerInvariant(),
                 ["docker.host.endpoint"] = configured.Host.NormalizedEndpoint
             },
-            Capabilities: [new(ResourceCapabilityIds.ContainerHost)]);
+            Capabilities: [new(ResourceCapabilityIds.ContainerHost)],
+            EndpointNetworkMappings:
+            [
+                new(
+                    $"{configured.Id}:endpoint-network-mapping:host",
+                    "host",
+                    new ResourceEndpointReference(configured.Id, "host"),
+                    configured.Host.NormalizedEndpoint,
+                    ResourceExposureScope.Private,
+                    ProviderResourceId: configured.Id,
+                    SourceEndpointName: "host")
+            ]);
 
     private static IReadOnlyList<LogDescriptor> CreateLogDescriptors(Resource resource) =>
         resource.EffectiveTypeId switch

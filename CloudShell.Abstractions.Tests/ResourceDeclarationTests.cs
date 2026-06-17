@@ -3853,6 +3853,14 @@ public sealed class ResourceDeclarationTests
             definition.HostCapabilities.Order(StringComparer.OrdinalIgnoreCase));
         Assert.Equal(DockerContainerResourceProvider.HostResourceType, host.EffectiveTypeId);
         Assert.True(host.HasCapability(ResourceCapabilityIds.ContainerHost));
+        var endpoint = Assert.Single(host.Endpoints);
+        Assert.Equal("host", endpoint.Name);
+        Assert.Equal(provider.Endpoint.Scheme, endpoint.Protocol);
+        Assert.Empty(endpoint.Address);
+        var endpointMapping = Assert.Single(host.ResourceEndpointNetworkMappings);
+        Assert.Equal("host", endpointMapping.Name);
+        Assert.Equal(new ResourceEndpointReference(host.Id, "host"), endpointMapping.Target);
+        Assert.Equal(provider.Endpoint.ToString().TrimEnd('/'), endpointMapping.Address);
         Assert.Equal("local", host.ResourceAttributes["docker.host.kind"]);
         Assert.Equal(ContainerRegistryDefaults.Default, host.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
     }
@@ -3922,6 +3930,15 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceClass.Infrastructure, host.ResourceClass);
         Assert.Equal("remote", host.ResourceAttributes["docker.host.kind"]);
         Assert.Equal("tcp://build-01.example.com", host.ResourceAttributes["docker.host.endpoint"]);
+        var endpoint = Assert.Single(host.Endpoints);
+        Assert.Equal("host", endpoint.Name);
+        Assert.Equal("tcp", endpoint.Protocol);
+        Assert.Equal(2375, endpoint.TargetPort);
+        Assert.Empty(endpoint.Address);
+        var endpointMapping = Assert.Single(host.ResourceEndpointNetworkMappings);
+        Assert.Equal("host", endpointMapping.Name);
+        Assert.Equal(new ResourceEndpointReference(host.Id, "host"), endpointMapping.Target);
+        Assert.Equal("tcp://build-01.example.com", endpointMapping.Address);
         Assert.DoesNotContain("secret", host.PrimaryEndpoint, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("DOCKER_HOST_PASSWORD", host.ResourceAttributes.Values);
         Assert.Equal("docker:build-01", container.ParentResourceId);
