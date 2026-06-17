@@ -367,6 +367,49 @@ public sealed class ResourceDiagnosticDisplayTests
         Assert.Empty(diagnostics);
     }
 
+    [Fact]
+    public void GetDiagnostics_WarnsWhenStorageOwnedVolumeConsumerReportsUnknownMaterialization()
+    {
+        var storage = CreateStorage();
+        var volume = CreateStorageVolume(storage.Id);
+        var consumer = CreateVolumeConsumer(
+            "unknown",
+            materializedCount: 0,
+            mountCount: 1,
+            dependsOn: [volume.Id]);
+
+        var diagnostics = StorageResourceDiagnostics.GetDiagnostics(
+            storage,
+            [volume],
+            [storage, volume, consumer]);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Storage volume mounts not fully materialized", diagnostic.Title);
+        Assert.Equal(
+            "1 consumer of volumes owned by this Storage resource reports storage mounts that are not fully materialized: API: unknown (0/1 materialized).",
+            diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_DoesNotWarnWhenStorageOwnedVolumeConsumerReportsMaterialized()
+    {
+        var storage = CreateStorage();
+        var volume = CreateStorageVolume(storage.Id);
+        var consumer = CreateVolumeConsumer(
+            "materialized",
+            materializedCount: 1,
+            mountCount: 1,
+            dependsOn: [volume.Id]);
+
+        var diagnostics = StorageResourceDiagnostics.GetDiagnostics(
+            storage,
+            [volume],
+            [storage, volume, consumer]);
+
+        Assert.Empty(diagnostics);
+    }
+
     private static Resource CreateNameMapping(
         string providerResourceId,
         string materializationStatus = "ProviderSelected",
@@ -479,7 +522,8 @@ public sealed class ResourceDiagnosticDisplayTests
     private static Resource CreateVolumeConsumer(
         string materializationStatus,
         int materializedCount,
-        int mountCount) =>
+        int mountCount,
+        IReadOnlyList<string>? dependsOn = null) =>
         new(
             "application:api",
             "API",
@@ -490,12 +534,53 @@ public sealed class ResourceDiagnosticDisplayTests
             [],
             "1.0",
             DateTimeOffset.UtcNow,
-            [],
+            dependsOn ?? [],
             ResourceClass: ResourceClass.Container,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 [ResourceAttributeNames.VolumeMountMaterializationStatus] = materializationStatus,
                 [ResourceAttributeNames.VolumeMountMaterializedCount] = materializedCount.ToString(CultureInfo.InvariantCulture),
                 [ResourceAttributeNames.VolumeMountCount] = mountCount.ToString(CultureInfo.InvariantCulture)
+            });
+
+    private static Resource CreateStorage() =>
+        new(
+            "storage:local",
+            "Local Storage",
+            "Local Storage",
+            "CloudShell",
+            "local",
+            ResourceState.Running,
+            [],
+            "FileSystem",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.StorageResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.StorageProvider] = StorageProviderNames.LocalStorage,
+                [ResourceAttributeNames.StorageMedium] = StorageMedia.FileSystem
+            });
+
+    private static Resource CreateStorageVolume(string storageResourceId) =>
+        new(
+            "volume:sql-data",
+            "SQL Data",
+            "Volume",
+            "CloudShell",
+            "logical",
+            ResourceState.Running,
+            [],
+            "FileSystem",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.VolumeResourceType,
+            ParentResourceId: storageResourceId,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.VolumeStorageResourceId] = storageResourceId,
+                [ResourceAttributeNames.VolumeStorageMedium] = StorageMedia.FileSystem
             });
 }

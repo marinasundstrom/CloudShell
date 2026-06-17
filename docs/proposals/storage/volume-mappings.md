@@ -34,8 +34,9 @@ runtime facts without depending on the application provider. Docker Compose
 records observations through that contract after successful Start/Restart
 actions and marks existing observations not active after Stop. Resource Manager
 generated diagnostics now warn when standard mount materialization attributes
-report partial, not-active, or unknown status. Provider-backed storage runtime
-reporting remains open.
+report partial, not-active, or unknown status, and Local Storage overview pages
+warn when consumers of owned volumes report incomplete or unobserved mount
+materialization. Provider-backed storage runtime reporting remains open.
 Deletion is guarded for volume resources that are still referenced by another
 resource dependency, and storage mappings cannot be changed while the target
 resource is running.
@@ -388,8 +389,8 @@ runtime and storage provider agree on the storage medium.
 Resource Manager should show storage from both sides:
 
 - storage resource overview: provider boundary, owned volumes, consumers, and
-  consumer-reported materialization summaries; the first Local Storage view is
-  in place
+  consumer-reported materialization summaries and diagnostics; the first Local
+  Storage view is in place
 - volume resource overview: provider, host, usage, diagnostics, and actions
 - target resource overview: attached volumes, target paths, read-only flags,
   and materialization status
@@ -508,8 +509,9 @@ through future monitoring APIs.
 8. Add dedicated create/attach UI for basic volume resources and mappings.
    Direct volume create/configuration/overview UI is in place. Local Storage
    overview pages now list owned volumes with consumer counts and
-   consumer-reported materialization summaries; richer attach flows and
-   storage-resource-owned sub-volume UI remain open.
+   consumer-reported materialization summaries and warn when those consumers
+   report incomplete or unobserved mount materialization; richer attach flows
+   and storage-resource-owned sub-volume UI remain open.
 9. Add action capability reasons and diagnostics for missing providers,
    missing host paths, unsupported mounts, and conflicting target paths.
 10. Extend deletion safety from dependency-based guard to explicit attachment

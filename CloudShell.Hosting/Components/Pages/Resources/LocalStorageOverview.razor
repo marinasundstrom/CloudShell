@@ -1,3 +1,4 @@
+@using CloudShell.Hosting.ResourceManager
 @inject IResourceManager ResourceManager
 
 @if (Storage is null)
@@ -22,6 +23,23 @@ else
             <dd>@(HasVolumes ? "blocked while volumes exist" : "not in use")</dd>
         </dl>
     </section>
+    @if (Diagnostics.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Diagnostics</h3>
+            <div class="generated-list">
+                @foreach (var diagnostic in Diagnostics)
+                {
+                    <div class="resource-list-item">
+                        <span class="resource-list-item-content">
+                            <strong>@diagnostic.Title</strong>
+                            <span>@diagnostic.Message</span>
+                        </span>
+                    </div>
+                }
+            </div>
+        </section>
+    }
 }
 
 @code {
@@ -29,6 +47,7 @@ else
     public string? ResourceId { get; set; }
 
     private Resource? Storage { get; set; }
+    private IReadOnlyList<ResourceDiagnosticView> Diagnostics { get; set; } = [];
     private bool HasVolumes =>
         int.TryParse(GetAttribute(ResourceAttributeNames.StorageVolumeCount, "0"), out var count) &&
         count > 0;
@@ -38,6 +57,17 @@ else
         Storage = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
+        if (Storage is null)
+        {
+            Diagnostics = [];
+            return;
+        }
+
+        var ownedVolumes = await ResourceManager.ListResourceChildrenAsync(Storage.Id);
+        Diagnostics = StorageResourceDiagnostics.GetDiagnostics(
+            Storage,
+            ownedVolumes,
+            await ResourceManager.ListResourcesAsync());
     }
 
     private string GetAttribute(string name, string fallback) =>

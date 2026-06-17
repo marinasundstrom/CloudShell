@@ -151,9 +151,11 @@ listed here before pulling in broader proposal work.
    can contain provider-defined volume sub-items. Storage is the resource
    class, Local Storage is the first concrete storage kind, and `FileSystem` is
    the medium it announces. The first host-level negotiation uses the
-   `storage.mount.filesystem` container-host capability; next slices should
-   broaden observed materialization state from orchestrator reports into
-   provider-backed storage resources and richer Resource Manager diagnostics.
+   `storage.mount.filesystem` container-host capability. Local Storage
+   overview pages now warn when consumers of owned volumes report partial,
+   inactive, or unobserved mount materialization; next slices should broaden
+   observed materialization state from orchestrator reports into
+   provider-backed storage resources.
 4. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider,
@@ -306,9 +308,11 @@ listed here before pulling in broader proposal work.
   Start/Restart/Stop actions. Resource Manager generated diagnostics now warn
   when standard mount materialization attributes report partial, not-active, or
   unknown status. Local Storage overview pages now show owned volumes with
-  consumer counts and consumer-reported mount materialization summaries.
-  Provider-backed storage runtime reporting and richer Resource Manager
-  diagnostics remain next.
+  consumer counts and consumer-reported mount materialization summaries, and
+  the Local Storage overview warns when consumers of owned volumes report
+  incomplete or unobserved mount materialization. Provider-backed storage
+  runtime reporting and richer provider-specific Resource Manager diagnostics
+  remain next.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

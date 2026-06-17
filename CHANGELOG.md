@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Local Storage overview pages now warn when consumers of owned volumes report
+  partial, inactive, or unobserved storage mount materialization, using the
+  same projected mount materialization attributes shown on application and
+  volume views.
 - Added `docs/resource-model.md` as the low-level structure reference for the
   projected `Resource` object, covering identity fields, lifecycle state,
   relationships, endpoint descriptors, endpoint network mappings, configured
