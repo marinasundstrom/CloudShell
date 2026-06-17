@@ -85,13 +85,13 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 resourceClass: ResourceClass.Service)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ExecutableApplication,
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ExecutableApplication,
-                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
+                ResourceStandardViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
@@ -104,13 +104,13 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 10)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.AspNetCoreProject,
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.AspNetCoreProject,
-                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
+                ResourceStandardViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
@@ -123,7 +123,7 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 10)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ContainerApp,
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
@@ -141,14 +141,14 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 groupTitle: "Runtime")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ContainerApp,
-                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
+                ResourceStandardViewIds.Configuration,
                 "Configuration",
                 40,
                 showsApplyButton: true,
                 groupTitle: "General")
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.ContainerApp,
-                new ResourceViewId(ResourceTabGroupIds.Storage, "storage"),
+                ResourceStandardViewIds.Storage,
                 "Storage",
                 50,
                 showsApplyButton: true,
@@ -161,20 +161,20 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 10)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.SqlServer,
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.SqlServer,
-                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
+                ResourceStandardViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
                 groupTitle: "General")
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.SqlServer,
-                new ResourceViewId(ResourceTabGroupIds.Storage, "storage"),
+                ResourceStandardViewIds.Storage,
                 "Storage",
                 30,
                 showsApplyButton: true,

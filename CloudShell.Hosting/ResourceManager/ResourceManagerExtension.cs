@@ -51,19 +51,19 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 resourceClass: ResourceClass.Storage)
             .AddResourceTab<LocalStorageOverview>(
                 "cloudshell.storage",
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<StorageVolumes>(
                 "cloudshell.storage",
-                new ResourceViewId(ResourceTabGroupIds.Storage, "volumes"),
+                ResourceStandardViewIds.Volumes,
                 "Volumes",
                 20,
                 groupTitle: "Storage")
             .AddResourceTab<UpdateLocalStorageResource>(
                 "cloudshell.storage",
-                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
+                ResourceStandardViewIds.Configuration,
                 "Configuration",
                 30,
                 showsApplyButton: true,
@@ -77,13 +77,13 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 resourceClass: ResourceClass.Storage)
             .AddResourceTab<VolumeOverview>(
                 "cloudshell.volume",
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
             .AddResourceTab<UpdateVolumeResource>(
                 "cloudshell.volume",
-                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
+                ResourceStandardViewIds.Configuration,
                 "Configuration",
                 20,
                 showsApplyButton: true,
@@ -104,7 +104,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 resourceClass: ResourceClass.Network)
             .AddResourceTab<DnsZoneOverview>(
                 "cloudshell.dnsZone",
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")

@@ -51,7 +51,7 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                 resourceClass: ResourceClass.Configuration)
             .AddResourceTab<Pages.ConfigurationStoreOverview>(
                 "configuration.store",
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
@@ -104,7 +104,7 @@ public sealed class SecretsProviderExtension : ICloudShellExtension
                 resourceClass: ResourceClass.SecretsVault)
             .AddResourceTab<Pages.SecretsVaultOverview>(
                 SecretsVaultProvider.ResourceType,
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")

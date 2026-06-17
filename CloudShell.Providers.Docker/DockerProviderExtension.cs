@@ -47,7 +47,7 @@ public sealed class DockerProviderExtension : ICloudShellExtension
                 resourceClass: ResourceClass.Infrastructure)
             .AddResourceTab<Pages.DockerEngineOverview>(
                 DockerContainerResourceProvider.HostResourceType,
-                new ResourceViewId(ResourceTabGroupIds.General, "overview"),
+                ResourceStandardViewIds.Overview,
                 "Overview",
                 10,
                 groupTitle: "General")
@@ -59,7 +59,7 @@ public sealed class DockerProviderExtension : ICloudShellExtension
                 groupTitle: "Runtime")
             .AddResourceTab<Pages.UpdateDockerEngine>(
                 DockerContainerResourceProvider.HostResourceType,
-                new ResourceViewId(ResourceTabGroupIds.General, "configuration"),
+                ResourceStandardViewIds.Configuration,
                 "Configuration",
                 30,
                 showsApplyButton: true,

@@ -42,6 +42,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager standard view visibility rules now live in a shared helper
   and the resource Identity tab lights up for resources that participate in
   permission grants, even when the resource does not own an identity binding.
+- Built-in Resource Manager and provider tab registrations now use
+  `ResourceStandardViewIds` for standard Overview, Configuration, Storage,
+  and Volumes views instead of repeating ad hoc hierarchical tab IDs.
 
 ### 2026-06-16
 
