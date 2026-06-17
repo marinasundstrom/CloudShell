@@ -103,6 +103,24 @@ public sealed class ResourceEndpointTests
         Assert.Equal("http", reference.EndpointName);
     }
 
+    [Fact]
+    public void EndpointNetworkMapping_MatchesEndpointByTargetSourceOrMappingName()
+    {
+        var mapping = new ResourceEndpointNetworkMapping(
+            "application:api:endpoint-network-mapping:public-http",
+            "public-http",
+            ResourceEndpointReference.ForEndpoint("application:api", "http"),
+            "http://localhost:5080",
+            ResourceExposureScope.Local,
+            SourceEndpointName: "frontend");
+
+        Assert.True(mapping.MatchesEndpoint(" http "));
+        Assert.True(mapping.MatchesEndpoint("FRONTEND"));
+        Assert.True(mapping.MatchesEndpoint("public-http"));
+        Assert.False(mapping.MatchesEndpoint("metrics"));
+        Assert.False(mapping.MatchesEndpoint(" "));
+    }
+
     private static Resource CreateResource(
         IReadOnlyList<ResourceEndpoint> endpoints,
         IReadOnlyList<ResourceEndpointNetworkMapping>? endpointNetworkMappings = null) =>

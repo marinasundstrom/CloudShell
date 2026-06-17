@@ -93,6 +93,9 @@ on `git blame --follow`, and then by the broad type of change.
   on resource IDs, endpoint names, addresses, and optional mapping metadata.
 - Endpoint references now have a `ResourceEndpointReference.ForEndpoint(...)`
   factory used by endpoint mapping normalization paths.
+- Endpoint network mappings now expose a shared endpoint matching helper used
+  by resource lookup, Resource Manager endpoint views, and Docker provider
+  validation instead of duplicating target/source/name matching logic.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

@@ -1572,10 +1572,7 @@ resourceGroups) =>
     private static ResourceEndpointNetworkMapping? GetEndpointNetworkMapping(
         Resource resource,
         string endpointName) =>
-        resource.ResourceEndpointNetworkMappings.FirstOrDefault(mapping =>
-            string.Equals(mapping.Target.EndpointName, endpointName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(mapping.SourceEndpointName, endpointName, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(mapping.Name, endpointName, StringComparison.OrdinalIgnoreCase));
+        resource.ResourceEndpointNetworkMappings.FirstOrDefault(mapping => mapping.MatchesEndpoint(endpointName));
 
     private string FormatMappingProvider(ResourceEndpointMappingDefinition mapping)
     {

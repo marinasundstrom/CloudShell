@@ -72,12 +72,7 @@ public sealed record Resource(
         EndpointNetworkMappings ?? CreateEndpointNetworkMappings(Id, Endpoints);
 
     public ResourceEndpointNetworkMapping? GetEndpointNetworkMapping(string endpointName) =>
-        ResourceEndpointNetworkMappings.FirstOrDefault(mapping =>
-            string.Equals(mapping.Target.EndpointName, endpointName, StringComparison.OrdinalIgnoreCase)) ??
-        ResourceEndpointNetworkMappings.FirstOrDefault(mapping =>
-            string.Equals(mapping.SourceEndpointName, endpointName, StringComparison.OrdinalIgnoreCase)) ??
-        ResourceEndpointNetworkMappings.FirstOrDefault(mapping =>
-            string.Equals(mapping.Name, endpointName, StringComparison.OrdinalIgnoreCase));
+        ResourceEndpointNetworkMappings.FirstOrDefault(mapping => mapping.MatchesEndpoint(endpointName));
 
     public string? GetEndpointNetworkAddress(string endpointName) =>
         GetEndpointNetworkMapping(endpointName)?.Address;

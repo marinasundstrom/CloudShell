@@ -71,6 +71,19 @@ public sealed record ResourceEndpointNetworkMapping(
     string? ProviderResourceId = null,
     string? SourceEndpointName = null)
 {
+    public bool MatchesEndpoint(string endpointName)
+    {
+        if (string.IsNullOrWhiteSpace(endpointName))
+        {
+            return false;
+        }
+
+        var normalized = endpointName.Trim();
+        return string.Equals(Target.EndpointName, normalized, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(SourceEndpointName, normalized, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Name, normalized, StringComparison.OrdinalIgnoreCase);
+    }
+
     public static ResourceEndpointNetworkMapping ForEndpoint(
         string resourceId,
         string endpointName,

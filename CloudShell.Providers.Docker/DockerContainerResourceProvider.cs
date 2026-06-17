@@ -444,9 +444,7 @@ public sealed partial class DockerContainerResourceProvider :
 
         foreach (var mapping in context.Resource.ResourceEndpointNetworkMappings)
         {
-            var endpoint = context.Resource.Endpoints.FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, mapping.Target.EndpointName, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(candidate.Name, mapping.Name, StringComparison.OrdinalIgnoreCase));
+            var endpoint = context.Resource.Endpoints.FirstOrDefault(candidate => mapping.MatchesEndpoint(candidate.Name));
             var reason = GetEndpointUnavailableReason(context.Resource, mapping, endpoint);
             if (!string.IsNullOrWhiteSpace(reason))
             {
