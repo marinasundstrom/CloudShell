@@ -135,11 +135,11 @@ public static class TraefikDynamicConfigurationWriter
 
     private static string CreateHttpTarget(LoadBalancerRouteResolution resolution)
     {
-        if (resolution.TargetEndpoint is not null &&
-            Uri.TryCreate(resolution.TargetEndpoint.Address, UriKind.Absolute, out var uri) &&
+        var targetAddress = ResolveTargetEndpointAddress(resolution);
+        if (Uri.TryCreate(targetAddress, UriKind.Absolute, out var uri) &&
             uri.Scheme is "http" or "https")
         {
-            return resolution.TargetEndpoint.Address;
+            return targetAddress;
         }
 
         var port = ResolveTargetPort(resolution);
@@ -156,8 +156,8 @@ public static class TraefikDynamicConfigurationWriter
 
     private static string CreateTcpTarget(LoadBalancerRouteResolution resolution)
     {
-        if (resolution.TargetEndpoint is not null &&
-            Uri.TryCreate(resolution.TargetEndpoint.Address, UriKind.Absolute, out var uri) &&
+        var targetAddress = ResolveTargetEndpointAddress(resolution);
+        if (Uri.TryCreate(targetAddress, UriKind.Absolute, out var uri) &&
             !uri.IsDefaultPort)
         {
             return $"{uri.Host}:{uri.Port.ToString(CultureInfo.InvariantCulture)}";
@@ -177,8 +177,8 @@ public static class TraefikDynamicConfigurationWriter
             return port;
         }
 
-        if (resolution.TargetEndpoint is not null &&
-            Uri.TryCreate(resolution.TargetEndpoint.Address, UriKind.Absolute, out var uri) &&
+        var targetAddress = ResolveTargetEndpointAddress(resolution);
+        if (Uri.TryCreate(targetAddress, UriKind.Absolute, out var uri) &&
             !uri.IsDefaultPort)
         {
             return uri.Port;
@@ -187,6 +187,9 @@ public static class TraefikDynamicConfigurationWriter
         throw new InvalidOperationException(
             $"Route '{resolution.Route.Id}' target '{resolution.TargetResource.Id}' must specify a port or endpoint with a port.");
     }
+
+    private static string? ResolveTargetEndpointAddress(LoadBalancerRouteResolution resolution) =>
+        resolution.TargetEndpointNetworkMapping?.Address ?? resolution.TargetEndpoint?.Address;
 
     private static string CreateTargetHost(Resource resource)
     {

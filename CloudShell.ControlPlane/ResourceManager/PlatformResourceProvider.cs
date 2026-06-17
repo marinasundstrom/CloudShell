@@ -1341,6 +1341,9 @@ public sealed class PlatformResourceProvider(
             ?? throw new InvalidOperationException(
                 $"Load balancer resource '{loadBalancerResourceId}' route '{route.Id}' target resource '{route.Target.ResourceId}' could not be found.");
         var targetEndpoint = ResolveLoadBalancerTargetEndpoint(loadBalancerResourceId, route, targetResource);
+        var targetEndpointNetworkMapping = targetEndpoint is null
+            ? null
+            : targetResource.GetEndpointNetworkMapping(targetEndpoint.Name);
 
         if (targetEndpoint is null && route.Target.Port is null)
         {
@@ -1352,7 +1355,8 @@ public sealed class PlatformResourceProvider(
             route,
             targetResource,
             targetEndpoint,
-            ResolveLoadBalancerBackends(resourceManager, loadBalancerResourceId, route, targetResource, targetEndpoint));
+            ResolveLoadBalancerBackends(resourceManager, loadBalancerResourceId, route, targetResource, targetEndpoint),
+            targetEndpointNetworkMapping);
     }
 
     private IReadOnlyList<LoadBalancerBackendTarget> ResolveLoadBalancerBackends(
@@ -1435,8 +1439,11 @@ public sealed class PlatformResourceProvider(
         var protocol = string.IsNullOrWhiteSpace(targetEndpoint?.Protocol)
             ? servicePort.Protocol
             : targetEndpoint.Protocol;
-        var host = ResolveBackendHost(targetResource, targetEndpoint);
-        var port = ResolveBackendPort(targetEndpoint, servicePort.TargetPort);
+        var endpointNetworkMapping = targetEndpoint is null
+            ? null
+            : targetResource.GetEndpointNetworkMapping(targetEndpoint.Name);
+        var host = ResolveBackendHost(targetResource, targetEndpoint, endpointNetworkMapping);
+        var port = ResolveBackendPort(targetEndpoint, endpointNetworkMapping, servicePort.TargetPort);
         return new LoadBalancerBackendTarget(host, port, protocol, target.Weight);
     }
 
@@ -1494,10 +1501,11 @@ public sealed class PlatformResourceProvider(
 
     private static string ResolveBackendHost(
         Resource targetResource,
-        ResourceEndpoint? targetEndpoint)
+        ResourceEndpoint? targetEndpoint,
+        ResourceEndpointNetworkMapping? endpointNetworkMapping)
     {
-        if (targetEndpoint is not null &&
-            Uri.TryCreate(targetEndpoint.Address, UriKind.Absolute, out var uri) &&
+        var endpointAddress = endpointNetworkMapping?.Address ?? targetEndpoint?.Address;
+        if (Uri.TryCreate(endpointAddress, UriKind.Absolute, out var uri) &&
             !string.IsNullOrWhiteSpace(uri.Host))
         {
             return NormalizeEndpointHost(uri.Host);
@@ -1506,8 +1514,17 @@ public sealed class PlatformResourceProvider(
         return CreateBackendHost(targetResource.Id);
     }
 
-    private static int ResolveBackendPort(ResourceEndpoint? targetEndpoint, int fallbackPort)
+    private static int ResolveBackendPort(
+        ResourceEndpoint? targetEndpoint,
+        ResourceEndpointNetworkMapping? endpointNetworkMapping,
+        int fallbackPort)
     {
+        if (Uri.TryCreate(endpointNetworkMapping?.Address, UriKind.Absolute, out var uri) &&
+            !uri.IsDefaultPort)
+        {
+            return uri.Port;
+        }
+
         if (targetEndpoint is not null &&
             TryGetEndpointPort(targetEndpoint, out var port))
         {
@@ -2761,6 +2778,12 @@ public sealed class PlatformResourceProvider(
 
     private static bool TryGetEndpointPort(ResourceEndpoint endpoint, out int port)
     {
+        if (endpoint.TargetPort is { } targetPort)
+        {
+            port = targetPort;
+            return true;
+        }
+
         if (Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort)
         {
             port = uri.Port;

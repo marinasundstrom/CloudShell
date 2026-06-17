@@ -184,7 +184,8 @@ public sealed record LoadBalancerRouteResolution(
     LoadBalancerRoute Route,
     Resource TargetResource,
     ResourceEndpoint? TargetEndpoint,
-    IReadOnlyList<LoadBalancerBackendTarget>? Backends = null)
+    IReadOnlyList<LoadBalancerBackendTarget>? Backends = null,
+    ResourceEndpointNetworkMapping? TargetEndpointNetworkMapping = null)
 {
     public IReadOnlyList<LoadBalancerBackendTarget> ResolvedBackends => Backends ?? [];
 }

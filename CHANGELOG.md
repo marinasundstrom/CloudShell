@@ -35,6 +35,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application overview endpoint display now resolves projected and DNS-derived
   endpoint addresses through endpoint network mappings before falling back to
   legacy endpoint addresses.
+- Load-balancer route resolution now carries target endpoint network mappings
+  to providers, and the Traefik provider uses mapped target addresses before
+  falling back to legacy endpoint addresses.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

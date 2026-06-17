@@ -81,7 +81,16 @@ public sealed class PlatformResourceProviderLoadBalancerTests
                 CreateResource(
                     "application:web",
                     "Web",
-                    [ResourceEndpoint.Http("http", "web.internal", 8080)]),
+                    [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Network, 8080)],
+                    endpointNetworkMappings:
+                    [
+                        new ResourceEndpointNetworkMapping(
+                            "application:web:endpoint-network-mapping:http",
+                            "http",
+                            new ResourceEndpointReference("application:web", "http"),
+                            "http://web.internal:8080",
+                            ResourceExposureScope.Network)
+                    ]),
                 CreateResource(
                     "application:api",
                     "API",
@@ -93,7 +102,16 @@ public sealed class PlatformResourceProviderLoadBalancerTests
                 CreateResource(
                     "application:postgres",
                     "Postgres",
-                    [ResourceEndpoint.Tcp("postgres", "postgres.internal", 5432)])
+                    [ResourceEndpoint.Contract("postgres", "tcp", ResourceExposureScope.Network, 5432)],
+                    endpointNetworkMappings:
+                    [
+                        new ResourceEndpointNetworkMapping(
+                            "application:postgres:endpoint-network-mapping:postgres",
+                            "postgres",
+                            new ResourceEndpointReference("application:postgres", "postgres"),
+                            "tcp://postgres.internal:5432",
+                            ResourceExposureScope.Network)
+                    ])
             ]);
         var context = new ResourceProcedureContext(
             loadBalancer,
@@ -548,7 +566,8 @@ public sealed class PlatformResourceProviderLoadBalancerTests
         IReadOnlyList<ResourceEndpoint> endpoints,
         IReadOnlyDictionary<string, string>? attributes = null,
         IReadOnlyList<string>? dependsOn = null,
-        ResourceClass resourceClass = ResourceClass.Generic) =>
+        ResourceClass resourceClass = ResourceClass.Generic,
+        IReadOnlyList<ResourceEndpointNetworkMapping>? endpointNetworkMappings = null) =>
         new(
             id,
             name,
@@ -561,7 +580,8 @@ public sealed class PlatformResourceProviderLoadBalancerTests
             DateTimeOffset.UtcNow,
             dependsOn ?? [],
             ResourceClass: resourceClass,
-            Attributes: attributes);
+            Attributes: attributes,
+            EndpointNetworkMappings: endpointNetworkMappings);
 
     private static PlatformResourceStore CreatePlatformStore()
     {
