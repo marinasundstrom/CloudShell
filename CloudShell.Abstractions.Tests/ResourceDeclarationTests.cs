@@ -3150,7 +3150,7 @@ public sealed class ResourceDeclarationTests
             var endpoint = Assert.Single(resource.Endpoints);
 
             Assert.Equal("http", endpoint.Name);
-            Assert.StartsWith("http://localhost:", endpoint.Address, StringComparison.Ordinal);
+            Assert.Equal(string.Empty, endpoint.Address);
             Assert.Equal("http", endpoint.Protocol);
             Assert.Equal(80, endpoint.TargetPort);
 
@@ -3210,7 +3210,7 @@ public sealed class ResourceDeclarationTests
             var endpoint = Assert.Single(resource.Endpoints);
             var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
 
-            Assert.Equal("http://127.0.0.2:6000", endpoint.Address);
+            Assert.Equal(string.Empty, endpoint.Address);
             Assert.Equal(80, endpoint.TargetPort);
             Assert.Equal("network:tenant", mapping.NetworkResourceId);
             Assert.Equal("http://127.0.0.2:6000", mapping.Address);
@@ -3301,14 +3301,26 @@ public sealed class ResourceDeclarationTests
                 endpoint =>
                 {
                     Assert.Equal("http", endpoint.Name);
-                    Assert.Equal("http://localhost:5123", endpoint.Address);
+                    Assert.Equal(string.Empty, endpoint.Address);
                     Assert.Equal("http", endpoint.Protocol);
                 },
                 endpoint =>
                 {
                     Assert.Equal("https", endpoint.Name);
-                    Assert.Equal("https://localhost:7123", endpoint.Address);
+                    Assert.Equal(string.Empty, endpoint.Address);
                     Assert.Equal("https", endpoint.Protocol);
+                });
+            Assert.Collection(
+                resource.ResourceEndpointNetworkMappings.OrderBy(mapping => mapping.Name, StringComparer.OrdinalIgnoreCase),
+                mapping =>
+                {
+                    Assert.Equal("http", mapping.Name);
+                    Assert.Equal("http://localhost:5123", mapping.Address);
+                },
+                mapping =>
+                {
+                    Assert.Equal("https", mapping.Name);
+                    Assert.Equal("https://localhost:7123", mapping.Address);
                 });
         }
         finally
@@ -3360,9 +3372,11 @@ public sealed class ResourceDeclarationTests
             var resource = Assert.Single(provider.GetResources(), resource =>
                 resource.Id == "application:api");
             var endpoint = Assert.Single(resource.Endpoints);
+            var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
 
             Assert.Equal("http", endpoint.Name);
-            Assert.Equal("http://localhost:6000", endpoint.Address);
+            Assert.Equal(string.Empty, endpoint.Address);
+            Assert.Equal("http://localhost:6000", mapping.Address);
         }
         finally
         {
@@ -6237,7 +6251,9 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(14333, port.Port);
         Assert.Equal(ResourceEndpointAssignment.Manual, port.Assignment);
         var endpoint = Assert.Single(resource.Endpoints);
-        Assert.Equal("tcp://localhost:14333", endpoint.Address);
+        var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+        Assert.Equal(string.Empty, endpoint.Address);
+        Assert.Equal("tcp://localhost:14333", mapping.Address);
     }
 
     [Fact]

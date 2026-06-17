@@ -44,6 +44,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container application declaration helpers now accept address-less
   `ResourceEndpoint` contracts with target ports and convert them into service
   ports without requiring a manual host/port mapping.
+- Application resources with declared endpoint ports now project address-less
+  `ResourceEndpoint` contracts and put concrete local reachability in
+  `ResourceEndpointNetworkMapping`.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

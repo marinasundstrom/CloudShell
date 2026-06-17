@@ -2925,9 +2925,8 @@ public sealed partial class ApplicationResourceProvider(
         if (application.EndpointPorts.Count > 0)
         {
             return application.EndpointPorts
-                .Select(port => ResourceEndpoint.FromAddress(
+                .Select(port => ResourceEndpoint.Contract(
                     port.Name,
-                    CreateServiceEndpointAddress(application.Id, port),
                     NormalizeProtocol(port.Protocol),
                     port.Exposure,
                     Math.Max(1, port.TargetPort)))
@@ -2955,32 +2954,38 @@ public sealed partial class ApplicationResourceProvider(
     private IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
         ApplicationResourceDefinition application)
     {
-        var endpointPorts = application.EndpointPorts
-            .ToDictionary(port => port.Name, StringComparer.OrdinalIgnoreCase);
-        return CreateEndpointNetworkMappings(
-            application.Id,
-            CreateEndpoints(application),
-            endpoint => endpointPorts.GetValueOrDefault(endpoint.Name));
+        if (application.EndpointPorts.Count > 0)
+        {
+            return application.EndpointPorts
+                .Select(port => new ResourceEndpointNetworkMapping(
+                    $"{application.Id}:endpoint-network-mapping:{port.Name}",
+                    port.Name,
+                    new ResourceEndpointReference(application.Id, port.Name),
+                    CreateServiceEndpointAddress(application.Id, port),
+                    port.Exposure,
+                    NetworkResourceId: NormalizeNullable(port.NetworkResourceId),
+                    SourceEndpointName: port.Name))
+                .ToArray();
+        }
+
+        return CreateEndpointNetworkMappings(application.Id, CreateEndpoints(application));
     }
 
     private static IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
         string resourceId,
-        IReadOnlyList<ResourceEndpoint> endpoints,
-        Func<ResourceEndpoint, ServicePort?>? resolvePort = null) =>
+        IReadOnlyList<ResourceEndpoint> endpoints) =>
         endpoints
             .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
             .Where(endpoint => !endpoint.Protocol.Equals("process", StringComparison.OrdinalIgnoreCase))
             .Where(endpoint => !endpoint.Address.StartsWith("process://", StringComparison.OrdinalIgnoreCase))
             .Select(endpoint =>
             {
-                var port = resolvePort?.Invoke(endpoint);
                 return new ResourceEndpointNetworkMapping(
                     $"{resourceId}:endpoint-network-mapping:{endpoint.Name}",
                     endpoint.Name,
                     new ResourceEndpointReference(resourceId, endpoint.Name),
                     endpoint.Address,
                     endpoint.Exposure,
-                    NetworkResourceId: NormalizeNullable(port?.NetworkResourceId),
                     SourceEndpointName: endpoint.Name);
             })
             .ToArray();
