@@ -44,8 +44,16 @@ public sealed class LocalHostNetworkProvisioner : IResourceEndpointMappingProvis
                 $"Endpoint mapping '{context.Mapping.Id}' cannot be provisioned by the local host networking provider.");
         }
 
-        var source = ParseEndpoint(context.SourceEndpoint, "source", context.Mapping.Id);
-        var target = ParseEndpoint(context.TargetEndpoint, "target", context.Mapping.Id);
+        var source = ParseEndpoint(
+            context.SourceEndpoint,
+            context.SourceEndpointNetworkMapping,
+            "source",
+            context.Mapping.Id);
+        var target = ParseEndpoint(
+            context.TargetEndpoint,
+            context.TargetEndpointNetworkMapping,
+            "target",
+            context.Mapping.Id);
         EndpointMappingProxy? previous = null;
         lock (gate)
         {
@@ -100,15 +108,17 @@ public sealed class LocalHostNetworkProvisioner : IResourceEndpointMappingProvis
 
     private static HostEndpoint ParseEndpoint(
         ResourceEndpoint endpoint,
+        ResourceEndpointNetworkMapping? endpointNetworkMapping,
         string role,
         string mappingId)
     {
-        if (!Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) ||
+        var endpointAddress = endpointNetworkMapping?.Address ?? endpoint.Address;
+        if (!Uri.TryCreate(endpointAddress, UriKind.Absolute, out var uri) ||
             string.IsNullOrWhiteSpace(uri.Host) ||
             uri.Port <= 0)
         {
             throw new InvalidOperationException(
-                $"Endpoint mapping '{mappingId}' {role} endpoint '{endpoint.Name}' must use an absolute host:port address.");
+                $"Endpoint mapping '{mappingId}' {role} endpoint '{endpoint.Name}' must use a mapped absolute host:port address.");
         }
 
         return new HostEndpoint(uri.Host, uri.Port);

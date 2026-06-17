@@ -76,7 +76,9 @@ public sealed record ResourceEndpointMappingProvisioningContext(
     Resource TargetResource,
     ResourceEndpoint TargetEndpoint,
     Resource ProviderResource,
-    IResourceManagerStore ResourceManager);
+    IResourceManagerStore ResourceManager,
+    ResourceEndpointNetworkMapping? SourceEndpointNetworkMapping = null,
+    ResourceEndpointNetworkMapping? TargetEndpointNetworkMapping = null);
 
 public interface IResourceEndpointMappingProvisioner
 {

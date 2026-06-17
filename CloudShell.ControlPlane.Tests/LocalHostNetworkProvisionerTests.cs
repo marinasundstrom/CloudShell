@@ -46,12 +46,22 @@ public sealed class LocalHostNetworkProvisionerTests
             "CloudShell",
             "logical",
             ResourceState.Running,
-            [ResourceEndpoint.Tcp("public", "localhost", sourcePort, ResourceExposureScope.Public)],
+            [ResourceEndpoint.Contract("public", "tcp", ResourceExposureScope.Public, sourcePort)],
             "1.0",
             DateTimeOffset.UtcNow,
             [],
             TypeId: PlatformResourceProvider.VirtualNetworkResourceType,
-            ResourceClass: ResourceClass.Network);
+            ResourceClass: ResourceClass.Network,
+            EndpointNetworkMappings:
+            [
+                new ResourceEndpointNetworkMapping(
+                    "network:sample:endpoint-network-mapping:public",
+                    "public",
+                    new ResourceEndpointReference("network:sample", "public"),
+                    $"tcp://localhost:{sourcePort}",
+                    ResourceExposureScope.Public,
+                    SourceEndpointName: "public")
+            ]);
         var target = new Resource(
             "application:api",
             "API",
@@ -59,10 +69,20 @@ public sealed class LocalHostNetworkProvisionerTests
             "Applications",
             "local",
             ResourceState.Running,
-            [ResourceEndpoint.Tcp("tcp", "localhost", targetPort)],
+            [ResourceEndpoint.Contract("tcp", "tcp", ResourceExposureScope.Local, targetPort)],
             "1.0",
             DateTimeOffset.UtcNow,
-            []);
+            [],
+            EndpointNetworkMappings:
+            [
+                new ResourceEndpointNetworkMapping(
+                    "application:api:endpoint-network-mapping:tcp",
+                    "tcp",
+                    new ResourceEndpointReference("application:api", "tcp"),
+                    $"tcp://localhost:{targetPort}",
+                    ResourceExposureScope.Local,
+                    SourceEndpointName: "tcp")
+            ]);
         var provider = new Resource(
             LocalHostNetworkProvider.ResourceId,
             "Local Host Networking",
@@ -95,7 +115,9 @@ public sealed class LocalHostNetworkProvisionerTests
             target,
             target.Endpoints.Single(),
             provider,
-            new TestResourceManagerStore([network, target, provider]));
+            new TestResourceManagerStore([network, target, provider]),
+            network.GetEndpointNetworkMapping("public"),
+            target.GetEndpointNetworkMapping("tcp"));
     }
 
     private static async Task<string?> AcceptOneConnectionAsync(TcpListener listener)

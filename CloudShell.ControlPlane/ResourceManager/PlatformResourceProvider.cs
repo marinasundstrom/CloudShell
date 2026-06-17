@@ -1666,7 +1666,9 @@ public sealed class PlatformResourceProvider(
             target.Resource,
             target.Endpoint,
             provider,
-            resourceManager);
+            resourceManager,
+            source.EndpointNetworkMapping,
+            target.EndpointNetworkMapping);
         var provisioner = endpointMappingProvisioners.FirstOrDefault(candidate =>
             candidate.CanProvisionEndpointMapping(provisioningContext));
         if (provisioner is null)
@@ -1696,7 +1698,9 @@ public sealed class PlatformResourceProvider(
             target.Resource,
             target.Endpoint,
             provider,
-            resourceManager);
+            resourceManager,
+            source.EndpointNetworkMapping,
+            target.EndpointNetworkMapping);
         return endpointMappingProvisioners.Any(candidate =>
             candidate.CanProvisionEndpointMapping(provisioningContext));
     }
@@ -1725,7 +1729,10 @@ public sealed class PlatformResourceProvider(
                 $"Endpoint mapping '{mappingId}' {role} endpoint '{endpoint.EndpointName}' could not be found on resource '{endpoint.ResourceId}'.");
         }
 
-        return new ResolvedEndpoint(resource, resolvedEndpoint);
+        return new ResolvedEndpoint(
+            resource,
+            resolvedEndpoint,
+            resource.GetEndpointNetworkMapping(resolvedEndpoint.Name));
     }
 
     private static Resource ValidateMappingProvider(
@@ -2848,7 +2855,8 @@ public sealed class PlatformResourceProvider(
 
     private sealed record ResolvedEndpoint(
         Resource Resource,
-        ResourceEndpoint Endpoint);
+        ResourceEndpoint Endpoint,
+        ResourceEndpointNetworkMapping? EndpointNetworkMapping);
 
     private sealed record EndpointAssignment(
         string ResourceId,
