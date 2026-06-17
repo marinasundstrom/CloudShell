@@ -41,7 +41,7 @@ MVP scope:
 | --- | --- |
 | Container Apps, Version 1 | Container app resources can be declared, inspected, started, stopped, updated by image/revision, configured with replicas, connected to the default container-host path, and treated as the managed-service configuration surface described in the [Container applications proposal](proposals/containers/container-applications.md). |
 | Application exposure, discovery, and names | Application resources, application-level discovery, and the first logical DNS/name-mapping projection make resource-to-resource and user-to-endpoint access understandable from Resource Manager. `cloudshell.service` remains optional for logical facades, imported services, or advanced routing instead of being required for normal container app exposure. |
-| Network primitives | Virtual networks, endpoint requests, endpoint mappings, load-balancer routes, public endpoint exposure, and host-local networking provide enough routing to expose common container app scenarios with clear diagnostics. |
+| Network primitives | Virtual networks, endpoint requests, endpoint network mappings, configured endpoint mappings, load-balancer routes, public endpoint exposure, and host-local networking provide enough routing to expose common container app scenarios with clear diagnostics. |
 | Storage and volume mappings | Mountable volume resources and app volume attachments can be modeled, inspected, and mapped into container apps or executables through provider-neutral storage intent, without forcing object storage, databases, or backups into the same abstraction. |
 | Identity, Built-in | The built-in identity provider can provision resource identities, issue scoped resource-permission tokens, and enforce those permissions for Control Plane actions, configuration reads, and secret reads. |
 | Identity, external OIDC validation | The identity model is proven against at least one standards-compliant third-party OIDC/OAuth provider, such as Keycloak, without changing the CloudShell resource identity contract. |
@@ -201,7 +201,7 @@ listed here before pulling in broader proposal work.
   materialization details unless explicitly imported or projected. This is a
   model-layer distinction: a future orchestrator may intentionally materialize
   an explicitly modeled `cloudshell.service` as its provider-native service
-  primitive when the resource represents the service unit. Further
+  primitive when the Service resource represents the service unit. Further
   `cloudshell.service` behavior should wait for the deployment/orchestrator
   model instead of leading the MVP implementation.
 - Keep container host placement visible and editable on the application

@@ -19,8 +19,8 @@ CloudShell uses these terms deliberately:
 
 | Term | Model type | Meaning |
 | --- | --- | --- |
-| Endpoint descriptor | `ResourceEndpointDescriptor` | Resource type/kind metadata that announces a service endpoint a resource can expose by default: endpoint name, protocol, target port, exposure default, assignment default, and whether the provider supports remapping that endpoint to another concrete port. |
-| Endpoint request | `ResourceEndpointRequest` | Assignment intent asking a network or provider to reserve or assign an address for a service endpoint. Requests can be manual, auto-assigned, provider-default, or predefined. |
+| Endpoint descriptor | `ResourceEndpointDescriptor` | Resource type/kind metadata that announces a resource endpoint a resource can expose by default: endpoint name, protocol, target port, exposure default, assignment default, and whether the provider supports remapping that endpoint to another concrete port. |
+| Endpoint request | `ResourceEndpointRequest` | Assignment intent asking a network or provider to reserve or assign an address for a resource endpoint. Requests can be manual, auto-assigned, provider-default, or predefined. |
 | Resolved endpoint | `ResourceEndpoint` | A projected reachable endpoint that exists now, with a concrete address in the relevant topology. |
 | Endpoint network mapping | `ResourceEndpointNetworkMapping` | A topology-specific resolved address for a resource endpoint, such as the local host address, virtual-network address, provider-owned ingress address, or public route address. |
 | Configured endpoint mapping | `ResourceEndpointMappingDefinition` | A source-to-target mapping owned by a network resource, such as a network-owned frontend endpoint mapped to an application endpoint through a selected provider. |
@@ -30,13 +30,13 @@ CloudShell uses these terms deliberately:
 ## Core Model
 
 Resources first announce the services they can expose through endpoint
-descriptors. A descriptor is the resource-owned service contract: stable
-endpoint name, protocol, service target port, default exposure, default
+descriptors. A descriptor is the resource-owned endpoint contract: stable
+endpoint name, protocol, target port, default exposure, default
 assignment behavior, and whether the provider supports port remapping. It can
 exist before any concrete host address has been assigned.
 
-Endpoint requests turn that service contract into assignment intent. They ask a
-network, runtime, or provider to reserve or assign an address for one service
+Endpoint requests turn that endpoint contract into assignment intent. They ask
+a network, runtime, or provider to reserve or assign an address for one resource
 endpoint. Manual requests provide concrete address details. Auto or
 provider-default requests let the selected network/provider choose from its
 configured policy. Predefined requests describe an address chosen by provider
@@ -64,8 +64,7 @@ and which provider materializes that reachability.
 
 Exposure paths and DNS/name mappings are relationships over resolved endpoints.
 They can connect a network-owned frontend, load-balancer route, gateway,
-DNS/name mapping, or other topology artifact to the target resource service
-endpoint.
+DNS/name mapping, or other topology artifact to the target resource endpoint.
 
 Platform-owned endpoint assignments are validated before the platform saves a
 network, service, or load-balancer resource. Concrete assignments are compared
@@ -93,8 +92,8 @@ identity. It should not claim the endpoint reservation unless the assignment is
 part of CloudShell's resource graph or a persisted provider-owned runtime
 artifact being recovered.
 
-Endpoint network mappings connect a resource service endpoint to a network or
-topology and provide the resolved address for that topology. For local
+Endpoint network mappings connect a resource endpoint to a network or topology
+and provide the resolved address for that topology. For local
 development, an Aspire-like helper such as `WithHttpEndpoint(port: 6000)`
 declares an HTTP endpoint descriptor and creates assignment intent in the
 implied default local network whose resolved endpoint maps to the supplied
@@ -109,11 +108,12 @@ environment's naming policy. The endpoint still carries the protocol and
 target port, but the topology, DNS provider, and exposure policy decide which
 address users and other services should call.
 
-For application-style resources, the endpoint descriptor is the service-port
-contract. A virtual network can assign a virtual address to that service port,
-and a DNS provider can publish a private name based on the resource name and
-environment suffix. Those are endpoint network mappings and name mappings over
-the resource endpoint; they do not change the resource's declared service port.
+For application-style resources, the endpoint descriptor is the resource's
+network-facing port contract. A virtual network can assign a virtual address to
+that target port, and a DNS provider can publish a private name based on the
+resource name and environment suffix. Those are endpoint network mappings and
+name mappings over the resource endpoint; they do not change the resource's
+declared target port.
 
 Configured endpoint mappings connect one source endpoint to one target
 endpoint. They are source-to-target mapping definitions owned by network
@@ -169,7 +169,7 @@ The Resource Manager UI should use the same distinction:
 
 | Layer | Shape | Primary use |
 | --- | --- | --- |
-| Service endpoint descriptor | `http:80`, `tds:1433`, `metrics:9090` | Resource type/kind or instance contract that announces what service port the resource can expose. |
+| Resource endpoint descriptor | `http:80`, `tds:1433`, `metrics:9090` | Resource type/kind or instance contract that announces what target port the resource can expose. |
 | Concrete endpoint address | `http://127.0.0.1:5218`, `tcp://10.0.0.5:1433`, `http://container-name:8080` | A provider-observed address that can be used directly when the caller is already in the right network context. |
 | Topology-scoped reachability | host network, virtual network, container-host network, load-balancer backend | Defines where an endpoint is reachable and what provider may route, proxy, isolate, or materialize it. |
 | Developer service discovery alias | `services__catalog-api__http__0`, `https+http://catalog-api` | Aspire-compatible per-workload configuration for local/programmatic development flows. |
@@ -203,7 +203,7 @@ The current address is topology-specific:
 
 This means an on-premise or managed environment can assign
 `billing-api.internal.acme.net` and a virtual-network address to an
-application's `http` service port while keeping public DNS and public endpoint
+application's `http` target port while keeping public DNS and public endpoint
 mapping as separate, explicit exposure decisions.
 
 For local development, Resource Manager may let the user choose a fixed local
@@ -263,12 +263,12 @@ Allow DNS or host-file changes: permission-gated
 This makes tenant separation an environment policy rather than a special case
 inside each resource provider. Application resources, databases, secrets
 stores, configuration stores, and other endpoint-capable resources can all use
-the same endpoint mapping model, while networks, gateways, load balancers,
-ingress providers, and DNS resources decide how those endpoints are bound,
-exposed, and named.
+the same endpoint request, endpoint network mapping, and configured endpoint
+mapping model, while networks, gateways, load balancers, ingress providers,
+and DNS resources decide how those endpoints are bound, exposed, and named.
 
 Port-number collisions are topology-specific. Two resources can expose the same
-service port when they are assigned different virtual-network addresses or
+target port when they are assigned different virtual-network addresses or
 private DNS names. The conflict to prevent in local development is reusing the
 same concrete host-local address and port, such as two resources both trying to
 bind `localhost:5218`.
@@ -299,11 +299,12 @@ endpoint model:
 - DNS/name mappings can name either the reachable endpoint or the route/front
   that exposes it
 
-Application resources are the primary endpoint owners. An application, database,
-configuration service, secrets service, or other service-like resource should
-remain the thing users configure and operate. Ingress, load-balancers, gateways,
-host publishing, and virtual-network mappings describe how callers reach one of
-that resource's endpoints from a specific topology.
+Application resources and other endpoint-capable resources are the primary
+endpoint owners. An application, database resource, configuration store
+resource, secrets vault resource, or other resource that provides a service
+should remain the thing users configure and operate. Ingress, load-balancers,
+gateways, host publishing, and virtual-network mappings describe how callers
+reach one of that resource's endpoints from a specific topology.
 
 Infrastructure resources usually provide exposure instead of owning the app
 contract. For example, a virtual network can own an endpoint mapping, a load

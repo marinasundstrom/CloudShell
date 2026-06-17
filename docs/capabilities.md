@@ -55,10 +55,11 @@ auto-assigned local ports, or provider-defined endpoint defaults.
 
 ### `networking.endpointMapper`
 
-The resource can materialize endpoint mappings. A selected provider with this
-capability can connect a source endpoint to a target endpoint through
+The resource can materialize configured endpoint mappings. A selected provider
+with this capability can connect a source endpoint to a target endpoint through
 provider-owned runtime behavior such as a proxy, gateway, tunnel, or platform
-route.
+route. The resulting reachable address can be projected separately as an
+endpoint network mapping on the target resource.
 
 ### `networking.hostNetwork`
 
@@ -69,8 +70,9 @@ behavior such as localhost endpoint exposure.
 ### `networking.virtualNetwork`
 
 The resource represents a virtual network boundary. Virtual networks use the
-same endpoint request and endpoint mapping model as logical networks while
-leaving isolation, routing, and materialization to provider-owned behavior.
+same endpoint request and configured endpoint mapping model as logical networks
+while leaving isolation, routing, and materialization to provider-owned
+behavior.
 
 ### `networking.ingress`
 
@@ -81,8 +83,8 @@ stable boundary and route it to target resources.
 ### `networking.gateway`
 
 The resource can route traffic through a gateway. Gateways are provider-owned
-runtime boundaries that can materialize endpoint mappings, ingress, or other
-network traversal behavior.
+runtime boundaries that can materialize configured endpoint mappings, ingress,
+or other network traversal behavior.
 
 ### `networking.loadBalancer`
 

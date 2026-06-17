@@ -4,6 +4,10 @@ This document explains the core CloudShell concepts, where each concept is
 modeled in code, and how the concepts are projected through the Control Plane
 API.
 
+For the focused definition of what a CloudShell resource is, how resources
+relate to services, and how the resource object model maps endpoint and
+relationship concepts, see [Resource model](resource-model.md).
+
 CloudShell deliberately uses different levels of abstraction, but those levels
 should use the same established concepts. Internal Control Plane services are
 more granular because they coordinate providers, stores, and authorization.
@@ -85,6 +89,29 @@ capability package, such as `ICloudShellExtension` implementations and
 application.
 
 ## Core concepts
+
+### Resource and service terminology
+
+CloudShell is a resource-oriented model over infrastructure that often provides
+network-addressable services. Use these terms deliberately:
+
+- **Resource**: the CloudShell management artifact. A resource is what the
+  Control Plane registers, authorizes, groups, displays, operates, and exposes
+  through the Resource Manager and Control Plane API.
+- **Service**: the runtime or infrastructure capability contained in or
+  provided by a resource, such as a Web API, SQL Server process, DNS publisher,
+  load-balancer runtime, identity provisioner, configuration API, or Secrets
+  Vault API.
+- **Service resource**: the specific `cloudshell.service` resource kind. It is
+  a resource that can model a service facade, service unit, imported service,
+  or advanced routing target. It is not a synonym for every resource that
+  provides a service.
+
+When in doubt, use **resource** for the thing CloudShell manages and **service**
+for the capability, process, API, or runtime behavior behind that resource.
+For example, a container app resource may provide an application service, and a
+SQL Server resource may provide a database service, but both are still
+resources in the CloudShell model.
 
 ### Resource
 
@@ -225,18 +252,19 @@ application, storage resource, load balancer, or other modeled resource that
 owns the behavior.
 
 Orchestrators materialize a container app by producing an orchestration-level
-service artifact. In CloudShell's orchestration contracts this is represented
-by `ResourceOrchestratorService`: a runtime service descriptor derived from the
-stable resource id, workload configuration, desired replica count, ports,
-networks, and dependencies. A container app produces one of these descriptors
-today. It is the provider-facing grouping used to keep track of the runtime
-implementation for that service unit: replicas, endpoint bindings, dependency
-ordering, network membership, and related provider-owned runtime services such
-as app ingress. It is not a projected Resource Manager resource by default.
-Docker Compose maps it to a Compose service where replicas can be declared,
-Kubernetes-oriented providers can map it to Service/Deployment-style objects,
-and the default local runner uses the container app identity as the implicit
-service identity for convention named replica containers.
+runtime service descriptor. In CloudShell's orchestration contracts this is
+represented by `ResourceOrchestratorService`: a provider-facing descriptor
+derived from the stable resource id, workload configuration, desired replica
+count, ports, networks, and dependencies. A container app produces one of these
+descriptors today. It is the grouping used to keep track of the runtime
+implementation for the service contained by the resource: replicas, endpoint
+bindings, dependency ordering, network membership, and related provider-owned
+runtime services such as app ingress. It is not a projected Resource Manager
+resource by default. Docker Compose maps it to a Compose service where replicas
+can be declared, Kubernetes-oriented providers can map it to
+Service/Deployment-style objects, and the default local runner uses the
+container app identity as the implicit service identity for convention named
+replica containers.
 
 The orchestrator deployment and revision abstractions are the shared lower
 layer for applying runtime intent. A resource can still be managed directly by
@@ -262,14 +290,15 @@ a logical service unit or facade over non-application targets, multiple
 application targets, imported provider-native services, or advanced routing
 scenarios that need a stable discovery name independent of one container app
 lifecycle. One potential use is a manually composed replica set: several web
-application instance resources can be grouped behind a shared Service frontend,
-then a load balancer can target that Service endpoint instead of each instance.
-It is not required to expose a normal container app in the MVP, and
-it is not the internal orchestrator service descriptor by default. Later
-orchestrators may deliberately materialize a `cloudshell.service` resource as
-their own service-level primitive, or derive an orchestrator service descriptor
-from it, when the resource represents the service unit that should be
-scheduled, discovered, or exposed together.
+application instance resources can be grouped behind a shared service-resource
+frontend, then a load balancer can target that service resource's endpoint
+instead of each instance. It is not required to expose a normal container app
+in the MVP, and it is not the internal orchestrator service descriptor by
+default. Later orchestrators may deliberately materialize a
+`cloudshell.service` resource as their own service-resource primitive, or
+derive an orchestrator service descriptor from it, when that resource
+represents the service unit that should be scheduled, discovered, or exposed
+together.
 
 `Attributes` are not a second provider configuration schema. They are projected
 facts useful for inspection, filtering, diagnostics, and orchestration hints,
@@ -498,8 +527,8 @@ address details. Auto or provider-default assignments let a networking provider
 resource choose an address from its configured policy. Endpoint requests are
 resolved against endpoint descriptors by a network, runtime, or provider.
 
-Endpoint network mappings connect a resource service endpoint to a topology and
-provide the current resolved address for that topology. Resources project these
+Endpoint network mappings connect a resource endpoint to a topology and provide
+the current resolved address for that topology. Resources project these
 topology-specific addresses through `Resource.ResourceEndpointNetworkMappings`.
 For local development, an Aspire-compatible helper such as
 `WithHttpEndpoint(port: 6000)` declares an HTTP endpoint descriptor and creates
@@ -530,7 +559,7 @@ CloudShell uses three basic network resource kinds:
 - Host network: the implicit default when no network resource has been created.
   The default Control Plane projects it as the local host environment.
 - Logical network: a named CloudShell boundary for endpoint requests and
-  endpoint mappings.
+  configured endpoint mappings.
 - Virtual network: a richer environment boundary intended for on-premise or
   provider-backed infrastructure, including ingresses, gateways, backend pools,
   clusters, and load balancers.

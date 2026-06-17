@@ -17,6 +17,15 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Added `docs/resource-model.md` as the low-level structure reference for the
+  projected `Resource` object, covering identity fields, lifecycle state,
+  relationships, endpoint descriptors, endpoint network mappings, configured
+  endpoint mappings, actions, capabilities, attributes, ownership metadata, and
+  resource/service terminology.
+- Resource model, networking, and application docs now distinguish CloudShell
+  resources, the runtime services they provide, the `cloudshell.service`
+  resource kind, endpoint network mappings, and configured endpoint mappings
+  consistently.
 - Predefined Resource Manager tab IDs now use the `ResourceViewId` value object
   with explicit `GroupId`, `Identifier`, and serialized `Value` parts, so
   providers and shell UI use the same hierarchical view vocabulary such as
@@ -81,7 +90,7 @@ on `git blame --follow`, and then by the broad type of change.
   auto-assigned endpoint intents.
 - Resource type contributions can now declare endpoint descriptors, and the
   built-in ASP.NET Core project, container app, and SQL Server resource types
-  advertise their default service endpoint names, protocols, and target ports.
+  advertise their default resource endpoint names, protocols, and target ports.
 - Endpoint descriptors now indicate whether a resource type supports port
   remapping, and application registration flows use descriptor metadata for
   default endpoint names, protocols, and target ports instead of duplicating
@@ -121,8 +130,8 @@ on `git blame --follow`, and then by the broad type of change.
   local mapping calculation only when no Resource Manager projection is
   available.
 - Networking docs now clarify that application resource endpoints are
-  service-port contracts, while virtual-network addresses and private DNS
-  names are endpoint/network and name mappings over those service ports.
+  resource-owned port contracts, while virtual-network addresses and private
+  DNS names are endpoint/network and name mappings over those ports.
 - Endpoint assignment UI can now show network selection and optional manual
   host/address fields. ASP.NET project, container app, and SQL Server create
   flows persist the selected network and manual endpoint metadata on their

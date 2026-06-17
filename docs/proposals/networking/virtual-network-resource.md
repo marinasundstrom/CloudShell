@@ -135,7 +135,7 @@ vnet.AddIngress("ingress:api")
 ```
 
 That higher-level ingress builder should still produce endpoint requests,
-endpoint mappings, dependencies, and provider references.
+configured endpoint mappings, dependencies, and provider references.
 
 ## Clustering and Load Balancing
 
@@ -145,7 +145,7 @@ endpoint stable while allowing the backing targets to change.
 The stable user-facing concepts are:
 
 - a virtual network boundary
-- an ingress or service endpoint owned by that boundary
+- an ingress or resource endpoint owned by that boundary
 - a mapping provider, such as a gateway or load balancer
 - a logical backend target, such as an application resource, optional service
   facade, imported provider service, or backend pool resource

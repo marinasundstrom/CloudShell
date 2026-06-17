@@ -136,9 +136,10 @@ service discovery package requirements for applications that consume logical
 service URIs.
 
 Developer service discovery remains separate from resource identity. Use
-references and developer service discovery to locate a service endpoint in the
-local/programmatic flow, then use resource identity and grants when the
-container app needs authorized access to that service.
+references and developer service discovery to locate another resource's
+endpoint in the local/programmatic flow, then use resource identity and grants
+when the container app needs authorized access to the service provided by that
+resource.
 
 ## Replicas
 
@@ -193,13 +194,13 @@ Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this
 descriptor today. It is built from the container app's workload configuration,
 ports, dependencies, networks, and replica count, and it is the
-orchestrator-facing service unit used to group replicas, endpoint bindings,
-dependency ordering, network membership, and related provider-owned runtime
-services such as app ingress. Docker Compose maps this descriptor to a Compose
-service where `deploy.replicas` can be declared. The descriptor is consumed by
-orchestrator providers and is not projected as a Resource Manager resource by
-default. It is also distinct from the `cloudshell.service` resource type at
-the CloudShell model/API layer.
+orchestrator-facing descriptor used to group the service contained by the
+resource: replicas, endpoint bindings, dependency ordering, network membership,
+and related provider-owned runtime services such as app ingress. Docker Compose
+maps this descriptor to a Compose service where `deploy.replicas` can be
+declared. The descriptor is consumed by orchestrator providers and is not
+projected as a Resource Manager resource by default. It is also distinct from
+the `cloudshell.service` resource type at the CloudShell model/API layer.
 
 Runtime replica child resources carry the app deployment id, orchestrator
 service id, and deployment revision they implement. The app-scoped Replicas tab
@@ -208,7 +209,7 @@ expected runtime artifacts with the current Deployment tab projection without
 enabling global hidden runtime-managed inventory.
 
 A `cloudshell.service` resource can still be
-declared when a stable CloudShell service unit or facade should expose
+declared when a stable CloudShell Service resource or facade should expose
 non-application targets, multiple targets, imported provider-native services,
 or advanced routing. A normal container app does not require a
 `cloudshell.service` resource to expose its app-owned endpoint, but a future
@@ -280,8 +281,8 @@ front doors, custom domains, TLS policy, or routing across more than one stable
 target. Optional `cloudshell.service` resources can be used as logical facades
 for scenarios that need that extra indirection. They can also represent a
 manually composed service unit or replica set, for example several web
-application instance resources behind one shared Service frontend that a load
-balancer targets. The replica containers themselves still remain runtime
+application instance resources behind one shared Service resource frontend that
+a load balancer targets. The replica containers themselves still remain runtime
 artifacts, not separate Resource Manager resources.
 
 Resource Manager should expose ingress through the Container App experience:

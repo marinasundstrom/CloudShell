@@ -75,6 +75,9 @@ Resources represent things CloudShell can manage, such as applications,
 containers, databases, networks, storage, identities, configuration services,
 and infrastructure components.
 
+See [Resource model](docs/resource-model.md) for the resource/service
+terminology, projected object model, endpoint mappings, and ownership rules.
+
 ### Resource Providers
 
 Providers connect CloudShell resources to underlying implementations such as

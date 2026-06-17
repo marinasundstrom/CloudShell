@@ -248,12 +248,12 @@ Implementation:
   layer. Provider runtime configuration remains provider-owned.
 - Use `ResourceTypeProbeOptions` for health checks that apply to the resource
   type by default.
-- Use `ResourceEndpointDescriptor` for service endpoints that apply to the
+- Use `ResourceEndpointDescriptor` for resource endpoints that apply to the
   resource type by default. The descriptor announces endpoint name, protocol,
   target port, and whether the provider supports remapping that endpoint to a
   different concrete port; providers and network resources still create
-  concrete endpoint assignments and mappings for individual resource
-  instances.
+  concrete endpoint assignments, endpoint network mappings, and configured
+  endpoint mappings for individual resource instances.
 
 Verification:
 
@@ -367,8 +367,12 @@ Verification:
 
 ### Endpoint
 
-`ResourceEndpoint` is a projected fact describing a reachable address that
-exists now.
+`ResourceEndpoint` is the current projected resource endpoint shape. It
+preserves the stable endpoint name, protocol, exposure, target port, and a
+compatibility address for the currently resolved endpoint. The resource-owned
+endpoint contract starts with `ResourceEndpointDescriptor`; topology-specific
+reachable addresses should be represented as `ResourceEndpointNetworkMapping`
+when the provider can project them.
 
 Implementation:
 
@@ -378,7 +382,8 @@ Implementation:
 - Keep names stable within a resource. Consumers use names for references and
   mappings.
 - Do not use endpoints to carry desired networking intent or provider
-  configuration.
+  configuration. Use `ResourceEndpointRequest` for assignment intent and
+  provider-owned configuration for runtime-specific settings.
 
 Verification:
 
@@ -407,10 +412,35 @@ Verification:
 - Add API/client tests if endpoint requests cross the transport boundary.
 - Add UI tests for registration controls that collect endpoint intent.
 
-### Endpoint mapping
+### Endpoint network mapping
+
+`ResourceEndpointNetworkMapping` connects a resource endpoint to a topology and
+provides the currently resolved address for that topology. It is projected on
+the target resource through `Resource.ResourceEndpointNetworkMappings`.
+
+Implementation:
+
+- Store the target as a `ResourceEndpointReference`.
+- Use the mapping address for copy/open UI and runtime startup values when the
+  provider needs the concrete reachable address.
+- Keep endpoint network mappings distinct from configured source-to-target
+  mappings owned by network resources.
+- Preserve source endpoint, network resource, and provider resource metadata
+  when the mapping was produced by a network or exposure provider.
+
+Verification:
+
+- Add provider tests for endpoint network mapping projection and fallback
+  behavior.
+- Add API/client tests for `EndpointNetworkMappings`.
+- Add UI tests when mapped-address display or copy/open behavior changes.
+
+### Configured endpoint mapping
 
 `ResourceEndpointMappingDefinition` connects a source endpoint to a target
-endpoint. It is a resource relationship, not a provider-specific attribute.
+endpoint. It is a configured source-to-target resource relationship owned by a
+network resource, not a provider-specific attribute and not the same thing as a
+topology-resolved endpoint network mapping.
 
 Implementation:
 
@@ -421,8 +451,8 @@ Implementation:
   `networking.endpointMapper`.
 - Validate source endpoint existence, target endpoint existence, provider
   capability, and selected network before dispatching provisioning.
-- Project mappings through resource responses so in-process and remote clients
-  see the same shape.
+- Project configured mappings through resource responses so in-process and
+  remote clients see the same shape.
 
 Verification:
 
