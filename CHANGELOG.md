@@ -29,6 +29,9 @@ on `git blame --follow`, and then by the broad type of change.
   standard Endpoints tab, giving endpoint-capable applications direct
   Resource Manager entry points for load-balancer routes and DNS/name
   mappings.
+- Application exposure actions now deep-link TCP endpoints into the
+  load-balancer quick-create flow with `routeKind=tcp`, so SQL Server and
+  other TCP-only targets do not default to an HTTP route.
 
 ### 2026-06-16
 

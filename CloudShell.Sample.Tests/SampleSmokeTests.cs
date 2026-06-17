@@ -339,6 +339,14 @@ public sealed class SampleSmokeTests
         Assert.Contains("targetResourceId=application%3Aapplication-topology-api", apiEndpointsHtml);
         Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
 
+        var sqlEndpointsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Endpoints.Value)}");
+        Assert.Contains("Application exposure", sqlEndpointsHtml);
+        Assert.Contains("type=cloudshell.loadBalancer", sqlEndpointsHtml);
+        Assert.Contains("targetResourceId=application%3Aapplication-topology-sql-server", sqlEndpointsHtml);
+        Assert.Contains("targetEndpointName=tds", sqlEndpointsHtml);
+        Assert.Contains("routeKind=tcp", sqlEndpointsHtml);
+
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
         AssertResourceTabsInOrder(

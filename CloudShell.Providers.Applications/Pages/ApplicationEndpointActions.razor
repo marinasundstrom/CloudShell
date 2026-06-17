@@ -54,9 +54,9 @@ else
 
     private static string FormatTarget(Resource resource)
     {
-        var endpointName = GetTargetEndpointName(resource) ?? "default";
-        var address = resource.Endpoints.FirstOrDefault(endpoint =>
-            string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase))?.Address;
+        var endpoint = GetTargetEndpoint(resource);
+        var endpointName = endpoint?.Name ?? "default";
+        var address = endpoint?.Address;
         return string.IsNullOrWhiteSpace(address)
             ? $"Target: {resource.Name}/{endpointName}"
             : $"Target: {resource.Name}/{endpointName} ({address})";
@@ -66,7 +66,19 @@ else
         BuildResourceAddRoute(BuildTargetResourceQuery("cloudshell.nameMapping", resource));
 
     private static string BuildAddLoadBalancerRoute(Resource resource) =>
-        BuildResourceAddRoute(BuildTargetResourceQuery("cloudshell.loadBalancer", resource));
+        BuildResourceAddRoute(BuildLoadBalancerQuery(resource));
+
+    private static Dictionary<string, string?> BuildLoadBalancerQuery(Resource resource)
+    {
+        var query = BuildTargetResourceQuery("cloudshell.loadBalancer", resource);
+        if (GetTargetEndpoint(resource) is { } endpoint &&
+            string.Equals(endpoint.Protocol, "tcp", StringComparison.OrdinalIgnoreCase))
+        {
+            query["routeKind"] = "tcp";
+        }
+
+        return query;
+    }
 
     private static Dictionary<string, string?> BuildTargetResourceQuery(
         string type,
@@ -87,9 +99,12 @@ else
     }
 
     private static string? GetTargetEndpointName(Resource resource) =>
+        GetTargetEndpoint(resource)?.Name;
+
+    private static ResourceEndpoint? GetTargetEndpoint(Resource resource) =>
         resource.Endpoints.FirstOrDefault(endpoint =>
-            string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase))?.Name ??
-        resource.Endpoints.FirstOrDefault()?.Name;
+            string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase)) ??
+        resource.Endpoints.FirstOrDefault();
 
     private static string BuildResourceAddRoute(Dictionary<string, string?> query) =>
         BuildRoute("/resources/add", query);

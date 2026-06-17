@@ -53,15 +53,21 @@ The intended model is:
   `/resources/add?type=<resource-type-id>` shortcut. This is the compact,
   single-page form path for experienced users, bookmarks, deep links, and
   app-centric or provider-centric "add related resource" actions.
+- **Inline create** as a contextual modal or drawer from a resource page when
+  the user is creating a closely related resource, such as a DNS name mapping,
+  route, volume, or permission grant. Inline create should prefill the current
+  resource context and stay limited to focused adjacent resources; users
+  should still be able to reach the full Add Resource flow when they need the
+  complete registration surface.
 - **Guided create** as a future wizard-based path for resource types that need
   prerequisites, multi-step configuration, provider selection, or richer
   validation. This should remain a presentation choice over the same create
   command model rather than a separate resource-registration mechanism.
 
 For MVP, the priority is keeping quick-create flows understandable and stable.
-The gallery and wizard paths should be added without changing the underlying
-resource-type contribution model or the registration components' ownership of
-type-specific inputs and validation.
+Inline create, gallery, and wizard paths should be added without changing the
+underlying resource-type contribution model or the registration components'
+ownership of type-specific inputs and validation.
 
 ## Health Check Defaults
 
