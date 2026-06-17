@@ -236,6 +236,18 @@ public sealed class ResourceEndpointTests
     }
 
     [Fact]
+    public void EndpointNetworkMapping_TryGetUriReturnsFalseForAddressWithoutHost()
+    {
+        var mapping = ResourceEndpointNetworkMapping.ForEndpoint(
+            "application:api",
+            "http",
+            "localhost:5080",
+            ResourceExposureScope.Local);
+
+        Assert.False(mapping.TryGetUri(out _));
+    }
+
+    [Fact]
     public void EndpointNetworkMapping_TryGetPortParsesMappedAddressPort()
     {
         var mapping = ResourceEndpointNetworkMapping.ForEndpoint(

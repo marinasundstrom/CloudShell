@@ -86,7 +86,8 @@ public sealed record ResourceEndpointNetworkMapping(
 
     public bool TryGetUri(out Uri uri)
     {
-        if (Uri.TryCreate(Address, UriKind.Absolute, out var parsed))
+        if (Uri.TryCreate(Address, UriKind.Absolute, out var parsed) &&
+            !string.IsNullOrWhiteSpace(parsed.Host))
         {
             uri = parsed;
             return true;

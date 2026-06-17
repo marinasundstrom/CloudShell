@@ -119,6 +119,9 @@ on `git blame --follow`, and then by the broad type of change.
   health checks, application provider endpoint setup, and local-host endpoint
   mapping provisioning instead of parsing legacy endpoint addresses directly
   in those paths.
+- Endpoint network mappings now require a host-bearing absolute URI when using
+  the shared URI parsing helper, and load-balancer backend host resolution uses
+  the shared mapping/endpoint URI helpers instead of parsing addresses itself.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

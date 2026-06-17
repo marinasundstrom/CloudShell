@@ -1506,21 +1506,31 @@ public sealed class PlatformResourceProvider(
         ResourceEndpoint? targetEndpoint,
         ResourceEndpointNetworkMapping? endpointNetworkMapping)
     {
-        var endpointAddress = endpointNetworkMapping?.Address ?? targetEndpoint?.Address;
-        if (endpointNetworkMapping is not null &&
-            endpointNetworkMapping.TryGetUri(out var mappingUri) &&
-            !string.IsNullOrWhiteSpace(mappingUri.Host))
+        if (TryGetBackendUri(targetEndpoint, endpointNetworkMapping, out var uri))
         {
-            return NormalizeEndpointHost(mappingUri.Host);
-        }
-
-        if (Uri.TryCreate(endpointAddress, UriKind.Absolute, out var endpointUri) &&
-            !string.IsNullOrWhiteSpace(endpointUri.Host))
-        {
-            return NormalizeEndpointHost(endpointUri.Host);
+            return NormalizeEndpointHost(uri.Host);
         }
 
         return CreateBackendHost(targetResource.Id);
+    }
+
+    private static bool TryGetBackendUri(
+        ResourceEndpoint? targetEndpoint,
+        ResourceEndpointNetworkMapping? endpointNetworkMapping,
+        out Uri uri)
+    {
+        if (endpointNetworkMapping is not null && endpointNetworkMapping.TryGetUri(out uri))
+        {
+            return true;
+        }
+
+        if (targetEndpoint is not null)
+        {
+            return targetEndpoint.TryGetUri(out uri);
+        }
+
+        uri = null!;
+        return false;
     }
 
     private static int ResolveBackendPort(
