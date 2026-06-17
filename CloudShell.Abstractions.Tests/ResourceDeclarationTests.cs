@@ -6494,10 +6494,21 @@ public sealed class ResourceDeclarationTests
             "Test",
             "local",
             ResourceState.Running,
-            [ResourceEndpoint.FromAddress("http", "http://catalog.local:8080", "http")],
+            [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Network, 8080)],
             "1.0",
             DateTimeOffset.UtcNow,
-            []);
+            [],
+            EndpointNetworkMappings:
+            [
+                new ResourceEndpointNetworkMapping(
+                    "service:catalog:endpoint-network-mapping:http",
+                    "http",
+                    new ResourceEndpointReference("service:catalog", "http"),
+                    "http://catalog.local:8080",
+                    ResourceExposureScope.Network,
+                    NetworkResourceId: "network:internal",
+                    SourceEndpointName: "http")
+            ]);
         var descriptor = await provider.DescribeAsync(
             resource,
             new ResourceOrchestrationDescriptorContext(

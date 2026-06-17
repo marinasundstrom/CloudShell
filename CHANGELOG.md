@@ -29,6 +29,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resources now expose endpoint-network mapping lookup helpers so consumers can
   resolve reachable endpoint addresses by endpoint name. Resource health checks
   use those mapped addresses before falling back to legacy endpoint addresses.
+- Application service-discovery environment variables now resolve endpoint
+  binding addresses from endpoint network mappings before falling back to
+  legacy endpoint addresses.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

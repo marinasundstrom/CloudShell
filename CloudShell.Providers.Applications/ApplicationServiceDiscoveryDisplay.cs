@@ -34,21 +34,26 @@ internal static partial class ApplicationServiceDiscoveryDisplay
         }
 
         return resource.Endpoints
-            .Where(IsDiscoverableEndpoint)
-            .SelectMany(endpoint => GetEndpointKeys(endpoint)
+            .Select(endpoint => new
+            {
+                Endpoint = endpoint,
+                Address = resource.GetEndpointNetworkAddress(endpoint.Name)
+            })
+            .Where(candidate => IsDiscoverableEndpoint(candidate.Endpoint, candidate.Address))
+            .SelectMany(candidate => GetEndpointKeys(candidate.Endpoint)
                 .SelectMany(endpointKey => serviceNames.Select(serviceName =>
                     new ServiceDiscoveryEndpointBinding(
                         serviceName,
                         endpointKey,
-                        endpoint.Address,
+                        candidate.Address!,
                         $"services__{serviceName}__{endpointKey}__0"))))
             .ToArray();
     }
 
-    private static bool IsDiscoverableEndpoint(ResourceEndpoint endpoint) =>
-        !string.IsNullOrWhiteSpace(endpoint.Address) &&
+    private static bool IsDiscoverableEndpoint(ResourceEndpoint endpoint, string? address) =>
+        !string.IsNullOrWhiteSpace(address) &&
         !endpoint.Protocol.Equals("process", StringComparison.OrdinalIgnoreCase) &&
-        !endpoint.Address.StartsWith("process://", StringComparison.OrdinalIgnoreCase);
+        !address.StartsWith("process://", StringComparison.OrdinalIgnoreCase);
 
     public static string CreateConfigurationSegment(string value) =>
         ServiceDiscoveryConfigurationSegmentPattern()
