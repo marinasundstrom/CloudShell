@@ -153,9 +153,10 @@ listed here before pulling in broader proposal work.
    the medium it announces. The first host-level negotiation uses the
    `storage.mount.filesystem` container-host capability. Local Storage
    overview pages now warn when consumers of owned volumes report partial,
-   inactive, or unobserved mount materialization; next slices should broaden
-   observed materialization state from orchestrator reports into
-   provider-backed storage resources.
+   inactive, or unobserved mount materialization, and Local Storage resources
+   now project provider-backed filesystem availability through runtime status
+   attributes. Next slices should broaden provider-backed storage reporting
+   beyond Local Storage root availability.
 4. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider,
@@ -310,9 +311,12 @@ listed here before pulling in broader proposal work.
   unknown status. Local Storage overview pages now show owned volumes with
   consumer counts and consumer-reported mount materialization summaries, and
   the Local Storage overview warns when consumers of owned volumes report
-  incomplete or unobserved mount materialization. Provider-backed storage
-  runtime reporting and richer provider-specific Resource Manager diagnostics
-  remain next.
+  incomplete or unobserved mount materialization. Local Storage resources now
+  project provider-backed filesystem root availability through
+  `storage.runtimeStatus` and `storage.runtimeStatusReason`, and Resource
+  Manager warns when an explicit local storage root is unavailable.
+  Provider-backed storage usage metrics and richer provider-specific Resource
+  Manager diagnostics remain next.
 - Identity remains a product differentiator, but it should be proven with a
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and

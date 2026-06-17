@@ -40,6 +40,7 @@ public static class ResourceDiagnosticDisplay
         AddNamePublisherDiagnostics(resource, relatedResources, diagnostics);
         AddEndpointMappingDiagnostics(resource, relatedResources, diagnostics);
         AddLoadBalancerDiagnostics(resource, relatedResources, diagnostics);
+        AddStorageRuntimeDiagnostics(resource, diagnostics);
         AddVolumeMountMaterializationDiagnostics(resource, diagnostics);
 
         return diagnostics;
@@ -102,6 +103,26 @@ public static class ResourceDiagnosticDisplay
             "Warning",
             "Storage mounts not fully materialized",
             message));
+    }
+
+    private static void AddStorageRuntimeDiagnostics(
+        Resource resource,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        if (!resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.StorageRuntimeStatus,
+                out var status) ||
+            string.IsNullOrWhiteSpace(status) ||
+            !string.Equals(status, "unavailable", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        diagnostics.Add(new ResourceDiagnosticView(
+            "Warning",
+            "Storage provider unavailable",
+            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.StorageRuntimeStatusReason) ??
+                "The storage provider could not verify the runtime storage location."));
     }
 
     private static string FormatVolumeMountMaterializationMessage(

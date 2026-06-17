@@ -368,6 +368,26 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
+    public void GetDiagnostics_WarnsWhenStorageRuntimeIsUnavailable()
+    {
+        var resource = CreateStorage(new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.StorageRuntimeStatus] = "unavailable",
+            [ResourceAttributeNames.StorageRuntimeStatusReason] =
+                "Local Storage root '/tmp/cloudshell-missing' does not exist yet."
+        });
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(resource);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Storage provider unavailable", diagnostic.Title);
+        Assert.Equal(
+            "Local Storage root '/tmp/cloudshell-missing' does not exist yet.",
+            diagnostic.Message);
+    }
+
+    [Fact]
     public void GetDiagnostics_WarnsWhenStorageOwnedVolumeConsumerReportsUnknownMaterialization()
     {
         var storage = CreateStorage();
@@ -543,8 +563,20 @@ public sealed class ResourceDiagnosticDisplayTests
                 [ResourceAttributeNames.VolumeMountCount] = mountCount.ToString(CultureInfo.InvariantCulture)
             });
 
-    private static Resource CreateStorage() =>
-        new(
+    private static Resource CreateStorage(
+        IReadOnlyDictionary<string, string>? additionalAttributes = null)
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.StorageProvider] = StorageProviderNames.LocalStorage,
+            [ResourceAttributeNames.StorageMedium] = StorageMedia.FileSystem
+        };
+        foreach (var attribute in additionalAttributes ?? new Dictionary<string, string>())
+        {
+            attributes[attribute.Key] = attribute.Value;
+        }
+
+        return new Resource(
             "storage:local",
             "Local Storage",
             "Local Storage",
@@ -557,11 +589,8 @@ public sealed class ResourceDiagnosticDisplayTests
             [],
             TypeId: PlatformResourceProvider.StorageResourceType,
             ResourceClass: ResourceClass.Storage,
-            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ResourceAttributeNames.StorageProvider] = StorageProviderNames.LocalStorage,
-                [ResourceAttributeNames.StorageMedium] = StorageMedia.FileSystem
-            });
+            Attributes: attributes);
+    }
 
     private static Resource CreateStorageVolume(string storageResourceId) =>
         new(

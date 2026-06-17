@@ -4246,6 +4246,42 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void PlatformResources_ProjectLocalStorageRuntimeStatus()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var availablePath = Path.Combine(contentRoot, "Data/storage");
+        Directory.CreateDirectory(availablePath);
+        var options = new PlatformResourceOptions();
+        options.DeclaredStorages.Add(new DeclaredStorageResource(new StorageResourceDefinition(
+            "storage:available",
+            "Available",
+            Location: "./Data/storage")));
+        options.DeclaredStorages.Add(new DeclaredStorageResource(new StorageResourceDefinition(
+            "storage:missing",
+            "Missing",
+            Location: "./Data/missing")));
+        var environment = new TestHostEnvironment(contentRoot);
+        var platformStore = new PlatformResourceStore(options, environment);
+        var provider = new PlatformResourceProvider(platformStore, options, environment: environment);
+
+        var resources = provider.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        var available = resources["storage:available"];
+        Assert.Equal("available", available.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatus]);
+        Assert.Equal(
+            $"Local Storage root '{Path.GetFullPath(availablePath)}' exists.",
+            available.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatusReason]);
+
+        var missing = resources["storage:missing"];
+        var expectedMissingPath = Path.GetFullPath(Path.Combine(contentRoot, "Data/missing"));
+        Assert.Equal("unavailable", missing.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatus]);
+        Assert.Equal(
+            $"Local Storage root '{expectedMissingPath}' does not exist yet. Start or restart a consumer to let the runtime materialize it, or create the directory before attaching volumes.",
+            missing.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatusReason]);
+    }
+
+    [Fact]
     public void PlatformResources_DeclareDnsZoneWithNameMapping()
     {
         var services = new ServiceCollection();

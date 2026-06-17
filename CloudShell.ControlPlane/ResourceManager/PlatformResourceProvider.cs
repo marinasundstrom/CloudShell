@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using Microsoft.Extensions.Hosting;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
@@ -14,7 +15,8 @@ public sealed class PlatformResourceProvider(
     IEnumerable<IResourceEndpointMappingProvisioner>? endpointMappingProvisioners = null,
     IEnumerable<ILoadBalancerProvider>? loadBalancerProviders = null,
     IEnumerable<INamePublishingProvider>? namePublishingProviders = null,
-    DnsNamePublishingObservationStore? namePublishingObservationStore = null) :
+    DnsNamePublishingObservationStore? namePublishingObservationStore = null,
+    IHostEnvironment? environment = null) :
     IResourceProvider,
     IResourceCreationProvider,
     IResourceProcedureProvider,
@@ -48,6 +50,7 @@ public sealed class PlatformResourceProvider(
         namePublishingProviders?.ToArray() ?? [];
     private readonly DnsNamePublishingObservationStore namePublishingObservations =
         namePublishingObservationStore ?? new DnsNamePublishingObservationStore();
+    private readonly string? contentRootPath = environment?.ContentRootPath;
 
     private static readonly ResourceAction ReconcileEndpointMappingsAction = new(
         ReconcileEndpointMappingsActionId,
@@ -1803,6 +1806,17 @@ public sealed class PlatformResourceProvider(
     {
         var volumeCount = store.GetVolumes().Count(volume =>
             string.Equals(volume.StorageResourceId, definition.Id, StringComparison.OrdinalIgnoreCase));
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.StorageProvider] = definition.Provider,
+            [ResourceAttributeNames.StorageMedium] = definition.Medium,
+            [ResourceAttributeNames.StorageLocation] =
+                string.IsNullOrWhiteSpace(definition.Location) ? "provider default" : definition.Location,
+            [ResourceAttributeNames.StorageVolumeCount] =
+                volumeCount.ToString(CultureInfo.InvariantCulture)
+        };
+        AddStorageRuntimeAttributes(definition, attributes);
+
         return new(
             definition.Id,
             GetResourceName(definition.Id),
@@ -1816,15 +1830,7 @@ public sealed class PlatformResourceProvider(
             [],
             TypeId: StorageResourceType,
             ResourceClass: ResourceClass.Storage,
-            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ResourceAttributeNames.StorageProvider] = definition.Provider,
-                [ResourceAttributeNames.StorageMedium] = definition.Medium,
-                [ResourceAttributeNames.StorageLocation] =
-                    string.IsNullOrWhiteSpace(definition.Location) ? "provider default" : definition.Location,
-                [ResourceAttributeNames.StorageVolumeCount] =
-                    volumeCount.ToString(CultureInfo.InvariantCulture)
-            },
+            Attributes: attributes,
             Capabilities:
             [
                 new(
@@ -1841,6 +1847,54 @@ public sealed class PlatformResourceProvider(
                     })
             ],
             DisplayName: definition.Name);
+    }
+
+    private void AddStorageRuntimeAttributes(
+        StorageResourceDefinition definition,
+        IDictionary<string, string> attributes)
+    {
+        var (status, reason) = GetStorageRuntimeStatus(definition);
+        attributes[ResourceAttributeNames.StorageRuntimeStatus] = status;
+        attributes[ResourceAttributeNames.StorageRuntimeStatusReason] = reason;
+    }
+
+    private (string Status, string Reason) GetStorageRuntimeStatus(
+        StorageResourceDefinition definition)
+    {
+        if (!IsLocalStorageProvider(definition.Provider) ||
+            !string.Equals(definition.Medium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            return (
+                "providerManaged",
+                "Storage runtime is provider-managed; CloudShell has no local filesystem observation for this Storage resource.");
+        }
+
+        if (string.IsNullOrWhiteSpace(definition.Location))
+        {
+            return (
+                "pending",
+                "Local Storage is using the provider default location; no filesystem root has been materialized yet.");
+        }
+
+        var path = ResolveStoragePath(definition.Location);
+        return Directory.Exists(path)
+            ? (
+                "available",
+                $"Local Storage root '{path}' exists.")
+            : (
+                "unavailable",
+                $"Local Storage root '{path}' does not exist yet. Start or restart a consumer to let the runtime materialize it, or create the directory before attaching volumes.");
+    }
+
+    private string ResolveStoragePath(string location)
+    {
+        var trimmed = location.Trim();
+        if (Path.IsPathFullyQualified(trimmed))
+        {
+            return Path.GetFullPath(trimmed);
+        }
+
+        return Path.GetFullPath(Path.Combine(contentRootPath ?? Directory.GetCurrentDirectory(), trimmed));
     }
 
     private Resource CreateVolumeResource(VolumeResourceDefinition definition)

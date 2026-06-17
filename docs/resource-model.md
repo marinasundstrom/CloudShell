@@ -420,6 +420,8 @@ Examples:
 - `container.revision`
 - `network.kind`
 - `storage.medium`
+- `storage.runtimeStatus`
+- `storage.runtimeStatusReason`
 - `dns.zone`
 - `loadBalancer.routes`
 

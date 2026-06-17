@@ -36,7 +36,10 @@ actions and marks existing observations not active after Stop. Resource Manager
 generated diagnostics now warn when standard mount materialization attributes
 report partial, not-active, or unknown status, and Local Storage overview pages
 warn when consumers of owned volumes report incomplete or unobserved mount
-materialization. Provider-backed storage runtime reporting remains open.
+materialization. Local Storage resources now project provider-backed filesystem
+root availability through `storage.runtimeStatus` and
+`storage.runtimeStatusReason`; provider-backed storage usage metrics remain
+open.
 Deletion is guarded for volume resources that are still referenced by another
 resource dependency, and storage mappings cannot be changed while the target
 resource is running.
@@ -369,6 +372,7 @@ Examples:
 Providers should report:
 
 - whether the volume exists
+- whether an explicit Local Storage filesystem root exists
 - whether it can be mounted into the target resource
 - whether the target host or runtime can handle the storage medium
 - whether credentials or host capabilities are missing
@@ -390,7 +394,8 @@ Resource Manager should show storage from both sides:
 
 - storage resource overview: provider boundary, owned volumes, consumers, and
   consumer-reported materialization summaries and diagnostics; the first Local
-  Storage view is in place
+  Storage view is in place and shows provider-backed filesystem root
+  availability
 - volume resource overview: provider, host, usage, diagnostics, and actions
 - target resource overview: attached volumes, target paths, read-only flags,
   and materialization status
@@ -514,6 +519,8 @@ through future monitoring APIs.
    and storage-resource-owned sub-volume UI remain open.
 9. Add action capability reasons and diagnostics for missing providers,
    missing host paths, unsupported mounts, and conflicting target paths.
+   Explicit Local Storage roots now project provider-backed filesystem
+   availability and Resource Manager warns when the root is unavailable.
 10. Extend deletion safety from dependency-based guard to explicit attachment
    tracking once mount materialization records attachment state. Initial
    dependency-based deletion blocking is in place.

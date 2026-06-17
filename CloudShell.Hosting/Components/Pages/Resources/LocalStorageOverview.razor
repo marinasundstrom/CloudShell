@@ -19,6 +19,8 @@ else
             <dd>@GetAttribute(ResourceAttributeNames.StorageLocation, "provider default")</dd>
             <dt>Volumes</dt>
             <dd>@GetAttribute(ResourceAttributeNames.StorageVolumeCount, "0")</dd>
+            <dt>Runtime status</dt>
+            <dd>@GetAttribute(ResourceAttributeNames.StorageRuntimeStatus, "pending")</dd>
             <dt>Delete status</dt>
             <dd>@(HasVolumes ? "blocked while volumes exist" : "not in use")</dd>
         </dl>
@@ -64,10 +66,15 @@ else
         }
 
         var ownedVolumes = await ResourceManager.ListResourceChildrenAsync(Storage.Id);
-        Diagnostics = StorageResourceDiagnostics.GetDiagnostics(
-            Storage,
-            ownedVolumes,
-            await ResourceManager.ListResourcesAsync());
+        var resources = await ResourceManager.ListResourcesAsync();
+        Diagnostics =
+        [
+            .. ResourceDiagnosticDisplay.GetDiagnostics(Storage),
+            .. StorageResourceDiagnostics.GetDiagnostics(
+                Storage,
+                ownedVolumes,
+                resources)
+        ];
     }
 
     private string GetAttribute(string name, string fallback) =>

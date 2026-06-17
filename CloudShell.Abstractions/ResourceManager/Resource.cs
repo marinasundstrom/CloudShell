@@ -229,6 +229,8 @@ public static class ResourceAttributeNames
     public const string StorageMedium = "storage.medium";
     public const string StorageLocation = "storage.location";
     public const string StorageVolumeCount = "storage.volumes";
+    public const string StorageRuntimeStatus = "storage.runtimeStatus";
+    public const string StorageRuntimeStatusReason = "storage.runtimeStatusReason";
     public const string EndpointCount = "endpoints.count";
     public const string ConfigurationEntryCount = "configuration.entries";
     public const string InfrastructureKind = "infrastructure.kind";
