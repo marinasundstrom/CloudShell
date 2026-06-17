@@ -53,6 +53,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration Store and Secrets Vault resources now project service endpoints
   as address-less endpoint contracts with concrete service URLs carried by
   endpoint network mappings.
+- Container application declaration now converts address-bearing endpoint
+  inputs into endpoint mapping intent instead of keeping the address in the
+  legacy application endpoint field.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

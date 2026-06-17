@@ -6436,6 +6436,62 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task ContainerApplicationBuilder_ConvertsAddressBearingEndpointsToMappings()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources.AddContainer(
+                    "registry",
+                    "registry:2",
+                    endpoints:
+                    [
+                        ResourceEndpoint.Http(
+                            "http",
+                            "127.0.0.1",
+                            5055,
+                            ResourceExposureScope.Public,
+                            5000)
+                    ]);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var application = provider.GetApplication("application:registry");
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "application:registry");
+        var descriptor = await provider.DescribeAsync(
+            resource,
+            new ResourceOrchestrationDescriptorContext(null, null, null!));
+        var workload = descriptor.Configuration.Deserialize<ResourceWorkloadConfiguration>(
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.NotNull(application);
+        Assert.Null(application.Endpoint);
+        var endpoint = Assert.Single(resource.Endpoints);
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(string.Empty, endpoint.Address);
+        Assert.Equal(5000, endpoint.TargetPort);
+        var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+        Assert.Equal("http://127.0.0.1:5055", mapping.Address);
+
+        var port = Assert.Single(workload?.WorkloadPorts ?? []);
+        Assert.Equal("http", port.Name);
+        Assert.Equal(5000, port.TargetPort);
+        Assert.Equal(5055, port.Port);
+        Assert.Equal("http", port.Protocol);
+        Assert.Equal(ResourceExposureScope.Public, port.Exposure);
+        Assert.Equal(ResourceEndpointAssignment.Manual, port.Assignment);
+        Assert.Equal("127.0.0.1", port.Host);
+    }
+
+    [Fact]
     public async Task ContainerApplicationBuilder_DescribesResourceIdentityCredentialEnvironment()
     {
         var services = new ServiceCollection();

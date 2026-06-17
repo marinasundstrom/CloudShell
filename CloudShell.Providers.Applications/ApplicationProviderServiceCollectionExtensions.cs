@@ -265,13 +265,11 @@ public static class ApplicationProviderServiceCollectionExtensions
         ArgumentException.ThrowIfNullOrWhiteSpace(image);
 
         var id = CreateApplicationResourceId(name);
-        var endpoint = endpoints?.FirstOrDefault(endpoint =>
-            !string.IsNullOrWhiteSpace(endpoint.Address))?.Address;
         var definition = new ApplicationResourceDefinition(
             id,
             CreateDisplayName(id),
             executablePath: string.Empty,
-            endpoint: endpoint,
+            endpoint: null,
             environmentVariables: environmentVariables,
             lifetime: ApplicationLifetime.ControlPlaneScoped,
             useServiceDiscovery: useServiceDiscovery,
