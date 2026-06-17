@@ -59,6 +59,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Network resources now project network-owned endpoints as address-less
   endpoint contracts and carry host-local resolved addresses in endpoint
   network mappings.
+- Service resources now project service ports as address-less endpoint
+  contracts and carry host-local resolved service addresses in endpoint network
+  mappings.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

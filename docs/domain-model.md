@@ -512,13 +512,11 @@ type, kind, or instance contract and includes a stable endpoint name, protocol,
 target port, default exposure, assignment default, and whether the provider can
 remap that endpoint to a different concrete port in a given topology.
 
-Resolved endpoints are projected resource facts. They describe reachable
-addresses that exist now, such as HTTP, HTTPS, TCP, UDP, process, container, or
-logical network endpoints. A projected `ResourceEndpoint` includes a stable
-name, address, protocol, and explicit `ResourceExposureScope`. Use
-protocol-specific endpoint factories such as `ResourceEndpoint.Http(...)`,
-`Tcp(...)`, or `FromAddress(...)` instead of positional construction so the
-address, protocol, and exposure intent stay clear.
+Resource endpoints are projected resource facts. They describe the named
+endpoint contract on a resource instance: endpoint name, protocol, target port,
+and explicit `ResourceExposureScope`. `ResourceEndpoint.Address` remains as
+compatibility state for older projections, but topology-specific reachability
+should be projected through `ResourceEndpointNetworkMapping`.
 
 Endpoint requests are networking intent. They describe what should be assigned
 or reserved, including protocol, host or IP address, port, exposure scope, and

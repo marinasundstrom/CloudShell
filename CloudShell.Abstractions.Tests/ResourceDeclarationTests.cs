@@ -4061,6 +4061,22 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(8080, port.TargetPort);
         Assert.Equal(5080, port.Port);
         Assert.Equal(ResourceExposureScope.Public, port.Exposure);
+
+        var platformStore = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(platformStore, options);
+        var resource = Assert.Single(provider.GetResources(), resource =>
+            resource.Id == "service:api");
+        var endpoint = Assert.Single(resource.Endpoints);
+        var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+
+        Assert.Equal("http", endpoint.Name);
+        Assert.Equal(string.Empty, endpoint.Address);
+        Assert.Equal("http", endpoint.Protocol);
+        Assert.Equal(8080, endpoint.TargetPort);
+        Assert.Equal("http://localhost:5080", mapping.Address);
+        Assert.Equal(new ResourceEndpointReference(resource.Id, endpoint.Name), mapping.Target);
     }
 
     [Fact]

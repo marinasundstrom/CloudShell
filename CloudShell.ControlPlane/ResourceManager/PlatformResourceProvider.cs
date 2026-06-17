@@ -251,7 +251,7 @@ public sealed class PlatformResourceProvider(
         var normalized = NormalizeService(definition);
         ValidatePlatformEndpointAssignments(
             normalized.Id,
-            CreateEndpoints(normalized));
+            CreateEndpointNetworkMappings(normalized));
         store.SaveService(normalized);
         await registrations.RegisterAsync(
             Id,
@@ -694,7 +694,7 @@ public sealed class PlatformResourceProvider(
             var normalized = NormalizeService(declaredService.Definition);
             ValidatePlatformEndpointAssignments(
                 normalized.Id,
-                CreateEndpoints(normalized));
+                CreateEndpointNetworkMappings(normalized));
             if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
             {
                 store.SaveService(
@@ -1784,6 +1784,7 @@ public sealed class PlatformResourceProvider(
                     definition.Ports.Count.ToString(CultureInfo.InvariantCulture)
             },
             Capabilities: [new(ResourceCapabilityIds.EndpointSource)],
+            EndpointNetworkMappings: CreateEndpointNetworkMappings(definition),
             DisplayName: definition.Name);
 
     private Resource CreateStorageResource(StorageResourceDefinition definition)
@@ -2210,11 +2211,29 @@ public sealed class PlatformResourceProvider(
 
     private IReadOnlyList<ResourceEndpoint> CreateEndpoints(ServiceResourceDefinition definition) =>
         definition.Ports
+            .Select(port => ResourceEndpoint.Contract(
+                port.Name,
+                NormalizeProtocol(port.Protocol),
+                port.Exposure,
+                Math.Max(1, port.TargetPort)))
+            .ToArray();
+
+    private IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
+        ServiceResourceDefinition definition) =>
+        definition.Ports
             .Select(port => hostLocalNetwork.ResolveServiceEndpoint(
                 definition.Id,
                 port,
                 options.AutoLocalPortStart,
                 options.AutoLocalPortEnd))
+            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
+            .Select(endpoint => new ResourceEndpointNetworkMapping(
+                $"{definition.Id}:endpoint-network-mapping:{endpoint.Name}",
+                endpoint.Name,
+                new ResourceEndpointReference(definition.Id, endpoint.Name),
+                endpoint.Address,
+                endpoint.Exposure,
+                SourceEndpointName: endpoint.Name))
             .ToArray();
 
     private static IReadOnlyList<ResourceEndpoint> CreateLoadBalancerEndpoints(
@@ -2338,7 +2357,7 @@ public sealed class PlatformResourceProvider(
                 continue;
             }
 
-            foreach (var endpoint in CreateEndpoints(service))
+            foreach (var endpoint in CreateEndpointNetworkMappings(service))
             {
                 var assignment = CreateEndpointAssignment(service.Id, endpoint);
                 if (assignment is not null)
@@ -2850,6 +2869,11 @@ public sealed class PlatformResourceProvider(
             })
             .DistinctBy(mapping => mapping.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private static string NormalizeProtocol(string? protocol) =>
+        string.IsNullOrWhiteSpace(protocol)
+            ? "tcp"
+            : protocol.Trim().ToLowerInvariant();
 
     private static bool TryGetEndpointPort(ResourceEndpoint endpoint, out int port)
     {
