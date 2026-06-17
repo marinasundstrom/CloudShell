@@ -72,6 +72,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Legacy application endpoint strings now project as address-less endpoint
   contracts, with the configured application URL carried by an endpoint network
   mapping.
+- The sample resource host now projects sample service addresses through
+  endpoint network mappings instead of address-bearing endpoint contracts.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

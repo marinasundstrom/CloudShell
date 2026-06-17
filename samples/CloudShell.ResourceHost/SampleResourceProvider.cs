@@ -99,13 +99,33 @@ public sealed class SampleResourceProvider : IResourceProvider, IResourceProcedu
             DisplayName,
             "local",
             state,
-            [ResourceEndpoint.FromAddress("default", endpoint, endpoint.Split(':', 2)[0], ResourceExposureScope.Public)],
+            [ResourceEndpoint.Contract("default", GetProtocol(endpoint), ResourceExposureScope.Public, GetPort(endpoint))],
             "0.1.0",
             DateTimeOffset.UtcNow,
             dependsOn ?? [],
             TypeId: "sample-service",
-            Actions: CreateActions(state));
+            Actions: CreateActions(state),
+            EndpointNetworkMappings:
+            [
+                new(
+                    $"{id}:endpoint-network-mapping:default",
+                    "default",
+                    new ResourceEndpointReference(id, "default"),
+                    endpoint,
+                    ResourceExposureScope.Public,
+                    SourceEndpointName: "default")
+            ]);
     }
+
+    private static string GetProtocol(string endpoint) =>
+        Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
+            ? uri.Scheme
+            : endpoint.Split(':', 2)[0];
+
+    private static int? GetPort(string endpoint) =>
+        Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.Port > 0
+            ? uri.Port
+            : null;
 
     private static IReadOnlyList<ResourceAction> CreateActions(ResourceState state) =>
         state == ResourceState.Running
