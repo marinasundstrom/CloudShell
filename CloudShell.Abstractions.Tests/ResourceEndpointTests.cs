@@ -203,6 +203,33 @@ public sealed class ResourceEndpointTests
         Assert.False(mapping.MatchesEndpoint(" "));
     }
 
+    [Fact]
+    public void EndpointNetworkMapping_TryGetUriParsesAbsoluteAddress()
+    {
+        var mapping = ResourceEndpointNetworkMapping.ForEndpoint(
+            "application:api",
+            "http",
+            "http://localhost:5080",
+            ResourceExposureScope.Local);
+
+        Assert.True(mapping.TryGetUri(out var uri));
+        Assert.Equal("localhost", uri.Host);
+        Assert.Equal(5080, uri.Port);
+    }
+
+    [Fact]
+    public void EndpointNetworkMapping_TryGetPortParsesMappedAddressPort()
+    {
+        var mapping = ResourceEndpointNetworkMapping.ForEndpoint(
+            "application:api",
+            "http",
+            "http://localhost:5080",
+            ResourceExposureScope.Local);
+
+        Assert.True(mapping.TryGetPort(out var port));
+        Assert.Equal(5080, port);
+    }
+
     private static Resource CreateResource(
         IReadOnlyList<ResourceEndpoint> endpoints,
         IReadOnlyList<ResourceEndpointNetworkMapping>? endpointNetworkMappings = null) =>

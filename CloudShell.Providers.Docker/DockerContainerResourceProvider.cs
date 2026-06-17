@@ -1314,7 +1314,7 @@ public sealed partial class DockerContainerResourceProvider :
         ResourceEndpoint? endpoint)
     {
         if (mapping.Exposure == ResourceExposureScope.Private ||
-            !Uri.TryCreate(mapping.Address, UriKind.Absolute, out var uri) ||
+            !mapping.TryGetUri(out var uri) ||
             uri.Port <= 0 ||
             !IsTcpLikeEndpoint(endpoint, uri) ||
             !TryGetLocalBindAddress(uri.Host, out var address))

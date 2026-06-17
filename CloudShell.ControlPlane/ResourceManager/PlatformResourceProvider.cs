@@ -1507,10 +1507,17 @@ public sealed class PlatformResourceProvider(
         ResourceEndpointNetworkMapping? endpointNetworkMapping)
     {
         var endpointAddress = endpointNetworkMapping?.Address ?? targetEndpoint?.Address;
-        if (Uri.TryCreate(endpointAddress, UriKind.Absolute, out var uri) &&
-            !string.IsNullOrWhiteSpace(uri.Host))
+        if (endpointNetworkMapping is not null &&
+            endpointNetworkMapping.TryGetUri(out var mappingUri) &&
+            !string.IsNullOrWhiteSpace(mappingUri.Host))
         {
-            return NormalizeEndpointHost(uri.Host);
+            return NormalizeEndpointHost(mappingUri.Host);
+        }
+
+        if (Uri.TryCreate(endpointAddress, UriKind.Absolute, out var endpointUri) &&
+            !string.IsNullOrWhiteSpace(endpointUri.Host))
+        {
+            return NormalizeEndpointHost(endpointUri.Host);
         }
 
         return CreateBackendHost(targetResource.Id);
@@ -1521,10 +1528,10 @@ public sealed class PlatformResourceProvider(
         ResourceEndpointNetworkMapping? endpointNetworkMapping,
         int fallbackPort)
     {
-        if (Uri.TryCreate(endpointNetworkMapping?.Address, UriKind.Absolute, out var uri) &&
-            !uri.IsDefaultPort)
+        if (endpointNetworkMapping is not null &&
+            endpointNetworkMapping.TryGetPort(out var mappingPort))
         {
-            return uri.Port;
+            return mappingPort;
         }
 
         if (targetEndpoint is not null &&
@@ -2373,14 +2380,13 @@ public sealed class PlatformResourceProvider(
         string resourceId,
         ResourceEndpointNetworkMapping mapping)
     {
-        if (!Uri.TryCreate(mapping.Address, UriKind.Absolute, out var uri) ||
+        if (!mapping.TryGetUri(out var uri) ||
             string.IsNullOrWhiteSpace(uri.Host))
         {
             return null;
         }
 
-        var port = GetEndpointPort(uri);
-        if (port is null)
+        if (!mapping.TryGetPort(out var port))
         {
             return null;
         }
@@ -2389,10 +2395,10 @@ public sealed class PlatformResourceProvider(
         return new EndpointAssignment(
             resourceId,
             mapping.Name,
-            $"{uri.Scheme.ToLowerInvariant()}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
-            $"{CreateSocketHostIdentity(host)}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
+            $"{uri.Scheme.ToLowerInvariant()}://{host}:{port.ToString(CultureInfo.InvariantCulture)}",
+            $"{CreateSocketHostIdentity(host)}:{port.ToString(CultureInfo.InvariantCulture)}",
             host,
-            port.Value);
+            port);
     }
 
     private static string CreateSocketHostIdentity(string host)
@@ -2458,26 +2464,6 @@ public sealed class PlatformResourceProvider(
         {
             return true;
         }
-    }
-
-    private static int? GetEndpointPort(Uri uri)
-    {
-        if (uri.Port > 0)
-        {
-            return uri.Port;
-        }
-
-        if (uri.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
-        {
-            return 80;
-        }
-
-        if (uri.Scheme.Equals(Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-        {
-            return 443;
-        }
-
-        return null;
     }
 
     private static string NormalizeEndpointHost(string host) =>

@@ -112,6 +112,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource endpoints now also expose shared address-string port parsing used
   by built-in CloudShell, application, configuration store, and Secrets Vault
   providers instead of provider-local parsing helpers.
+- Endpoint network mappings now expose shared URI and port parsing helpers
+  used by Docker endpoint availability checks and Control Plane
+  load-balancer/endpoint-assignment resolution.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
