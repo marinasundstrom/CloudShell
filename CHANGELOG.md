@@ -144,6 +144,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application overview endpoint display no longer falls back to legacy
   `ResourceEndpoint.Address` values when projected endpoint mappings are
   missing.
+- Docker container builder endpoint contract overloads no longer convert
+  legacy `ResourceEndpoint.Address` values into endpoint-network mappings;
+  published ports use the mapping-aware endpoint overload.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

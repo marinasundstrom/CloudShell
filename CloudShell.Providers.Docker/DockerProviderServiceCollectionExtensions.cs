@@ -733,18 +733,14 @@ internal sealed class DockerContainerResourceBuilder(
         declared.Definition = declared.Definition with
         {
             Endpoints = endpoints,
-            EndpointNetworkMappings = endpoints
-                .Select(CreateEndpointNetworkMapping)
-                .Where(mapping => mapping is not null)
-                .Select(mapping => mapping!)
-                .ToArray()
+            EndpointNetworkMappings = []
         };
         return this;
     }
 
     public IDockerContainerResourceBuilder WithEndpoint(ResourceEndpoint endpoint)
     {
-        return WithEndpointCore(endpoint, CreateEndpointNetworkMapping(endpoint));
+        return WithEndpointCore(endpoint, null);
     }
 
     public IDockerContainerResourceBuilder WithEndpoint(
@@ -790,11 +786,6 @@ internal sealed class DockerContainerResourceBuilder(
         };
         return this;
     }
-
-    private ResourceEndpointNetworkMapping? CreateEndpointNetworkMapping(ResourceEndpoint endpoint) =>
-        string.IsNullOrWhiteSpace(endpoint.Address)
-            ? null
-            : CreateEndpointNetworkMapping(endpoint, endpoint.Address);
 
     private ResourceEndpointNetworkMapping CreateEndpointNetworkMapping(
         ResourceEndpoint endpoint,
