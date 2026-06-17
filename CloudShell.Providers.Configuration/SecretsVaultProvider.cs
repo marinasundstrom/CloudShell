@@ -355,7 +355,7 @@ public sealed partial class SecretsVaultProvider(
             DisplayName,
             "provider-owned",
             GetState(vault),
-            [ResourceEndpoint.FromAddress("secrets", GetSecretsEndpoint(vault.Id), "http")],
+            [CreateSecretsEndpoint(vault)],
             $"{vault.Secrets.Count} secrets",
             DateTimeOffset.UtcNow,
             [],
@@ -367,7 +367,8 @@ public sealed partial class SecretsVaultProvider(
             {
                 ["secretsVault.secrets"] = vault.Secrets.Count.ToString(CultureInfo.InvariantCulture),
                 [ResourceAttributeNames.EndpointCount] = "1"
-            });
+            },
+            EndpointNetworkMappings: [CreateSecretsEndpointMapping(vault)]);
 
     private static SecretsVaultDefinition Normalize(SecretsVaultDefinition vault)
     {
@@ -597,8 +598,29 @@ public sealed partial class SecretsVaultProvider(
             ? CreateServiceEndpoint(CreateServicePort(definition.Id))
             : definition.Endpoint.TrimEnd('/');
 
+    private ResourceEndpoint CreateSecretsEndpoint(SecretsVaultDefinition definition) =>
+        ResourceEndpoint.Contract(
+            "secrets",
+            "http",
+            ResourceExposureScope.Local,
+            TryGetPort(GetServiceBaseUrl(definition)));
+
+    private ResourceEndpointNetworkMapping CreateSecretsEndpointMapping(SecretsVaultDefinition definition) =>
+        new(
+            $"{definition.Id}:endpoint-network-mapping:secrets",
+            "secrets",
+            new ResourceEndpointReference(definition.Id, "secrets"),
+            GetSecretsEndpoint(definition.Id),
+            ResourceExposureScope.Local,
+            SourceEndpointName: "secrets");
+
     private string CreateServiceEndpoint(int port) =>
         $"{options.ServiceUrlScheme.TrimEnd(':')}://{options.ServiceHost.Trim()}:{port}";
+
+    private static int? TryGetPort(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort
+            ? uri.Port
+            : null;
 
     private int CreateServicePort(string resourceId)
     {

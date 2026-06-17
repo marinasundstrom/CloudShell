@@ -1,7 +1,7 @@
 # Networking
 
 CloudShell models networking through resources, endpoint descriptors, endpoint
-requests, resolved endpoints, topology mappings, exposure paths, DNS/name
+requests, resource endpoint contracts, topology mappings, exposure paths, DNS/name
 mappings, and resource capabilities. The goal is to start with a simple
 Aspire-like local workflow, then let the same resource graph grow into
 host-managed or provider-managed networking for on-premise environments.
@@ -21,7 +21,7 @@ CloudShell uses these terms deliberately:
 | --- | --- | --- |
 | Endpoint descriptor | `ResourceEndpointDescriptor` | Resource type/kind metadata that announces a resource endpoint a resource can expose by default: endpoint name, protocol, target port, exposure default, assignment default, and whether the provider supports remapping that endpoint to another concrete port. |
 | Endpoint request | `ResourceEndpointRequest` | Assignment intent asking a network or provider to reserve or assign an address for a resource endpoint. Requests can be manual, auto-assigned, provider-default, or predefined. |
-| Resolved endpoint | `ResourceEndpoint` | A projected reachable endpoint that exists now, with a concrete address in the relevant topology. |
+| Resource endpoint | `ResourceEndpoint` | A resource-instance endpoint contract: stable endpoint name, protocol, target port, and exposure intent. Its `Address` field is compatibility state while endpoint network mappings become the canonical address projection. |
 | Endpoint network mapping | `ResourceEndpointNetworkMapping` | A topology-specific resolved address for a resource endpoint, such as the local host address, virtual-network address, provider-owned ingress address, or public route address. |
 | Configured endpoint mapping | `ResourceEndpointMappingDefinition` | A source-to-target mapping owned by a network resource, such as a network-owned frontend endpoint mapped to an application endpoint through a selected provider. |
 | Exposure | Capability/resource relationship | A provider- or network-owned route from a boundary to a target endpoint, such as ingress, load-balancer route, gateway route, or host publishing. |
@@ -42,11 +42,12 @@ provider-default requests let the selected network/provider choose from its
 configured policy. Predefined requests describe an address chosen by provider
 configuration outside the user's create flow.
 
-Resolved endpoints are created from endpoint descriptors plus endpoint requests
-by the selected network, runtime, or provider. In local development that
-resolved endpoint may be `localhost:<port>`. In a managed topology it may be a
-private address, provider-owned ingress endpoint, or internal DNS-backed
-address.
+Resource endpoints are created from endpoint descriptors plus endpoint
+requests by the selected resource provider. They preserve the resource-owned
+endpoint contract on the resource instance. Endpoint network mappings then
+carry the topology-specific address, such as `localhost:<port>` in local
+development, a private virtual-network address, a provider-owned ingress
+endpoint, or an internal DNS-backed address in a managed topology.
 
 Containers are the typical case where this distinction matters: the container
 image exposes an inner container port, while the runtime maps an external host,
@@ -57,12 +58,13 @@ show or disable the concrete port mapping controls accordingly.
 
 Port remapping does not bypass network topology. It only decides which concrete
 port a provider binds or publishes for a resource endpoint. The resulting
-resolved endpoint still belongs to a topology, such as the implied local
+endpoint network mapping still belongs to a topology, such as the implied local
 network, a container-host network, a virtual network, or a public exposure
 path. Endpoint network mappings still decide where that endpoint is reachable
 and which provider materializes that reachability.
 
-Exposure paths and DNS/name mappings are relationships over resolved endpoints.
+Exposure paths and DNS/name mappings are relationships over resource endpoints
+and their topology-resolved addresses.
 They can connect a network-owned frontend, load-balancer route, gateway,
 DNS/name mapping, or other topology artifact to the target resource endpoint.
 

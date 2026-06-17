@@ -854,12 +854,20 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(
             "application-topology-frontend",
             Assert.Single(appProvider.GetResources(), resource => resource.Id == "application:application-topology-frontend").Name);
+        var configurationResource = Assert.Single(
+            configurationProvider.GetResources(),
+            resource => resource.Id == "configuration:sample-app");
+        var secretsResource = Assert.Single(
+            secretsProvider.GetResources(),
+            resource => resource.Id == "secrets-vault:sample-app");
         Assert.Equal(
             "sample-app",
-            Assert.Single(configurationProvider.GetResources(), resource => resource.Id == "configuration:sample-app").Name);
+            configurationResource.Name);
         Assert.Equal(
             "sample-app",
-            Assert.Single(secretsProvider.GetResources(), resource => resource.Id == "secrets-vault:sample-app").Name);
+            secretsResource.Name);
+        AssertConfigurationProviderEndpointProjection(configurationResource, "entries");
+        AssertConfigurationProviderEndpointProjection(secretsResource, "secrets");
         Assert.Equal(
             "redis",
             Assert.Single(dockerProvider.GetResources(), resource => resource.Id == "docker:container:redis").Name);
@@ -7769,6 +7777,22 @@ public sealed class ResourceDeclarationTests
             System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
 
         return Assert.IsType<string>(method!.Invoke(null, [projectPath, hotReload, applicationArguments]));
+    }
+
+    private static void AssertConfigurationProviderEndpointProjection(
+        Resource resource,
+        string endpointName)
+    {
+        var endpoint = Assert.Single(resource.Endpoints);
+        Assert.Equal(endpointName, endpoint.Name);
+        Assert.Equal(string.Empty, endpoint.Address);
+        Assert.Equal("http", endpoint.Protocol);
+        Assert.NotNull(endpoint.TargetPort);
+
+        var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+        Assert.Equal(endpointName, mapping.Name);
+        Assert.Equal(new ResourceEndpointReference(resource.Id, endpointName), mapping.Target);
+        Assert.StartsWith("http://localhost:", mapping.Address, StringComparison.Ordinal);
     }
 
     private static void WriteLaunchSettings(

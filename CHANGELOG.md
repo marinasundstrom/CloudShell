@@ -50,6 +50,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Docker runtime container projections now expose published container ports as
   address-less endpoint contracts and project Docker host/container reachability
   through endpoint network mappings.
+- Configuration Store and Secrets Vault resources now project service endpoints
+  as address-less endpoint contracts with concrete service URLs carried by
+  endpoint network mappings.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

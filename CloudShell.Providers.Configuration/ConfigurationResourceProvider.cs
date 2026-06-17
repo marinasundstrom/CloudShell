@@ -421,7 +421,7 @@ public sealed partial class ConfigurationResourceProvider :
             DisplayName,
             "local",
             GetState(configurationStore),
-            [ResourceEndpoint.FromAddress("entries", GetEntriesEndpoint(configurationStore.Id), "http")],
+            [CreateEntriesEndpoint(configurationStore)],
             $"{configurationStore.Entries.Count} entries",
             DateTimeOffset.UtcNow,
             [],
@@ -434,7 +434,8 @@ public sealed partial class ConfigurationResourceProvider :
                 [ResourceAttributeNames.ConfigurationEntryCount] =
                     configurationStore.Entries.Count.ToString(CultureInfo.InvariantCulture),
                 [ResourceAttributeNames.EndpointCount] = "1"
-            });
+            },
+            EndpointNetworkMappings: [CreateEntriesEndpointMapping(configurationStore)]);
 
     private ResourceState GetState(ConfigurationStoreDefinition configurationStore)
     {
@@ -611,8 +612,29 @@ public sealed partial class ConfigurationResourceProvider :
             ? CreateServiceEndpoint(CreateServicePort(definition.Id))
             : definition.Endpoint.TrimEnd('/');
 
+    private ResourceEndpoint CreateEntriesEndpoint(ConfigurationStoreDefinition definition) =>
+        ResourceEndpoint.Contract(
+            "entries",
+            "http",
+            ResourceExposureScope.Local,
+            TryGetPort(GetServiceBaseUrl(definition)));
+
+    private ResourceEndpointNetworkMapping CreateEntriesEndpointMapping(ConfigurationStoreDefinition definition) =>
+        new(
+            $"{definition.Id}:endpoint-network-mapping:entries",
+            "entries",
+            new ResourceEndpointReference(definition.Id, "entries"),
+            GetEntriesEndpoint(definition.Id),
+            ResourceExposureScope.Local,
+            SourceEndpointName: "entries");
+
     private string CreateServiceEndpoint(int port) =>
         $"{options.ServiceUrlScheme.TrimEnd(':')}://{options.ServiceHost.Trim()}:{port}";
+
+    private static int? TryGetPort(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort
+            ? uri.Port
+            : null;
 
     private int CreateServicePort(string resourceId)
     {
