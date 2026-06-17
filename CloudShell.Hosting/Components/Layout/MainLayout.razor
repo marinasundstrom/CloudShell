@@ -1,7 +1,9 @@
 ﻿@inherits LayoutComponentBase
 @inject ICloudShellUserSettingsProvider Settings
 @inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 @inject IStringLocalizer<SharedResource> L
+@implements IDisposable
 
 <div class="shell @CollapsedClass">
     <aside class="shell-sidebar">
@@ -31,19 +33,31 @@
 
 @code {
     private bool IsNavCollapsed { get; set; }
+    private string? CurrentLocation { get; set; }
+    private bool ShouldScrollToTop { get; set; }
 
     private string? CollapsedClass => IsNavCollapsed ? "nav-collapsed" : null;
 
+    protected override void OnInitialized()
+    {
+        CurrentLocation = Navigation.Uri;
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (firstRender)
         {
-            return;
+            IsNavCollapsed = await LoadCollapsedStateAsync();
+            await StoreCollapsedStateAsync(persistBrowser: true);
+            StateHasChanged();
         }
 
-        IsNavCollapsed = await LoadCollapsedStateAsync();
-        await StoreCollapsedStateAsync(persistBrowser: true);
-        StateHasChanged();
+        if (ShouldScrollToTop)
+        {
+            ShouldScrollToTop = false;
+            await JSRuntime.InvokeVoidAsync("cloudShellLayout.scrollToTop");
+        }
     }
 
     private async Task SetCollapsedStateAsync(bool collapsed)
@@ -72,5 +86,35 @@
             CloudShellUserSettingKeys.NavigationCollapsed,
             IsNavCollapsed ? "true" : "false");
         await JSRuntime.InvokeVoidAsync("cloudShellNav.setCollapsed", IsNavCollapsed, persistBrowser);
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        if (IsSamePathAndQuery(CurrentLocation, args.Location))
+        {
+            CurrentLocation = args.Location;
+            return;
+        }
+
+        CurrentLocation = args.Location;
+        ShouldScrollToTop = true;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private static bool IsSamePathAndQuery(string? first, string? second)
+    {
+        if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second))
+        {
+            return string.Equals(first, second, StringComparison.Ordinal);
+        }
+
+        return Uri.TryCreate(first, UriKind.Absolute, out var firstUri) &&
+            Uri.TryCreate(second, UriKind.Absolute, out var secondUri) &&
+            string.Equals(firstUri.GetLeftPart(UriPartial.Query), secondUri.GetLeftPart(UriPartial.Query), StringComparison.Ordinal);
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= HandleLocationChanged;
     }
 }

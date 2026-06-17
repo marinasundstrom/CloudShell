@@ -40,6 +40,19 @@
         }
     };
 
+    window.cloudShellLayout = {
+        scrollToTop: function () {
+            window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+
+            document.querySelectorAll(".shell-main, .shell-content").forEach(function (element) {
+                element.scrollTop = 0;
+                element.scrollLeft = 0;
+            });
+        }
+    };
+
     function normalizeThemeMode(mode) {
         if (typeof mode !== "string") {
             return null;

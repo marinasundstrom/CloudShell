@@ -69,6 +69,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource view menu items can now display icons. Predefined Resource Manager
   views provide default icon metadata, and provider-owned tabs can opt into
   custom icons through the resource tab contribution API.
+- Internal shell navigation now resets the main view scroll position after
+  route changes, including query-driven resource view switches.
 
 ### 2026-06-16
 
