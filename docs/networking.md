@@ -14,8 +14,10 @@ operate the environment.
 
 ## Core Model
 
-Endpoints are projected facts on resources. They describe addresses that exist
-now, such as HTTP, HTTPS, TCP, UDP, or logical network addresses.
+Endpoints are projected facts on resources. They describe the resource-owned
+address or port contract and, when known, the current binding for that contract
+inside a network topology. An endpoint can be HTTP, HTTPS, TCP, UDP, or a
+logical network address.
 
 Endpoint requests are intent. They ask a network or provider to reserve or
 assign an address. Requests can be manual, auto-assigned, provider-default, or
@@ -109,6 +111,56 @@ mappings, Aspire-compatible developer service discovery aliases, and logical
 DNS/name mappings. Network-level service discovery is a later provider
 capability for host or virtual networks. It should not replace explicit
 endpoint mappings or public DNS/name mappings.
+
+## Endpoint Binding And Network Policy
+
+Endpoint contracts and endpoint bindings must stay separate. A resource can
+declare that it exposes an `http` endpoint on target port `8080` without
+deciding that the endpoint must be reachable through `localhost`, a public IP,
+or a tenant virtual network.
+
+The binding is topology-specific:
+
+- in local development, the default topology is the host network, so the
+  binding is often `localhost:<port>` or `127.0.0.1:<port>`
+- in a container host, the binding might be a container-network address or a
+  published host port
+- in a virtual network, the binding might be a private address, internal DNS
+  name, gateway endpoint, or provider-owned route
+- in a public exposure scenario, the binding that users call may be a load
+  balancer, ingress, or DNS-backed route rather than the resource process or
+  container itself
+
+Resource configuration should therefore follow this order:
+
+1. The resource declares endpoint contracts, such as endpoint name, protocol,
+   target port, and any provider-supported endpoint intent.
+2. The environment or network policy decides which binding modes are allowed:
+   host-local, virtual-network-only, public exposure, DNS/name mapping, or
+   provider-managed ingress.
+3. The resource is attached to a topology, such as the default host network for
+   local development or a tenant virtual network for managed/on-premise use.
+4. Exposure is configured separately when callers outside that topology need to
+   reach the endpoint.
+
+For local development, CloudShell can default endpoint-bearing resources to the
+host network and allow localhost bindings because that keeps the developer
+loop simple. For managed or on-premise environments, CloudShell should be able
+to enforce stricter environment policy, such as:
+
+```text
+Require virtual network: true
+Allow localhost binding: false, unless explicitly allowed
+Allow public exposure: permission-gated
+Allow DNS or host-file changes: permission-gated
+```
+
+This makes tenant separation an environment policy rather than a special case
+inside each resource provider. Application resources, databases, secrets
+stores, configuration stores, and other endpoint-capable resources can all use
+the same endpoint contract model, while networks, gateways, load balancers,
+ingress providers, and DNS resources decide how those endpoints are bound,
+exposed, and named.
 
 ## Ingress and Exposure
 

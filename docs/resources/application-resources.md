@@ -41,6 +41,13 @@ is the application-owned address or port contract: an HTTP endpoint, TCP
 endpoint, container target port, or provider-projected service address that
 callers should target when they are in the right topology.
 
+The concrete binding is topology-specific and governed by the environment or
+network policy. Local development can bind to the host network and expose
+`localhost` addresses by default. Managed or on-premise environments can
+require tenant virtual networks and disallow host-local bindings unless an
+administrator explicitly permits them. See [Networking](../networking.md) for
+the shared endpoint contract, binding, exposure, and policy model.
+
 Exposure is separate. It describes how that endpoint becomes reachable from a
 specific network boundary:
 

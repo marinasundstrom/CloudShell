@@ -79,6 +79,10 @@ on `git blame --follow`, and then by the broad type of change.
   exposing provider behavior through familiar, standardized concepts that
   transfer across use cases and systems, while keeping provider-specific
   implementation details inspectable when useful.
+- Networking docs now distinguish endpoint contracts from topology-specific
+  bindings and environment policy, including the direction that managed
+  on-premise environments can require tenant virtual networks and gate
+  localhost, public exposure, and DNS/host-file changes by permission.
 
 ### 2026-06-16
 
