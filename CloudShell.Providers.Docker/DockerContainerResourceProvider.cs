@@ -1105,7 +1105,9 @@ public sealed partial class DockerContainerResourceProvider :
                 definition.Endpoints.Count > 0
                     ? definition.Endpoints
                     : [ResourceEndpoint.Logical("container", $"container://{lookupName}", "container")],
-                null);
+                definition.EndpointNetworkMappings.Count > 0
+                    ? definition.EndpointNetworkMappings
+                    : null);
 
         return new Resource(
             definition.Id,

@@ -593,6 +593,14 @@ appear as a managed resource with child container resources. It can coexist with
 an implicit default container host; CloudShell does not enforce that both point
 at the same runtime instance.
 
+Declaring a Docker container under a Docker host is a local-development desired
+state statement. It means CloudShell expects that container to exist on that
+host, or that the provider/orchestrator may create or start it when the
+declaration and lifecycle policy allow it. Endpoint declarations on the
+container describe the expected container port contract and any host-local
+mapping before the runtime container has been created, so the Resource Manager
+can display the resource and run preflight checks before start.
+
 The active orchestrator can be changed from Resource Manager settings. Changing
 orchestrators does not migrate existing runtime state; the selected orchestrator
 is used for future lifecycle actions when it can handle the target resource, and

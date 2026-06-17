@@ -41,11 +41,12 @@ cloudShell.Resources(resources =>
         .AddDockerContainer(
             registryResourceId,
             "registry:2")
-        .WithEndpoint(ResourceEndpoint.Http(
+        .WithEndpoint(
             "http",
-            "localhost",
-            registryPort,
-            ResourceExposureScope.Public))
+            targetPort: 5000,
+            port: registryPort,
+            protocol: "http",
+            exposure: ResourceExposureScope.Public)
         .WithHttpHealthCheck("/v2/", "http")
         .WithAutoStart(false)
         .Persist(overwrite: true);

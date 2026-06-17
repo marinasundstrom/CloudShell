@@ -3739,11 +3739,13 @@ public sealed class ResourceDeclarationTests
                         "sample-registry",
                         "registry:2")
                     .WithDisplayName("Local Registry")
-                        .WithEndpoint(ResourceEndpoint.Http(
-                            "http",
-                            "127.0.0.1",
-                            port,
-                            ResourceExposureScope.Public));
+                    .WithEndpoint(
+                        "http",
+                        targetPort: 5000,
+                        port: port,
+                        host: "127.0.0.1",
+                        protocol: "http",
+                        exposure: ResourceExposureScope.Public);
                 });
 
             using var serviceProvider = services.BuildServiceProvider();
@@ -3753,6 +3755,15 @@ public sealed class ResourceDeclarationTests
                 candidate => ReferenceEquals(candidate, provider));
             var resource = Assert.Single(provider.GetResources(), resource =>
                 resource.Id == "docker:container:sample-registry");
+            var endpoint = Assert.Single(resource.Endpoints);
+            Assert.Equal("http", endpoint.Name);
+            Assert.Equal("http", endpoint.Protocol);
+            Assert.Equal(5000, endpoint.TargetPort);
+            Assert.Empty(endpoint.Address);
+            var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+            Assert.Equal("http", mapping.Name);
+            Assert.Equal(new ResourceEndpointReference(resource.Id, endpoint.Name), mapping.Target);
+            Assert.Equal($"http://127.0.0.1:{port}", mapping.Address);
             var registrations = new TestResourceRegistrationStore(
                 [
                     new ResourceRegistration(

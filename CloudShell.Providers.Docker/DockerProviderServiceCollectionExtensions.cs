@@ -4,6 +4,7 @@ using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using System.Globalization;
 
 namespace CloudShell.Providers.Docker;
 
@@ -175,8 +176,8 @@ public static class DockerProviderServiceCollectionExtensions
             CreateDisplayName(name),
             image,
             dockerResourceId,
-            endpoints,
-            [dockerResourceId],
+            endpoints: endpoints,
+            dependsOn: [dockerResourceId],
             registry: builder.Services.GetOrAddDockerProviderOptions().Registry);
         var declared = new DeclaredDockerContainerResource(definition);
         builder.Services
@@ -639,6 +640,14 @@ public interface IDockerContainerResourceBuilder :
 
     IDockerContainerResourceBuilder WithEndpoint(ResourceEndpoint endpoint);
 
+    IDockerContainerResourceBuilder WithEndpoint(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "tcp",
+        ResourceExposureScope exposure = ResourceExposureScope.Local,
+        string host = "localhost");
+
     IDockerContainerResourceBuilder WithHttpHealthCheck(
         string path,
         string? endpointName = null,
@@ -721,20 +730,82 @@ internal sealed class DockerContainerResourceBuilder(
 
     public IDockerContainerResourceBuilder WithEndpoints(IReadOnlyList<ResourceEndpoint> endpoints)
     {
-        declared.Definition = declared.Definition with { Endpoints = endpoints };
+        declared.Definition = declared.Definition with
+        {
+            Endpoints = endpoints,
+            EndpointNetworkMappings = endpoints
+                .Select(CreateEndpointNetworkMapping)
+                .Where(mapping => mapping is not null)
+                .Select(mapping => mapping!)
+                .ToArray()
+        };
         return this;
     }
 
     public IDockerContainerResourceBuilder WithEndpoint(ResourceEndpoint endpoint)
     {
+        return WithEndpointCore(endpoint, CreateEndpointNetworkMapping(endpoint));
+    }
+
+    public IDockerContainerResourceBuilder WithEndpoint(
+        string name,
+        int targetPort,
+        int? port = null,
+        string protocol = "tcp",
+        ResourceExposureScope exposure = ResourceExposureScope.Local,
+        string host = "localhost")
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(protocol);
+        ArgumentException.ThrowIfNullOrWhiteSpace(host);
+        var normalizedProtocol = NormalizeProtocol(protocol);
+        var endpoint = ResourceEndpoint.Contract(
+            name.Trim(),
+            normalizedProtocol,
+            exposure,
+            Math.Max(1, targetPort));
+        var mapping = port is null
+            ? null
+            : CreateEndpointNetworkMapping(
+                endpoint,
+                $"{normalizedProtocol}://{host.Trim()}:{Math.Max(1, port.Value).ToString(CultureInfo.InvariantCulture)}");
+
+        return WithEndpointCore(endpoint, mapping);
+    }
+
+    private IDockerContainerResourceBuilder WithEndpointCore(
+        ResourceEndpoint endpoint,
+        ResourceEndpointNetworkMapping? endpointNetworkMapping)
+    {
         declared.Definition = declared.Definition with
         {
             Endpoints = declared.Definition.Endpoints
                 .Append(endpoint)
-                .ToArray()
+                .ToArray(),
+            EndpointNetworkMappings = endpointNetworkMapping is null
+                ? declared.Definition.EndpointNetworkMappings
+                : declared.Definition.EndpointNetworkMappings
+                    .Append(endpointNetworkMapping)
+                    .ToArray()
         };
         return this;
     }
+
+    private ResourceEndpointNetworkMapping? CreateEndpointNetworkMapping(ResourceEndpoint endpoint) =>
+        string.IsNullOrWhiteSpace(endpoint.Address)
+            ? null
+            : CreateEndpointNetworkMapping(endpoint, endpoint.Address);
+
+    private ResourceEndpointNetworkMapping CreateEndpointNetworkMapping(
+        ResourceEndpoint endpoint,
+        string address) =>
+        new(
+            $"{declared.Definition.Id}:endpoint-network-mapping:{endpoint.Name}",
+            endpoint.Name,
+            new ResourceEndpointReference(declared.Definition.Id, endpoint.Name),
+            address,
+            endpoint.Exposure,
+            SourceEndpointName: endpoint.Name);
 
     public IDockerContainerResourceBuilder WithHttpHealthCheck(
         string path,
@@ -839,6 +910,11 @@ internal sealed class DockerContainerResourceBuilder(
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string NormalizeProtocol(string protocol) =>
+        string.IsNullOrWhiteSpace(protocol)
+            ? "tcp"
+            : protocol.Trim().ToLowerInvariant();
 
     IResourceBuilder IResourceBuilder.WithResourceGroup(string? resourceGroupId) =>
         WithResourceGroup(resourceGroupId);
