@@ -2271,19 +2271,6 @@ public sealed class PlatformResourceProvider(
 
     private void ValidatePlatformEndpointAssignments(
         string ownerResourceId,
-        IReadOnlyList<ResourceEndpoint> endpoints)
-    {
-        var candidates = endpoints
-            .Select(endpoint => CreateEndpointAssignment(ownerResourceId, endpoint))
-            .Where(assignment => assignment is not null)
-            .Select(assignment => assignment!)
-            .ToArray();
-
-        ValidatePlatformEndpointAssignments(ownerResourceId, candidates);
-    }
-
-    private void ValidatePlatformEndpointAssignments(
-        string ownerResourceId,
         IReadOnlyList<ResourceEndpointNetworkMapping> endpointNetworkMappings)
     {
         var candidates = endpointNetworkMappings
@@ -2396,35 +2383,6 @@ public sealed class PlatformResourceProvider(
                 }
             }
         }
-    }
-
-    private static EndpointAssignment? CreateEndpointAssignment(
-        string resourceId,
-        ResourceEndpoint endpoint)
-    {
-        if (!Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) ||
-            string.IsNullOrWhiteSpace(uri.Host))
-        {
-            return null;
-        }
-
-        var port = GetEndpointPort(uri);
-        if (port is null)
-        {
-            return null;
-        }
-
-        var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
-            ? uri.Scheme
-            : endpoint.Protocol;
-        var host = NormalizeEndpointHost(uri.Host);
-        return new EndpointAssignment(
-            resourceId,
-            endpoint.Name,
-            $"{protocol.ToLowerInvariant()}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
-            $"{CreateSocketHostIdentity(host)}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
-            host,
-            port.Value);
     }
 
     private static EndpointAssignment? CreateEndpointAssignment(
