@@ -116,8 +116,8 @@ after the update. The tab calls the same domain
 projected container image and revision.
 
 The same tab shows the app's current internal deployment projection: deployment
-status, orchestrator service id, desired replicas, and projected runtime
-replicas. This is an inspection surface over CloudShell's internal
+status, orchestrator service id, scaling mode, desired replicas, and projected
+runtime replicas. This is an inspection surface over CloudShell's internal
 orchestrator deployment model, not a public rollout-history or rollback API.
 
 ## Service Discovery
@@ -142,10 +142,30 @@ container app needs authorized access to that service.
 
 ## Replicas
 
-Container apps project their desired replica count through the
-`container.replicas` attribute. The current MVP supports updating that explicit
-count; autoscaling policy, traffic splitting, and replica health are future
-resource-model work.
+Container apps default to single-instance mode. In that mode the app binds its
+own endpoint directly and does not need a load balancer just because it is a
+container app.
+
+Replicas are an explicit scaling mode. Resource Manager exposes this on the
+Scaling tab, where users enable replicas and set the desired count.
+Programmatic declarations opt in with `.WithReplicas(...)` or by passing a
+replica count greater than one to the container app declaration helpers.
+
+Container apps project replica intent through `container.replicas.enabled` and
+`container.replicas`. The current MVP supports updating that explicit count;
+autoscaling policy, traffic splitting, and replica health are future
+resource-model work. The Replicas tab is diagnostic: it lists projected
+runtime replica artifacts only after scaling is enabled.
+
+When a container app has inbound endpoints and replicas are enabled,
+CloudShell needs ingress or a load balancer so traffic can be distributed
+across instances. The endpoint is still owned by the container app: a single
+container binds it in single-instance mode, and an ingress or load balancer
+binds it on behalf of the app in replicated mode.
+Worker-style replicated apps without inbound endpoints do not require a load
+balancer. A later Resource Manager flow should prompt users to assign or
+create a load balancer/ingress provider when they enable replicas for an
+endpoint-bearing app.
 
 Update the replica count through the Container Apps API:
 
@@ -161,12 +181,13 @@ Content-Type: application/json
 }
 ```
 
-The API targets the stable container app resource. Everything below that
-resource is provider-owned implementation detail: a default local container
-group, a Docker Compose service, a Kubernetes Service or Deployment, or another
-runtime-specific management shape. The provider configures that implementation
-with the app's current image or revision and desired replica count, then
-creates, updates, inspects, or replaces individual runtime containers as needed.
+The API targets the stable container app resource and opts the app into replica
+mode. Everything below that resource is provider-owned implementation detail:
+a default local container group, a Docker Compose service, a Kubernetes Service
+or Deployment, or another runtime-specific management shape. The provider
+configures that implementation with the app's current image or revision and
+desired replica count, then creates, updates, inspects, or replaces individual
+runtime containers as needed.
 
 Inside the orchestration layer, CloudShell represents this management group as
 a `ResourceOrchestratorService` descriptor. Container apps produce this
@@ -182,9 +203,9 @@ the CloudShell model/API layer.
 
 Runtime replica child resources carry the app deployment id, orchestrator
 service id, and deployment revision they implement. The app-scoped Replicas tab
-shows those identifiers so operators can correlate expected runtime artifacts
-with the current Deployment tab projection without enabling global hidden
-runtime-managed inventory.
+shows those identifiers after scaling is enabled so operators can correlate
+expected runtime artifacts with the current Deployment tab projection without
+enabling global hidden runtime-managed inventory.
 
 A `cloudshell.service` resource can still be
 declared when a stable CloudShell service unit or facade should expose
@@ -222,12 +243,14 @@ the CloudShell API shape.
 
 ## Ingress
 
-Container app endpoints are app-owned ingress by default. When a replicated
-container app exposes an HTTP or TCP endpoint, the default Docker runner starts
-provider-owned ingress infrastructure for that app as part of the normal
-start/restart lifecycle. The projected container app endpoint remains the URL or
-address users call; they do not need to create a separate load-balancer
-resource or manually apply routing configuration for the common case.
+Container app endpoints are app-owned. In single-instance mode the one
+container binds the endpoint directly. When a replicated container app exposes
+an HTTP or TCP endpoint, CloudShell needs an ingress/load-balancing strategy
+for that app so traffic can reach all instances. The projected container app
+endpoint remains the URL or address users call; an ingress or load balancer
+binds that endpoint on behalf of the app and maps traffic to the replicated
+runtime instances. Callers do not address individual replica containers
+directly.
 
 For the default Docker runner, that ingress is currently implemented as a
 provider-owned Traefik container attached to the same Docker network as the app

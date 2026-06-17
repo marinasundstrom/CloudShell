@@ -278,6 +278,7 @@ public static class ApplicationProviderServiceCollectionExtensions
             containerImage: image,
             containerRegistry: registry,
             replicas: Math.Max(1, replicas),
+            replicasEnabled: replicas > 1,
             endpointPorts: CreateEndpointPorts(endpoints),
             resourceType: ApplicationResourceTypes.ContainerApp,
             observability: observability,
@@ -840,7 +841,8 @@ internal sealed class ExecutableApplicationResourceBuilder(
     {
         declared.Definition = declared.Definition with
         {
-            Replicas = Math.Max(1, replicas)
+            Replicas = Math.Max(1, replicas),
+            ReplicasEnabled = true
         };
         return this;
     }

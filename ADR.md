@@ -9,6 +9,33 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-06-17
+
+### ADR-20260617-001: Make container app replicas an explicit scaling mode
+
+Container apps default to single-instance execution. A single-instance
+container app can bind its own endpoint directly and does not need a load
+balancer just because it is a container app.
+
+Replicas are an explicit scaling mode, not merely the default value of a
+replica-count field. Programmatic declarations opt into scaling with
+`WithReplicas(...)` or a replica count greater than one. Resource Manager owns
+scaling through a dedicated Scaling tab, where users enable replicas and set
+the desired count. The diagnostic Replicas tab remains focused on projected
+runtime replica artifacts.
+
+When a container app has inbound endpoints and replicas are enabled,
+CloudShell must provide an ingress or load-balancer strategy so traffic can be
+distributed across instances. The endpoint is still owned by the container
+app: a single container binds it in single-instance mode, and an ingress or
+load balancer binds it on behalf of the app in replicated mode. Worker-style
+replicated apps without inbound endpoints do not require a load balancer. A
+later guided Resource Manager flow should prompt users to assign or create a
+load balancer/ingress provider when replicas are enabled for an
+endpoint-bearing app.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-15
 
 ### ADR-20260615-004: Separate resource identity, name, and display name

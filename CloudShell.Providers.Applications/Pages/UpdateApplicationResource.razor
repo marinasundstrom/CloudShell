@@ -118,12 +118,6 @@ else
                 </FluentSelect>
             }
 
-            @if (CanConfigureReplicas)
-            {
-                <label for="application-update-replicas">Replicas</label>
-                <FluentNumberField TValue="int" Id="application-update-replicas" Min="1" Disabled="@IsReadOnly" @bind-Value="Replicas" />
-            }
-
             <ResourceGroupSelect Id="application-update-group"
                                  ResourceGroups="ResourceGroups.GetResourceGroups()"
                                  Disabled="@IsReadOnly"
@@ -187,7 +181,6 @@ else
     private string? ContainerBuildContext { get; set; }
     private string? ContainerDockerfile { get; set; }
     private string SelectedHostId { get; set; } = string.Empty;
-    private int Replicas { get; set; } = 1;
     private string SelectedGroupId { get; set; } = string.Empty;
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private HashSet<string> SelectedDependencyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -230,9 +223,6 @@ else
     private bool CanConfigureContainerHost =>
         IsContainerApp || IsSqlServer;
 
-    private bool CanConfigureReplicas =>
-        IsContainerApp;
-
     private bool IsResourceType(string resourceType) =>
         Application is not null &&
         string.Equals(Application.ResourceType, resourceType, StringComparison.OrdinalIgnoreCase);
@@ -263,7 +253,6 @@ else
             ContainerBuildContext = Application.ContainerBuildContext;
             ContainerDockerfile = Application.ContainerDockerfile;
             SelectedHostId = Application.ContainerHostId ?? string.Empty;
-            Replicas = Application.Replicas;
             ReferenceIds = Application.References;
             SelectedGroupId = ResourceManager.GetGroupForResource(Application.Id)?.Id ?? string.Empty;
             SelectedDependencyIds.Clear();
@@ -328,7 +317,7 @@ else
             CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerBuildContext) : Application.ContainerBuildContext,
             CanConfigureContainerBuildSettings ? NormalizeNullable(ContainerDockerfile) : Application.ContainerDockerfile,
             CanConfigureContainerHost ? NormalizeNullable(SelectedHostId) : Application.ContainerHostId,
-            CanConfigureReplicas ? Math.Max(1, Replicas) : Math.Max(1, Application.Replicas),
+            Math.Max(1, Application.Replicas),
             CanConfigureEndpoint ? BuildEndpointPorts(Application.ResourceType, Endpoint) : Application.EndpointPorts,
             resourceType: Application.ResourceType,
             healthChecks: Application.HealthChecks,
@@ -342,6 +331,7 @@ else
             containerRegistryCredentials: CanConfigureContainerImage
                 ? BuildRegistryCredentials()
                 : Application.ContainerRegistryCredentials,
+            replicasEnabled: Application.ReplicasEnabled,
             volumeMounts: Application.VolumeMounts);
 
         var restartRequired =
@@ -383,6 +373,7 @@ else
             !string.Equals(existing.ContainerDockerfile, updated.ContainerDockerfile, StringComparison.Ordinal) ||
             !string.Equals(existing.ContainerHostId, updated.ContainerHostId, StringComparison.Ordinal) ||
             existing.Replicas != updated.Replicas ||
+            existing.ReplicasEnabled != updated.ReplicasEnabled ||
             !HasSameObservabilitySignals(existing.Observability, updated.Observability) ||
             !existing.EnvironmentVariables.SequenceEqual(updated.EnvironmentVariables) ||
             !existing.VolumeMounts.SequenceEqual(updated.VolumeMounts) ||

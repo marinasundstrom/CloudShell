@@ -52,6 +52,23 @@
                          LabelSelector="GetLifetimeLabel"
                          @bind-Value="SelectedLifetime" />
 
+        <FluentCheckbox @bind-Value="EnableReplicas">
+            Enable replicas
+        </FluentCheckbox>
+
+        @if (EnableReplicas)
+        {
+            <label for="container-replicas">Replicas</label>
+            <FluentNumberField TValue="int" Id="container-replicas" Min="1" @bind-Value="Replicas" />
+
+            @if (ExposeEndpoint)
+            {
+                <div class="procedure-message compact">
+                    Replicated container apps with inbound endpoints may need ingress or a load balancer. The app keeps its stable endpoint while the provider connects that endpoint to the selected routing implementation.
+                </div>
+            }
+        }
+
         <FluentCheckbox @bind-Value="ExposeEndpoint">
             Expose local endpoint
         </FluentCheckbox>
@@ -123,6 +140,8 @@
     private string? RegistryPasswordEnvironmentVariable { get; set; }
     private string SelectedHostId { get; set; } = string.Empty;
     private string SelectedLifetime { get; set; } = ApplicationLifetime.Detached.ToString();
+    private bool EnableReplicas { get; set; }
+    private int Replicas { get; set; } = 2;
     private bool ExposeEndpoint { get; set; }
     private string PortName { get; set; } = "tcp";
     private int TargetPort { get; set; } = 80;
@@ -207,6 +226,8 @@
             containerRegistry: NormalizeRegistry(Registry),
             containerRegistryCredentials: BuildRegistryCredentials(),
             containerHostId: NormalizeNullable(SelectedHostId),
+            replicas: EnableReplicas ? Math.Max(1, Replicas) : 1,
+            replicasEnabled: EnableReplicas,
             endpointPorts: BuildEndpointPorts(),
             resourceType: ApplicationResourceTypes.ContainerApp,
             observability: EnableObservability ? ResourceObservability.Default : ResourceObservability.None,

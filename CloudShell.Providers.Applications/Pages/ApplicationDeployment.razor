@@ -20,6 +20,8 @@ else
             <dd>@GetDeploymentStatusLabel(Resource)</dd>
             <dt>Service</dt>
             <dd>@GetDeploymentService(Resource)</dd>
+            <dt>Scaling</dt>
+            <dd>@GetScalingMode(Resource)</dd>
             <dt>Desired replicas</dt>
             <dd>@GetDeploymentDesiredReplicas(Resource)</dd>
             <dt>Projected replicas</dt>
@@ -175,13 +177,26 @@ else
     private static string GetDeploymentService(Resource resource) =>
         resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentServiceId) ?? "not projected";
 
+    private static string GetScalingMode(Resource resource) =>
+        IsReplicaModeEnabled(resource) ? "Replicated" : "Single instance";
+
     private static string GetDeploymentDesiredReplicas(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentDesiredReplicas) ??
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerReplicas) ??
-        "1";
+        IsReplicaModeEnabled(resource)
+            ? resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentDesiredReplicas) ??
+                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerReplicas) ??
+                "1"
+            : "not enabled";
 
     private static string GetDeploymentProjectedReplicas(Resource resource) =>
-        resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentProjectedReplicas) ?? "0";
+        IsReplicaModeEnabled(resource)
+            ? resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentProjectedReplicas) ?? "0"
+            : "not enabled";
+
+    private static bool IsReplicaModeEnabled(Resource resource) =>
+        string.Equals(
+            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.ContainerReplicasEnabled),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
 
     private static string GetDeploymentStatusLabel(Resource resource) =>
         resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeploymentStatus) switch

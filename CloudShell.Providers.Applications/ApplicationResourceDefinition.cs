@@ -34,7 +34,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ContainerRegistryCredentials? containerRegistryCredentials = null,
         IReadOnlyList<AppSetting>? appSettings = null,
         bool projectContainerBuild = false,
-        IReadOnlyList<ResourceVolumeMount>? volumeMounts = null)
+        IReadOnlyList<ResourceVolumeMount>? volumeMounts = null,
+        bool replicasEnabled = false)
     {
         Id = id;
         Name = name;
@@ -55,6 +56,7 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
         ProjectContainerBuild = projectContainerBuild;
         ContainerHostId = containerHostId;
         Replicas = replicas;
+        ReplicasEnabled = replicasEnabled;
         EndpointPorts = endpointPorts ?? [];
         ResourceType = string.IsNullOrWhiteSpace(resourceType)
             ? ApplicationResourceTypes.ExecutableApplication
@@ -107,6 +109,8 @@ public sealed record ApplicationResourceDefinition : IEnvironmentVariableConfigu
     public string? ContainerHostId { get; init; }
 
     public int Replicas { get; init; }
+
+    public bool ReplicasEnabled { get; init; }
 
     public IReadOnlyList<ServicePort> EndpointPorts { get; init; }
 

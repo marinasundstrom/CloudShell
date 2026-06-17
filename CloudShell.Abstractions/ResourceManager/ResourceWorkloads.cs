@@ -49,6 +49,7 @@ public sealed record ResourceWorkloadConfiguration(
     string? Dockerfile = null,
     string? ContainerHostId = null,
     int Replicas = 1,
+    bool ReplicasEnabled = false,
     IReadOnlyList<AppSetting>? AppSettings = null,
     IReadOnlyList<EnvironmentVariableAssignment>? EnvironmentVariables = null,
     IReadOnlyList<ServicePort>? Ports = null,
@@ -81,6 +82,8 @@ public sealed record ResourceOrchestratorService(
     IReadOnlyList<ResourceVolumeMount>? VolumeMounts = null)
 {
     public int Replicas => Math.Max(1, Workload.Replicas);
+
+    public bool ReplicasEnabled => Workload.ReplicasEnabled;
 
     public IReadOnlyList<string> ServiceDependencies => DependsOn ?? [];
 

@@ -142,6 +142,7 @@ public static class ResourceAttributeNames
     public const string ContainerDockerfile = "container.dockerfile";
     public const string ContainerHostId = "container.engineId";
     public const string ContainerReplicas = "container.replicas";
+    public const string ContainerReplicasEnabled = "container.replicas.enabled";
     public const string ContainerRevision = "container.revision";
     public const string DeploymentId = "deployment.id";
     public const string DeploymentServiceId = "deployment.serviceId";

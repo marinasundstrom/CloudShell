@@ -57,9 +57,10 @@ model provider-neutral and self-hosted.
 * Keep runtime containers, provider-native service objects, and orchestrator
   service descriptors as provider/runtime implementation details unless a
   provider explicitly projects them for inspection.
-* Let a container app own image, registry, current revision, replicas,
-  endpoints, service discovery intent, exposure intent, identity binding,
-  volume mounts, environment variables, observability, and lifecycle actions.
+* Let a container app own image, registry, current revision, opt-in scaling
+  with replicas, endpoints, service discovery intent, exposure intent,
+  identity binding, volume mounts, environment variables, observability, and
+  lifecycle actions.
 * Support internal exposure through host-local networking or virtual networks.
 * Support public endpoint exposure through app-owned ingress, public endpoints,
   load balancers, or explicitly modeled service facades when needed.
@@ -100,6 +101,7 @@ The resource may project:
 * `container.image`
 * `container.registry`
 * `container.revision`
+* `container.replicas.enabled`
 * `container.replicas`
 * endpoint count and endpoint metadata
 * selected container host or default-host intent
@@ -123,7 +125,7 @@ surface for:
 
 * image and registry
 * current revision and image deployment
-* replica count
+* scaling mode and replica count
 * endpoints
 * Aspire-compatible developer service discovery references
 * environment variables and app settings
@@ -153,12 +155,15 @@ Implemented pieces include:
 * `AsContainer(...)` conversion for ASP.NET Core project resources
 * current revision projection when a container app image is updated
 * Resource Manager Deployment tab with image update action
+* Resource Manager Scaling tab for enabling replicas and setting desired
+  replica count
 * app-owned internal deployment projection with status, service id, workload
   version, desired replicas, and projected runtime replicas. This is the
   container app use of the broader default-deployment rule: a resource remains
   directly manageable while the orchestrator derives a deployment for
   deployment-relevant changes.
-* explicit replica count update API
+* explicit replica count update API that also opts a container app into
+  replica mode
 * shared resource metadata for provider/orchestrator/runtime ownership,
   visibility, owner resource, and cleanup behavior
 * internal orchestrator deployment/revision data contracts for future
@@ -167,7 +172,9 @@ Implemented pieces include:
   projections, parented to and owned by the stable container app resource,
   with deployment/service/revision correlation metadata
 * app-scoped Replicas tab that lists projected runtime replicas without
-  requiring global hidden/runtime-managed inventory settings
+  requiring global hidden/runtime-managed inventory settings; single-instance
+  apps explain that replicas are not enabled instead of projecting a
+  single-instance container as a replica set
 * application-level service discovery opt-in through `WithServiceDiscovery()`
 * volume mount model and Storage tab for resources that support storage
 * identity binding and standard runtime credential delivery path
@@ -211,11 +218,13 @@ Implemented pieces include:
    routes, DNS/name mappings, and unsupported host capabilities. Local
    host-published endpoint preflight is in place for container app start;
    route, DNS, and provider-backed diagnostics remain open.
-6. Keep image update, current revision, explicit replica count, and hidden
-   runtime ownership metadata as the MVP deployment surface. Use the internal
-   orchestrator deployment/revision contracts for container app implementation
-   work, but defer public rollout history, rollback, and traffic splitting to
-   later deployment/revision slices.
+6. Keep image update, current revision, explicit replica scaling, and hidden
+   runtime ownership metadata as the MVP deployment surface. Container apps
+   default to single-instance mode; enabling replicas is a deliberate Scaling
+   tab action or programmatic `WithReplicas(...)` declaration. Use the
+   internal orchestrator deployment/revision contracts for container app
+   implementation work, but defer public rollout history, rollback, and
+   traffic splitting to later deployment/revision slices.
 7. Keep the container app Replicas tab app-scoped. It shows app-owned
    replica/runtime diagnostics to users who can view or manage the container
    app without requiring the global runtime-managed inventory view; the global
@@ -237,6 +246,12 @@ Implemented pieces include:
   start/update where possible.
 * Add host capability diagnostics for unsupported storage media, ingress,
   public endpoint, or DNS/name publication choices.
+* Add the guided Resource Manager prompt that assigns or creates an
+  ingress/load-balancer provider when replicas are enabled for an
+  endpoint-bearing app. The endpoint remains owned by the container app: a
+  single container binds it in single-instance mode, and an ingress or load
+  balancer binds it on behalf of the app in replicated mode. Worker-style
+  replicated apps without inbound endpoints should not require a load balancer.
 * Enrich hidden replica/container child resources with provider-observed
   container IDs, health, placement, and materialization state once providers
   can report them consistently.

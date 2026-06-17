@@ -4,11 +4,14 @@ Use a load balancer resource when the user wants gateway-level control over
 stable routing and a provider should materialize the actual proxy or gateway
 configuration. Load balancers project as `cloudshell.loadBalancer` resources.
 
-For the normal single-application case, prefer container app ingress. A
-replicated container app with an HTTP or TCP endpoint owns its exposed app
-endpoint and the orchestrator starts or renders the app-specific ingress
-implementation during the app start/restart flow. No separate load-balancer
-resource or manual apply action is required for that path.
+For the normal single-instance application case, prefer the container app's
+own endpoint. A replicated container app with an HTTP or TCP endpoint needs an
+ingress/load-balancing strategy so traffic can be distributed across
+instances. The endpoint remains owned by the container app. In single-instance
+mode the container binds it directly; in replicated mode an ingress or load
+balancer binds that endpoint on behalf of the app. That strategy can be
+app-owned ingress when a provider supports it or an explicit load balancer
+resource when the user wants gateway-level control.
 
 The resource is intentionally provider-neutral. The first provider is Traefik
 in file-provider mode, but the resource model does not require Traefik, Docker,

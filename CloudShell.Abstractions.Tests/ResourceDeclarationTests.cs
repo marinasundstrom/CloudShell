@@ -1074,6 +1074,7 @@ public sealed class ResourceDeclarationTests
 
         var containerAppType = resourceTypes[ApplicationResourceTypes.ContainerApp];
         AssertDeploymentTab(containerAppType);
+        AssertScalingTab(containerAppType);
         AssertReplicaTab(containerAppType);
         AssertStorageTab(containerAppType);
         AssertApplicationExposureSection(containerAppType);
@@ -1088,10 +1089,16 @@ public sealed class ResourceDeclarationTests
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
         Assert.DoesNotContain(
             sqlServerType.ResourceTabs,
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "scaling"));
+        Assert.DoesNotContain(
+            sqlServerType.ResourceTabs,
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
+        Assert.DoesNotContain(
+            resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "scaling"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Storage, "storage"));
@@ -1291,8 +1298,20 @@ public sealed class ResourceDeclarationTests
 
         Assert.Equal("Replicas", replicaTab.Title);
         Assert.False(replicaTab.ShowsApplyButton);
-        Assert.Equal(30, replicaTab.Order);
+        Assert.Equal(40, replicaTab.Order);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationReplicas), replicaTab.ComponentType);
+    }
+
+    private static void AssertScalingTab(ResourceTypeContribution resourceType)
+    {
+        var scalingTab = Assert.Single(
+            resourceType.ResourceTabs,
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "scaling"));
+
+        Assert.Equal("Scaling", scalingTab.Title);
+        Assert.True(scalingTab.ShowsApplyButton);
+        Assert.Equal(30, scalingTab.Order);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationScaling), scalingTab.ComponentType);
     }
 
     [Fact]
@@ -5834,6 +5853,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("example/api:dev", application.ContainerImage);
         Assert.Null(application.ContainerBuildContext);
         Assert.Equal(2, application.Replicas);
+        Assert.True(application.ReplicasEnabled);
     }
 
     [Fact]
@@ -5906,6 +5926,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceWorkloadKind.ContainerBuild.ToString(), resource.ResourceAttributes[ResourceAttributeNames.WorkloadKind]);
         Assert.Equal("src/API/API.csproj", resource.ResourceAttributes[ResourceAttributeNames.ProjectPath]);
         Assert.Equal("2", resource.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
+        Assert.Equal("true", resource.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
         Assert.Equal("registry.local:5000", resource.ResourceAttributes[ResourceAttributeNames.ContainerRegistry]);
         Assert.Equal("docker:dev", resource.ResourceAttributes[ResourceAttributeNames.ContainerHostId]);
         Assert.Equal(ResourceWorkloadKind.ContainerBuild, workload?.Kind);
@@ -5915,6 +5936,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("registry.local:5000", workload?.Registry);
         Assert.Equal("docker:dev", workload?.ContainerHostId);
         Assert.Equal(2, workload?.Replicas);
+        Assert.True(workload?.ReplicasEnabled == true);
         Assert.Equal(
             "application:api/api-service",
             environment?[EnvironmentCloudShellResourceCredential.ClientIdEnvironmentVariable]);
@@ -6013,7 +6035,9 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("example/sql-server:dev", workload?.Image);
         Assert.Equal("https://registry.example.com", workload?.Registry);
         Assert.Equal(3, workload?.Replicas);
+        Assert.True(workload?.ReplicasEnabled == true);
         Assert.Equal("3", resource.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
+        Assert.Equal("true", resource.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
         Assert.Equal("1", resource.ResourceAttributes[ResourceAttributeNames.VolumeMountCount]);
         Assert.True(resource.HasCapability(ResourceCapabilityIds.StorageVolumeConsumer));
         Assert.Equal("registry-user", provider.GetApplication("application:sql")?.ContainerRegistryCredentials?.Username);
@@ -6071,6 +6095,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("pending", app.ResourceAttributes[ResourceAttributeNames.DeploymentStatus]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentDesiredReplicas]);
         Assert.Equal("3", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
+        Assert.Equal("true", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
         Assert.Equal(
             app.ResourceAttributes[ResourceAttributeNames.ContainerRevision],
             app.ResourceAttributes[ResourceAttributeNames.DeploymentRevision]);
@@ -6111,6 +6136,37 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("1", replicas[0].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
         Assert.Equal("2", replicas[1].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
         Assert.Equal("3", replicas[2].ResourceAttributes[ResourceAttributeNames.RuntimeReplicaOrdinal]);
+    }
+
+    [Fact]
+    public void ContainerApplicationProvider_DoesNotProjectReplicasForSingleInstanceApps()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddExtension<ApplicationProviderExtension>()
+            .Resources(resources =>
+            {
+                resources
+                    .AddContainer("api", "example/api:latest")
+                    .WithContainerHost("docker:dev");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var resources = provider.GetResources();
+        var app = Assert.Single(resources, resource => resource.Id == "application:api");
+
+        Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicas]);
+        Assert.Equal("false", app.ResourceAttributes[ResourceAttributeNames.ContainerReplicasEnabled]);
+        Assert.Equal("1", app.ResourceAttributes[ResourceAttributeNames.DeploymentDesiredReplicas]);
+        Assert.Equal("0", app.ResourceAttributes[ResourceAttributeNames.DeploymentProjectedReplicas]);
+        Assert.DoesNotContain(
+            resources,
+            resource => string.Equals(resource.ParentResourceId, app.Id, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

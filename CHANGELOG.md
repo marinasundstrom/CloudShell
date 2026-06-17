@@ -55,6 +55,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Built-in resource tab registrations now use shared `ResourceTabGroupTitles`
   constants for predefined and provider-owned group labels instead of
   repeating presentation strings in each provider.
+- Container apps now treat replicas as an explicit scaling mode. Resource
+  Manager exposes a dedicated Scaling tab to enable replicas and set the
+  desired count, while single-instance apps no longer project a default
+  runtime replica child. The Deployment and Replicas tabs now distinguish
+  single-instance mode from replicated mode.
+  Decision: [ADR-20260617-001](ADR.md#adr-20260617-001).
 
 ### 2026-06-16
 

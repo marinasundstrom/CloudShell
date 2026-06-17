@@ -1,0 +1,139 @@
+@using System.Globalization
+@inject ApplicationResourceProvider ApplicationProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceRegistrationStore Registrations
+
+@if (Application is null)
+{
+    <EmptyState Title="Scaling is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else if (!ApplicationResourceTypes.IsContainerApp(Application.ResourceType))
+{
+    <EmptyState Title="Scaling is not supported"
+                Message="This resource type does not expose container app scaling." />
+}
+else
+{
+    <section class="blade-section">
+        <h3>Scaling</h3>
+        <dl class="detail-list">
+            <dt>Mode</dt>
+            <dd>@(EnableReplicas ? "Replicated" : "Single instance")</dd>
+            <dt>Replicas</dt>
+            <dd>@(EnableReplicas ? Replicas.ToString(CultureInfo.InvariantCulture) : "not enabled")</dd>
+        </dl>
+
+        <FluentCheckbox Disabled="@IsReadOnly" @bind-Value="EnableReplicas">
+            Enable replicas
+        </FluentCheckbox>
+
+        @if (EnableReplicas)
+        {
+            <label for="application-scaling-replicas">Replicas</label>
+            <FluentNumberField TValue="int"
+                               Id="application-scaling-replicas"
+                               Min="1"
+                               Disabled="@IsReadOnly"
+                               @bind-Value="Replicas" />
+
+            @if (HasInboundEndpoint)
+            {
+                <div class="procedure-message compact">
+                    Replicated container apps with inbound endpoints may need ingress or a load balancer. The app keeps its stable endpoint while the provider connects that endpoint to the selected routing implementation.
+                </div>
+            }
+        }
+        else
+        {
+            <div class="procedure-message compact">
+                Single-instance container apps bind their own endpoint directly. Enable replicas when this app should scale out.
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [CascadingParameter(Name = ResourceManagerCascadingParameterNames.ReadOnly)]
+    public bool IsReadOnly { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private ApplicationResourceDefinition? Application { get; set; }
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+    private bool EnableReplicas { get; set; }
+    private int Replicas { get; set; } = 2;
+
+    private bool HasInboundEndpoint =>
+        Application?.EndpointPorts.Count > 0;
+
+    protected override void OnParametersSet()
+    {
+        Application = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ApplicationProvider.GetApplication(ResourceId);
+
+        if (Application is not null)
+        {
+            EnableReplicas = Application.ReplicasEnabled;
+            Replicas = EnableReplicas
+                ? Math.Max(1, Application.Replicas)
+                : Math.Max(2, Application.Replicas);
+        }
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        if (IsReadOnly)
+        {
+            return ResourceManagerUiState.ReadOnlyResult();
+        }
+
+        if (Application is null)
+        {
+            return ResourceProcedureResult.Completed("Application resource is unavailable.");
+        }
+
+        if (!ApplicationResourceTypes.IsContainerApp(Application.ResourceType))
+        {
+            return ResourceProcedureResult.Completed("Scaling is not supported for this resource type.");
+        }
+
+        var updated = Application with
+        {
+            ReplicasEnabled = EnableReplicas,
+            Replicas = EnableReplicas ? Math.Max(1, Replicas) : 1
+        };
+
+        if (Application.ReplicasEnabled == updated.ReplicasEnabled &&
+            Application.Replicas == updated.Replicas)
+        {
+            return ResourceProcedureResult.Completed("Scaling configuration is already up to date.");
+        }
+
+        var wasRunning = ApplicationProvider.IsRunning(Application.Id);
+        await ApplicationProvider.UpdateApplicationAsync(
+            updated,
+            ResourceManager.GetGroupForResource(Application.Id)?.Id,
+            Registrations,
+            cancellationToken);
+
+        return wasRunning
+            ? ResourceProcedureResult.CompletedWithRestartRequired(
+                "Scaling configuration updated.",
+                Application.Id,
+                "The container app is running. Restart it to apply scaling changes.")
+            : ResourceProcedureResult.Completed("Scaling configuration updated.");
+    }
+}

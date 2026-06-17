@@ -22,12 +22,12 @@ for remote infrastructure.
 
 Container application resources represent managed services in CloudShell. A
 container app should be the normal configuration surface for service endpoints,
-replicas, internal exposure on the host or a virtual network, public endpoint
-exposure, internal DNS-style names, and custom domain name mappings. Resource
-Manager should make those relationships visible from the application resource
-itself, while still showing the related network, load-balancer, storage,
-identity, and DNS/name-mapping resources when users need to inspect the
-underlying platform pieces.
+opt-in replica scaling, internal exposure on the host or a virtual network,
+public endpoint exposure, internal DNS-style names, and custom domain name
+mappings. Resource Manager should make those relationships visible from the
+application resource itself, while still showing the related network,
+load-balancer, storage, identity, and DNS/name-mapping resources when users
+need to inspect the underlying platform pieces.
 
 `cloudshell.service` remains optional for explicit service facades, imported
 provider-native services, non-application targets, or advanced routing. A

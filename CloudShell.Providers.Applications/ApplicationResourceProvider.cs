@@ -618,7 +618,7 @@ public sealed partial class ApplicationResourceProvider(
                 $"Resource '{context.Resource.Id}' is not a container app.");
         }
 
-        if (application.Replicas == replicas)
+        if (application.ReplicasEnabled && application.Replicas == replicas)
         {
             return ResourceProcedureResult.Completed(
                 $"Container app '{application.Name}' already uses {replicas} replica{Pluralize(replicas)}.");
@@ -627,7 +627,8 @@ public sealed partial class ApplicationResourceProvider(
         var wasRunning = IsRunning(application.Id);
         var updated = NormalizeDefinition(application with
         {
-            Replicas = replicas
+            Replicas = replicas,
+            ReplicasEnabled = true
         });
 
         if (restartIfRunning && wasRunning)
@@ -725,7 +726,8 @@ public sealed partial class ApplicationResourceProvider(
             application.ProjectArguments,
             application.AspNetCoreHotReload,
             ProjectContainerBuild: application.ProjectContainerBuild,
-            UseLaunchSettingsEndpoints: application.UseLaunchSettingsEndpoints);
+            UseLaunchSettingsEndpoints: application.UseLaunchSettingsEndpoints,
+            ReplicasEnabled: application.ReplicasEnabled);
 
         return Task.FromResult(new ResourceTemplateDefinition(
             application.Name,
@@ -785,7 +787,8 @@ public sealed partial class ApplicationResourceProvider(
             projectPath: configuration.ProjectPath,
             projectArguments: configuration.ProjectArguments,
             aspNetCoreHotReload: configuration.AspNetCoreHotReload,
-            useLaunchSettingsEndpoints: configuration.UseLaunchSettingsEndpoints);
+            useLaunchSettingsEndpoints: configuration.UseLaunchSettingsEndpoints,
+            replicasEnabled: configuration.ReplicasEnabled);
 
         await SetupApplicationAsync(
             definition,
@@ -2557,6 +2560,11 @@ public sealed partial class ApplicationResourceProvider(
 
     private IReadOnlyList<Resource> CreateRuntimeContainerResources(ApplicationResourceDefinition application)
     {
+        if (!IsReplicaModeEnabled(application))
+        {
+            return [];
+        }
+
         var parentState = GetState(application.Id);
         var deployment = CreateDefaultContainerOrchestratorDeployment(application, parentState);
         return CreateDefaultContainerServiceInstances(deployment.Spec.Service)
@@ -2670,10 +2678,14 @@ public sealed partial class ApplicationResourceProvider(
         if (IsContainerBacked(application))
         {
             var deployment = CreateDefaultContainerOrchestratorDeployment(application, state);
-            var projectedReplicas = CreateDefaultContainerServiceInstances(deployment.Spec.Service).Count();
+            var projectedReplicas = IsReplicaModeEnabled(application)
+                ? CreateDefaultContainerServiceInstances(deployment.Spec.Service).Count()
+                : 0;
 
             attributes[ResourceAttributeNames.ContainerReplicas] =
                 Math.Max(1, application.Replicas).ToString(CultureInfo.InvariantCulture);
+            attributes[ResourceAttributeNames.ContainerReplicasEnabled] =
+                IsReplicaModeEnabled(application).ToString(CultureInfo.InvariantCulture).ToLowerInvariant();
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerImage, application.ContainerImage);
             attributes[ResourceAttributeNames.ContainerRegistry] = GetEffectiveContainerRegistry(application);
             AddIfNotEmpty(attributes, ResourceAttributeNames.ContainerBuildContext, application.ContainerBuildContext);
@@ -3232,6 +3244,8 @@ public sealed partial class ApplicationResourceProvider(
         var projectPath = isProjectBacked
             ? NormalizeNullable(definition.ProjectPath) ?? legacyProjectPath
             : null;
+        var replicasEnabled = IsContainerBacked(definition) &&
+            (definition.ReplicasEnabled || definition.Replicas > 1);
 
         return definition with
         {
@@ -3259,6 +3273,7 @@ public sealed partial class ApplicationResourceProvider(
             ContainerRevision = NormalizeNullable(definition.ContainerRevision) ??
                 (IsContainerBacked(definition) ? CreateContainerRevision() : null),
             Replicas = Math.Max(1, definition.Replicas),
+            ReplicasEnabled = replicasEnabled,
             ResourceType = resourceType,
             ProjectPath = projectPath,
             ProjectArguments = isProjectBacked
@@ -3767,6 +3782,7 @@ public sealed partial class ApplicationResourceProvider(
                 Registry: GetEffectiveContainerRegistry(application),
                 ContainerHostId: application.ContainerHostId,
                 Replicas: Math.Max(1, application.Replicas),
+                ReplicasEnabled: IsReplicaModeEnabled(application),
                 AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
@@ -3787,6 +3803,7 @@ public sealed partial class ApplicationResourceProvider(
                 Registry: GetEffectiveContainerRegistry(application),
                 ContainerHostId: application.ContainerHostId,
                 Replicas: Math.Max(1, application.Replicas),
+                ReplicasEnabled: IsReplicaModeEnabled(application),
                 AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
@@ -3806,6 +3823,7 @@ public sealed partial class ApplicationResourceProvider(
                 Registry: GetEffectiveContainerRegistry(application),
                 ContainerHostId: application.ContainerHostId,
                 Replicas: Math.Max(1, application.Replicas),
+                ReplicasEnabled: IsReplicaModeEnabled(application),
                 AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
@@ -3824,6 +3842,7 @@ public sealed partial class ApplicationResourceProvider(
                 ProjectArguments: application.ProjectArguments,
                 AspNetCoreHotReload: application.AspNetCoreHotReload,
                 Replicas: Math.Max(1, application.Replicas),
+                ReplicasEnabled: IsReplicaModeEnabled(application),
                 AppSettings: application.AppSettings,
                 EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
                 Ports: application.EndpointPorts,
@@ -3839,6 +3858,7 @@ public sealed partial class ApplicationResourceProvider(
             Arguments: application.Arguments,
             WorkingDirectory: application.WorkingDirectory,
             Replicas: Math.Max(1, application.Replicas),
+            ReplicasEnabled: IsReplicaModeEnabled(application),
             AppSettings: application.AppSettings,
             EnvironmentVariables: ResolveWorkloadEnvironmentVariables(application, resourceGroupId, resourceManager),
             Lifetime: ToResourceLifetime(application.Lifetime),
@@ -4585,6 +4605,10 @@ public sealed partial class ApplicationResourceProvider(
         application.ProjectContainerBuild ||
         !string.IsNullOrWhiteSpace(application.ContainerBuildContext);
 
+    private static bool IsReplicaModeEnabled(ApplicationResourceDefinition application) =>
+        ApplicationResourceTypes.IsContainerApp(application.ResourceType) &&
+        application.ReplicasEnabled;
+
     private static string GetEffectiveContainerRevision(ApplicationResourceDefinition application) =>
         NormalizeNullable(application.ContainerRevision) ?? "unrevisioned";
 
@@ -4906,7 +4930,8 @@ public sealed partial class ApplicationResourceProvider(
         string? ProjectArguments = null,
         bool AspNetCoreHotReload = false,
         bool ProjectContainerBuild = false,
-        bool UseLaunchSettingsEndpoints = false);
+        bool UseLaunchSettingsEndpoints = false,
+        bool ReplicasEnabled = false);
 
     private sealed record ProjectContainerImageReference(
         string Reference,

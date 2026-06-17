@@ -10,6 +10,11 @@ else if (!ApplicationResourceTypes.IsContainerApp(Application.EffectiveTypeId))
     <EmptyState Title="Replicas are not supported"
                 Message="This resource type does not expose container app replicas." />
 }
+else if (!IsReplicaModeEnabled(Application))
+{
+    <EmptyState Title="Replicas are not enabled"
+                Message="This container app is running in single-instance mode. Enable replicas on the Scaling tab when the app should scale out." />
+}
 else
 {
     <section class="blade-section">
@@ -121,6 +126,12 @@ else
             out var replicas)
             ? Math.Max(1, replicas)
             : 1;
+
+    private static bool IsReplicaModeEnabled(Resource resource) =>
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.ContainerReplicasEnabled, "false"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
 
     private static int GetReplicaOrdinal(Resource resource) =>
         int.TryParse(

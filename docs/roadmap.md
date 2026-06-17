@@ -102,7 +102,11 @@ listed here before pulling in broader proposal work.
    orchestrator service model is clearer. Container app usefulness depends on
    a thin deployment/revision/runtime-owned resource foundation: keep this
    foundation internal and diagnostic first, and do not pull in broad rollout
-   history, rollback, or traffic-splitting work for the MVP.
+   history, rollback, or traffic-splitting work for the MVP. Container apps
+   default to single-instance mode; replicas are an explicit Scaling tab or
+   programmatic `WithReplicas(...)` opt-in. The remaining endpoint-bearing
+   replica UX should prompt users to assign or create ingress/load-balancer
+   support when scaling is enabled.
 2. Resource Manager convergence for the same path: keep the app resource page
    as the operator entry point for endpoints, discovery, storage, identity,
    logs, traces, activity, and inbound name mappings. Fix UI consistency and

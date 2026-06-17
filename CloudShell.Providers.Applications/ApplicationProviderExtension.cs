@@ -133,24 +133,31 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "Deployment",
                 20,
                 groupTitle: ResourceTabGroupTitles.Runtime)
+            .AddResourceTab<Pages.ApplicationScaling>(
+                ApplicationResourceTypes.ContainerApp,
+                new ResourceViewId(ResourceTabGroupIds.Runtime, "scaling"),
+                "Scaling",
+                30,
+                showsApplyButton: true,
+                groupTitle: ResourceTabGroupTitles.Runtime)
             .AddResourceTab<Pages.ApplicationReplicas>(
                 ApplicationResourceTypes.ContainerApp,
                 new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"),
                 "Replicas",
-                30,
+                40,
                 groupTitle: ResourceTabGroupTitles.Runtime)
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Configuration,
                 "Configuration",
-                40,
+                50,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Storage,
                 "Storage",
-                50,
+                60,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.Storage)
             .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
