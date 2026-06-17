@@ -22,6 +22,7 @@
                                   PortId="web-application-endpoint-port"
                                   PortLabel="Fixed local port"
                                   Assignments="AspNetCoreEndpointAssignments"
+                                  HelpText="@AspNetCoreEndpointHelpText"
                                   @bind-Assignment="EndpointAssignment"
                                   @bind-Port="EndpointPort" />
 
@@ -107,6 +108,9 @@
         ResourceEndpointAssignment.ProviderDefault,
         ResourceEndpointAssignment.Manual
     ];
+
+    private const string AspNetCoreEndpointHelpText =
+        "CloudShell assigns a local mapping for development. Use a fixed local port only when callers on this machine need a stable address; private IPs, internal DNS names, and public endpoints are configured through Networking.";
 
     private bool SupportsHealthChecks => ProbeContext?.SupportsHealthChecks == true;
 

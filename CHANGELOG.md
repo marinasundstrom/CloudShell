@@ -93,6 +93,9 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core project create and update views now use endpoint assignment
   with an optional fixed local port instead of asking users to enter a raw
   endpoint URI under resource-specific configuration.
+- ASP.NET Core project endpoint assignment UI and documentation now describe
+  fixed local ports as a local-development mapping convenience, while private
+  IPs, internal DNS names, and public exposure remain Networking concerns.
 - Projected resource endpoints now carry optional target-port metadata, so
   application endpoints can expose the resource-owned port while topology,
   network, exposure, and DNS mappings remain separate primitives.

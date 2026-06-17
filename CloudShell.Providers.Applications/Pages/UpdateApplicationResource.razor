@@ -57,6 +57,7 @@ else
                                           PortLabel="Fixed local port"
                                           Assignments="AspNetCoreEndpointAssignments"
                                           Disabled="@IsReadOnly"
+                                          HelpText="@AspNetCoreEndpointHelpText"
                                           @bind-Assignment="EndpointAssignment"
                                           @bind-Port="EndpointPort" />
             }
@@ -231,6 +232,9 @@ else
         ResourceEndpointAssignment.ProviderDefault,
         ResourceEndpointAssignment.Manual
     ];
+
+    private const string AspNetCoreEndpointHelpText =
+        "CloudShell assigns a local mapping for development. Use a fixed local port only when callers on this machine need a stable address; private IPs, internal DNS names, and public endpoints are configured through Networking.";
 
     private bool CanConfigureLifetime =>
         !IsSqlServer;

@@ -56,6 +56,14 @@ resource endpoint and creates a mapping in the implied default local network
 whose address resolves to the supplied local port. That mapping address is what
 the resource provider passes to the service when it starts.
 
+In managed or on-premise topologies, the concrete port chosen by a user is
+often less important than the resource's network placement. A resource may be
+assigned a private address inside a virtual network, or a private DNS name such
+as `billing-api.internal.acme.net` derived from the resource name and the
+environment's naming policy. The endpoint still carries the protocol and
+target port, but the topology, DNS provider, and exposure policy decide which
+address users and other services should call.
+
 Configured endpoint mappings connect one source endpoint to one target
 endpoint. A mapping can be validated by the network resource itself or
 materialized by a selected networking provider resource.
@@ -138,6 +146,13 @@ The current address is topology-specific:
 - in a public exposure scenario, the binding that users call may be a load
   balancer, ingress, or DNS-backed route rather than the resource process or
   container itself
+
+For local development, Resource Manager may let the user choose a fixed local
+port because that is convenient for tools on the developer machine. For
+managed or on-premise environments, Resource Manager should instead guide the
+user toward network placement, internal DNS naming, and public exposure policy.
+The default address might be a private IP or internal DNS name, while public
+DNS and public endpoints remain explicit exposure choices.
 
 Resource configuration should therefore follow this order:
 

@@ -83,8 +83,12 @@ was enabled earlier in the builder chain. Resource Manager create and update
 flows use the shared endpoint assignment pattern: the user can let CloudShell
 assign the local mapping or specify a fixed local port for convenience. These
 flows do not ask for a raw endpoint URI and do not read `launchSettings.json`.
-If a future UI exposes launch-settings endpoint loading, that option should be
-disabled whenever explicit endpoints are configured.
+The fixed-port option is a local-development affordance for callers on the
+developer machine. In managed or on-premise environments, Resource Manager
+should favor network placement, internal DNS names, and explicit public
+exposure instead of asking users to choose host ports. If a future UI exposes
+launch-settings endpoint loading, that option should be disabled whenever
+explicit endpoints are configured.
 
 Provider defaults are local development bindings, not a general exposure
 mechanism. Public or broader resource exposure should be declared explicitly by
