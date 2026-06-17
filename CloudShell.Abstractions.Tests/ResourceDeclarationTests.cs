@@ -5565,6 +5565,29 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void StaticResourceProviders_ProjectEndpointAddressesAsMappings()
+    {
+        var cloudShellResource = new CloudShellResourceProvider()
+            .GetResources()
+            .Single(resource => resource.Id == "api-gateway");
+        var managedResource = new ManagedResourceProvider()
+            .GetResources()
+            .Single(resource => resource.Id == "postgres-main");
+
+        var cloudShellEndpoint = Assert.Single(
+            cloudShellResource.Endpoints,
+            endpoint => endpoint.Name == "public");
+        Assert.Equal(string.Empty, cloudShellEndpoint.Address);
+        Assert.Equal("https", cloudShellEndpoint.Protocol);
+        Assert.Equal("https://api.cloudshell.local", cloudShellResource.GetEndpointNetworkAddress("public"));
+
+        var managedEndpoint = Assert.Single(managedResource.Endpoints);
+        Assert.Equal("postgres", managedEndpoint.Name);
+        Assert.Equal(string.Empty, managedEndpoint.Address);
+        Assert.Equal("postgres://main.internal", managedResource.GetEndpointNetworkAddress("postgres"));
+    }
+
+    [Fact]
     public void PlatformProvider_UsesHostLocalNetworkEnvironmentForDefaultEndpoints()
     {
         var definition = new NetworkResourceDefinition(

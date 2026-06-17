@@ -18,12 +18,17 @@ public sealed class CloudShellResourceProvider : IResourceProvider
             "westeurope",
             ResourceState.Running,
             [
-                ResourceEndpoint.FromAddress("public", "https://api.cloudshell.local", "https", ResourceExposureScope.Public),
-                ResourceEndpoint.FromAddress("internal", "http://api-gateway:8080", "http", ResourceExposureScope.Private)
+                CreateEndpoint("public", "https://api.cloudshell.local", "https", ResourceExposureScope.Public),
+                CreateEndpoint("internal", "http://api-gateway:8080", "http", ResourceExposureScope.Private)
             ],
             "2026.06.5",
             DateTimeOffset.Now.AddMinutes(-2),
-            ["identity", "redis-cache"]),
+            ["identity", "redis-cache"],
+            EndpointNetworkMappings:
+            [
+                CreateEndpointNetworkMapping("api-gateway", "public", "https://api.cloudshell.local", ResourceExposureScope.Public),
+                CreateEndpointNetworkMapping("api-gateway", "internal", "http://api-gateway:8080", ResourceExposureScope.Private)
+            ]),
         new(
             "identity",
             "identity",
@@ -32,12 +37,17 @@ public sealed class CloudShellResourceProvider : IResourceProvider
             "westeurope",
             ResourceState.Running,
             [
-                ResourceEndpoint.FromAddress("public", "https://identity.cloudshell.local", "https", ResourceExposureScope.Public),
-                ResourceEndpoint.FromAddress("internal", "http://identity:8080", "http", ResourceExposureScope.Private)
+                CreateEndpoint("public", "https://identity.cloudshell.local", "https", ResourceExposureScope.Public),
+                CreateEndpoint("internal", "http://identity:8080", "http", ResourceExposureScope.Private)
             ],
             "2026.06.3",
             DateTimeOffset.Now.AddMinutes(-8),
-            ["postgres-main"]),
+            ["postgres-main"],
+            EndpointNetworkMappings:
+            [
+                CreateEndpointNetworkMapping("identity", "public", "https://identity.cloudshell.local", ResourceExposureScope.Public),
+                CreateEndpointNetworkMapping("identity", "internal", "http://identity:8080", ResourceExposureScope.Private)
+            ]),
         new(
             "worker-billing",
             "worker-billing",
@@ -45,10 +55,14 @@ public sealed class CloudShellResourceProvider : IResourceProvider
             DisplayName,
             "northeurope",
             ResourceState.Degraded,
-            [ResourceEndpoint.FromAddress("events", "queue://billing-events", "queue", ResourceExposureScope.Private)],
+            [CreateEndpoint("events", "queue://billing-events", "queue", ResourceExposureScope.Private)],
             "2026.06.1",
             DateTimeOffset.Now.AddMinutes(-18),
-            ["service-bus", "postgres-main"]),
+            ["service-bus", "postgres-main"],
+            EndpointNetworkMappings:
+            [
+                CreateEndpointNetworkMapping("worker-billing", "events", "queue://billing-events", ResourceExposureScope.Private)
+            ]),
         new(
             "otel-collector",
             "otel-collector",
@@ -57,11 +71,41 @@ public sealed class CloudShellResourceProvider : IResourceProvider
             "westeurope",
             ResourceState.Running,
             [
-                ResourceEndpoint.FromAddress("otlp-grpc", "http://otel-collector:4317", "grpc", ResourceExposureScope.Private),
-                ResourceEndpoint.FromAddress("otlp-http", "http://otel-collector:4318", "http", ResourceExposureScope.Private)
+                CreateEndpoint("otlp-grpc", "http://otel-collector:4317", "grpc", ResourceExposureScope.Private),
+                CreateEndpoint("otlp-http", "http://otel-collector:4318", "http", ResourceExposureScope.Private)
             ],
             "0.103",
             DateTimeOffset.Now.AddMinutes(-4),
-            [])
+            [],
+            EndpointNetworkMappings:
+            [
+                CreateEndpointNetworkMapping("otel-collector", "otlp-grpc", "http://otel-collector:4317", ResourceExposureScope.Private),
+                CreateEndpointNetworkMapping("otel-collector", "otlp-http", "http://otel-collector:4318", ResourceExposureScope.Private)
+            ])
     ];
+
+    private static ResourceEndpoint CreateEndpoint(
+        string name,
+        string address,
+        string protocol,
+        ResourceExposureScope exposure) =>
+        ResourceEndpoint.Contract(name, protocol, exposure, TryGetPort(address));
+
+    private static ResourceEndpointNetworkMapping CreateEndpointNetworkMapping(
+        string resourceId,
+        string endpointName,
+        string address,
+        ResourceExposureScope exposure) =>
+        new(
+            $"{resourceId}:endpoint-network-mapping:{endpointName}",
+            endpointName,
+            new ResourceEndpointReference(resourceId, endpointName),
+            address,
+            exposure,
+            SourceEndpointName: endpointName);
+
+    private static int? TryGetPort(string address) =>
+        Uri.TryCreate(address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort
+            ? uri.Port
+            : null;
 }

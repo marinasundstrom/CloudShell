@@ -17,10 +17,14 @@ public sealed class ManagedResourceProvider : IResourceProvider
             DisplayName,
             "westeurope",
             ResourceState.Running,
-            [ResourceEndpoint.FromAddress("postgres", "postgres://main.internal", "tcp", ResourceExposureScope.Private)],
+            [ResourceEndpoint.Contract("postgres", "tcp", ResourceExposureScope.Private)],
             "16.4",
             DateTimeOffset.Now.AddMinutes(-3),
-            []),
+            [],
+            EndpointNetworkMappings:
+            [
+                CreateEndpointNetworkMapping("postgres-main", "postgres", "postgres://main.internal")
+            ]),
         new(
             "redis-cache",
             "redis-cache",
@@ -28,10 +32,14 @@ public sealed class ManagedResourceProvider : IResourceProvider
             DisplayName,
             "westeurope",
             ResourceState.Starting,
-            [ResourceEndpoint.FromAddress("redis", "redis://cache.internal", "tcp", ResourceExposureScope.Private)],
+            [ResourceEndpoint.Contract("redis", "tcp", ResourceExposureScope.Private)],
             "7.2",
             DateTimeOffset.Now.AddSeconds(-45),
-            []),
+            [],
+            EndpointNetworkMappings:
+            [
+                CreateEndpointNetworkMapping("redis-cache", "redis", "redis://cache.internal")
+            ]),
         new(
             "service-bus",
             "service-bus",
@@ -39,9 +47,25 @@ public sealed class ManagedResourceProvider : IResourceProvider
             DisplayName,
             "northeurope",
             ResourceState.Running,
-            [ResourceEndpoint.FromAddress("broker", "sb://events.internal", "amqp", ResourceExposureScope.Private)],
+            [ResourceEndpoint.Contract("broker", "amqp", ResourceExposureScope.Private)],
             "premium",
             DateTimeOffset.Now.AddMinutes(-7),
-            [])
+            [],
+            EndpointNetworkMappings:
+            [
+                CreateEndpointNetworkMapping("service-bus", "broker", "sb://events.internal")
+            ])
     ];
+
+    private static ResourceEndpointNetworkMapping CreateEndpointNetworkMapping(
+        string resourceId,
+        string endpointName,
+        string address) =>
+        new(
+            $"{resourceId}:endpoint-network-mapping:{endpointName}",
+            endpointName,
+            new ResourceEndpointReference(resourceId, endpointName),
+            address,
+            ResourceExposureScope.Private,
+            SourceEndpointName: endpointName);
 }
