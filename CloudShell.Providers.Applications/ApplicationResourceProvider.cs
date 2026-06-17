@@ -3385,7 +3385,7 @@ public sealed partial class ApplicationResourceProvider(
         return endpointPorts.Count == 0
             ? definition with
             {
-                EndpointPorts = CreateAspNetCoreProjectEndpointPorts(definition.Endpoint)
+                EndpointPorts = ApplicationProviderServiceCollectionExtensions.CreateAspNetCoreProjectEndpointPorts(definition.Endpoint)
             }
             : definition with { EndpointPorts = endpointPorts };
     }
@@ -3413,7 +3413,7 @@ public sealed partial class ApplicationResourceProvider(
             }
         }
 
-        return CreateAspNetCoreProjectEndpointPorts(endpoint);
+        return ApplicationProviderServiceCollectionExtensions.CreateAspNetCoreProjectEndpointPorts(endpoint);
     }
 
     private IReadOnlyList<ServicePort> TryReadLaunchSettingsEndpointPorts(string? projectPath)
@@ -4195,7 +4195,7 @@ public sealed partial class ApplicationResourceProvider(
 
         return normalized.Length == 0 &&
             string.Equals(resourceType, ApplicationResourceTypes.AspNetCoreProject, StringComparison.OrdinalIgnoreCase)
-            ? CreateAspNetCoreProjectEndpointPorts(endpoint)
+            ? ApplicationProviderServiceCollectionExtensions.CreateAspNetCoreProjectEndpointPorts(endpoint)
             : normalized;
     }
 
@@ -4216,27 +4216,6 @@ public sealed partial class ApplicationResourceProvider(
                 Name = mount.NormalizedName
             })
             .ToArray();
-
-    private static IReadOnlyList<ServicePort> CreateAspNetCoreProjectEndpointPorts(string? endpoint)
-    {
-        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) &&
-            uri.Port > 0)
-        {
-            return
-            [
-                new ServicePort(
-                    "http",
-                    uri.Port,
-                    uri.Port,
-                    string.IsNullOrWhiteSpace(uri.Scheme) ? "http" : uri.Scheme,
-                    ResourceExposureScope.Local,
-                    ResourceEndpointAssignment.Manual,
-                    Host: uri.Host)
-            ];
-        }
-
-        return [new ServicePort("http", 80, Protocol: "http", Exposure: ResourceExposureScope.Local)];
-    }
 
     private static uint StableHash(string value)
     {
