@@ -132,7 +132,7 @@ public sealed class ResourceHealthCheckService
             return null;
         }
 
-        return resource.GetEndpointNetworkAddress(endpoint.Name) ?? endpoint.Address;
+        return resource.GetResolvedEndpointAddress(endpoint);
     }
 
     private static ResourceEndpoint? ResolveEndpoint(Resource resource, ResourceHealthCheck check)
@@ -144,10 +144,18 @@ public sealed class ResourceHealthCheckService
         }
 
         return resource.Endpoints.FirstOrDefault(endpoint => IsHttpScheme(endpoint.Protocol)) ??
-            resource.Endpoints.FirstOrDefault(endpoint =>
-                !string.IsNullOrWhiteSpace(resource.GetEndpointNetworkAddress(endpoint.Name)) ||
-                Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) &&
-                IsHttpScheme(uri.Scheme));
+            resource.Endpoints.FirstOrDefault(endpoint => HasResolvableEndpointAddress(resource, endpoint));
+    }
+
+    private static bool HasResolvableEndpointAddress(Resource resource, ResourceEndpoint endpoint)
+    {
+        if (!string.IsNullOrWhiteSpace(resource.GetEndpointNetworkAddress(endpoint.Name)))
+        {
+            return true;
+        }
+
+        return Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) &&
+            IsHttpScheme(uri.Scheme);
     }
 
     private static bool IsHttpScheme(string? scheme) =>

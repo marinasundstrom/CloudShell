@@ -77,6 +77,22 @@ public sealed record Resource(
     public string? GetEndpointNetworkAddress(string endpointName) =>
         GetEndpointNetworkMapping(endpointName)?.Address;
 
+    public string? GetResolvedEndpointAddress(string endpointName)
+    {
+        if (string.IsNullOrWhiteSpace(endpointName))
+        {
+            return null;
+        }
+
+        var normalized = endpointName.Trim();
+        return GetEndpointNetworkAddress(normalized) ??
+            Endpoints.FirstOrDefault(endpoint =>
+                string.Equals(endpoint.Name, normalized, StringComparison.OrdinalIgnoreCase))?.Address;
+    }
+
+    public string? GetResolvedEndpointAddress(ResourceEndpoint endpoint) =>
+        GetEndpointNetworkAddress(endpoint.Name) ?? endpoint.Address;
+
     public IReadOnlyList<LoadBalancerRoute> ResourceLoadBalancerRoutes =>
         LoadBalancerRoutes ?? [];
 

@@ -912,7 +912,7 @@ else
         var projectedEndpoint = GetPreferredProjectedEndpoint();
         if (projectedEndpoint is not null)
         {
-            var address = ProjectedResource?.GetEndpointNetworkAddress(projectedEndpoint.Name) ??
+            var address = ProjectedResource?.GetResolvedEndpointAddress(projectedEndpoint) ??
                 projectedEndpoint.Address;
             if (!string.IsNullOrWhiteSpace(address))
             {
@@ -950,7 +950,7 @@ else
             ProjectedResource?.Endpoints.FirstOrDefault();
         var endpointAddress = endpoint is null
             ? null
-            : ProjectedResource?.GetEndpointNetworkAddress(endpoint.Name) ?? endpoint.Address;
+            : ProjectedResource?.GetResolvedEndpointAddress(endpoint) ?? endpoint.Address;
         var address = CreateMappedEndpointAddress(hostName, endpointAddress);
         return new OverviewEndpoint(
             address,

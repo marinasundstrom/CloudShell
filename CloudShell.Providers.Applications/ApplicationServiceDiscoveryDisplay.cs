@@ -37,7 +37,7 @@ internal static partial class ApplicationServiceDiscoveryDisplay
             .Select(endpoint => new
             {
                 Endpoint = endpoint,
-                Address = resource.GetEndpointNetworkAddress(endpoint.Name)
+                Address = resource.GetResolvedEndpointAddress(endpoint)
             })
             .Where(candidate => IsDiscoverableEndpoint(candidate.Endpoint, candidate.Address))
             .SelectMany(candidate => GetEndpointKeys(candidate.Endpoint)

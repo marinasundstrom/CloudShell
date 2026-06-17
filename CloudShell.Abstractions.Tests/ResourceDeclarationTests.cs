@@ -6784,6 +6784,16 @@ public sealed class ResourceDeclarationTests
             binding =>
                 binding.EnvironmentVariableName == "services__service-catalog__http__0" &&
                 binding.Address == "http://catalog.local:8080");
+        var legacyCatalogResource = catalogResource with
+        {
+            Endpoints = [ResourceEndpoint.Http("http", "legacy-catalog.local", 8080, ResourceExposureScope.Network)],
+            EndpointNetworkMappings = []
+        };
+        Assert.Contains(
+            ApplicationServiceDiscoveryDisplay.GetEndpointBindings(legacyCatalogResource),
+            binding =>
+                binding.EnvironmentVariableName == "services__service-catalog__http__0" &&
+                binding.Address == "http://legacy-catalog.local:8080");
         Assert.DoesNotContain(
             environment ?? [],
             variable => variable.Key.StartsWith("CLOUDSHELL_SECRETS_", StringComparison.OrdinalIgnoreCase));

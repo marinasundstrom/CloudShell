@@ -67,7 +67,7 @@ public sealed class LocalHostNamePublishingProvider(
         var endpoint = resolution.TargetEndpoint
             ?? throw new InvalidOperationException(
                 $"Name mapping '{resolution.Mapping.Id}' must target a specific endpoint to be published by provider '{ProviderName}'.");
-        var endpointAddress = resolution.TargetEndpointNetworkMapping?.Address ?? endpoint.Address;
+        var endpointAddress = resolution.TargetResource.GetResolvedEndpointAddress(endpoint) ?? string.Empty;
         var address = ResolveAddress(endpoint.Name, endpointAddress, resolution.Mapping.Id);
         return new HostsEntry(address, hostName);
     }

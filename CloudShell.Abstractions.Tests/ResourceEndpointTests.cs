@@ -73,6 +73,33 @@ public sealed class ResourceEndpointTests
     }
 
     [Fact]
+    public void GetResolvedEndpointAddress_PrefersMappedAddress()
+    {
+        var resource = CreateResource(
+            [ResourceEndpoint.Http("http", "localhost", 5080)],
+            endpointNetworkMappings:
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(
+                    "application:api",
+                    "http",
+                    "http://localhost:6080",
+                    ResourceExposureScope.Local)
+            ]);
+
+        Assert.Equal("http://localhost:6080", resource.GetResolvedEndpointAddress(" http "));
+    }
+
+    [Fact]
+    public void GetResolvedEndpointAddress_FallsBackToEndpointAddress()
+    {
+        var resource = CreateResource(
+            [ResourceEndpoint.Http("http", "localhost", 5080)],
+            endpointNetworkMappings: []);
+
+        Assert.Equal("http://localhost:5080", resource.GetResolvedEndpointAddress("http"));
+    }
+
+    [Fact]
     public void EndpointNetworkMappingFactory_NormalizesCanonicalEndpointMapping()
     {
         var mapping = ResourceEndpointNetworkMapping.ForEndpoint(

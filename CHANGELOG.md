@@ -96,6 +96,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Endpoint network mappings now expose a shared endpoint matching helper used
   by resource lookup, Resource Manager endpoint views, and Docker provider
   validation instead of duplicating target/source/name matching logic.
+- Resources now expose a resolved endpoint address helper that prefers
+  endpoint network mappings and falls back to legacy endpoint addresses, and
+  service discovery, overview, health check, and DNS host publishing paths use
+  it consistently.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
