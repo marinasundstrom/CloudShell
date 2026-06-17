@@ -262,6 +262,38 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal("identity:keycloak", request.Provider.Id);
     }
 
+    [Fact]
+    public async Task ProvisioningResourceActionAvailability_ReportsMissingAttachedProvider()
+    {
+        var declarations = new ResourceDeclarationStore();
+        declarations.Declare(
+            new TestCloudShellBuilder(),
+            ResourceIdentityProvisioningResources.ProviderId,
+            "identity-provisioning:orphan",
+            resourceClass: ResourceClass.Infrastructure,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.InfrastructureKind] = "identity-provisioning",
+                ["identity.provider"] = "Orphan"
+            });
+        var setupService = new ResourceIdentityProviderSetupService(
+            declarations,
+            new ResourceIdentityProviderCatalog(),
+            []);
+        var provider = new ResourceIdentityProvisioningResourceProvider(declarations, setupService);
+        var resource = Assert.Single(provider.GetResources());
+        Assert.NotNull(resource.Actions);
+        var action = Assert.Single(resource.Actions);
+
+        var reason = await provider.GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(resource, null, null, new EmptyResourceRegistrationStore()),
+            action);
+
+        Assert.Equal(
+            "No resource identity provider is attached to provisioning resource 'identity-provisioning:orphan'.",
+            reason);
+    }
+
     private sealed class RecordingProvisioner(string providerId) :
         IResourceIdentityProvisioner,
         IResourceIdentityProvisioningStatusProvider

@@ -7,7 +7,8 @@ public sealed class ResourceIdentityProvisioningResourceProvider(
     ResourceDeclarationStore declarations,
     ResourceIdentityProviderSetupService setupService) :
     IResourceProvider,
-    IResourceProcedureProvider
+    IResourceProcedureProvider,
+    IResourceActionAvailabilityProvider
 {
     public const string SetupIdentityProviderActionId = "setupIdentityProvider";
 
@@ -62,6 +63,26 @@ public sealed class ResourceIdentityProvisioningResourceProvider(
         ResourceProcedureContext context,
         CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Identity provisioning resources are declared resources and cannot be deleted by this provider.");
+
+    public bool CanEvaluateAction(Resource resource, ResourceAction action) =>
+        string.Equals(resource.EffectiveTypeId, ResourceIdentityProvisioningResources.ResourceType, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(action.Id, SetupIdentityProviderActionId, StringComparison.OrdinalIgnoreCase);
+
+    public Task<string?> GetActionUnavailableReasonAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanEvaluateAction(context.Resource, action))
+        {
+            return Task.FromResult<string?>(null);
+        }
+
+        var provider = setupService.ResolveProviderForProvisioningResource(context.Resource.Id);
+        return Task.FromResult(provider is null
+            ? $"No resource identity provider is attached to provisioning resource '{context.Resource.Id}'."
+            : null);
+    }
 
     public async Task<ResourceProcedureResult> ExecuteActionAsync(
         ResourceProcedureContext context,

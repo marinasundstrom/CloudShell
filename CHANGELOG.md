@@ -25,6 +25,9 @@ on `git blame --follow`, and then by the broad type of change.
   Resource Manager action that runs provider setup or reconciliation through
   the existing provider-neutral setup hook and requires the identity
   provisioning permission on the provisioning resource.
+- Identity provisioning setup actions now report a Resource Manager action
+  availability reason when the provisioning resource is not attached to a
+  configured resource identity provider.
 
 ### 2026-06-17
 

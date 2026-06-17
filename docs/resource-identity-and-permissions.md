@@ -302,7 +302,9 @@ handler return a warning diagnostic so hosts can expose setup as an optional
 operation without requiring every provider to implement it. The projected
 identity provisioning resource also exposes a `setupIdentityProvider` Resource
 Manager action that runs the setup hook for the attached provider with the same
-permission requirement.
+permission requirement. If a provisioning resource is projected without a
+matching provider definition, Resource Manager reports an action availability
+reason instead of dispatching setup to a provider.
 
 The first built-in provider implementation is development-oriented: it
 registers an in-memory client-credentials client with the built-in authority
