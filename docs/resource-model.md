@@ -197,7 +197,6 @@ Rules:
 ```csharp
 public sealed record ResourceEndpoint(
     string Name,
-    string Address,
     string Protocol,
     ResourceExposureScope Exposure = ResourceExposureScope.Local,
     int? TargetPort = null);
@@ -208,7 +207,6 @@ Current meaning:
 | Field | Meaning |
 | --- | --- |
 | `Name` | Stable endpoint name within the resource, such as `http`, `https`, `tds`, or `metrics`. |
-| `Address` | Compatibility projection of a currently reachable address. Prefer endpoint network mappings when available. |
 | `Protocol` | Protocol name such as `http`, `https`, `tcp`, or `udp`. |
 | `Exposure` | Intended visibility scope. |
 | `TargetPort` | Resource-owned target port, if known. |
@@ -226,8 +224,9 @@ public enum ResourceExposureScope
 ```
 
 Endpoint contracts should originate from `ResourceEndpointDescriptor` on the
-resource type or instance. `ResourceEndpoint` is the current projected shape and
-still carries `Address` for compatibility.
+resource type or instance. `ResourceEndpoint` is the current projected shape for
+the resource-owned contract; concrete reachable addresses belong to endpoint
+network mappings.
 
 ## Endpoint Descriptors
 
@@ -322,16 +321,9 @@ Use them for:
 - runtime startup values such as `ASPNETCORE_URLS`
 - showing where a resource endpoint is reachable in a topology
 
-Compatibility fallback:
-
-```csharp
-public IReadOnlyList<ResourceEndpointNetworkMapping> ResourceEndpointNetworkMappings =>
-    EndpointNetworkMappings ?? CreateEndpointNetworkMappings(Id, Endpoints);
-```
-
-If explicit network mappings are not projected, the helper creates synthetic
-mappings from endpoint addresses. This preserves older endpoint-address-based
-providers while the model shifts toward explicit mappings.
+Resources do not synthesize endpoint network mappings from endpoint contracts.
+If a provider needs a concrete reachable address, it must project a
+`ResourceEndpointNetworkMapping`.
 
 ## Configured Endpoint Mappings
 
@@ -362,9 +354,7 @@ They are different from endpoint network mappings:
 | `ResourceEndpointMappingDefinition` | Network resource | Configured source endpoint -> target endpoint relationship, optionally materialized by a provider. |
 
 Consumers that need a reachable address for a resource endpoint should resolve
-the endpoint's network mapping by endpoint name. This preserves compatibility
-with legacy endpoint-address projections while keeping new provider behavior
-centered on explicit mappings.
+the endpoint's network mapping by endpoint name.
 
 ## Actions
 
@@ -550,8 +540,8 @@ Providers project only stable, non-secret facts into `Resource`.
 The object model already contains the core mapping concepts, but a few areas
 should be revisited before API stability:
 
-- `ResourceEndpoint.Address` is compatibility state. Endpoint network mappings
-  should become the canonical address projection.
+- Remove remaining endpoint-address compatibility factories once samples and
+  provider declarations have shifted to descriptor and mapping-native APIs.
 - `cloudshell.service`, `ResourceOrchestratorService`, and provider-native
   service terminology should stay explicitly separated in docs and APIs.
 - Large cross-resource concerns may eventually need typed facets, such as

@@ -368,16 +368,16 @@ Verification:
 ### Endpoint
 
 `ResourceEndpoint` is the current projected resource endpoint shape. It
-preserves the stable endpoint name, protocol, exposure, target port, and a
-compatibility address for the currently resolved endpoint. The resource-owned
-endpoint contract starts with `ResourceEndpointDescriptor`; topology-specific
-reachable addresses should be represented as `ResourceEndpointNetworkMapping`
-when the provider can project them.
+preserves the stable endpoint name, protocol, exposure, and target port. The
+resource-owned endpoint contract starts with `ResourceEndpointDescriptor`;
+topology-specific reachable addresses must be represented as
+`ResourceEndpointNetworkMapping` when the provider can project them.
 
 Implementation:
 
-- Prefer protocol-specific factories such as `Http`, `Https`, `Tcp`, `Udp`, or
-  `FromAddress`.
+- Prefer endpoint-contract factories such as `Contract`, `Http`, `Https`,
+  `Tcp`, or `Udp`. Treat address-bearing compatibility factories as migration
+  helpers only.
 - Always set an explicit `ResourceExposureScope`.
 - Keep names stable within a resource. Consumers use names for references and
   mappings.

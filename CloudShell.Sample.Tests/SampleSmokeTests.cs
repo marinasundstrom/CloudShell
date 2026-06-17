@@ -808,7 +808,7 @@ public sealed class SampleSmokeTests
 
         var endpoint = Assert.Single(network.GetProperty("endpoints").EnumerateArray());
         Assert.Equal("api-public", endpoint.GetProperty("name").GetString());
-        Assert.Equal("http://localhost:5290", endpoint.GetProperty("address").GetString());
+        Assert.Equal("http://localhost:5290", GetEndpointAddress(network, "api-public"));
         Assert.True(endpoint.GetProperty("isExternal").GetBoolean());
 
         var mapping = Assert.Single(network.GetProperty("endpointMappings").EnumerateArray());
@@ -1046,13 +1046,16 @@ public sealed class SampleSmokeTests
 
     private static string GetEndpointAddress(JsonElement resource, string endpointName)
     {
-        var endpoint = resource
-            .GetProperty("endpoints")
+        var endpointNetworkMapping = resource
+            .GetProperty("endpointNetworkMappings")
             .EnumerateArray()
-            .Single(endpoint =>
-                endpoint.GetProperty("name").GetString() == endpointName);
-        return endpoint.GetProperty("address").GetString() ??
-            throw new InvalidOperationException($"Endpoint '{endpointName}' did not include an address.");
+            .Single(mapping =>
+                string.Equals(mapping.GetProperty("name").GetString(), endpointName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(mapping.GetProperty("target").GetProperty("endpointName").GetString(), endpointName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(mapping.GetProperty("sourceEndpointName").GetString(), endpointName, StringComparison.OrdinalIgnoreCase));
+
+        return endpointNetworkMapping.GetProperty("address").GetString() ??
+            throw new InvalidOperationException($"Endpoint '{endpointName}' did not include an endpoint network mapping address.");
     }
 
     private static string GetPrimaryEndpointAddress(JsonElement resource) =>

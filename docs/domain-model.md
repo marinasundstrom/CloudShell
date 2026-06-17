@@ -514,9 +514,9 @@ remap that endpoint to a different concrete port in a given topology.
 
 Resource endpoints are projected resource facts. They describe the named
 endpoint contract on a resource instance: endpoint name, protocol, target port,
-and explicit `ResourceExposureScope`. `ResourceEndpoint.Address` remains as
-compatibility state for older projections, but topology-specific reachability
-should be projected through `ResourceEndpointNetworkMapping`.
+and explicit `ResourceExposureScope`. They do not carry concrete addresses;
+topology-specific reachability is projected through
+`ResourceEndpointNetworkMapping`.
 
 Endpoint requests are networking intent. They describe what should be assigned
 or reserved, including protocol, host or IP address, port, exposure scope, and

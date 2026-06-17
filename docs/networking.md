@@ -21,7 +21,7 @@ CloudShell uses these terms deliberately:
 | --- | --- | --- |
 | Endpoint descriptor | `ResourceEndpointDescriptor` | Resource type/kind metadata that announces a resource endpoint a resource can expose by default: endpoint name, protocol, target port, exposure default, assignment default, and whether the provider supports remapping that endpoint to another concrete port. |
 | Endpoint request | `ResourceEndpointRequest` | Assignment intent asking a network or provider to reserve or assign an address for a resource endpoint. Requests can be manual, auto-assigned, provider-default, or predefined. |
-| Resource endpoint | `ResourceEndpoint` | A resource-instance endpoint contract: stable endpoint name, protocol, target port, and exposure intent. Its `Address` field is compatibility state while endpoint network mappings become the canonical address projection. |
+| Resource endpoint | `ResourceEndpoint` | A resource-instance endpoint contract: stable endpoint name, protocol, target port, and exposure intent. Concrete reachable addresses are projected through endpoint network mappings. |
 | Endpoint network mapping | `ResourceEndpointNetworkMapping` | A topology-specific resolved address for a resource endpoint, such as the local host address, virtual-network address, provider-owned ingress address, or public route address. |
 | Configured endpoint mapping | `ResourceEndpointMappingDefinition` | A source-to-target mapping owned by a network resource, such as a network-owned frontend endpoint mapped to an application endpoint through a selected provider. |
 | Exposure | Capability/resource relationship | A provider- or network-owned route from a boundary to a target endpoint, such as ingress, load-balancer route, gateway route, or host publishing. |
