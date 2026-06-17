@@ -340,8 +340,8 @@ app settings for non-secret values and vault-backed references for secrets.
 - Application overview now displays configured app settings and environment
   variables as source labels and target references, without resolving or
   displaying secret values. It also shows whether the reference target is
-  available and whether an identity-bound resource will need a read grant at
-  runtime.
+  available and, after grant data is loaded, whether an identity-bound resource
+  has or needs the read grant required at runtime.
 - Runtime reference-resolution failures are reported with typed setting
   diagnostics and map to resource-action-unavailable API errors instead of
   generic operation failures.

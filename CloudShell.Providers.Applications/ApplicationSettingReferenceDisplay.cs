@@ -172,16 +172,18 @@ internal static class ApplicationSettingReferenceDisplay
             return ("Reference", "info");
         }
 
-        if (grantEvaluator is not null)
+        if (grantEvaluator is null)
         {
-            var evaluation = grantEvaluator.Evaluate(
-                ResourceIdentityReference.ForResource(applicationResourceId, identityBinding.Name),
-                resource.Id,
-                requiredPermission);
-            if (evaluation.IsAllowed)
-            {
-                return ("Granted", "ok");
-            }
+            return ("Grant status unknown", "info");
+        }
+
+        var evaluation = grantEvaluator.Evaluate(
+            ResourceIdentityReference.ForResource(applicationResourceId, identityBinding.Name),
+            resource.Id,
+            requiredPermission);
+        if (evaluation.IsAllowed)
+        {
+            return ("Granted", "ok");
         }
 
         return ("Grant required", "warning");

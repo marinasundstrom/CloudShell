@@ -28,6 +28,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Identity provisioning setup actions now report a Resource Manager action
   availability reason when the provisioning resource is not attached to a
   configured resource identity provider.
+- Application setting and environment reference displays now distinguish
+  unchecked identity grant status from a checked missing grant, so Resource
+  Manager does not show a grant-required warning before grant data is loaded.
 
 ### 2026-06-17
 
