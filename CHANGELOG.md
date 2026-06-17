@@ -96,6 +96,13 @@ on `git blame --follow`, and then by the broad type of change.
 - ASP.NET Core project endpoint assignment UI and documentation now describe
   fixed local ports as a local-development mapping convenience, while private
   IPs, internal DNS names, and public exposure remain Networking concerns.
+- ASP.NET Core project startup now prefers projected endpoint-network mapping
+  addresses when setting `ASPNETCORE_URLS`, falling back to the provider's
+  local mapping calculation only when no Resource Manager projection is
+  available.
+- Networking docs now clarify that application resource endpoints are
+  service-port contracts, while virtual-network addresses and private DNS
+  names are endpoint/network and name mappings over those service ports.
 - Projected resource endpoints now carry optional target-port metadata, so
   application endpoints can expose the resource-owned port while topology,
   network, exposure, and DNS mappings remain separate primitives.

@@ -64,6 +64,13 @@ environment's naming policy. The endpoint still carries the protocol and
 target port, but the topology, DNS provider, and exposure policy decide which
 address users and other services should call.
 
+For application-style resources, the resource endpoint is the service-port
+contract. A virtual network can assign a virtual address to that service port,
+and a DNS provider can publish a private name based on the resource name and
+environment suffix. Those are endpoint-network mappings and name mappings over
+the resource endpoint; they do not change the resource's declared service
+port.
+
 Configured endpoint mappings connect one source endpoint to one target
 endpoint. A mapping can be validated by the network resource itself or
 materialized by a selected networking provider resource.
@@ -146,6 +153,11 @@ The current address is topology-specific:
 - in a public exposure scenario, the binding that users call may be a load
   balancer, ingress, or DNS-backed route rather than the resource process or
   container itself
+
+This means an on-premise or managed environment can assign
+`billing-api.internal.acme.net` and a virtual-network address to an
+application's `http` service port while keeping public DNS and public endpoint
+mapping as separate, explicit exposure decisions.
 
 For local development, Resource Manager may let the user choose a fixed local
 port because that is convenient for tools on the developer machine. For

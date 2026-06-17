@@ -1023,6 +1023,7 @@ public sealed partial class ApplicationResourceProvider(
             dependsOn,
             resourceGroupId,
             registrations,
+            resourceManager,
             cancellationToken);
         procedureContext?.AppendProviderEvent(
             Id,
@@ -1076,34 +1077,25 @@ public sealed partial class ApplicationResourceProvider(
         IReadOnlyList<string> dependsOn,
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
+        IResourceManagerStore? resourceManager,
         CancellationToken cancellationToken) =>
         ResolveApplicationEnvironmentVariablesAsync(
             definition,
             dependsOn,
             resourceGroupId,
             registrations,
+            resourceManager,
             includeAspNetCoreProjectVariables: true,
             cancellationToken);
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveAspNetCoreProjectEnvironmentVariables(
-        ApplicationResourceDefinition definition)
+        ApplicationResourceDefinition definition,
+        IResourceManagerStore? resourceManager = null)
     {
-        if (!string.Equals(
-                definition.ResourceType,
-                ApplicationResourceTypes.AspNetCoreProject,
-                StringComparison.OrdinalIgnoreCase))
-        {
-            return [];
-        }
-
-        var urls = CreateEndpointNetworkMappings(definition)
-            .Select(mapping => mapping.Address)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-
+        var urls = ResolveAspNetCoreProjectEndpointUrls(definition, resourceManager);
         List<EnvironmentVariableAssignment> variables = [];
 
-        if (urls.Length > 0)
+        if (urls.Count > 0)
         {
             variables.Add(new EnvironmentVariableAssignment(
                 AspNetCoreUrlsEnvironmentVariable,
@@ -1116,6 +1108,42 @@ public sealed partial class ApplicationResourceProvider(
         }
 
         return variables;
+    }
+
+    private IReadOnlyList<string> ResolveAspNetCoreProjectEndpointUrls(
+        ApplicationResourceDefinition definition,
+        IResourceManagerStore? resourceManager = null)
+    {
+        if (!string.Equals(
+                definition.ResourceType,
+                ApplicationResourceTypes.AspNetCoreProject,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return [];
+        }
+
+        var projectedUrls = resourceManager?
+            .GetResource(definition.Id)?
+            .ResourceEndpointNetworkMappings
+            .Where(mapping => string.Equals(
+                mapping.Target.ResourceId,
+                definition.Id,
+                StringComparison.OrdinalIgnoreCase))
+            .Select(mapping => mapping.Address)
+            .Where(address => !string.IsNullOrWhiteSpace(address))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (projectedUrls is { Length: > 0 })
+        {
+            return projectedUrls;
+        }
+
+        return CreateEndpointNetworkMappings(definition)
+            .Select(mapping => mapping.Address)
+            .Where(address => !string.IsNullOrWhiteSpace(address))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveDependencyEnvironmentVariables(
@@ -1273,6 +1301,7 @@ public sealed partial class ApplicationResourceProvider(
         IReadOnlyList<string> dependsOn,
         string? resourceGroupId,
         IResourceRegistrationStore registrations,
+        IResourceManagerStore? resourceManager,
         bool includeAspNetCoreProjectVariables,
         CancellationToken cancellationToken)
     {
@@ -1287,7 +1316,7 @@ public sealed partial class ApplicationResourceProvider(
                 : [])
             .Concat(ResolveObservabilityEnvironmentVariables(definition))
             .Concat(includeAspNetCoreProjectVariables
-                ? ResolveAspNetCoreProjectEnvironmentVariables(definition)
+                ? ResolveAspNetCoreProjectEnvironmentVariables(definition, resourceManager)
                 : [])
             .Concat(ResolveResourceIdentityEnvironmentVariables(definition))
             .Concat(configuredVariables)
@@ -1843,6 +1872,7 @@ public sealed partial class ApplicationResourceProvider(
                      dependsOn,
                      resourceGroupId,
                      registrations,
+                     resourceManager,
                      includeAspNetCoreProjectVariables: false,
                      cancellationToken))
         {

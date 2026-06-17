@@ -94,9 +94,11 @@ Provider defaults are local development bindings, not a general exposure
 mechanism. Public or broader resource exposure should be declared explicitly by
 the resource author or operator.
 
-In all cases CloudShell injects the resolved endpoint-network mapping address
-into `ASPNETCORE_URLS` when the process starts, so the project listens on the
-address that the selected local development topology assigned.
+When the project process starts, CloudShell injects the projected
+endpoint-network mapping address into `ASPNETCORE_URLS`, so the project listens
+on the address that the selected topology assigned. If the resource has not
+been projected through Resource Manager yet, the provider falls back to the
+same local endpoint mapping calculation used for projection.
 
 Use endpoint builder methods to model additional or named endpoints:
 

@@ -3382,11 +3382,69 @@ public sealed class ResourceDeclarationTests
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
 
         var variables = Assert.IsAssignableFrom<IReadOnlyList<EnvironmentVariableAssignment>>(
-            method!.Invoke(provider, [application]));
+            method!.Invoke(provider, [application, null]));
         var environment = variables.ToDictionary(variable => variable.Name, variable => variable.Value);
 
         Assert.Equal("http://localhost:5127", environment["ASPNETCORE_URLS"]);
         Assert.Equal("true", environment["DOTNET_WATCH_RESTART_ON_RUDE_EDIT"]);
+    }
+
+    [Fact]
+    public void AspNetCoreProjectRunner_UsesProjectedEndpointNetworkMappingsForUrls()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = ActivatorUtilities.CreateInstance<ApplicationResourceProvider>(serviceProvider);
+        var application = new ApplicationResourceDefinition(
+            "application:api",
+            "API",
+            string.Empty,
+            endpointPorts:
+            [
+                new ServicePort("http", 80, 5127, "http")
+            ],
+            resourceType: ApplicationResourceTypes.AspNetCoreProject,
+            projectPath: "src/API/API.csproj");
+        var resource = new Resource(
+            application.Id,
+            "api",
+            "ASP.NET Core project",
+            "Applications",
+            "local",
+            ResourceState.Stopped,
+            [ResourceEndpoint.FromAddress("http", "http://localhost:5127", "http", ResourceExposureScope.Local, 80)],
+            "project",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: ApplicationResourceTypes.AspNetCoreProject,
+            ResourceClass: ResourceClass.Project,
+            EndpointNetworkMappings:
+            [
+                new ResourceEndpointNetworkMapping(
+                    "application:api:endpoint-network-mapping:http",
+                    "http",
+                    new ResourceEndpointReference(application.Id, "http"),
+                    "http://127.0.0.2:6000",
+                    ResourceExposureScope.Private,
+                    SourceEndpointName: "http")
+            ]);
+        var resourceManager = new StaticResourceManagerStore([resource]);
+        var method = typeof(ApplicationResourceProvider).GetMethod(
+            "ResolveAspNetCoreProjectEnvironmentVariables",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        var variables = Assert.IsAssignableFrom<IReadOnlyList<EnvironmentVariableAssignment>>(
+            method!.Invoke(provider, [application, resourceManager]));
+        var environment = variables.ToDictionary(variable => variable.Name, variable => variable.Value);
+
+        Assert.Equal("http://127.0.0.2:6000", environment["ASPNETCORE_URLS"]);
     }
 
     [Fact]
