@@ -74,7 +74,7 @@
                 @if (Resource.Endpoints.Count > 0)
                 {
                     <dt>@L["Primary endpoint"]</dt>
-                    <dd>@EndpointLink(Resource.Endpoints[0].Address)</dd>
+                    <dd>@EndpointLink(Resource.PrimaryEndpoint)</dd>
                     <dt>@L["Endpoints"]</dt>
                     <dd>
                         <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Endpoints)">
@@ -485,16 +485,26 @@
         builder.OpenElement(4, "strong");
         builder.AddContent(5, reference.EndpointName);
         builder.CloseElement();
-        if (!string.IsNullOrWhiteSpace(endpoint?.Address))
+        if (endpoint is not null)
         {
             builder.AddContent(6, " ");
             builder.OpenElement(7, "small");
-            builder.AddContent(8, endpoint.Address);
+            builder.AddContent(8, FormatEndpointSummary(endpoint));
             builder.CloseElement();
         }
 
         builder.CloseElement();
     };
+
+    private string FormatEndpointSummary(ResourceEndpoint endpoint)
+    {
+        var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
+            ? L["unspecified"].Value
+            : endpoint.Protocol;
+        return endpoint.TargetPort is null
+            ? protocol
+            : L["{0}:{1}", protocol, endpoint.TargetPort.Value.ToString(CultureInfo.InvariantCulture)].Value;
+    }
 
     private string MappingProviderLabel(ResourceEndpointMappingDefinition mapping)
     {

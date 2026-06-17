@@ -437,8 +437,12 @@
                     {
                         <div>
                             <strong>@endpoint.Name</strong>
-                            @EndpointLink(endpoint.Address)
-                            <small>@endpoint.Protocol @endpoint.Exposure</small>
+                            <span>@FormatEndpointSummary(endpoint)</span>
+                            @if (GetEndpointNetworkMapping(selected, endpoint.Name) is { } mapping)
+                            {
+                                @EndpointLink(mapping.Address)
+                            }
+                            <small>@FormatExposure(endpoint.Exposure)</small>
                         </div>
                     }
                 </div>
@@ -1539,11 +1543,39 @@ resourceGroups) =>
         var resource = ResolveMappingResource(reference.ResourceId, fallbackResource);
         var endpoint = resource?.Endpoints.FirstOrDefault(endpoint =>
             string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
-        var address = string.IsNullOrWhiteSpace(endpoint?.Address)
+        var summary = endpoint is null
             ? null
-            : $" ({endpoint.Address})";
-        return $"{resource?.Name ?? reference.ResourceId}/{reference.EndpointName}{address}";
+            : $" ({FormatEndpointSummary(endpoint)})";
+        return $"{resource?.Name ?? reference.ResourceId}/{reference.EndpointName}{summary}";
     }
+
+    private string FormatEndpointSummary(ResourceEndpoint endpoint)
+    {
+        var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
+            ? L["unspecified"].Value
+            : endpoint.Protocol;
+        return endpoint.TargetPort is null
+            ? protocol
+            : L["{0}:{1}", protocol, endpoint.TargetPort.Value.ToString(CultureInfo.InvariantCulture)].Value;
+    }
+
+    private string FormatExposure(ResourceExposureScope exposure) =>
+        exposure switch
+        {
+            ResourceExposureScope.Private => L["private"].Value,
+            ResourceExposureScope.Local => L["local"].Value,
+            ResourceExposureScope.Network => L["network"].Value,
+            ResourceExposureScope.Public => L["public"].Value,
+            _ => exposure.ToString()
+        };
+
+    private static ResourceEndpointNetworkMapping? GetEndpointNetworkMapping(
+        Resource resource,
+        string endpointName) =>
+        resource.ResourceEndpointNetworkMappings.FirstOrDefault(mapping =>
+            string.Equals(mapping.Target.EndpointName, endpointName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(mapping.SourceEndpointName, endpointName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(mapping.Name, endpointName, StringComparison.OrdinalIgnoreCase));
 
     private string FormatMappingProvider(ResourceEndpointMappingDefinition mapping)
     {

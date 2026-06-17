@@ -629,10 +629,10 @@ else
         var resource = ResolveMappingResource(reference.ResourceId, fallbackResource);
         var endpoint = resource?.Endpoints.FirstOrDefault(endpoint =>
             string.Equals(endpoint.Name, reference.EndpointName, StringComparison.OrdinalIgnoreCase));
-        var address = string.IsNullOrWhiteSpace(endpoint?.Address)
+        var summary = endpoint is null
             ? null
-            : $" ({endpoint.Address})";
-        return $"{resource?.Name ?? reference.ResourceId}/{reference.EndpointName}{address}";
+            : $" ({FormatEndpointSummary(endpoint)})";
+        return $"{resource?.Name ?? reference.ResourceId}/{reference.EndpointName}{summary}";
     }
 
     private string FormatEndpointReference(
@@ -645,10 +645,20 @@ else
         var label = string.Equals(reference.ResourceId, targetResourceId, StringComparison.OrdinalIgnoreCase)
             ? Application?.Name ?? reference.ResourceId
             : resource?.Name ?? reference.ResourceId;
-        var address = string.IsNullOrWhiteSpace(endpoint?.Address)
+        var summary = endpoint is null
             ? null
-            : $" ({endpoint.Address})";
-        return $"{label}/{reference.EndpointName}{address}";
+            : $" ({FormatEndpointSummary(endpoint)})";
+        return $"{label}/{reference.EndpointName}{summary}";
+    }
+
+    private static string FormatEndpointSummary(ResourceEndpoint endpoint)
+    {
+        var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
+            ? "unspecified"
+            : endpoint.Protocol;
+        return endpoint.TargetPort is null
+            ? protocol
+            : $"{protocol}:{endpoint.TargetPort.Value}";
     }
 
     private string FormatMappingProvider(ResourceEndpointMappingDefinition mapping)

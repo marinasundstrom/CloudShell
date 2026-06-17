@@ -87,6 +87,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Manager Endpoints tab now separates endpoint mapping, current
   topology-resolved address, and topology/exposure context so users can
   distinguish what a resource exposes from how it is currently reachable.
+- Resource Manager networking views now present resource endpoints as
+  protocol/target-port contracts and move copy/open actions to mapped
+  addresses, including provider-owned application exposure actions.
 - Projected resource endpoints now carry optional target-port metadata, so
   application endpoints can expose the resource-owned port while topology,
   network, exposure, and DNS mappings remain separate primitives.

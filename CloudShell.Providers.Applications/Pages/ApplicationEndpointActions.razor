@@ -56,10 +56,24 @@ else
     {
         var endpoint = GetTargetEndpoint(resource);
         var endpointName = endpoint?.Name ?? "default";
-        var address = endpoint?.Address;
-        return string.IsNullOrWhiteSpace(address)
+        var endpointSummary = endpoint is null ? null : FormatEndpointSummary(endpoint);
+        return string.IsNullOrWhiteSpace(endpointSummary)
             ? $"Target: {resource.Name}/{endpointName}"
-            : $"Target: {resource.Name}/{endpointName} ({address})";
+            : $"Target: {resource.Name}/{endpointName} ({endpointSummary})";
+    }
+
+    private static string FormatEndpointSummary(ResourceEndpoint endpoint)
+    {
+        if (endpoint.TargetPort is { } targetPort)
+        {
+            return string.IsNullOrWhiteSpace(endpoint.Protocol)
+                ? targetPort.ToString()
+                : $"{endpoint.Protocol}:{targetPort}";
+        }
+
+        return string.IsNullOrWhiteSpace(endpoint.Protocol)
+            ? endpoint.Name
+            : endpoint.Protocol;
     }
 
     private static string BuildAddNameMappingRoute(Resource resource) =>

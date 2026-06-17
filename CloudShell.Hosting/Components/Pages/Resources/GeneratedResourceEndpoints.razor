@@ -42,7 +42,7 @@
             <section class="generated-section">
                 <div class="generated-section-heading">
                     <h3>@L["Endpoints"]</h3>
-                    <p>@L["Endpoints are named port and protocol mappings on the resource. The address is resolved from the current topology; exposure and DNS/name mappings can make that endpoint reachable from other boundaries."]</p>
+                    <p>@L["Endpoints are resource-owned protocol and target-port contracts. Network mappings decide where those endpoints are reachable."]</p>
                 </div>
                 <div class="endpoint-list">
                     @foreach (var endpoint in Resource.Endpoints)
@@ -51,28 +51,58 @@
                             <div class="generated-endpoint-main">
                                 <strong>@endpoint.Name</strong>
                                 <dl class="endpoint-detail-list">
-                                    <dt>@L["Mapping"]</dt>
-                                    <dd>@FormatEndpointMapping(endpoint)</dd>
-                                    <dt>@L["Current address"]</dt>
-                                    <dd>@EndpointLink(endpoint.Address)</dd>
-                                    <dt>@L["Topology"]</dt>
-                                    <dd>@FormatEndpointTopology(endpoint)</dd>
+                                    <dt>@L["Protocol"]</dt>
+                                    <dd>@FormatEndpointProtocol(endpoint)</dd>
+                                    <dt>@L["Target port"]</dt>
+                                    <dd>@FormatTargetPort(endpoint)</dd>
                                     <dt>@L["Exposure"]</dt>
                                     <dd>@FormatExposure(endpoint.Exposure)</dd>
                                 </dl>
                             </div>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        @if (Resource.ResourceEndpointNetworkMappings.Count > 0)
+        {
+            <section class="generated-section">
+                <div class="generated-section-heading">
+                    <h3>@L["Mapped addresses"]</h3>
+                    <p>@L["Mapped addresses are topology-specific bindings created by a network, runtime, or provider for a resource endpoint."]</p>
+                </div>
+                <div class="endpoint-list">
+                    @foreach (var mapping in Resource.ResourceEndpointNetworkMappings)
+                    {
+                        <div class="generated-endpoint">
+                            <div class="generated-endpoint-main">
+                                <strong>@mapping.Name</strong>
+                                <dl class="endpoint-detail-list">
+                                    <dt>@L["Address"]</dt>
+                                    <dd>@EndpointLink(mapping.Address)</dd>
+                                    <dt>@L["Target endpoint"]</dt>
+                                    <dd>@EndpointReference(mapping.Target, Resource)</dd>
+                                    <dt>@L["Topology"]</dt>
+                                    <dd>@FormatEndpointNetworkMappingTopology(mapping)</dd>
+                                    <dt>@L["Exposure"]</dt>
+                                    <dd>@FormatExposure(mapping.Exposure)</dd>
+                                    <dt>@L["Provider"]</dt>
+                                    <dd>@FormatEndpointNetworkMappingProvider(mapping)</dd>
+                                </dl>
+                            </div>
                             <div class="generated-row-actions">
                                 <FluentButton Appearance="Appearance.Neutral"
-                                              Title="@L["Copy endpoint"]"
-                                              Disabled="@string.IsNullOrWhiteSpace(endpoint.Address)"
-                                              OnClick="() => CopyEndpoint(endpoint.Address)">
+                                              Title="@L["Copy address"]"
+                                              Disabled="@string.IsNullOrWhiteSpace(mapping.Address)"
+                                              OnClick="() => CopyEndpoint(mapping.Address)">
                                     @L["Copy"]
                                 </FluentButton>
-                                @if (IsLinkEndpoint(endpoint.Address))
+                                @if (IsLinkEndpoint(mapping.Address))
                                 {
                                     <FluentButton Appearance="Appearance.Neutral"
-                                                  Title="@L["Open endpoint"]"
-                                                  OnClick="() => OpenEndpoint(endpoint.Address)">
+                                                  Title="@L["Open address"]"
+                                                  OnClick="() => OpenEndpoint(mapping.Address)">
                                         @L["Open"]
                                     </FluentButton>
                                 }
@@ -97,7 +127,7 @@
                                 <span aria-hidden="true">-&gt;</span>
                                 @EndpointReference(exposure.Mapping.Target, Resource)
                             </span>
-                            <small>@MappingProviderLabel(exposure.Mapping)</small>
+                            <small>@FormatInboundNetworkMappingSummary(exposure)</small>
                         </div>
                     }
                 </div>
@@ -278,6 +308,7 @@
     private bool HasNetworkingContent =>
         Resource is not null &&
         (Resource.Endpoints.Count > 0 ||
+         Resource.ResourceEndpointNetworkMappings.Count > 0 ||
          Resource.ResourceEndpointMappings.Count > 0 ||
          Resource.ResourceLoadBalancerRoutes.Count > 0 ||
          InboundNetworkMappings.Count > 0 ||
@@ -323,27 +354,50 @@
 
     private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
 
-    private string FormatEndpointMapping(ResourceEndpoint endpoint)
-    {
-        var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
+    private string FormatEndpointProtocol(ResourceEndpoint endpoint) =>
+        string.IsNullOrWhiteSpace(endpoint.Protocol)
             ? L["unspecified"].Value
             : endpoint.Protocol;
-        return endpoint.TargetPort is null
-            ? L["{0} port mapping", protocol].Value
-            : L["{0} target port {1}", protocol, endpoint.TargetPort.Value].Value;
-    }
 
-    private string FormatEndpointTopology(ResourceEndpoint endpoint) =>
-        endpoint.Exposure switch
+    private string FormatTargetPort(ResourceEndpoint endpoint) =>
+        endpoint.TargetPort is null
+            ? L["not specified"].Value
+            : endpoint.TargetPort.Value.ToString(CultureInfo.InvariantCulture);
+
+    private string FormatEndpointNetworkMappingTopology(ResourceEndpointNetworkMapping mapping)
+    {
+        if (!string.IsNullOrWhiteSpace(mapping.NetworkResourceId))
+        {
+            var network = FindRelatedResource(mapping.NetworkResourceId);
+            return network is null
+                ? mapping.NetworkResourceId
+                : GetResourceLabel(network);
+        }
+
+        return mapping.Exposure switch
         {
             ResourceExposureScope.Private => L["Private topology"].Value,
-            ResourceExposureScope.Local => IsLocalHostBinding(endpoint.Address)
+            ResourceExposureScope.Local => IsLocalHostBinding(mapping.Address)
                 ? L["Implied local network"].Value
                 : L["Local topology"].Value,
             ResourceExposureScope.Network => L["Network scoped"].Value,
             ResourceExposureScope.Public => L["Public exposure"].Value,
-            _ => endpoint.Exposure.ToString()
+            _ => mapping.Exposure.ToString()
         };
+    }
+
+    private string FormatEndpointNetworkMappingProvider(ResourceEndpointNetworkMapping mapping)
+    {
+        if (string.IsNullOrWhiteSpace(mapping.ProviderResourceId))
+        {
+            return L["network"].Value;
+        }
+
+        var provider = FindRelatedResource(mapping.ProviderResourceId);
+        return provider is null
+            ? mapping.ProviderResourceId
+            : GetResourceLabel(provider);
+    }
 
     private string FormatExposure(ResourceExposureScope exposure) =>
         exposure switch
@@ -515,16 +569,41 @@
         builder.OpenElement(4, "strong");
         builder.AddContent(5, reference.EndpointName);
         builder.CloseElement();
-        if (!string.IsNullOrWhiteSpace(endpoint?.Address))
+        if (endpoint is not null)
         {
             builder.AddContent(6, " ");
             builder.OpenElement(7, "small");
-            builder.AddContent(8, endpoint.Address);
+            builder.AddContent(8, FormatEndpointSummary(endpoint));
             builder.CloseElement();
         }
 
         builder.CloseElement();
     };
+
+    private string FormatEndpointSummary(ResourceEndpoint endpoint)
+    {
+        var protocol = FormatEndpointProtocol(endpoint);
+        return endpoint.TargetPort is null
+            ? protocol
+            : L["{0}:{1}", protocol, endpoint.TargetPort.Value.ToString(CultureInfo.InvariantCulture)].Value;
+    }
+
+    private string FormatInboundNetworkMappingSummary(NetworkEndpointMappingView exposure)
+    {
+        var mappedAddress = GetEndpointNetworkMapping(exposure.Network, exposure.Mapping.Source.EndpointName)?.Address;
+        var providerLabel = MappingProviderLabel(exposure.Mapping);
+        return string.IsNullOrWhiteSpace(mappedAddress)
+            ? providerLabel
+            : L["{0} · {1}", mappedAddress, providerLabel].Value;
+    }
+
+    private static ResourceEndpointNetworkMapping? GetEndpointNetworkMapping(
+        Resource resource,
+        string endpointName) =>
+        resource.ResourceEndpointNetworkMappings.FirstOrDefault(mapping =>
+            string.Equals(mapping.Target.EndpointName, endpointName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(mapping.SourceEndpointName, endpointName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(mapping.Name, endpointName, StringComparison.OrdinalIgnoreCase));
 
     private string MappingProviderLabel(ResourceEndpointMappingDefinition mapping)
     {
