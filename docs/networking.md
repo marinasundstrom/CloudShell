@@ -187,6 +187,15 @@ resource permissions, and provider capabilities. A disabled or unavailable
 network choice should explain whether the reason is policy, permission, missing
 provider capability, or missing setup.
 
+When a resource with network capabilities is created, Resource Manager should
+offer the available network choices, defaulting to **Local network** when that
+network exists and is allowed. For the selected network, the user can usually
+choose between auto-assignment and a manual address or port when policy allows
+manual assignment. Auto-assignment lets the selected network provider pick the
+best mapping option for that topology, such as a stable local port, a
+virtual-network address, a private DNS name, provider-owned ingress, or a
+policy-guided combination of those mappings.
+
 For local development, CloudShell can default endpoint-bearing resources to an
 implied local network and allow localhost-resolved addresses because that keeps
 the developer loop simple. For managed or on-premise environments, CloudShell
