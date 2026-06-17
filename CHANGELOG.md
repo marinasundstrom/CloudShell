@@ -81,6 +81,8 @@ on `git blame --follow`, and then by the broad type of change.
   mappings, removing the obsolete endpoint-address validation path.
 - Host-local network resolution now materializes endpoint network mappings
   directly instead of returning address-bearing resource endpoints.
+- Application overview endpoint display now uses configured fallback addresses
+  directly instead of synthesizing address-bearing resource endpoints.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

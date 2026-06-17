@@ -909,7 +909,7 @@ else
             return mappedEndpoint;
         }
 
-        var projectedEndpoint = GetPreferredProjectedEndpoint(application);
+        var projectedEndpoint = GetPreferredProjectedEndpoint();
         if (projectedEndpoint is not null)
         {
             var address = ProjectedResource?.GetEndpointNetworkAddress(projectedEndpoint.Name) ??
@@ -920,7 +920,10 @@ else
             }
         }
 
-        return new OverviewEndpoint(GetEndpointAddress(application), null);
+        var configuredAddress = GetEndpointAddress(application);
+        return new OverviewEndpoint(
+            configuredAddress,
+            string.IsNullOrWhiteSpace(configuredAddress) ? null : "configured endpoint");
     }
 
     private OverviewEndpoint? GetPreferredNameMappingEndpoint()
@@ -978,7 +981,7 @@ else
         return builder.Uri.ToString();
     }
 
-    private ResourceEndpoint? GetPreferredProjectedEndpoint(ApplicationResourceDefinition application)
+    private ResourceEndpoint? GetPreferredProjectedEndpoint()
     {
         if (ProjectedResource?.Endpoints.Count > 0)
         {
@@ -989,10 +992,7 @@ else
                 .FirstOrDefault();
         }
 
-        var address = GetEndpointAddress(application);
-        return string.IsNullOrWhiteSpace(address)
-            ? null
-            : ResourceEndpoint.FromAddress("application", address, GetProtocol(address));
+        return null;
     }
 
     private static int GetEndpointExposureRank(ResourceExposureScope exposure) =>
