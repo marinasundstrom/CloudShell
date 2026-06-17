@@ -133,13 +133,16 @@ types. A simple default order is:
 2. explicit opt-in conventions, such as ASP.NET Core launch settings
 3. provider or resource-type defaults
 
-Provider defaults should be treated as local development bindings unless a
-resource type explicitly documents otherwise. Public exposure, ingress,
-network-level mapping, and DNS naming should be explicit resource declarations
-or operator choices, not surprising side effects of implicit endpoint discovery.
-Future work can decide whether hosts may configure convention-based endpoint
-loading globally, but that should include diagnostics or UI warnings when a
-convention is ignored because explicit endpoints are present.
+Provider defaults should be treated as local development helpers unless a
+resource type explicitly documents otherwise. An Aspire-compatible helper can
+declare a resource endpoint and produce an endpoint mapping to the implied
+default local network, where the current local topology resolves that mapping
+to `localhost` or loopback. Public exposure, ingress, network-level mapping,
+and DNS naming should be explicit resource declarations or operator choices,
+not surprising side effects of implicit endpoint discovery. Future work can
+decide whether hosts may configure convention-based endpoint loading globally,
+but that should include diagnostics or UI warnings when a convention is
+ignored because explicit endpoints are present.
 
 ### UI Mutability and Read-Only Mode
 

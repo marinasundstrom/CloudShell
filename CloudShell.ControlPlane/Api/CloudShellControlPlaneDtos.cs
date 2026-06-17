@@ -28,6 +28,7 @@ public sealed record ResourceResponse(
     IReadOnlyDictionary<string, string> Attributes,
     IReadOnlyList<ResourceCapabilityResponse> Capabilities,
     IReadOnlyList<ResourceEndpointMappingResponse> EndpointMappings,
+    IReadOnlyList<ResourceEndpointNetworkMappingResponse> EndpointNetworkMappings,
     IReadOnlyList<LoadBalancerRouteResponse> LoadBalancerRoutes,
     ResourceIdentityBindingResponse? Identity,
     IReadOnlyDictionary<string, ResourceActionResponse> ResourceActions,
@@ -42,7 +43,8 @@ public sealed record ResourceEndpointResponse(
     string Address,
     string Protocol,
     bool IsExternal,
-    ResourceExposureScope Exposure);
+    ResourceExposureScope Exposure,
+    int? TargetPort);
 
 public sealed record ResourceCapabilityResponse(
     string Id,
@@ -59,6 +61,16 @@ public sealed record ResourceEndpointMappingResponse(
     ResourceEndpointReferenceResponse Target,
     string? NetworkResourceId,
     string? ProviderResourceId);
+
+public sealed record ResourceEndpointNetworkMappingResponse(
+    string Id,
+    string Name,
+    ResourceEndpointReferenceResponse Target,
+    string Address,
+    ResourceExposureScope Exposure,
+    string? NetworkResourceId,
+    string? ProviderResourceId,
+    string? SourceEndpointName);
 
 public sealed record LoadBalancerRouteResponse(
     string Id,
@@ -281,6 +293,7 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.ResourceAttributes,
             resource.ResourceCapabilities.Select(ToResponse).ToArray(),
             resource.ResourceEndpointMappings.Select(ToResponse).ToArray(),
+            resource.ResourceEndpointNetworkMappings.Select(ToResponse).ToArray(),
             resource.ResourceLoadBalancerRoutes.Select(ToResponse).ToArray(),
             resource.IdentityBinding?.ToResponse(),
             CreateResourceActionDictionary(resource),
@@ -291,7 +304,13 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.CleanupBehavior);
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
-        new(endpoint.Name, endpoint.Address, endpoint.Protocol, endpoint.IsExternal, endpoint.Exposure);
+        new(
+            endpoint.Name,
+            endpoint.Address,
+            endpoint.Protocol,
+            endpoint.IsExternal,
+            endpoint.Exposure,
+            endpoint.TargetPort);
 
     public static ResourceCapabilityResponse ToResponse(this ResourceCapability capability) =>
         new(capability.Id, capability.Metadata);
@@ -307,6 +326,17 @@ internal static class CloudShellControlPlaneDtoMapper
             mapping.Target.ToResponse(),
             mapping.NetworkResourceId,
             mapping.ProviderResourceId);
+
+    public static ResourceEndpointNetworkMappingResponse ToResponse(this ResourceEndpointNetworkMapping mapping) =>
+        new(
+            mapping.Id,
+            mapping.Name,
+            mapping.Target.ToResponse(),
+            mapping.Address,
+            mapping.Exposure,
+            mapping.NetworkResourceId,
+            mapping.ProviderResourceId,
+            mapping.SourceEndpointName);
 
     public static LoadBalancerRouteResponse ToResponse(this LoadBalancerRoute route) =>
         new(

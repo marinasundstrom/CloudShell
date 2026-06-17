@@ -155,10 +155,27 @@ resources
 Applications can depend on any declared resource builder, including sub-resources
 such as containers returned from `resources.AddDocker().AddContainer(...)`.
 
-CloudShell also includes host, logical, virtual network, and optional service
-resources. If no network has been created, the default network is the host
-network. A logical network is a named orchestration boundary. A virtual network
-is a richer environment boundary for on-premise or provider-backed networking.
+CloudShell also includes an implied local network, explicit logical and
+virtual network resources, and optional service resources. Programmatic
+endpoint helpers can keep local development Aspire-compatible by declaring an
+application endpoint and producing an endpoint mapping to the implied default
+local network. In the current local development topology, that mapping resolves
+to a local address such as `localhost:<port>` or `127.0.0.1:<port>`. That
+helper behavior is not the canonical networking model.
+
+A resource endpoint describes the named protocol/port exposed by the resource.
+Endpoint-network mappings connect that resource endpoint to a network or
+topology and provide the concrete address for that topology. When an
+Aspire-like helper supplies a host or port, CloudShell should treat that as
+input for the endpoint-network mapping. The mapping address is then passed to
+the service at start time, while the endpoint remains the resource-owned
+protocol/target-port contract. Configured endpoint mappings can also connect a
+network-owned endpoint to a target resource endpoint. Exposure resources and
+providers then make mapped endpoints reachable across topology boundaries when
+needed.
+
+A logical network is a named orchestration boundary. A virtual network is a
+richer environment boundary for on-premise or provider-backed networking.
 Application resources, especially container apps, are the normal stable
 deployment and exposure artifacts for app workloads: they can carry app-owned
 endpoints, discovery names, public exposure intent, load-balancer mappings, and
@@ -178,13 +195,13 @@ When a `cloudshell.service` resource is explicitly modeled, a future
 orchestrator may choose to materialize that resource as its provider-native
 Service concept or derive its orchestration descriptor from it.
 
-Networks can also reserve or request endpoints. Manual endpoint requests carry
-the concrete host/IP address and port. Auto endpoint requests let the network
-resource allocate from its configured policy; the built-in platform network
-uses stable localhost ports from the Control Plane auto-port range. Endpoint
-mappings connect a network-owned endpoint to a target resource endpoint. When
-no provider is specified, the network resource itself is the endpoint-mapping
-provider:
+Networks can reserve or request endpoints. Manual endpoint requests carry the
+concrete host/IP address and port for that network-owned endpoint. Auto
+endpoint requests let the network resource allocate from its configured policy;
+the local-development provider can resolve those requests to stable localhost
+ports from the Control Plane auto-port range. Endpoint mappings connect a
+network-owned endpoint to a target resource endpoint. When no provider is
+specified, the network resource itself is the endpoint-mapping provider:
 
 ```csharp
 var appNetwork = resources

@@ -363,7 +363,7 @@ public static class ApplicationProviderServiceCollectionExtensions
 
         return new ServicePort(
             string.IsNullOrWhiteSpace(endpoint.Name) ? "default" : endpoint.Name,
-            uri.Port,
+            endpoint.TargetPort ?? uri.Port,
             uri.Port,
             string.IsNullOrWhiteSpace(endpoint.Protocol) ? uri.Scheme : endpoint.Protocol,
             endpoint.Exposure);

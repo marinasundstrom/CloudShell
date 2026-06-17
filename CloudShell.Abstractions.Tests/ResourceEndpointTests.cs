@@ -17,6 +17,7 @@ public sealed class ResourceEndpointTests
         Assert.Equal("http://localhost:5088", endpoint.Address);
         Assert.Equal("http", endpoint.Protocol);
         Assert.Equal(ResourceExposureScope.Public, endpoint.Exposure);
+        Assert.Equal(5088, endpoint.TargetPort);
         Assert.True(endpoint.IsExternal);
     }
 

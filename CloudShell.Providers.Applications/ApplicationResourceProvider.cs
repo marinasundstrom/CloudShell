@@ -1096,11 +1096,8 @@ public sealed partial class ApplicationResourceProvider(
             return [];
         }
 
-        var urls = CreateEndpoints(definition)
-            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
-            .Where(endpoint => !endpoint.Protocol.Equals("process", StringComparison.OrdinalIgnoreCase))
-            .Where(endpoint => !endpoint.Address.StartsWith("process://", StringComparison.OrdinalIgnoreCase))
-            .Select(endpoint => endpoint.Address)
+        var urls = CreateEndpointNetworkMappings(definition)
+            .Select(mapping => mapping.Address)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
@@ -2555,6 +2552,7 @@ public sealed partial class ApplicationResourceProvider(
             ResourceClass: GetResourceClass(application),
             Attributes: CreateAttributes(application, state),
             Capabilities: CreateCapabilities(application, endpoints),
+            EndpointNetworkMappings: CreateEndpointNetworkMappings(application.Id, endpoints),
             DisplayName: application.Name);
     }
 
@@ -2901,7 +2899,8 @@ public sealed partial class ApplicationResourceProvider(
                     port.Name,
                     $"{NormalizeProtocol(port.Protocol)}://localhost:{ResolveLocalPort(application.Id, port)}",
                     NormalizeProtocol(port.Protocol),
-                    port.Exposure))
+                    port.Exposure,
+                    Math.Max(1, port.TargetPort)))
                 .ToArray();
         }
 
@@ -2923,6 +2922,26 @@ public sealed partial class ApplicationResourceProvider(
         return [ResourceEndpoint.FromAddress("application", endpoint, protocol, ResourceExposureScope.Public)];
     }
 
+    private IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
+        ApplicationResourceDefinition application) =>
+        CreateEndpointNetworkMappings(application.Id, CreateEndpoints(application));
+
+    private static IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
+        string resourceId,
+        IReadOnlyList<ResourceEndpoint> endpoints) =>
+        endpoints
+            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
+            .Where(endpoint => !endpoint.Protocol.Equals("process", StringComparison.OrdinalIgnoreCase))
+            .Where(endpoint => !endpoint.Address.StartsWith("process://", StringComparison.OrdinalIgnoreCase))
+            .Select(endpoint => new ResourceEndpointNetworkMapping(
+                $"{resourceId}:endpoint-network-mapping:{endpoint.Name}",
+                endpoint.Name,
+                new ResourceEndpointReference(resourceId, endpoint.Name),
+                endpoint.Address,
+                endpoint.Exposure,
+                SourceEndpointName: endpoint.Name))
+            .ToArray();
+
     private string? GetEndpointUnavailableReason(
         ApplicationResourceDefinition application,
         ResourceActionKind actionKind)
@@ -2940,9 +2959,9 @@ public sealed partial class ApplicationResourceProvider(
 
     private string? GetLocalProcessEndpointUnavailableReason(ApplicationResourceDefinition application)
     {
-        foreach (var endpoint in CreateEndpoints(application))
+        foreach (var mapping in CreateEndpointNetworkMappings(application))
         {
-            if (!TryGetLoopbackEndpoint(endpoint, out var addresses, out var port))
+            if (!TryGetLoopbackEndpoint(mapping, out var addresses, out var port))
             {
                 continue;
             }
@@ -2950,7 +2969,7 @@ public sealed partial class ApplicationResourceProvider(
             if (addresses.Any(address => !IsTcpPortAvailable(address, port)))
             {
                 return
-                    $"Endpoint '{endpoint.Name}' for application resource '{application.Id}' cannot use {endpoint.Address} because the address is already in use.";
+                    $"Endpoint mapping '{mapping.Name}' for application resource '{application.Id}' cannot use {mapping.Address} because the address is already in use.";
             }
         }
 
@@ -2980,11 +2999,23 @@ public sealed partial class ApplicationResourceProvider(
     private static bool TryGetLoopbackEndpoint(
         ResourceEndpoint endpoint,
         out IReadOnlyList<IPAddress> addresses,
+        out int port) =>
+        TryGetLoopbackAddress(endpoint.Address, out addresses, out port);
+
+    private static bool TryGetLoopbackEndpoint(
+        ResourceEndpointNetworkMapping mapping,
+        out IReadOnlyList<IPAddress> addresses,
+        out int port) =>
+        TryGetLoopbackAddress(mapping.Address, out addresses, out port);
+
+    private static bool TryGetLoopbackAddress(
+        string address,
+        out IReadOnlyList<IPAddress> addresses,
         out int port)
     {
         addresses = [];
         port = 0;
-        if (!Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) ||
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) ||
             uri.Port <= 0)
         {
             return false;
@@ -2994,10 +3025,10 @@ public sealed partial class ApplicationResourceProvider(
         {
             addresses = [IPAddress.Loopback, IPAddress.IPv6Loopback];
         }
-        else if (IPAddress.TryParse(uri.Host, out var address) &&
-            IPAddress.IsLoopback(address))
+        else if (IPAddress.TryParse(uri.Host, out var parsedAddress) &&
+            IPAddress.IsLoopback(parsedAddress))
         {
-            addresses = [address];
+            addresses = [parsedAddress];
         }
         else
         {

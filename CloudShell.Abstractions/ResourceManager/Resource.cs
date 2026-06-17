@@ -21,6 +21,7 @@ public sealed record Resource(
     IReadOnlyDictionary<string, string>? Attributes = null,
     IReadOnlyList<ResourceCapability>? Capabilities = null,
     IReadOnlyList<ResourceEndpointMappingDefinition>? EndpointMappings = null,
+    IReadOnlyList<ResourceEndpointNetworkMapping>? EndpointNetworkMappings = null,
     IReadOnlyList<LoadBalancerRoute>? LoadBalancerRoutes = null,
     ResourceIdentityBinding? Identity = null,
     ResourceSource Source = ResourceSource.User,
@@ -33,7 +34,10 @@ public sealed record Resource(
     private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-    public string PrimaryEndpoint => Endpoints.FirstOrDefault()?.Address ?? "none";
+    public string PrimaryEndpoint =>
+        ResourceEndpointNetworkMappings.FirstOrDefault()?.Address ??
+        Endpoints.FirstOrDefault()?.Address ??
+        "none";
 
     public string EffectiveTypeId => TypeId ?? Kind;
 
@@ -64,6 +68,9 @@ public sealed record Resource(
     public IReadOnlyList<ResourceEndpointMappingDefinition> ResourceEndpointMappings =>
         EndpointMappings ?? [];
 
+    public IReadOnlyList<ResourceEndpointNetworkMapping> ResourceEndpointNetworkMappings =>
+        EndpointNetworkMappings ?? CreateEndpointNetworkMappings(Id, Endpoints);
+
     public IReadOnlyList<LoadBalancerRoute> ResourceLoadBalancerRoutes =>
         LoadBalancerRoutes ?? [];
 
@@ -81,6 +88,20 @@ public sealed record Resource(
     public bool HasCapability(string capabilityId) =>
         ResourceCapabilities.Any(capability =>
             string.Equals(capability.Id, capabilityId, StringComparison.OrdinalIgnoreCase));
+
+    private static IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
+        string resourceId,
+        IReadOnlyList<ResourceEndpoint> endpoints) =>
+        endpoints
+            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
+            .Select(endpoint => new ResourceEndpointNetworkMapping(
+                $"{resourceId}:endpoint-network-mapping:{endpoint.Name}",
+                endpoint.Name,
+                new ResourceEndpointReference(resourceId, endpoint.Name),
+                endpoint.Address,
+                endpoint.Exposure,
+                SourceEndpointName: endpoint.Name))
+            .ToArray();
 }
 
 public enum ResourceSource

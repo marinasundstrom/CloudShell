@@ -1634,7 +1634,7 @@ public sealed class ResourceDeclarationTests
                 ResourceAction.Start);
 
             Assert.Equal(
-                $"Endpoint 'application' for application resource 'application:api' cannot use http://127.0.0.1:{port} because the address is already in use.",
+                $"Endpoint mapping 'application' for application resource 'application:api' cannot use http://127.0.0.1:{port} because the address is already in use.",
                 reason);
         }
         finally
@@ -3093,6 +3093,12 @@ public sealed class ResourceDeclarationTests
             Assert.Equal("http", endpoint.Name);
             Assert.StartsWith("http://localhost:", endpoint.Address, StringComparison.Ordinal);
             Assert.Equal("http", endpoint.Protocol);
+            Assert.Equal(80, endpoint.TargetPort);
+
+            var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+            Assert.Equal("http", mapping.Name);
+            Assert.Equal(new ResourceEndpointReference(resource.Id, endpoint.Name), mapping.Target);
+            Assert.StartsWith("http://localhost:", mapping.Address, StringComparison.Ordinal);
         }
         finally
         {

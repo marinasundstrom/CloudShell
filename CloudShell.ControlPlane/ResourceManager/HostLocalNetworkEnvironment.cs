@@ -44,7 +44,8 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
             request.Name,
             address,
             protocol,
-            request.Exposure);
+            request.Exposure,
+            request.TargetPort);
     }
 
     public ResourceEndpoint ResolveServiceEndpoint(
@@ -59,7 +60,8 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
             port.Name,
             $"{port.Protocol}://{DefaultHost}:{exposedPort.ToString(CultureInfo.InvariantCulture)}",
             port.Protocol,
-            port.Exposure);
+            port.Exposure,
+            port.TargetPort);
     }
 
     private static int AssignLocalPort(

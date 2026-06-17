@@ -328,7 +328,9 @@
         var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
             ? L["unspecified"].Value
             : endpoint.Protocol;
-        return L["{0} port mapping", protocol].Value;
+        return endpoint.TargetPort is null
+            ? L["{0} port mapping", protocol].Value
+            : L["{0} target port {1}", protocol, endpoint.TargetPort.Value].Value;
     }
 
     private string FormatEndpointTopology(ResourceEndpoint endpoint) =>

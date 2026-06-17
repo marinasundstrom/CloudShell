@@ -109,7 +109,13 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal("Contract Service", service.DisplayName);
         Assert.Equal(["network:contract"], service.DependsOn);
         Assert.Equal("http://localhost:5080", service.PrimaryEndpoint);
-        Assert.Equal(ResourceExposureScope.Local, Assert.Single(service.Endpoints).Exposure);
+        var endpoint = Assert.Single(service.Endpoints);
+        Assert.Equal(ResourceExposureScope.Local, endpoint.Exposure);
+        Assert.Equal(8080, endpoint.TargetPort);
+        var endpointNetworkMapping = Assert.Single(service.ResourceEndpointNetworkMappings);
+        Assert.Equal("http", endpointNetworkMapping.Name);
+        Assert.Equal(new ResourceEndpointReference(service.Id, endpoint.Name), endpointNetworkMapping.Target);
+        Assert.Equal("http://localhost:5080", endpointNetworkMapping.Address);
         Assert.Equal(ResourceClass.Service, service.ResourceClass);
         Assert.Equal("1", service.ResourceAttributes[ResourceAttributeNames.ServiceTargetCount]);
         Assert.Equal("1", service.ResourceAttributes[ResourceAttributeNames.ServicePortCount]);

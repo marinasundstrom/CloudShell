@@ -50,6 +50,16 @@ public sealed record ResourceEndpointReference(
     string ResourceId,
     string EndpointName);
 
+public sealed record ResourceEndpointNetworkMapping(
+    string Id,
+    string Name,
+    ResourceEndpointReference Target,
+    string Address,
+    ResourceExposureScope Exposure = ResourceExposureScope.Local,
+    string? NetworkResourceId = null,
+    string? ProviderResourceId = null,
+    string? SourceEndpointName = null);
+
 public sealed record ResourceEndpointMappingDefinition(
     string Id,
     string Name,

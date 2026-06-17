@@ -87,6 +87,15 @@ on `git blame --follow`, and then by the broad type of change.
 - The Resource Manager Endpoints tab now separates endpoint mapping, current
   topology-resolved address, and topology/exposure context so users can
   distinguish what a resource exposes from how it is currently reachable.
+- Projected resource endpoints now carry optional target-port metadata, so
+  application endpoints can expose the resource-owned port while topology,
+  network, exposure, and DNS mappings remain separate primitives.
+- Resources now project endpoint-network mappings through the Control Plane API
+  and remote client so local/Aspire-like endpoint helpers can expose mapping
+  addresses separately from the resource endpoint contract.
+- Programmatic resource documentation now treats Aspire-compatible endpoint
+  helpers as producing endpoint mappings to the implied local network, not as
+  the canonical networking model.
 
 ### 2026-06-16
 

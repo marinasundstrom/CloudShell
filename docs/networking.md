@@ -15,10 +15,9 @@ operate the environment.
 ## Core Model
 
 Endpoints are projected facts on resources. They describe the resource-owned
-named port/protocol mapping and, when known, the current address resolved for
-that mapping inside a network topology. An endpoint can be HTTP, HTTPS, TCP,
-UDP, or a logical network address, but the endpoint itself does not own the
-host.
+named port/protocol and target port that the resource exposes. An endpoint can
+be HTTP, HTTPS, TCP, UDP, or a logical endpoint, but the endpoint itself does
+not own the host or the concrete address.
 
 Endpoint requests are intent. They ask a network or provider to reserve or
 assign an address. Requests can be manual, auto-assigned, provider-default, or
@@ -50,9 +49,16 @@ identity. It should not claim the endpoint reservation unless the assignment is
 part of CloudShell's resource graph or a persisted provider-owned runtime
 artifact being recovered.
 
-Endpoint mappings connect one source endpoint to one target endpoint. A mapping
-can be validated by the network resource itself or materialized by a selected
-networking provider resource.
+Endpoint-network mappings connect a resource endpoint to a network or topology
+and provide the concrete address for that topology. For local development, an
+Aspire-like helper such as `WithHttpEndpoint(port: 6000)` declares an HTTP
+resource endpoint and creates a mapping in the implied default local network
+whose address resolves to the supplied local port. That mapping address is what
+the resource provider passes to the service when it starts.
+
+Configured endpoint mappings connect one source endpoint to one target
+endpoint. A mapping can be validated by the network resource itself or
+materialized by a selected networking provider resource.
 
 Endpoint mappings are projected on network resources as first-class resource
 data. They are not encoded as dependency metadata or comma-separated
@@ -86,7 +92,7 @@ addressed. These mechanisms are related, but they are not interchangeable.
 
 The Resource Manager UI should use the same distinction:
 
-- **Endpoint**: the resource-owned named port/protocol mapping. It describes
+- **Endpoint**: the resource-owned named protocol and target port. It describes
   what the resource exposes, such as a named HTTP port, TCP port, container
   target port, or provider-assigned logical endpoint. The current address is
   resolved by topology and provider behavior.
@@ -135,8 +141,8 @@ The current address is topology-specific:
 
 Resource configuration should therefore follow this order:
 
-1. The resource declares endpoint mappings, such as endpoint name, protocol,
-   target port, and any provider-supported endpoint intent.
+1. The resource declares endpoints, such as endpoint name, protocol, target
+   port, and any provider-supported endpoint intent.
 2. The environment or network policy decides which binding modes are allowed:
    host-local, virtual-network-only, public exposure, DNS/name mapping, or
    provider-managed ingress.
@@ -173,6 +179,19 @@ the same endpoint mapping model, while networks, gateways, load balancers,
 ingress providers, and DNS resources decide how those endpoints are bound,
 exposed, and named.
 
+CloudShell can still provide Aspire-compatible and local-development helpers
+that make this feel simple. For example, a helper may declare an application
+HTTP endpoint and produce an endpoint mapping to the implied default local
+network. In the current local development topology that mapping resolves to an
+address such as `localhost:<port>` or `127.0.0.1:<port>`. The helper should
+compile down to the same primitives rather than becoming the canonical model.
+The canonical model is:
+
+- the resource exposes a named protocol and target-port endpoint
+- a network or topology maps that endpoint into a reachable address
+- exposure resources or providers route traffic across boundaries when needed
+- DNS/name mappings assign human-facing names to reachable endpoints or routes
+
 ## Ingress and Exposure
 
 Ingress is the provider- or runtime-owned exposure path that accepts traffic
@@ -180,7 +199,7 @@ for a resource endpoint from a network boundary. It is a general exposure
 concept for endpoint-capable resources, not a replacement for the resource
 endpoint model:
 
-- the resource owns the endpoint contract
+- the resource owns the named protocol and target-port endpoint
 - the network, runtime, or provider owns the exposure path to that endpoint
 - DNS/name mappings can name either the reachable endpoint or the route/front
   that exposes it

@@ -37,7 +37,7 @@ like a managed service.
 ## Endpoint And Exposure Model
 
 Application resources are the primary owners of service endpoints. The endpoint
-is the application-owned named port/protocol mapping: an HTTP endpoint, TCP
+is the application-owned named protocol and target port: an HTTP endpoint, TCP
 endpoint, container target port, or provider-projected logical endpoint that
 callers can address once the current topology resolves it.
 
@@ -62,19 +62,26 @@ specific network boundary:
 - DNS/name mappings can assign a human-facing name to the reachable endpoint or
   exposure route
 
+Aspire-compatible and local-development helpers can continue to make endpoint
+declarations produce an endpoint mapping to the implied default local network,
+which currently resolves to a `localhost` or `127.0.0.1` address. That keeps
+early modeling ergonomic, but it is helper behavior over the same primitives:
+the application owns the endpoint, while topology, exposure, and naming are
+modeled separately.
+
 This keeps the application as the normal management surface. Users configure
-the app's endpoint contract on the app, then inspect or configure the exposure
-path through the app's Networking views or through explicit infrastructure
-resources such as networks, load balancers, and DNS zones when those resources
-are intentionally part of the topology.
+the app's endpoints on the app, then inspect or configure endpoint mappings
+and exposure paths through the app's Networking views or through explicit
+infrastructure resources such as networks, load balancers, and DNS zones when
+those resources are intentionally part of the topology.
 
 Resource Manager should apply the same model to all endpoint-capable
 application resources:
 
 - Overview shows the best current address to use, not the full networking
   model.
-- Networking > Endpoints shows the app-owned endpoint contract and observed
-  concrete addresses.
+- Networking > Endpoints shows the app-owned endpoints, endpoint mappings, and
+  observed concrete addresses.
 - Networking > DNS shows name mappings that target the app or its exposure
   route.
 - Future exposure sections can show whether an endpoint is directly bound,

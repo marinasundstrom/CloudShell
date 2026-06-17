@@ -106,7 +106,9 @@ Important properties:
   type, or provider-owned shape.
 - `State`: optional lifecycle or health-oriented state produced by resources
   that expose lifecycle status.
-- `Endpoints`: addresses exposed by the resource.
+- `Endpoints`: resource-owned named ports/protocols exposed by the resource.
+- `ResourceEndpointNetworkMappings`: topology-specific addresses that map
+  resource endpoints into a network.
 - `DependsOn`: resource dependencies.
 - `ParentResourceId`: parent/child hierarchy.
 - `DetailRoute`: optional extension-owned UI detail route.
