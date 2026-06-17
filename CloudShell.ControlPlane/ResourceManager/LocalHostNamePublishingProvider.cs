@@ -67,17 +67,18 @@ public sealed class LocalHostNamePublishingProvider(
         var endpoint = resolution.TargetEndpoint
             ?? throw new InvalidOperationException(
                 $"Name mapping '{resolution.Mapping.Id}' must target a specific endpoint to be published by provider '{ProviderName}'.");
-        var address = ResolveAddress(endpoint, resolution.Mapping.Id);
+        var endpointAddress = resolution.TargetEndpointNetworkMapping?.Address ?? endpoint.Address;
+        var address = ResolveAddress(endpoint.Name, endpointAddress, resolution.Mapping.Id);
         return new HostsEntry(address, hostName);
     }
 
-    private string ResolveAddress(ResourceEndpoint endpoint, string mappingId)
+    private string ResolveAddress(string endpointName, string endpointAddress, string mappingId)
     {
-        if (!Uri.TryCreate(endpoint.Address, UriKind.Absolute, out var uri) ||
+        if (!Uri.TryCreate(endpointAddress, UriKind.Absolute, out var uri) ||
             string.IsNullOrWhiteSpace(uri.Host))
         {
             throw new InvalidOperationException(
-                $"Name mapping '{mappingId}' target endpoint '{endpoint.Name}' must use an absolute address with a host.");
+                $"Name mapping '{mappingId}' target endpoint '{endpointName}' must use a mapped absolute address with a host.");
         }
 
         var host = uri.Host.Trim('[', ']');
@@ -99,7 +100,7 @@ public sealed class LocalHostNamePublishingProvider(
         }
 
         throw new InvalidOperationException(
-            $"Name mapping '{mappingId}' target endpoint '{endpoint.Name}' host '{host}' is not a local or IP address that can be published through provider '{ProviderName}'.");
+            $"Name mapping '{mappingId}' target endpoint '{endpointName}' host '{host}' is not a local or IP address that can be published through provider '{ProviderName}'.");
     }
 
     private async Task<string> GetResolverRefreshMessageAsync(

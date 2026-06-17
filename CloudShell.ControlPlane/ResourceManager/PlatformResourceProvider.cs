@@ -1170,6 +1170,7 @@ public sealed class PlatformResourceProvider(
             ?? throw new InvalidOperationException(
                 $"DNS zone resource '{definition.Id}' name mapping '{mapping.Id}' target resource '{mapping.TargetResourceId}' could not be found.");
         var targetEndpoint = ResolveNameMappingTargetEndpoint(definition, mapping, target);
+        var targetEndpointNetworkMapping = ResolveNameMappingTargetEndpointNetworkMapping(target, targetEndpoint);
         var publisherResource = string.IsNullOrWhiteSpace(mapping.ProviderResourceId)
             ? null
             : publisherResources.First(resource =>
@@ -1178,7 +1179,21 @@ public sealed class PlatformResourceProvider(
             mapping,
             target,
             targetEndpoint,
+            targetEndpointNetworkMapping,
             publisherResource);
+    }
+
+    private static ResourceEndpointNetworkMapping? ResolveNameMappingTargetEndpointNetworkMapping(
+        Resource target,
+        ResourceEndpoint? targetEndpoint)
+    {
+        if (targetEndpoint is null)
+        {
+            return null;
+        }
+
+        return target.ResourceEndpointNetworkMappings.FirstOrDefault(mapping =>
+            string.Equals(mapping.Target.EndpointName, targetEndpoint.Name, StringComparison.OrdinalIgnoreCase));
     }
 
     private static ResourceEndpoint? ResolveNameMappingTargetEndpoint(

@@ -229,6 +229,7 @@ public sealed record DnsNameMappingResolution(
     DnsNameMappingDefinition Mapping,
     Resource TargetResource,
     ResourceEndpoint? TargetEndpoint,
+    ResourceEndpointNetworkMapping? TargetEndpointNetworkMapping = null,
     Resource? PublisherResource = null);
 
 public sealed record DnsNamePublishingContext(

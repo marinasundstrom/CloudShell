@@ -50,10 +50,20 @@ public sealed class LocalHostNamePublishingProviderTests
             "Applications",
             "local",
             ResourceState.Running,
-            [ResourceEndpoint.Http("http", "localhost", 5080)],
+            [ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Local, 5080)],
             "1.0",
             DateTimeOffset.UtcNow,
-            []);
+            [],
+            EndpointNetworkMappings:
+            [
+                new ResourceEndpointNetworkMapping(
+                    "application:api:endpoint-network-mapping:http",
+                    "http",
+                    new ResourceEndpointReference("application:api", "http"),
+                    "http://localhost:5080",
+                    ResourceExposureScope.Local,
+                    SourceEndpointName: "http")
+            ]);
         var resourceEvents = new InMemoryResourceEventStore();
 
         var result = await platform.ExecuteActionAsync(
@@ -103,6 +113,27 @@ public sealed class LocalHostNamePublishingProviderTests
         Assert.Contains("# BEGIN CloudShell local hostnames", content);
         Assert.Contains("127.0.0.1 api.cloudshell.local", content);
         Assert.Contains("# END CloudShell local hostnames", content);
+    }
+
+    [Fact]
+    public async Task ReconcileAsync_UsesEndpointNetworkMappingAddress()
+    {
+        var contentRoot = CreateTempDirectory();
+        var hostsPath = Path.Combine(contentRoot, "hosts");
+        var provider = new LocalHostNamePublishingProvider(new PlatformResourceOptions
+        {
+            LocalHostNameHostsFilePath = hostsPath
+        });
+
+        var result = await provider.ReconcileAsync(CreateContext(
+            "cloudshell.local",
+            "api.cloudshell.local",
+            ResourceEndpoint.Contract("http", "http", ResourceExposureScope.Local, 5080),
+            "http://localhost:5080"));
+
+        var content = await File.ReadAllTextAsync(hostsPath);
+        Assert.Contains("Published 1 local host name mapping", result.Message);
+        Assert.Contains("127.0.0.1 api.cloudshell.local", content);
     }
 
     [Fact]
@@ -245,7 +276,8 @@ public sealed class LocalHostNamePublishingProviderTests
     private static DnsNamePublishingContext CreateContext(
         string zoneName,
         string hostName,
-        ResourceEndpoint endpoint)
+        ResourceEndpoint endpoint,
+        string? endpointNetworkMappingAddress = null)
     {
         var zone = new DnsZoneResourceDefinition(
             "dns:dev",
@@ -284,11 +316,25 @@ public sealed class LocalHostNamePublishingProviderTests
             [endpoint],
             "1.0",
             DateTimeOffset.UtcNow,
-            []);
+            [],
+            EndpointNetworkMappings: string.IsNullOrWhiteSpace(endpointNetworkMappingAddress)
+                ? null
+                :
+                [
+                    new ResourceEndpointNetworkMapping(
+                        "application:api:endpoint-network-mapping:http",
+                        endpoint.Name,
+                        new ResourceEndpointReference("application:api", endpoint.Name),
+                        endpointNetworkMappingAddress,
+                        endpoint.Exposure,
+                        SourceEndpointName: endpoint.Name)
+                ]);
         var mapping = new DnsNameMappingResolution(
             zone.DnsNameMappings.Single(),
             target,
-            endpoint);
+            endpoint,
+            target.ResourceEndpointNetworkMappings.FirstOrDefault(endpointMapping =>
+                string.Equals(endpointMapping.Target.EndpointName, endpoint.Name, StringComparison.OrdinalIgnoreCase)));
 
         return new DnsNamePublishingContext(
             zoneResource,

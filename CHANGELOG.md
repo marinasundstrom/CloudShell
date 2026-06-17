@@ -22,6 +22,10 @@ on `git blame --follow`, and then by the broad type of change.
   relationships, endpoint descriptors, endpoint network mappings, configured
   endpoint mappings, actions, capabilities, attributes, ownership metadata, and
   resource/service terminology.
+- DNS/name publishing now resolves target addresses from
+  `ResourceEndpointNetworkMapping` when available, with `ResourceEndpoint`
+  address retained only as a compatibility fallback. The resource endpoint
+  factory now supports address-less endpoint contracts.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

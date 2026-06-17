@@ -37,6 +37,13 @@ public sealed record ResourceEndpoint(
         int? targetPort = null) =>
         new(name, address, protocol, exposure, targetPort);
 
+    public static ResourceEndpoint Contract(
+        string name,
+        string protocol,
+        ResourceExposureScope exposure = ResourceExposureScope.Private,
+        int? targetPort = null) =>
+        FromAddress(name, string.Empty, protocol, exposure, targetPort);
+
     public static ResourceEndpoint Http(
         string name,
         string host,
