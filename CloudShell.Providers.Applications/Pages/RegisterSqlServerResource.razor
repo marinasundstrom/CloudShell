@@ -118,6 +118,9 @@
     private string? ErrorMessage { get; set; }
 
     [CascadingParameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
+    [CascadingParameter]
     public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
 
     private bool IsManualEndpointAssignment =>
@@ -159,6 +162,7 @@
 
         var displayName = ResourceDisplayNameDefaults.Resolve(ResourceId);
         var volumeMounts = BuildVolumeMounts();
+        var endpoint = GetEndpointDescriptor();
         var definition = new ApplicationResourceDefinition(
             normalizedResourceId,
             displayName,
@@ -175,11 +179,11 @@
             endpointPorts:
             [
                 new ServicePort(
-                    "tds",
-                    1433,
+                    endpoint.Name,
+                    endpoint.TargetPort,
                     IsManualEndpointAssignment ? LocalPort : null,
-                    "tcp",
-                    ResourceExposureScope.Local,
+                    endpoint.Protocol,
+                    endpoint.Exposure,
                     EndpointAssignment,
                     NormalizeNullable(SelectedNetworkResourceId),
                     NormalizeNullable(ManualEndpointHost))
@@ -199,6 +203,11 @@
     private string GetReturnUrl() =>
         RegistrationNavigation?.GetReturnUrlOrDefault() ??
         ResourceRegistrationNavigationContext.DefaultReturnUrl;
+
+    private ResourceEndpointDescriptor GetEndpointDescriptor() =>
+        ResourceType?.ResourceEndpointDescriptors.FirstOrDefault(descriptor =>
+            string.Equals(descriptor.Name, "tds", StringComparison.OrdinalIgnoreCase)) ??
+        ResourceEndpointDescriptor.Tcp("tds", 1433);
 
     private bool ValidateContainerHost()
     {

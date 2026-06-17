@@ -22,6 +22,12 @@ Concrete endpoints are created from that service contract by the selected
 network, runtime, or provider. In local development that concrete endpoint may
 be `localhost:<port>`. In a managed topology it may be a private address,
 provider-owned ingress endpoint, or internal DNS-backed address.
+Containers are the typical case where this distinction matters: the container
+image exposes an inner container port, while the runtime maps an external host,
+virtual-network, load-balancer, or ingress endpoint to that inner port.
+That remapping support is provider-owned. A resource provider declares whether
+an endpoint can be remapped for the resource type and topology; the shell can
+then show or disable the concrete port mapping controls accordingly.
 
 Endpoint mappings and exposure paths are relationships over those concrete
 endpoints. A mapping can connect a network-owned frontend, load-balancer
@@ -224,6 +230,12 @@ stores, configuration stores, and other endpoint-capable resources can all use
 the same endpoint mapping model, while networks, gateways, load balancers,
 ingress providers, and DNS resources decide how those endpoints are bound,
 exposed, and named.
+
+Port-number collisions are topology-specific. Two resources can expose the same
+service port when they are assigned different virtual-network addresses or
+private DNS names. The conflict to prevent in local development is reusing the
+same concrete host-local address and port, such as two resources both trying to
+bind `localhost:5218`.
 
 CloudShell can still provide Aspire-compatible and local-development helpers
 that make this feel simple. For example, a helper may declare an application

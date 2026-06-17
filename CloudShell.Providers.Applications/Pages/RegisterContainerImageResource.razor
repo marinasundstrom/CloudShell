@@ -98,6 +98,8 @@
                           @bind-Value="Protocol"
                           Appearance="Appearance.Outline">
                 <FluentOption TOption="string" Value="tcp">TCP</FluentOption>
+                <FluentOption TOption="string" Value="http">HTTP</FluentOption>
+                <FluentOption TOption="string" Value="https">HTTPS</FluentOption>
                 <FluentOption TOption="string" Value="udp">UDP</FluentOption>
             </FluentSelect>
         }
@@ -148,27 +150,48 @@
     private bool EnableReplicas { get; set; }
     private int Replicas { get; set; } = 2;
     private bool ExposeEndpoint { get; set; }
-    private string PortName { get; set; } = "tcp";
+    private string PortName { get; set; } = "http";
     private int TargetPort { get; set; } = 80;
     private int? LocalPort { get; set; }
     private ResourceEndpointAssignment EndpointAssignment { get; set; } = ResourceEndpointAssignment.Auto;
     private string? SelectedNetworkResourceId { get; set; }
     private string? ManualEndpointHost { get; set; }
-    private string Protocol { get; set; } = "tcp";
+    private string Protocol { get; set; } = "http";
     private string SelectedGroupId { get; set; } = string.Empty;
     private bool WaitForReferences { get; set; } = true;
     private bool EnableObservability { get; set; } = true;
     private bool StartAfterCreate { get; set; } = true;
     private string? ErrorMessage { get; set; }
+    private bool EndpointDefaultsInitialized { get; set; }
     private List<ApplicationEnvironmentVariableInput> EnvironmentVariables { get; } = [new()];
     private List<ApplicationVolumeMountInput> VolumeMounts { get; } = [new()];
     private HashSet<string> SelectedReferenceIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    [CascadingParameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
 
     [CascadingParameter]
     public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
 
     private bool IsManualEndpointAssignment =>
         EndpointAssignment == ResourceEndpointAssignment.Manual;
+
+    protected override void OnParametersSet()
+    {
+        if (EndpointDefaultsInitialized)
+        {
+            return;
+        }
+
+        var descriptor = GetEndpointDescriptor();
+        PortName = descriptor.Name;
+        TargetPort = descriptor.TargetPort;
+        Protocol = descriptor.Protocol;
+        EndpointAssignment = descriptor.DefaultAssignment == ResourceEndpointAssignment.ProviderDefault
+            ? ResourceEndpointAssignment.Auto
+            : descriptor.DefaultAssignment;
+        EndpointDefaultsInitialized = true;
+    }
 
     private async Task Register()
     {
@@ -288,6 +311,10 @@
                 NormalizeNullable(SelectedNetworkResourceId),
                 NormalizeNullable(ManualEndpointHost))]
             : [];
+
+    private ResourceEndpointDescriptor GetEndpointDescriptor() =>
+        ResourceType?.ResourceEndpointDescriptors.FirstOrDefault() ??
+        ResourceEndpointDescriptor.Http(defaultAssignment: ResourceEndpointAssignment.Auto);
 
     private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables() =>
         EnvironmentVariables

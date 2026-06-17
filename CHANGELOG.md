@@ -82,6 +82,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource type contributions can now declare endpoint descriptors, and the
   built-in ASP.NET Core project, container app, and SQL Server resource types
   advertise their default service endpoint names, protocols, and target ports.
+- Endpoint descriptors now indicate whether a resource type supports port
+  remapping, and application registration flows use descriptor metadata for
+  default endpoint names, protocols, and target ports instead of duplicating
+  those defaults in each create form.
 - The CloudShell goal and networking docs now state the platform principle of
   exposing provider behavior through familiar, standardized concepts that
   transfer across use cases and systems, while keeping provider-specific

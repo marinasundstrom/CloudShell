@@ -1122,6 +1122,7 @@ public sealed class ResourceDeclarationTests
             descriptor => string.Equals(descriptor.Name, name, StringComparison.OrdinalIgnoreCase));
         Assert.Equal(targetPort, descriptor.TargetPort);
         Assert.Equal(protocol, descriptor.Protocol);
+        Assert.True(descriptor.SupportsPortRemapping);
     }
 
     [Fact]

@@ -384,11 +384,13 @@ environment allow it.
 
 Endpoint descriptors are one example of this model. A descriptor announces the
 service a resource type can expose by default, such as endpoint name, protocol,
-and target port. It does not itself bind a host address. The provider, network,
-or runtime uses the descriptor plus instance configuration to create concrete
-endpoint assignments and mappings. Attributes and capabilities should follow
-the same inheritance model as their contracts become explicit: base, class,
-type/kind, then instance.
+and target port. The provider that contributes the resource type also declares
+whether it supports remapping that endpoint to a different concrete port in
+topologies where that is useful. The descriptor does not itself bind a host
+address. The provider, network, or runtime uses the descriptor plus instance
+configuration to create concrete endpoint assignments and mappings. Attributes
+and capabilities should follow the same inheritance model as their contracts
+become explicit: base, class, type/kind, then instance.
 
 ### Resource provider
 

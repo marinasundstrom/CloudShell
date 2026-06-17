@@ -32,28 +32,32 @@ public sealed record ResourceEndpointDescriptor(
     int TargetPort,
     string Protocol = "tcp",
     ResourceExposureScope Exposure = ResourceExposureScope.Local,
-    ResourceEndpointAssignment DefaultAssignment = ResourceEndpointAssignment.ProviderDefault)
+    ResourceEndpointAssignment DefaultAssignment = ResourceEndpointAssignment.ProviderDefault,
+    bool SupportsPortRemapping = true)
 {
     public static ResourceEndpointDescriptor Http(
         string name = "http",
         int targetPort = 80,
         ResourceExposureScope exposure = ResourceExposureScope.Local,
-        ResourceEndpointAssignment defaultAssignment = ResourceEndpointAssignment.ProviderDefault) =>
-        new(name, targetPort, "http", exposure, defaultAssignment);
+        ResourceEndpointAssignment defaultAssignment = ResourceEndpointAssignment.ProviderDefault,
+        bool supportsPortRemapping = true) =>
+        new(name, targetPort, "http", exposure, defaultAssignment, supportsPortRemapping);
 
     public static ResourceEndpointDescriptor Https(
         string name = "https",
         int targetPort = 443,
         ResourceExposureScope exposure = ResourceExposureScope.Local,
-        ResourceEndpointAssignment defaultAssignment = ResourceEndpointAssignment.ProviderDefault) =>
-        new(name, targetPort, "https", exposure, defaultAssignment);
+        ResourceEndpointAssignment defaultAssignment = ResourceEndpointAssignment.ProviderDefault,
+        bool supportsPortRemapping = true) =>
+        new(name, targetPort, "https", exposure, defaultAssignment, supportsPortRemapping);
 
     public static ResourceEndpointDescriptor Tcp(
         string name,
         int targetPort,
         ResourceExposureScope exposure = ResourceExposureScope.Local,
-        ResourceEndpointAssignment defaultAssignment = ResourceEndpointAssignment.ProviderDefault) =>
-        new(name, targetPort, "tcp", exposure, defaultAssignment);
+        ResourceEndpointAssignment defaultAssignment = ResourceEndpointAssignment.ProviderDefault,
+        bool supportsPortRemapping = true) =>
+        new(name, targetPort, "tcp", exposure, defaultAssignment, supportsPortRemapping);
 }
 
 public sealed record ResourceTypeProbeOptions(

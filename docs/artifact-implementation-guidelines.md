@@ -250,8 +250,10 @@ Implementation:
   type by default.
 - Use `ResourceEndpointDescriptor` for service endpoints that apply to the
   resource type by default. The descriptor announces endpoint name, protocol,
-  and target port; providers and network resources still create concrete
-  endpoint assignments and mappings for individual resource instances.
+  target port, and whether the provider supports remapping that endpoint to a
+  different concrete port; providers and network resources still create
+  concrete endpoint assignments and mappings for individual resource
+  instances.
 
 Verification:
 

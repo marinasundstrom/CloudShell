@@ -88,6 +88,9 @@
     public ResourceRegistrationProbeContext? ProbeContext { get; set; }
 
     [CascadingParameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
+    [CascadingParameter]
     public ResourceRegistrationNavigationContext? RegistrationNavigation { get; set; }
 
     private string ResourceId { get; set; } = string.Empty;
@@ -200,17 +203,18 @@
 
     private IReadOnlyList<ServicePort> BuildEndpointPorts()
     {
+        var descriptor = GetEndpointDescriptor();
         if (IsManualEndpointAssignment && EndpointPort is { } port)
         {
             var fixedPort = Math.Max(1, port);
             return
             [
                 new ServicePort(
-                    "http",
+                    descriptor.Name,
+                    descriptor.TargetPort,
                     fixedPort,
-                    fixedPort,
-                    "http",
-                    ResourceExposureScope.Local,
+                    descriptor.Protocol,
+                    descriptor.Exposure,
                     EndpointAssignment,
                     NormalizeNullable(SelectedNetworkResourceId),
                     NormalizeNullable(ManualEndpointHost))
@@ -220,14 +224,19 @@
         return
         [
             new ServicePort(
-                "http",
-                80,
-                Protocol: "http",
-                Exposure: ResourceExposureScope.Local,
+                descriptor.Name,
+                descriptor.TargetPort,
+                Protocol: descriptor.Protocol,
+                Exposure: descriptor.Exposure,
                 Assignment: EndpointAssignment,
                 NetworkResourceId: NormalizeNullable(SelectedNetworkResourceId))
         ];
     }
+
+    private ResourceEndpointDescriptor GetEndpointDescriptor() =>
+        ResourceType?.ResourceEndpointDescriptors.FirstOrDefault(descriptor =>
+            string.Equals(descriptor.Name, "http", StringComparison.OrdinalIgnoreCase)) ??
+        ResourceEndpointDescriptor.Http();
 
     private IReadOnlyList<Resource> GetNetworkCandidates() =>
         ResourceManager.GetResources()

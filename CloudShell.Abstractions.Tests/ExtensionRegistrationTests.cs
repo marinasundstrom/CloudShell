@@ -111,6 +111,7 @@ public sealed class ExtensionRegistrationTests
         Assert.Equal("http", descriptor.Protocol);
         Assert.Equal(ResourceExposureScope.Local, descriptor.Exposure);
         Assert.Equal(ResourceEndpointAssignment.ProviderDefault, descriptor.DefaultAssignment);
+        Assert.True(descriptor.SupportsPortRemapping);
     }
 
     [Fact]
