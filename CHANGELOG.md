@@ -79,6 +79,8 @@ on `git blame --follow`, and then by the broad type of change.
   became address-less contracts.
 - Platform endpoint assignment validation now uses only endpoint network
   mappings, removing the obsolete endpoint-address validation path.
+- Host-local network resolution now materializes endpoint network mappings
+  directly instead of returning address-bearing resource endpoints.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

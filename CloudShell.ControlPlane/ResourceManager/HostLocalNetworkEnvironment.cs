@@ -7,13 +7,13 @@ public interface IHostLocalNetworkEnvironment
 {
     string DefaultHost { get; }
 
-    ResourceEndpoint ResolveNetworkEndpoint(
+    ResourceEndpointNetworkMapping ResolveNetworkEndpoint(
         string networkId,
         ResourceEndpointRequest request,
         int autoLocalPortStart,
         int autoLocalPortEnd);
 
-    ResourceEndpoint ResolveServiceEndpoint(
+    ResourceEndpointNetworkMapping ResolveServiceEndpoint(
         string serviceId,
         ServicePort port,
         int autoLocalPortStart,
@@ -24,7 +24,7 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
 {
     public string DefaultHost => "localhost";
 
-    public ResourceEndpoint ResolveNetworkEndpoint(
+    public ResourceEndpointNetworkMapping ResolveNetworkEndpoint(
         string networkId,
         ResourceEndpointRequest request,
         int autoLocalPortStart,
@@ -40,15 +40,17 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
             ? $"{protocol}://{host}"
             : $"{protocol}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}";
 
-        return ResourceEndpoint.FromAddress(
+        return new ResourceEndpointNetworkMapping(
+            $"{networkId}:endpoint-network-mapping:{request.Name}",
             request.Name,
+            new ResourceEndpointReference(networkId, request.Name),
             address,
-            protocol,
             request.Exposure,
-            request.TargetPort);
+            NetworkResourceId: networkId,
+            SourceEndpointName: request.Name);
     }
 
-    public ResourceEndpoint ResolveServiceEndpoint(
+    public ResourceEndpointNetworkMapping ResolveServiceEndpoint(
         string serviceId,
         ServicePort port,
         int autoLocalPortStart,
@@ -57,12 +59,13 @@ public sealed class HostLocalNetworkEnvironment : IHostLocalNetworkEnvironment
         var host = FirstNonEmpty(port.IPAddress, port.Host, DefaultHost)!;
         var exposedPort = port.Port ??
             AssignLocalPort(serviceId, port.Name, autoLocalPortStart, autoLocalPortEnd);
-        return ResourceEndpoint.FromAddress(
+        return new ResourceEndpointNetworkMapping(
+            $"{serviceId}:endpoint-network-mapping:{port.Name}",
             port.Name,
+            new ResourceEndpointReference(serviceId, port.Name),
             $"{port.Protocol}://{host}:{exposedPort.ToString(CultureInfo.InvariantCulture)}",
-            port.Protocol,
             port.Exposure,
-            port.TargetPort);
+            SourceEndpointName: port.Name);
     }
 
     private static int AssignLocalPort(

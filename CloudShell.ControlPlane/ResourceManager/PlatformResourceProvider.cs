@@ -2190,18 +2190,10 @@ public sealed class PlatformResourceProvider(
         NetworkResourceDefinition definition) =>
         definition.NetworkEndpoints
             .Select(endpoint => ResolveNetworkEndpoint(definition.Id, endpoint))
-            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
-            .Select(endpoint => new ResourceEndpointNetworkMapping(
-                $"{definition.Id}:endpoint-network-mapping:{endpoint.Name}",
-                endpoint.Name,
-                new ResourceEndpointReference(definition.Id, endpoint.Name),
-                endpoint.Address,
-                endpoint.Exposure,
-                NetworkResourceId: definition.Id,
-                SourceEndpointName: endpoint.Name))
+            .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Address))
             .ToArray();
 
-    private ResourceEndpoint ResolveNetworkEndpoint(
+    private ResourceEndpointNetworkMapping ResolveNetworkEndpoint(
         string networkId,
         ResourceEndpointRequest request) =>
         hostLocalNetwork.ResolveNetworkEndpoint(
@@ -2227,14 +2219,7 @@ public sealed class PlatformResourceProvider(
                 port,
                 options.AutoLocalPortStart,
                 options.AutoLocalPortEnd))
-            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
-            .Select(endpoint => new ResourceEndpointNetworkMapping(
-                $"{definition.Id}:endpoint-network-mapping:{endpoint.Name}",
-                endpoint.Name,
-                new ResourceEndpointReference(definition.Id, endpoint.Name),
-                endpoint.Address,
-                endpoint.Exposure,
-                SourceEndpointName: endpoint.Name))
+            .Where(mapping => !string.IsNullOrWhiteSpace(mapping.Address))
             .ToArray();
 
     private static IReadOnlyList<ResourceEndpoint> CreateLoadBalancerEndpoints(

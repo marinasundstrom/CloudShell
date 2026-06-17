@@ -7999,26 +7999,31 @@ public sealed class ResourceDeclarationTests
     {
         public string DefaultHost => "loopback.test";
 
-        public ResourceEndpoint ResolveNetworkEndpoint(
+        public ResourceEndpointNetworkMapping ResolveNetworkEndpoint(
             string networkId,
             ResourceEndpointRequest request,
             int autoLocalPortStart,
             int autoLocalPortEnd) =>
-            ResourceEndpoint.FromAddress(
+            new(
+                $"{networkId}:endpoint-network-mapping:{request.Name}",
                 request.Name,
+                new ResourceEndpointReference(networkId, request.Name),
                 $"{request.ProtocolName}://{DefaultHost}:4123",
-                request.ProtocolName,
-                request.Exposure);
+                request.Exposure,
+                NetworkResourceId: networkId,
+                SourceEndpointName: request.Name);
 
-        public ResourceEndpoint ResolveServiceEndpoint(
+        public ResourceEndpointNetworkMapping ResolveServiceEndpoint(
             string serviceId,
             ServicePort port,
             int autoLocalPortStart,
             int autoLocalPortEnd) =>
-            ResourceEndpoint.FromAddress(
+            new(
+                $"{serviceId}:endpoint-network-mapping:{port.Name}",
                 port.Name,
+                new ResourceEndpointReference(serviceId, port.Name),
                 $"{port.Protocol}://{DefaultHost}:4124",
-                port.Protocol,
-                port.Exposure);
+                port.Exposure,
+                SourceEndpointName: port.Name);
     }
 }
