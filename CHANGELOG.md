@@ -35,6 +35,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Contextual Add Resource links now preserve the originating resource-page
   tab through a sanitized `returnUrl`, and registration forms use that return
   path after Cancel or successful creation.
+- Resource Manager UI extension guidance now documents the direction for
+  standard views to light up from projected resource shape, capabilities, and
+  resource type declarations before provider-owned sections or tabs add
+  resource-specific depth.
 
 ### 2026-06-16
 

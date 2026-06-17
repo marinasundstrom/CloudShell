@@ -171,6 +171,35 @@ Manager can show Endpoints or DNS for resources that project endpoint data,
 networking capabilities, or name-mapping shape even when a provider does not
 own a custom tab. This keeps common concepts discoverable across providers.
 
+The intended Resource Manager direction is that standard views **light up**
+from the resource model before providers add custom UI:
+
+- **Projected resource shape** can light up default views. A resource with
+  endpoints can get the Endpoints view, a resource with related name mappings
+  can get DNS, a resource with volume mounts can get Storage, and a resource
+  with lifecycle activity can get Activity.
+- **Resource capabilities** can light up default views even before concrete
+  data exists. A resource that declares endpoint-source, DNS-zone,
+  volume-consumer, storage-provider, identity-consumer, log-source, or
+  trace-source capabilities can expose the related concern view so users know
+  where that concern will be configured or inspected.
+- **Resource type declarations** can declare additional resource-specific
+  views or sections. This lets a provider describe that every SQL Server
+  resource has a Storage view, every container app has Deployment and Replicas
+  views, or every Docker host has a Containers view without hardcoding those
+  rules into the shell.
+- **Provider-owned sections** can enrich a standard view without replacing
+  it. For example, an application provider can add exposure actions to
+  `networking:endpoints`, while a DNS provider can add reconciliation details
+  to `networking:dns`.
+- **Provider-owned tabs** are reserved for complete resource-specific
+  workflows or for replacing a built-in standard view when the generated view
+  is not appropriate for that resource type.
+
+This keeps the Resource Manager UX extensible without fragmenting common
+concerns. The shell owns the standard concern vocabulary and generated
+fallbacks; resource providers own resource-specific depth and interpretation.
+
 The Resource UI provider should choose the smallest extension point that
 matches its need:
 
