@@ -912,8 +912,10 @@ else
         var projectedEndpoint = GetPreferredProjectedEndpoint();
         if (projectedEndpoint is not null)
         {
-            var address = ProjectedResource?.GetResolvedEndpointAddress(projectedEndpoint) ??
-                projectedEndpoint.Address;
+            var address = ProjectedResource is not null &&
+                ProjectedResource.TryGetResolvedEndpointUri(projectedEndpoint, out var endpointUri)
+                    ? endpointUri.ToString()
+                    : projectedEndpoint.Address;
             if (!string.IsNullOrWhiteSpace(address))
             {
                 return new OverviewEndpoint(address, $"{projectedEndpoint.Name} endpoint");
@@ -948,10 +950,15 @@ else
         var endpoint = ProjectedResource?.Endpoints.FirstOrDefault(endpoint =>
                 string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase)) ??
             ProjectedResource?.Endpoints.FirstOrDefault();
-        var endpointAddress = endpoint is null
-            ? null
-            : ProjectedResource?.GetResolvedEndpointAddress(endpoint) ?? endpoint.Address;
-        var address = CreateMappedEndpointAddress(hostName, endpointAddress);
+        Uri? endpointUri = null;
+        if (endpoint is not null &&
+            ProjectedResource is not null &&
+            ProjectedResource.TryGetResolvedEndpointUri(endpoint, out var resolvedUri))
+        {
+            endpointUri = resolvedUri;
+        }
+
+        var address = CreateMappedEndpointAddress(hostName, endpointUri);
         return new OverviewEndpoint(
             address,
             $"{ApplicationNameMappingDisplay.GetExposureLabel(mapping)} DNS name");
@@ -967,9 +974,9 @@ else
             _ => 4
         };
 
-    private static string CreateMappedEndpointAddress(string hostName, string? endpointAddress)
+    private static string CreateMappedEndpointAddress(string hostName, Uri? endpointUri)
     {
-        if (!Uri.TryCreate(endpointAddress, UriKind.Absolute, out var endpointUri))
+        if (endpointUri is null)
         {
             return hostName;
         }

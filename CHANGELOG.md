@@ -125,6 +125,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resources now expose mapping-first resolved endpoint URI helpers, and local
   DNS publishing plus resource health checks use them instead of resolving an
   endpoint address string and parsing it locally.
+- Application overview endpoint display now uses the resource-level resolved
+  endpoint URI helper when projecting DNS/name-mapped overview addresses.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
