@@ -15,9 +15,10 @@ operate the environment.
 ## Core Model
 
 Endpoints are projected facts on resources. They describe the resource-owned
-address or port contract and, when known, the current binding for that contract
-inside a network topology. An endpoint can be HTTP, HTTPS, TCP, UDP, or a
-logical network address.
+named port/protocol mapping and, when known, the current address resolved for
+that mapping inside a network topology. An endpoint can be HTTP, HTTPS, TCP,
+UDP, or a logical network address, but the endpoint itself does not own the
+host.
 
 Endpoint requests are intent. They ask a network or provider to reserve or
 assign an address. Requests can be manual, auto-assigned, provider-default, or
@@ -85,9 +86,10 @@ addressed. These mechanisms are related, but they are not interchangeable.
 
 The Resource Manager UI should use the same distinction:
 
-- **Endpoint**: the resource-owned address or port contract. It describes what
-  the resource exposes, such as a named HTTP port, TCP port, container port, or
-  provider-assigned endpoint.
+- **Endpoint**: the resource-owned named port/protocol mapping. It describes
+  what the resource exposes, such as a named HTTP port, TCP port, container
+  target port, or provider-assigned logical endpoint. The current address is
+  resolved by topology and provider behavior.
 - **Exposure**: the provider- or network-owned route to an endpoint. This can
   be a virtual-network endpoint mapping, load-balancer route, ingress rule, or
   another provider-owned reachability path.
@@ -112,17 +114,17 @@ DNS/name mappings. Network-level service discovery is a later provider
 capability for host or virtual networks. It should not replace explicit
 endpoint mappings or public DNS/name mappings.
 
-## Endpoint Binding And Network Policy
+## Endpoint Topology And Network Policy
 
-Endpoint contracts and endpoint bindings must stay separate. A resource can
-declare that it exposes an `http` endpoint on target port `8080` without
-deciding that the endpoint must be reachable through `localhost`, a public IP,
-or a tenant virtual network.
+Endpoint mappings and topology-resolved addresses must stay separate. A
+resource can declare that it exposes an `http` endpoint on target port `8080`
+without deciding that the endpoint must be reachable through `localhost`, a
+public IP, or a tenant virtual network.
 
-The binding is topology-specific:
+The current address is topology-specific:
 
-- in local development, the default topology is the host network, so the
-  binding is often `localhost:<port>` or `127.0.0.1:<port>`
+- in local development, the default topology is the implied local network, so
+  the resolved address is often `localhost:<port>` or `127.0.0.1:<port>`
 - in a container host, the binding might be a container-network address or a
   published host port
 - in a virtual network, the binding might be a private address, internal DNS
@@ -133,20 +135,29 @@ The binding is topology-specific:
 
 Resource configuration should therefore follow this order:
 
-1. The resource declares endpoint contracts, such as endpoint name, protocol,
+1. The resource declares endpoint mappings, such as endpoint name, protocol,
    target port, and any provider-supported endpoint intent.
 2. The environment or network policy decides which binding modes are allowed:
    host-local, virtual-network-only, public exposure, DNS/name mapping, or
    provider-managed ingress.
-3. The resource is attached to a topology, such as the default host network for
-   local development or a tenant virtual network for managed/on-premise use.
+3. The resource is attached to a topology, such as the implied local network
+   for local development or a tenant virtual network for managed/on-premise
+   use.
 4. Exposure is configured separately when callers outside that topology need to
    reach the endpoint.
 
-For local development, CloudShell can default endpoint-bearing resources to the
-host network and allow localhost bindings because that keeps the developer
-loop simple. For managed or on-premise environments, CloudShell should be able
-to enforce stricter environment policy, such as:
+Resource Manager should eventually let users choose the network or topology for
+each resource endpoint when the environment allows it. In local development the
+implied local network can remain the default. In managed environments, the
+available choices should come from environment policy, tenant membership,
+resource permissions, and provider capabilities. A disabled or unavailable
+network choice should explain whether the reason is policy, permission, missing
+provider capability, or missing setup.
+
+For local development, CloudShell can default endpoint-bearing resources to an
+implied local network and allow localhost-resolved addresses because that keeps
+the developer loop simple. For managed or on-premise environments, CloudShell
+should be able to enforce stricter environment policy, such as:
 
 ```text
 Require virtual network: true
@@ -158,7 +169,7 @@ Allow DNS or host-file changes: permission-gated
 This makes tenant separation an environment policy rather than a special case
 inside each resource provider. Application resources, databases, secrets
 stores, configuration stores, and other endpoint-capable resources can all use
-the same endpoint contract model, while networks, gateways, load balancers,
+the same endpoint mapping model, while networks, gateways, load balancers,
 ingress providers, and DNS resources decide how those endpoints are bound,
 exposed, and named.
 

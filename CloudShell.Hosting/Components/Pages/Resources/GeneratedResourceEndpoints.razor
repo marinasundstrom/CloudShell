@@ -40,15 +40,26 @@
         @if (Resource.Endpoints.Count > 0)
         {
             <section class="generated-section">
-                <h3>@L["Endpoints"]</h3>
+                <div class="generated-section-heading">
+                    <h3>@L["Endpoints"]</h3>
+                    <p>@L["Endpoints are named port and protocol mappings on the resource. The address is resolved from the current topology; exposure and DNS/name mappings can make that endpoint reachable from other boundaries."]</p>
+                </div>
                 <div class="endpoint-list">
                     @foreach (var endpoint in Resource.Endpoints)
                     {
                         <div class="generated-endpoint">
                             <div class="generated-endpoint-main">
                                 <strong>@endpoint.Name</strong>
-                                @EndpointLink(endpoint.Address)
-                                <small>@endpoint.Protocol @endpoint.Exposure</small>
+                                <dl class="endpoint-detail-list">
+                                    <dt>@L["Mapping"]</dt>
+                                    <dd>@FormatEndpointMapping(endpoint)</dd>
+                                    <dt>@L["Current address"]</dt>
+                                    <dd>@EndpointLink(endpoint.Address)</dd>
+                                    <dt>@L["Topology"]</dt>
+                                    <dd>@FormatEndpointTopology(endpoint)</dd>
+                                    <dt>@L["Exposure"]</dt>
+                                    <dd>@FormatExposure(endpoint.Exposure)</dd>
+                                </dl>
                             </div>
                             <div class="generated-row-actions">
                                 <FluentButton Appearance="Appearance.Neutral"
@@ -311,6 +322,49 @@
     }
 
     private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
+
+    private string FormatEndpointMapping(ResourceEndpoint endpoint)
+    {
+        var protocol = string.IsNullOrWhiteSpace(endpoint.Protocol)
+            ? L["unspecified"].Value
+            : endpoint.Protocol;
+        return L["{0} port mapping", protocol].Value;
+    }
+
+    private string FormatEndpointTopology(ResourceEndpoint endpoint) =>
+        endpoint.Exposure switch
+        {
+            ResourceExposureScope.Private => L["Private topology"].Value,
+            ResourceExposureScope.Local => IsLocalHostBinding(endpoint.Address)
+                ? L["Implied local network"].Value
+                : L["Local topology"].Value,
+            ResourceExposureScope.Network => L["Network scoped"].Value,
+            ResourceExposureScope.Public => L["Public exposure"].Value,
+            _ => endpoint.Exposure.ToString()
+        };
+
+    private string FormatExposure(ResourceExposureScope exposure) =>
+        exposure switch
+        {
+            ResourceExposureScope.Private => L["private"].Value,
+            ResourceExposureScope.Local => L["local"].Value,
+            ResourceExposureScope.Network => L["network"].Value,
+            ResourceExposureScope.Public => L["public"].Value,
+            _ => exposure.ToString()
+        };
+
+    private static bool IsLocalHostBinding(string address)
+    {
+        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        return string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Host, "::1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Host, "[::1]", StringComparison.OrdinalIgnoreCase);
+    }
 
     private string GetEndpointConfigurationMessage()
     {
