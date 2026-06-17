@@ -110,9 +110,9 @@ public sealed class ResourceHealthCheckService
             return absolute;
         }
 
-        var endpointAddress = ResolveEndpointAddress(resource, check);
-        if (string.IsNullOrWhiteSpace(endpointAddress) ||
-            !Uri.TryCreate(endpointAddress, UriKind.Absolute, out var endpointUri) ||
+        var endpoint = ResolveEndpoint(resource, check);
+        if (endpoint is null ||
+            !resource.TryGetResolvedEndpointUri(endpoint, out var endpointUri) ||
             !IsHttpScheme(endpointUri.Scheme))
         {
             return null;
@@ -122,17 +122,6 @@ public sealed class ResourceHealthCheckService
         return Uri.TryCreate(endpointUri, path, out var checkUri)
             ? checkUri
             : null;
-    }
-
-    private static string? ResolveEndpointAddress(Resource resource, ResourceHealthCheck check)
-    {
-        var endpoint = ResolveEndpoint(resource, check);
-        if (endpoint is null)
-        {
-            return null;
-        }
-
-        return resource.GetResolvedEndpointAddress(endpoint);
     }
 
     private static ResourceEndpoint? ResolveEndpoint(Resource resource, ResourceHealthCheck check)

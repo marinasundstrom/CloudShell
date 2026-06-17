@@ -93,6 +93,43 @@ public sealed record Resource(
     public string? GetResolvedEndpointAddress(ResourceEndpoint endpoint) =>
         GetEndpointNetworkAddress(endpoint.Name) ?? endpoint.Address;
 
+    public bool TryGetResolvedEndpointUri(string endpointName, out Uri uri)
+    {
+        if (string.IsNullOrWhiteSpace(endpointName))
+        {
+            uri = null!;
+            return false;
+        }
+
+        var normalized = endpointName.Trim();
+        if (GetEndpointNetworkMapping(normalized) is { } mapping &&
+            mapping.TryGetUri(out uri))
+        {
+            return true;
+        }
+
+        var endpoint = Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, normalized, StringComparison.OrdinalIgnoreCase));
+        if (endpoint is not null)
+        {
+            return endpoint.TryGetUri(out uri);
+        }
+
+        uri = null!;
+        return false;
+    }
+
+    public bool TryGetResolvedEndpointUri(ResourceEndpoint endpoint, out Uri uri)
+    {
+        if (GetEndpointNetworkMapping(endpoint.Name) is { } mapping &&
+            mapping.TryGetUri(out uri))
+        {
+            return true;
+        }
+
+        return endpoint.TryGetUri(out uri);
+    }
+
     public IReadOnlyList<LoadBalancerRoute> ResourceLoadBalancerRoutes =>
         LoadBalancerRoutes ?? [];
 

@@ -67,21 +67,25 @@ public sealed class LocalHostNamePublishingProvider(
         var endpoint = resolution.TargetEndpoint
             ?? throw new InvalidOperationException(
                 $"Name mapping '{resolution.Mapping.Id}' must target a specific endpoint to be published by provider '{ProviderName}'.");
-        var endpointAddress = resolution.TargetResource.GetResolvedEndpointAddress(endpoint) ?? string.Empty;
-        var address = ResolveAddress(endpoint.Name, endpointAddress, resolution.Mapping.Id);
+        if (!resolution.TargetResource.TryGetResolvedEndpointUri(endpoint, out var endpointUri))
+        {
+            throw new InvalidOperationException(
+                $"Name mapping '{resolution.Mapping.Id}' target endpoint '{endpoint.Name}' must use a mapped absolute address with a host.");
+        }
+
+        var address = ResolveAddress(endpoint.Name, endpointUri, resolution.Mapping.Id);
         return new HostsEntry(address, hostName);
     }
 
-    private string ResolveAddress(string endpointName, string endpointAddress, string mappingId)
+    private string ResolveAddress(string endpointName, Uri endpointUri, string mappingId)
     {
-        if (!Uri.TryCreate(endpointAddress, UriKind.Absolute, out var uri) ||
-            string.IsNullOrWhiteSpace(uri.Host))
+        if (string.IsNullOrWhiteSpace(endpointUri.Host))
         {
             throw new InvalidOperationException(
                 $"Name mapping '{mappingId}' target endpoint '{endpointName}' must use a mapped absolute address with a host.");
         }
 
-        var host = uri.Host.Trim('[', ']');
+        var host = endpointUri.Host.Trim('[', ']');
         if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
             host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(host, "0.0.0.0", StringComparison.Ordinal) ||
