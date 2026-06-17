@@ -699,7 +699,6 @@ file sealed record ResourceResponse(
 
 file sealed record ResourceEndpointResponse(
     string Name,
-    string Address,
     string Protocol,
     bool IsExternal,
     ResourceExposureScope? Exposure,
@@ -964,9 +963,8 @@ file static class RemoteControlPlaneMapper
             DisplayName: response.DisplayName);
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
-        new(
+        ResourceEndpoint.Contract(
             response.Name,
-            response.Address,
             response.Protocol,
             response.Exposure ?? (response.IsExternal
                 ? ResourceExposureScope.Public

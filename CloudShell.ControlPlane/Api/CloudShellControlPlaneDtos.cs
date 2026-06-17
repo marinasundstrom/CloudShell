@@ -40,7 +40,6 @@ public sealed record ResourceResponse(
 
 public sealed record ResourceEndpointResponse(
     string Name,
-    string Address,
     string Protocol,
     bool IsExternal,
     ResourceExposureScope Exposure,
@@ -306,7 +305,6 @@ internal static class CloudShellControlPlaneDtoMapper
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
         new(
             endpoint.Name,
-            endpoint.Address,
             endpoint.Protocol,
             endpoint.IsExternal,
             endpoint.Exposure,
