@@ -72,18 +72,22 @@ public sealed record ResourceEndpointNetworkMapping(
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
         ArgumentException.ThrowIfNullOrWhiteSpace(endpointName);
         ArgumentException.ThrowIfNullOrWhiteSpace(address);
+        var normalizedResourceId = resourceId.Trim();
         var normalizedEndpointName = endpointName.Trim();
 
         return new ResourceEndpointNetworkMapping(
-            $"{resourceId.Trim()}:endpoint-network-mapping:{normalizedEndpointName}",
+            $"{normalizedResourceId}:endpoint-network-mapping:{normalizedEndpointName}",
             normalizedEndpointName,
-            new ResourceEndpointReference(resourceId.Trim(), normalizedEndpointName),
+            new ResourceEndpointReference(normalizedResourceId, normalizedEndpointName),
             address.Trim(),
             exposure,
-            networkResourceId,
-            providerResourceId,
-            sourceEndpointName ?? normalizedEndpointName);
+            NormalizeNullable(networkResourceId),
+            NormalizeNullable(providerResourceId),
+            NormalizeNullable(sourceEndpointName) ?? normalizedEndpointName);
     }
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
 public sealed record ResourceEndpointMappingDefinition(

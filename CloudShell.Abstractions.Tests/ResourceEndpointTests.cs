@@ -72,6 +72,28 @@ public sealed class ResourceEndpointTests
         Assert.Equal("http://localhost:5080", resource.GetEndpointNetworkAddress("http"));
     }
 
+    [Fact]
+    public void EndpointNetworkMappingFactory_NormalizesCanonicalEndpointMapping()
+    {
+        var mapping = ResourceEndpointNetworkMapping.ForEndpoint(
+            " application:api ",
+            " http ",
+            " http://localhost:5080 ",
+            ResourceExposureScope.Public,
+            networkResourceId: " network:local ",
+            providerResourceId: " networking:host-local ",
+            sourceEndpointName: " ");
+
+        Assert.Equal("application:api:endpoint-network-mapping:http", mapping.Id);
+        Assert.Equal("http", mapping.Name);
+        Assert.Equal(new ResourceEndpointReference("application:api", "http"), mapping.Target);
+        Assert.Equal("http://localhost:5080", mapping.Address);
+        Assert.Equal(ResourceExposureScope.Public, mapping.Exposure);
+        Assert.Equal("network:local", mapping.NetworkResourceId);
+        Assert.Equal("networking:host-local", mapping.ProviderResourceId);
+        Assert.Equal("http", mapping.SourceEndpointName);
+    }
+
     private static Resource CreateResource(
         IReadOnlyList<ResourceEndpoint> endpoints,
         IReadOnlyList<ResourceEndpointNetworkMapping>? endpointNetworkMappings = null) =>
