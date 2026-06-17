@@ -34,6 +34,13 @@ endpoints. A mapping can connect a network-owned frontend, load-balancer
 route, gateway, DNS/name mapping, or other topology artifact to the target
 resource service endpoint.
 
+Port remapping does not bypass network topology. It only decides which
+concrete port a provider binds or publishes for a resource endpoint. The
+resulting concrete endpoint still belongs to a topology, such as the implied
+local network, a container-host network, a virtual network, or a public
+exposure path. Network endpoint mappings still decide where that endpoint is
+reachable and which provider materializes that reachability.
+
 Endpoint requests are intent. They ask a network or provider to reserve or
 assign an address. Requests can be manual, auto-assigned, provider-default, or
 predefined by a provider.
