@@ -307,27 +307,11 @@
                 </FluentButton>
             </div>
 
-            @if (ResourceLifecycleDisplay.ShouldShowStatus(selected))
-            {
-                <div class="blade-status">
-                    <ResourceStateIndicator State="selected.State" ProgressLabel="@GetLifecycleProgressLabel(selected)" />
-                    <strong>@GetLifecycleStatusLabel(selected)</strong>
-                    <span>@L["Updated {0}", selected.LastUpdated.ToLocalTime().ToString("HH:mm:ss")]</span>
-                </div>
-            }
-
-            @if (selected.ResourceHealthChecks.Count > 0)
-            {
-                var health = GetHealthSummary(selected);
-                <div class="blade-status health-status">
-                    <span class="state-dot @GetHealthClass(health?.Status)"></span>
-                    <strong>@GetHealthLabel(health)</strong>
-                    @if (health is not null)
-                    {
-                        <span>@L["Checked {0}", health.CheckedAt.ToLocalTime().ToString("HH:mm:ss")]</span>
-                    }
-                </div>
-            }
+            <ResourceStatusSummary Resource="selected"
+                                   HealthSummary="GetHealthSummary(selected)"
+                                   IsCheckingHealth="IsCheckingHealth"
+                                   LifecycleProgressLabel="@GetLifecycleProgressLabel(selected)"
+                                   Class="resource-blade-status-summary" />
 
             @if (selected.DetailRoute is not null)
             {

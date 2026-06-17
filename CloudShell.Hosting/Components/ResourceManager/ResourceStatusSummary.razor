@@ -1,0 +1,84 @@
+@using CloudShell.Abstractions.ResourceManager
+@inject IStringLocalizer<SharedResource> L
+
+@if (Resource is not null && ShowsAnyStatus)
+{
+    <div class="@CssClass" aria-label="@L["Resource status"]">
+        @if (ResourceLifecycleDisplay.ShouldShowStatus(Resource))
+        {
+            <div class="resource-status-row">
+                <ResourceStateIndicator State="Resource.State" ProgressLabel="@LifecycleProgressLabel" />
+                <strong>@GetLifecycleStatusLabel()</strong>
+                <span>@L["Updated {0}", Resource.LastUpdated.ToLocalTime().ToString("HH:mm:ss")]</span>
+            </div>
+        }
+
+        @if (ShowHealth && Resource.ResourceHealthChecks.Count > 0)
+        {
+            <div class="resource-status-row">
+                <span class="state-dot @GetHealthClass(HealthSummary?.Status)"></span>
+                <strong>@GetHealthLabel()</strong>
+                @if (HealthSummary is not null)
+                {
+                    <span>@L["Checked {0}", HealthSummary.CheckedAt.ToLocalTime().ToString("HH:mm:ss")]</span>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Resource? Resource { get; set; }
+
+    [Parameter]
+    public ResourceHealthSummary? HealthSummary { get; set; }
+
+    [Parameter]
+    public bool IsCheckingHealth { get; set; }
+
+    [Parameter]
+    public string? LifecycleProgressLabel { get; set; }
+
+    [Parameter]
+    public bool ShowHealth { get; set; } = true;
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private bool ShowsAnyStatus =>
+        Resource is not null &&
+        (ResourceLifecycleDisplay.ShouldShowStatus(Resource) ||
+            ShowHealth && Resource.ResourceHealthChecks.Count > 0);
+
+    private string CssClass => string.IsNullOrWhiteSpace(Class)
+        ? "resource-status-summary"
+        : $"resource-status-summary {Class}";
+
+    private string GetLifecycleStatusLabel() =>
+        LifecycleProgressLabel ?? Resource?.State?.ToString() ?? ResourceState.Unknown.ToString();
+
+    private string GetHealthLabel()
+    {
+        if (HealthSummary is null)
+        {
+            return IsCheckingHealth ? L["Checking"].Value : L["Not checked"].Value;
+        }
+
+        return HealthSummary.Status switch
+        {
+            ResourceHealthStatus.Healthy => L["Healthy"].Value,
+            ResourceHealthStatus.Unhealthy => L["Unhealthy"].Value,
+            _ => L["Unknown"].Value
+        };
+    }
+
+    private static string GetHealthClass(ResourceHealthStatus? status) =>
+        status switch
+        {
+            ResourceHealthStatus.Healthy => "health-healthy",
+            ResourceHealthStatus.Unhealthy => "health-unhealthy",
+            ResourceHealthStatus.Unknown => "health-unknown",
+            _ => "health-pending"
+        };
+}

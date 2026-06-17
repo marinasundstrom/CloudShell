@@ -117,6 +117,20 @@ h3 {
     min-width: 0;
 }
 
+.resource-title-icon {
+    width: 2rem;
+    height: 2rem;
+    flex-basis: 2rem;
+}
+
+.resource-title-name {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
 .resource-title-line h1 {
     margin: 0;
     overflow-wrap: anywhere;
@@ -243,6 +257,7 @@ h3 {
 }
 
 .state-dot {
+    display: inline-block;
     width: .65rem;
     height: .65rem;
     flex: 0 0 .65rem;
@@ -1571,6 +1586,31 @@ h3 {
 
 .detail-heading p {
     color: var(--cloudshell-text-muted);
+}
+
+.resource-status-summary {
+    display: grid;
+    gap: .45rem;
+    margin: .25rem 0 1rem;
+    padding-bottom: .85rem;
+    border-bottom: 1px solid var(--cloudshell-divider);
+}
+
+.resource-status-row {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    color: var(--cloudshell-text-muted);
+    font-size: .82rem;
+    margin: 0;
+}
+
+.resource-status-row strong {
+    color: var(--cloudshell-text);
+}
+
+.resource-blade-status-summary {
+    margin: 0 0 1rem;
 }
 
 .detail-list {

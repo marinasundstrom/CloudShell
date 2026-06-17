@@ -7,6 +7,7 @@
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
 @inject IJSRuntime JS
+@inject ResourceHealthCheckService HealthChecks
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
@@ -34,13 +35,13 @@
     <div class="resource-page-title">
         <span class="eyebrow">@L["Resource Manager"]</span>
         <div class="resource-title-line">
-            @if (resource?.State is { } state)
+            @if (resource is not null)
             {
-                <ResourceStateIndicator State="state"
-                                        ProgressLabel="@GetLifecycleProgressLabel(resource)"
-                                        Title="@L["State: {0}", GetLifecycleStatusLabel(resource)]" />
+                <ResourceKindIcon Resource="resource" Class="resource-kind-icon resource-title-icon" />
             }
-            <h1>@(resource is null ? L["Resource"] : GetResourceLabel(resource))</h1>
+            <div class="resource-title-name">
+                <h1>@(resource is null ? L["Resource"] : GetResourceLabel(resource))</h1>
+            </div>
         </div>
         <p>@(resource is null ? L["Generated details and provider-contributed views for this resource."] :
                                                                                     GetResourceSubtitle(resource))</p>
@@ -125,13 +126,11 @@
             <h2>@L["Resource"]</h2>
             @if (resource is not null)
             {
-                <div class="selected-type-card">
-                    <ResourceKindIcon Resource="resource" />
-                    <div>
-                        <strong>@GetResourceLabel(resource)</strong>
-                        <p>@resource.Kind</p>
-                    </div>
-                </div>
+                <ResourceStatusSummary Resource="resource"
+                                       HealthSummary="HealthSummary"
+                                       IsCheckingHealth="IsCheckingHealth"
+                                       LifecycleProgressLabel="@GetLifecycleProgressLabel(resource)" />
+
                 <dl class="detail-list">
                     <dt>@L["Resource ID"]</dt>
                     <dd>@resource.Id</dd>
@@ -229,6 +228,7 @@
     private ResourceConfigurationContext? ConfigurationContext { get; set; }
     private Resource? Resource { get; set; }
     private ResourceGroup? ResourceGroup { get; set; }
+    private ResourceHealthSummary? HealthSummary { get; set; }
     private IReadOnlyList<LogDescriptor> ResourceLogs { get; set; } = [];
     private bool HasIdentityPermissionGrants { get; set; }
     private ResourceOperationCapabilities OperationCapabilities { get; set; } =
@@ -243,6 +243,7 @@
     private bool IsApplying { get; set; }
     private bool IsRestarting { get; set; }
     private bool IsDeleting { get; set; }
+    private bool IsCheckingHealth { get; set; }
     private bool ConfirmDelete { get; set; }
     private int ResourceContentVersion { get; set; }
 
@@ -270,6 +271,8 @@
         if (Resource is null)
         {
             ResourceLogs = [];
+            HealthSummary = null;
+            IsCheckingHealth = false;
             HasIdentityPermissionGrants = false;
             OperationCapabilities = ResourceOperationCapabilities.None(string.Empty);
         }
@@ -515,6 +518,28 @@
         ResourceLogs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resource.Id));
         HasIdentityPermissionGrants = await HasPermissionGrantsAsync(resource);
         OperationCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
+        await RefreshResourceHealthAsync(resource);
+    }
+
+    private async Task RefreshResourceHealthAsync(Resource resource)
+    {
+        HealthSummary = null;
+        if (resource.ResourceHealthChecks.Count == 0)
+        {
+            IsCheckingHealth = false;
+            return;
+        }
+
+        IsCheckingHealth = true;
+        try
+        {
+            var healthResults = await HealthChecks.CheckAsync(new[] { resource });
+            HealthSummary = healthResults.GetValueOrDefault(resource.Id);
+        }
+        finally
+        {
+            IsCheckingHealth = false;
+        }
     }
 
     private async Task<bool> HasPermissionGrantsAsync(Resource resource)
