@@ -11,7 +11,9 @@ networking, deployment, and operational control as the solution grows.
 ## Current Foundation
 
 The current foundation is a resource model with programmatic declarations,
-Resource Manager UI, provider-owned configuration, and a Control Plane API.
+Resource Manager UI, provider-owned configuration, endpoint-network mappings,
+identity-backed service integrations, sample smoke coverage, and a Control
+Plane API.
 
 Useful references:
 
@@ -47,10 +49,10 @@ MVP scope:
 | Identity, external OIDC validation | The identity model is proven against at least one standards-compliant third-party OIDC/OAuth provider, such as Keycloak, without changing the CloudShell resource identity contract. |
 | App settings and secrets integrations | App settings, configuration-entry references, and secret references work through programmatic declarations, Resource Manager assignment flows, runtime transfer, redaction, and authorization. |
 | UX polish | Resource Manager common workflows are understandable, diagnostics are actionable, generated details are useful, and identity, configuration, secrets, networking, and app controls are discoverable without bespoke sample code. |
-| Samples should work | Supported samples build and smoke-test, including combined hosting, split hosting, container host, settings and secrets, host virtual networking, load balancer, project references, and container app deployment. |
+| Samples should work | Supported samples build and smoke-test, including combined hosting, split hosting, container host, settings and secrets, host virtual networking, load balancer, project references, third-party identity, application topology, and container app deployment. |
 
-The execution plan and foundation rationale below define the implementation
-order for reaching this MVP and then expanding beyond it.
+The execution plan and readiness notes below define the implementation order
+for reaching this MVP and then expanding beyond it.
 
 ### Post-MVP: Initial On-Premise Hosting
 
@@ -83,6 +85,28 @@ trackers, [ADR](../ADR.md) remains the durable decision log, and
 The projected focus order is a planning tool, not a constraint: re-evaluate it
 during implementation whenever a different slice better serves the immediate
 MVP goal described in [CloudShell goal](goal.md).
+
+### MVP Readiness Snapshot
+
+The MVP is now primarily a convergence problem, not a concept-discovery
+problem. The core resource model, endpoint/network mapping model, container app
+surface, local/default container host path, storage/volume bridge,
+configuration and secrets resources, built-in identity flow, Keycloak-backed
+identity validation, Resource Manager details, and supported sample smoke
+coverage all exist.
+
+The remaining MVP work should bias toward release-quality behavior:
+
+- Keep supported samples building and smoke-testing.
+- Make the primary Resource Manager path understandable without sample-specific
+  knowledge.
+- Tighten action capability reasons, diagnostics, and ProblemDetails responses
+  around already-supported flows.
+- Keep endpoint contracts address-less and require concrete reachability through
+  endpoint network mappings.
+- Avoid broad IAM, deployment history, autoscaling, advanced service resources,
+  and on-premise hosting work unless a supported MVP sample exposes a blocking
+  gap.
 
 ### Immediate Proposal Order
 
@@ -132,7 +156,8 @@ listed here before pulling in broader proposal work.
 4. Identity validation beyond the built-in provider: keep the built-in
    identity provider for local development, but prove the same resource
    identity and permission model against one third-party OIDC/OAuth provider,
-   with automated smoke coverage before adding broader IAM UI.
+   and keep the Keycloak-backed workload smoke path green before adding broader
+   IAM UI.
 5. MVP convergence and Resource Manager reliability: keep supported samples
    green, tighten generated resource details, lifecycle actions, activity
    records, diagnostics, and state transitions around the flows that already
@@ -183,12 +208,14 @@ listed here before pulling in broader proposal work.
   and operate that path from the application resource configuration experience
   without requiring programmatic-only sample knowledge.
 - Keep CloudShell's resource addressing layers distinct. Concrete endpoint
-  addresses, topology-scoped reachability, Aspire-compatible developer
-  service discovery, future managed network-level discovery, and DNS/name
-  mappings each solve a different part of the application environment path.
-  Application overview pages now show projected developer service discovery
-  references and aliases for local/programmatic flows; network-level discovery
-  remains a later provider capability for host or virtual-network scopes.
+  addresses belong to endpoint network mappings; resource endpoints remain
+  address-less contracts. Topology-scoped reachability, Aspire-compatible
+  developer service discovery, future managed network-level discovery, and
+  DNS/name mappings each solve a different part of the application environment
+  path. Application overview pages now show projected developer service
+  discovery references and aliases for local/programmatic flows; network-level
+  discovery remains a later provider capability for host or virtual-network
+  scopes.
 - Do not require `cloudshell.service` for normal container app exposure in the
   MVP. Container apps are the stable user-facing deployment, replica, and
   exposure artifacts: they represent managed services that can be exposed
@@ -290,13 +317,14 @@ listed here before pulling in broader proposal work.
   the standard `CLOUDSHELL_IDENTITY_*` contract, and protected CloudShell
   services can validate configured external OIDC/OAuth bearer tokens before
   applying CloudShell scoped resource-permission claims. The Third-party
-  Identity sample now includes a Keycloak-provisioned workload path for manual
-  validation; next identity work should add automated end-to-end smoke coverage
-  for that path.
+  Identity sample now includes automated smoke coverage for a
+  Keycloak-provisioned workload that reads configuration with a provisioned
+  resource identity. Next identity work should keep that path stable while
+  improving setup and authorization diagnostics that directly affect MVP flows.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host
-  virtual networking, load balancer, project references, and container app
-  deployment.
+  virtual networking, load balancer, project references, third-party identity,
+  application topology, and container app deployment.
 - Use the forked Application Topology sample as the broad MVP composition
   sample. ProjectReference remains the focused ASP.NET Core project dependency,
   service discovery, log, and trace baseline; ApplicationTopology is where SQL
@@ -576,252 +604,73 @@ listed here before pulling in broader proposal work.
   work is permission-aware UI enforcement and deciding whether any deployments
   also need Control Plane write blocking.
 
-## Foundation Rationale
+## Planning Notes
 
-The MVP execution plan above is the current task queue. The sections below
-explain how the larger foundations relate and why they still matter. The
-current focus is MVP convergence: make the supported Resource Manager flows
-reliable, understandable, diagnosable, and covered by sample smoke tests.
-Identity remains a required foundation for access enforcement and
-workload-to-platform calls, but broad IAM work is no longer the front of the
-queue unless it blocks the current settings, secrets, lifecycle, or
-resource-action flows.
+The MVP execution plan above is the current task queue. The notes below explain
+the planning boundaries to preserve while the queue is worked.
 
-Several first slices are already in place: virtual-network resources, portable
-local host networking, load-balancer resources, Traefik file-provider output,
-Docker host projection, Secrets Vault resources, app-owned container ingress,
-and explicit container-app replica counts. The remaining roadmap turns those
-slices into coherent security, host, networking, and deployment foundations.
+### Keep Convergence First
 
-### 1. Resource Identity and Permissions
+The release path should prefer completing and hardening already-started flows
+over starting new platform areas. The strongest proof remains a realistic
+application topology managed from Resource Manager and the Control Plane API:
+container apps or project-backed services, SQL Server with mounted storage,
+configuration, secrets, identity-backed access, logs, traces, endpoint
+exposure, load-balancer routes, and DNS/name mappings.
 
-Goal: keep resource identity and authorization strong enough for the MVP
-service-integration and Resource Manager permission flows, then defer broader
-platform identity until the core experience is stable.
+Resource Manager reliability is the release gate. When choosing between a new
+abstraction and a sharper diagnostic, action capability reason, generated
+detail, or smoke-test assertion for an existing flow, choose the existing flow
+unless the missing abstraction blocks a supported sample.
 
-Keep using the identity and access proposal as the tracker for resource
-identity-provider contracts, default provider selection, resource identity
-bindings, resource-scoped permission names, permission assignments, workload
-identity lifecycle, token claim mapping, and action authorization diagnostics.
+### Preserve Boundaries
 
-The built-in development authority should preserve resource-permission
-pairing in token claims so a permission granted on one resource cannot combine
-with a different resource claim during API authorization.
+The current model boundaries should hold through the MVP:
 
-The first provider-selection contract should stay small: concrete identity
-bindings resolve by provider ID, required-but-unresolved bindings resolve to a
-default provider, and richer inheritance can follow when resource groups and
-parent resources participate in identity policy.
+- Resource endpoints are address-less contracts; endpoint network mappings
+  carry concrete reachability.
+- Container apps are the normal application exposure artifact;
+  `cloudshell.service` remains optional for logical facades, imported services,
+  non-application targets, and advanced routing.
+- Storage volumes are mountable storage resources, not a generic bucket for
+  object storage, databases, backups, or provider-specific persistence.
+- Identity should secure resource actions, configuration reads, secret reads,
+  provider setup, and workload-to-platform calls without pulling broad IAM into
+  the MVP.
+- Runtime-managed resources and deployment/revision contracts stay internal or
+  diagnostic until ownership, visibility, cleanup, and traceability are stable.
 
-For development, CloudShell should host a separate reference identity server
-instance that speaks standard OIDC and OAuth 2.0. That instance is development
-infrastructure, not the CloudShell identity domain model. The same contracts
-must work with Microsoft Entra ID (Azure AD) and allow teams to replace the
-development server with Keycloak, Auth0, Okta, or another standards-compliant
-provider later.
+### Defer Deliberately
 
-Resources should be able to declare identity intent programmatically, either by
-binding to a concrete provider identity or by declaring that the resource will
-have an identity later. Isolated local development may also disable
-authentication and use mock identity bindings, but that is only one development
-path before switching to Microsoft Entra ID or another production provider.
+The following work should stay out of the MVP unless a release-gating sample
+forces a smaller slice:
 
-This phase should also establish the audit hooks required to explain allow and
-deny decisions. Full policy engines, wildcard permissions, and advanced
-inheritance can wait, but the first model must be strong enough to secure
-resource actions, secret access, provider operations, and future deployment
-inspection.
+- Autoscaling, traffic splitting, backend pools, TLS binding, rollout history,
+  rollback, and first-class deployment resources.
+- Provider-backed network-level service discovery and public DNS propagation.
+- Broad IAM features such as inheritance, multiple identities per resource,
+  effective permission APIs, durable external authority reconciliation, and
+  provider-native requested-versus-effective grant models.
+- External deployment projection, resource graph import/code generation, and
+  container application environments.
+- The initial on-premise hosting scenario beyond the design and sample
+  preparation needed to avoid dead-end MVP choices.
 
-References:
+### Release Gate
 
-- [Identity and Access Proposal](proposals/core/identity-and-access.md)
-- [Resource identity and permissions](resource-identity-and-permissions.md)
-- [Authentication and authorization](authentication-and-authorization.md)
-- [Platform Foundations Proposal](proposals/core/platform-foundations.md)
+Before treating the MVP as ready, verify:
 
-### 2. Host Abstractions
-
-Goal: jump next to the shared host resolver and runtime contract after the
-resource identity slice is stable.
-
-Host abstraction work remains the next major implementation chain. Load
-balancers, app ingress, remote Docker hosts, and future runtime-managed
-resources all need the same answer to "which host should materialize this?"
-and "how does provider-owned runtime state get created, probed, stopped, and
-cleaned up?"
-
-The first slice should add host descriptors, compatibility adapters for the
-existing container-host contracts, a shared explicit/default host resolver,
-and diagnostics for missing or unsuitable hosts. Provider-owned runtime
-containers should come after the resolver is in place.
-
-References:
-
-- [Container Host Abstraction Proposal](proposals/containers/container-host-abstraction.md)
-- [Remote Docker Hosts Proposal](proposals/containers/remote-docker-hosts.md)
-- [Load Balancer Resource Proposal](proposals/networking/load-balancer-resource.md)
-- [Container apps](resources/container-apps.md)
-
-### 3. Configuration and Secrets Access
-
-Goal: align secret consumption and in-process configuration with the identity
-foundation.
-
-The existing Secrets Vault and resource-assignment path can continue, but
-in-process secret loading and service-to-service secret access should use the
-current identity and permission model. A resource should not gain
-secret read access solely because it references a secret.
-
-References:
-
-- [Secrets Management Proposal](proposals/services/secrets-management.md)
-- [Identity and Access Proposal](proposals/core/identity-and-access.md)
-- [Resource templates](resource-templates.md)
-- [Programmatic resources](programmatic-resources.md)
-
-### 4. Traceability and Audit
-
-Goal: make resource changes, deployment triggers, authorization decisions, and
-reconciliation outcomes explainable over time.
-
-Resource events already define the platform traceability stream. The next
-slice is persistence, filtering, event schemas, and audit linkage for resource
-actions, image deployments, host/runtime operations, secret access, and
-authorization decisions.
-
-References:
-
-- [Platform Foundations Proposal](proposals/core/platform-foundations.md)
-- [Identity and Access Proposal](proposals/core/identity-and-access.md)
-- [Logging infrastructure](proposals/core/logging-infrastructure.md)
-- [Container apps](resources/container-apps.md#logs-and-events)
-
-### 5. Remote Docker Host Completion
-
-Goal: complete the concrete user-managed Docker host story on top of the
-host-first model.
-
-Docker is the first concrete container host provider. The remaining work is
-not a new platform abstraction; it is registration, credential handling,
-provider-owned persistence, duplicate-host validation, and end-to-end action
-coverage for local and remote Docker hosts.
-
-This should follow the shared host resolver so UI-created and declared Docker
-hosts participate in the same placement and diagnostics model used by
-container apps and provider-owned infrastructure.
-
-References:
-
-- [Remote Docker Hosts Proposal](proposals/containers/remote-docker-hosts.md)
-- [Container Host Abstraction Proposal](proposals/containers/container-host-abstraction.md)
-- [Domain model](domain-model.md)
-
-### 6. Provider-Owned Runtime Lifecycle
-
-Goal: make implementation containers and helper services lifecycle-managed
-without turning them into user-authored resources.
-
-Once hosts can be resolved consistently, add the owner-scoped runtime contract
-for provider-owned infrastructure. Traefik container mode is the first concrete
-consumer: the load-balancer resource remains the stable user-facing resource,
-while the Traefik implementation container is provider-owned runtime state or
-an optional diagnostic child.
-
-This phase should also tighten stop/delete cleanup and runtime status
-projection for app-owned ingress infrastructure. Keep workload crash recovery
-separate from host restart reconciliation: providers report observed stopped or
-failed state, while orchestrators decide restart, backoff, or provider-native
-policy.
-
-References:
-
-- [Load balancers](resources/load-balancers.md)
-- [Load Balancer Resource Proposal](proposals/networking/load-balancer-resource.md)
-- [Container Host Abstraction Proposal](proposals/containers/container-host-abstraction.md)
-- [Container apps](resources/container-apps.md)
-
-### 7. Network and Routing Hardening
-
-Goal: harden virtual networking, load balancing, and replicated app ingress
-against real host and provider behavior.
-
-The core model is now established: network resources own endpoint requests and
-mappings; load balancers own provider-neutral routes; replicated container
-apps own normal app ingress. The next step is validation and diagnostics:
-host-readiness warnings, provider selection, richer route and endpoint
-conflict reporting, configuration preview, backend resolution, and richer
-action capability reasons.
-
-Backend pools, health-aware target selection, TLS binding, and traffic
-splitting should wait until the current routing and host-readiness paths are
-reliable.
-
-References:
-
-- [Virtual Network Resource Proposal](proposals/networking/virtual-network-resource.md)
-- [Networking](networking.md)
-- [Load Balancer Resource Proposal](proposals/networking/load-balancer-resource.md)
-- [Load balancers](resources/load-balancers.md)
-
-### 8. Runtime-Managed Resources
-
-Goal: decide and implement how provider-created runtime artifacts are owned,
-visible, cleaned up, and inspected.
-
-This should follow host/runtime lifecycle work. The first decision is whether
-replicas, implementation containers, endpoint registrations, backend
-registrations, images, and revisions are normal runtime-managed resources,
-provider-owned state, or a mix of both. The immediate requirement is ownership
-and diagnostics without cluttering normal Resource Manager views.
-
-References:
-
-- [Runtime-Managed Resource Proposal](proposals/core/provider-created-and-runtime-managed-resources.md)
-- [Deployments and Revisions Proposal](proposals/deployment/deployments-and-revisions.md)
-- [Domain model: Resource](domain-model.md#resource)
-
-### 9. Deployment and Revision Model
-
-Goal: add first-class rollout history only after ownership, traceability, and
-runtime inspection boundaries are clear.
-
-Container apps already project a current app-owned revision for image updates.
-A richer deployment model should answer versioned configuration, rollout
-history, rollback, failure handling, retention, and orchestrator-specific
-runtime state. Do not introduce `Deployment` just to support host selection,
-networking, or basic replica count updates.
-
-References:
-
-- [Deployments and Revisions Proposal](proposals/deployment/deployments-and-revisions.md)
-- [Runtime-Managed Resource Proposal](proposals/core/provider-created-and-runtime-managed-resources.md)
-- [Container apps](resources/container-apps.md#revisions)
-- [ADR](../ADR.md)
-- [Changelog](../CHANGELOG.md)
-
-### 10. Advanced App and Environment Concepts
-
-Goal: evaluate higher-level isolation, scaling, service exposure, and
-environment boundaries after the lower-level foundations are stable.
-
-This is where container application environments, autoscaling, traffic
-splitting, `cloudshell.service`, backend pools, Kubernetes-style service
-projection, and richer multi-host policy belong. These concepts depend on the
-host, routing, identity, runtime ownership, and deployment decisions above.
-The initial on-premise hosting scenario also belongs here: it should assemble
-the already-proven primitives into a larger environment rather than pulling
-new platform concepts into the MVP.
-That validation should include creating resources through the Resource Manager
-UI with identity enabled, then exercising container app image updates against a
-registry-backed app so authorization, registry credentials, revisions, and
-runtime rollout behavior are tested together.
-
-References:
-
-- [Container apps](resources/container-apps.md)
-- [Virtual Network Resource Proposal](proposals/networking/virtual-network-resource.md)
-- [Load Balancer Resource Proposal](proposals/networking/load-balancer-resource.md)
-- [Hosting model](hosting-model.md)
+- The supported sample smoke suite covers combined hosting, split hosting,
+  container host, settings and secrets, host virtual networking, load balancer,
+  project references, third-party identity, application topology, and container
+  app deployment.
+- Resource Manager can create, inspect, update, operate, and diagnose the main
+  app environment path without relying on programmatic-only sample knowledge.
+- API/client projections preserve the same domain-shaped model as Resource
+  Manager, including endpoint network mappings, resource actions,
+  capabilities, identity, events, and diagnostics.
+- Failure states return stable action capability reasons, diagnostics, or
+  ProblemDetails codes rather than provider-specific exception text.
 
 ## Tracking Work
 
