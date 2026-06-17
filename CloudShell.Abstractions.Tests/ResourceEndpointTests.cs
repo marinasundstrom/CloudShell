@@ -151,12 +151,12 @@ public sealed class ResourceEndpointTests
     }
 
     [Fact]
-    public void GetEndpointNetworkAddress_FallsBackToLegacyEndpointAddress()
+    public void GetEndpointNetworkAddress_DoesNotFallbackToLegacyEndpointAddress()
     {
         var resource = CreateResource(
             [ResourceEndpoint.Http("http", "localhost", 5080)]);
 
-        Assert.Equal("http://localhost:5080", resource.GetEndpointNetworkAddress("http"));
+        Assert.Null(resource.GetEndpointNetworkAddress("http"));
     }
 
     [Fact]
@@ -177,13 +177,13 @@ public sealed class ResourceEndpointTests
     }
 
     [Fact]
-    public void GetResolvedEndpointAddress_FallsBackToEndpointAddress()
+    public void GetResolvedEndpointAddress_DoesNotFallbackToEndpointAddress()
     {
         var resource = CreateResource(
             [ResourceEndpoint.Http("http", "localhost", 5080)],
             endpointNetworkMappings: []);
 
-        Assert.Equal("http://localhost:5080", resource.GetResolvedEndpointAddress("http"));
+        Assert.Null(resource.GetResolvedEndpointAddress("http"));
     }
 
     [Fact]
@@ -206,15 +206,13 @@ public sealed class ResourceEndpointTests
     }
 
     [Fact]
-    public void TryGetResolvedEndpointUri_FallsBackToEndpointAddress()
+    public void TryGetResolvedEndpointUri_DoesNotFallbackToEndpointAddress()
     {
         var resource = CreateResource(
             [ResourceEndpoint.Http("http", "localhost", 5080)],
             endpointNetworkMappings: []);
 
-        Assert.True(resource.TryGetResolvedEndpointUri("http", out var uri));
-        Assert.Equal("localhost", uri.Host);
-        Assert.Equal(5080, uri.Port);
+        Assert.False(resource.TryGetResolvedEndpointUri("http", out _));
     }
 
     [Fact]

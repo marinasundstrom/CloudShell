@@ -36,7 +36,6 @@ public sealed record Resource(
 
     public string PrimaryEndpoint =>
         ResourceEndpointNetworkMappings.FirstOrDefault()?.Address ??
-        Endpoints.FirstOrDefault()?.Address ??
         "none";
 
     public string EffectiveTypeId => TypeId ?? Kind;
@@ -69,7 +68,7 @@ public sealed record Resource(
         EndpointMappings ?? [];
 
     public IReadOnlyList<ResourceEndpointNetworkMapping> ResourceEndpointNetworkMappings =>
-        EndpointNetworkMappings ?? CreateEndpointNetworkMappings(Id, Endpoints);
+        EndpointNetworkMappings ?? [];
 
     public ResourceEndpointNetworkMapping? GetEndpointNetworkMapping(string endpointName) =>
         ResourceEndpointNetworkMappings.FirstOrDefault(mapping => mapping.MatchesEndpoint(endpointName));
@@ -85,13 +84,11 @@ public sealed record Resource(
         }
 
         var normalized = endpointName.Trim();
-        return GetEndpointNetworkAddress(normalized) ??
-            Endpoints.FirstOrDefault(endpoint =>
-                string.Equals(endpoint.Name, normalized, StringComparison.OrdinalIgnoreCase))?.Address;
+        return GetEndpointNetworkAddress(normalized);
     }
 
     public string? GetResolvedEndpointAddress(ResourceEndpoint endpoint) =>
-        GetEndpointNetworkAddress(endpoint.Name) ?? endpoint.Address;
+        GetEndpointNetworkAddress(endpoint.Name);
 
     public bool TryGetResolvedEndpointUri(string endpointName, out Uri uri)
     {
@@ -108,13 +105,6 @@ public sealed record Resource(
             return true;
         }
 
-        var endpoint = Endpoints.FirstOrDefault(endpoint =>
-            string.Equals(endpoint.Name, normalized, StringComparison.OrdinalIgnoreCase));
-        if (endpoint is not null)
-        {
-            return endpoint.TryGetUri(out uri);
-        }
-
         uri = null!;
         return false;
     }
@@ -127,7 +117,8 @@ public sealed record Resource(
             return true;
         }
 
-        return endpoint.TryGetUri(out uri);
+        uri = null!;
+        return false;
     }
 
     public IReadOnlyList<LoadBalancerRoute> ResourceLoadBalancerRoutes =>
@@ -148,18 +139,6 @@ public sealed record Resource(
         ResourceCapabilities.Any(capability =>
             string.Equals(capability.Id, capabilityId, StringComparison.OrdinalIgnoreCase));
 
-    private static IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
-        string resourceId,
-        IReadOnlyList<ResourceEndpoint> endpoints) =>
-        endpoints
-            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
-            .Select(endpoint => ResourceEndpointNetworkMapping.ForEndpoint(
-                resourceId,
-                endpoint.Name,
-                endpoint.Address,
-                endpoint.Exposure,
-                sourceEndpointName: endpoint.Name))
-            .ToArray();
 }
 
 public enum ResourceSource

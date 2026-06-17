@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
   a duplicate provider-local conversion path.
 - Resource endpoint and endpoint-network mapping URI parsing now share the
   same host-bearing absolute URI helper.
+- Resource endpoint resolution is now mapping-only: `Resource` no longer
+  synthesizes endpoint network mappings or resolved endpoint addresses from
+  legacy `ResourceEndpoint.Address` values.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
