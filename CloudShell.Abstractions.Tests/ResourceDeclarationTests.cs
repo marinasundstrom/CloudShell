@@ -1640,6 +1640,15 @@ public sealed class ResourceDeclarationTests
             using var serviceProvider = services.BuildServiceProvider();
             var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
             var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+            var endpoint = Assert.Single(resource.Endpoints);
+            Assert.Equal("application", endpoint.Name);
+            Assert.Equal("http", endpoint.Protocol);
+            Assert.Equal(port, endpoint.TargetPort);
+            Assert.Empty(endpoint.Address);
+            var mapping = Assert.Single(resource.ResourceEndpointNetworkMappings);
+            Assert.Equal("application", mapping.Name);
+            Assert.Equal(new ResourceEndpointReference(resource.Id, endpoint.Name), mapping.Target);
+            Assert.Equal($"http://127.0.0.1:{port}", mapping.Address);
             var registrations = new TestResourceRegistrationStore(
                 [
                     new ResourceRegistration(

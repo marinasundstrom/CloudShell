@@ -69,6 +69,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Docker host resources now project their `host` endpoint as an address-less
   endpoint contract and carry the configured Docker host URI as an endpoint
   network mapping.
+- Legacy application endpoint strings now project as address-less endpoint
+  contracts, with the configured application URL carried by an endpoint network
+  mapping.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

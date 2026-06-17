@@ -2948,7 +2948,11 @@ public sealed partial class ApplicationResourceProvider(
             ? uri.Scheme
             : "tcp";
 
-        return [ResourceEndpoint.FromAddress("application", endpoint, protocol, ResourceExposureScope.Public)];
+        return [ResourceEndpoint.Contract(
+            "application",
+            protocol,
+            ResourceExposureScope.Public,
+            TryGetPort(endpoint))];
     }
 
     private IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
@@ -2968,27 +2972,27 @@ public sealed partial class ApplicationResourceProvider(
                 .ToArray();
         }
 
-        return CreateEndpointNetworkMappings(application.Id, CreateEndpoints(application));
+        if (string.IsNullOrWhiteSpace(application.Endpoint))
+        {
+            return [];
+        }
+
+        return
+        [
+            new ResourceEndpointNetworkMapping(
+                $"{application.Id}:endpoint-network-mapping:application",
+                "application",
+                new ResourceEndpointReference(application.Id, "application"),
+                application.Endpoint,
+                ResourceExposureScope.Public,
+                SourceEndpointName: "application")
+        ];
     }
 
-    private static IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
-        string resourceId,
-        IReadOnlyList<ResourceEndpoint> endpoints) =>
-        endpoints
-            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
-            .Where(endpoint => !endpoint.Protocol.Equals("process", StringComparison.OrdinalIgnoreCase))
-            .Where(endpoint => !endpoint.Address.StartsWith("process://", StringComparison.OrdinalIgnoreCase))
-            .Select(endpoint =>
-            {
-                return new ResourceEndpointNetworkMapping(
-                    $"{resourceId}:endpoint-network-mapping:{endpoint.Name}",
-                    endpoint.Name,
-                    new ResourceEndpointReference(resourceId, endpoint.Name),
-                    endpoint.Address,
-                    endpoint.Exposure,
-                    SourceEndpointName: endpoint.Name);
-            })
-            .ToArray();
+    private static int? TryGetPort(string endpoint) =>
+        Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.Port > 0
+            ? uri.Port
+            : null;
 
     private string CreateServiceEndpointAddress(string resourceId, ServicePort port)
     {
