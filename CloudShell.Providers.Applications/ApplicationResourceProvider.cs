@@ -2952,7 +2952,7 @@ public sealed partial class ApplicationResourceProvider(
             "application",
             protocol,
             ResourceExposureScope.Public,
-            TryGetPort(endpoint))];
+            ResourceEndpoint.TryGetPort(endpoint, out var port) ? port : null)];
     }
 
     private IReadOnlyList<ResourceEndpointNetworkMapping> CreateEndpointNetworkMappings(
@@ -2986,11 +2986,6 @@ public sealed partial class ApplicationResourceProvider(
                 sourceEndpointName: "application")
         ];
     }
-
-    private static int? TryGetPort(string endpoint) =>
-        Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) && uri.Port > 0
-            ? uri.Port
-            : null;
 
     private string CreateServiceEndpointAddress(string resourceId, ServicePort port)
     {

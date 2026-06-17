@@ -73,6 +73,34 @@ public sealed class ResourceEndpointTests
     }
 
     [Fact]
+    public void TryGetPortFromAddress_ReturnsExplicitUriPort()
+    {
+        Assert.True(ResourceEndpoint.TryGetPort("http://localhost:5080", out var port));
+        Assert.Equal(5080, port);
+    }
+
+    [Fact]
+    public void TryGetPortFromAddress_ReturnsDefaultUriPort()
+    {
+        Assert.True(ResourceEndpoint.TryGetPort("https://localhost", out var port));
+        Assert.Equal(443, port);
+    }
+
+    [Fact]
+    public void TryGetPortFromAddress_ReturnsSimpleAddressPort()
+    {
+        Assert.True(ResourceEndpoint.TryGetPort("localhost:7000", out var port));
+        Assert.Equal(7000, port);
+    }
+
+    [Fact]
+    public void TryGetPortFromAddress_ReturnsFalseForMissingPort()
+    {
+        Assert.False(ResourceEndpoint.TryGetPort("localhost", out var port));
+        Assert.Equal(0, port);
+    }
+
+    [Fact]
     public void GetEndpointNetworkAddress_PrefersProjectedMapping()
     {
         var resource = CreateResource(

@@ -39,16 +39,21 @@ public sealed record ResourceEndpoint(
             return true;
         }
 
-        if (Uri.TryCreate(Address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort)
+        return TryGetPort(Address, out port);
+    }
+
+    public static bool TryGetPort(string? address, out int port)
+    {
+        if (Uri.TryCreate(address, UriKind.Absolute, out var uri) && uri.Port > 0)
         {
             port = uri.Port;
             return true;
         }
 
-        var separatorIndex = Address.LastIndexOf(':');
+        var separatorIndex = address?.LastIndexOf(':') ?? -1;
         if (separatorIndex >= 0 &&
             int.TryParse(
-                Address.AsSpan(separatorIndex + 1),
+                address.AsSpan(separatorIndex + 1),
                 CultureInfo.InvariantCulture,
                 out port))
         {

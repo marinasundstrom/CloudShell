@@ -617,7 +617,7 @@ public sealed partial class ConfigurationResourceProvider :
             "entries",
             "http",
             ResourceExposureScope.Local,
-            TryGetPort(GetServiceBaseUrl(definition)));
+            ResourceEndpoint.TryGetPort(GetServiceBaseUrl(definition), out var port) ? port : null);
 
     private ResourceEndpointNetworkMapping CreateEntriesEndpointMapping(ConfigurationStoreDefinition definition) =>
         ResourceEndpointNetworkMapping.ForEndpoint(
@@ -629,11 +629,6 @@ public sealed partial class ConfigurationResourceProvider :
 
     private string CreateServiceEndpoint(int port) =>
         $"{options.ServiceUrlScheme.TrimEnd(':')}://{options.ServiceHost.Trim()}:{port}";
-
-    private static int? TryGetPort(string address) =>
-        Uri.TryCreate(address, UriKind.Absolute, out var uri) && !uri.IsDefaultPort
-            ? uri.Port
-            : null;
 
     private int CreateServicePort(string resourceId)
     {
