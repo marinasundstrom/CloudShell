@@ -127,6 +127,9 @@ on `git blame --follow`, and then by the broad type of change.
   endpoint address string and parsing it locally.
 - Application overview endpoint display now uses the resource-level resolved
   endpoint URI helper when projecting DNS/name-mapped overview addresses.
+- Application resource endpoint availability checks now use the shared endpoint
+  network mapping URI and port helpers instead of parsing mapping addresses in
+  a provider-local helper.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings

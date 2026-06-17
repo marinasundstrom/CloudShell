@@ -3051,18 +3051,12 @@ public sealed partial class ApplicationResourceProvider(
     private static bool TryGetLoopbackEndpoint(
         ResourceEndpointNetworkMapping mapping,
         out IReadOnlyList<IPAddress> addresses,
-        out int port) =>
-        TryGetLoopbackAddress(mapping.Address, out addresses, out port);
-
-    private static bool TryGetLoopbackAddress(
-        string address,
-        out IReadOnlyList<IPAddress> addresses,
         out int port)
     {
         addresses = [];
         port = 0;
-        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) ||
-            uri.Port <= 0)
+        if (!mapping.TryGetUri(out var uri) ||
+            !mapping.TryGetPort(out port))
         {
             return false;
         }
@@ -3081,7 +3075,6 @@ public sealed partial class ApplicationResourceProvider(
             return false;
         }
 
-        port = uri.Port;
         return true;
     }
 
