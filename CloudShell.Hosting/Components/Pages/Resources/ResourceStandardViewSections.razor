@@ -19,6 +19,9 @@
     [Parameter, EditorRequired]
     public string ResourceId { get; set; } = string.Empty;
 
+    [Parameter]
+    public Resource? Resource { get; set; }
+
     [Parameter, EditorRequired]
     public ResourceViewId ViewId { get; set; }
 
@@ -29,11 +32,20 @@
             .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-    private Dictionary<string, object?> BuildParameters(ResourceStandardViewSectionContribution section) =>
-        new(StringComparer.OrdinalIgnoreCase)
+    private Dictionary<string, object?> BuildParameters(ResourceStandardViewSectionContribution section)
+    {
+        var parameters = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
             ["ResourceId"] = ResourceId,
             ["ViewId"] = ViewId.Value,
             ["SectionId"] = section.Id
         };
+
+        if (Resource is not null && section.ComponentType.GetProperty(nameof(Resource)) is not null)
+        {
+            parameters[nameof(Resource)] = Resource;
+        }
+
+        return parameters;
+    }
 }

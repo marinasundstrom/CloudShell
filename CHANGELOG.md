@@ -25,6 +25,10 @@ on `git blame --follow`, and then by the broad type of change.
   extension registration now treat tab IDs as logical view identities instead
   of free-form strings, with query-string serialization only at navigation
   boundaries.
+- Application resources now contribute provider-owned exposure actions to the
+  standard Endpoints tab, giving endpoint-capable applications direct
+  Resource Manager entry points for load-balancer routes and DNS/name
+  mappings.
 
 ### 2026-06-16
 

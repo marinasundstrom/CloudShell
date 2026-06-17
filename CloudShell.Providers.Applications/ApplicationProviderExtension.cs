@@ -96,6 +96,12 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 20,
                 showsApplyButton: true,
                 groupTitle: "General")
+            .AddResourceStandardViewSection<Pages.ApplicationEndpointActions>(
+                ApplicationResourceTypes.ExecutableApplication,
+                ResourceStandardViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.AspNetCoreProject,
                 new ResourceViewId(ResourceTabGroupIds.General, "overview"),
@@ -109,6 +115,12 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 20,
                 showsApplyButton: true,
                 groupTitle: "General")
+            .AddResourceStandardViewSection<Pages.ApplicationEndpointActions>(
+                ApplicationResourceTypes.AspNetCoreProject,
+                ResourceStandardViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ContainerApp,
                 new ResourceViewId(ResourceTabGroupIds.General, "overview"),
@@ -141,6 +153,12 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 50,
                 showsApplyButton: true,
                 groupTitle: "Storage")
+            .AddResourceStandardViewSection<Pages.ApplicationEndpointActions>(
+                ApplicationResourceTypes.ContainerApp,
+                ResourceStandardViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10)
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.SqlServer,
                 new ResourceViewId(ResourceTabGroupIds.General, "overview"),
@@ -160,6 +178,12 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "Storage",
                 30,
                 showsApplyButton: true,
-                groupTitle: "Storage");
+                groupTitle: "Storage")
+            .AddResourceStandardViewSection<Pages.ApplicationEndpointActions>(
+                ApplicationResourceTypes.SqlServer,
+                ResourceStandardViewIds.Endpoints,
+                "application.exposure-actions",
+                "Application exposure",
+                10);
     }
 }

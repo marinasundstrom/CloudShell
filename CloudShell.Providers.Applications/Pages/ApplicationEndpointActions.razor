@@ -1,0 +1,110 @@
+@if (Resource is null)
+{
+    <p class="muted">This application resource is unavailable.</p>
+}
+else if (!HasExposureTarget(Resource))
+{
+    <p class="muted">This application does not declare an endpoint that can be exposed.</p>
+}
+else
+{
+    <div class="generated-list">
+        <div>
+            <strong>Expose through load balancer</strong>
+            <span>Create a provider-backed route to this application's endpoint.</span>
+            <small>@FormatTarget(Resource)</small>
+            <div class="generated-row-actions">
+                <FluentAnchor Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size20.ArrowRouting())"
+                              Href="@BuildAddLoadBalancerRoute(Resource)">
+                    Add load-balancer route
+                </FluentAnchor>
+            </div>
+        </div>
+        <div>
+            <strong>Add DNS name</strong>
+            <span>Create a name mapping for this application's endpoint.</span>
+            <small>@FormatTarget(Resource)</small>
+            <div class="generated-row-actions">
+                <FluentAnchor Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size20.Globe())"
+                              Href="@BuildAddNameMappingRoute(Resource)">
+                    Add name mapping
+                </FluentAnchor>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    public string? ViewId { get; set; }
+
+    [Parameter]
+    public string? SectionId { get; set; }
+
+    [Parameter]
+    public Resource? Resource { get; set; }
+
+    private static bool HasExposureTarget(Resource resource) =>
+        resource.Endpoints.Count > 0;
+
+    private static string FormatTarget(Resource resource)
+    {
+        var endpointName = GetTargetEndpointName(resource) ?? "default";
+        var address = resource.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, endpointName, StringComparison.OrdinalIgnoreCase))?.Address;
+        return string.IsNullOrWhiteSpace(address)
+            ? $"Target: {resource.Name}/{endpointName}"
+            : $"Target: {resource.Name}/{endpointName} ({address})";
+    }
+
+    private static string BuildAddNameMappingRoute(Resource resource) =>
+        BuildResourceAddRoute(BuildTargetResourceQuery("cloudshell.nameMapping", resource));
+
+    private static string BuildAddLoadBalancerRoute(Resource resource) =>
+        BuildResourceAddRoute(BuildTargetResourceQuery("cloudshell.loadBalancer", resource));
+
+    private static Dictionary<string, string?> BuildTargetResourceQuery(
+        string type,
+        Resource resource)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["type"] = type,
+            ["targetResourceId"] = resource.Id
+        };
+        var endpointName = GetTargetEndpointName(resource);
+        if (!string.IsNullOrWhiteSpace(endpointName))
+        {
+            query["targetEndpointName"] = endpointName;
+        }
+
+        return query;
+    }
+
+    private static string? GetTargetEndpointName(Resource resource) =>
+        resource.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase))?.Name ??
+        resource.Endpoints.FirstOrDefault()?.Name;
+
+    private static string BuildResourceAddRoute(Dictionary<string, string?> query) =>
+        BuildRoute("/resources/add", query);
+
+    private static string BuildRoute(string path, Dictionary<string, string?> query)
+    {
+        var queryString = string.Join(
+            "&",
+            query
+                .Where(parameter => !string.IsNullOrWhiteSpace(parameter.Value))
+                .Select(parameter =>
+                    $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(parameter.Value!)}"));
+
+        return string.IsNullOrWhiteSpace(queryString)
+            ? path
+            : $"{path}?{queryString}";
+    }
+}

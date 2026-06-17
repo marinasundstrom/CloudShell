@@ -15,7 +15,7 @@
                     Message="@L["The resource may have been removed or is no longer visible."].Value"
                     Compact="true" />
     }
-    else if (!HasNetworkingContent)
+    else if (!HasNetworkingContent && !HasStandardViewSections)
     {
         <EmptyState Title="@L["No networking"].Value"
                     Message="@L["This resource does not project endpoints or networking relationships."].Value"
@@ -243,6 +243,7 @@
         {
             <ResourceStandardViewSections ResourceType="ResourceType"
                                           ResourceId="ResourceId"
+                                          Resource="Resource"
                                           ViewId="@ResourceStandardViewIds.Endpoints" />
         }
     }
@@ -272,6 +273,10 @@
          InboundLoadBalancerRoutes.Count > 0 ||
          IsNetworkResource ||
          IsLoadBalancerResource);
+
+    private bool HasStandardViewSections =>
+        ResourceType?.ResourceStandardViewSections.Any(section =>
+            section.ViewId == ResourceStandardViewIds.Endpoints) == true;
 
     private bool IsNetworkResource => Resource is not null &&
         (Resource.ResourceClass == ResourceClass.Network ||

@@ -1076,9 +1076,13 @@ public sealed class ResourceDeclarationTests
         AssertDeploymentTab(containerAppType);
         AssertReplicaTab(containerAppType);
         AssertStorageTab(containerAppType);
+        AssertApplicationExposureSection(containerAppType);
         var sqlServerType = resourceTypes[ApplicationResourceTypes.SqlServer];
         Assert.Equal(ResourceClass.Service, sqlServerType.ResourceClass);
         AssertStorageTab(sqlServerType);
+        AssertApplicationExposureSection(sqlServerType);
+        AssertApplicationExposureSection(resourceTypes[ApplicationResourceTypes.ExecutableApplication]);
+        AssertApplicationExposureSection(resourceTypes[ApplicationResourceTypes.AspNetCoreProject]);
         Assert.DoesNotContain(
             sqlServerType.ResourceTabs,
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
@@ -1253,6 +1257,18 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("Storage", storageTab.Title);
         Assert.True(storageTab.ShowsApplyButton);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationStorage), storageTab.ComponentType);
+    }
+
+    private static void AssertApplicationExposureSection(ResourceTypeContribution resourceType)
+    {
+        var section = Assert.Single(
+            resourceType.ResourceStandardViewSections,
+            section => section.Id == "application.exposure-actions");
+
+        Assert.Equal(ResourceStandardViewIds.Endpoints, section.ViewId);
+        Assert.Equal("Application exposure", section.Title);
+        Assert.Equal(10, section.Order);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationEndpointActions), section.ComponentType);
     }
 
     private static void AssertDeploymentTab(ResourceTypeContribution resourceType)

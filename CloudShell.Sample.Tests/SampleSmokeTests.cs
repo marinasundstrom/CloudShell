@@ -330,6 +330,15 @@ public sealed class SampleSmokeTests
         Assert.Contains("Add volume", storageVolumesHtml);
         Assert.Contains("This Storage resource cannot be deleted while it owns volumes.", storageVolumesHtml);
 
+        var apiEndpointsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourceStandardViewIds.Endpoints.Value)}");
+        Assert.Contains("Application exposure", apiEndpointsHtml);
+        Assert.Contains("Add load-balancer route", apiEndpointsHtml);
+        Assert.Contains("Add name mapping", apiEndpointsHtml);
+        Assert.Contains("type=cloudshell.loadBalancer", apiEndpointsHtml);
+        Assert.Contains("targetResourceId=application%3Aapplication-topology-api", apiEndpointsHtml);
+        Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
+
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
         AssertResourceTabsInOrder(
