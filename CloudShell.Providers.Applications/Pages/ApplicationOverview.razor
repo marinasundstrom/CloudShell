@@ -910,12 +910,11 @@ else
         }
 
         var projectedEndpoint = GetPreferredProjectedEndpoint();
-        if (projectedEndpoint is not null)
+        if (projectedEndpoint is not null &&
+            ProjectedResource is not null &&
+            ProjectedResource.TryGetResolvedEndpointUri(projectedEndpoint, out var endpointUri))
         {
-            var address = ProjectedResource is not null &&
-                ProjectedResource.TryGetResolvedEndpointUri(projectedEndpoint, out var endpointUri)
-                    ? endpointUri.ToString()
-                    : projectedEndpoint.Address;
+            var address = endpointUri.ToString();
             if (!string.IsNullOrWhiteSpace(address))
             {
                 return new OverviewEndpoint(address, $"{projectedEndpoint.Name} endpoint");

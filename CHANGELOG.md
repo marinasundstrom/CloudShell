@@ -141,6 +141,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Control Plane API and remote client endpoint projections no longer carry
   endpoint addresses on `ResourceEndpointResponse`; concrete addresses remain
   on endpoint-network mapping projections.
+- Application overview endpoint display no longer falls back to legacy
+  `ResourceEndpoint.Address` values when projected endpoint mappings are
+  missing.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
