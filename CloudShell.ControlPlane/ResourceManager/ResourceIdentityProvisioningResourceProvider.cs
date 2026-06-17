@@ -1,10 +1,22 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
 
 namespace CloudShell.ControlPlane.ResourceManager;
 
 public sealed class ResourceIdentityProvisioningResourceProvider(
-    ResourceDeclarationStore declarations) : IResourceProvider
+    ResourceDeclarationStore declarations,
+    ResourceIdentityProviderSetupService setupService) :
+    IResourceProvider,
+    IResourceProcedureProvider
 {
+    public const string SetupIdentityProviderActionId = "setupIdentityProvider";
+
+    private static readonly ResourceAction SetupIdentityProviderAction = new(
+        SetupIdentityProviderActionId,
+        "Set up identity provider",
+        Description: "Run setup or reconciliation for the identity provider attached to this provisioning resource.",
+        RequiredPermission: ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities);
+
     public string Id => ResourceIdentityProvisioningResources.ProviderId;
 
     public string DisplayName => "Identity Provisioning";
@@ -39,10 +51,42 @@ public sealed class ResourceIdentityProvisioningResourceProvider(
             declaration.DependsOn,
             ParentResourceId: declaration.ParentResourceId,
             TypeId: ResourceIdentityProvisioningResources.ResourceType,
+            Actions: [SetupIdentityProviderAction],
             ResourceClass: ResourceClass.Infrastructure,
             Attributes: attributes,
             Source: ResourceSource.User,
             DisplayName: GetDisplayName(declaration));
+    }
+
+    public Task<ResourceProcedureResult> DeleteAsync(
+        ResourceProcedureContext context,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Identity provisioning resources are declared resources and cannot be deleted by this provider.");
+
+    public async Task<ResourceProcedureResult> ExecuteActionAsync(
+        ResourceProcedureContext context,
+        ResourceAction action,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(action.Id, SetupIdentityProviderActionId, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new NotSupportedException(
+                $"Identity provisioning resources do not support action '{action.DisplayName}'.");
+        }
+
+        var provider = setupService.ResolveProviderForProvisioningResource(context.Resource.Id)
+            ?? throw new InvalidOperationException(
+                $"No resource identity provider is attached to provisioning resource '{context.Resource.Id}'.");
+        var result = await setupService.SetupAsync(provider.Id, cancellationToken);
+        var messages = result.SetupDiagnostics
+            .Select(diagnostic => diagnostic.Message)
+            .Where(message => !string.IsNullOrWhiteSpace(message))
+            .ToArray();
+        var message = messages.Length == 0
+            ? $"Set up identity provider '{provider.Id}'."
+            : $"Set up identity provider '{provider.Id}'. {string.Join(" ", messages)}";
+
+        return ResourceProcedureResult.Completed(message);
     }
 
     private static string GetResourceName(string resourceId) =>

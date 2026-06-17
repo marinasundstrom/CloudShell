@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
@@ -283,7 +284,14 @@ public sealed class ResourceManagerStoreProjectionTests
             DateTimeOffset.UtcNow,
             []);
         var store = new ResourceManagerStore(
-            [new ResourceIdentityProvisioningResourceProvider(declarations)],
+            [
+                new ResourceIdentityProvisioningResourceProvider(
+                    declarations,
+                    new ResourceIdentityProviderSetupService(
+                        declarations,
+                        new ResourceIdentityProviderCatalog(),
+                        []))
+            ],
             new TestResourceGroupStore([]),
             new TestResourceRegistrationStore([registration]),
             declarations,
@@ -303,6 +311,13 @@ public sealed class ResourceManagerStoreProjectionTests
             "identity-provisioning",
             resource.ResourceAttributes[ResourceAttributeNames.InfrastructureKind]);
         Assert.Equal("Keycloak", resource.ResourceAttributes["identity.provider"]);
+        Assert.NotNull(resource.Actions);
+        var action = Assert.Single(resource.Actions);
+        Assert.Equal(ResourceIdentityProvisioningResourceProvider.SetupIdentityProviderActionId, action.Id);
+        Assert.Equal("Set up identity provider", action.DisplayName);
+        Assert.Equal(
+            ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities,
+            action.RequiredPermission);
     }
 
     [Fact]

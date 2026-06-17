@@ -299,7 +299,10 @@ metadata. When the provider names a provisioning resource, callers need
 `CloudShell.Identity/provisioningServices/identities/provision/action` or
 `resources.manage` on that provisioning resource. Providers without a setup
 handler return a warning diagnostic so hosts can expose setup as an optional
-operation without requiring every provider to implement it.
+operation without requiring every provider to implement it. The projected
+identity provisioning resource also exposes a `setupIdentityProvider` Resource
+Manager action that runs the setup hook for the attached provider with the same
+permission requirement.
 
 The first built-in provider implementation is development-oriented: it
 registers an in-memory client-credentials client with the built-in authority

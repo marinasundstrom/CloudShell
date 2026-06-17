@@ -321,7 +321,8 @@ listed here before pulling in broader proposal work.
   standards-based provider instead of staying built-in only. The first Keycloak
   sample validates external OIDC sign-in, CloudShell role claim mapping, and
   sample-scoped resource identity provisioning, and a provider setup/reconcile
-  hook with a Control Plane endpoint. Provider-specific runtime credential
+  hook with a Control Plane endpoint and a Resource Manager action on the
+  provider's provisioning resource. Provider-specific runtime credential
   injection now supplies provisioned Keycloak credentials to workloads through
   the standard `CLOUDSHELL_IDENTITY_*` contract, and protected CloudShell
   services can validate configured external OIDC/OAuth bearer tokens before
@@ -330,7 +331,7 @@ listed here before pulling in broader proposal work.
   Keycloak-provisioned workload that reads configuration with a provisioned
   resource identity. The generated Identity tab now shows provisioning status
   and status diagnostics for identity-bound resources. Next identity work
-  should keep that path stable while improving provider setup and
+  should keep that path stable while improving provider readiness and
   authorization diagnostics that directly affect MVP flows.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host

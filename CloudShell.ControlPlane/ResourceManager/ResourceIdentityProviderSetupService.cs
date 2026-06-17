@@ -21,6 +21,15 @@ public sealed class ResourceIdentityProviderSetupService(
                 $"Resource identity provider '{providerId}' is not registered."));
     }
 
+    public ResourceIdentityProviderDefinition? ResolveProviderForProvisioningResource(string resourceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        var effectiveProviders = declarations.CreateIdentityProviderCatalog(identityProviders);
+        return effectiveProviders.Providers.FirstOrDefault(provider =>
+            string.Equals(provider.ProvisioningResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
+    }
+
     public async Task<ResourceIdentityProviderSetupResult> SetupAsync(
         string providerId,
         CancellationToken cancellationToken = default)

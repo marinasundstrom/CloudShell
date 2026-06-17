@@ -21,6 +21,10 @@ on `git blame --follow`, and then by the broad type of change.
   provisioning status and status diagnostics, including missing
   provisioning-status provider warnings, and refreshes status after invoking
   provisioning.
+- Identity provisioning resources now expose a `setupIdentityProvider`
+  Resource Manager action that runs provider setup or reconciliation through
+  the existing provider-neutral setup hook and requires the identity
+  provisioning permission on the provisioning resource.
 
 ### 2026-06-17
 

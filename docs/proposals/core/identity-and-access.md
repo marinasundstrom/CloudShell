@@ -132,6 +132,9 @@ Implemented today:
 - Optional provisioning-resource authorization for resource identity providers.
 - Provisioning-status authorization requiring read access on both the target
   resource and the provisioning resource.
+- A `setupIdentityProvider` Resource Manager action on identity provisioning
+  resources that runs the attached provider's setup/reconcile hook with the
+  same provisioning-resource permission boundary as the setup endpoint.
 - Resource-operation permission constants for lifecycle actions, custom
   actions, configuration entry reads, secret value reads, identity
   provisioning, network endpoint reconciliation, and load-balancer
@@ -548,7 +551,8 @@ service-principal automation flows.
    Expand the generated Identity tab into guided identity binding, grant
    editing, richer diagnostics, provisioning, and provider-resource
    management. The tab now shows provisioning status and status diagnostics
-   for identity-bound resources.
+   for identity-bound resources, and identity provisioning resources expose a
+   setup action for provider bootstrap and reconciliation.
    The broader environment setup experience should also let an operator choose
    and configure the default identity provider for the CloudShell environment,
    run provider setup/reconcile hooks, and show whether the selected provider

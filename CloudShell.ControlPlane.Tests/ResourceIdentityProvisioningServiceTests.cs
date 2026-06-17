@@ -223,6 +223,45 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal("identity:entra", diagnostic.ProviderId);
     }
 
+    [Fact]
+    public async Task ProvisioningResourceAction_InvokesAttachedProviderSetup()
+    {
+        var declarations = new ResourceDeclarationStore();
+        declarations.Declare(
+            new TestCloudShellBuilder(),
+            ResourceIdentityProvisioningResources.ProviderId,
+            "identity-provisioning:keycloak",
+            resourceClass: ResourceClass.Infrastructure,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.InfrastructureKind] = "identity-provisioning",
+                ["identity.provider"] = "Keycloak"
+            });
+        declarations.AddIdentityProvider(
+            new ResourceIdentityProviderDefinition(
+                "identity:keycloak",
+                "Keycloak",
+                ResourceIdentityProviderKind.Oidc,
+                ProvisioningResourceId: "identity-provisioning:keycloak"));
+        var setupHandler = new RecordingSetupHandler("identity:keycloak");
+        var setupService = new ResourceIdentityProviderSetupService(
+            declarations,
+            new ResourceIdentityProviderCatalog(),
+            [setupHandler]);
+        var provider = new ResourceIdentityProvisioningResourceProvider(declarations, setupService);
+        var resource = Assert.Single(provider.GetResources());
+        Assert.NotNull(resource.Actions);
+        var action = Assert.Single(resource.Actions);
+
+        var result = await provider.ExecuteActionAsync(
+            new ResourceProcedureContext(resource, null, null, new EmptyResourceRegistrationStore()),
+            action);
+
+        Assert.Equal("Set up identity provider 'identity:keycloak'.", result.Message);
+        var request = Assert.Single(setupHandler.Requests);
+        Assert.Equal("identity:keycloak", request.Provider.Id);
+    }
+
     private sealed class RecordingProvisioner(string providerId) :
         IResourceIdentityProvisioner,
         IResourceIdentityProvisioningStatusProvider
@@ -278,6 +317,39 @@ public sealed class ResourceIdentityProvisioningServiceTests
             Requests.Add(request);
             return Task.FromResult(new ResourceIdentityProviderSetupResult(request.Provider.Id));
         }
+    }
+
+    private sealed class EmptyResourceRegistrationStore : IResourceRegistrationStore
+    {
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() => [];
+
+        public ResourceRegistration? GetRegistration(string resourceId) => null;
+
+        public Task RegisterAsync(
+            string providerId,
+            string resourceId,
+            string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task RemoveAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task AssignToGroupAsync(
+            string resourceId,
+            string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class TestCloudShellBuilder : ICloudShellBuilder
