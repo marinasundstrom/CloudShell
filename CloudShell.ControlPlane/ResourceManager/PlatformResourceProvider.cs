@@ -233,7 +233,7 @@ public sealed class PlatformResourceProvider(
         var normalized = NormalizeNetwork(definition);
         ValidatePlatformEndpointAssignments(
             normalized.Id,
-            CreateNetworkEndpoints(normalized));
+            CreateNetworkEndpointMappings(normalized));
         store.SaveNetwork(normalized);
         await registrations.RegisterAsync(
             Id,
@@ -669,7 +669,7 @@ public sealed class PlatformResourceProvider(
             var normalized = NormalizeNetwork(declaredNetwork.Definition);
             ValidatePlatformEndpointAssignments(
                 normalized.Id,
-                CreateNetworkEndpoints(normalized));
+                CreateNetworkEndpointMappings(normalized));
 
             if (declaration.Persistence == ResourceDeclarationPersistence.Persisted)
             {
@@ -903,6 +903,7 @@ public sealed class PlatformResourceProvider(
     private Resource CreateNetworkResource(NetworkResourceDefinition definition)
     {
         var endpoints = CreateNetworkEndpoints(definition);
+        var endpointNetworkMappings = CreateNetworkEndpointMappings(definition);
         var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [ResourceAttributeNames.NetworkKind] = GetNetworkKindAttribute(definition),
@@ -941,6 +942,7 @@ public sealed class PlatformResourceProvider(
             Attributes: attributes,
             Capabilities: CreateNetworkCapabilities(definition),
             EndpointMappings: definition.NetworkEndpointMappings,
+            EndpointNetworkMappings: endpointNetworkMappings,
             DisplayName: definition.Name);
     }
 
@@ -2170,13 +2172,32 @@ public sealed class PlatformResourceProvider(
     private IReadOnlyList<ResourceEndpoint> CreateNetworkEndpoints(NetworkResourceDefinition definition)
     {
         var endpoints = definition.NetworkEndpoints
-            .Select(endpoint => ResolveNetworkEndpoint(definition.Id, endpoint))
+            .Select(endpoint => ResourceEndpoint.Contract(
+                endpoint.Name,
+                endpoint.ProtocolName,
+                endpoint.Exposure,
+                endpoint.TargetPort))
             .ToArray();
 
         return endpoints.Length == 0
             ? [ResourceEndpoint.Logical("network", $"network://{definition.Id}", "network")]
             : endpoints;
     }
+
+    private IReadOnlyList<ResourceEndpointNetworkMapping> CreateNetworkEndpointMappings(
+        NetworkResourceDefinition definition) =>
+        definition.NetworkEndpoints
+            .Select(endpoint => ResolveNetworkEndpoint(definition.Id, endpoint))
+            .Where(endpoint => !string.IsNullOrWhiteSpace(endpoint.Address))
+            .Select(endpoint => new ResourceEndpointNetworkMapping(
+                $"{definition.Id}:endpoint-network-mapping:{endpoint.Name}",
+                endpoint.Name,
+                new ResourceEndpointReference(definition.Id, endpoint.Name),
+                endpoint.Address,
+                endpoint.Exposure,
+                NetworkResourceId: definition.Id,
+                SourceEndpointName: endpoint.Name))
+            .ToArray();
 
     private ResourceEndpoint ResolveNetworkEndpoint(
         string networkId,
@@ -2220,12 +2241,33 @@ public sealed class PlatformResourceProvider(
         string ownerResourceId,
         IReadOnlyList<ResourceEndpoint> endpoints)
     {
-        var occupied = GetPlatformEndpointAssignments(ownerResourceId).ToList();
         var candidates = endpoints
             .Select(endpoint => CreateEndpointAssignment(ownerResourceId, endpoint))
             .Where(assignment => assignment is not null)
             .Select(assignment => assignment!)
             .ToArray();
+
+        ValidatePlatformEndpointAssignments(ownerResourceId, candidates);
+    }
+
+    private void ValidatePlatformEndpointAssignments(
+        string ownerResourceId,
+        IReadOnlyList<ResourceEndpointNetworkMapping> endpointNetworkMappings)
+    {
+        var candidates = endpointNetworkMappings
+            .Select(mapping => CreateEndpointAssignment(ownerResourceId, mapping))
+            .Where(assignment => assignment is not null)
+            .Select(assignment => assignment!)
+            .ToArray();
+
+        ValidatePlatformEndpointAssignments(ownerResourceId, candidates);
+    }
+
+    private void ValidatePlatformEndpointAssignments(
+        string ownerResourceId,
+        IReadOnlyList<EndpointAssignment> candidates)
+    {
+        var occupied = GetPlatformEndpointAssignments(ownerResourceId).ToList();
 
         foreach (var duplicate in candidates
             .GroupBy(assignment => assignment.Identity, StringComparer.OrdinalIgnoreCase)
@@ -2279,7 +2321,7 @@ public sealed class PlatformResourceProvider(
                 continue;
             }
 
-            foreach (var endpoint in CreateNetworkEndpoints(network))
+            foreach (var endpoint in CreateNetworkEndpointMappings(network))
             {
                 var assignment = CreateEndpointAssignment(network.Id, endpoint);
                 if (assignment is not null)
@@ -2348,6 +2390,32 @@ public sealed class PlatformResourceProvider(
             resourceId,
             endpoint.Name,
             $"{protocol.ToLowerInvariant()}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
+            $"{CreateSocketHostIdentity(host)}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
+            host,
+            port.Value);
+    }
+
+    private static EndpointAssignment? CreateEndpointAssignment(
+        string resourceId,
+        ResourceEndpointNetworkMapping mapping)
+    {
+        if (!Uri.TryCreate(mapping.Address, UriKind.Absolute, out var uri) ||
+            string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return null;
+        }
+
+        var port = GetEndpointPort(uri);
+        if (port is null)
+        {
+            return null;
+        }
+
+        var host = NormalizeEndpointHost(uri.Host);
+        return new EndpointAssignment(
+            resourceId,
+            mapping.Name,
+            $"{uri.Scheme.ToLowerInvariant()}://{host}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
             $"{CreateSocketHostIdentity(host)}:{port.Value.ToString(CultureInfo.InvariantCulture)}",
             host,
             port.Value);

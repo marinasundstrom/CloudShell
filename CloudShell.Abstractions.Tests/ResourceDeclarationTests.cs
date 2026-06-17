@@ -5326,12 +5326,26 @@ public sealed class ResourceDeclarationTests
             endpoint =>
             {
                 Assert.Equal("api", endpoint.Name);
-                Assert.StartsWith("http://localhost:", endpoint.Address);
+                Assert.Equal(string.Empty, endpoint.Address);
+                Assert.Equal("http", endpoint.Protocol);
             },
             endpoint =>
             {
                 Assert.Equal("public", endpoint.Name);
-                Assert.Equal("tcp://localhost:4040", endpoint.Address);
+                Assert.Equal(string.Empty, endpoint.Address);
+                Assert.Equal("tcp", endpoint.Protocol);
+            });
+        Assert.Collection(
+            resource.ResourceEndpointNetworkMappings.OrderBy(mapping => mapping.Name, StringComparer.OrdinalIgnoreCase),
+            mapping =>
+            {
+                Assert.Equal("api", mapping.Name);
+                Assert.StartsWith("http://localhost:", mapping.Address);
+            },
+            mapping =>
+            {
+                Assert.Equal("public", mapping.Name);
+                Assert.Equal("tcp://localhost:4040", mapping.Address);
             });
     }
 
@@ -5494,7 +5508,8 @@ public sealed class ResourceDeclarationTests
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork));
         Assert.True(resource.HasCapability(ResourceCapabilityIds.NetworkingIngress));
-        Assert.StartsWith("http://localhost:", Assert.Single(resource.Endpoints).Address);
+        Assert.Equal(string.Empty, Assert.Single(resource.Endpoints).Address);
+        Assert.StartsWith("http://localhost:", Assert.Single(resource.ResourceEndpointNetworkMappings).Address);
     }
 
     [Fact]
@@ -5543,7 +5558,8 @@ public sealed class ResourceDeclarationTests
         var resource = Assert.Single(provider.GetResources(), resource =>
             resource.Id == "network:app");
 
-        Assert.Equal("http://loopback.test:4123", Assert.Single(resource.Endpoints).Address);
+        Assert.Equal(string.Empty, Assert.Single(resource.Endpoints).Address);
+        Assert.Equal("http://loopback.test:4123", Assert.Single(resource.ResourceEndpointNetworkMappings).Address);
     }
 
     [Fact]

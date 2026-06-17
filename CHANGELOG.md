@@ -56,6 +56,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container application declaration now converts address-bearing endpoint
   inputs into endpoint mapping intent instead of keeping the address in the
   legacy application endpoint field.
+- Network resources now project network-owned endpoints as address-less
+  endpoint contracts and carry host-local resolved addresses in endpoint
+  network mappings.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
