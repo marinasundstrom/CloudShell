@@ -97,6 +97,10 @@ public interface ICloudShellExtensionBuilder
         ResourceTypeProbeOptions? probeOptions = null,
         ResourceClass resourceClass = ResourceClass.Generic);
 
+    ICloudShellExtensionBuilder AddResourceTypeEndpoint(
+        string resourceTypeId,
+        ResourceEndpointDescriptor descriptor);
+
     ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,
         ResourceViewId id,

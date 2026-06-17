@@ -93,6 +93,27 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void AddResourceTypeEndpoint_RecordsEndpointDescriptorsForResourceType()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<ResourceEndpointDescriptorsExtension>();
+
+        var registry = GetRegistry(services);
+        var resourceType = Assert.Single(
+            Assert.Single(registry.Extensions).ResourceTypes);
+        var descriptor = Assert.Single(resourceType.ResourceEndpointDescriptors);
+
+        Assert.Equal("http", descriptor.Name);
+        Assert.Equal(8080, descriptor.TargetPort);
+        Assert.Equal("http", descriptor.Protocol);
+        Assert.Equal(ResourceExposureScope.Local, descriptor.Exposure);
+        Assert.Equal(ResourceEndpointAssignment.ProviderDefault, descriptor.DefaultAssignment);
+    }
+
+    [Fact]
     public void AddResourceTab_RecordsTabsForResourceType()
     {
         var services = new ServiceCollection();
@@ -791,6 +812,31 @@ public sealed class ExtensionRegistrationTests
                     new ResourceViewId(ResourceTabGroupIds.General, "overview"),
                     "Overview",
                     10);
+        }
+    }
+
+    private sealed class ResourceEndpointDescriptorsExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.endpoint-descriptors",
+            "Sample endpoint descriptors",
+            "Contributes resource endpoint descriptors.",
+            "1.0.0",
+            ["sample.endpoint-descriptors"],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .AddResourceType<SampleRegistrationPage>(
+                    "sample.endpoint-descriptors",
+                    "Sample endpoint descriptors",
+                    "A resource with endpoint descriptors.",
+                    "sample",
+                    10)
+                .AddResourceTypeEndpoint(
+                    "sample.endpoint-descriptors",
+                    ResourceEndpointDescriptor.Http(targetPort: 8080));
         }
     }
 

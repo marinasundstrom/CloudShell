@@ -368,6 +368,28 @@ user can add or configure a resource of that type.
 Resource type contributions can also declare the expected `ResourceClass` for
 that type. This class is a model constraint, not a UI hint.
 
+Resource metadata should follow an inheritance model:
+
+```text
+Base resource model -> ResourceClass -> resource type/kind -> resource instance
+```
+
+Base resource metadata applies to every resource. `ResourceClass` metadata
+describes portable class-level concerns, such as storage-capable resources or
+network-capable resources. Resource type or kind metadata refines that class
+for a specific user-facing type, such as `application.aspnet-core-project` or
+`application.sql-server`. Resource instance configuration is the final layer
+and can override or materialize the inherited defaults when the provider and
+environment allow it.
+
+Endpoint descriptors are one example of this model. A descriptor announces the
+service a resource type can expose by default, such as endpoint name, protocol,
+and target port. It does not itself bind a host address. The provider, network,
+or runtime uses the descriptor plus instance configuration to create concrete
+endpoint assignments and mappings. Attributes and capabilities should follow
+the same inheritance model as their contracts become explicit: base, class,
+type/kind, then instance.
+
 ### Resource provider
 
 A resource provider is an internal implementation service. It maps an external

@@ -266,6 +266,44 @@ internal sealed class CloudShellExtensionBuilder(
         return this;
     }
 
+    public ICloudShellExtensionBuilder AddResourceTypeEndpoint(
+        string resourceTypeId,
+        ResourceEndpointDescriptor descriptor)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceTypeId);
+        ArgumentNullException.ThrowIfNull(descriptor);
+        ArgumentException.ThrowIfNullOrWhiteSpace(descriptor.Name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(descriptor.Protocol);
+        if (descriptor.TargetPort <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(descriptor),
+                "Resource endpoint descriptor target port must be greater than zero.");
+        }
+
+        var typeIndex = _resourceTypes.FindIndex(type =>
+            string.Equals(type.Id, resourceTypeId, StringComparison.OrdinalIgnoreCase));
+        if (typeIndex < 0)
+        {
+            throw new InvalidOperationException(
+                $"Resource type '{resourceTypeId}' must be added before adding endpoint descriptors.");
+        }
+
+        var normalized = descriptor with
+        {
+            Name = descriptor.Name.Trim(),
+            Protocol = descriptor.Protocol.Trim().ToLowerInvariant()
+        };
+        var resourceType = _resourceTypes[typeIndex];
+        var descriptors = resourceType.ResourceEndpointDescriptors
+            .Where(endpoint => !string.Equals(endpoint.Name, normalized.Name, StringComparison.OrdinalIgnoreCase))
+            .Append(normalized)
+            .ToArray();
+
+        _resourceTypes[typeIndex] = resourceType with { EndpointDescriptors = descriptors };
+        return this;
+    }
+
     public ICloudShellExtensionBuilder AddResourceTab<TComponent>(
         string resourceTypeId,
         ResourceViewId id,

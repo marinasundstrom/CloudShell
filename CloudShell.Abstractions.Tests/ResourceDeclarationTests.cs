@@ -1083,7 +1083,11 @@ public sealed class ResourceDeclarationTests
         AssertStorageTab(sqlServerType);
         AssertApplicationExposureSection(sqlServerType);
         AssertApplicationExposureSection(resourceTypes[ApplicationResourceTypes.ExecutableApplication]);
-        AssertApplicationExposureSection(resourceTypes[ApplicationResourceTypes.AspNetCoreProject]);
+        var aspNetCoreProjectType = resourceTypes[ApplicationResourceTypes.AspNetCoreProject];
+        AssertApplicationExposureSection(aspNetCoreProjectType);
+        AssertResourceEndpointDescriptor(aspNetCoreProjectType, "http", 80, "http");
+        AssertResourceEndpointDescriptor(containerAppType, "http", 80, "http");
+        AssertResourceEndpointDescriptor(sqlServerType, "tds", 1433, "tcp");
         Assert.DoesNotContain(
             sqlServerType.ResourceTabs,
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
@@ -1105,6 +1109,19 @@ public sealed class ResourceDeclarationTests
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"));
+    }
+
+    private static void AssertResourceEndpointDescriptor(
+        ResourceTypeContribution resourceType,
+        string name,
+        int targetPort,
+        string protocol)
+    {
+        var descriptor = Assert.Single(
+            resourceType.ResourceEndpointDescriptors,
+            descriptor => string.Equals(descriptor.Name, name, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(targetPort, descriptor.TargetPort);
+        Assert.Equal(protocol, descriptor.Protocol);
     }
 
     [Fact]

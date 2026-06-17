@@ -10,6 +10,7 @@ public sealed record ResourceTypeContribution(
     Type? UpdateComponentType = null,
     IReadOnlyList<ResourceTabContribution>? Tabs = null,
     IReadOnlyList<ResourcePredefinedViewSectionContribution>? PredefinedViewSections = null,
+    IReadOnlyList<ResourceEndpointDescriptor>? EndpointDescriptors = null,
     ResourceTypeProbeOptions? ProbeOptions = null,
     ResourceClass ResourceClass = ResourceClass.Generic)
 {
@@ -18,9 +19,41 @@ public sealed record ResourceTypeContribution(
     public IReadOnlyList<ResourcePredefinedViewSectionContribution> ResourcePredefinedViewSections =>
         PredefinedViewSections ?? [];
 
+    public IReadOnlyList<ResourceEndpointDescriptor> ResourceEndpointDescriptors =>
+        EndpointDescriptors ?? [];
+
     public ResourceTypeProbeOptions ResourceProbeOptions => ProbeOptions ?? ResourceTypeProbeOptions.None;
 
     public IReadOnlyList<ResourceHealthCheck> ResourceHealthChecks => ResourceProbeOptions.ResourceHealthChecks;
+}
+
+public sealed record ResourceEndpointDescriptor(
+    string Name,
+    int TargetPort,
+    string Protocol = "tcp",
+    ResourceExposureScope Exposure = ResourceExposureScope.Local,
+    ResourceEndpointAssignment DefaultAssignment = ResourceEndpointAssignment.ProviderDefault)
+{
+    public static ResourceEndpointDescriptor Http(
+        string name = "http",
+        int targetPort = 80,
+        ResourceExposureScope exposure = ResourceExposureScope.Local,
+        ResourceEndpointAssignment defaultAssignment = ResourceEndpointAssignment.ProviderDefault) =>
+        new(name, targetPort, "http", exposure, defaultAssignment);
+
+    public static ResourceEndpointDescriptor Https(
+        string name = "https",
+        int targetPort = 443,
+        ResourceExposureScope exposure = ResourceExposureScope.Local,
+        ResourceEndpointAssignment defaultAssignment = ResourceEndpointAssignment.ProviderDefault) =>
+        new(name, targetPort, "https", exposure, defaultAssignment);
+
+    public static ResourceEndpointDescriptor Tcp(
+        string name,
+        int targetPort,
+        ResourceExposureScope exposure = ResourceExposureScope.Local,
+        ResourceEndpointAssignment defaultAssignment = ResourceEndpointAssignment.ProviderDefault) =>
+        new(name, targetPort, "tcp", exposure, defaultAssignment);
 }
 
 public sealed record ResourceTypeProbeOptions(

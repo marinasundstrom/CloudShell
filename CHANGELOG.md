@@ -79,6 +79,9 @@ on `git blame --follow`, and then by the broad type of change.
   fixed endpoint URIs and fixed helper ports become manual local endpoint
   assignments, while helper calls without a fixed port become explicit
   auto-assigned endpoint intents.
+- Resource type contributions can now declare endpoint descriptors, and the
+  built-in ASP.NET Core project, container app, and SQL Server resource types
+  advertise their default service endpoint names, protocols, and target ports.
 - The CloudShell goal and networking docs now state the platform principle of
   exposing provider behavior through familiar, standardized concepts that
   transfer across use cases and systems, while keeping provider-specific

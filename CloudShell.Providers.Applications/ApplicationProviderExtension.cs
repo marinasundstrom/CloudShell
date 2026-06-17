@@ -83,6 +83,15 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "database",
                 23,
                 resourceClass: ResourceClass.Service)
+            .AddResourceTypeEndpoint(
+                ApplicationResourceTypes.AspNetCoreProject,
+                ResourceEndpointDescriptor.Http())
+            .AddResourceTypeEndpoint(
+                ApplicationResourceTypes.ContainerApp,
+                ResourceEndpointDescriptor.Http())
+            .AddResourceTypeEndpoint(
+                ApplicationResourceTypes.SqlServer,
+                ResourceEndpointDescriptor.Tcp("tds", 1433))
             .AddResourceTab<Pages.ApplicationOverview>(
                 ApplicationResourceTypes.ExecutableApplication,
                 ResourcePredefinedViewIds.Overview,
