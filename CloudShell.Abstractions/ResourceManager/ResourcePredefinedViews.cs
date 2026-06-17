@@ -4,21 +4,22 @@ public sealed record ResourcePredefinedViewDefinition(
     ResourceViewId Id,
     string Title,
     bool SupportsReplacement = true,
-    bool SupportsSections = false);
+    bool SupportsSections = false,
+    string? Icon = null);
 
 public static class ResourcePredefinedViews
 {
     private static readonly ResourcePredefinedViewDefinition[] Definitions =
     [
-        new(ResourcePredefinedViewIds.Overview, "Overview", SupportsSections: false),
-        new(ResourcePredefinedViewIds.Configuration, "Configuration", SupportsSections: false),
-        new(ResourcePredefinedViewIds.Endpoints, "Endpoints", SupportsSections: true),
-        new(ResourcePredefinedViewIds.Dns, "DNS", SupportsSections: true),
-        new(ResourcePredefinedViewIds.Identity, "Identity", SupportsSections: false),
-        new(ResourcePredefinedViewIds.Volumes, "Volumes", SupportsSections: false),
-        new(ResourcePredefinedViewIds.Activity, "Activity", SupportsSections: false),
-        new(ResourcePredefinedViewIds.Environment, "Environment", SupportsSections: false),
-        new(ResourcePredefinedViewIds.Storage, "Storage", SupportsSections: false)
+        new(ResourcePredefinedViewIds.Overview, "Overview", SupportsSections: false, Icon: "overview"),
+        new(ResourcePredefinedViewIds.Configuration, "Configuration", SupportsSections: false, Icon: "configuration"),
+        new(ResourcePredefinedViewIds.Endpoints, "Endpoints", SupportsSections: true, Icon: "endpoints"),
+        new(ResourcePredefinedViewIds.Dns, "DNS", SupportsSections: true, Icon: "dns"),
+        new(ResourcePredefinedViewIds.Identity, "Identity", SupportsSections: false, Icon: "identity"),
+        new(ResourcePredefinedViewIds.Volumes, "Volumes", SupportsSections: false, Icon: "volumes"),
+        new(ResourcePredefinedViewIds.Activity, "Activity", SupportsSections: false, Icon: "activity"),
+        new(ResourcePredefinedViewIds.Environment, "Environment", SupportsSections: false, Icon: "environment"),
+        new(ResourcePredefinedViewIds.Storage, "Storage", SupportsSections: false, Icon: "storage")
     ];
 
     private static readonly IReadOnlyDictionary<ResourceViewId, ResourcePredefinedViewDefinition> DefinitionsById =

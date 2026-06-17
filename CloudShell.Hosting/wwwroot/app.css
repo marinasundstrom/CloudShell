@@ -873,6 +873,9 @@ h3 {
 }
 
 .resource-tab-button {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
     width: 100%;
     padding: .55rem .65rem;
     border: 1px solid transparent;
@@ -881,6 +884,10 @@ h3 {
     color: var(--cloudshell-text);
     text-align: left;
     cursor: pointer;
+}
+
+.resource-tab-button fluent-icon {
+    flex: 0 0 auto;
 }
 
 .resource-tab-button:hover {

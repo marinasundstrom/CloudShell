@@ -113,12 +113,14 @@ public sealed class ExtensionRegistrationTests
                 Assert.Equal(new ResourceViewId(ResourceTabGroupIds.General, "overview"), tab.Id);
                 Assert.Equal(typeof(SampleOverviewPage), tab.ComponentType);
                 Assert.False(tab.ShowsApplyButton);
+                Assert.Equal("overview", tab.Icon);
             },
             tab =>
             {
                 Assert.Equal(new ResourceViewId(ResourceTabGroupIds.General, "configuration"), tab.Id);
                 Assert.Equal(typeof(SampleUpdatePage), tab.ComponentType);
                 Assert.True(tab.ShowsApplyButton);
+                Assert.Equal("configuration", tab.Icon);
             });
     }
 

@@ -103,7 +103,8 @@ public interface ICloudShellExtensionBuilder
         string title,
         int order,
         bool showsApplyButton = false,
-        string? groupTitle = null);
+        string? groupTitle = null,
+        string? icon = null);
 
     ICloudShellExtensionBuilder AddResourcePredefinedViewSection<TComponent>(
         string resourceTypeId,

@@ -272,7 +272,8 @@ internal sealed class CloudShellExtensionBuilder(
         string title,
         int order,
         bool showsApplyButton = false,
-        string? groupTitle = null)
+        string? groupTitle = null,
+        string? icon = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(resourceTypeId);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
@@ -296,7 +297,8 @@ internal sealed class CloudShellExtensionBuilder(
                 order,
                 typeof(TComponent),
                 showsApplyButton,
-                NormalizeGroupTitle(groupTitle)))
+                NormalizeGroupTitle(groupTitle),
+                ResolveResourceTabIcon(id, icon)))
             .OrderBy(tab => tab.Order)
             .ThenBy(tab => tab.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -369,6 +371,18 @@ internal sealed class CloudShellExtensionBuilder(
             throw new InvalidOperationException(
                 $"Predefined resource view '{definition.Id}' does not accept provider-owned sections.");
         }
+    }
+
+    private static string? ResolveResourceTabIcon(ResourceViewId id, string? icon)
+    {
+        if (!string.IsNullOrWhiteSpace(icon))
+        {
+            return icon.Trim();
+        }
+
+        return ResourcePredefinedViews.TryGet(id, out var definition)
+            ? definition.Icon
+            : null;
     }
 
     private static void ValidateTabId(ResourceViewId id)

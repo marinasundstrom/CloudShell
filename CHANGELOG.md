@@ -66,6 +66,9 @@ on `git blame --follow`, and then by the broad type of change.
   status above the canonical resource identity fields instead of repeating the
   same resource identity card. The resource detail rail now also separates the
   identity fields from grouped resource view navigation with a divider.
+- Resource view menu items can now display icons. Predefined Resource Manager
+  views provide default icon metadata, and provider-owned tabs can opt into
+  custom icons through the resource tab contribution API.
 
 ### 2026-06-16
 

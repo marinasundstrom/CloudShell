@@ -6,7 +6,8 @@ public sealed record ResourceTabContribution(
     int Order,
     Type ComponentType,
     bool ShowsApplyButton = false,
-    string? GroupTitle = null)
+    string? GroupTitle = null,
+    string? Icon = null)
 {
     public string GroupId => Id.GroupId;
 

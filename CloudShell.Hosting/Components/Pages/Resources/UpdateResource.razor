@@ -162,7 +162,11 @@
                             {
                                 <button class="@GetTabButtonClass(tab, selectedTab)" type="button" role="tab"
                                         aria-selected="@(selectedTab?.Id == tab.Id)" @onclick="() => SelectTab(tab.Id)">
-                                    @tab.Title
+                                    @if (!string.IsNullOrWhiteSpace(tab.Icon))
+                                    {
+                                        <FluentIcon Value="@ResourceViewIcons.FromName(tab.Icon)" />
+                                    }
+                                    <span>@tab.Title</span>
                                 </button>
                             }
                         </div>
@@ -631,7 +635,8 @@
                 "Overview",
                 -100,
                 typeof(GeneratedResourceOverview),
-                GroupTitle: ResourceTabGroupTitles.General));
+                GroupTitle: ResourceTabGroupTitles.General,
+                Icon: GetPredefinedViewIcon(GeneratedOverviewTabId)));
         }
 
         if (ResourcePredefinedViewVisibility.HasEndpointsView(resource) &&
@@ -642,7 +647,8 @@
                 "Endpoints",
                 -80,
                 typeof(GeneratedResourceEndpoints),
-                GroupTitle: ResourceTabGroupTitles.Networking));
+                GroupTitle: ResourceTabGroupTitles.Networking,
+                Icon: GetPredefinedViewIcon(GeneratedEndpointsTabId)));
         }
 
         if (ResourcePredefinedViewVisibility.HasDnsView(resource) &&
@@ -653,7 +659,8 @@
                 "DNS",
                 -70,
                 typeof(GeneratedResourceDns),
-                GroupTitle: ResourceTabGroupTitles.Networking));
+                GroupTitle: ResourceTabGroupTitles.Networking,
+                Icon: GetPredefinedViewIcon(GeneratedDnsTabId)));
         }
 
         if (ResourcePredefinedViewVisibility.HasIdentityView(resource, hasIdentityPermissionGrants) &&
@@ -664,7 +671,8 @@
                 "Identity",
                 -90,
                 typeof(GeneratedResourceIdentity),
-                GroupTitle: ResourceTabGroupTitles.Management));
+                GroupTitle: ResourceTabGroupTitles.Management,
+                Icon: GetPredefinedViewIcon(GeneratedIdentityTabId)));
         }
 
         if (ResourcePredefinedViewVisibility.HasStorageVolumesView(resource) &&
@@ -675,7 +683,8 @@
                 "Volumes",
                 20,
                 typeof(StorageVolumes),
-                GroupTitle: ResourceTabGroupTitles.Storage));
+                GroupTitle: ResourceTabGroupTitles.Storage,
+                Icon: GetPredefinedViewIcon(GeneratedStorageVolumesTabId)));
         }
 
         if (!contributedTabs.Any(tab => tab.Id == GeneratedActivityTabId))
@@ -685,7 +694,8 @@
                 "Activity",
                 90,
                 typeof(ResourceActivity),
-                GroupTitle: ResourceTabGroupTitles.Management));
+                GroupTitle: ResourceTabGroupTitles.Management,
+                Icon: GetPredefinedViewIcon(GeneratedActivityTabId)));
         }
 
         if (resourceType?.UpdateComponentType is not null &&
@@ -697,7 +707,8 @@
                 0,
                 resourceType.UpdateComponentType,
                 ShowsApplyButton: true,
-                GroupTitle: ResourceTabGroupTitles.General));
+                GroupTitle: ResourceTabGroupTitles.General,
+                Icon: GetPredefinedViewIcon(ResourcePredefinedViewIds.Configuration)));
         }
 
         if (ResourcePredefinedViewVisibility.HasEnvironmentView(resource) &&
@@ -709,7 +720,8 @@
                 80,
                 typeof(ResourceEnvironmentVariables),
                 ShowsApplyButton: true,
-                GroupTitle: ResourceTabGroupTitles.Environment));
+                GroupTitle: ResourceTabGroupTitles.Environment,
+                Icon: GetPredefinedViewIcon(ResourcePredefinedViewIds.Environment)));
         }
 
         return tabs
@@ -781,6 +793,11 @@
                 ResourceTabGroupIds.Secrets => ResourceTabGroupTitles.Secrets,
                 _ => tab.GroupId
             };
+
+    private static string? GetPredefinedViewIcon(ResourceViewId id) =>
+        ResourcePredefinedViews.TryGet(id, out var definition)
+            ? definition.Icon
+            : null;
 
     private string GetTabButtonClass(
         ResourceTabContribution tab,
