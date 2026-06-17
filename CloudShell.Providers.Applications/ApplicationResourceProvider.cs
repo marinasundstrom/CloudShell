@@ -3054,12 +3054,6 @@ public sealed partial class ApplicationResourceProvider(
     }
 
     private static bool TryGetLoopbackEndpoint(
-        ResourceEndpoint endpoint,
-        out IReadOnlyList<IPAddress> addresses,
-        out int port) =>
-        TryGetLoopbackAddress(endpoint.Address, out addresses, out port);
-
-    private static bool TryGetLoopbackEndpoint(
         ResourceEndpointNetworkMapping mapping,
         out IReadOnlyList<IPAddress> addresses,
         out int port) =>

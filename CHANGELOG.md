@@ -103,6 +103,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Traefik dynamic load-balancer configuration now resolves target endpoint
   addresses through the resource-level endpoint address helper instead of
   reading mapping and legacy endpoint addresses separately.
+- Application provider local endpoint availability checks now keep only the
+  endpoint-network-mapping path and remove the obsolete endpoint-address
+  overload.
 - Resource model, networking, and application docs now distinguish CloudShell
   resources, the runtime services they provide, the `cloudshell.service`
   resource kind, endpoint network mappings, and configured endpoint mappings
