@@ -132,6 +132,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app volume assignment and Scale and replicas surfaces now warn
   when replicas would mount volumes that do not advertise access compatible
   with replica fan-out.
+- Volume resources now project storage runtime status for direct local paths
+  and storage-owned subpaths so Resource Manager can warn about missing paths
+  or invalid subpaths before a consuming resource is started.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

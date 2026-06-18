@@ -38,8 +38,9 @@ report partial, not-active, or unknown status, and Local Storage overview pages
 warn when consumers of owned volumes report incomplete or unobserved mount
 materialization. Local Storage resources now project provider-backed filesystem
 root availability through `storage.runtimeStatus` and
-`storage.runtimeStatusReason`; provider-backed storage usage metrics remain
-open.
+`storage.runtimeStatusReason`; Volume resources now use the same runtime
+status attributes for direct local paths and storage-owned subpath readiness.
+Provider-backed storage usage metrics remain open.
 Deletion is guarded for volume resources that are still referenced by another
 resource dependency, and storage mappings cannot be changed while the target
 resource is running.
