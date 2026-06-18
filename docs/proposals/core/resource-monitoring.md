@@ -106,6 +106,8 @@ The first implementation slice adds:
   restart count, and uptime snapshots
 - application process CPU, CPU time, memory, thread count, process count, and
   uptime snapshots for executable and ASP.NET Core project resources
+- configuration store and Secrets Vault service process CPU, CPU time, memory,
+  thread count, process count, and uptime snapshots
 
 Docker-backed container resources report current CPU usage, memory usage,
 memory limit, memory usage percentage, network bytes received/sent, block
@@ -120,6 +122,9 @@ process count, and uptime when the local application process is running.
 Container-backed application resources remain excluded from the generated
 process snapshot path because container app monitoring needs an app-level
 summary and per-replica/container breakdown.
+
+Configuration Store and Secrets Vault resources report the same local service
+process metrics when their provider-owned service processes are running.
 
 ## Remaining Work
 

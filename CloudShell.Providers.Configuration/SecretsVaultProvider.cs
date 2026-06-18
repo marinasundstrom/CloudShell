@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.Hosting;
@@ -17,6 +18,7 @@ public sealed partial class SecretsVaultProvider(
     ResourceDeclarationStore declarations) :
     IResourceProvider,
     ILogProvider,
+    IResourceMonitoringProvider,
     IResourceProcedureProvider,
     ISecretReferenceResolver,
     IResourceEnvironmentVariableProvider,
@@ -106,6 +108,60 @@ public sealed partial class SecretsVaultProvider(
         {
             yield return entry;
         }
+    }
+
+    public bool CanMonitor(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, ResourceType, StringComparison.OrdinalIgnoreCase) &&
+        store.GetVault(resource.Id) is not null;
+
+    public async Task<ResourceMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanMonitor(resource))
+        {
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.UtcNow;
+        var vault = store.GetVault(resource.Id);
+        if (vault is null)
+        {
+            return null;
+        }
+
+        if (resource.State != ResourceState.Running)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Secrets Vault service metrics are available only while the resource is running.");
+        }
+
+        var processSnapshot = await processes.GetMonitoringSnapshotAsync(
+            CreateServiceProcessDefinition(vault),
+            cancellationToken);
+        if (processSnapshot is null)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "The Secrets Vault service process could not be observed.");
+        }
+
+        return new ResourceMonitoringSnapshot(
+            resource.Id,
+            DisplayName,
+            processSnapshot.Timestamp,
+            LocalProcessMonitoringMetrics.CreateMetricSamples(processSnapshot, "Secrets Vault service process"),
+            "Available",
+            "Secrets Vault service process metrics.");
     }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>

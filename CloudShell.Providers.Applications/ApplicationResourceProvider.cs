@@ -206,7 +206,7 @@ public sealed partial class ApplicationResourceProvider(
             resource.Id,
             DisplayName,
             processSnapshot.Timestamp,
-            CreateProcessMetricSamples(processSnapshot),
+            LocalProcessMonitoringMetrics.CreateMetricSamples(processSnapshot, "application process"),
             "Available",
             "Application process metrics.");
     }
@@ -4902,73 +4902,6 @@ public sealed partial class ApplicationResourceProvider(
         return string.IsNullOrWhiteSpace(executableDirectory)
             ? Environment.CurrentDirectory
             : executableDirectory;
-    }
-
-    private static IReadOnlyList<ResourceMetricSample> CreateProcessMetricSamples(
-        LocalProcessMonitoringSnapshot snapshot)
-    {
-        var samples = new List<ResourceMetricSample>
-        {
-            new(
-                "resource.cpu.usage",
-                snapshot.CpuUsagePercent,
-                "%",
-                snapshot.Timestamp,
-                "CPU usage",
-                "Current process CPU usage sampled by the application provider."),
-            new(
-                "resource.cpu.total",
-                snapshot.TotalProcessorTime.TotalSeconds,
-                "seconds",
-                snapshot.Timestamp,
-                "CPU time",
-                "Total processor time consumed by the application process."),
-            new(
-                "resource.memory.workingSet",
-                snapshot.WorkingSetBytes,
-                "bytes",
-                snapshot.Timestamp,
-                "Working set",
-                "Current working set memory used by the application process."),
-            new(
-                "resource.memory.private",
-                snapshot.PrivateMemoryBytes,
-                "bytes",
-                snapshot.Timestamp,
-                "Private memory",
-                "Current private memory used by the application process."),
-            new(
-                "resource.process.threads",
-                snapshot.ThreadCount,
-                "count",
-                snapshot.Timestamp,
-                "Thread count",
-                "Current thread count reported for the application process."),
-            new(
-                "resource.process.count",
-                1,
-                "count",
-                snapshot.Timestamp,
-                "Process count",
-                "Current process count for this application resource.",
-                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["process.id"] = snapshot.ProcessId.ToString(CultureInfo.InvariantCulture)
-                })
-        };
-
-        if (snapshot.StartedAt is { } startedAt)
-        {
-            samples.Add(new ResourceMetricSample(
-                "resource.process.uptime",
-                Math.Max(0, (snapshot.Timestamp - startedAt).TotalSeconds),
-                "seconds",
-                snapshot.Timestamp,
-                "Process uptime",
-                "Seconds since the application process started."));
-        }
-
-        return samples;
     }
 
     private static string? NormalizeNullable(string? value) =>

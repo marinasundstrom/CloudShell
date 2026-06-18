@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.Configuration;
@@ -25,6 +26,8 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<IConfiguration>(
             _ => new ConfigurationBuilder().Build());
         builder.Services.AddSingleton<IResourceEnvironmentVariableProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
+        builder.Services.AddSingleton<IResourceMonitoringProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
         builder.Services.AddSingleton<IConfigurationEntryReferenceResolver>(
             serviceProvider => serviceProvider.GetRequiredService<ConfigurationResourceProvider>());
@@ -84,6 +87,8 @@ public sealed class SecretsProviderExtension : ICloudShellExtension
         builder.Services.AddSingleton<ISecretReferenceResolver>(
             serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProvider>());
         builder.Services.AddSingleton<IResourceEnvironmentVariableProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProvider>());
+        builder.Services.AddSingleton<IResourceMonitoringProvider>(
             serviceProvider => serviceProvider.GetRequiredService<SecretsVaultProvider>());
 
         builder

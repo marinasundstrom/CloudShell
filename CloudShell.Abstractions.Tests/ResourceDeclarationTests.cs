@@ -2387,6 +2387,94 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ConfigurationProviders_RegisterResourceMonitoringProviders()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider(options =>
+            {
+                options.DefinitionsPath = "configuration-stores.json";
+                options.SecretsVaultDefinitionsPath = "secrets-vaults.json";
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var providers = serviceProvider.GetRequiredService<IEnumerable<IResourceMonitoringProvider>>();
+
+        Assert.Contains(providers, provider => provider is ConfigurationResourceProvider);
+        Assert.Contains(providers, provider => provider is SecretsVaultProvider);
+    }
+
+    [Fact]
+    public async Task ConfigurationProvider_MonitorsStoppedServiceResourceAsUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider(options =>
+            {
+                options.DefinitionsPath = "configuration-stores.json";
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ConfigurationResourceProvider>();
+        serviceProvider.GetRequiredService<ConfigurationStore>().Save(
+            new ConfigurationStoreDefinition(
+                "configuration:example",
+                "Example Configuration"));
+        var resource = Assert.Single(provider.GetResources());
+
+        Assert.True(provider.CanMonitor(resource));
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(resource.Id, snapshot.ResourceId);
+        Assert.Equal("Configuration Store", snapshot.Provider);
+        Assert.Equal("Unavailable", snapshot.Status);
+        Assert.Empty(snapshot.Metrics);
+    }
+
+    [Fact]
+    public async Task SecretsVaultProvider_MonitorsStoppedServiceResourceAsUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddConfigurationProvider(options =>
+            {
+                options.SecretsVaultDefinitionsPath = "secrets-vaults.json";
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<SecretsVaultProvider>();
+        serviceProvider.GetRequiredService<SecretsVaultStore>().Save(
+            new SecretsVaultDefinition(
+                "secrets-vault:example",
+                "Example Secrets"));
+        var resource = Assert.Single(provider.GetResources());
+
+        Assert.True(provider.CanMonitor(resource));
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(resource.Id, snapshot.ResourceId);
+        Assert.Equal("Secrets Vault", snapshot.Provider);
+        Assert.Equal("Unavailable", snapshot.Status);
+        Assert.Empty(snapshot.Metrics);
+    }
+
+    [Fact]
     public async Task ConfigurationProvider_ExposesStoreLogs()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

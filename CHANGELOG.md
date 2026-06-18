@@ -63,6 +63,9 @@ on `git blame --follow`, and then by the broad type of change.
   executable and ASP.NET Core project resources, including CPU, memory, thread
   count, process count, and uptime snapshots while the local process is
   running.
+- Configuration Store and Secrets Vault resources now provide the same basic
+  service-process resource monitoring snapshots through their local service
+  process runner.
 - The generated Resource Manager Monitoring tab now preserves provider metric
   order so primary usage metrics can appear before supporting counters.
 - Configuration Store and Secrets Vault resource detail menus now use the

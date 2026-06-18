@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Providers.Applications;
 using Microsoft.Extensions.Hosting;
@@ -12,6 +13,7 @@ namespace CloudShell.Providers.Configuration;
 public sealed partial class ConfigurationResourceProvider :
     IResourceProvider,
     ILogProvider,
+    IResourceMonitoringProvider,
     IResourceProcedureProvider,
     IResourceTemplateProvider,
     IResourceEnvironmentVariableProvider,
@@ -103,6 +105,60 @@ public sealed partial class ConfigurationResourceProvider :
     public ConfigurationStoreDefinition? GetStore(string id) => store.GetStore(id);
 
     public IReadOnlyList<ConfigurationStoreDefinition> GetStores() => store.GetStores();
+
+    public bool CanMonitor(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "configuration.store", StringComparison.OrdinalIgnoreCase) &&
+        store.GetStore(resource.Id) is not null;
+
+    public async Task<ResourceMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanMonitor(resource))
+        {
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.UtcNow;
+        var configurationStore = store.GetStore(resource.Id);
+        if (configurationStore is null)
+        {
+            return null;
+        }
+
+        if (resource.State != ResourceState.Running)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Configuration Store service metrics are available only while the resource is running.");
+        }
+
+        var processSnapshot = await processes.GetMonitoringSnapshotAsync(
+            CreateServiceProcessDefinition(configurationStore),
+            cancellationToken);
+        if (processSnapshot is null)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "The Configuration Store service process could not be observed.");
+        }
+
+        return new ResourceMonitoringSnapshot(
+            resource.Id,
+            DisplayName,
+            processSnapshot.Timestamp,
+            LocalProcessMonitoringMetrics.CreateMetricSamples(processSnapshot, "Configuration Store service process"),
+            "Available",
+            "Configuration Store service process metrics.");
+    }
 
     public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
         string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
