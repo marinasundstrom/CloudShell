@@ -499,7 +499,17 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ResourceEventTypes.Events.Deployment.ImageUpdated, resourceEvent.EventType);
         Assert.Equal("build-server", resourceEvent.TriggeredBy);
         Assert.Equal("Information", resourceEvent.Level);
+        Assert.False(string.IsNullOrWhiteSpace(resourceEvent.TraceId));
+        Assert.False(string.IsNullOrWhiteSpace(resourceEvent.SpanId));
         Assert.Contains("example/api:20260608", resourceEvent.Message, StringComparison.Ordinal);
+        var correlatedEvents = await controlPlane.ListResourceEventsAsync(
+            new ResourceEventQuery(
+                ResourceId: ContractImageResourceProvider.ResourceId,
+                TraceId: resourceEvent.TraceId,
+                MaxEvents: 10));
+        Assert.Contains(correlatedEvents, correlatedEvent =>
+            correlatedEvent.EventType == ResourceEventTypes.Events.Deployment.ImageUpdated &&
+            correlatedEvent.TraceId == resourceEvent.TraceId);
         Assert.Contains(events, entry =>
             entry.Source == "event" &&
             entry.EventId == ResourceEventTypes.Events.Deployment.ImageUpdated &&
