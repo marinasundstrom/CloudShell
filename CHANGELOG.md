@@ -155,6 +155,9 @@ on `git blame --follow`, and then by the broad type of change.
   target path, access mode, and runtime materialization status.
 - Application overview pages now list inbound network mappings,
   load-balancer routes, and DNS name mappings with target and provider status.
+- Application overview pages now summarize resource identity binding,
+  provisioning status, and outbound permission grants with a link to the
+  Management > Identity tab.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

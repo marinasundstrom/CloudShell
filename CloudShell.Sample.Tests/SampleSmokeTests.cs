@@ -507,6 +507,13 @@ public sealed class SampleSmokeTests
         Assert.Contains("ApplicationTopology__ExternalApiKey", apiDetailsHtml);
         Assert.Contains("Secret reference", apiDetailsHtml);
         Assert.Contains(">Granted<", apiDetailsHtml);
+        Assert.Contains("Resource identity", apiDetailsHtml);
+        Assert.Contains("application-topology-api", apiDetailsHtml);
+        Assert.Contains("Provider: identity:development", apiDetailsHtml);
+        Assert.Contains("Provisioned", apiDetailsHtml);
+        Assert.Contains("Built-in resource identity client is registered.", apiDetailsHtml);
+        Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, apiDetailsHtml);
+        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, apiDetailsHtml);
         Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
 
         var apiEnvironmentHtml = await host.GetStringAsync(

@@ -134,6 +134,48 @@ else
         </section>
     }
 
+    @if (ProjectedResource?.IdentityBinding is { } identity)
+    {
+        <section class="blade-section">
+            <h3>Resource identity</h3>
+            <div class="generated-list">
+                <div>
+                    <strong>
+                        <a class="resource-link" href="@BuildResourceTabRoute(ProjectedResource.Id, ResourcePredefinedViewIds.Identity)">
+                            @FormatIdentityName(identity)
+                        </a>
+                    </strong>
+                    <span>@FormatIdentitySummary(identity)</span>
+                    <small>Provider: @FormatIdentityProvider(identity)</small>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(IdentityProvisioningStatusError))
+                {
+                    <div>
+                        <strong>Provisioning</strong>
+                        <span>@IdentityProvisioningStatusError</span>
+                        <small>Status unavailable</small>
+                    </div>
+                }
+                else if (IdentityProvisioningStatus is not null)
+                {
+                    <div>
+                        <strong>Provisioning</strong>
+                        <span>@FormatProvisioningState()</span>
+                        <small>@FormatProvisioningDetail()</small>
+                    </div>
+                }
+                @foreach (var grant in OutboundPermissionGrants)
+                {
+                    <div>
+                        <strong>Can access</strong>
+                        <span>@ResourceLink(grant.TargetResourceId)</span>
+                        <small>@grant.Permission</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     @if (VolumeMounts.Count > 0)
     {
         <section class="blade-section">
@@ -366,6 +408,9 @@ else
     private ResourceOperationCapabilities OperationCapabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
     private ResourcePermissionGrantEvaluator? PermissionGrantEvaluator { get; set; }
+    private IReadOnlyList<ResourcePermissionGrant> OutboundPermissionGrants { get; set; } = [];
+    private ResourceIdentityProvisioningStatusResult? IdentityProvisioningStatus { get; set; }
+    private string? IdentityProvisioningStatusError { get; set; }
     private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
     private IReadOnlyList<LoadBalancerRouteView> InboundLoadBalancerRoutes { get; set; } = [];
@@ -413,8 +458,12 @@ else
         ContainerHostPlacement = Application is null || !IsContainerBacked(Application)
             ? null
             : GetContainerHostPlacement(Application);
-        PermissionGrantEvaluator = new ResourcePermissionGrantEvaluator(
-            await ResourceManagerClient.ListResourcePermissionGrantsAsync());
+        var permissionGrants = await ResourceManagerClient.ListResourcePermissionGrantsAsync();
+        PermissionGrantEvaluator = new ResourcePermissionGrantEvaluator(permissionGrants);
+        OutboundPermissionGrants = ProjectedResource is null
+            ? []
+            : GetOutboundPermissionGrants(ProjectedResource, permissionGrants);
+        await LoadIdentityProvisioningStatusAsync();
     }
 
     private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
@@ -453,6 +502,95 @@ else
 
     private static string NormalizeRegistry(string? value) =>
         string.IsNullOrWhiteSpace(value) ? ContainerRegistryDefaults.Default : value.Trim();
+
+    private static string FormatIdentityName(ResourceIdentityBinding identity) =>
+        string.IsNullOrWhiteSpace(identity.Name)
+            ? "Default identity"
+            : identity.Name;
+
+    private static string FormatIdentityProvider(ResourceIdentityBinding identity) =>
+        string.IsNullOrWhiteSpace(identity.ProviderId)
+            ? "default provider"
+            : identity.ProviderId;
+
+    private static string FormatIdentitySummary(ResourceIdentityBinding identity) =>
+        string.IsNullOrWhiteSpace(identity.Subject)
+            ? $"{identity.Kind} identity"
+            : $"Subject: {identity.Subject}";
+
+    private string FormatProvisioningState()
+    {
+        if (IdentityProvisioningStatus is null)
+        {
+            return "Provisioning status unavailable.";
+        }
+
+        if (IdentityProvisioningStatus.Statuses.Count == 0)
+        {
+            return "No provisioning status was reported.";
+        }
+
+        var states = IdentityProvisioningStatus.Statuses
+            .Select(status => status.State.ToString())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return string.Join(", ", states);
+    }
+
+    private string FormatProvisioningDetail()
+    {
+        var detail = IdentityProvisioningStatus?.Statuses
+            .Select(status => status.Detail)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        if (!string.IsNullOrWhiteSpace(detail))
+        {
+            return detail;
+        }
+
+        return string.IsNullOrWhiteSpace(IdentityProvisioningStatus?.ProviderId)
+            ? "Provider: not resolved"
+            : $"Provider: {IdentityProvisioningStatus.ProviderId}";
+    }
+
+    private IReadOnlyList<ResourcePermissionGrant> GetOutboundPermissionGrants(
+        Resource resource,
+        IEnumerable<ResourcePermissionGrant> grants)
+    {
+        if (resource.IdentityBinding is not { } identity)
+        {
+            return [];
+        }
+
+        return grants
+            .Where(grant =>
+                string.Equals(grant.Identity.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(grant.Identity.Name, identity.Name, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(grant => ResolveMappingResource(grant.TargetResourceId)?.Name ?? grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private async Task LoadIdentityProvisioningStatusAsync()
+    {
+        IdentityProvisioningStatus = null;
+        IdentityProvisioningStatusError = null;
+        if (ProjectedResource?.IdentityBinding is null)
+        {
+            return;
+        }
+
+        try
+        {
+            IdentityProvisioningStatus =
+                await ResourceManagerClient.GetResourceIdentityProvisioningStatusAsync(ProjectedResource.Id);
+        }
+        catch (Exception exception)
+        {
+            IdentityProvisioningStatusError = exception.Message;
+        }
+    }
 
     private string ContainerHostPlacementSummary()
     {
@@ -1204,6 +1342,23 @@ else
             ? path
             : $"{path}?{queryString}";
     }
+
+    private RenderFragment ResourceLink(string resourceId) => builder =>
+    {
+        var resource = ResolveMappingResource(resourceId);
+        builder.OpenElement(0, "a");
+        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
+        builder.AddContent(3, resource?.Name ?? resourceId);
+        if (resource is not null)
+        {
+            builder.OpenElement(4, "small");
+            builder.AddContent(5, resource.EffectiveTypeId);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
 
     private RenderFragment DependencyLink(string resourceId) => builder =>
     {
