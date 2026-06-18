@@ -144,14 +144,16 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 new ResourceViewId(ResourceTabGroupIds.Application, "deployment"),
                 "Deployment",
                 20,
-                groupTitle: ResourceTabGroupTitles.Application)
+                groupTitle: ResourceTabGroupTitles.Application,
+                icon: "deployment")
             .AddResourceTab<Pages.ApplicationScaling>(
                 ApplicationResourceTypes.ContainerApp,
                 new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"),
                 "Scale and replicas",
                 30,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Application)
+                groupTitle: ResourceTabGroupTitles.Application,
+                icon: "scale")
             .AddResourceTab<Pages.ApplicationMonitoring>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Monitoring,
@@ -167,11 +169,12 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.ApplicationStorage>(
                 ApplicationResourceTypes.ContainerApp,
-                ResourcePredefinedViewIds.Storage,
+                new ResourceViewId(ResourceTabGroupIds.Application, "storage"),
                 "Storage",
                 60,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Storage)
+                groupTitle: ResourceTabGroupTitles.Application,
+                icon: "storage")
             .AddResourcePredefinedViewSection<Pages.ApplicationEndpointActions>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Endpoints,

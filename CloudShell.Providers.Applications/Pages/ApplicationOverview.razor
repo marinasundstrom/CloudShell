@@ -93,7 +93,7 @@ else
             {
                 <dt>Storage</dt>
                 <dd>
-                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, ResourcePredefinedViewIds.Storage)">
+                    <a class="resource-link" href="@BuildResourceTabRoute(Application.Id, GetStorageTabId(Application))">
                         @FormatCount(VolumeMounts.Count, "mount", "mounts")
                     </a>
                 </dd>
@@ -826,6 +826,11 @@ else
 
     private static string BuildResourceTabRoute(string resourceId, ResourceViewId tabId) =>
         ResourceManagerRoutes.ResourceDetails(resourceId, tabId);
+
+    private static ResourceViewId GetStorageTabId(ApplicationResourceDefinition application) =>
+        ApplicationResourceTypes.IsContainerApp(application.ResourceType)
+            ? new ResourceViewId(ResourceTabGroupIds.Application, "storage")
+            : ResourcePredefinedViewIds.Storage;
 
     private static string BuildAddNameMappingRoute(ApplicationResourceDefinition application) =>
         ApplicationResourceExposureRoutes.BuildAddNameMappingRoute(

@@ -1087,7 +1087,7 @@ public sealed class ResourceDeclarationTests
         AssertScalingTab(containerAppType);
         AssertNoStandaloneReplicaTab(containerAppType);
         AssertContainerAppMonitoringTab(containerAppType);
-        AssertStorageTab(containerAppType);
+        AssertContainerAppStorageTab(containerAppType);
         AssertApplicationExposureSection(containerAppType);
         var sqlServerType = resourceTypes[ApplicationResourceTypes.SqlServer];
         Assert.Equal(ResourceClass.Service, sqlServerType.ResourceClass);
@@ -1318,6 +1318,19 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationStorage), storageTab.ComponentType);
     }
 
+    private static void AssertContainerAppStorageTab(ResourceTypeContribution resourceType)
+    {
+        var storageTab = Assert.Single(
+            resourceType.ResourceTabs,
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "storage"));
+
+        Assert.Equal("Storage", storageTab.Title);
+        Assert.Equal(ResourceTabGroupTitles.Application, storageTab.GroupTitle);
+        Assert.True(storageTab.ShowsApplyButton);
+        Assert.Equal("storage", storageTab.Icon);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationStorage), storageTab.ComponentType);
+    }
+
     private static void AssertApplicationExposureSection(ResourceTypeContribution resourceType)
     {
         var section = Assert.Single(
@@ -1340,6 +1353,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceTabGroupTitles.Application, deploymentTab.GroupTitle);
         Assert.False(deploymentTab.ShowsApplyButton);
         Assert.Equal(20, deploymentTab.Order);
+        Assert.Equal("deployment", deploymentTab.Icon);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationDeployment), deploymentTab.ComponentType);
     }
 
@@ -1372,6 +1386,7 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ResourceTabGroupTitles.Application, scalingTab.GroupTitle);
         Assert.True(scalingTab.ShowsApplyButton);
         Assert.Equal(30, scalingTab.Order);
+        Assert.Equal("scale", scalingTab.Icon);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationScaling), scalingTab.ComponentType);
     }
 
