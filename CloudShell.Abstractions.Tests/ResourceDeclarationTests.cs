@@ -5416,6 +5416,20 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ApplicationVolumeMountReplicaWarning_ShowsWhenReplicasHaveAssignedMounts()
+    {
+        Assert.False(ApplicationVolumeMountReplicaWarning.ShouldShow(
+            replicasEnabled: true,
+            [new ApplicationVolumeMountInput("volume:data", string.Empty)]));
+        Assert.False(ApplicationVolumeMountReplicaWarning.ShouldShow(
+            replicasEnabled: false,
+            [new ApplicationVolumeMountInput("volume:data", "/data")]));
+        Assert.True(ApplicationVolumeMountReplicaWarning.ShouldShow(
+            replicasEnabled: true,
+            [new ApplicationVolumeMountInput("volume:data", "/data")]));
+    }
+
+    [Fact]
     public void ApplicationNameMappingDisplay_TreatsNameMappingsAsInboundApplicationExposure()
     {
         var mapping = new Resource(

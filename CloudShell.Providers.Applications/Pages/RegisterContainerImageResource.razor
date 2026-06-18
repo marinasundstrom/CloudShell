@@ -117,7 +117,8 @@
         </FluentCheckbox>
 
         <ApplicationVolumeMountsEditor Mounts="VolumeMounts"
-                                       VolumeCandidates="GetVolumeCandidates()" />
+                                       VolumeCandidates="GetVolumeCandidates()"
+                                       ReplicasEnabled="@EnableReplicas" />
 
         <FluentCheckbox @bind-Value="EnableObservability">
             Enable observability

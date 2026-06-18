@@ -38,6 +38,7 @@ else
     <ApplicationVolumeMountsEditor Mounts="VolumeMounts"
                                    VolumeCandidates="GetVolumeCandidates()"
                                    Disabled="@IsStorageEditorDisabled"
+                                   ReplicasEnabled="@IsReplicaContainerApp"
                                    TargetPathPlaceholder="@GetTargetPathPlaceholder()" />
 }
 
@@ -62,6 +63,11 @@ else
 
     private bool IsStorageEditorDisabled =>
         IsReadOnly || IsStorageLocked;
+
+    private bool IsReplicaContainerApp =>
+        Application is not null &&
+        ApplicationResourceTypes.IsContainerApp(Application.ResourceType) &&
+        Application.ReplicasEnabled;
 
     protected override void OnParametersSet()
     {
