@@ -515,8 +515,10 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
         Assert.Contains("Search resource identities", settingsAccessControlHtml);
         Assert.Contains("Assigned resource identities", settingsAccessControlHtml);
+        Assert.Contains("Configuration entries: read", settingsAccessControlHtml);
         Assert.Contains("application-topology-api", settingsAccessControlHtml);
         Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, settingsAccessControlHtml);
+        Assert.DoesNotContain("Secrets: read", settingsAccessControlHtml);
 
         var secretsIdentityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
@@ -524,6 +526,15 @@ public sealed class SampleSmokeTests
         Assert.Contains("Built-in resource identity client is registered.", secretsIdentityHtml);
         Assert.Contains("application-topology-api / application-topology-api", secretsIdentityHtml);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, secretsIdentityHtml);
+
+        var secretsAccessControlHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
+        Assert.Contains("Search resource identities", secretsAccessControlHtml);
+        Assert.Contains("Assigned resource identities", secretsAccessControlHtml);
+        Assert.Contains("Secrets: read", secretsAccessControlHtml);
+        Assert.Contains("application-topology-api", secretsAccessControlHtml);
+        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, secretsAccessControlHtml);
+        Assert.DoesNotContain("Configuration entries: read", secretsAccessControlHtml);
 
         var apiEnvironmentHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");

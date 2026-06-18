@@ -51,7 +51,7 @@
                 <label for="access-control-permission">@L["Permission"]</label>
                 <FluentSelect TOption="string" Id="access-control-permission" @bind-Value="SelectedPermission">
                     <FluentOption TOption="string" Value="">@L["Select a permission"]</FluentOption>
-                    @foreach (var option in PermissionOptions)
+                    @foreach (var option in AvailablePermissionOptions)
                     {
                         <FluentOption TOption="string" Value="@option.Value">@option.Label</FluentOption>
                     }
@@ -114,21 +114,29 @@
 
 @code {
     private const string CustomPermissionValue = "__custom";
+    private const string ConfigurationStoreResourceType = "configuration.store";
+    private const string SecretsVaultResourceType = "secrets.vault";
+    private const string VolumeResourceType = "cloudshell.volume";
+    private const string NetworkResourceType = "cloudshell.network";
+    private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
+    private const string DnsZoneResourceType = "cloudshell.dnsZone";
+    private const string LoadBalancerResourceType = "cloudshell.loadBalancer";
+    private const string IdentityProvisioningResourceType = "cloudshell.identity-provisioning";
 
-    private static readonly IReadOnlyList<PermissionOption> PermissionOptions =
+    private static readonly IReadOnlyList<PermissionOption> AllPermissionOptions =
     [
-        new("Configuration entries: read", ConfigurationStoreResourceOperationPermissions.ReadEntries),
-        new("Secrets: read", SecretsVaultResourceOperationPermissions.ReadSecrets),
-        new("Volume mount: read", StorageVolumeResourceOperationPermissions.MountRead),
-        new("Volume mount: write", StorageVolumeResourceOperationPermissions.MountWrite),
-        new("Lifecycle action", CommonResourceOperationPermissions.LifecycleAction),
-        new("Custom resource action", CommonResourceOperationPermissions.ExecuteCustomAction),
-        new("Network endpoint mapping reconcile", NetworkResourceOperationPermissions.ReconcileEndpointMappings),
-        new("DNS name mapping reconcile", NetworkResourceOperationPermissions.ReconcileNameMappings),
-        new("Load balancer configuration apply", LoadBalancerResourceOperationPermissions.ApplyConfiguration),
-        new("Identity provisioning", ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities),
-        new("All permissions", CloudShellPermissions.All),
-        new("Custom permission", CustomPermissionValue)
+        new("Configuration entries: read", ConfigurationStoreResourceOperationPermissions.ReadEntries, PermissionOptionTarget.ConfigurationStore),
+        new("Secrets: read", SecretsVaultResourceOperationPermissions.ReadSecrets, PermissionOptionTarget.SecretsVault),
+        new("Volume mount: read", StorageVolumeResourceOperationPermissions.MountRead, PermissionOptionTarget.Volume),
+        new("Volume mount: write", StorageVolumeResourceOperationPermissions.MountWrite, PermissionOptionTarget.Volume),
+        new("Lifecycle action", CommonResourceOperationPermissions.LifecycleAction, PermissionOptionTarget.LifecycleAction),
+        new("Custom resource action", CommonResourceOperationPermissions.ExecuteCustomAction, PermissionOptionTarget.CustomAction),
+        new("Network endpoint mapping reconcile", NetworkResourceOperationPermissions.ReconcileEndpointMappings, PermissionOptionTarget.Network),
+        new("DNS name mapping reconcile", NetworkResourceOperationPermissions.ReconcileNameMappings, PermissionOptionTarget.DnsZone),
+        new("Load balancer configuration apply", LoadBalancerResourceOperationPermissions.ApplyConfiguration, PermissionOptionTarget.LoadBalancer),
+        new("Identity provisioning", ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities, PermissionOptionTarget.IdentityProvisioning),
+        new("All permissions", CloudShellPermissions.All, PermissionOptionTarget.Always),
+        new("Custom permission", CustomPermissionValue, PermissionOptionTarget.Always)
     ];
 
     [Parameter, EditorRequired]
@@ -149,6 +157,12 @@
     private string? RevokingPermissionKey { get; set; }
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
     private bool IsCustomPermission => string.Equals(SelectedPermission, CustomPermissionValue, StringComparison.Ordinal);
+    private IReadOnlyList<PermissionOption> AvailablePermissionOptions =>
+        Resource is null
+            ? []
+            : AllPermissionOptions
+                .Where(option => option.IsAvailableFor(Resource))
+                .ToArray();
     private IReadOnlyList<IdentityOption> FilteredIdentityOptions =>
         string.IsNullOrWhiteSpace(IdentitySearch)
             ? IdentityOptions
@@ -210,6 +224,13 @@
             .ThenBy(group => group.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(group => group.Identity.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        if (!string.IsNullOrWhiteSpace(SelectedPermission) &&
+            !AvailablePermissionOptions.Any(option =>
+                string.Equals(option.Value, SelectedPermission, StringComparison.Ordinal)))
+        {
+            SelectedPermission = string.Empty;
+            CustomPermission = string.Empty;
+        }
     }
 
     private async Task GrantPermission()
@@ -386,7 +407,54 @@
             ? "Default identity"
             : identity.Name;
 
-    private sealed record PermissionOption(string Label, string Value);
+    private sealed record PermissionOption(
+        string Label,
+        string Value,
+        PermissionOptionTarget Target)
+    {
+        public bool IsAvailableFor(Resource resource) => Target switch
+        {
+            PermissionOptionTarget.ConfigurationStore =>
+                IsResourceType(resource, ConfigurationStoreResourceType) ||
+                resource.ResourceClass == ResourceClass.Configuration,
+            PermissionOptionTarget.SecretsVault =>
+                IsResourceType(resource, SecretsVaultResourceType) ||
+                resource.ResourceClass == ResourceClass.SecretsVault,
+            PermissionOptionTarget.Volume => IsResourceType(resource, VolumeResourceType),
+            PermissionOptionTarget.Network =>
+                IsResourceType(resource, NetworkResourceType) ||
+                IsResourceType(resource, VirtualNetworkResourceType),
+            PermissionOptionTarget.DnsZone => IsResourceType(resource, DnsZoneResourceType),
+            PermissionOptionTarget.LoadBalancer => IsResourceType(resource, LoadBalancerResourceType),
+            PermissionOptionTarget.IdentityProvisioning => IsResourceType(resource, IdentityProvisioningResourceType),
+            PermissionOptionTarget.LifecycleAction => resource.ResourceActions.Any(action =>
+                action.Kind is ResourceActionKind.Start or
+                    ResourceActionKind.Stop or
+                    ResourceActionKind.Pause or
+                    ResourceActionKind.Restart),
+            PermissionOptionTarget.CustomAction => resource.ResourceActions.Any(action =>
+                action.Kind == ResourceActionKind.Custom),
+            PermissionOptionTarget.Always => true,
+            _ => false
+        };
+
+        private static bool IsResourceType(Resource resource, string resourceType) =>
+            string.Equals(resource.EffectiveTypeId, resourceType, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private enum PermissionOptionTarget
+    {
+        Always,
+        ConfigurationStore,
+        SecretsVault,
+        Volume,
+        Network,
+        DnsZone,
+        LoadBalancer,
+        IdentityProvisioning,
+        LifecycleAction,
+        CustomAction
+    }
 
     private sealed record IdentityOption(
         ResourceIdentityReference Identity,

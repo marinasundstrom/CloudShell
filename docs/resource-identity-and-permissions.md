@@ -346,7 +346,12 @@ The generated Access control tab shows who can access the current resource.
 For the current resource-identity MVP it offers a searchable resource-identity
 picker, records grant intent from the selected resource identity to the current
 resource, groups assigned permissions by resource identity, and can revoke
-those grants. User and group principals require a broader principal model and
+those grants. The permission picker is filtered to operations that are relevant
+to the current target resource, such as configuration-entry reads for
+Configuration Store resources, secret reads for Secrets Vault resources, mount
+permissions for volumes, networking reconciliation for network resources, and
+resource-action permissions where the target advertises actions. User and
+group principals require a broader principal model and
 should be added as separate assignment surfaces or principal-type selectors
 rather than being folded into the resource-identity picker. Editing identity
 bindings themselves in the CloudShell UI is future work.
