@@ -413,6 +413,25 @@ public sealed class SampleSmokeTests
         Assert.Contains("routeKind=tcp", sqlEndpointsHtml);
         Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-sql-server%2Fdetails%3Ftab%3Dnetworking%253Aendpoints", sqlEndpointsHtml);
 
+        var globalLogsHtml = await host.GetStringAsync("/logs");
+        Assert.Contains("All resources", globalLogsHtml);
+        Assert.Contains(">All logs<", globalLogsHtml);
+        Assert.Contains("application-topology-api / Console logs", globalLogsHtml);
+        Assert.Contains("application-topology-frontend / Console logs", globalLogsHtml);
+        Assert.DoesNotContain(" / Activity", globalLogsHtml);
+
+        var selectedLogHtml = await host.GetStringAsync(
+            $"/logs?logId={Uri.EscapeDataString("application:application-topology-api:logs")}");
+        Assert.Contains("All resources", selectedLogHtml);
+        Assert.Contains("application-topology-api / Console logs", selectedLogHtml);
+        Assert.Contains("application-topology-frontend / Console logs", selectedLogHtml);
+
+        var apiLogsHtml = await host.GetStringAsync(
+            $"/logs?resourceId={Uri.EscapeDataString("application:application-topology-api")}");
+        Assert.Contains("All resources", apiLogsHtml);
+        Assert.Contains("application-topology-api / Console logs", apiLogsHtml);
+        Assert.DoesNotContain("application-topology-frontend / Console logs", apiLogsHtml);
+
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
         AssertResourceTabsInOrder(

@@ -124,9 +124,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app Storage now appears under the Application Resource Manager menu
   group, and container app Deployment plus Scale and replicas tabs now carry
   explicit icon metadata.
-- Resource Logs now default to an operational `All sources` log view instead
-  of Activity when application/runtime logs exist, and log-entry details now
-  open only after selecting an entry so the log feed can use the full width.
+- Resource Logs now default to an operational `All logs` view instead of
+  Activity when application/runtime logs exist, expose an explicit `All
+  resources` resource filter for the standalone Logs page, and open log-entry
+  details only after selecting an entry so the log feed can use the full width.
   The shared log feed, convenience viewer, and details blade are now separate
   components for custom log views.
 

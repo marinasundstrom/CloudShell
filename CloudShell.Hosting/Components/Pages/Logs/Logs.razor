@@ -11,6 +11,7 @@
 @{
     var logs = GetSelectableLogs();
     var selected = GetSelectedLog(logs);
+    var selectedResourceFilterId = GetSelectedResourceFilterId();
 }
 
 @if (Inline)
@@ -43,12 +44,6 @@ else
             <p>@L["Browse logs registered by resources, providers, and extension-owned artifacts."]</p>
         </div>
         <div class="heading-actions">
-            @if (!string.IsNullOrWhiteSpace(ResourceId))
-            {
-                <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllLogs">
-                    @L["All logs"]
-                </FluentButton>
-            }
             @if (!string.IsNullOrWhiteSpace(TraceId))
             {
                 <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
@@ -80,13 +75,28 @@ else
                     <p>@selected.Name / @selected.Provider / @selected.SourceKind</p>
                 </div>
                 <div class="log-viewer-actions">
+                    @if (!Inline)
+                    {
+                        <label class="trace-source-filter" for="log-resource-filter">
+                            <span>@L["Resource"]</span>
+                            <select id="log-resource-filter" class="trace-source-select"
+                                    value="@(selectedResourceFilterId ?? string.Empty)"
+                                    @onchange="SelectResourceFilter">
+                                <option value="">@L["All resources"]</option>
+                                @foreach (var resource in LogResourceFilters)
+                                {
+                                    <option value="@resource.ResourceId">@resource.Name</option>
+                                }
+                            </select>
+                        </label>
+                    }
                     <label class="trace-source-filter" for="log-source-filter">
                         <span>@L["Log source"]</span>
                         <select id="log-source-filter" class="trace-source-select" value="@selected.Id"
                                 @onchange="SelectLog">
                             @foreach (var log in logs)
                             {
-                                <option value="@log.Id">@($"{log.SourceName} / {log.Name}")</option>
+                                <option value="@log.Id">@GetLogOptionLabel(log)</option>
                             }
                         </select>
                     </label>
@@ -202,6 +212,7 @@ else
     private double? PreservePrependedScrollHeight { get; set; }
     private bool IsDisposed { get; set; }
     private IReadOnlyList<LogDescriptor> VisibleLogs { get; set; } = [];
+    private IReadOnlyList<LogResourceFilterOption> LogResourceFilters { get; set; } = [];
     private Resource? SelectedResource { get; set; }
     private LogViewer? LogViewerComponent { get; set; }
 
@@ -261,33 +272,44 @@ else
     private IReadOnlyList<LogDescriptor> GetSelectableLogs()
     {
         var logs = GetVisibleLogs();
-        var combinedSources = GetCombinedLogSources(logs);
-        return combinedSources.Count <= 1
-            ? logs
-            : [CreateCombinedLogDescriptor(combinedSources), .. logs];
+        var operationalLogs = GetOperationalLogSources(logs);
+        if (operationalLogs.Count == 0)
+        {
+            return logs;
+        }
+
+        return operationalLogs.Count == 1
+            ? operationalLogs
+            : [CreateCombinedLogDescriptor(operationalLogs), .. operationalLogs];
     }
 
-    private IReadOnlyList<LogDescriptor> GetCombinedLogSources(IReadOnlyList<LogDescriptor> logs) =>
+    private IReadOnlyList<LogDescriptor> GetOperationalLogSources(IReadOnlyList<LogDescriptor> logs) =>
         logs
             .Where(log => !IsCombinedLog(log) && !IsActivityLog(log))
             .ToArray();
 
     private LogDescriptor CreateCombinedLogDescriptor(IReadOnlyList<LogDescriptor> logs)
     {
-        var resourceId = string.IsNullOrWhiteSpace(ResourceId) ? null : ResourceId;
-        var sourceName = SelectedResource is null
-            ? L["All sources"].Value
-            : L["{0} / All sources", SelectedResource.Name].Value;
+        var selectedResourceFilterId = GetSelectedResourceFilterId();
+        var resourceId = Inline
+            ? (string.IsNullOrWhiteSpace(ResourceId) ? null : ResourceId)
+            : selectedResourceFilterId;
+        var sourceName = SelectedResource?.Name
+            ?? (selectedResourceFilterId is null
+                ? L["All resources"].Value
+                : LogResourceFilters.FirstOrDefault(option =>
+                    string.Equals(option.ResourceId, selectedResourceFilterId, StringComparison.OrdinalIgnoreCase))?.Name
+                    ?? selectedResourceFilterId);
         return new LogDescriptor(
             AllLogsId,
-            L["All sources"].Value,
+            L["All logs"].Value,
             L["Telemetry"].Value,
             sourceName,
             LogSourceKind.Resource,
             ResourceId: resourceId,
             Description: logs.Count == 1
                 ? L["Recent entries from the available operational log source."].Value
-                : L["Recent entries from all operational log sources."].Value);
+                : L["Merged recent entries from all operational log sources."].Value);
     }
 
     private IReadOnlyList<LogEntry> GetVisibleEntries()
@@ -320,13 +342,49 @@ else
 
     private async Task LoadVisibleLogsAsync()
     {
-        VisibleLogs = await LogManager.ListLogsAsync(
-            string.IsNullOrWhiteSpace(ResourceId)
+        if (Inline)
+        {
+            VisibleLogs = await LogManager.ListLogsAsync(
+                string.IsNullOrWhiteSpace(ResourceId)
+                    ? null
+                    : new LogQuery(ResourceId: ResourceId));
+            LogResourceFilters = [];
+            SelectedResource = string.IsNullOrWhiteSpace(ResourceId)
                 ? null
-                : new LogQuery(ResourceId: ResourceId));
-        SelectedResource = string.IsNullOrWhiteSpace(ResourceId)
-            ? null
-            : await ResourceManager.GetResourceAsync(ResourceId);
+                : await ResourceManager.GetResourceAsync(ResourceId);
+            return;
+        }
+
+        var logs = await LogManager.ListLogsAsync();
+        var resourceIds = logs
+            .Select(log => log.ResourceId)
+            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        IReadOnlyList<Resource> resources = resourceIds.Length == 0
+            ? []
+            : await ResourceManager.ListResourcesAsync();
+        var resourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        LogResourceFilters = resourceIds
+            .Select(resourceId => new LogResourceFilterOption(
+                resourceId!,
+                resourcesById.TryGetValue(resourceId!, out var resource)
+                    ? resource.Name
+                    : logs.First(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase)).SourceName))
+            .OrderBy(option => option.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var selectedResourceFilterId = GetSelectedResourceFilterId();
+        SelectedResource = selectedResourceFilterId is not null &&
+            resourcesById.TryGetValue(selectedResourceFilterId, out var selectedResource)
+                ? selectedResource
+                : null;
+        VisibleLogs = selectedResourceFilterId is null
+            ? logs
+            : logs
+                .Where(log => string.Equals(log.ResourceId, selectedResourceFilterId, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
     }
 
     private LogDescriptor? GetSelectedLog(IReadOnlyList<LogDescriptor> logs)
@@ -360,6 +418,23 @@ else
     private void SelectLog(ChangeEventArgs args) =>
         SelectLog(args.Value?.ToString());
 
+    private void SelectResourceFilter(ChangeEventArgs args)
+    {
+        var resourceId = args.Value?.ToString();
+        var query = new Dictionary<string, string?>();
+        if (!string.IsNullOrWhiteSpace(resourceId))
+        {
+            query["resourceId"] = resourceId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(TraceId))
+        {
+            query["traceId"] = TraceId.Trim();
+        }
+
+        Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
+    }
+
     private void SelectLog(string? logId)
     {
         if (string.IsNullOrWhiteSpace(logId) ||
@@ -376,7 +451,10 @@ else
         }
     }
 
-    private void ShowAllLogs() => Navigation.NavigateTo("/logs");
+    private string GetLogOptionLabel(LogDescriptor log) =>
+        IsCombinedLog(log)
+            ? log.Name
+            : $"{log.SourceName} / {log.Name}";
 
     private void ClearTraceFilter()
     {
@@ -389,12 +467,13 @@ else
             }
             else
             {
-                Navigation.NavigateTo(string.IsNullOrWhiteSpace(ResourceId)
-                    ? "/logs"
-                    : Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                        "/logs",
-                        "resourceId",
-                        ResourceId));
+                var query = new Dictionary<string, string?>();
+                if (GetSelectedResourceFilterId() is { Length: > 0 } resourceId)
+                {
+                    query["resourceId"] = resourceId;
+                }
+
+                Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
             }
 
             return;
@@ -447,7 +526,7 @@ else
         int maxEntries,
         DateTimeOffset? before = null)
     {
-        var sources = GetCombinedLogSources(VisibleLogs);
+        var sources = GetOperationalLogSources(VisibleLogs);
         if (sources.Count == 0)
         {
             return [];
@@ -700,9 +779,9 @@ else
                 query);
         }
 
-        if (!string.IsNullOrWhiteSpace(log.ResourceId))
+        if (GetSelectedResourceFilterId() is { Length: > 0 } resourceId)
         {
-            query["resourceId"] = log.ResourceId;
+            query["resourceId"] = resourceId;
         }
 
         if (!string.IsNullOrWhiteSpace(traceId))
@@ -759,4 +838,19 @@ else
         IsDisposed = true;
         await StopStreamingAsync();
     }
+
+    private string? GetSelectedResourceFilterId()
+    {
+        if (Inline || string.IsNullOrWhiteSpace(ResourceId))
+        {
+            return null;
+        }
+
+        return LogResourceFilters.Any(option =>
+            string.Equals(option.ResourceId, ResourceId, StringComparison.OrdinalIgnoreCase))
+                ? ResourceId
+                : null;
+    }
+
+    private sealed record LogResourceFilterOption(string ResourceId, string Name);
 }
