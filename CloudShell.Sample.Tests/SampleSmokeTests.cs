@@ -422,7 +422,7 @@ public sealed class SampleSmokeTests
             ">Endpoints<",
             ">DNS<",
             ">Deployment<",
-            ">Replicas<",
+            ">Scale and replicas<",
             ">Storage<",
             ">Environment<",
             ">Activity<");

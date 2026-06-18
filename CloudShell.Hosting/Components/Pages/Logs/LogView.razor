@@ -1,0 +1,171 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedResource> L
+
+<div @ref="LogEntryList" class="log-entry-list @(WrapMessages ? "wrap" : null)" role="log"
+     aria-label="@AriaLabel">
+    @foreach (var entry in Entries)
+    {
+        var isStructured = HasStructuredMetadata(entry);
+        var isSelectedEntry = IsEntrySelected?.Invoke(entry) == true;
+        <button
+            class="log-entry @(isStructured ? "structured" : null) @(isSelectedEntry ? "selected" : null)"
+            type="button" aria-pressed="@isSelectedEntry" @onclick="() => SelectEntry(entry)">
+            <time>@entry.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
+            <span class="log-entry-source">@entry.Source</span>
+            <span class="log-entry-severity">@entry.Severity</span>
+            <div class="log-entry-body">
+                <pre>@entry.Message</pre>
+                @if (isStructured)
+                {
+                    <span class="structured-log-summary">
+                        @GetStructuredSummary(entry)
+                    </span>
+                }
+            </div>
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<LogEntry> Entries { get; set; } = [];
+
+    [Parameter]
+    public bool WrapMessages { get; set; }
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    [Parameter]
+    public Func<LogEntry, bool>? IsEntrySelected { get; set; }
+
+    [Parameter]
+    public EventCallback<LogEntry> EntrySelected { get; set; }
+
+    private ElementReference LogEntryList { get; set; }
+    private IJSObjectReference? LogModule { get; set; }
+
+    public async Task<bool> IsAtLatestAsync()
+    {
+        if (Entries.Count == 0)
+        {
+            return true;
+        }
+
+        try
+        {
+            var module = await GetLogModuleAsync();
+            return await module.InvokeAsync<bool>("isAtLatest", LogEntryList);
+        }
+        catch (JSException)
+        {
+            return true;
+        }
+    }
+
+    public async Task<bool> ScrollToLatestAsync()
+    {
+        try
+        {
+            var module = await GetLogModuleAsync();
+            return await module.InvokeAsync<bool>("scrollToLatest", LogEntryList);
+        }
+        catch (JSException)
+        {
+            return false;
+        }
+    }
+
+    public async Task<double> GetScrollHeightAsync()
+    {
+        try
+        {
+            var module = await GetLogModuleAsync();
+            return await module.InvokeAsync<double>("getScrollHeight", LogEntryList);
+        }
+        catch (JSException)
+        {
+            return 0;
+        }
+    }
+
+    public async Task PreservePrependedScrollAsync(double previousScrollHeight)
+    {
+        try
+        {
+            var module = await GetLogModuleAsync();
+            await module.InvokeVoidAsync("preservePrependedScroll", LogEntryList, previousScrollHeight);
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private Task SelectEntry(LogEntry entry) =>
+        EntrySelected.InvokeAsync(entry);
+
+    private string GetStructuredSummary(LogEntry entry)
+    {
+        var fields = GetStructuredMetadata(entry).Count;
+        return L["{0} structured fields", fields].Value;
+    }
+
+    private async Task<IJSObjectReference> GetLogModuleAsync()
+    {
+        if (LogModule is null)
+        {
+            LogModule = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./Components/Pages/Logs/Logs.razor.js");
+        }
+
+        return LogModule;
+    }
+
+    internal static bool HasStructuredMetadata(LogEntry entry) =>
+        !string.IsNullOrWhiteSpace(entry.EventId) ||
+        !string.IsNullOrWhiteSpace(entry.Category) ||
+        !string.IsNullOrWhiteSpace(entry.TraceId) ||
+        !string.IsNullOrWhiteSpace(entry.SpanId) ||
+        !string.IsNullOrWhiteSpace(entry.ExceptionSummary) ||
+        entry.Attributes?.Count > 0;
+
+    internal static IReadOnlyList<KeyValuePair<string, string>> GetStructuredMetadata(LogEntry entry)
+    {
+        var metadata = new List<KeyValuePair<string, string>>();
+        AddIfPresent(metadata, "category", entry.Category);
+        AddIfPresent(metadata, "eventId", entry.EventId);
+        AddIfPresent(metadata, "traceId", entry.TraceId);
+        AddIfPresent(metadata, "spanId", entry.SpanId);
+        AddIfPresent(metadata, "exception", entry.ExceptionSummary);
+        if (entry.Attributes is not null)
+        {
+            metadata.AddRange(
+                entry.Attributes
+                    .Where(attribute => !string.IsNullOrWhiteSpace(attribute.Value))
+                    .OrderBy(attribute => attribute.Key, StringComparer.OrdinalIgnoreCase));
+        }
+
+        return metadata;
+    }
+
+    private static void AddIfPresent(
+        List<KeyValuePair<string, string>> metadata,
+        string key,
+        string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            metadata.Add(new KeyValuePair<string, string>(key, value));
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (LogModule is not null)
+        {
+            await LogModule.DisposeAsync();
+        }
+    }
+}

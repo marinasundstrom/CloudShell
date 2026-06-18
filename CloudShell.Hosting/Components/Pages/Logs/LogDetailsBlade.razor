@@ -1,0 +1,90 @@
+@inject IStringLocalizer<SharedResource> L
+
+@if (Entry is not null)
+{
+    <aside class="structured-log-details">
+        <div class="structured-log-detail-header">
+            <div class="structured-log-detail-heading">
+                <span>@Entry.Severity</span>
+                <FluentButton Appearance="Appearance.Neutral"
+                              Title="@L["Close details"].Value"
+                              IconStart="new Icons.Regular.Size20.Dismiss()"
+                              OnClick="Dismiss" />
+            </div>
+            <h3>@Entry.Message</h3>
+            <p>@Entry.Timestamp.ToLocalTime().ToString("g")</p>
+        </div>
+
+        <dl class="detail-list compact structured-log-core">
+            <dt>@L["Category"]</dt>
+            <dd>@(Entry.Category ?? L["none"].Value)</dd>
+            <dt>@L["Event ID"]</dt>
+            <dd>@(Entry.EventId ?? L["none"].Value)</dd>
+            <dt>@L["Source"]</dt>
+            <dd>@(Entry.Source ?? L["none"].Value)</dd>
+            <dt>@L["Trace ID"]</dt>
+            <dd>
+                @if (TraceRoute is { Length: > 0 })
+                {
+                    <a class="resource-link" href="@TraceRoute">
+                        @Entry.TraceId
+                    </a>
+                }
+                else
+                {
+                    @L["none"]
+                }
+            </dd>
+            <dt>@L["Span ID"]</dt>
+            <dd>@(Entry.SpanId ?? L["none"].Value)</dd>
+            @if (!string.IsNullOrWhiteSpace(Entry.ExceptionSummary))
+            {
+                <dt>@L["Exception"]</dt>
+                <dd>@Entry.ExceptionSummary</dd>
+            }
+        </dl>
+
+        <div class="structured-log-detail-actions">
+            @if (TraceRoute is { Length: > 0 })
+            {
+                <FluentAnchor Appearance="Appearance.Neutral" Href="@TraceRoute">
+                    @L["Open trace"]
+                </FluentAnchor>
+            }
+        </div>
+
+        <div class="structured-log-attributes">
+            <h3>@L["Attributes"]</h3>
+            @if (Entry.Attributes is null ||
+                Entry.Attributes.Count == 0)
+            {
+                <p>@L["No attributes were captured for this entry."]</p>
+            }
+            else
+            {
+                <dl class="log-entry-metadata">
+                    @foreach (var item in Entry.Attributes
+                        .Where(item => !string.IsNullOrWhiteSpace(item.Value))
+                        .OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase))
+                    {
+                        <dt>@item.Key</dt>
+                        <dd>@item.Value</dd>
+                    }
+                </dl>
+            }
+        </div>
+    </aside>
+}
+
+@code {
+    [Parameter]
+    public LogEntry? Entry { get; set; }
+
+    [Parameter]
+    public string? TraceRoute { get; set; }
+
+    [Parameter]
+    public EventCallback Dismissed { get; set; }
+
+    private Task Dismiss() => Dismissed.InvokeAsync();
+}

@@ -1,0 +1,99 @@
+@using System.Globalization
+
+@{
+    var selectedEntry = GetSelectedEntry();
+}
+
+<div class="structured-log-view @(selectedEntry is null ? null : "with-details")">
+    <LogView @ref="LogViewComponent"
+             Entries="Entries"
+             WrapMessages="WrapMessages"
+             AriaLabel="@AriaLabel"
+             IsEntrySelected="IsEntrySelected"
+             EntrySelected="SelectEntry" />
+
+    @if (selectedEntry is not null)
+    {
+        <LogDetailsBlade Entry="selectedEntry"
+                         TraceRoute="@GetTraceRoute(selectedEntry)"
+                         Dismissed="DismissDetails" />
+    }
+</div>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<LogEntry> Entries { get; set; } = [];
+
+    [Parameter]
+    public bool WrapMessages { get; set; }
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    [Parameter]
+    public Func<LogEntry, string?>? TraceRouteFactory { get; set; }
+
+    private string? SelectedEntryKey { get; set; }
+    private LogView? LogViewComponent { get; set; }
+
+    public Task<bool> IsAtLatestAsync() =>
+        LogViewComponent?.IsAtLatestAsync() ?? Task.FromResult(true);
+
+    public Task<bool> ScrollToLatestAsync() =>
+        LogViewComponent?.ScrollToLatestAsync() ?? Task.FromResult(false);
+
+    public Task<double> GetScrollHeightAsync() =>
+        LogViewComponent?.GetScrollHeightAsync() ?? Task.FromResult(0d);
+
+    public Task PreservePrependedScrollAsync(double previousScrollHeight) =>
+        LogViewComponent?.PreservePrependedScrollAsync(previousScrollHeight) ?? Task.CompletedTask;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(SelectedEntryKey) &&
+            GetSelectedEntry() is null)
+        {
+            SelectedEntryKey = null;
+        }
+    }
+
+    private LogEntry? GetSelectedEntry()
+    {
+        if (string.IsNullOrWhiteSpace(SelectedEntryKey))
+        {
+            return null;
+        }
+
+        return Entries.FirstOrDefault(IsEntrySelected);
+    }
+
+    private bool IsEntrySelected(LogEntry entry) =>
+        string.Equals(GetEntrySelectionKey(entry), SelectedEntryKey, StringComparison.Ordinal);
+
+    private void SelectEntry(LogEntry entry)
+    {
+        var selectionKey = GetEntrySelectionKey(entry);
+        SelectedEntryKey = string.Equals(SelectedEntryKey, selectionKey, StringComparison.Ordinal)
+            ? null
+            : selectionKey;
+    }
+
+    private void DismissDetails() => SelectedEntryKey = null;
+
+    private string? GetTraceRoute(LogEntry entry) =>
+        string.IsNullOrWhiteSpace(entry.TraceId)
+            ? null
+            : TraceRouteFactory?.Invoke(entry);
+
+    private static string GetEntrySelectionKey(LogEntry entry) =>
+        string.Join(
+            "|",
+            entry.Timestamp.ToUnixTimeMilliseconds().ToString(CultureInfo.InvariantCulture),
+            entry.Source,
+            entry.Severity,
+            entry.EventId,
+            entry.Category,
+            entry.TraceId,
+            entry.SpanId,
+            entry.Message);
+}
