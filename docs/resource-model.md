@@ -461,7 +461,9 @@ queried through managers such as `ILogManager`, `IResourceEventManager`, and
 
 ## Identity
 
-`Identity` contains optional `ResourceIdentityBinding` metadata.
+`Identity` contains optional `ResourceIdentityBinding` metadata. It describes
+the resource's identity configuration and provider binding; it is not the
+grant subject used by access control.
 
 Identity metadata is non-secret. Runtime credentials are transferred through
 safe provider mechanisms such as environment variables, token endpoints,
@@ -473,11 +475,15 @@ exists.
 
 Identity provider configuration is an environment capability. A resource's
 `Identity` binding is separate per-resource intent and may resolve through the
-environment default provider. Permission grants authorize a principal against a
-target resource. A principal can be a resource identity today, and later can
-also be a user, group, service account, or provider-owned identity reference.
-Resource events should preserve the acting principal so activity logs can show
-which resource or user triggered an operation.
+environment default provider.
+
+Access control uses principals. A resource identity is one kind of principal,
+and programmatic declarations expose it through `resource.Principal` when a
+resource needs to be granted access to another resource. User principals,
+groups, service accounts, workload identities, managed identities, and
+provider-owned identity references use the same principal-to-resource grant
+model. Resource events should preserve the acting principal so activity logs
+can show which resource or user triggered an operation.
 
 ## Load-Balancer Routes
 

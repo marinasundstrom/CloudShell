@@ -302,7 +302,7 @@ var api = resources
 
 var orders = sql.AddDatabase("orders");
 
-orders.Allow(api.Identity, "Database/databases/readWrite/action");
+orders.Allow(api.Principal, "Database/databases/readWrite/action");
 ```
 
 The exact builder names are not final. The important shape is that callers

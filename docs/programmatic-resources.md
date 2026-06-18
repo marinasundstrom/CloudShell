@@ -614,6 +614,12 @@ iterate without first deciding how the environment will be hosted. If the
 declaration is removed from startup code, the resource no longer appears after
 restart unless it was persisted separately.
 
+Transient declarations are not serialized into the CloudShell database. The
+Resource Manager may project them through the same resource graph as persisted
+resources, but the declaration object and provider-owned configuration remain
+in memory for that process unless the declaration explicitly calls
+`Persist()`.
+
 Use `Persist()` when the declaration should materialize into provider-owned
 configuration and the core resource registration store using the same provider
 setup logic as the UI:
@@ -686,6 +692,7 @@ resources:
   settings or configuration entries.
 
 `Persist()` writes both sides through their existing stores. Without `Persist()`,
+CloudShell does not create core registration rows for the declaration, and
 provider-specific configuration is kept in memory for the current process.
 
 In split deployments, keep this API in the Control Plane host. The UI host

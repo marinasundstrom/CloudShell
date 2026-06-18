@@ -47,6 +47,14 @@ curl http://localhost:5102/api/control-plane/v1/resources
 - The startup `Resources(...)` block declares `sample:api` and
   `sample:database`, so they are visible immediately in Resource Manager and
   through the Control Plane API.
+- `Program.cs` calls `ConfigureInMemoryIdentity(...)` to register the built-in
+  provider with an in-memory ASP.NET Core Identity store and an `alice` test
+  user. Alice can sign in with the configured password, is exposed as a user
+  principal, and receives `resources.manage` on `sample:database` through the
+  programmatic grant model.
+- In-memory identity users, roles, claims, and grant-derived resource
+  permissions are local-development test state. They are not persisted and are
+  cleared when the sample process stops.
 
 Runtime state is stored under `samples/CloudShell.ResourceHost/Data/` and is
 ignored by git.

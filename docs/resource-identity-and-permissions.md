@@ -195,13 +195,45 @@ known yet. Resource Manager projects the declaration through
 `resourceIdentityProviderUnresolved` diagnostic instead of rejecting the
 resource.
 
-Future mock identity support should go beyond projecting metadata. It should
-let local tests declare user or workload principals and exercise permission
-boundaries between resources before the same model is connected to Microsoft
-Entra ID or another production authority.
+For local development and tests, hosts can register the built-in provider with
+an in-memory ASP.NET Core Identity store. It registers provider metadata,
+creates configured test users as login accounts, exposes them as user
+principals, maps programmatic grants to resource-permission claims, and clears
+that state when the process stops.
 
-Programmatic declarations can also record permission grants from one resource
-identity to another resource:
+```csharp
+cloudShell.ConfigureInMemoryIdentity(identity =>
+{
+    identity.Users.Add(
+        "alice",
+        password: "CloudShell123!",
+        displayName: "Alice Local Developer",
+        email: "alice@example.test",
+        role: "CloudShell.Reader");
+});
+
+cloudShell.Resources(resources =>
+{
+    var identity = resources.GetIdentityProvider();
+    var alice = identity.GetUser("alice");
+
+    var database = resources.Declare("database", "database:app");
+
+    database.Allow(alice, "Database/databases/manage/action");
+});
+```
+
+Persisted users for the built-in provider use the same ASP.NET Core Identity
+manager path backed by the configured database store and are managed by the
+account UI. The in-memory setup exists so local development and sample projects
+can model users, login, roles, claims, and access grants without keeping state
+after shutdown. Third-party providers should feed the same principal and grant
+model through their own directory/provisioning integrations.
+
+Programmatic declarations can also record permission grants from a principal
+to a target resource. A resource identity is one principal source, exposed by
+the declaring resource through `Principal`; it is separate from the resource's
+`Identity` binding configuration.
 
 ```csharp
 var api = resources
@@ -211,7 +243,7 @@ var api = resources
 
 var database = resources.Declare("database", "database:app");
 
-database.Allow(api.Identity, "Database/databases/readWrite/action");
+database.Allow(api.Principal, "Database/databases/readWrite/action");
 ```
 
 These grants can be evaluated against the declaration model with

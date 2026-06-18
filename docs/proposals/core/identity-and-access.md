@@ -137,14 +137,17 @@ Implemented today:
   managed identities, workload identities, and provider-owned identity
   references.
 - Control Plane, API, remote-client, and Resource Manager principal lookup
-  through `IResourceManager.ListResourcePrincipalsAsync(...)`, with resource
+  through `IResourceManager.QueryResourcePrincipalsAsync(...)`, with resource
   identities supplied from the resource model and provider directory hooks
   contributing provider-backed principal data.
 - The built-in ASP.NET Core identity provider acts as the reference
   local-development integration for simple cases. It provisions resource
   identity clients, issues scoped resource-permission tokens, reports
-  provisioning status, and exposes provisioned resource identity clients
-  through the provider-neutral directory hook.
+  provisioning status, exposes provisioned resource identity clients through
+  the provider-neutral directory hook, supports persisted account-UI users
+  through the database-backed ASP.NET Core Identity store, and supports
+  in-memory login users, roles, claims, and grant-derived resource-permission
+  claims through `ConfigureInMemoryIdentity(...)`.
 - A `setupIdentityProvider` Resource Manager action on identity provisioning
   resources that runs the attached provider's setup/reconcile hook with the
   same provisioning-resource permission boundary as the setup endpoint.

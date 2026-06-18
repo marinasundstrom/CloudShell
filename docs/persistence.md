@@ -22,6 +22,12 @@ startup configuration by default. They appear in Resource Manager without
 writing provider-owned configuration or core registration rows, so the
 checked-in code remains the source of truth.
 
+CloudShell does not serialize programmatic resource definitions into the
+database. Transient declarations are in-memory startup state only. The
+Resource Manager projects them into the resource graph for the current process,
+but the persisted resource registration store is unchanged unless the
+declaration explicitly calls `Persist()`.
+
 Calling `Persist()` on a declaration asks the owning provider to apply the
 resource through the same setup logic used by the UI. Existing persisted state is
 left unchanged unless the declaration uses `Persist(overwrite: true)`.

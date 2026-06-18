@@ -202,11 +202,24 @@ on `git blame --follow`, and then by the broad type of change.
   principals, managed identities, workload identities, and provider-owned
   identity references.
 - Control Plane API/client now expose provider-backed principal lookup through
-  `IResourceManager.ListResourcePrincipalsAsync(...)`; Resource Manager Access
+  `IResourceManager.QueryResourcePrincipalsAsync(...)`; Resource Manager Access
   control uses that principal source for its resource-identity picker, and the
   built-in ASP.NET Core identity provider exposes provisioned resource identity
-  clients through the same directory hook for local-development reference
-  behavior.
+  clients, persisted local users, and configured in-memory test users through
+  the same directory hook for local-development reference behavior.
+- Programmatic access grants now use `ResourcePrincipalReference` through
+  `resource.Principal` and `Allow(principal, permission)`, keeping resource
+  `Identity` focused on identity binding configuration and provisioning.
+- The ResourceHost sample now configures the built-in in-memory identity
+  provider with an `alice` ASP.NET Core Identity test user, grants that user
+  access to the sample database, and verifies that login user can only read the
+  granted resource.
+- `ConfigureInMemoryIdentity(...)` now uses an in-memory ASP.NET Core Identity
+  store for local development, so configured users, roles, claims, and
+  grant-derived resource permissions are all cleared on shutdown.
+- Programmatic resource declaration startup now names the persisted-declaration
+  handoff explicitly and tests that transient declarations are projected
+  without creating core resource registration rows.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

@@ -263,6 +263,8 @@ These endpoints list principals, list declared grants, assign or revoke grant
 intent, and evaluate whether the declared model contains a matching grant.
 Principal lookup combines resource identities from the CloudShell resource
 model with provider-backed directory data from identity provider integrations.
+The built-in provider can also expose in-memory test users for local
+development.
 Assigning or revoking a grant updates CloudShell's desired access model;
 applying that change to provider-owned identity systems is part of identity
 provider provisioning or reconciliation. Resource action execution can also
@@ -272,6 +274,33 @@ resource identity instead of using the current user's resource permissions.
 This is model-level enforcement for declared resource identities. The API does
 not yet prove the acting identity with a token or register grants with an
 external identity authority.
+
+Grant list filters use principal terminology:
+
+```text
+GET /api/control-plane/v1/resource-permission-grants?principalKind=1&principalId=alice
+GET /api/control-plane/v1/resource-permission-grants?principalKind=0&principalId=application%3Aapi%2Fidentities%2Fapi-service
+GET /api/control-plane/v1/resource-permission-grants?targetResourceId=configuration%3Aapp
+```
+
+Grant and revoke request bodies carry a `principal` object:
+
+```json
+{
+  "principal": {
+    "kind": 1,
+    "id": "alice",
+    "displayName": "Alice Local Developer",
+    "providerId": "identity:built-in"
+  },
+  "targetResourceId": "configuration:app",
+  "permission": "resources.manage"
+}
+```
+
+For resource identity principals, `principal.id` is the stable principal ID
+derived from the resource identity, while `sourceResourceId` and
+`sourceIdentityName` preserve the resource binding that produced it.
 
 Identity provider setup asks the provider to reconcile provider-level
 configuration such as OIDC client mappers, admin API reachability, trust
