@@ -355,6 +355,16 @@ public sealed class RemoteControlPlaneContractTests
 
         Assert.Equal("Reconciled 1 endpoint mapping(s).", result.Message);
         Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+
+        var deniedEvent = Assert.Single(await controlPlane.ListResourceEventsAsync(
+            new ResourceEventQuery(
+                ResourceId: "network:contract",
+                EventType: ResourceEventTypes.Actions.ForFailedAction(
+                    PlatformResourceProvider.ReconcileEndpointMappingsActionId))));
+        Assert.Equal("Warning", deniedEvent.Level);
+        Assert.Equal(
+            $"Reconcile endpoint mappings action was denied. The '{NetworkResourceOperationPermissions.ReconcileEndpointMappings}' or '{CloudShellPermissions.Resources.Manage}' permission is required for resource 'network:contract'.",
+            deniedEvent.Message);
     }
 
     [Fact]
