@@ -302,6 +302,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("Name", addResourceHtml);
         Assert.DoesNotContain("Display name", addResourceHtml);
         Assert.DoesNotContain("web-application-display-name", addResourceHtml);
+
+        var missingTypeHtml = await host.GetStringAsync(
+            "/resources/add?type=application.does-not-exist");
+        Assert.Contains("Resource type not found", missingTypeHtml);
+        Assert.Contains("application.does-not-exist", missingTypeHtml);
+        Assert.Contains("Show resource types", missingTypeHtml);
     }
 
     [Fact]

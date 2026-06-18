@@ -87,6 +87,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource detail pages now show an explicit not-found state when the `tab`
   query parameter references an unavailable resource view instead of silently
   falling back to another tab.
+- The Add Resource page now shows an explicit not-found state when the `type`
+  query parameter references an unavailable resource type instead of silently
+  falling back to the first installed type.
 - Configuration Store and Secrets Vault resources now provide the same basic
   service-process resource monitoring snapshots through their local service
   process runner.

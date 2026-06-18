@@ -11,8 +11,10 @@
 
 @{
     var resourceTypes = ShellCatalog.ResourceTypes;
-    var selectedType = resourceTypes.FirstOrDefault(type => type.Id == SelectedTypeId)
-        ?? resourceTypes.FirstOrDefault();
+    var selectedTypeIssue = GetRequestedResourceTypeIssue(resourceTypes);
+    var selectedType = selectedTypeIssue is null
+        ? resourceTypes.FirstOrDefault(type => type.Id == SelectedTypeId) ?? resourceTypes.FirstOrDefault()
+        : null;
 }
 
 <section class="page-heading compact add-resource-heading">
@@ -99,7 +101,16 @@ else
         </aside>
 
         <div class="panel registration-host add-resource-form-panel">
-            @if (selectedType is null)
+            @if (selectedTypeIssue is not null)
+            {
+                <EmptyState Title="@selectedTypeIssue.Title"
+                            Message="@selectedTypeIssue.Message">
+                    <FluentAnchor Appearance="Appearance.Neutral" Href="@selectedTypeIssue.RecoveryHref">
+                        @selectedTypeIssue.RecoveryLabel
+                    </FluentAnchor>
+                </EmptyState>
+            }
+            else if (selectedType is null)
             {
                 <div class="empty-state">
                     <strong>@L["No resource types are installed"]</strong>
@@ -174,14 +185,7 @@ else
 
     private string? GetRequestedResourceTypeId()
     {
-        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
-        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        if (!query.TryGetValue(ResourceTypeQueryParameter, out var values))
-        {
-            return null;
-        }
-
-        var requested = values.ToString();
+        var requested = GetRequestedQueryValue(ResourceTypeQueryParameter);
         if (string.IsNullOrWhiteSpace(requested))
         {
             return null;
@@ -193,14 +197,52 @@ else
             : null;
     }
 
+    private ResourceTypeSelectionIssue? GetRequestedResourceTypeIssue(
+        IReadOnlyList<ResourceTypeContribution> resourceTypes)
+    {
+        var requested = GetRequestedQueryValue(ResourceTypeQueryParameter);
+        if (string.IsNullOrWhiteSpace(requested) ||
+            resourceTypes.Any(type => string.Equals(type.Id, requested, StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        var resourceTypeId = requested.Trim();
+        return new ResourceTypeSelectionIssue(
+            L["Resource type not found"].Value,
+            L["Resource type '{0}' is not installed or is not available.", resourceTypeId].Value,
+            L["Show resource types"].Value,
+            BuildAddResourceRoute());
+    }
+
     private string? GetRequestedReturnUrl()
+    {
+        var returnUrl = GetRequestedQueryValue("returnUrl");
+        return ResourceRegistrationNavigationContext.IsLocalReturnUrl(returnUrl)
+                ? returnUrl
+                : null;
+    }
+
+    private string? GetRequestedQueryValue(string name)
     {
         var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
         var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
-        return query.TryGetValue("returnUrl", out var values) &&
-            ResourceRegistrationNavigationContext.IsLocalReturnUrl(values.ToString())
-                ? values.ToString()
-                : null;
+        return query.TryGetValue(name, out var values)
+            ? values.ToString()
+            : null;
+    }
+
+    private string BuildAddResourceRoute()
+    {
+        var query = new Dictionary<string, string?>();
+        if (!string.IsNullOrWhiteSpace(ReturnUrl))
+        {
+            query["returnUrl"] = ReturnUrl;
+        }
+
+        return query.Count == 0
+            ? "/resources/add"
+            : Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/resources/add", query);
     }
 
     private ResourceRegistrationProbeContext GetProbeContext(ResourceTypeContribution type)
@@ -213,4 +255,10 @@ else
 
         return context;
     }
+
+    private sealed record ResourceTypeSelectionIssue(
+        string Title,
+        string Message,
+        string RecoveryLabel,
+        string RecoveryHref);
 }
