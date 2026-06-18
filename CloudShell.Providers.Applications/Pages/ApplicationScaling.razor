@@ -40,7 +40,7 @@ else
                                @bind-Value="Replicas" />
 
             @if (Application is not null &&
-                ApplicationVolumeMountReplicaWarning.ShouldShow(EnableReplicas, Application.VolumeMounts))
+                ApplicationVolumeMountReplicaWarning.ShouldShow(EnableReplicas, Application.VolumeMounts, GetVolumeResources()))
             {
                 <div class="procedure-message compact">
                     @ApplicationVolumeMountReplicaWarning.Message
@@ -265,6 +265,11 @@ else
             GetAttribute(resource, ResourceAttributeNames.RuntimeKind, string.Empty),
             "containerReplica",
             StringComparison.OrdinalIgnoreCase);
+
+    private IReadOnlyList<Resource> GetVolumeResources() =>
+        ResourceManager.GetResources()
+            .Where(ApplicationVolumeResourceDisplay.IsMountableVolumeResource)
+            .ToArray();
 
     private static int GetReplicaOrdinal(Resource resource) =>
         int.TryParse(

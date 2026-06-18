@@ -7,7 +7,7 @@
         </FluentButton>
     </Actions>
     <ChildContent>
-        @if (ApplicationVolumeMountReplicaWarning.ShouldShow(ReplicasEnabled, Mounts))
+        @if (ApplicationVolumeMountReplicaWarning.ShouldShow(ReplicasEnabled, Mounts, VolumeCandidates))
         {
             <div class="procedure-message compact">
                 @ApplicationVolumeMountReplicaWarning.Message

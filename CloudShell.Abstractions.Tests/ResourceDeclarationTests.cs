@@ -5418,19 +5418,60 @@ public sealed class ResourceDeclarationTests
     [Fact]
     public void ApplicationVolumeMountReplicaWarning_ShowsWhenReplicasHaveAssignedMounts()
     {
+        var readWriteOnce = CreateVolumeResource("volume:single-writer", VolumeAccessMode.ReadWriteOnce);
+        var readOnlyMany = CreateVolumeResource("volume:read-many", VolumeAccessMode.ReadOnlyMany);
+        var readWriteMany = CreateVolumeResource("volume:write-many", VolumeAccessMode.ReadWriteMany);
+
         Assert.False(ApplicationVolumeMountReplicaWarning.ShouldShow(
             replicasEnabled: true,
-            [new ApplicationVolumeMountInput("volume:data", string.Empty)]));
+            [new ApplicationVolumeMountInput("volume:single-writer", string.Empty)],
+            [readWriteOnce]));
         Assert.False(ApplicationVolumeMountReplicaWarning.ShouldShow(
             replicasEnabled: false,
-            [new ApplicationVolumeMountInput("volume:data", "/data")]));
+            [new ApplicationVolumeMountInput("volume:single-writer", "/data")],
+            [readWriteOnce]));
         Assert.True(ApplicationVolumeMountReplicaWarning.ShouldShow(
             replicasEnabled: true,
-            [new ApplicationVolumeMountInput("volume:data", "/data")]));
+            [new ApplicationVolumeMountInput("volume:single-writer", "/data")],
+            [readWriteOnce]));
+        Assert.False(ApplicationVolumeMountReplicaWarning.ShouldShow(
+            replicasEnabled: true,
+            [new ApplicationVolumeMountInput("volume:read-many", "/data", readOnly: true)],
+            [readOnlyMany]));
         Assert.True(ApplicationVolumeMountReplicaWarning.ShouldShow(
             replicasEnabled: true,
-            [new ResourceVolumeMount("volume:data", "/data")]));
+            [new ResourceVolumeMount("volume:read-many", "/data")],
+            [readOnlyMany]));
+        Assert.False(ApplicationVolumeMountReplicaWarning.ShouldShow(
+            replicasEnabled: true,
+            [new ResourceVolumeMount("volume:write-many", "/data")],
+            [readWriteMany]));
+        Assert.False(ApplicationVolumeMountReplicaWarning.ShouldShow(
+            replicasEnabled: true,
+            [new ResourceVolumeMount("volume:unknown", "/data")],
+            [readWriteOnce]));
     }
+
+    private static Resource CreateVolumeResource(string id, VolumeAccessMode accessMode) =>
+        new(
+            id,
+            id,
+            "Volume",
+            "CloudShell",
+            "local",
+            ResourceState.Running,
+            [],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            TypeId: PlatformResourceProvider.VolumeResourceType,
+            ResourceClass: ResourceClass.Storage,
+            Attributes: new Dictionary<string, string>
+            {
+                [ResourceAttributeNames.VolumeAccessMode] = accessMode.ToString(),
+                [ResourceAttributeNames.VolumeStorageMedium] = StorageMedia.FileSystem
+            },
+            Capabilities: [new(ResourceCapabilityIds.StorageVolume)]);
 
     [Fact]
     public void ApplicationNameMappingDisplay_TreatsNameMappingsAsInboundApplicationExposure()
