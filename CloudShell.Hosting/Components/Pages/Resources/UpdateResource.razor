@@ -241,6 +241,7 @@
     private static readonly ResourceViewId GeneratedEndpointsTabId = ResourcePredefinedViewIds.Endpoints;
     private static readonly ResourceViewId GeneratedDnsTabId = ResourcePredefinedViewIds.Dns;
     private static readonly ResourceViewId GeneratedIdentityTabId = ResourcePredefinedViewIds.Identity;
+    private static readonly ResourceViewId GeneratedAccessControlTabId = ResourcePredefinedViewIds.AccessControl;
     private static readonly ResourceViewId GeneratedStorageVolumesTabId = ResourcePredefinedViewIds.Volumes;
     private static readonly ResourceViewId GeneratedActivityTabId = ResourcePredefinedViewIds.Activity;
     private static readonly ResourceViewId GeneratedMonitoringTabId = ResourcePredefinedViewIds.Monitoring;
@@ -784,6 +785,17 @@
                 Icon: GetPredefinedViewIcon(GeneratedIdentityTabId)));
         }
 
+        if (!contributedTabs.Any(tab => tab.Id == GeneratedAccessControlTabId))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedAccessControlTabId,
+                "Access control",
+                85,
+                typeof(GeneratedResourceAccessControl),
+                GroupTitle: ResourceTabGroupTitles.Management,
+                Icon: GetPredefinedViewIcon(GeneratedAccessControlTabId)));
+        }
+
         if (ResourcePredefinedViewVisibility.HasStorageVolumesView(resource) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedStorageVolumesTabId))
         {
@@ -896,6 +908,11 @@
         }
 
         if (tab.Id == GeneratedIdentityTabId)
+        {
+            return int.MaxValue - 2;
+        }
+
+        if (tab.Id == GeneratedAccessControlTabId)
         {
             return int.MaxValue - 1;
         }

@@ -306,6 +306,26 @@ public sealed class RemoteControlPlaneContractTests
             ResourceIdentityReference.ForResource("network:contract", "network-service"),
             "network:contract",
             LoadBalancerResourceOperationPermissions.ApplyConfiguration);
+        await controlPlane.GrantResourcePermissionAsync(
+            new GrantResourcePermissionCommand(
+                "network:contract",
+                "network-service",
+                "network:contract",
+                LoadBalancerResourceOperationPermissions.ApplyConfiguration));
+        var granted = await controlPlane.EvaluateResourcePermissionGrantAsync(
+            ResourceIdentityReference.ForResource("network:contract", "network-service"),
+            "network:contract",
+            LoadBalancerResourceOperationPermissions.ApplyConfiguration);
+        await controlPlane.RevokeResourcePermissionAsync(
+            new RevokeResourcePermissionCommand(
+                "network:contract",
+                "network-service",
+                "network:contract",
+                LoadBalancerResourceOperationPermissions.ApplyConfiguration));
+        var revoked = await controlPlane.EvaluateResourcePermissionGrantAsync(
+            ResourceIdentityReference.ForResource("network:contract", "network-service"),
+            "network:contract",
+            LoadBalancerResourceOperationPermissions.ApplyConfiguration);
 
         var grant = Assert.Single(grants);
         Assert.Equal("network:contract", grant.Identity.ResourceId);
@@ -316,6 +336,10 @@ public sealed class RemoteControlPlaneContractTests
         Assert.NotNull(allowed.Grant);
         Assert.False(denied.IsAllowed);
         Assert.Null(denied.Grant);
+        Assert.True(granted.IsAllowed);
+        Assert.NotNull(granted.Grant);
+        Assert.False(revoked.IsAllowed);
+        Assert.Null(revoked.Grant);
     }
 
     [Fact]
@@ -692,8 +716,11 @@ public sealed class RemoteControlPlaneContractTests
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/revisions", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/replicas", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants", out _));
+        Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/revoke", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/evaluate", out _));
         Assert.True(schemas.TryGetProperty(nameof(ResourcePermissionGrantResponse), out _));
+        Assert.True(schemas.TryGetProperty(nameof(GrantResourcePermissionRequest), out _));
+        Assert.True(schemas.TryGetProperty(nameof(RevokeResourcePermissionRequest), out _));
         Assert.True(schemas.TryGetProperty(nameof(ResourcePermissionEvaluationResponse), out _));
 
         var createResource = schemas.GetProperty(nameof(CreateResourceRequest));

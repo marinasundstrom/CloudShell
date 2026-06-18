@@ -490,6 +490,90 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task GrantResourcePermissionAsync_AddsDeclaredGrant()
+    {
+        var controlPlane = CreateControlPlane(
+            [
+                CreateIdentityResource("caller", "caller-service"),
+                CreateResource("target", ResourceState.Running)
+            ]);
+
+        await controlPlane.GrantResourcePermissionAsync(
+            new GrantResourcePermissionCommand(
+                "caller",
+                "caller-service",
+                "target",
+                CloudShellPermissions.Resources.Actions.Lifecycle));
+
+        var grants = await controlPlane.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(TargetResourceId: "target"));
+        var grant = Assert.Single(grants);
+        Assert.Equal("caller", grant.Identity.ResourceId);
+        Assert.Equal("caller-service", grant.Identity.Name);
+        Assert.Equal(CloudShellPermissions.Resources.Actions.Lifecycle, grant.Permission);
+
+        var evaluation = await controlPlane.EvaluateResourcePermissionGrantAsync(
+            ResourceIdentityReference.ForResource("caller", "caller-service"),
+            "target",
+            CloudShellPermissions.Resources.Actions.Lifecycle);
+        Assert.True(evaluation.IsAllowed);
+    }
+
+    [Fact]
+    public async Task RevokeResourcePermissionAsync_RemovesDeclaredGrant()
+    {
+        var identity = ResourceIdentityReference.ForResource("caller", "caller-service");
+        var controlPlane = CreateControlPlane(
+            [
+                CreateIdentityResource("caller", "caller-service"),
+                CreateResource("target", ResourceState.Running)
+            ],
+            permissionGrants:
+            [
+                new ResourcePermissionGrant(
+                    identity,
+                    "target",
+                    CloudShellPermissions.Resources.Actions.Lifecycle)
+            ]);
+
+        await controlPlane.RevokeResourcePermissionAsync(
+            new RevokeResourcePermissionCommand(
+                "caller",
+                "caller-service",
+                "target",
+                CloudShellPermissions.Resources.Actions.Lifecycle));
+
+        Assert.Empty(await controlPlane.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(TargetResourceId: "target")));
+        var evaluation = await controlPlane.EvaluateResourcePermissionGrantAsync(
+            identity,
+            "target",
+            CloudShellPermissions.Resources.Actions.Lifecycle);
+        Assert.False(evaluation.IsAllowed);
+    }
+
+    [Fact]
+    public async Task GrantResourcePermissionAsync_RequiresIdentityBinding()
+    {
+        var controlPlane = CreateControlPlane(
+            [
+                CreateResource("caller", ResourceState.Running),
+                CreateResource("target", ResourceState.Running)
+            ]);
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
+            controlPlane.GrantResourcePermissionAsync(
+                new GrantResourcePermissionCommand(
+                    "caller",
+                    null,
+                    "target",
+                    CloudShellPermissions.Resources.Actions.Lifecycle)));
+
+        Assert.Equal(ControlPlaneErrorCodes.InvalidRequest, exception.Error.Code);
+        Assert.Contains("does not have an identity binding", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ProvisionResourceIdentityAsync_RequiresPermissionOnProvisioningResource()
     {
         var provisioner = new TestResourceIdentityProvisioner("identity:dev");
@@ -1571,6 +1655,12 @@ public sealed class InProcessControlPlaneResourceStateTests
                 ResourceAction.Pause,
                 ResourceAction.Restart
             ]);
+
+    private static Resource CreateIdentityResource(string id, string identityName) =>
+        CreateResource(id, ResourceState.Running) with
+        {
+            Identity = new ResourceIdentityBinding("identity:dev", Name: identityName)
+        };
 
     private static Resource CreateStorageResource(string id) =>
         new(

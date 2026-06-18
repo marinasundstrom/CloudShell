@@ -209,6 +209,46 @@ public sealed class RemoteControlPlane : IControlPlane
             .ToResourcePermissionEvaluation();
     }
 
+    public async Task GrantResourcePermissionAsync(
+        GrantResourcePermissionCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri("resource-permission-grants"),
+            new GrantResourcePermissionRequest(
+                command.IdentityResourceId,
+                command.IdentityName,
+                command.TargetResourceId,
+                command.Permission),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourcePermissionGrantsChanged,
+            command.IdentityResourceId,
+            AffectedResourceIds: [command.IdentityResourceId, command.TargetResourceId]));
+    }
+
+    public async Task RevokeResourcePermissionAsync(
+        RevokeResourcePermissionCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri("resource-permission-grants/revoke"),
+            new RevokeResourcePermissionRequest(
+                command.IdentityResourceId,
+                command.IdentityName,
+                command.TargetResourceId,
+                command.Permission),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourcePermissionGrantsChanged,
+            command.IdentityResourceId,
+            AffectedResourceIds: [command.IdentityResourceId, command.TargetResourceId]));
+    }
+
     public async Task<ResourceIdentityProvisioningResult> ProvisionResourceIdentityAsync(
         string resourceId,
         CancellationToken cancellationToken = default)
@@ -851,6 +891,18 @@ file sealed record ResourceIdentityReferenceResponse(
 
 file sealed record ResourcePermissionGrantResponse(
     ResourceIdentityReferenceResponse Identity,
+    string TargetResourceId,
+    string Permission);
+
+file sealed record GrantResourcePermissionRequest(
+    string IdentityResourceId,
+    string? IdentityName,
+    string TargetResourceId,
+    string Permission);
+
+file sealed record RevokeResourcePermissionRequest(
+    string IdentityResourceId,
+    string? IdentityName,
     string TargetResourceId,
     string Permission);
 

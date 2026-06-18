@@ -184,6 +184,50 @@ public sealed class InProcessControlPlane(
             .Evaluate(identity, targetResourceId, permission));
     }
 
+    public Task GrantResourcePermissionAsync(
+        GrantResourcePermissionCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(command);
+
+        var grant = CreatePermissionGrant(
+            command.IdentityResourceId,
+            command.IdentityName,
+            command.TargetResourceId,
+            command.Permission);
+        declarations.AddPermissionGrant(grant);
+
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourcePermissionGrantsChanged,
+            grant.Identity.ResourceId,
+            AffectedResourceIds: [grant.Identity.ResourceId, grant.TargetResourceId]));
+
+        return Task.CompletedTask;
+    }
+
+    public Task RevokeResourcePermissionAsync(
+        RevokeResourcePermissionCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(command);
+
+        var grant = CreatePermissionGrant(
+            command.IdentityResourceId,
+            command.IdentityName,
+            command.TargetResourceId,
+            command.Permission);
+        declarations.RemovePermissionGrant(grant);
+
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourcePermissionGrantsChanged,
+            grant.Identity.ResourceId,
+            AffectedResourceIds: [grant.Identity.ResourceId, grant.TargetResourceId]));
+
+        return Task.CompletedTask;
+    }
+
     public async Task<ResourceIdentityProvisioningResult> ProvisionResourceIdentityAsync(
         string resourceId,
         CancellationToken cancellationToken = default)
@@ -1283,6 +1327,62 @@ public sealed class InProcessControlPlane(
         }
 
         return filtered.ToArray();
+    }
+
+    private ResourcePermissionGrant CreatePermissionGrant(
+        string identityResourceId,
+        string? identityName,
+        string targetResourceId,
+        string permission)
+    {
+        identityResourceId = RequireValue(identityResourceId, nameof(identityResourceId));
+        targetResourceId = RequireValue(targetResourceId, nameof(targetResourceId));
+        permission = RequireValue(permission, nameof(permission));
+        var identityResource = resourceManager.GetResource(identityResourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(identityResourceId));
+        var targetResource = resourceManager.GetResource(targetResourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(targetResourceId));
+        if (identityResource.IdentityBinding is null)
+        {
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest(
+                $"Resource '{identityResource.Id}' does not have an identity binding."));
+        }
+
+        var normalizedIdentityName = string.IsNullOrWhiteSpace(identityName)
+            ? identityResource.IdentityBinding.Name
+            : identityName.Trim();
+        if (!string.Equals(identityResource.IdentityBinding.Name, normalizedIdentityName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest(
+                $"Resource '{identityResource.Id}' does not have identity '{normalizedIdentityName}'."));
+        }
+
+        var identityGroup = resourceManager.GetGroupForResource(identityResource.Id);
+        if (!authorization.CanAccessResource(
+                identityResource.Id,
+                identityGroup?.Id,
+                CloudShellPermissions.Resources.Manage))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                identityResource.Id,
+                CloudShellPermissions.Resources.Manage);
+        }
+
+        var targetGroup = resourceManager.GetGroupForResource(targetResource.Id);
+        if (!authorization.CanAccessResource(
+                targetResource.Id,
+                targetGroup?.Id,
+                CloudShellPermissions.Resources.Manage))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                targetResource.Id,
+                CloudShellPermissions.Resources.Manage);
+        }
+
+        return new ResourcePermissionGrant(
+            new ResourceIdentityReference(identityResource.Id, normalizedIdentityName),
+            targetResource.Id,
+            permission);
     }
 
     private static IReadOnlyList<LogDescriptor> ApplyQuery(

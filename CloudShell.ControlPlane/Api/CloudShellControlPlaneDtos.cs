@@ -151,6 +151,18 @@ public sealed record ResourcePermissionGrantResponse(
     string TargetResourceId,
     string Permission);
 
+public sealed record GrantResourcePermissionRequest(
+    string IdentityResourceId,
+    string? IdentityName,
+    string TargetResourceId,
+    string Permission);
+
+public sealed record RevokeResourcePermissionRequest(
+    string IdentityResourceId,
+    string? IdentityName,
+    string TargetResourceId,
+    string Permission);
+
 public sealed record ResourcePermissionEvaluationRequest(
     ResourceIdentityReferenceResponse Identity,
     string TargetResourceId,

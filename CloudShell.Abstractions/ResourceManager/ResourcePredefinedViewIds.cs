@@ -7,6 +7,7 @@ public static class ResourcePredefinedViewIds
     public static ResourceViewId Endpoints { get; } = new(ResourceTabGroupIds.Networking, "endpoints");
     public static ResourceViewId Dns { get; } = new(ResourceTabGroupIds.Networking, "dns");
     public static ResourceViewId Identity { get; } = new(ResourceTabGroupIds.Management, "identity");
+    public static ResourceViewId AccessControl { get; } = new(ResourceTabGroupIds.Management, "access-control");
     public static ResourceViewId Volumes { get; } = new(ResourceTabGroupIds.Storage, "volumes");
     public static ResourceViewId Activity { get; } = new(ResourceTabGroupIds.Management, "activity");
     public static ResourceViewId Monitoring { get; } = new(ResourceTabGroupIds.Management, "monitoring");

@@ -163,6 +163,44 @@ Use `ResourceTabGroupIds`, `ResourceTabGroupTitles`, and
 `ResourcePredefinedViewIds` instead of creating raw string literals in
 providers or shell UI code.
 
+The default Resource Manager tab groups are:
+
+| ID | Title | Purpose | Typical views |
+| --- | --- | --- | --- |
+| `general` | General | Stable summary and basic resource configuration that most resources share. | Overview, Configuration |
+| `application` | Application | Workload-specific configuration for application resources. | Deployment, Scale and replicas |
+| `networking` | Networking | Connectivity, reachability, endpoint exposure, DNS, names, and routing. | Endpoints, DNS |
+| `storage` | Storage | Volumes, mounts, storage ownership, and storage-provider details. | Storage, Volumes |
+| `environment` | Environment | Resource-provided environment, settings, or value-collection views when they are the resource's primary domain. | Provider-specific environment views |
+| `entries` | Entries | Configuration-store entry collections. | Entries |
+| `secrets` | Secrets | Secrets-vault secret collections and vault-owned secret management. | Secrets |
+| `runtime` | Runtime | Provider/runtime implementation detail views that are useful for inspection but are not the stable resource contract. | Containers, replicas, provider runtime views |
+| `telemetry` | Telemetry | Runtime/application signals emitted by or collected for the resource. | Logs, Traces, Metrics |
+| `management` | Management | Control-plane and operational management concerns such as identity, access control, monitoring, activity, and generated environment editing. | Identity, Access control, Monitoring, Environment, Activity |
+
+Most groups keep the relative order contributed by the resource type and
+generated views. Telemetry and Management are ordered after the resource-domain
+groups so runtime investigation and control-plane operations remain separate
+from the resource's core configuration.
+
+Prefer the group that describes the user's task, not the provider that
+implements the data. For example, Identity belongs under Management because
+identity binding and provisioning are control-plane access management
+concerns. Access Control also belongs under Management because assigning and
+revoking resource identity grants changes platform access intent. Logs,
+traces, and telemetry metrics belong under Telemetry because they are runtime
+investigation signals, while provider-owned resource monitoring belongs under
+Management.
+
+The generated Access Control tab appears under Management for every resource.
+When the current resource has no identity binding, the tab tells the user to
+set up an identity in the Identity tab before assigning access permissions.
+When the resource has an identity, the tab groups grants by the target resource
+being granted access, and lets users search target resources before assigning
+or revoking grant intent. CloudShell records the desired grant; applying or
+reconciling that grant against external identity systems remains the
+responsibility of the selected identity provider.
+
 Use the constants instead of hard-coded string literals when registering tabs,
 building links, or contributing sections:
 
@@ -261,6 +299,7 @@ builder:
 | `networking:endpoints` | Yes | Yes |
 | `networking:dns` | Yes | Yes |
 | `management:identity` | Yes | No |
+| `management:access-control` | Yes | No |
 | `storage:volumes` | Yes | No |
 | `management:activity` | Yes | No |
 | `management:environment` | Yes | No |

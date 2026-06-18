@@ -158,6 +158,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application overview pages now summarize resource identity binding,
   provisioning status, and outbound permission grants with a link to the
   Management > Identity tab.
+- Resource Manager now includes a generated Management > Access control tab
+  for assigning and revoking resource identity grants grouped by target
+  resource, with Control Plane API/client commands for grant intent changes.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

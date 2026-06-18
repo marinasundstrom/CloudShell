@@ -69,6 +69,14 @@ public interface IResourceManager
         string permission,
         CancellationToken cancellationToken = default);
 
+    Task GrantResourcePermissionAsync(
+        GrantResourcePermissionCommand command,
+        CancellationToken cancellationToken = default);
+
+    Task RevokeResourcePermissionAsync(
+        RevokeResourcePermissionCommand command,
+        CancellationToken cancellationToken = default);
+
     Task<ResourceIdentityProvisioningResult> ProvisionResourceIdentityAsync(
         string resourceId,
         CancellationToken cancellationToken = default);
@@ -199,6 +207,18 @@ public sealed record ResourcePermissionGrantQuery(
     string? TargetResourceId = null,
     string? Permission = null);
 
+public sealed record GrantResourcePermissionCommand(
+    string IdentityResourceId,
+    string? IdentityName,
+    string TargetResourceId,
+    string Permission);
+
+public sealed record RevokeResourcePermissionCommand(
+    string IdentityResourceId,
+    string? IdentityName,
+    string TargetResourceId,
+    string Permission);
+
 public sealed record ResourceChangeNotification(
     ResourceChangeKind Kind,
     string? ResourceId = null,
@@ -216,6 +236,7 @@ public enum ResourceChangeKind
     ResourceRegistrationRemoved,
     ResourceGroupAssigned,
     ResourceDependenciesChanged,
+    ResourcePermissionGrantsChanged,
     ResourceDeleted,
     ResourceActionStarted,
     ResourceActionExecuted,

@@ -1138,6 +1138,31 @@ h3 {
     width: 100%;
 }
 
+.generated-access-form {
+    display: grid;
+    gap: .55rem;
+    padding: .7rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.generated-access-form fluent-select,
+.generated-access-form fluent-text-field {
+    width: 100%;
+}
+
+.generated-access-form label {
+    font-weight: 650;
+}
+
+.access-control-grant-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .5rem;
+    align-items: center;
+}
+
 .generated-deploy-form label {
     font-weight: 650;
 }

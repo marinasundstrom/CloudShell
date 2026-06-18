@@ -63,6 +63,22 @@ public static class CloudShellControlPlaneApiExtensions
             .WithName("CloudShellControlPlane_ListResourcePermissionGrants")
             .Produces<ResourcePermissionGrantResponse[]>(StatusCodes.Status200OK);
 
+        api.MapPost("/resource-permission-grants", GrantResourcePermission)
+            .WithName("CloudShellControlPlane_GrantResourcePermission")
+            .Accepts<GrantResourcePermissionRequest>("application/json")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
+
+        api.MapPost("/resource-permission-grants/revoke", RevokeResourcePermission)
+            .WithName("CloudShellControlPlane_RevokeResourcePermission")
+            .Accepts<RevokeResourcePermissionRequest>("application/json")
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
+
         api.MapPost("/resource-permission-grants/evaluate", EvaluateResourcePermissionGrant)
             .WithName("CloudShellControlPlane_EvaluateResourcePermissionGrant")
             .Accepts<ResourcePermissionEvaluationRequest>("application/json")
@@ -333,6 +349,52 @@ public static class CloudShellControlPlaneApiExtensions
             cancellationToken);
 
         return Results.Ok(grants.Select(grant => grant.ToResponse()).ToArray());
+    }
+
+    private static async Task<IResult> GrantResourcePermission(
+        GrantResourcePermissionRequest request,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await resourceManager.GrantResourcePermissionAsync(
+                new GrantResourcePermissionCommand(
+                    RequireValue(request.IdentityResourceId, nameof(request.IdentityResourceId)),
+                    request.IdentityName,
+                    RequireValue(request.TargetResourceId, nameof(request.TargetResourceId)),
+                    RequireValue(request.Permission, nameof(request.Permission))),
+                cancellationToken);
+
+            return Results.NoContent();
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> RevokeResourcePermission(
+        RevokeResourcePermissionRequest request,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await resourceManager.RevokeResourcePermissionAsync(
+                new RevokeResourcePermissionCommand(
+                    RequireValue(request.IdentityResourceId, nameof(request.IdentityResourceId)),
+                    request.IdentityName,
+                    RequireValue(request.TargetResourceId, nameof(request.TargetResourceId)),
+                    RequireValue(request.Permission, nameof(request.Permission))),
+                cancellationToken);
+
+            return Results.NoContent();
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ControlPlaneAccessDeniedException)
+        {
+            return ToProblem(exception);
+        }
     }
 
     private static async Task<IResult> EvaluateResourcePermissionGrant(

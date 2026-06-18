@@ -994,6 +994,20 @@ public sealed class ResourceDeclarationStore
         }
     }
 
+    public void RemovePermissionGrant(ResourcePermissionGrant grant)
+    {
+        ArgumentNullException.ThrowIfNull(grant);
+
+        lock (_gate)
+        {
+            _permissionGrants.RemoveAll(existing =>
+                string.Equals(existing.TargetResourceId, grant.TargetResourceId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Permission, grant.Permission, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Identity.ResourceId, grant.Identity.ResourceId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Identity.Name, grant.Identity.Name, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     public bool ShouldAutoStart(string resourceId)
     {
         lock (_gate)

@@ -16,6 +16,7 @@ public static class ResourcePredefinedViews
         new(ResourcePredefinedViewIds.Endpoints, "Endpoints", SupportsSections: true, Icon: "endpoints"),
         new(ResourcePredefinedViewIds.Dns, "DNS", SupportsSections: true, Icon: "dns"),
         new(ResourcePredefinedViewIds.Identity, "Identity", SupportsSections: false, Icon: "identity"),
+        new(ResourcePredefinedViewIds.AccessControl, "Access control", SupportsSections: false, Icon: "permissions"),
         new(ResourcePredefinedViewIds.Volumes, "Volumes", SupportsSections: false, Icon: "volumes"),
         new(ResourcePredefinedViewIds.Activity, "Activity", SupportsSections: false, Icon: "activity"),
         new(ResourcePredefinedViewIds.Monitoring, "Monitoring", SupportsSections: false, Icon: "monitoring"),

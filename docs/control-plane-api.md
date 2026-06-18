@@ -250,14 +250,19 @@ Plane API:
 
 ```text
 GET /api/control-plane/v1/resource-permission-grants
+POST /api/control-plane/v1/resource-permission-grants
+POST /api/control-plane/v1/resource-permission-grants/revoke
 POST /api/control-plane/v1/resource-permission-grants/evaluate
 POST /api/control-plane/v1/identity-providers/{providerId}/setup
 POST /api/control-plane/v1/resources/{resourceId}/identity/provision
 GET /api/control-plane/v1/resources/{resourceId}/identity/provisioning-status
 ```
 
-These endpoints list declared grants and evaluate whether the declared model
-contains a matching grant. Resource action execution can also include
+These endpoints list declared grants, assign or revoke grant intent, and
+evaluate whether the declared model contains a matching grant. Assigning or
+revoking a grant updates CloudShell's desired access model; applying that
+change to provider-owned identity systems is part of identity provider
+provisioning or reconciliation. Resource action execution can also include
 `actingIdentityResourceId` and optional `actingIdentityName` query values; when
 present, the Control Plane evaluates declared grants for that resource identity
 instead of using the current user's resource permissions. This is model-level

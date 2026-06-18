@@ -1,0 +1,378 @@
+@using CloudShell.Abstractions.Authorization
+@using CloudShell.Abstractions.ControlPlane
+@using CloudShell.Abstractions.ResourceManager
+@inject IResourceManager ResourceManager
+@inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    @if (!string.IsNullOrWhiteSpace(ProcedureMessage))
+    {
+        <div class="procedure-message">@ProcedureMessage</div>
+    }
+
+    @if (Resource is null)
+    {
+        <div class="empty-state">
+            <strong>@L["Resource not found"]</strong>
+            <span>@L["The resource may have been removed or is no longer visible."]</span>
+        </div>
+    }
+    else if (Resource.IdentityBinding is null)
+    {
+        <section class="generated-section">
+            <h3>@L["Access control"]</h3>
+            <div class="empty-state">
+                <strong>@L["Identity required"]</strong>
+                <span>@L["Set up an identity in the Identity tab before assigning access permissions."]</span>
+                <FluentAnchor Appearance="Appearance.Neutral" Href="@BuildIdentityRoute(Resource.Id)">
+                    @L["Open Identity"]
+                </FluentAnchor>
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="generated-section">
+            <h3>@L["Assign access"]</h3>
+            <div class="generated-access-form">
+                <label for="access-control-resource-search">@L["Search resources"]</label>
+                <FluentTextField Id="access-control-resource-search"
+                                 @bind-Value="TargetResourceSearch"
+                                 Placeholder="@L["Name, ID, type, or display name"]" />
+
+                <label for="access-control-target">@L["Target resource"]</label>
+                <FluentSelect TOption="string" Id="access-control-target" @bind-Value="SelectedTargetResourceId">
+                    <FluentOption TOption="string" Value="">@L["Select a resource"]</FluentOption>
+                    @foreach (var target in FilteredTargetResources)
+                    {
+                        <FluentOption TOption="string" Value="@target.Id">@FormatResourceOption(target)</FluentOption>
+                    }
+                </FluentSelect>
+                @if (TargetResources.Count > 0 && FilteredTargetResources.Count == 0)
+                {
+                    <p class="muted">@L["No resources match the current search."]</p>
+                }
+
+                <label for="access-control-permission">@L["Permission"]</label>
+                <FluentSelect TOption="string" Id="access-control-permission" @bind-Value="SelectedPermission">
+                    <FluentOption TOption="string" Value="">@L["Select a permission"]</FluentOption>
+                    @foreach (var option in PermissionOptions)
+                    {
+                        <FluentOption TOption="string" Value="@option.Value">@option.Label</FluentOption>
+                    }
+                </FluentSelect>
+
+                @if (IsCustomPermission)
+                {
+                    <label for="access-control-custom-permission">@L["Custom permission"]</label>
+                    <FluentTextField Id="access-control-custom-permission"
+                                     @bind-Value="CustomPermission"
+                                     Placeholder="Provider.Namespace/resources/action" />
+                }
+
+                <div class="generated-row-actions">
+                    <FluentButton Appearance="Appearance.Accent"
+                                  Disabled="@(GrantingPermission || IsReadOnly)"
+                                  OnClick="GrantPermission">
+                        @GetGrantButtonLabel()
+                    </FluentButton>
+                </div>
+            </div>
+            @if (IsReadOnly)
+            {
+                <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]</div>
+            }
+            <p class="muted">@L["CloudShell records the desired grant. The identity provider applies or reconciles the grant when identity provisioning runs."]</p>
+        </section>
+
+        <section class="generated-section">
+            <h3>@L["Assigned grants"]</h3>
+            @if (GrantGroups.Count == 0)
+            {
+                <p class="muted">@L["No access permissions are assigned to this resource identity."]</p>
+            }
+            else
+            {
+                <div class="generated-list">
+                    @foreach (var group in GrantGroups)
+                    {
+                        <div>
+                            <strong>@ResourceLink(group.TargetResourceId)</strong>
+                            @foreach (var permission in group.Permissions)
+                            {
+                                <span class="access-control-grant-row">
+                                    <span>@permission</span>
+                                    <FluentButton Appearance="Appearance.Neutral"
+                                                  Disabled="@(IsReadOnly || IsRevokingPermission(group.TargetResourceId, permission))"
+                                                  OnClick="() => RevokePermission(group.TargetResourceId, permission)">
+                                        @GetRevokeButtonLabel(group.TargetResourceId, permission)
+                                    </FluentButton>
+                                </span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private const string CustomPermissionValue = "__custom";
+
+    private static readonly IReadOnlyList<PermissionOption> PermissionOptions =
+    [
+        new("Configuration entries: read", ConfigurationStoreResourceOperationPermissions.ReadEntries),
+        new("Secrets: read", SecretsVaultResourceOperationPermissions.ReadSecrets),
+        new("Volume mount: read", StorageVolumeResourceOperationPermissions.MountRead),
+        new("Volume mount: write", StorageVolumeResourceOperationPermissions.MountWrite),
+        new("Lifecycle action", CommonResourceOperationPermissions.LifecycleAction),
+        new("Custom resource action", CommonResourceOperationPermissions.ExecuteCustomAction),
+        new("Network endpoint mapping reconcile", NetworkResourceOperationPermissions.ReconcileEndpointMappings),
+        new("DNS name mapping reconcile", NetworkResourceOperationPermissions.ReconcileNameMappings),
+        new("Load balancer configuration apply", LoadBalancerResourceOperationPermissions.ApplyConfiguration),
+        new("Identity provisioning", ResourceIdentityProvisioningOperationPermissions.ProvisionIdentities),
+        new("All permissions", CloudShellPermissions.All),
+        new("Custom permission", CustomPermissionValue)
+    ];
+
+    [Parameter, EditorRequired]
+    public string ResourceId { get; set; } = string.Empty;
+
+    private Resource? Resource { get; set; }
+    private IReadOnlyList<Resource> TargetResources { get; set; } = [];
+    private IReadOnlyList<ResourcePermissionGrant> OutboundGrants { get; set; } = [];
+    private IReadOnlyList<GrantGroup> GrantGroups { get; set; } = [];
+    private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
+        new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+    private string SelectedTargetResourceId { get; set; } = string.Empty;
+    private string TargetResourceSearch { get; set; } = string.Empty;
+    private string SelectedPermission { get; set; } = string.Empty;
+    private string CustomPermission { get; set; } = string.Empty;
+    private string? ProcedureMessage { get; set; }
+    private bool GrantingPermission { get; set; }
+    private string? RevokingPermissionKey { get; set; }
+    private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
+    private bool IsCustomPermission => string.Equals(SelectedPermission, CustomPermissionValue, StringComparison.Ordinal);
+    private IReadOnlyList<Resource> FilteredTargetResources =>
+        string.IsNullOrWhiteSpace(TargetResourceSearch)
+            ? TargetResources
+            : TargetResources
+                .Where(MatchesTargetResourceSearch)
+                .ToArray();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        Resource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        if (Resource is null)
+        {
+            TargetResources = [];
+            OutboundGrants = [];
+            GrantGroups = [];
+            ResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+            return;
+        }
+
+        var resources = await ResourceManager.ListResourcesAsync();
+        ResourcesById = resources
+            .Append(Resource)
+            .GroupBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First(),
+                StringComparer.OrdinalIgnoreCase);
+        TargetResources = resources
+            .Where(resource => !string.Equals(resource.Id, Resource.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        OutboundGrants = await LoadOutboundGrantsAsync();
+        GrantGroups = OutboundGrants
+            .GroupBy(grant => grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new GrantGroup(
+                group.Key,
+                group
+                    .Select(grant => grant.Permission)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .ToArray()))
+            .OrderBy(group => FormatResourceName(group.TargetResourceId), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(group => group.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<ResourcePermissionGrant>> LoadOutboundGrantsAsync()
+    {
+        if (Resource?.IdentityBinding is not { } identity)
+        {
+            return [];
+        }
+
+        return await ResourceManager.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(
+                IdentityResourceId: Resource.Id,
+                IdentityName: identity.Name));
+    }
+
+    private async Task GrantPermission()
+    {
+        if (GrantingPermission || Resource?.IdentityBinding is null)
+        {
+            return;
+        }
+
+        if (IsReadOnly)
+        {
+            ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            return;
+        }
+
+        var permission = ResolvePermission();
+        if (string.IsNullOrWhiteSpace(SelectedTargetResourceId))
+        {
+            ProcedureMessage = L["Select a target resource."].Value;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(permission))
+        {
+            ProcedureMessage = L["Select a permission."].Value;
+            return;
+        }
+
+        GrantingPermission = true;
+        ProcedureMessage = null;
+        try
+        {
+            await ResourceManager.GrantResourcePermissionAsync(
+                new GrantResourcePermissionCommand(
+                    Resource.Id,
+                    Resource.IdentityBinding.Name,
+                    SelectedTargetResourceId,
+                    permission));
+            ProcedureMessage = L["Access permission assigned. Provision or reconcile the resource identity to apply provider-side changes."].Value;
+            SelectedTargetResourceId = string.Empty;
+            TargetResourceSearch = string.Empty;
+            SelectedPermission = string.Empty;
+            CustomPermission = string.Empty;
+            await LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            GrantingPermission = false;
+        }
+    }
+
+    private async Task RevokePermission(string targetResourceId, string permission)
+    {
+        if (Resource?.IdentityBinding is null)
+        {
+            return;
+        }
+
+        if (IsReadOnly)
+        {
+            ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            return;
+        }
+
+        RevokingPermissionKey = GetPermissionKey(targetResourceId, permission);
+        ProcedureMessage = null;
+        try
+        {
+            await ResourceManager.RevokeResourcePermissionAsync(
+                new RevokeResourcePermissionCommand(
+                    Resource.Id,
+                    Resource.IdentityBinding.Name,
+                    targetResourceId,
+                    permission));
+            ProcedureMessage = L["Access permission revoked. Provision or reconcile the resource identity to apply provider-side changes."].Value;
+            await LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            RevokingPermissionKey = null;
+        }
+    }
+
+    private string ResolvePermission() =>
+        IsCustomPermission ? CustomPermission.Trim() : SelectedPermission.Trim();
+
+    private string GetGrantButtonLabel() =>
+        GrantingPermission
+            ? L["Assigning access"].Value
+            : L["Assign access"].Value;
+
+    private string GetRevokeButtonLabel(string targetResourceId, string permission) =>
+        IsRevokingPermission(targetResourceId, permission)
+            ? L["Revoking"].Value
+            : L["Revoke"].Value;
+
+    private bool IsRevokingPermission(string targetResourceId, string permission) =>
+        string.Equals(RevokingPermissionKey, GetPermissionKey(targetResourceId, permission), StringComparison.Ordinal);
+
+    private static string GetPermissionKey(string targetResourceId, string permission) =>
+        $"{targetResourceId}\u001f{permission}";
+
+    private string FormatResourceOption(Resource resource) =>
+        $"{resource.Name} ({resource.EffectiveTypeId})";
+
+    private bool MatchesTargetResourceSearch(Resource resource)
+    {
+        var search = TargetResourceSearch.Trim();
+        return Contains(resource.Name, search) ||
+            Contains(resource.Id, search) ||
+            Contains(resource.DisplayName, search) ||
+            Contains(resource.EffectiveTypeId, search) ||
+            Contains(resource.ResourceClass.ToString(), search);
+    }
+
+    private static bool Contains(string? value, string search) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        value.Contains(search, StringComparison.OrdinalIgnoreCase);
+
+    private string FormatResourceName(string resourceId) =>
+        ResourcesById.GetValueOrDefault(resourceId)?.Name ?? resourceId;
+
+    private RenderFragment ResourceLink(string resourceId) => builder =>
+    {
+        var resource = ResourcesById.GetValueOrDefault(resourceId);
+        builder.OpenElement(0, "a");
+        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
+        builder.AddAttribute(2, "href", ResourceManagerRoutes.ResourceDetails(resourceId));
+        builder.AddContent(3, resource?.Name ?? resourceId);
+        if (resource is not null)
+        {
+            builder.OpenElement(4, "small");
+            builder.AddContent(5, resource.EffectiveTypeId);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+
+    private static string BuildIdentityRoute(string resourceId) =>
+        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Identity);
+
+    private sealed record PermissionOption(string Label, string Value);
+
+    private sealed record GrantGroup(
+        string TargetResourceId,
+        IReadOnlyList<string> Permissions);
+}

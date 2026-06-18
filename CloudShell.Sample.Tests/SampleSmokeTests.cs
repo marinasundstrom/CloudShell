@@ -508,6 +508,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Secret reference", apiDetailsHtml);
         Assert.Contains(">Granted<", apiDetailsHtml);
         Assert.Contains("Resource identity", apiDetailsHtml);
+        Assert.Contains("Access control", apiDetailsHtml);
         Assert.Contains("application-topology-api", apiDetailsHtml);
         Assert.Contains("Provider: identity:development", apiDetailsHtml);
         Assert.Contains("Provisioned", apiDetailsHtml);
