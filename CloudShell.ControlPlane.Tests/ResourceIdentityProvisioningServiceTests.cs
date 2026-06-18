@@ -44,6 +44,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
 
         var service = new ResourceIdentityProvisioningService(
             declarations,
+            new EmptyResourceRegistrationStore(),
             new ResourceIdentityProviderCatalog(),
             []);
 
@@ -74,6 +75,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
 
         var service = new ResourceIdentityProvisioningService(
             declarations,
+            new EmptyResourceRegistrationStore(),
             new ResourceIdentityProviderCatalog(),
             []);
 
@@ -84,6 +86,48 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal(ResourceIdentityProvisioningDiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal("api", diagnostic.Identity?.ResourceId);
         Assert.Equal("No default resource identity provider is registered.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void CreatePlan_UsesRegistrationIdentityBindings()
+    {
+        var declarations = new ResourceDeclarationStore();
+        declarations.AddIdentityProvider(
+            new ResourceIdentityProviderDefinition(
+                "identity:dev",
+                "Development",
+                ResourceIdentityProviderKind.BuiltIn),
+            useAsDefault: true);
+        declarations.AddPermissionGrant(new ResourcePermissionGrant(
+            ResourceIdentityReference.ForResource("registered"),
+            "database",
+            "Database/databases/read/action"));
+        var registrations = new TestResourceRegistrationStore(
+            [
+                new ResourceRegistration(
+                    "registered",
+                    "test",
+                    null,
+                    DateTimeOffset.UtcNow,
+                    [],
+                    ResourceIdentityBinding.RequireIdentity())
+            ]);
+        var service = new ResourceIdentityProvisioningService(
+            declarations,
+            registrations,
+            new ResourceIdentityProviderCatalog(),
+            []);
+
+        var plan = service.CreatePlan();
+
+        var request = Assert.Single(plan.Requests);
+        Assert.Equal("identity:dev", request.Provider.Id);
+        var identity = Assert.Single(request.Identities);
+        Assert.Equal("registered", identity.Identity.ResourceId);
+        Assert.Equal(ResourceIdentityBindingKind.Required, identity.Binding.Kind);
+        var grant = Assert.Single(request.PermissionGrants);
+        Assert.Equal("registered", grant.Identity.ResourceId);
+        Assert.Empty(plan.Diagnostics);
     }
 
     [Fact]
@@ -105,6 +149,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
 
         var service = new ResourceIdentityProvisioningService(
             declarations,
+            new EmptyResourceRegistrationStore(),
             new ResourceIdentityProviderCatalog(
                 [
                     new("identity:dev", "Development", ResourceIdentityProviderKind.BuiltIn),
@@ -136,6 +181,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
 
         var service = new ResourceIdentityProvisioningService(
             declarations,
+            new EmptyResourceRegistrationStore(),
             new ResourceIdentityProviderCatalog(
                 [
                     new("identity:dev", "Development", ResourceIdentityProviderKind.BuiltIn)
@@ -164,6 +210,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
             identity: new ResourceIdentityBinding("identity:keycloak", Name: "api-service"));
         var service = new ResourceIdentityProvisioningService(
             declarations,
+            new EmptyResourceRegistrationStore(),
             new ResourceIdentityProviderCatalog(
                 [
                     new("identity:keycloak", "Keycloak", ResourceIdentityProviderKind.Oidc)
@@ -356,6 +403,42 @@ public sealed class ResourceIdentityProvisioningServiceTests
         public IReadOnlyList<ResourceRegistration> GetRegistrations() => [];
 
         public ResourceRegistration? GetRegistration(string resourceId) => null;
+
+        public Task RegisterAsync(
+            string providerId,
+            string resourceId,
+            string? resourceGroupId = null,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task RemoveAsync(
+            string resourceId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task AssignToGroupAsync(
+            string resourceId,
+            string? resourceGroupId,
+            IReadOnlyList<string>? dependsOn = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task SetDependenciesAsync(
+            string resourceId,
+            IReadOnlyList<string> dependsOn,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class TestResourceRegistrationStore(IReadOnlyList<ResourceRegistration> registrations) :
+        IResourceRegistrationStore
+    {
+        public IReadOnlyList<ResourceRegistration> GetRegistrations() => registrations;
+
+        public ResourceRegistration? GetRegistration(string resourceId) =>
+            registrations.FirstOrDefault(registration =>
+                string.Equals(registration.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase));
 
         public Task RegisterAsync(
             string providerId,

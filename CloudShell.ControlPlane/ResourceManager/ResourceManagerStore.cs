@@ -39,19 +39,19 @@ public sealed class ResourceManagerStore(
             .ToDictionary(
                 declaration => declaration.ResourceId,
                 StringComparer.OrdinalIgnoreCase);
-        var projected = available
-            .Select(resource => ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics))
-            .Select(resource => AddIdentityProviderDiagnostic(resource, diagnostics))
-            .ToArray();
         var registrationsById = registrations.GetRegistrations()
             .ToDictionary(
                 registration => registration.ResourceId,
                 StringComparer.OrdinalIgnoreCase);
+        var projected = available
+            .Select(resource => ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics))
+            .Select(resource => ApplyRegistrationMetadata(resource, registrationsById))
+            .Select(resource => AddIdentityProviderDiagnostic(resource, diagnostics))
+            .ToArray();
         var registeredIds = registrationsById.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return projected
             .Where(resource => IsRegisteredOrDescendant(resource, projected, registeredIds))
-            .Select(resource => ApplyRegistrationMetadata(resource, registrationsById))
             .ToArray();
     }
 
@@ -103,10 +103,16 @@ public sealed class ResourceManagerStore(
             .ToDictionary(
                 declaration => declaration.ResourceId,
                 StringComparer.OrdinalIgnoreCase);
+        var registrationsById = registrations.GetRegistrations()
+            .ToDictionary(
+                registration => registration.ResourceId,
+                StringComparer.OrdinalIgnoreCase);
 
         foreach (var resource in available)
         {
-            var projected = ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics);
+            var projected = ApplyRegistrationMetadata(
+                ApplyDeclarationMetadata(resource, declarationsById, resourceTypeClasses, diagnostics),
+                registrationsById);
             _ = AddIdentityProviderDiagnostic(projected, diagnostics);
         }
 
@@ -199,21 +205,23 @@ public sealed class ResourceManagerStore(
         Resource resource,
         IReadOnlyDictionary<string, ResourceRegistration> registrationsById)
     {
-        if (!registrationsById.TryGetValue(resource.Id, out var registration) ||
-            registration.DependsOn.Count == 0)
+        if (!registrationsById.TryGetValue(resource.Id, out var registration))
         {
             return resource;
         }
 
         return resource with
         {
-            DependsOn = resource.DependsOn
-                .Concat(registration.DependsOn)
-                .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
-                .Select(dependency => dependency.Trim())
-                .Where(dependency => !string.Equals(dependency, resource.Id, StringComparison.OrdinalIgnoreCase))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray()
+            DependsOn = registration.DependsOn.Count == 0
+                ? resource.DependsOn
+                : resource.DependsOn
+                    .Concat(registration.DependsOn)
+                    .Where(dependency => !string.IsNullOrWhiteSpace(dependency))
+                    .Select(dependency => dependency.Trim())
+                    .Where(dependency => !string.Equals(dependency, resource.Id, StringComparison.OrdinalIgnoreCase))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray(),
+            Identity = resource.IdentityBinding ?? registration.IdentityBinding
         };
     }
 

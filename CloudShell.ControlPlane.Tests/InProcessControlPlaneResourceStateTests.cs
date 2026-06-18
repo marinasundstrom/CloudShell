@@ -1321,6 +1321,41 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task SetResourceIdentityAsync_StoresIdentityBinding()
+    {
+        var controlPlane = CreateControlPlane([CreateResource("target", ResourceState.Running)]);
+
+        await controlPlane.SetResourceIdentityAsync(
+            new SetResourceIdentityCommand(
+                " target ",
+                ResourceIdentityBinding.RequireIdentity()));
+
+        var registration = await controlPlane.GetResourceRegistrationAsync("target");
+        Assert.NotNull(registration);
+        Assert.NotNull(registration.IdentityBinding);
+        Assert.Equal(ResourceIdentityBindingKind.Required, registration.IdentityBinding.Kind);
+
+        await controlPlane.SetResourceIdentityAsync(new SetResourceIdentityCommand("target", null));
+        registration = await controlPlane.GetResourceRegistrationAsync("target");
+        Assert.NotNull(registration);
+        Assert.Null(registration.IdentityBinding);
+    }
+
+    [Fact]
+    public async Task SetResourceIdentityAsync_RejectsDeniedManagePermission()
+    {
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            authorization: new PermissionAuthorizationService(CloudShellPermissions.Resources.Read));
+
+        var exception = await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.SetResourceIdentityAsync(
+                new SetResourceIdentityCommand("target", ResourceIdentityBinding.RequireIdentity())));
+
+        Assert.Equal(ControlPlaneErrorCodes.InsufficientPermission, exception.Error.Code);
+    }
+
+    [Fact]
     public async Task CreateResourceAsync_RejectsMissingConfiguration()
     {
         var controlPlane = CreateControlPlane([]);
@@ -1598,6 +1633,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var templates = new ResourceTemplateService(resourceManager, resourceGroups, registrations);
         var identityProvisioning = new ResourceIdentityProvisioningService(
             declarations,
+            registrations,
             new ResourceIdentityProviderCatalog(identityProviders ?? []),
             identityProvisioners ?? []);
         var identityProviderSetup = new ResourceIdentityProviderSetupService(
@@ -2122,6 +2158,20 @@ public sealed class InProcessControlPlaneResourceStateTests
             _registrations[resourceId] = existing with
             {
                 DependsOn = dependsOn
+            };
+            return Task.CompletedTask;
+        }
+
+        public Task SetIdentityAsync(
+            string resourceId,
+            ResourceIdentityBinding? identity,
+            CancellationToken cancellationToken = default)
+        {
+            var existing = GetRegistration(resourceId) ??
+                new ResourceRegistration(resourceId, "test", null, DateTimeOffset.UtcNow, []);
+            _registrations[resourceId] = existing with
+            {
+                Identity = identity
             };
             return Task.CompletedTask;
         }

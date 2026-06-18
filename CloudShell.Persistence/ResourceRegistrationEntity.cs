@@ -11,4 +11,6 @@ internal sealed class ResourceRegistrationEntity
     public DateTimeOffset RegisteredAt { get; set; }
 
     public string DependsOnJson { get; set; } = "[]";
+
+    public string? IdentityJson { get; set; }
 }

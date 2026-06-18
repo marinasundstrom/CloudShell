@@ -5,4 +5,8 @@ public sealed record ResourceRegistration(
     string ProviderId,
     string? ResourceGroupId,
     DateTimeOffset RegisteredAt,
-    IReadOnlyList<string> DependsOn);
+    IReadOnlyList<string> DependsOn,
+    ResourceIdentityBinding? Identity = null)
+{
+    public ResourceIdentityBinding? IdentityBinding => Identity;
+}

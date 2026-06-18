@@ -21,7 +21,8 @@ public sealed class EfCoreResourceStore(
                 registration.ProviderId,
                 registration.ResourceGroupId,
                 registration.RegisteredAt,
-                DeserializeDependencies(registration.DependsOnJson)))
+                DeserializeDependencies(registration.DependsOnJson),
+                DeserializeIdentity(registration.IdentityJson)))
             .ToArray();
     }
 
@@ -39,7 +40,8 @@ public sealed class EfCoreResourceStore(
                 registration.ProviderId,
                 registration.ResourceGroupId,
                 registration.RegisteredAt,
-                DeserializeDependencies(registration.DependsOnJson));
+                DeserializeDependencies(registration.DependsOnJson),
+                DeserializeIdentity(registration.IdentityJson));
     }
 
     public async Task RegisterAsync(
@@ -124,6 +126,20 @@ public sealed class EfCoreResourceStore(
             ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
 
         registration.DependsOnJson = SerializeDependencies(dependsOn);
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SetIdentityAsync(
+        string resourceId,
+        ResourceIdentityBinding? identity,
+        CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        var registration = await context.ResourceRegistrations
+            .SingleOrDefaultAsync(item => item.ResourceId == resourceId, cancellationToken)
+            ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+
+        registration.IdentityJson = SerializeIdentity(identity);
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -219,6 +235,14 @@ public sealed class EfCoreResourceStore(
         return NormalizeDependencies(
             JsonSerializer.Deserialize<IReadOnlyList<string>>(dependsOnJson) ?? []);
     }
+
+    private static string? SerializeIdentity(ResourceIdentityBinding? identity) =>
+        identity is null ? null : JsonSerializer.Serialize(identity);
+
+    private static ResourceIdentityBinding? DeserializeIdentity(string? identityJson) =>
+        string.IsNullOrWhiteSpace(identityJson)
+            ? null
+            : JsonSerializer.Deserialize<ResourceIdentityBinding>(identityJson);
 
     private static IReadOnlyList<string> NormalizeDependencies(IReadOnlyList<string> dependsOn) =>
         dependsOn

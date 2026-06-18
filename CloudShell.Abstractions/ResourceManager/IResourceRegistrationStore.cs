@@ -27,4 +27,10 @@ public interface IResourceRegistrationStore
         string resourceId,
         IReadOnlyList<string> dependsOn,
         CancellationToken cancellationToken = default);
+
+    Task SetIdentityAsync(
+        string resourceId,
+        ResourceIdentityBinding? identity,
+        CancellationToken cancellationToken = default) =>
+        Task.FromException(new NotSupportedException("This registration store does not support resource identity updates."));
 }

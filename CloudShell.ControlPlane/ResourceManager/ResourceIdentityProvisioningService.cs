@@ -8,6 +8,7 @@ public sealed record ResourceIdentityProvisioningPlan(
 
 public sealed class ResourceIdentityProvisioningService(
     ResourceDeclarationStore declarations,
+    IResourceRegistrationStore registrations,
     ResourceIdentityProviderCatalog identityProviders,
     IEnumerable<IResourceIdentityProvisioner> provisioners,
     IEnumerable<IResourceIdentityProvisioningStatusProvider>? statusProviders = null)
@@ -22,21 +23,34 @@ public sealed class ResourceIdentityProvisioningService(
         var identities = new List<ResolvedIdentity>();
         var diagnostics = new List<ResourceIdentityProvisioningDiagnostic>();
         var effectiveProviders = declarations.CreateIdentityProviderCatalog(identityProviders);
+        var declarationsById = declarations.GetDeclarations()
+            .ToDictionary(
+                declaration => declaration.ResourceId,
+                StringComparer.OrdinalIgnoreCase);
+        var registrationsById = registrations.GetRegistrations()
+            .ToDictionary(
+                registration => registration.ResourceId,
+                StringComparer.OrdinalIgnoreCase);
 
-        foreach (var declaration in declarations.GetDeclarations())
+        foreach (var currentResourceId in declarationsById.Keys
+                     .Concat(registrationsById.Keys)
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .Order(StringComparer.OrdinalIgnoreCase))
         {
             if (resourceId is not null &&
-                !string.Equals(declaration.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
+                !string.Equals(currentResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            if (declaration.IdentityBinding is not { } binding)
+            var binding = declarationsById.GetValueOrDefault(currentResourceId)?.IdentityBinding ??
+                registrationsById.GetValueOrDefault(currentResourceId)?.IdentityBinding;
+            if (binding is null)
             {
                 continue;
             }
 
-            var identity = ResourceIdentityReference.ForResource(declaration.ResourceId, binding.Name);
+            var identity = ResourceIdentityReference.ForResource(currentResourceId, binding.Name);
             var resolution = effectiveProviders.Resolve(binding);
             if (resolution.Provider is null)
             {

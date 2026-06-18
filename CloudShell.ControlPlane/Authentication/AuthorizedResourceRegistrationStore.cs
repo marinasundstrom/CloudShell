@@ -117,6 +117,27 @@ public sealed class AuthorizedResourceRegistrationStore(
         await inner.SetDependenciesAsync(resourceId, dependsOn, cancellationToken);
     }
 
+    public async Task SetIdentityAsync(
+        string resourceId,
+        ResourceIdentityBinding? identity,
+        CancellationToken cancellationToken = default)
+    {
+        var registration = inner.GetRegistration(resourceId);
+        if (registration is null)
+        {
+            var declaration = declarations.GetDeclaration(resourceId)
+                ?? throw new InvalidOperationException($"Resource '{resourceId}' is not registered.");
+            registration = ToRegistration(declaration);
+
+            EnsureAccess(registration, CloudShellPermissions.Resources.Manage);
+            declarations.SetIdentity(resourceId, identity);
+            return;
+        }
+
+        EnsureAccess(registration, CloudShellPermissions.Resources.Manage);
+        await inner.SetIdentityAsync(resourceId, identity, cancellationToken);
+    }
+
     private bool CanAccess(ResourceRegistration registration, string permission) =>
         authorization.CanAccessResource(
             registration.ResourceId,
@@ -146,5 +167,6 @@ public sealed class AuthorizedResourceRegistrationStore(
             declaration.ProviderId,
             declaration.ResourceGroupId,
             declaration.DeclaredAt,
-            declaration.DependsOn);
+            declaration.DependsOn,
+            declaration.IdentityBinding);
 }

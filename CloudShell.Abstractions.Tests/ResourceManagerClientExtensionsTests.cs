@@ -309,6 +309,11 @@ public sealed class ResourceManagerClientExtensionsTests
             CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
+        public Task SetResourceIdentityAsync(
+            SetResourceIdentityCommand command,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
         public Task<ResourceProcedureResult> DeleteResourceAsync(
             string resourceId,
             CancellationToken cancellationToken = default) =>

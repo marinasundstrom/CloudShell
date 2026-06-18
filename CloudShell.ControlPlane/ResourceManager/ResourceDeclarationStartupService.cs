@@ -261,12 +261,28 @@ public sealed class ResourceDeclarationStartupService(
             await persistedResources.SetDependenciesAsync(resourceId, dependsOn, cancellationToken);
         }
 
+        public async Task SetIdentityAsync(
+            string resourceId,
+            ResourceIdentityBinding? identity,
+            CancellationToken cancellationToken = default)
+        {
+            if (persistedResources.GetRegistration(resourceId) is null &&
+                declarations.GetDeclaration(resourceId) is not null)
+            {
+                declarations.SetIdentity(resourceId, identity);
+                return;
+            }
+
+            await persistedResources.SetIdentityAsync(resourceId, identity, cancellationToken);
+        }
+
         private static ResourceRegistration ToRegistration(ResourceDeclaration declaration) =>
             new(
                 declaration.ResourceId,
                 declaration.ProviderId,
                 declaration.ResourceGroupId,
                 declaration.DeclaredAt,
-                declaration.DependsOn);
+                declaration.DependsOn,
+                declaration.IdentityBinding);
     }
 }

@@ -21,6 +21,29 @@ supports extra behavior such as token issuance, managed identity provisioning,
 protected API registration, or permission assignment. The identity binding
 itself remains resource metadata.
 
+The domain separates related but distinct concepts:
+
+- An identity provider is an environment capability. It belongs to the cloud
+  plane and determines whether resource identity can be resolved at all.
+- A resource identity binding is per-resource intent. It says that a resource
+  has, or requires, an identity that can later be resolved and provisioned by a
+  provider.
+- A principal or actor is the identity that performs an operation. Resource
+  identities are one principal source; user, group, service account, and
+  provider-owned identity references should be able to use the same grant
+  model.
+- A permission grant authorizes a principal to perform an operation against a
+  target resource.
+- Resource events and activity logs should record the acting principal so users
+  can see which resource or user triggered an operation.
+
+The current Resource Manager Access control view is intentionally narrower
+than the full domain. It uses resources with identity bindings as a transitional
+principal source because those are the principals CloudShell can currently
+resolve and display. The durable model is not resource-to-resource access
+control; it is principal-to-resource grants. Target resources do not
+conceptually need their own identity to be protected.
+
 ## Identity Providers
 
 Resource identity providers are configured independently from the user sign-in
@@ -343,26 +366,28 @@ selected by programmatic resources. The Identity tab reflects whether identity
 is enabled for the selected resource with an `Enable identity` checkbox, lists
 declared permission grants, exposes the provisioning command when the selected
 resource has an identity binding, and shows provider-reported provisioning
-status and diagnostics for that resource identity. Persisting identity binding
-changes from the UI requires a future Control Plane mutation path.
+status and diagnostics for that resource identity. Enabling identity from
+Resource Manager stores a `Required` binding through
+`SetResourceIdentityAsync(...)`, so the binding resolves through the
+environment default provider instead of hard-coding a provider ID.
 
 The generated Access control tab shows who can access the current resource.
-The assignment controls require the current resource to have an identity
-binding; otherwise the tab points the user to Identity setup instead of locking
-them out of the view. For the current resource-identity MVP it offers a
-searchable resource-identity picker, records grant intent from the selected
-resource identity to the current resource, groups assigned permissions by
-resource identity, and can revoke those grants. The current resource's own
+For the current MVP it requires the current resource to have an identity
+binding before the assignment UI is shown; otherwise the tab points the user to
+Identity setup. That requirement is a temporary UI guard and not a domain
+requirement for protected target resources. The tab offers a searchable picker
+for resources with identity bindings, records grant intent from the selected
+principal identity to the current resource, groups assigned permissions by
+principal identity, and can revoke those grants. The current resource's own
 identity is not included in the assignment picker. The permission picker is
 filtered to operations that are relevant to the current target resource, such
 as configuration-entry reads for Configuration Store resources, secret reads
 for Secrets Vault resources, mount permissions for volumes, networking
 reconciliation for network resources, and resource-action permissions where the
-target advertises actions. User and group principals require a broader
-principal model and should be added as separate assignment surfaces or
-principal-type selectors rather than being folded into the resource-identity
-picker. Editing identity bindings themselves in the CloudShell UI is future
-work.
+target advertises actions. User, group, service account, and provider-owned
+principal references require a broader principal model and should be added as
+separate assignment surfaces or principal-type selectors rather than being
+folded into the resource-identity picker.
 
 Managed identity behavior is also future work. A managed identity provider
 should be able to resolve a resource identity binding and, where supported,

@@ -154,6 +154,15 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPut("/registrations/{resourceId}/dependencies", SetResourceDependencies)
             .WithName("CloudShellControlPlane_SetResourceDependencies");
 
+        api.MapPut("/registrations/{resourceId}/identity", SetResourceIdentity)
+            .WithName("CloudShellControlPlane_SetResourceIdentity")
+            .Accepts<SetResourceIdentityRequest>("application/json")
+            .Produces<ResourceRegistrationResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)
+            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
+
         api.MapGet("/logs", ListLogs)
             .WithName("CloudShellControlPlane_ListLogs");
 
@@ -837,6 +846,31 @@ public static class CloudShellControlPlaneApiExtensions
                 new SetResourceDependenciesCommand(
                     RequireValue(resourceId, nameof(resourceId)),
                     NormalizeRequiredIds(request.DependsOn, nameof(request.DependsOn))),
+                cancellationToken);
+
+            var registration = await resourceManager.GetResourceRegistrationAsync(resourceId, cancellationToken);
+            return registration is null
+                ? Results.NoContent()
+                : Results.Ok(registration.ToResponse());
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            return ToProblem(exception);
+        }
+    }
+
+    private static async Task<IResult> SetResourceIdentity(
+        string resourceId,
+        SetResourceIdentityRequest request,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await resourceManager.SetResourceIdentityAsync(
+                new SetResourceIdentityCommand(
+                    RequireValue(resourceId, nameof(resourceId)),
+                    request.Identity?.ToResourceIdentityBinding()),
                 cancellationToken);
 
             var registration = await resourceManager.GetResourceRegistrationAsync(resourceId, cancellationToken);

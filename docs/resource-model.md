@@ -471,6 +471,14 @@ Resource permissions and grants are evaluated by the Control Plane. A resource
 identity can act on another resource only when the relevant grant or permission
 exists.
 
+Identity provider configuration is an environment capability. A resource's
+`Identity` binding is separate per-resource intent and may resolve through the
+environment default provider. Permission grants authorize a principal against a
+target resource. A principal can be a resource identity today, and later can
+also be a user, group, service account, or provider-owned identity reference.
+Resource events should preserve the acting principal so activity logs can show
+which resource or user triggered an operation.
+
 ## Load-Balancer Routes
 
 `LoadBalancerRoutes` contains route definitions projected by load-balancer

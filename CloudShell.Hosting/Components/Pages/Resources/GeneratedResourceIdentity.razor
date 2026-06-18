@@ -22,7 +22,9 @@
         <section class="generated-section">
             <h3>@L["Resource identity"]</h3>
             <div class="generated-row-actions">
-                <FluentCheckbox Value="@IdentityEnabled" Disabled="true">
+                <FluentCheckbox Value="@IdentityEnabled"
+                                ValueChanged="SetIdentityEnabled"
+                                Disabled="@(UpdatingIdentity || IsReadOnly)">
                     @L["Enable identity"]
                 </FluentCheckbox>
             </div>
@@ -83,6 +85,10 @@
                     <strong>@L["Identity not enabled"]</strong>
                     <span>@L["Enable identity for this resource before provisioning identity or assigning access permissions."]</span>
                 </div>
+                @if (IsReadOnly)
+                {
+                    <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Identity changes are disabled in this UI."]</div>
+                }
             }
         </section>
 
@@ -196,6 +202,7 @@
     private string? ProvisioningStatusError { get; set; }
     private string? ProcedureMessage { get; set; }
     private bool ProvisioningIdentity { get; set; }
+    private bool UpdatingIdentity { get; set; }
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
     private bool IdentityEnabled => Resource?.IdentityBinding is not null;
 
@@ -204,6 +211,11 @@
         OutboundPermissionGrants.Count > 0;
 
     protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
     {
         Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
@@ -223,6 +235,42 @@
         OutboundPermissionGrants = await LoadOutboundPermissionGrantsAsync();
         await LoadProvisioningStatusAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
+    }
+
+    private async Task SetIdentityEnabled(bool enabled)
+    {
+        if (UpdatingIdentity || Resource is null)
+        {
+            return;
+        }
+
+        if (IsReadOnly)
+        {
+            ProcedureMessage = L["Resource Manager is in read-only mode."].Value;
+            return;
+        }
+
+        UpdatingIdentity = true;
+        ProcedureMessage = null;
+        try
+        {
+            await ResourceManager.SetResourceIdentityAsync(
+                new SetResourceIdentityCommand(
+                    Resource.Id,
+                    enabled ? ResourceIdentityBinding.RequireIdentity() : null));
+            ProcedureMessage = enabled
+                ? L["Identity enabled for this resource."].Value
+                : L["Identity disabled for this resource."].Value;
+            await LoadAsync();
+        }
+        catch (Exception exception)
+        {
+            ProcedureMessage = exception.Message;
+        }
+        finally
+        {
+            UpdatingIdentity = false;
+        }
     }
 
     private string FormatIdentityName(ResourceIdentityBinding identity) =>

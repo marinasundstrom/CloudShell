@@ -343,6 +343,39 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_SetsResourceIdentity()
+    {
+        await using var app = await CreateAppAsync(includeLifecycleResource: true);
+        var controlPlane = CreateClient(app);
+        var notifications = new List<ResourceChangeNotification>();
+        controlPlane.ResourcesChanged += (_, notification) => notifications.Add(notification);
+
+        await controlPlane.SetResourceIdentityAsync(
+            new SetResourceIdentityCommand(
+                ContractLifecycleResourceProvider.ResourceId,
+                ResourceIdentityBinding.RequireIdentity() with { Name = "contract-resource" }));
+
+        var registration = await controlPlane.GetResourceRegistrationAsync(
+            ContractLifecycleResourceProvider.ResourceId);
+
+        Assert.NotNull(registration);
+        Assert.NotNull(registration.IdentityBinding);
+        Assert.Equal(ResourceIdentityBindingKind.Required, registration.IdentityBinding.Kind);
+        Assert.Equal("contract-resource", registration.IdentityBinding.Name);
+        Assert.Contains(notifications, notification =>
+            notification.Kind == ResourceChangeKind.ResourceIdentityChanged &&
+            notification.ResourceId == ContractLifecycleResourceProvider.ResourceId);
+
+        await controlPlane.SetResourceIdentityAsync(
+            new SetResourceIdentityCommand(ContractLifecycleResourceProvider.ResourceId, null));
+        registration = await controlPlane.GetResourceRegistrationAsync(
+            ContractLifecycleResourceProvider.ResourceId);
+
+        Assert.NotNull(registration);
+        Assert.Null(registration.IdentityBinding);
+    }
+
+    [Fact]
     public async Task RemoteControlPlane_SetsUpResourceIdentityProvider()
     {
         await using var app = await CreateAppAsync();

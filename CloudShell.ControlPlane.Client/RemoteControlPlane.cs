@@ -353,6 +353,22 @@ public sealed class RemoteControlPlane : IControlPlane
             AffectedResourceIds: [command.ResourceId]));
     }
 
+    public async Task SetResourceIdentityAsync(
+        SetResourceIdentityCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PutAsJsonAsync(
+            BuildUri($"registrations/{Escape(command.ResourceId)}/identity"),
+            new SetResourceIdentityRequest(command.Identity?.ToResponse()),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceIdentityChanged,
+            command.ResourceId,
+            AffectedResourceIds: [command.ResourceId]));
+    }
+
     public async Task<ResourceProcedureResult> DeleteResourceAsync(
         string resourceId,
         CancellationToken cancellationToken = default)
@@ -954,7 +970,8 @@ file sealed record ResourceRegistrationResponse(
     string ProviderId,
     string? ResourceGroupId,
     DateTimeOffset RegisteredAt,
-    IReadOnlyList<string> DependsOn);
+    IReadOnlyList<string> DependsOn,
+    ResourceIdentityBindingResponse? Identity);
 
 file sealed record CreateResourceGroupRequest(
     string Name,
@@ -982,6 +999,8 @@ file sealed record AssignResourceGroupRequest(
     IReadOnlyList<string>? DependsOn = null);
 
 file sealed record SetResourceDependenciesRequest(IReadOnlyList<string> DependsOn);
+
+file sealed record SetResourceIdentityRequest(ResourceIdentityBindingResponse? Identity);
 
 file sealed record UpdateResourceImageRequest(
     string Image,
@@ -1214,6 +1233,16 @@ file static class RemoteControlPlaneMapper
             response.Kind,
             response.Name);
 
+    public static ResourceIdentityBindingResponse ToResponse(
+        this ResourceIdentityBinding identity) =>
+        new(
+            identity.Kind,
+            identity.Name,
+            identity.ProviderId,
+            identity.Subject,
+            identity.IdentityScopes,
+            identity.IdentityClaims);
+
     public static ResourceIdentityReferenceResponse ToResponse(
         this ResourceIdentityReference identity) =>
         new(identity.ResourceId, identity.Name);
@@ -1310,7 +1339,8 @@ file static class RemoteControlPlaneMapper
             response.ProviderId,
             response.ResourceGroupId,
             response.RegisteredAt,
-            response.DependsOn);
+            response.DependsOn,
+            response.Identity?.ToResourceIdentityBinding());
 
     public static ResourceOperationCapabilities ToCapabilities(
         this ResourceOperationCapabilitiesResponse response) =>

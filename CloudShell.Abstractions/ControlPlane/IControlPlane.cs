@@ -105,6 +105,10 @@ public interface IResourceManager
         SetResourceDependenciesCommand command,
         CancellationToken cancellationToken = default);
 
+    Task SetResourceIdentityAsync(
+        SetResourceIdentityCommand command,
+        CancellationToken cancellationToken = default);
+
     Task<ResourceProcedureResult> DeleteResourceAsync(
         string resourceId,
         CancellationToken cancellationToken = default);
@@ -241,7 +245,8 @@ public enum ResourceChangeKind
     ResourceActionStarted,
     ResourceActionExecuted,
     ResourceImageUpdated,
-    ResourceReplicasUpdated
+    ResourceReplicasUpdated,
+    ResourceIdentityChanged
 }
 
 public sealed record LogQuery(
@@ -290,6 +295,10 @@ public sealed record AssignResourceGroupCommand(
 public sealed record SetResourceDependenciesCommand(
     string ResourceId,
     IReadOnlyList<string> DependsOn);
+
+public sealed record SetResourceIdentityCommand(
+    string ResourceId,
+    ResourceIdentityBinding? Identity);
 
 public sealed record ExecuteResourceActionCommand(
     string ResourceId,

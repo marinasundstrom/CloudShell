@@ -175,9 +175,9 @@ on `git blame --follow`, and then by the broad type of change.
   the environment has a default resource identity provider. Access control
   shows identity setup guidance instead of assignment controls for resources
   without identity bindings, the Identity tab reflects identity enablement with
-  an `Enable identity` checkbox, and the resource-identity picker now uses a
-  Fluent UI autocomplete search box instead of a separate search field plus
-  select.
+  an editable `Enable identity` checkbox backed by Control Plane registration
+  identity state, and the resource-identity picker now uses a Fluent UI
+  autocomplete search box instead of a separate search field plus select.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

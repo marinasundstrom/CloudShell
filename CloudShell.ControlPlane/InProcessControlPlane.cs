@@ -412,6 +412,37 @@ public sealed class InProcessControlPlane(
             AffectedResourceIds: [resourceId]));
     }
 
+    public async Task SetResourceIdentityAsync(
+        SetResourceIdentityCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var resourceId = RequireValue(command.ResourceId, nameof(command.ResourceId));
+        var resource = resourceManager.GetResource(resourceId)
+            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(resourceId));
+        var group = resourceManager.GetGroupForResource(resourceId);
+        if (!authorization.CanAccessResource(
+                resourceId,
+                group?.Id,
+                CloudShellPermissions.Resources.Manage))
+        {
+            throw ControlPlaneAccessDeniedException.ForResource(
+                resourceId,
+                CloudShellPermissions.Resources.Manage);
+        }
+
+        await registrations.SetIdentityAsync(
+            resource.Id,
+            command.Identity,
+            cancellationToken);
+
+        NotifyResourcesChanged(new ResourceChangeNotification(
+            ResourceChangeKind.ResourceIdentityChanged,
+            resource.Id,
+            AffectedResourceIds: [resource.Id]));
+    }
+
     public async Task<ResourceProcedureResult> DeleteResourceAsync(
         string resourceId,
         CancellationToken cancellationToken = default)

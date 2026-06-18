@@ -211,7 +211,8 @@ public sealed record ResourceRegistrationResponse(
     string ProviderId,
     string? ResourceGroupId,
     DateTimeOffset RegisteredAt,
-    IReadOnlyList<string> DependsOn);
+    IReadOnlyList<string> DependsOn,
+    ResourceIdentityBindingResponse? Identity);
 
 public sealed record CreateResourceGroupRequest(
     string Name,
@@ -239,6 +240,8 @@ public sealed record AssignResourceGroupRequest(
     IReadOnlyList<string>? DependsOn = null);
 
 public sealed record SetResourceDependenciesRequest(IReadOnlyList<string> DependsOn);
+
+public sealed record SetResourceIdentityRequest(ResourceIdentityBindingResponse? Identity);
 
 public sealed record UpdateResourceImageRequest(
     string Image,
@@ -468,6 +471,16 @@ internal static class CloudShellControlPlaneDtoMapper
             identity.IdentityScopes,
             identity.IdentityClaims);
 
+    public static ResourceIdentityBinding ToResourceIdentityBinding(
+        this ResourceIdentityBindingResponse response) =>
+        new(
+            response.ProviderId,
+            response.Subject,
+            response.Scopes,
+            response.Claims,
+            response.Kind,
+            response.Name);
+
     public static ResourceIdentityReferenceResponse ToResponse(
         this ResourceIdentityReference identity) =>
         new(identity.ResourceId, identity.Name);
@@ -553,7 +566,8 @@ internal static class CloudShellControlPlaneDtoMapper
             registration.ProviderId,
             registration.ResourceGroupId,
             registration.RegisteredAt,
-            registration.DependsOn);
+            registration.DependsOn,
+            registration.IdentityBinding?.ToResponse());
 
     public static ResourceOperationCapabilitiesResponse ToResponse(
         this ResourceOperationCapabilities capabilities) =>

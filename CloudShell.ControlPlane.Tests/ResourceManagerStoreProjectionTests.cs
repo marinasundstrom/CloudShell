@@ -152,6 +152,57 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_AppliesRegistrationIdentityWhenDeclarationDoesNotDeclareIdentity()
+    {
+        var resource = CreateResource("registered", "Registered");
+        var registration = CreateRegistration("registered") with
+        {
+            Identity = ResourceIdentityBinding.RequireIdentity() with { Name = "registered-service" }
+        };
+        var store = CreateStore(
+            [resource],
+            registrations: [registration],
+            identityProviders: new ResourceIdentityProviderCatalog(
+                [new("identity:dev", "Development identity", ResourceIdentityProviderKind.BuiltIn)]));
+
+        var projected = Assert.Single(store.GetResources());
+        var diagnostics = store.GetResourceModelDiagnostics();
+
+        Assert.NotNull(projected.IdentityBinding);
+        Assert.Equal(ResourceIdentityBindingKind.Required, projected.IdentityBinding.Kind);
+        Assert.Equal("registered-service", projected.IdentityBinding.Name);
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void GetResources_KeepsDeclarationIdentityBeforeRegistrationIdentity()
+    {
+        var resource = CreateResource("declared", "Declared");
+        var declarations = new ResourceDeclarationStore();
+        declarations.Declare(
+            new TestCloudShellBuilder(),
+            "test",
+            "declared",
+            identity: new ResourceIdentityBinding("identity:dev", Name: "declared-service"));
+        var registration = CreateRegistration("declared") with
+        {
+            Identity = ResourceIdentityBinding.RequireIdentity() with { Name = "registration-service" }
+        };
+        var store = CreateStore(
+            [resource],
+            registrations: [registration],
+            declarations: declarations,
+            identityProviders: new ResourceIdentityProviderCatalog(
+                [new("identity:dev", "Development identity", ResourceIdentityProviderKind.BuiltIn)]));
+
+        var projected = Assert.Single(store.GetResources());
+
+        Assert.NotNull(projected.IdentityBinding);
+        Assert.Equal("declared-service", projected.IdentityBinding.Name);
+        Assert.Equal("identity:dev", projected.IdentityBinding.ProviderId);
+    }
+
+    [Fact]
     public void GetResourceModelDiagnostics_ReportsDeclarationIdentityWithoutProvider()
     {
         var resource = CreateResource("declared", "Declared");

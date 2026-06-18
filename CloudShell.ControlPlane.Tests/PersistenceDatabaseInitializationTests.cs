@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +9,56 @@ namespace CloudShell.ControlPlane.Tests;
 
 public sealed class PersistenceDatabaseInitializationTests
 {
+    [Fact]
+    public async Task EfCoreResourceStore_RoundTripsRegistrationIdentityBinding()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "cloudshell-persistence-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddCloudShellPersistence(new CloudShellPersistenceOptions
+            {
+                Provider = "Sqlite",
+                ConnectionString = $"Data Source={Path.Combine(directory, "cloudshell.db")}",
+                IdentityConnectionString = $"Data Source={Path.Combine(directory, "identity.db")}"
+            });
+
+            using var provider = services.BuildServiceProvider();
+            provider.InitializeCloudShellDatabase(initializeIdentityStore: false);
+
+            var registrations = provider.GetRequiredService<EfCoreResourceStore>();
+            await registrations.RegisterAsync("applications", "application:test-api");
+
+            var identity = ResourceIdentityBinding.RequireIdentity(
+                ["configuration.read"],
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["resource"] = "application:test-api"
+                });
+
+            await registrations.SetIdentityAsync("application:test-api", identity);
+
+            var registration = registrations.GetRegistration("application:test-api");
+            Assert.NotNull(registration?.IdentityBinding);
+            Assert.Equal(ResourceIdentityBindingKind.Required, registration.IdentityBinding.Kind);
+            Assert.Equal(["configuration.read"], registration.IdentityBinding.IdentityScopes);
+            Assert.Equal("application:test-api", registration.IdentityBinding.IdentityClaims["resource"]);
+
+            await registrations.SetIdentityAsync("application:test-api", null);
+
+            registration = registrations.GetRegistration("application:test-api");
+            Assert.Null(registration?.IdentityBinding);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task InitializeCloudShellDatabase_RepairsMissingRuntimeTablesInExistingDatabase()
     {
