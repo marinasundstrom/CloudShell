@@ -199,22 +199,32 @@
                 group => group.Key,
                 group => group.First(),
                 StringComparer.OrdinalIgnoreCase);
-        PrincipalOptions = resources
-            .Where(resource =>
-                !string.Equals(resource.Id, Resource.Id, StringComparison.OrdinalIgnoreCase) &&
-                resource.IdentityBinding is not null)
-            .Select(resource => new PrincipalOption(
-                ResourceIdentityReference.ForResource(resource.Id, resource.IdentityBinding!.Name),
-                ResourcePrincipalReference.ForResourceIdentity(
-                    resource.Id,
-                    resource.IdentityBinding.Name,
-                    resource.DisplayName ?? resource.Name,
-                    resource.IdentityBinding.ProviderId),
-                resource,
-                GetIdentityKey(ResourceIdentityReference.ForResource(resource.Id, resource.IdentityBinding.Name))))
-            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(resource => resource.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(resource => resource.Identity.Name, StringComparer.OrdinalIgnoreCase)
+        var principals = await ResourceManager.ListResourcePrincipalsAsync(
+            new ResourcePrincipalQuery(
+                Kinds: new HashSet<ResourcePrincipalKind>
+                {
+                    ResourcePrincipalKind.ResourceIdentity
+                }));
+        PrincipalOptions = principals
+            .Where(principal =>
+                principal.Reference.Kind == ResourcePrincipalKind.ResourceIdentity &&
+                !string.IsNullOrWhiteSpace(principal.Reference.SourceResourceId) &&
+                !string.Equals(principal.Reference.SourceResourceId, Resource.Id, StringComparison.OrdinalIgnoreCase))
+            .Select(principal =>
+            {
+                var identity = ResourceIdentityReference.ForResource(
+                    principal.Reference.SourceResourceId!,
+                    principal.Reference.SourceIdentityName);
+                return new PrincipalOption(
+                    identity,
+                    principal.Reference,
+                    principal,
+                    ResourcesById.GetValueOrDefault(identity.ResourceId),
+                    GetIdentityKey(identity));
+            })
+            .OrderBy(principal => principal.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(principal => principal.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(principal => principal.Identity.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         if (SelectedPrincipal is not null &&
             !PrincipalOptions.Any(principal => string.Equals(principal.Key, SelectedPrincipal.Key, StringComparison.Ordinal)))
@@ -376,10 +386,14 @@
             Contains(principal.Identity.Name, search) ||
             Contains(principal.Principal.Id, search) ||
             Contains(principal.Principal.DisplayName, search) ||
-            Contains(principal.Resource.DisplayName, search) ||
-            Contains(principal.Resource.EffectiveTypeId, search) ||
-            Contains(principal.Resource.ResourceClass.ToString(), search) ||
-            Contains(principal.Resource.IdentityBinding?.ProviderId, search);
+            Contains(principal.ResourcePrincipal.DisplayName, search) ||
+            Contains(principal.ResourcePrincipal.Description, search) ||
+            principal.ResourcePrincipal.PrincipalAttributes.Any(attribute =>
+                Contains(attribute.Key, search) || Contains(attribute.Value, search)) ||
+            Contains(principal.Resource?.DisplayName, search) ||
+            Contains(principal.Resource?.EffectiveTypeId, search) ||
+            Contains(principal.Resource?.ResourceClass.ToString(), search) ||
+            Contains(principal.Resource?.IdentityBinding?.ProviderId, search);
     }
 
     private static bool Contains(string? value, string search) =>
@@ -486,10 +500,14 @@
     private sealed record PrincipalOption(
         ResourceIdentityReference Identity,
         ResourcePrincipalReference Principal,
-        Resource Resource,
+        ResourcePrincipal ResourcePrincipal,
+        Resource? Resource,
         string Key)
     {
-        public string Name => Resource.Name;
+        public string Name => Resource?.Name ??
+            ResourcePrincipal.DisplayName ??
+            Principal.DisplayName ??
+            Principal.Id;
 
         public string IdentityLabel => FormatIdentityLabel(Identity);
 

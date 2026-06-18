@@ -22,9 +22,17 @@ public sealed class InProcessControlPlane(
     IMetricStore metrics,
     IEnumerable<IResourceMonitoringProvider> monitoringProviders,
     ICloudShellAuthorizationService authorization,
-    IResourceEventStore? resourceEvents = null) : IControlPlane
+    IResourceEventStore? resourceEvents = null,
+    ResourceIdentityProviderCatalog? identityProviders = null,
+    IEnumerable<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null) : IControlPlane
 {
     public event EventHandler<ResourceChangeNotification>? ResourcesChanged;
+
+    private readonly ResourceIdentityProviderCatalog identityProviders =
+        identityProviders ?? new ResourceIdentityProviderCatalog();
+
+    private readonly IReadOnlyList<IResourceIdentityDirectoryProvider> identityDirectoryProviders =
+        (identityDirectoryProviders ?? []).ToArray();
 
     public Task<IReadOnlyList<ResourceGroup>> ListResourceGroupsAsync(
         CancellationToken cancellationToken = default)
@@ -162,6 +170,61 @@ public sealed class InProcessControlPlane(
                 capability => capability.ResourceId,
                 capability => capability,
                 StringComparer.OrdinalIgnoreCase);
+    }
+
+    public async Task<IReadOnlyList<ResourcePrincipal>> ListResourcePrincipalsAsync(
+        ResourcePrincipalQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var effectiveIdentityProviders = declarations.CreateIdentityProviderCatalog(identityProviders);
+        var principals = new List<ResourcePrincipal>();
+        principals.AddRange(CreateResourceIdentityPrincipals(query, effectiveIdentityProviders));
+
+        var directoryProviders = ShouldQueryDirectoryProviders(query)
+            ? identityDirectoryProviders
+            : [];
+        if (directoryProviders.Count > 0)
+        {
+            var directoryQuery = new ResourceIdentityDirectoryQuery(
+                query?.SearchText,
+                query?.PrincipalKinds,
+                query?.Limit);
+            foreach (var provider in effectiveIdentityProviders.Providers)
+            {
+                if (!MatchesProvider(query, provider.Id))
+                {
+                    continue;
+                }
+
+                var directoryProvider = directoryProviders.FirstOrDefault(directoryProvider =>
+                    directoryProvider.CanQueryDirectory(provider));
+                if (directoryProvider is null)
+                {
+                    continue;
+                }
+
+                var result = await directoryProvider.QueryDirectoryAsync(
+                    new ResourceIdentityDirectoryRequest(provider, directoryQuery),
+                    cancellationToken);
+                principals.AddRange(result.Principals);
+            }
+        }
+
+        var filtered = principals
+            .Where(principal => MatchesPrincipalQuery(principal, query))
+            .GroupBy(
+                principal => $"{principal.Reference.ProviderId}\u001f{principal.Reference.Kind}\u001f{principal.Reference.Id}",
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(principal => principal.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(principal => principal.Reference.Kind)
+            .ThenBy(principal => principal.Reference.Id, StringComparer.OrdinalIgnoreCase);
+
+        return query?.Limit is > 0
+            ? filtered.Take(query.Limit.Value).ToArray()
+            : filtered.ToArray();
     }
 
     public Task<IReadOnlyList<ResourcePermissionGrant>> ListResourcePermissionGrantsAsync(
@@ -1322,6 +1385,95 @@ public sealed class InProcessControlPlane(
 
         return filtered.ToArray();
     }
+
+    private IReadOnlyList<ResourcePrincipal> CreateResourceIdentityPrincipals(
+        ResourcePrincipalQuery? query,
+        ResourceIdentityProviderCatalog effectiveIdentityProviders)
+    {
+        if (query?.PrincipalKinds.Count > 0 &&
+            !query.PrincipalKinds.Contains(ResourcePrincipalKind.ResourceIdentity))
+        {
+            return [];
+        }
+
+        return resourceManager.GetResources()
+            .Where(resource => resource.IdentityBinding is not null)
+            .Select(resource =>
+            {
+                var identity = resource.IdentityBinding!;
+                var providerId = identity.ProviderId;
+                if (string.IsNullOrWhiteSpace(providerId))
+                {
+                    var resolution = effectiveIdentityProviders.Resolve(identity);
+                    providerId = resolution.Provider?.Id;
+                }
+
+                var reference = ResourcePrincipalReference.ForResourceIdentity(
+                    resource.Id,
+                    identity.Name,
+                    resource.DisplayName ?? resource.Name,
+                    providerId);
+                return new ResourcePrincipal(
+                    reference,
+                    resource.DisplayName ?? resource.Name,
+                    resource.EffectiveTypeId,
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["resourceId"] = resource.Id,
+                        ["resourceName"] = resource.Name,
+                        ["resourceType"] = resource.EffectiveTypeId,
+                        ["resourceClass"] = resource.ResourceClass.ToString()
+                    });
+            })
+            .Where(principal => MatchesPrincipalQuery(principal, query))
+            .ToArray();
+    }
+
+    private static bool MatchesPrincipalQuery(ResourcePrincipal principal, ResourcePrincipalQuery? query)
+    {
+        if (query is null)
+        {
+            return true;
+        }
+
+        if (query.PrincipalKinds.Count > 0 &&
+            !query.PrincipalKinds.Contains(principal.Reference.Kind))
+        {
+            return false;
+        }
+
+        if (!MatchesProvider(query, principal.Reference.ProviderId))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(query.SearchText))
+        {
+            return true;
+        }
+
+        var search = query.SearchText;
+        return Contains(principal.DisplayName, search) ||
+            Contains(principal.Description, search) ||
+            Contains(principal.Reference.Id, search) ||
+            Contains(principal.Reference.DisplayName, search) ||
+            Contains(principal.Reference.SourceResourceId, search) ||
+            Contains(principal.Reference.SourceIdentityName, search) ||
+            principal.PrincipalAttributes.Any(attribute =>
+                Contains(attribute.Key, search) || Contains(attribute.Value, search));
+    }
+
+    private static bool MatchesProvider(ResourcePrincipalQuery? query, string? providerId) =>
+        string.IsNullOrWhiteSpace(query?.ProviderId) ||
+        string.Equals(providerId, query.ProviderId, StringComparison.OrdinalIgnoreCase);
+
+    private static bool ShouldQueryDirectoryProviders(ResourcePrincipalQuery? query) =>
+        query?.PrincipalKinds.Count is not > 0 ||
+        query.PrincipalKinds.Any(kind => kind != ResourcePrincipalKind.ResourceIdentity);
+
+    private static bool Contains(string? value, string search) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        value.Contains(search, StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<ResourcePermissionGrant> ApplyQuery(
         IReadOnlyList<ResourcePermissionGrant> grants,

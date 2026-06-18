@@ -59,6 +59,10 @@ public interface IResourceManager
         IReadOnlyList<string> resourceIds,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ResourcePrincipal>> ListResourcePrincipalsAsync(
+        ResourcePrincipalQuery? query = null,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ResourcePermissionGrant>> ListResourcePermissionGrantsAsync(
         ResourcePermissionGrantQuery? query = null,
         CancellationToken cancellationToken = default);
@@ -204,6 +208,21 @@ public sealed record ResourceQuery(
     string? ResourceType = null,
     bool? IsRegistered = null,
     ResourceClass? ResourceClass = null);
+
+public sealed record ResourcePrincipalQuery(
+    string? SearchText = null,
+    IReadOnlySet<ResourcePrincipalKind>? Kinds = null,
+    string? ProviderId = null,
+    int? Limit = null)
+{
+    public string? SearchText { get; init; } =
+        string.IsNullOrWhiteSpace(SearchText) ? null : SearchText.Trim();
+
+    public string? ProviderId { get; init; } =
+        string.IsNullOrWhiteSpace(ProviderId) ? null : ProviderId.Trim();
+
+    public IReadOnlySet<ResourcePrincipalKind> PrincipalKinds => Kinds ?? new HashSet<ResourcePrincipalKind>();
+}
 
 public sealed record ResourcePermissionGrantQuery(
     string? IdentityResourceId = null,

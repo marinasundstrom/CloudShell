@@ -45,7 +45,7 @@ MVP scope:
 | Application exposure, discovery, and names | Application resources, application-level discovery, and the first logical DNS/name-mapping projection make resource-to-resource and user-to-endpoint access understandable from Resource Manager. `cloudshell.service` remains optional for logical facades, imported services, or advanced routing instead of being required for normal container app exposure. |
 | Network primitives | Virtual networks, endpoint requests, endpoint network mappings, configured endpoint mappings, load-balancer routes, public endpoint exposure, and host-local networking provide enough routing to expose common container app scenarios with clear diagnostics. |
 | Storage and volume mappings | Mountable volume resources and app volume attachments can be modeled, inspected, and mapped into container apps or executables through provider-neutral storage intent, without forcing object storage, databases, or backups into the same abstraction. |
-| Identity, Built-in | The built-in identity provider can provision resource identities, issue scoped resource-permission tokens, and enforce those permissions for Control Plane actions, configuration reads, and secret reads. |
+| Identity, Built-in | The built-in ASP.NET Core identity provider is enough for simple local-development cases: it can provision resource identities, issue scoped resource-permission tokens, expose provisioned resource identity clients through the standard principal lookup hook, and enforce permissions for Control Plane actions, configuration reads, and secret reads. |
 | Identity, external OIDC validation | The identity model is proven against at least one standards-compliant third-party OIDC/OAuth provider, such as Keycloak, without changing the CloudShell resource identity contract. |
 | App settings and secrets integrations | App settings, configuration-entry references, and secret references work through programmatic declarations, Resource Manager assignment flows, runtime transfer, redaction, and authorization. |
 | UX polish | Resource Manager common workflows are understandable, diagnostics are actionable, generated details are useful, and identity, configuration, secrets, networking, and app controls are discoverable without bespoke sample code. |
@@ -421,22 +421,25 @@ listed here before pulling in broader proposal work.
   Manager warns when an explicit local storage root is unavailable.
   Provider-backed storage usage metrics and richer provider-specific Resource
   Manager diagnostics remain next.
-- Identity remains a product differentiator, but it should be proven with a
-  standards-based provider instead of staying built-in only. The first Keycloak
-  sample validates external OIDC sign-in, CloudShell role claim mapping, and
-  sample-scoped resource identity provisioning, and a provider setup/reconcile
-  hook with a Control Plane endpoint and a Resource Manager action on the
-  provider's provisioning resource. Provider-specific runtime credential
-  injection now supplies provisioned Keycloak credentials to workloads through
-  the standard `CLOUDSHELL_IDENTITY_*` contract, and protected CloudShell
-  services can validate configured external OIDC/OAuth bearer tokens before
-  applying CloudShell scoped resource-permission claims. The Third-party
-  Identity sample now includes automated smoke coverage for a
+- Identity remains a product differentiator. The built-in ASP.NET Core
+  provider is the reference implementation for simple local development:
+  resource identity clients, scoped resource-permission tokens, provisioning
+  status, and provider-neutral principal lookup should all work there first.
+  The first Keycloak sample validates external OIDC sign-in, CloudShell role
+  claim mapping, sample-scoped resource identity provisioning, and a provider
+  setup/reconcile hook with a Control Plane endpoint and a Resource Manager
+  action on the provider's provisioning resource. Provider-specific runtime
+  credential injection now supplies provisioned Keycloak credentials to
+  workloads through the standard `CLOUDSHELL_IDENTITY_*` contract, and
+  protected CloudShell services can validate configured external OIDC/OAuth
+  bearer tokens before applying CloudShell scoped resource-permission claims.
+  The Third-party Identity sample now includes automated smoke coverage for a
   Keycloak-provisioned workload that reads configuration with a provisioned
   resource identity. The generated Identity tab now shows provisioning status
-  and status diagnostics for identity-bound resources. Next identity work
-  should keep that path stable while improving provider readiness and
-  authorization diagnostics that directly affect MVP flows.
+  and status diagnostics for identity-bound resources, while Access control
+  gets assignable principals through the Control Plane principal lookup API.
+  Next identity work should keep that path stable while improving provider
+  readiness and authorization diagnostics that directly affect MVP flows.
 - Keep the baseline samples building and smoke-testing as the release gate:
   combined hosting, split hosting, container host, settings and secrets, host
   virtual networking, load balancer, project references, third-party identity,

@@ -219,6 +219,7 @@ These grants can be evaluated against the declaration model with
 operations through `IResourceManager` and the HTTP API:
 
 ```text
+GET /api/control-plane/v1/resource-principals
 GET /api/control-plane/v1/resource-permission-grants
 POST /api/control-plane/v1/resource-permission-grants/evaluate
 POST /api/control-plane/v1/identity-providers/{providerId}/setup
@@ -375,18 +376,20 @@ environment default provider instead of hard-coding a provider ID.
 The generated Access control tab shows who can access the current resource.
 It treats the current resource as the protected target and does not require the
 target to have its own identity binding. For the current MVP, the assignable
-principals are projected from resources with identity bindings. The tab offers
-a searchable principal picker, records grant intent from the selected
-principal to the current resource, groups assigned permissions by principal,
-and can revoke those grants. When the current resource itself has an identity,
-that identity is not included in the assignment picker. The permission picker
-is filtered to operations that are relevant to the current target resource,
-such as configuration-entry reads for Configuration Store resources, secret
-reads for Secrets Vault resources, mount permissions for volumes, networking
+principals come from the Control Plane principal lookup API, filtered to
+resource identities because resource identities are the assignable principal
+type this slice can provision and reconcile. The tab offers a searchable
+principal picker, records grant intent from the selected principal to the
+current resource, groups assigned permissions by principal, and can revoke
+those grants. When the current resource itself has an identity, that identity
+is not included in the assignment picker. The permission picker is filtered to
+operations that are relevant to the current target resource, such as
+configuration-entry reads for Configuration Store resources, secret reads for
+Secrets Vault resources, mount permissions for volumes, networking
 reconciliation for network resources, and resource-action permissions where the
 target advertises actions. User, group, service account, and provider-owned
-principal references require principal sources beyond resource identities and
-should be added as separate assignment surfaces or principal-type selectors.
+principal references require grant commands and Resource Manager assignment
+surfaces beyond resource identities.
 
 Managed identity behavior is also future work. A managed identity provider
 should be able to resolve a resource identity binding and, where supported,
@@ -427,6 +430,14 @@ identity provider. A concrete provider adapter can call the backing authority
 directly, or it can call a provider-owned web service that translates the
 CloudShell request into Microsoft Entra ID, Active Directory, Keycloak,
 OIDC/OAuth, RBAC, app-role, group, or provider-native records.
+
+The built-in ASP.NET Core identity provider is the reference implementation for
+simple local-development environments. It provisions resource identity clients,
+issues scoped resource-permission tokens, reports provisioning status, and
+exposes provisioned resource identity clients through the same directory hook
+that third-party providers implement. The Control Plane also lists declared
+resource identities directly so Resource Manager can assign resource-to-resource
+grants before the first provisioning run.
 
 ## Operation Permissions
 

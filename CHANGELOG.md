@@ -196,6 +196,12 @@ on `git blame --follow`, and then by the broad type of change.
   future Entra/AD-style principal lookup across users, groups, service
   principals, managed identities, workload identities, and provider-owned
   identity references.
+- Control Plane API/client now expose provider-backed principal lookup through
+  `IResourceManager.ListResourcePrincipalsAsync(...)`; Resource Manager Access
+  control uses that principal source for its resource-identity picker, and the
+  built-in ASP.NET Core identity provider exposes provisioned resource identity
+  clients through the same directory hook for local-development reference
+  behavior.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate
@@ -231,6 +237,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Detached local process launches now resolve the current `dotnet` host path
   so provider-owned child services and project resources can start when
   non-interactive shells do not have `dotnet` on `PATH`.
+- Generated and application-specific Overview pages now show declaration
+  persistence again so startup declarations are visible in Resource Manager.
 
 #### Documentation
 

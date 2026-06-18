@@ -154,6 +154,12 @@ public sealed record ResourcePrincipalReferenceResponse(
     string? SourceResourceId,
     string? SourceIdentityName);
 
+public sealed record ResourcePrincipalResponse(
+    ResourcePrincipalReferenceResponse Reference,
+    string DisplayName,
+    string? Description,
+    IReadOnlyDictionary<string, string> Attributes);
+
 public sealed record ResourcePermissionGrantResponse(
     ResourceIdentityReferenceResponse Identity,
     ResourcePrincipalReferenceResponse Principal,
@@ -504,6 +510,14 @@ internal static class CloudShellControlPlaneDtoMapper
             principal.ProviderId,
             principal.SourceResourceId,
             principal.SourceIdentityName);
+
+    public static ResourcePrincipalResponse ToResponse(
+        this ResourcePrincipal principal) =>
+        new(
+            principal.Reference.ToResponse(),
+            principal.DisplayName,
+            principal.Description,
+            principal.PrincipalAttributes);
 
     public static ResourcePermissionGrantResponse ToResponse(
         this ResourcePermissionGrant grant) =>

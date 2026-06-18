@@ -249,6 +249,7 @@ Resource permission grants are exposed through the same domain-shaped Control
 Plane API:
 
 ```text
+GET /api/control-plane/v1/resource-principals
 GET /api/control-plane/v1/resource-permission-grants
 POST /api/control-plane/v1/resource-permission-grants
 POST /api/control-plane/v1/resource-permission-grants/revoke
@@ -258,17 +259,19 @@ POST /api/control-plane/v1/resources/{resourceId}/identity/provision
 GET /api/control-plane/v1/resources/{resourceId}/identity/provisioning-status
 ```
 
-These endpoints list declared grants, assign or revoke grant intent, and
-evaluate whether the declared model contains a matching grant. Assigning or
-revoking a grant updates CloudShell's desired access model; applying that
-change to provider-owned identity systems is part of identity provider
-provisioning or reconciliation. Resource action execution can also include
-`actingIdentityResourceId` and optional `actingIdentityName` query values; when
-present, the Control Plane evaluates declared grants for that resource identity
-instead of using the current user's resource permissions. This is model-level
-enforcement for declared resource identities. The API does not yet prove the
-acting identity with a token or register grants with an external identity
-authority.
+These endpoints list principals, list declared grants, assign or revoke grant
+intent, and evaluate whether the declared model contains a matching grant.
+Principal lookup combines resource identities from the CloudShell resource
+model with provider-backed directory data from identity provider integrations.
+Assigning or revoking a grant updates CloudShell's desired access model;
+applying that change to provider-owned identity systems is part of identity
+provider provisioning or reconciliation. Resource action execution can also
+include `actingIdentityResourceId` and optional `actingIdentityName` query
+values; when present, the Control Plane evaluates declared grants for that
+resource identity instead of using the current user's resource permissions.
+This is model-level enforcement for declared resource identities. The API does
+not yet prove the acting identity with a token or register grants with an
+external identity authority.
 
 Identity provider setup asks the provider to reconcile provider-level
 configuration such as OIDC client mappers, admin API reachability, trust

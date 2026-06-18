@@ -1,5 +1,7 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -197,6 +199,50 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal("api", status.Identity.ResourceId);
         Assert.Equal(ResourceIdentityProvisioningState.Provisioned, status.State);
         Assert.Empty(result.ProvisioningDiagnostics);
+    }
+
+    [Fact]
+    public async Task BuiltInProvisioner_ListsProvisionedResourceIdentityPrincipals()
+    {
+        var registry = new BuiltInResourceIdentityRegistry();
+        var provisioner = new BuiltInResourceIdentityProvisioner(registry);
+        var provider = new ResourceIdentityProviderDefinition(
+            "identity:dev",
+            "Development",
+            ResourceIdentityProviderKind.BuiltIn);
+        var identity = ResourceIdentityReference.ForResource("api", "api-service");
+        await provisioner.ProvisionAsync(
+            new ResourceIdentityProvisioningRequest(
+                provider,
+                [
+                    new ResourceIdentityProvisioningEntry(
+                        identity,
+                        new ResourceIdentityBinding("identity:dev", Name: "api-service"))
+                ],
+                [
+                    new ResourcePermissionGrant(
+                        identity,
+                        "configuration:app",
+                        ConfigurationStoreResourceOperationPermissions.ReadEntries)
+                ]));
+
+        var result = await provisioner.QueryDirectoryAsync(
+            new ResourceIdentityDirectoryRequest(
+                provider,
+                new ResourceIdentityDirectoryQuery(
+                    "api-service",
+                    new HashSet<ResourcePrincipalKind>
+                    {
+                        ResourcePrincipalKind.ResourceIdentity
+                    })));
+
+        var principal = Assert.Single(result.Principals);
+        Assert.Equal("identity:dev", result.ProviderId);
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, principal.Reference.Kind);
+        Assert.Equal("api/identities/api-service", principal.Reference.Id);
+        Assert.Equal("api", principal.Reference.SourceResourceId);
+        Assert.Equal("api-service", principal.Reference.SourceIdentityName);
+        Assert.Equal("api/api-service", principal.PrincipalAttributes["clientId"]);
     }
 
     [Fact]

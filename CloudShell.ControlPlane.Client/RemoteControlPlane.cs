@@ -190,6 +190,19 @@ public sealed class RemoteControlPlane : IControlPlane
         .Select(response => response.ToResourcePermissionGrant())
         .ToArray();
 
+    public async Task<IReadOnlyList<ResourcePrincipal>> ListResourcePrincipalsAsync(
+        ResourcePrincipalQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        (await GetRequiredAsync<IReadOnlyList<ResourcePrincipalResponse>>(
+            "resource-principals",
+            cancellationToken,
+            ("searchText", query?.SearchText),
+            ("kinds", FormatPrincipalKinds(query?.PrincipalKinds)),
+            ("providerId", query?.ProviderId),
+            ("limit", query?.Limit?.ToString())))
+        .Select(response => response.ToResourcePrincipal())
+        .ToArray();
+
     public async Task<ResourcePermissionEvaluation> EvaluateResourcePermissionGrantAsync(
         ResourceIdentityReference identity,
         string targetResourceId,
@@ -762,6 +775,11 @@ public sealed class RemoteControlPlane : IControlPlane
             : $"{uri}?{string.Join('&', queryValues)}";
     }
 
+    private static string? FormatPrincipalKinds(IReadOnlySet<ResourcePrincipalKind>? kinds) =>
+        kinds is null || kinds.Count == 0
+            ? null
+            : string.Join(',', kinds.Select(kind => kind.ToString()));
+
     private static string Escape(string value) =>
         Uri.EscapeDataString(value);
 }
@@ -912,6 +930,12 @@ file sealed record ResourcePrincipalReferenceResponse(
     string? ProviderId,
     string? SourceResourceId,
     string? SourceIdentityName);
+
+file sealed record ResourcePrincipalResponse(
+    ResourcePrincipalReferenceResponse Reference,
+    string DisplayName,
+    string? Description,
+    IReadOnlyDictionary<string, string>? Attributes);
 
 file sealed record ResourcePermissionGrantResponse(
     ResourceIdentityReferenceResponse Identity,
@@ -1270,6 +1294,14 @@ file static class RemoteControlPlaneMapper
             response.ProviderId,
             response.SourceResourceId,
             response.SourceIdentityName);
+
+    public static ResourcePrincipal ToResourcePrincipal(
+        this ResourcePrincipalResponse response) =>
+        new(
+            response.Reference.ToResourcePrincipalReference(),
+            response.DisplayName,
+            response.Description,
+            response.Attributes);
 
     public static ResourcePermissionGrant ToResourcePermissionGrant(
         this ResourcePermissionGrantResponse response) =>

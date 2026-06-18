@@ -136,6 +136,15 @@ Implemented today:
   identity-provider directory data such as users, groups, service principals,
   managed identities, workload identities, and provider-owned identity
   references.
+- Control Plane, API, remote-client, and Resource Manager principal lookup
+  through `IResourceManager.ListResourcePrincipalsAsync(...)`, with resource
+  identities supplied from the resource model and provider directory hooks
+  contributing provider-backed principal data.
+- The built-in ASP.NET Core identity provider acts as the reference
+  local-development integration for simple cases. It provisions resource
+  identity clients, issues scoped resource-permission tokens, reports
+  provisioning status, and exposes provisioned resource identity clients
+  through the provider-neutral directory hook.
 - A `setupIdentityProvider` Resource Manager action on identity provisioning
   resources that runs the attached provider's setup/reconcile hook with the
   same provisioning-resource permission boundary as the setup endpoint.
@@ -594,10 +603,11 @@ service-principal automation flows.
   provider when no explicit identity provider is declared.
 - Add durable provider-backed provisioning and status reconciliation for
   identities and grants.
-- Wire `IResourceIdentityDirectoryProvider` into Control Plane/API and
-  Resource Manager principal search so Access control can query provider-backed
-  users, groups, service principals, managed identities, workload identities,
-  and provider-owned identity references instead of only resource identities.
+- Add conventional user, group, service-account, service-principal, managed
+  identity, workload-identity, and provider-owned principal grant assignment
+  commands and Resource Manager surfaces. Resource identities remain the
+  current assignable principal type while the broader IAM assignment contract is
+  finalized.
 - Add Microsoft Entra ID provider mapping notes and compatibility tests.
 - Define identity-provider resources, provisioning-service resources,
   lifecycle, configuration projection, and protected management operations.

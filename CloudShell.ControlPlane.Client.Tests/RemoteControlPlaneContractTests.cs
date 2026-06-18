@@ -296,6 +296,12 @@ public sealed class RemoteControlPlaneContractTests
         await using var app = await CreateAppAsync();
         var controlPlane = CreateClient(app);
 
+        var principals = await controlPlane.ListResourcePrincipalsAsync(
+            new ResourcePrincipalQuery(
+                Kinds: new HashSet<ResourcePrincipalKind>
+                {
+                    ResourcePrincipalKind.ResourceIdentity
+                }));
         var grants = await controlPlane.ListResourcePermissionGrantsAsync(
             new ResourcePermissionGrantQuery(TargetResourceId: "network:contract"));
         var allowed = await controlPlane.EvaluateResourcePermissionGrantAsync(
@@ -335,7 +341,27 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
         Assert.Equal("network:contract/identities/network-service", grant.Principal.Id);
 
+        var resourcePrincipal = Assert.Single(principals, principal =>
+            principal.Reference.SourceResourceId == "network:contract");
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, resourcePrincipal.Reference.Kind);
+        Assert.Equal("network:contract/identities/network-service", resourcePrincipal.Reference.Id);
+        Assert.Equal("network-service", resourcePrincipal.Reference.SourceIdentityName);
+        Assert.Equal("Contract Network", resourcePrincipal.DisplayName);
+        Assert.Equal("network:contract", resourcePrincipal.PrincipalAttributes["resourceId"]);
+
         var httpClient = app.GetTestClient();
+        var principalsResponse = await httpClient.GetAsync(
+            "/api/control-plane/v1/resource-principals?kinds=ResourceIdentity&searchText=network-service");
+        principalsResponse.EnsureSuccessStatusCode();
+        using var principalsDocument = JsonDocument.Parse(await principalsResponse.Content.ReadAsStringAsync());
+        var responsePrincipal = Assert.Single(principalsDocument.RootElement.EnumerateArray());
+        Assert.Equal(
+            (int)ResourcePrincipalKind.ResourceIdentity,
+            responsePrincipal.GetProperty("reference").GetProperty("kind").GetInt32());
+        Assert.Equal(
+            "network:contract/identities/network-service",
+            responsePrincipal.GetProperty("reference").GetProperty("id").GetString());
+
         var response = await httpClient.GetAsync(
             "/api/control-plane/v1/resource-permission-grants?targetResourceId=network%3Acontract");
         response.EnsureSuccessStatusCode();
@@ -356,6 +382,26 @@ public sealed class RemoteControlPlaneContractTests
         Assert.NotNull(granted.Grant);
         Assert.False(revoked.IsAllowed);
         Assert.Null(revoked.Grant);
+    }
+
+    [Fact]
+    public async Task RemoteControlPlane_ListsProviderDirectoryPrincipals()
+    {
+        await using var app = await CreateAppAsync();
+        var controlPlane = CreateClient(app);
+
+        var principals = await controlPlane.ListResourcePrincipalsAsync(
+            new ResourcePrincipalQuery(SearchText: "platform", ProviderId: "identity:contract"));
+
+        var principal = Assert.Single(principals, item => item.Reference.Kind == ResourcePrincipalKind.User);
+        Assert.Equal("platform-user", principal.Reference.Id);
+        Assert.Equal("identity:contract", principal.Reference.ProviderId);
+        Assert.Equal("platform@example.local", principal.PrincipalAttributes["mail"]);
+
+        var directoryProvider = app.Services.GetRequiredService<ContractIdentityDirectoryProvider>();
+        var request = Assert.Single(directoryProvider.Requests);
+        Assert.Equal("identity:contract", request.Provider.Id);
+        Assert.Equal("platform", request.Query.SearchText);
     }
 
     [Fact]
@@ -764,10 +810,12 @@ public sealed class RemoteControlPlaneContractTests
         Assert.False(paths.TryGetProperty("/api/control-plane/v1/resources/{resourceId}/image", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/revisions", out _));
         Assert.True(paths.TryGetProperty("/api/container-apps/v1/{containerAppId}/replicas", out _));
+        Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-principals", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/revoke", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/evaluate", out _));
         Assert.True(schemas.TryGetProperty(nameof(ResourcePermissionGrantResponse), out _));
+        Assert.True(schemas.TryGetProperty(nameof(ResourcePrincipalResponse), out _));
         Assert.True(schemas.TryGetProperty(nameof(ResourcePrincipalReferenceResponse), out _));
         Assert.True(schemas.TryGetProperty(nameof(GrantResourcePermissionRequest), out _));
         Assert.True(schemas.TryGetProperty(nameof(RevokeResourcePermissionRequest), out _));
@@ -1182,6 +1230,9 @@ public sealed class RemoteControlPlaneContractTests
         });
 
         var controlPlane = builder.AddCloudShellControlPlane();
+        builder.Services.AddSingleton<ContractIdentityDirectoryProvider>();
+        builder.Services.AddSingleton<IResourceIdentityDirectoryProvider>(serviceProvider =>
+            serviceProvider.GetRequiredService<ContractIdentityDirectoryProvider>());
         builder.Services.AddSingleton<ContractIdentityProviderSetupHandler>();
         builder.Services.AddSingleton<IResourceIdentityProviderSetupHandler>(serviceProvider =>
             serviceProvider.GetRequiredService<ContractIdentityProviderSetupHandler>());
@@ -1338,6 +1389,58 @@ public sealed class RemoteControlPlaneContractTests
                         "Contract identity provider setup completed.",
                         ProviderId: request.Provider.Id)
                 ]));
+        }
+    }
+
+    private sealed class ContractIdentityDirectoryProvider : IResourceIdentityDirectoryProvider
+    {
+        public List<ResourceIdentityDirectoryRequest> Requests { get; } = [];
+
+        public string ProviderId => "identity:contract";
+
+        public bool CanQueryDirectory(ResourceIdentityProviderDefinition provider) =>
+            string.Equals(provider.Id, ProviderId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceIdentityDirectoryResult> QueryDirectoryAsync(
+            ResourceIdentityDirectoryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+            var principals = new[]
+            {
+                new ResourcePrincipal(
+                    new ResourcePrincipalReference(
+                        ResourcePrincipalKind.User,
+                        "platform-user",
+                        "Platform User",
+                        ProviderId),
+                    "Platform User",
+                    "Directory user",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["mail"] = "platform@example.local"
+                    }),
+                new ResourcePrincipal(
+                    new ResourcePrincipalReference(
+                        ResourcePrincipalKind.Group,
+                        "platform-operators",
+                        "Platform Operators",
+                        ProviderId),
+                    "Platform Operators",
+                    "Directory group")
+            };
+
+            return Task.FromResult(new ResourceIdentityDirectoryResult(
+                ProviderId,
+                principals
+                    .Where(principal =>
+                        request.Query.PrincipalKinds.Count == 0 ||
+                        request.Query.PrincipalKinds.Contains(principal.Reference.Kind))
+                    .Where(principal =>
+                        string.IsNullOrWhiteSpace(request.Query.SearchText) ||
+                        principal.DisplayName.Contains(request.Query.SearchText, StringComparison.OrdinalIgnoreCase) ||
+                        principal.Reference.Id.Contains(request.Query.SearchText, StringComparison.OrdinalIgnoreCase))
+                    .ToArray()));
         }
     }
 

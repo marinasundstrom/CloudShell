@@ -86,6 +86,11 @@ else
             }
             <dt>Lifetime</dt>
             <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
+            @if (TryFormatDeclarationPersistence(out var declarationPersistence))
+            {
+                <dt>Declaration</dt>
+                <dd>@declarationPersistence</dd>
+            }
             @if (EffectiveDependencies.Count > 0)
             {
                 <dt>Dependencies</dt>
@@ -472,6 +477,24 @@ else
             ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
             _ => "Detached"
         };
+
+    private bool TryFormatDeclarationPersistence(out string? persistence)
+    {
+        persistence = null;
+        if (ProjectedResource is null ||
+            !ProjectedResource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.DeclarationPersistence,
+                out var value) ||
+            !Enum.TryParse<ResourceDeclarationPersistence>(value, ignoreCase: true, out var parsed))
+        {
+            return false;
+        }
+
+        persistence = parsed == ResourceDeclarationPersistence.Persisted
+            ? "Persisted declaration"
+            : "Startup declaration";
+        return true;
+    }
 
     private static string GetConfigurationHeading(ApplicationResourceDefinition application) =>
         IsAspNetCoreProject(application)

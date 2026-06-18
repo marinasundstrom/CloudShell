@@ -9,6 +9,8 @@ public sealed class BuiltInResourceIdentityRegistry
 
     private readonly Dictionary<string, BuiltInAuthorityClientOptions> clients =
         new(StringComparer.Ordinal);
+    private readonly Dictionary<string, BuiltInResourceIdentityRegistration> registrations =
+        new(StringComparer.Ordinal);
     private readonly object gate = new();
 
     public void Register(
@@ -56,6 +58,10 @@ public sealed class BuiltInResourceIdentityRegistry
         lock (gate)
         {
             clients[clientId] = client;
+            registrations[clientId] = new BuiltInResourceIdentityRegistration(
+                entry.Identity,
+                provider.Id,
+                clientId);
         }
     }
 
@@ -71,6 +77,16 @@ public sealed class BuiltInResourceIdentityRegistry
 
     public bool Contains(ResourceIdentityReference identity) =>
         TryGetClient(CreateClientId(identity), out _);
+
+    public IReadOnlyList<BuiltInResourceIdentityRegistration> ListRegistrations()
+    {
+        lock (gate)
+        {
+            return registrations.Values
+                .OrderBy(registration => registration.ClientId, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+    }
 
     public static string CreateClientId(ResourceIdentityReference identity) =>
         string.IsNullOrWhiteSpace(identity.Name)
@@ -107,10 +123,16 @@ public sealed class BuiltInResourceIdentityRegistry
     }
 }
 
+public sealed record BuiltInResourceIdentityRegistration(
+    ResourceIdentityReference Identity,
+    string ProviderId,
+    string ClientId);
+
 public sealed class BuiltInResourceIdentityProvisioner(
     BuiltInResourceIdentityRegistry registry) :
     IResourceIdentityProvisioner,
-    IResourceIdentityProvisioningStatusProvider
+    IResourceIdentityProvisioningStatusProvider,
+    IResourceIdentityDirectoryProvider
 {
     public string ProviderId => "built-in";
 
@@ -118,6 +140,9 @@ public sealed class BuiltInResourceIdentityProvisioner(
         provider.Kind == ResourceIdentityProviderKind.BuiltIn;
 
     public bool CanGetProvisioningStatus(ResourceIdentityProviderDefinition provider) =>
+        provider.Kind == ResourceIdentityProviderKind.BuiltIn;
+
+    public bool CanQueryDirectory(ResourceIdentityProviderDefinition provider) =>
         provider.Kind == ResourceIdentityProviderKind.BuiltIn;
 
     public Task<ResourceIdentityProvisioningResult> ProvisionAsync(
@@ -168,4 +193,52 @@ public sealed class BuiltInResourceIdentityProvisioner(
                 })
                 .ToArray()));
     }
+
+    public Task<ResourceIdentityDirectoryResult> QueryDirectoryAsync(
+        ResourceIdentityDirectoryRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var principals = registry.ListRegistrations()
+            .Where(registration => string.Equals(
+                registration.ProviderId,
+                request.Provider.Id,
+                StringComparison.OrdinalIgnoreCase))
+            .Select(registration => new ResourcePrincipal(
+                registration.Identity.ToPrincipal(
+                    registration.Identity.ResourceId,
+                    registration.ProviderId),
+                registration.Identity.ResourceId,
+                "Built-in resource identity client.",
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["clientId"] = registration.ClientId,
+                    ["resourceId"] = registration.Identity.ResourceId
+                }))
+            .Where(principal =>
+                request.Query.PrincipalKinds.Count == 0 ||
+                request.Query.PrincipalKinds.Contains(principal.Reference.Kind))
+            .Where(principal =>
+                string.IsNullOrWhiteSpace(request.Query.SearchText) ||
+                Contains(principal.DisplayName, request.Query.SearchText) ||
+                Contains(principal.Reference.Id, request.Query.SearchText) ||
+                Contains(principal.Reference.SourceResourceId, request.Query.SearchText) ||
+                Contains(principal.Reference.SourceIdentityName, request.Query.SearchText) ||
+                principal.PrincipalAttributes.Any(attribute =>
+                    Contains(attribute.Key, request.Query.SearchText) ||
+                    Contains(attribute.Value, request.Query.SearchText)))
+            .ToArray();
+
+        return Task.FromResult(new ResourceIdentityDirectoryResult(
+            request.Provider.Id,
+            request.Query.Limit is > 0
+                ? principals.Take(request.Query.Limit.Value).ToArray()
+                : principals));
+    }
+
+    private static bool Contains(string? value, string search) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        value.Contains(search, StringComparison.OrdinalIgnoreCase);
 }

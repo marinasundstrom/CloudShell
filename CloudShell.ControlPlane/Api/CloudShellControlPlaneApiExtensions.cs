@@ -59,6 +59,10 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resources/capabilities", GetResourceOperationCapabilities)
             .WithName("CloudShellControlPlane_GetResourceOperationCapabilities");
 
+        api.MapGet("/resource-principals", ListResourcePrincipals)
+            .WithName("CloudShellControlPlane_ListResourcePrincipals")
+            .Produces<ResourcePrincipalResponse[]>(StatusCodes.Status200OK);
+
         api.MapGet("/resource-permission-grants", ListResourcePermissionGrants)
             .WithName("CloudShellControlPlane_ListResourcePermissionGrants")
             .Produces<ResourcePermissionGrantResponse[]>(StatusCodes.Status200OK);
@@ -358,6 +362,32 @@ public static class CloudShellControlPlaneApiExtensions
             cancellationToken);
 
         return Results.Ok(grants.Select(grant => grant.ToResponse()).ToArray());
+    }
+
+    private static async Task<IResult> ListResourcePrincipals(
+        string? searchText,
+        string? kinds,
+        string? providerId,
+        int? limit,
+        IResourceManager resourceManager,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var principals = await resourceManager.ListResourcePrincipalsAsync(
+                new ResourcePrincipalQuery(
+                    searchText,
+                    ParsePrincipalKinds(kinds),
+                    providerId,
+                    limit),
+                cancellationToken);
+
+            return Results.Ok(principals.Select(principal => principal.ToResponse()).ToArray());
+        }
+        catch (Exception exception) when (exception is ControlPlaneException or ArgumentException)
+        {
+            return ToProblem(exception);
+        }
     }
 
     private static async Task<IResult> GrantResourcePermission(
@@ -1235,6 +1265,28 @@ public static class CloudShellControlPlaneApiExtensions
         string name) =>
         NormalizeOptionalIds(values, name) ??
         throw new ControlPlaneException(ControlPlaneError.InvalidRequest($"{name} is required."));
+
+    private static IReadOnlySet<ResourcePrincipalKind>? ParsePrincipalKinds(string? kinds)
+    {
+        if (string.IsNullOrWhiteSpace(kinds))
+        {
+            return null;
+        }
+
+        var parsed = new HashSet<ResourcePrincipalKind>();
+        foreach (var kind in kinds.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!Enum.TryParse<ResourcePrincipalKind>(kind, ignoreCase: true, out var parsedKind))
+            {
+                throw new ControlPlaneException(ControlPlaneError.InvalidRequest(
+                    $"Unknown resource principal kind '{kind}'."));
+            }
+
+            parsed.Add(parsedKind);
+        }
+
+        return parsed.Count == 0 ? null : parsed;
+    }
 
     private static IReadOnlyList<string>? NormalizeOptionalIds(
         IReadOnlyList<string>? values,

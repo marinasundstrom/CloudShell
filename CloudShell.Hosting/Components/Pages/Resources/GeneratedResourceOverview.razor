@@ -1,4 +1,5 @@
 @using System.Globalization
+@using System.Diagnostics.CodeAnalysis
 @using CloudShell.Abstractions.ResourceManager
 @using CloudShell.Abstractions.ControlPlane
 @using Microsoft.AspNetCore.WebUtilities
@@ -127,6 +128,11 @@
         <dd>@Resource.Provider</dd>
         <dt>@L["Group"]</dt>
         <dd>@(ResourceGroup?.Name ?? L["Default group"])</dd>
+        @if (TryFormatDeclarationPersistence(Resource, out var declarationPersistence))
+        {
+            <dt>@L["Declaration"]</dt>
+            <dd>@declarationPersistence</dd>
+        }
         @if (!string.IsNullOrWhiteSpace(Resource.ParentResourceId))
         {
             <dt>@L["Parent"]</dt>
@@ -270,6 +276,25 @@
         return string.IsNullOrWhiteSpace(identity.Subject)
             ? L["{0} ({1})", name, identity.Kind].Value
             : L["{0} ({1})", name, identity.Subject].Value;
+    }
+
+    private bool TryFormatDeclarationPersistence(
+        Resource resource,
+        [NotNullWhen(true)] out string? persistence)
+    {
+        persistence = null;
+        if (!resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.DeclarationPersistence,
+                out var value) ||
+            !Enum.TryParse<ResourceDeclarationPersistence>(value, ignoreCase: true, out var parsed))
+        {
+            return false;
+        }
+
+        persistence = parsed == ResourceDeclarationPersistence.Persisted
+            ? L["Persisted declaration"].Value
+            : L["Startup declaration"].Value;
+        return true;
     }
 
     private string FormatExposureSummary()

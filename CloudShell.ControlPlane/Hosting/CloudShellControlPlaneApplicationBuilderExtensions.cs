@@ -71,6 +71,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             ServiceDescriptor.Singleton<IResourceIdentityProvisioner, BuiltInResourceIdentityProvisioner>());
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IResourceIdentityProvisioningStatusProvider, BuiltInResourceIdentityProvisioner>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IResourceIdentityDirectoryProvider, BuiltInResourceIdentityProvisioner>());
         builder.Services.TryAddSingleton(new PlatformResourceOptions());
         builder.Services.TryAddSingleton<IHostLocalNetworkEnvironment, HostLocalNetworkEnvironment>();
         builder.Services.TryAddSingleton<

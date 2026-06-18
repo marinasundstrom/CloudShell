@@ -553,6 +553,67 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ListResourcePrincipalsAsync_ReturnsResourceIdentitiesAndDirectoryPrincipals()
+    {
+        var directoryProvider = new TestResourceIdentityDirectoryProvider();
+        var controlPlane = CreateControlPlane(
+            [
+                CreateIdentityResource("caller", "caller-service"),
+                CreateResource("target", ResourceState.Running)
+            ],
+            identityProviders:
+            [
+                new ResourceIdentityProviderDefinition(
+                    "identity:dev",
+                    "Development Identity",
+                    ResourceIdentityProviderKind.BuiltIn)
+            ],
+            identityDirectoryProviders: [directoryProvider]);
+
+        var principals = await controlPlane.ListResourcePrincipalsAsync(
+            new ResourcePrincipalQuery(SearchText: "platform", Limit: 10));
+
+        var user = Assert.Single(principals, principal =>
+            principal.Reference.Kind == ResourcePrincipalKind.User);
+        Assert.Equal("identity:dev", user.Reference.ProviderId);
+        Assert.Equal("platform-user", user.Reference.Id);
+        Assert.Equal("Platform User", user.DisplayName);
+        Assert.Equal("identity:dev", directoryProvider.Requests.Single().Provider.Id);
+        Assert.Equal("platform", directoryProvider.Requests.Single().Query.SearchText);
+    }
+
+    [Fact]
+    public async Task ListResourcePrincipalsAsync_CanLimitToResourceIdentityPrincipals()
+    {
+        var directoryProvider = new TestResourceIdentityDirectoryProvider();
+        var controlPlane = CreateControlPlane(
+            [
+                CreateIdentityResource("caller", "caller-service"),
+                CreateIdentityResource("target", "target-service")
+            ],
+            identityProviders:
+            [
+                new ResourceIdentityProviderDefinition(
+                    "identity:dev",
+                    "Development Identity",
+                    ResourceIdentityProviderKind.BuiltIn)
+            ],
+            identityDirectoryProviders: [directoryProvider]);
+
+        var principals = await controlPlane.ListResourcePrincipalsAsync(
+            new ResourcePrincipalQuery(
+                Kinds: new HashSet<ResourcePrincipalKind>
+                {
+                    ResourcePrincipalKind.ResourceIdentity
+                }));
+
+        Assert.Equal(2, principals.Count);
+        Assert.All(principals, principal =>
+            Assert.Equal(ResourcePrincipalKind.ResourceIdentity, principal.Reference.Kind));
+        Assert.Empty(directoryProvider.Requests);
+    }
+
+    [Fact]
     public async Task GrantResourcePermissionAsync_RequiresIdentityBinding()
     {
         var controlPlane = CreateControlPlane(
@@ -1602,6 +1663,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         IReadOnlyList<ResourceIdentityProviderDefinition>? identityProviders = null,
         IReadOnlyList<IResourceIdentityProvisioner>? identityProvisioners = null,
         IReadOnlyList<IResourceIdentityProviderSetupHandler>? identityProviderSetupHandlers = null,
+        IReadOnlyList<IResourceIdentityDirectoryProvider>? identityDirectoryProviders = null,
         IReadOnlyList<IResourceOrchestrationDescriptorProvider>? descriptorProviders = null,
         IReadOnlyList<IContainerHostProvider>? containerHostProviders = null,
         IReadOnlyList<IResourceActionAvailabilityProvider>? actionAvailabilityProviders = null,
@@ -1665,7 +1727,9 @@ public sealed class InProcessControlPlaneResourceStateTests
             new EmptyMetricStore(),
             [],
             authorization ?? new AllowAllAuthorizationService(),
-            resourceEvents);
+            resourceEvents,
+            new ResourceIdentityProviderCatalog(identityProviders ?? []),
+            identityDirectoryProviders ?? []);
     }
 
     private static Resource CreateResource(
@@ -1697,6 +1761,58 @@ public sealed class InProcessControlPlaneResourceStateTests
         {
             Identity = new ResourceIdentityBinding("identity:dev", Name: identityName)
         };
+
+    private sealed class TestResourceIdentityDirectoryProvider : IResourceIdentityDirectoryProvider
+    {
+        public List<ResourceIdentityDirectoryRequest> Requests { get; } = [];
+
+        public string ProviderId => "identity:dev";
+
+        public bool CanQueryDirectory(ResourceIdentityProviderDefinition provider) =>
+            string.Equals(provider.Id, ProviderId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceIdentityDirectoryResult> QueryDirectoryAsync(
+            ResourceIdentityDirectoryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add(request);
+            var principals = new[]
+            {
+                new ResourcePrincipal(
+                    new ResourcePrincipalReference(
+                        ResourcePrincipalKind.User,
+                        "platform-user",
+                        "Platform User",
+                        ProviderId),
+                    "Platform User",
+                    "Directory user",
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["mail"] = "platform@example.local"
+                    }),
+                new ResourcePrincipal(
+                    new ResourcePrincipalReference(
+                        ResourcePrincipalKind.Group,
+                        "operators",
+                        "Operators",
+                        ProviderId),
+                    "Operators",
+                    "Directory group")
+            };
+
+            return Task.FromResult(new ResourceIdentityDirectoryResult(
+                ProviderId,
+                principals
+                    .Where(principal =>
+                        request.Query.PrincipalKinds.Count == 0 ||
+                        request.Query.PrincipalKinds.Contains(principal.Reference.Kind))
+                    .Where(principal =>
+                        string.IsNullOrWhiteSpace(request.Query.SearchText) ||
+                        principal.DisplayName.Contains(request.Query.SearchText, StringComparison.OrdinalIgnoreCase) ||
+                        principal.Reference.Id.Contains(request.Query.SearchText, StringComparison.OrdinalIgnoreCase))
+                    .ToArray()));
+        }
+    }
 
     private static Resource CreateStorageResource(string id) =>
         new(
