@@ -361,6 +361,9 @@ public sealed class SampleSmokeTests
         var frontendAttributes = frontend.GetProperty("attributes");
         var dnsZoneAttributes = dnsZone.GetProperty("attributes");
         var nameMappingAttributes = nameMapping.GetProperty("attributes");
+        var settingsIdentity = settings.GetProperty("identity");
+        var secretsIdentity = secrets.GetProperty("identity");
+        var apiIdentity = api.GetProperty("identity");
 
         Assert.Equal((int)ResourceState.Stopped, sqlServer.GetProperty("state").GetInt32());
         Assert.Equal((int)ResourceState.Stopped, api.GetProperty("state").GetInt32());
@@ -392,9 +395,13 @@ public sealed class SampleSmokeTests
 
         Assert.Equal("configuration.store", settings.GetProperty("typeId").GetString());
         Assert.Equal("secrets.vault", secrets.GetProperty("typeId").GetString());
+        Assert.Equal("identity:development", settingsIdentity.GetProperty("providerId").GetString());
+        Assert.Equal("identity:development", secretsIdentity.GetProperty("providerId").GetString());
 
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, api.GetProperty("typeId").GetString());
         Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", apiAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
+        Assert.Equal("identity:development", apiIdentity.GetProperty("providerId").GetString());
+        Assert.Equal("application-topology-api", apiIdentity.GetProperty("name").GetString());
         Assert.Contains(
             "application:application-topology-sql-server",
             api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
@@ -404,6 +411,44 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             "secrets-vault:application-topology",
             api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
+
+        var grantsJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resource-permission-grants?identityResourceId=application%3Aapplication-topology-api&identityName=application-topology-api");
+        using var grantsDocument = JsonDocument.Parse(grantsJson);
+        var grants = grantsDocument.RootElement.EnumerateArray().ToArray();
+        Assert.Contains(
+            grants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "secrets-vault:application-topology" &&
+                grant.GetProperty("permission").GetString() == SecretsVaultResourceOperationPermissions.ReadSecrets);
+        Assert.Contains(
+            grants,
+            grant =>
+                grant.GetProperty("targetResourceId").GetString() == "configuration:application-topology" &&
+                grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
+
+        var provisioning = await host.GetStringAsync(
+            "/api/control-plane/v1/resources/application%3Aapplication-topology-api/identity/provisioning-status");
+        using var provisioningDocument = JsonDocument.Parse(provisioning);
+        Assert.Equal(
+            "identity:development",
+            provisioningDocument.RootElement.GetProperty("providerId").GetString());
+        var provisioningStatus = Assert.Single(provisioningDocument.RootElement.GetProperty("statuses").EnumerateArray());
+        var state = provisioningStatus.GetProperty("state");
+        if (state.ValueKind == JsonValueKind.String)
+        {
+            Assert.Equal("provisioned", state.GetString()?.ToLowerInvariant());
+        }
+        else
+        {
+            Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, state.GetInt32());
+        }
+
+        var resourceToken = await host.GetClientCredentialsTokenAsync(
+            "application:application-topology-api/application-topology-api",
+            "local-development-application-topology-api-secret",
+            "ControlPlane.Access");
+        Assert.NotEmpty(resourceToken);
 
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, frontend.GetProperty("typeId").GetString());
         Assert.Equal($"http://localhost:{frontendPort}", GetEndpointAddress(frontend, "http"));
@@ -443,6 +488,10 @@ public sealed class SampleSmokeTests
         Assert.Contains("targetResourceId=application%3Aapplication-topology-api", apiEndpointsHtml);
         Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
         Assert.Contains("returnUrl=%2Fresources%2Fapplication%253Aapplication-topology-api%2Fdetails%3Ftab%3Dnetworking%253Aendpoints", apiEndpointsHtml);
+
+        var apiDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details");
+        Assert.Contains(">Identity<", apiDetailsHtml);
 
         var sqlEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");

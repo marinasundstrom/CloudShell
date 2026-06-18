@@ -7,7 +7,8 @@ the full local development scenario.
 
 The host currently declares:
 
-- `Application Topology API` with an auto-assigned HTTP endpoint
+- `Application Topology API` with an auto-assigned HTTP endpoint and a
+  development resource identity
 - `Application Topology Frontend` on `http://localhost:5218`
 - `Application Topology Local Storage`, backed by `./Data/storage`
 - `Application Topology SQL Data`, a volume under the local storage resource
@@ -47,6 +48,9 @@ the sample exercises frontend-to-API and API-to-SQL dependencies.
 The backend API also receives Configuration Store and Secrets Vault references
 as environment variables. `/settings` returns the configured message, mode,
 and whether the secret value was injected without returning the secret itself.
+The sample provisions the backend API's built-in development resource identity
+on startup and grants that identity read access to the Configuration Store and
+Secrets Vault resources.
 
 ## Run
 
@@ -154,8 +158,6 @@ Planned capabilities to add here:
 
 - Identity-backed SQL Server authentication, so the API can use its CloudShell
   resource identity to access the database in an Azure-like flow.
-- Resource identity and scoped grants for protected configuration and secret
-  access when enforcement is enabled.
 - Structured logs from both projects, including fields that correlate to
   traces and resources.
 - OpenTelemetry traces across frontend, backend, and downstream service calls,

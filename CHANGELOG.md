@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Volume resources now project storage runtime status for direct local paths
   and storage-owned subpaths so Resource Manager can warn about missing paths
   or invalid subpaths before a consuming resource is started.
+- Application Topology now includes a built-in development resource identity
+  for the backend API, startup identity provisioning, and scoped grants for
+  Configuration Store and Secrets Vault read access.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

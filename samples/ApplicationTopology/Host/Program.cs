@@ -1,5 +1,7 @@
 using CloudShell.Abstractions.Hosting;
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.Hosting;
 using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Hosting;
@@ -10,6 +12,7 @@ using CloudShell.Providers.Applications;
 using CloudShell.Providers.Configuration;
 using CloudShell.Providers.Docker;
 using CloudShell.ApplicationTopology;
+using System.Security.Cryptography;
 
 var builder = CloudShellApplication.CreateBuilder(args);
 var repositoryRootPath = Path.GetFullPath("../../..", builder.Environment.ContentRootPath);
@@ -23,6 +26,13 @@ var secretsVaultServiceProjectPath = Path.Combine(
     "CloudShell.SecretsVaultService.csproj");
 
 var cloudShellEndpoint = ResolveCloudShellEndpoint(builder.Configuration);
+var identityIssuer = builder.Configuration["Authentication:BuiltInAuthority:Issuer"] ??
+    "http://localhost";
+var identityAudience = builder.Configuration["Authentication:BuiltInAuthority:Audience"] ??
+    "cloudshell-control-plane";
+var identitySigningKeyPem = builder.Configuration["Authentication:BuiltInAuthority:SigningKeyPem"] ??
+    CreateDevelopmentSigningKeyPem();
+var identityTokenEndpoint = $"{cloudShellEndpoint}/api/auth/v1/token";
 var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"]
     ?? cloudShellEndpoint;
 var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];
@@ -33,6 +43,13 @@ var frontendEndpoint = builder.Configuration["ApplicationTopology:FrontendEndpoi
 var sqlPassword = builder.Configuration["ApplicationTopology:SqlServer:Password"]
     ?? SqlServerResourceBuilderExtensions.DefaultPassword;
 var sqlPort = builder.Configuration.GetValue("ApplicationTopology:SqlServer:Port", 14334);
+builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Authentication:BuiltInAuthority:Enabled"] = "true",
+    ["Authentication:BuiltInAuthority:Issuer"] = identityIssuer,
+    ["Authentication:BuiltInAuthority:Audience"] = identityAudience,
+    ["Authentication:BuiltInAuthority:SigningKeyPem"] = identitySigningKeyPem
+});
 
 var cloudShell = builder.AddCloudShellControlPlane();
 builder.AddCloudShell();
@@ -44,6 +61,7 @@ cloudShell
     {
         options.OtlpEndpoint = otlpEndpoint;
         options.OtlpProtocol = otlpProtocol;
+        options.ResourceIdentityTokenEndpoint = identityTokenEndpoint;
     })
     .AddConfigurationProvider(options =>
     {
@@ -51,6 +69,9 @@ cloudShell
         options.ServiceWorkingDirectory = repositoryRootPath;
         options.ServiceBasePort = builder.Configuration.GetValue<int?>(
             "ApplicationTopology:ConfigurationServiceBasePort") ?? options.ServiceBasePort;
+        options.ServiceAuthenticationIssuer = identityIssuer;
+        options.ServiceAuthenticationAudience = identityAudience;
+        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
     })
     .AddSecretsProvider(options =>
     {
@@ -58,12 +79,25 @@ cloudShell
         options.SecretsServiceWorkingDirectory = repositoryRootPath;
         options.SecretsServiceBasePort = builder.Configuration.GetValue<int?>(
             "ApplicationTopology:SecretsServiceBasePort") ?? options.SecretsServiceBasePort;
+        options.ServiceAuthenticationIssuer = identityIssuer;
+        options.ServiceAuthenticationAudience = identityAudience;
+        options.ServiceAuthenticationSigningKeyPem = identitySigningKeyPem;
     })
     .UseLocalDevelopmentDefaults();
 
 cloudShell.Resources(resources =>
 {
     const string groupId = "group:application-topology";
+    var identityProvider = resources.AddIdentityProvider(
+        "identity:development",
+        "Development identity",
+        ResourceIdentityProviderKind.BuiltIn,
+        new Dictionary<string, string>
+        {
+            [BuiltInResourceIdentityRegistry.ClientSecretSettingName] =
+                "local-development-application-topology-api-secret"
+        },
+        useAsDefault: true);
 
     resources.AddResourceGroup(
         groupId,
@@ -95,6 +129,7 @@ cloudShell.Resources(resources =>
     var settings = resources
         .AddConfigurationStore("application-topology")
         .WithDisplayName("Settings")
+        .WithIdentity(identityProvider)
         .WithResourceGroup(groupId)
         .WithEntries(
         [
@@ -105,12 +140,14 @@ cloudShell.Resources(resources =>
     var secrets = resources
         .AddSecretsVault("application-topology")
         .WithDisplayName("Secrets")
+        .WithIdentity(identityProvider)
         .WithResourceGroup(groupId)
         .WithSecret("external-api-key", "local-development-api-key");
 
     var api = resources.AddAspNetCoreProject(
         "application-topology-api",
         "../Api/CloudShell.ApplicationTopologyApi.csproj")
+        .WithIdentity(identityProvider, name: "application-topology-api")
         .WithHttpHealthCheck("/health")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
@@ -125,7 +162,11 @@ cloudShell.Resources(resources =>
         .WithReference(sqlServer)
         .DependsOn(sqlServer)
         .WithResourceGroup(groupId)
-        .WithAutoStart(false);
+        .WithAutoStart(false)
+        .ProvisionIdentityOnStartup();
+
+    secrets.Allow(api.Identity, SecretsVaultResourceOperationPermissions.ReadSecrets);
+    settings.Allow(api.Identity, ConfigurationStoreResourceOperationPermissions.ReadEntries);
 
     var frontend = resources
         .AddAspNetCoreProject(
@@ -183,6 +224,12 @@ static string ResolveCloudShellEndpoint(IConfiguration configuration)
     }
 
     return "http://localhost:5104";
+}
+
+static string CreateDevelopmentSigningKeyPem()
+{
+    using var rsa = RSA.Create(2048);
+    return rsa.ExportRSAPrivateKeyPem();
 }
 
 static string? FirstHttpEndpoint(string? value)
