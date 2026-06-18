@@ -46,6 +46,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager now defines a standard `management:monitoring` predefined
   resource view ID and icon metadata so providers can contribute resource
   Monitoring tabs under Management.
+- Configuration Store and Secrets Vault resource detail menus now use the
+  generated General Configuration tab instead of duplicate Settings tabs, and
+  place Entries and Secrets under General with distinct icon metadata.
 
 #### Fixed
 
@@ -55,6 +58,8 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Documentation
 
+- System design guidelines now link to the Fluent regular icon catalog for
+  shell and Resource Manager icon selection.
 - Roadmap and logging-infrastructure planning now call out resource-scoped
   inline Events under Resource Manager Management, plus Logs and Traces under
   a resource-detail Telemetry menu group, while distinguishing application

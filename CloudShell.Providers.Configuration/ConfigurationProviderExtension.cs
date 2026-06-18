@@ -35,11 +35,11 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
             .AddResourceProvider<ConfigurationResourceProvider>()
             .AddResourceProvider<HostConfigurationSourceProvider>()
             .AddLogProvider<ConfigurationResourceProvider>()
-            .AddResourceType<Pages.RegisterConfigurationStore>(
+            .AddResourceType<Pages.RegisterConfigurationStore, Pages.UpdateConfigurationStore>(
                 "configuration.store",
                 "Configuration Store",
                 "Create a local Configuration Store for setting references that dependent resources can consume.",
-                "key",
+                "configuration-store",
                 15,
                 probeOptions: new ResourceTypeProbeOptions(
                     [
@@ -55,20 +55,14 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                 "Overview",
                 10,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<Pages.UpdateConfigurationStore>(
-                "configuration.store",
-                new ResourceViewId(ResourceTabGroupIds.General, "settings"),
-                "Settings",
-                20,
-                showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.ConfigurationStoreEntries>(
                 "configuration.store",
-                new ResourceViewId(ResourceTabGroupIds.Entries, "entries"),
+                new ResourceViewId(ResourceTabGroupIds.General, "entries"),
                 "Entries",
                 30,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Entries);
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "entries");
     }
 }
 
@@ -108,19 +102,13 @@ public sealed class SecretsProviderExtension : ICloudShellExtension
                 "Overview",
                 10,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceTab<Pages.UpdateSecretsVault>(
-                SecretsVaultProvider.ResourceType,
-                new ResourceViewId(ResourceTabGroupIds.General, "settings"),
-                "Settings",
-                20,
-                showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.General)
             .AddResourceTab<Pages.SecretsVaultSecrets>(
                 SecretsVaultProvider.ResourceType,
-                new ResourceViewId(ResourceTabGroupIds.Secrets, "secrets"),
+                new ResourceViewId(ResourceTabGroupIds.General, "secrets"),
                 "Secrets",
                 30,
                 showsApplyButton: true,
-                groupTitle: ResourceTabGroupTitles.Secrets);
+                groupTitle: ResourceTabGroupTitles.General,
+                icon: "secrets");
     }
 }

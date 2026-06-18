@@ -29,7 +29,8 @@ internal static class ResourceViewIcons
             "traces" or "trace" => new Icons.Regular.Size20.GanttChart(),
             "runtime" or "deployment" or "replicas" or "containers" => new Icons.Regular.Size20.CubeTree(),
             "scaling" or "scale" => new Icons.Regular.Size20.ChartMultiple(),
-            "entries" or "secrets" => new Icons.Regular.Size20.KeyMultiple(),
+            "entries" => new Icons.Regular.Size20.DocumentBulletList(),
+            "secrets" => new Icons.Regular.Size20.KeyMultiple(),
             _ => ResourceTypeIcons.FromName(normalized)
         };
     }

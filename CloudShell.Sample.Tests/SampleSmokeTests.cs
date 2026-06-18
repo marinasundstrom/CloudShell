@@ -472,6 +472,28 @@ public sealed class SampleSmokeTests
             ">Identity<",
             ">Activity<");
 
+        var settingsDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("configuration:sample-app")}/details");
+        AssertResourceTabsInOrder(
+            settingsDetailsHtml,
+            ">Overview<",
+            ">Configuration<",
+            ">Entries<",
+            ">Endpoints<");
+        Assert.DoesNotContain(">Settings<", settingsDetailsHtml);
+        Assert.DoesNotContain("aria-label=\"Entries\"", settingsDetailsHtml);
+
+        var secretsDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("secrets-vault:sample-app")}/details");
+        AssertResourceTabsInOrder(
+            secretsDetailsHtml,
+            ">Overview<",
+            ">Configuration<",
+            ">Secrets<",
+            ">Endpoints<");
+        Assert.DoesNotContain(">Settings<", secretsDetailsHtml);
+        Assert.DoesNotContain("aria-label=\"Secrets\"", secretsDetailsHtml);
+
         await host.SendAsync(
             HttpMethod.Post,
             "/api/control-plane/v1/resources/application%3Asettings-secrets-api/actions/start?startDependencies=true");

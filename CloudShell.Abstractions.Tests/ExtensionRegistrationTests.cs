@@ -3,6 +3,7 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
+using CloudShell.Providers.Configuration;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -172,6 +173,60 @@ public sealed class ExtensionRegistrationTests
         Assert.Equal("Monitoring", tab.Title);
         Assert.Equal(ResourceTabGroupIds.Management, tab.GroupId);
         Assert.Equal("monitoring", tab.Icon);
+    }
+
+    [Fact]
+    public void ConfigurationProviderExtension_RegistersEntriesUnderGeneralWithoutSettingsTab()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<ConfigurationProviderExtension>();
+
+        var registry = GetRegistry(services);
+        var extension = Assert.Single(registry.Extensions);
+        var resourceType = Assert.Single(extension.ResourceTypes);
+
+        Assert.Equal("configuration.store", resourceType.Id);
+        Assert.Equal("configuration-store", resourceType.Icon);
+        Assert.Equal(
+            typeof(CloudShell.Providers.Configuration.Pages.UpdateConfigurationStore),
+            resourceType.UpdateComponentType);
+        Assert.DoesNotContain(
+            resourceType.ResourceTabs,
+            tab => string.Equals(tab.Title, "Settings", StringComparison.OrdinalIgnoreCase));
+
+        var entries = Assert.Single(resourceType.ResourceTabs, tab => tab.Title == "Entries");
+        Assert.Equal(new ResourceViewId(ResourceTabGroupIds.General, "entries"), entries.Id);
+        Assert.Equal(ResourceTabGroupTitles.General, entries.GroupTitle);
+        Assert.Equal("entries", entries.Icon);
+        Assert.True(entries.ShowsApplyButton);
+    }
+
+    [Fact]
+    public void SecretsProviderExtension_RegistersSecretsUnderGeneralWithoutSettingsTab()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<SecretsProviderExtension>();
+
+        var registry = GetRegistry(services);
+        var extension = Assert.Single(registry.Extensions);
+        var resourceType = Assert.Single(extension.ResourceTypes);
+
+        Assert.Equal(SecretsVaultProvider.ResourceType, resourceType.Id);
+        Assert.DoesNotContain(
+            resourceType.ResourceTabs,
+            tab => string.Equals(tab.Title, "Settings", StringComparison.OrdinalIgnoreCase));
+
+        var secrets = Assert.Single(resourceType.ResourceTabs, tab => tab.Title == "Secrets");
+        Assert.Equal(new ResourceViewId(ResourceTabGroupIds.General, "secrets"), secrets.Id);
+        Assert.Equal(ResourceTabGroupTitles.General, secrets.GroupTitle);
+        Assert.Equal("secrets", secrets.Icon);
+        Assert.True(secrets.ShowsApplyButton);
     }
 
     [Fact]
