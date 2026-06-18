@@ -59,6 +59,12 @@ on `git blame --follow`, and then by the broad type of change.
   container CPU/memory metrics, and a dedicated proposal tracker.
 - Docker resource monitoring snapshots now include network I/O, block I/O,
   process count, restart count, and uptime metrics when Docker reports them.
+- Application resources now provide basic process resource monitoring for
+  executable and ASP.NET Core project resources, including CPU, memory, thread
+  count, process count, and uptime snapshots while the local process is
+  running.
+- The generated Resource Manager Monitoring tab now preserves provider metric
+  order so primary usage metrics can appear before supporting counters.
 - Configuration Store and Secrets Vault resource detail menus now use the
   generated General Configuration tab instead of duplicate Settings tabs, and
   place Entries and Secrets under General with distinct icon metadata.

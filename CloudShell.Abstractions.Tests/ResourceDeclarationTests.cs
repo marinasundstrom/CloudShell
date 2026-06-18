@@ -3,6 +3,7 @@ using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Extensions;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
 using CloudShell.ControlPlane.ResourceManager;
@@ -1794,6 +1795,43 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task LocalProcessRunner_ReturnsMonitoringSnapshotForRunningProcess()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(contentRoot);
+        var options = new LocalProcessOptions
+        {
+            RuntimeStatePath = "application-runtime-state.json",
+            LogDirectory = "application-logs"
+        };
+        var environment = new TestHostEnvironment(contentRoot);
+        var runtimeStates = new ApplicationRuntimeStateStore(options, environment);
+        var definition = CreateLongRunningProcessDefinition();
+
+        try
+        {
+            using var runner = new LocalProcessRunner(runtimeStates, options, environment);
+            await runner.StartAsync(definition);
+
+            var snapshot = await runner.GetMonitoringSnapshotAsync(definition);
+
+            Assert.NotNull(snapshot);
+            Assert.True(snapshot.ProcessId > 0);
+            Assert.True(snapshot.WorkingSetBytes > 0);
+            Assert.True(snapshot.PrivateMemoryBytes >= 0);
+            Assert.True(snapshot.ThreadCount > 0);
+            Assert.True(snapshot.TotalProcessorTime >= TimeSpan.Zero);
+        }
+        finally
+        {
+            if (Directory.Exists(contentRoot))
+            {
+                Directory.Delete(contentRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task LocalProcessRunner_DisposeStopsControlPlaneScopedProcessTree()
     {
         if (OperatingSystem.IsWindows())
@@ -2008,6 +2046,77 @@ public sealed class ResourceDeclarationTests
         Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:worker")?.Lifetime);
         Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:api")?.Lifetime);
         Assert.Equal(ApplicationLifetime.ControlPlaneScoped, provider.GetApplication("application:redis")?.Lifetime);
+    }
+
+    [Fact]
+    public void ApplicationProvider_RegistersResourceMonitoringProvider()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.Contains(
+            serviceProvider.GetRequiredService<IEnumerable<IResourceMonitoringProvider>>(),
+            provider => provider is ApplicationResourceProvider);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_MonitorsStoppedProcessResourcesAsUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddExecutableApplication(
+                    "application:worker",
+                    executablePath: "dotnet");
+                resources.AddAspNetCoreProject(
+                    "application:api",
+                    "src/API/API.csproj");
+                resources.AddContainer(
+                    "redis",
+                    "redis:7.2");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var resources = provider.GetResources();
+        var worker = Assert.Single(resources, resource => resource.Id == "application:worker");
+        var api = Assert.Single(resources, resource => resource.Id == "application:api");
+        var redis = Assert.Single(resources, resource => resource.Id == "application:redis");
+
+        Assert.True(provider.CanMonitor(worker));
+        Assert.True(provider.CanMonitor(api));
+        Assert.False(provider.CanMonitor(redis));
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(worker);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(worker.Id, snapshot.ResourceId);
+        Assert.Equal("Applications", snapshot.Provider);
+        Assert.Equal("Unavailable", snapshot.Status);
+        Assert.Empty(snapshot.Metrics);
     }
 
     [Fact]

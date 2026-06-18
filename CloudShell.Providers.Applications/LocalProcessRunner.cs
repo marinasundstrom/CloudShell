@@ -24,6 +24,51 @@ public sealed partial class LocalProcessRunner(
     public bool IsRunning(LocalProcessDefinition? definition) =>
         TryGetRunningProcess(definition, out _);
 
+    public async Task<LocalProcessMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        LocalProcessDefinition? definition,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetRunningProcess(definition, out var process))
+        {
+            return null;
+        }
+
+        try
+        {
+            var firstTimestamp = DateTimeOffset.UtcNow;
+            var firstProcessorTime = process.TotalProcessorTime;
+            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+
+            process.Refresh();
+            if (process.HasExited)
+            {
+                return null;
+            }
+
+            var timestamp = DateTimeOffset.UtcNow;
+            var processorTime = process.TotalProcessorTime;
+            var elapsed = timestamp - firstTimestamp;
+            var cpuPercent = elapsed.TotalMilliseconds > 0
+                ? (processorTime - firstProcessorTime).TotalMilliseconds /
+                    (elapsed.TotalMilliseconds * Environment.ProcessorCount) * 100
+                : 0;
+
+            return new LocalProcessMonitoringSnapshot(
+                process.Id,
+                TryGetStartTime(process),
+                timestamp,
+                Math.Max(0, cpuPercent),
+                processorTime,
+                process.WorkingSet64,
+                process.PrivateMemorySize64,
+                process.Threads.Count);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
     public async Task StartAsync(
         LocalProcessDefinition definition,
         CancellationToken cancellationToken = default)
@@ -424,3 +469,13 @@ public sealed partial class LocalProcessRunner(
         LocalProcessLifetime Lifetime,
         string LogPath);
 }
+
+public sealed record LocalProcessMonitoringSnapshot(
+    int ProcessId,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset Timestamp,
+    double CpuUsagePercent,
+    TimeSpan TotalProcessorTime,
+    long WorkingSetBytes,
+    long PrivateMemoryBytes,
+    int ThreadCount);

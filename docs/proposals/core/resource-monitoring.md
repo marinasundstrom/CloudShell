@@ -104,6 +104,8 @@ The first implementation slice adds:
 - generated Resource Manager Monitoring tab
 - Docker container CPU, memory, network I/O, block I/O, process count,
   restart count, and uptime snapshots
+- application process CPU, CPU time, memory, thread count, process count, and
+  uptime snapshots for executable and ASP.NET Core project resources
 
 Docker-backed container resources report current CPU usage, memory usage,
 memory limit, memory usage percentage, network bytes received/sent, block
@@ -111,6 +113,13 @@ bytes read/written, process count, restart count, and container uptime from
 Docker stats and inspection data when the container is running. Stopped
 containers can still expose the Monitoring tab, but the snapshot reports that
 live Docker metrics are unavailable until the container is running.
+
+Executable application and ASP.NET Core project resources report process CPU
+usage, total CPU time, working-set memory, private memory, thread count,
+process count, and uptime when the local application process is running.
+Container-backed application resources remain excluded from the generated
+process snapshot path because container app monitoring needs an app-level
+summary and per-replica/container breakdown.
 
 ## Remaining Work
 

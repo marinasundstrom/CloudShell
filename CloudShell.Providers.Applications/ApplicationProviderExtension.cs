@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -30,6 +31,8 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
         builder.Services.TryAddSingleton<IResourceVolumeMountMaterializationStore>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationRuntimeStateStore>());
         builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
+        builder.Services.AddSingleton<IResourceMonitoringProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());
         builder.Services.AddSingleton<IResourceActionAvailabilityProvider>(
             serviceProvider => serviceProvider.GetRequiredService<ApplicationResourceProvider>());

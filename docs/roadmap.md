@@ -172,14 +172,15 @@ listed here before pulling in broader proposal work.
    resource monitoring slice adds provider-backed current snapshots, Control
    Plane API/client support, a generated resource Monitoring tab, and Docker
    container CPU/memory, network I/O, block I/O, process count, restart count,
-   and uptime metrics. Add a provider-owned container app Monitoring dashboard
-   under Management that summarizes app-level resource usage and breaks down
-   metrics by projected runtime replica/container for replicated apps. Durable
-   resource-metric history, charts, and additional provider implementations
-   remain separate work. Keep the near-term focus on provider monitoring
-   abstractions and implementations; live telemetry and monitoring
-   subscriptions for split-hosted UIs are a later Control Plane API design
-   question. Keep
+   and uptime metrics, plus application process CPU/memory/thread/uptime
+   metrics for executable and ASP.NET Core project resources. Add a
+   provider-owned container app Monitoring dashboard under Management that
+   summarizes app-level resource usage and breaks down metrics by projected
+   runtime replica/container for replicated apps. Durable resource-metric
+   history, charts, and additional provider implementations remain separate
+   work. Keep the near-term focus on provider monitoring abstractions and
+   implementations; live telemetry and monitoring subscriptions for
+   split-hosted UIs are a later Control Plane API design question. Keep
    shared Telemetry pages for cross-resource investigation
    instead of forcing normal per-resource work through global views. Do not
    start broad new shell areas before the supported samples are stable.
@@ -412,7 +413,9 @@ listed here before pulling in broader proposal work.
   the generated Monitoring tab appears when a provider can return a current
   resource monitoring snapshot for the resource. Docker containers now provide
   CPU, memory, network I/O, block I/O, process count, restart count, and
-  uptime snapshots through that path. The generated tab is not enough for
+  uptime snapshots through that path. Executable and ASP.NET Core project
+  resources now provide basic application process CPU, memory, thread count,
+  process count, and uptime snapshots. The generated tab is not enough for
   replicated container apps; those need a provider-owned Monitoring dashboard
   that keeps users on the container app resource while summarizing app usage
   and showing each projected replica/container separately. Split-hosted live
@@ -536,12 +539,12 @@ listed here before pulling in broader proposal work.
   `management:monitoring` for process/container resource metrics tabs.
   CloudShell now retains application/runtime telemetry metric points in memory
   for the MVP and can query provider-backed current resource monitoring
-  snapshots for Docker containers. Container app resource monitoring should be
-  a custom Management > Monitoring dashboard that aggregates app-level usage
-  and breaks metrics down by runtime replica/container. Control Plane API
-  streaming for live telemetry/monitoring remains a later design question
-  after basic provider monitoring support is established; durable retention
-  and aggregation remain future work.
+  snapshots for Docker containers and local application processes. Container
+  app resource monitoring should be a custom Management > Monitoring dashboard
+  that aggregates app-level usage and breaks metrics down by runtime
+  replica/container. Control Plane API streaming for live telemetry/monitoring
+  remains a later design question after basic provider monitoring support is
+  established; durable retention and aggregation remain future work.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.

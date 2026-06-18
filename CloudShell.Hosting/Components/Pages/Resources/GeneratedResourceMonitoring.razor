@@ -42,7 +42,7 @@
             </dl>
 
             <div class="metric-summary-grid" aria-label="@L["Resource metrics"]">
-                @foreach (var metric in Snapshot.Metrics.OrderBy(metric => metric.Name, StringComparer.OrdinalIgnoreCase))
+                @foreach (var metric in Snapshot.Metrics)
                 {
                     <div class="metric-summary-card">
                         <span>@(metric.DisplayName ?? metric.Name)</span>

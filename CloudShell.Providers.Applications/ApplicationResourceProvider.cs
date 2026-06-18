@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Client.Authentication;
 using System.Collections.Concurrent;
@@ -34,6 +35,7 @@ public sealed partial class ApplicationResourceProvider(
     IResourceEventSink? resourceEvents = null) :
     IResourceProvider,
     ILogProvider,
+    IResourceMonitoringProvider,
     IResourceProcedureProvider,
     IResourceImageUpdateProvider,
     IResourceReplicaUpdateProvider,
@@ -146,6 +148,67 @@ public sealed partial class ApplicationResourceProvider(
                 SupportsStreaming: true,
                 Description: "Container app or process stdout and stderr.")
         ];
+    }
+
+    public bool CanMonitor(Resource resource)
+    {
+        if (!ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId))
+        {
+            return false;
+        }
+
+        var application = store.GetApplication(resource.Id);
+        return application is not null && !IsContainerBacked(ResolveDefinition(application));
+    }
+
+    public async Task<ResourceMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanMonitor(resource))
+        {
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.UtcNow;
+        var application = GetApplication(resource.Id);
+        if (application is null)
+        {
+            return null;
+        }
+
+        if (resource.State != ResourceState.Running)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Application process metrics are available only while the resource is running.");
+        }
+
+        var processSnapshot = await localProcesses.GetMonitoringSnapshotAsync(
+            CreateLocalProcessDefinition(application),
+            cancellationToken);
+        if (processSnapshot is null)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "The application process could not be observed.");
+        }
+
+        return new ResourceMonitoringSnapshot(
+            resource.Id,
+            DisplayName,
+            processSnapshot.Timestamp,
+            CreateProcessMetricSamples(processSnapshot),
+            "Available",
+            "Application process metrics.");
     }
 
     public async Task SetupApplicationAsync(
@@ -4839,6 +4902,73 @@ public sealed partial class ApplicationResourceProvider(
         return string.IsNullOrWhiteSpace(executableDirectory)
             ? Environment.CurrentDirectory
             : executableDirectory;
+    }
+
+    private static IReadOnlyList<ResourceMetricSample> CreateProcessMetricSamples(
+        LocalProcessMonitoringSnapshot snapshot)
+    {
+        var samples = new List<ResourceMetricSample>
+        {
+            new(
+                "resource.cpu.usage",
+                snapshot.CpuUsagePercent,
+                "%",
+                snapshot.Timestamp,
+                "CPU usage",
+                "Current process CPU usage sampled by the application provider."),
+            new(
+                "resource.cpu.total",
+                snapshot.TotalProcessorTime.TotalSeconds,
+                "seconds",
+                snapshot.Timestamp,
+                "CPU time",
+                "Total processor time consumed by the application process."),
+            new(
+                "resource.memory.workingSet",
+                snapshot.WorkingSetBytes,
+                "bytes",
+                snapshot.Timestamp,
+                "Working set",
+                "Current working set memory used by the application process."),
+            new(
+                "resource.memory.private",
+                snapshot.PrivateMemoryBytes,
+                "bytes",
+                snapshot.Timestamp,
+                "Private memory",
+                "Current private memory used by the application process."),
+            new(
+                "resource.process.threads",
+                snapshot.ThreadCount,
+                "count",
+                snapshot.Timestamp,
+                "Thread count",
+                "Current thread count reported for the application process."),
+            new(
+                "resource.process.count",
+                1,
+                "count",
+                snapshot.Timestamp,
+                "Process count",
+                "Current process count for this application resource.",
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["process.id"] = snapshot.ProcessId.ToString(CultureInfo.InvariantCulture)
+                })
+        };
+
+        if (snapshot.StartedAt is { } startedAt)
+        {
+            samples.Add(new ResourceMetricSample(
+                "resource.process.uptime",
+                Math.Max(0, (snapshot.Timestamp - startedAt).TotalSeconds),
+                "seconds",
+                snapshot.Timestamp,
+                "Process uptime",
+                "Seconds since the application process started."));
+        }
+
+        return samples;
     }
 
     private static string? NormalizeNullable(string? value) =>
