@@ -12,6 +12,7 @@
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject ResourceManagerDisplaySettings DisplaySettings
 @inject IStringLocalizer<SharedResource> L
+@inject IServiceProvider Services
 @implements IDisposable
 
 <PageTitle>@L["Resource details"]</PageTitle>
@@ -24,7 +25,13 @@
         ? null
         : ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
-    var tabs = BuildTabs(resource, resourceType, HasIdentityPermissionGrants, ResourceLogs.Count > 0, HasResourceMonitoring);
+    var hasDefaultIdentityProvider = HasDefaultIdentityProvider();
+    var tabs = BuildTabs(
+        resource,
+        resourceType,
+        ResourceLogs.Count > 0,
+        HasResourceMonitoring,
+        hasDefaultIdentityProvider);
     var selectedTab = GetSelectedTab(tabs);
     var selectedTabIssue = GetSelectedTabIssue(tabs);
     var isGeneratedOverview = selectedTabIssue is null &&
@@ -272,7 +279,6 @@
     private ResourceGroup? ResourceGroup { get; set; }
     private ResourceHealthSummary? HealthSummary { get; set; }
     private IReadOnlyList<LogDescriptor> ResourceLogs { get; set; } = [];
-    private bool HasIdentityPermissionGrants { get; set; }
     private bool HasResourceMonitoring { get; set; }
     private ResourceOperationCapabilities OperationCapabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
@@ -342,7 +348,6 @@
         ResourceLogs = [];
         HealthSummary = null;
         IsCheckingHealth = false;
-        HasIdentityPermissionGrants = false;
         HasResourceMonitoring = false;
         OperationCapabilities = ResourceOperationCapabilities.None(string.Empty);
         if (!string.IsNullOrWhiteSpace(ResourceId))
@@ -611,7 +616,6 @@
     private async Task LoadResourceAffordancesAsync(Resource resource)
     {
         ResourceLogs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resource.Id));
-        HasIdentityPermissionGrants = await HasPermissionGrantsAsync(resource);
         HasResourceMonitoring = resource.HasCapability(ResourceCapabilityIds.Monitoring) &&
             await MonitoringManager.HasResourceMonitoringAsync(resource.Id);
         OperationCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
@@ -637,27 +641,6 @@
         {
             IsCheckingHealth = false;
         }
-    }
-
-    private async Task<bool> HasPermissionGrantsAsync(Resource resource)
-    {
-        var inboundGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
-            new ResourcePermissionGrantQuery(TargetResourceId: resource.Id));
-        if (inboundGrants.Count > 0)
-        {
-            return true;
-        }
-
-        if (resource.IdentityBinding is not { } identity)
-        {
-            return false;
-        }
-
-        var outboundGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
-            new ResourcePermissionGrantQuery(
-                IdentityResourceId: resource.Id,
-                IdentityName: identity.Name));
-        return outboundGrants.Count > 0;
     }
 
     private static bool AffectsResource(
@@ -732,9 +715,9 @@
     private static IReadOnlyList<ResourceTabContribution> BuildTabs(
         Resource? resource,
         ResourceTypeContribution? resourceType,
-        bool hasIdentityPermissionGrants,
         bool hasResourceLogs,
-        bool hasResourceMonitoring)
+        bool hasResourceMonitoring,
+        bool hasDefaultIdentityProvider)
     {
         var contributedTabs = resourceType?.ResourceTabs ?? [];
         var tabs = new List<ResourceTabContribution>();
@@ -773,7 +756,7 @@
                 Icon: GetPredefinedViewIcon(GeneratedDnsTabId)));
         }
 
-        if (ResourcePredefinedViewVisibility.HasIdentityView(resource, hasIdentityPermissionGrants) &&
+        if (ResourcePredefinedViewVisibility.HasIdentityView(resource, hasDefaultIdentityProvider) &&
             !contributedTabs.Any(tab => tab.Id == GeneratedIdentityTabId))
         {
             tabs.Add(new ResourceTabContribution(
@@ -785,7 +768,8 @@
                 Icon: GetPredefinedViewIcon(GeneratedIdentityTabId)));
         }
 
-        if (!contributedTabs.Any(tab => tab.Id == GeneratedAccessControlTabId))
+        if (ResourcePredefinedViewVisibility.HasAccessControlView(resource, hasDefaultIdentityProvider) &&
+            !contributedTabs.Any(tab => tab.Id == GeneratedAccessControlTabId))
         {
             tabs.Add(new ResourceTabContribution(
                 GeneratedAccessControlTabId,
@@ -898,6 +882,16 @@
             .OrderBy(GetResourceTabOrder)
             .ThenBy(tab => tab.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private bool HasDefaultIdentityProvider()
+    {
+        var configuredProviders = Services.GetService(typeof(ResourceIdentityProviderCatalog)) as ResourceIdentityProviderCatalog ??
+            new ResourceIdentityProviderCatalog();
+        var declarations = Services.GetService(typeof(ResourceDeclarationStore)) as ResourceDeclarationStore;
+        var effectiveProviders = declarations?.CreateIdentityProviderCatalog(configuredProviders) ?? configuredProviders;
+
+        return effectiveProviders.DefaultProvider is not null;
     }
 
     private static int GetResourceTabOrder(ResourceTabContribution tab)

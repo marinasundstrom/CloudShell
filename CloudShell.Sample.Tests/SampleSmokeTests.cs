@@ -506,6 +506,7 @@ public sealed class SampleSmokeTests
 
         var settingsIdentityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
+        Assert.Contains("Enable identity", settingsIdentityHtml);
         Assert.Contains("Provisioned", settingsIdentityHtml);
         Assert.Contains("Built-in resource identity client is registered.", settingsIdentityHtml);
         Assert.Contains("application-topology-api / application-topology-api", settingsIdentityHtml);
@@ -522,6 +523,7 @@ public sealed class SampleSmokeTests
 
         var secretsIdentityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
+        Assert.Contains("Enable identity", secretsIdentityHtml);
         Assert.Contains("Provisioned", secretsIdentityHtml);
         Assert.Contains("Built-in resource identity client is registered.", secretsIdentityHtml);
         Assert.Contains("application-topology-api / application-topology-api", secretsIdentityHtml);
@@ -541,8 +543,24 @@ public sealed class SampleSmokeTests
         Assert.Contains("This resource is a startup declaration.", apiEnvironmentHtml);
         Assert.Contains("host startup code remains the source of truth", apiEnvironmentHtml);
 
+        var frontendAccessControlHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
+        Assert.Contains("Identity required", frontendAccessControlHtml);
+        Assert.Contains("Set up an identity for this resource before assigning access permissions.", frontendAccessControlHtml);
+        Assert.Contains("Open Identity", frontendAccessControlHtml);
+        Assert.DoesNotContain("Search resource identities", frontendAccessControlHtml);
+        Assert.DoesNotContain("Select a permission", frontendAccessControlHtml);
+
+        var frontendIdentityHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
+        Assert.Contains("Enable identity", frontendIdentityHtml);
+        Assert.Contains("Identity not enabled", frontendIdentityHtml);
+        Assert.Contains("Enable identity for this resource before provisioning identity or assigning access permissions.", frontendIdentityHtml);
+
         var frontendDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details");
+        Assert.Contains(">Identity<", frontendDetailsHtml);
+        Assert.Contains("Access control", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local -&gt; application-topology-frontend/http", frontendDetailsHtml);
         Assert.Contains("Zone: application-topology-local", frontendDetailsHtml);

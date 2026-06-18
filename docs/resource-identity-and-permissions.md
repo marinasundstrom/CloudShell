@@ -337,24 +337,32 @@ execution or identity-management permission.
 
 The generated Resource Manager overview displays basic identity binding
 metadata when a resource has one. Resource identity actions are isolated in a
-separate generated Identity tab that appears only for resources with identity
-enabled; that tab lists declared permission grants, exposes the provisioning
-command, and shows provider-reported provisioning status and diagnostics for
-the selected resource identity.
+separate generated Identity tab. Identity and Access control appear when the
+environment has a default resource identity provider, including a default
+selected by programmatic resources. The Identity tab reflects whether identity
+is enabled for the selected resource with an `Enable identity` checkbox, lists
+declared permission grants, exposes the provisioning command when the selected
+resource has an identity binding, and shows provider-reported provisioning
+status and diagnostics for that resource identity. Persisting identity binding
+changes from the UI requires a future Control Plane mutation path.
 
 The generated Access control tab shows who can access the current resource.
-For the current resource-identity MVP it offers a searchable resource-identity
-picker, records grant intent from the selected resource identity to the current
-resource, groups assigned permissions by resource identity, and can revoke
-those grants. The permission picker is filtered to operations that are relevant
-to the current target resource, such as configuration-entry reads for
-Configuration Store resources, secret reads for Secrets Vault resources, mount
-permissions for volumes, networking reconciliation for network resources, and
-resource-action permissions where the target advertises actions. User and
-group principals require a broader principal model and
-should be added as separate assignment surfaces or principal-type selectors
-rather than being folded into the resource-identity picker. Editing identity
-bindings themselves in the CloudShell UI is future work.
+The assignment controls require the current resource to have an identity
+binding; otherwise the tab points the user to Identity setup instead of locking
+them out of the view. For the current resource-identity MVP it offers a
+searchable resource-identity picker, records grant intent from the selected
+resource identity to the current resource, groups assigned permissions by
+resource identity, and can revoke those grants. The current resource's own
+identity is not included in the assignment picker. The permission picker is
+filtered to operations that are relevant to the current target resource, such
+as configuration-entry reads for Configuration Store resources, secret reads
+for Secrets Vault resources, mount permissions for volumes, networking
+reconciliation for network resources, and resource-action permissions where the
+target advertises actions. User and group principals require a broader
+principal model and should be added as separate assignment surfaces or
+principal-type selectors rather than being folded into the resource-identity
+picker. Editing identity bindings themselves in the CloudShell UI is future
+work.
 
 Managed identity behavior is also future work. A managed identity provider
 should be able to resolve a resource identity binding and, where supported,

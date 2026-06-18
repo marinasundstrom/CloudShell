@@ -22,11 +22,13 @@ public static class ResourcePredefinedViewVisibility
          string.Equals(resource.EffectiveTypeId, "cloudshell.dnsZone", StringComparison.OrdinalIgnoreCase) ||
          string.Equals(resource.EffectiveTypeId, "cloudshell.nameMapping", StringComparison.OrdinalIgnoreCase));
 
-    public static bool HasIdentityView(
-        Resource? resource,
-        bool hasPermissionGrants = false) =>
+    public static bool HasIdentityView(Resource? resource, bool hasDefaultIdentityProvider = false) =>
         resource is not null &&
-        (resource.IdentityBinding is not null || hasPermissionGrants);
+        hasDefaultIdentityProvider;
+
+    public static bool HasAccessControlView(Resource? resource, bool hasDefaultIdentityProvider = false) =>
+        resource is not null &&
+        hasDefaultIdentityProvider;
 
     public static bool HasStorageVolumesView(Resource? resource) =>
         resource?.HasCapability(ResourceCapabilityIds.StorageProvider) == true;

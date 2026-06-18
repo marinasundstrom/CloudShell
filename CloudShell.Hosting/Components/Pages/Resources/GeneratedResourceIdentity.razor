@@ -21,6 +21,11 @@
     {
         <section class="generated-section">
             <h3>@L["Resource identity"]</h3>
+            <div class="generated-row-actions">
+                <FluentCheckbox Value="@IdentityEnabled" Disabled="true">
+                    @L["Enable identity"]
+                </FluentCheckbox>
+            </div>
             @if (Resource.IdentityBinding is { } identity)
             {
                 <dl class="detail-list">
@@ -74,10 +79,10 @@
             }
             else
             {
-                <dl class="detail-list">
-                    <dt>@L["Binding"]</dt>
-                    <dd>@L["None"]</dd>
-                </dl>
+                <div class="empty-state">
+                    <strong>@L["Identity not enabled"]</strong>
+                    <span>@L["Enable identity for this resource before provisioning identity or assigning access permissions."]</span>
+                </div>
             }
         </section>
 
@@ -192,6 +197,7 @@
     private string? ProcedureMessage { get; set; }
     private bool ProvisioningIdentity { get; set; }
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
+    private bool IdentityEnabled => Resource?.IdentityBinding is not null;
 
     private bool HasPermissionGrants =>
         InboundPermissionGrants.Count > 0 ||

@@ -21,64 +21,73 @@
     }
     else
     {
-        <section class="generated-section">
-            <h3>@L["Assign access"]</h3>
-            <div class="generated-access-form">
-                <label for="access-control-identity-search">@L["Search resource identities"]</label>
-                <input id="access-control-identity-search"
-                       class="generated-access-search"
-                       @bind="IdentitySearch"
-                       @bind:event="oninput"
-                       placeholder="@L["Identity name, resource, type, or provider"]" />
-
-                <label for="access-control-identity">@L["Resource identity"]</label>
-                <FluentSelect TOption="string" Id="access-control-identity" @bind-Value="SelectedIdentityKey">
-                    <FluentOption TOption="string" Value="">@L["Select a resource identity"]</FluentOption>
-                    @foreach (var identity in FilteredIdentityOptions)
-                    {
-                        <FluentOption TOption="string" Value="@identity.Key">@FormatIdentityOption(identity)</FluentOption>
-                    }
-                </FluentSelect>
-                @if (IdentityOptions.Count == 0)
-                {
-                    <p class="muted">@L["No resource identities are available to grant access."]</p>
-                }
-                else if (FilteredIdentityOptions.Count == 0)
-                {
-                    <p class="muted">@L["No resource identities match the current search."]</p>
-                }
-
-                <label for="access-control-permission">@L["Permission"]</label>
-                <FluentSelect TOption="string" Id="access-control-permission" @bind-Value="SelectedPermission">
-                    <FluentOption TOption="string" Value="">@L["Select a permission"]</FluentOption>
-                    @foreach (var option in AvailablePermissionOptions)
-                    {
-                        <FluentOption TOption="string" Value="@option.Value">@option.Label</FluentOption>
-                    }
-                </FluentSelect>
-
-                @if (IsCustomPermission)
-                {
-                    <label for="access-control-custom-permission">@L["Custom permission"]</label>
-                    <FluentTextField Id="access-control-custom-permission"
-                                     @bind-Value="CustomPermission"
-                                     Placeholder="Provider.Namespace/resources/action" />
-                }
-
-                <div class="generated-row-actions">
-                    <FluentButton Appearance="Appearance.Accent"
-                                  Disabled="@(GrantingPermission || IsReadOnly)"
-                                  OnClick="GrantPermission">
-                        @GetGrantButtonLabel()
-                    </FluentButton>
+        @if (Resource.IdentityBinding is null)
+        {
+            <section class="generated-section">
+                <h3>@L["Assign access"]</h3>
+                <div class="empty-state">
+                    <strong>@L["Identity required"]</strong>
+                    <span>@L["Set up an identity for this resource before assigning access permissions."]</span>
+                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(Resource.Id, ResourcePredefinedViewIds.Identity)">
+                        @L["Open Identity"]
+                    </FluentAnchor>
                 </div>
-            </div>
-            @if (IsReadOnly)
-            {
-                <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]</div>
-            }
-            <p class="muted">@L["CloudShell records that the selected resource identity can access this resource. The identity provider applies or reconciles the grant when identity provisioning runs."]</p>
-        </section>
+            </section>
+        }
+        else
+        {
+            <section class="generated-section">
+                <h3>@L["Assign access"]</h3>
+                <div class="generated-access-form">
+                    <label for="access-control-identity-search">@L["Resource identity"]</label>
+                    <FluentAutocomplete TOption="IdentityOption"
+                                        Id="access-control-identity-search"
+                                        AutoComplete="off"
+                                        MaximumSelectedOptions="1"
+                                        MaximumOptionsSearch="12"
+                                        Placeholder="@L["Search resource identities"]"
+                                        OptionText="FormatIdentityOption"
+                                        SelectedOptions="@SelectedIdentities"
+                                        SelectedOptionsChanged="SetSelectedIdentity"
+                                        OnOptionsSearch="SearchIdentities">
+                    </FluentAutocomplete>
+                    @if (IdentityOptions.Count == 0)
+                    {
+                        <p class="muted">@L["No other resource identities are available to grant access."]</p>
+                    }
+
+                    <label for="access-control-permission">@L["Permission"]</label>
+                    <FluentSelect TOption="string" Id="access-control-permission" @bind-Value="SelectedPermission">
+                        <FluentOption TOption="string" Value="">@L["Select a permission"]</FluentOption>
+                        @foreach (var option in AvailablePermissionOptions)
+                        {
+                            <FluentOption TOption="string" Value="@option.Value">@option.Label</FluentOption>
+                        }
+                    </FluentSelect>
+
+                    @if (IsCustomPermission)
+                    {
+                        <label for="access-control-custom-permission">@L["Custom permission"]</label>
+                        <FluentTextField Id="access-control-custom-permission"
+                                         @bind-Value="CustomPermission"
+                                         Placeholder="Provider.Namespace/resources/action" />
+                    }
+
+                    <div class="generated-row-actions">
+                        <FluentButton Appearance="Appearance.Accent"
+                                      Disabled="@(GrantingPermission || IsReadOnly)"
+                                      OnClick="GrantPermission">
+                            @GetGrantButtonLabel()
+                        </FluentButton>
+                    </div>
+                </div>
+                @if (IsReadOnly)
+                {
+                    <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]</div>
+                }
+                <p class="muted">@L["CloudShell records that the selected resource identity can access this resource. The identity provider applies or reconciles the grant when identity provisioning runs."]</p>
+            </section>
+        }
 
         <section class="generated-section">
             <h3>@L["Assigned resource identities"]</h3>
@@ -148,8 +157,9 @@
     private IReadOnlyList<GrantGroup> GrantGroups { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
-    private string SelectedIdentityKey { get; set; } = string.Empty;
-    private string IdentitySearch { get; set; } = string.Empty;
+    private IdentityOption? SelectedIdentity { get; set; }
+    private IEnumerable<IdentityOption> SelectedIdentities =>
+        SelectedIdentity is null ? [] : [SelectedIdentity];
     private string SelectedPermission { get; set; } = string.Empty;
     private string CustomPermission { get; set; } = string.Empty;
     private string? ProcedureMessage { get; set; }
@@ -162,12 +172,6 @@
             ? []
             : AllPermissionOptions
                 .Where(option => option.IsAvailableFor(Resource))
-                .ToArray();
-    private IReadOnlyList<IdentityOption> FilteredIdentityOptions =>
-        string.IsNullOrWhiteSpace(IdentitySearch)
-            ? IdentityOptions
-            : IdentityOptions
-                .Where(MatchesIdentitySearch)
                 .ToArray();
 
     protected override async Task OnParametersSetAsync()
@@ -186,6 +190,7 @@
             InboundGrants = [];
             GrantGroups = [];
             ResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
+            SelectedIdentity = null;
             return;
         }
 
@@ -209,6 +214,12 @@
             .ThenBy(resource => resource.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(resource => resource.Identity.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        if (SelectedIdentity is not null &&
+            !IdentityOptions.Any(identity => string.Equals(identity.Key, SelectedIdentity.Key, StringComparison.Ordinal)))
+        {
+            SelectedIdentity = null;
+        }
+
         InboundGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
             new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id));
         GrantGroups = InboundGrants
@@ -270,8 +281,7 @@
                     Resource.Id,
                     permission));
             ProcedureMessage = L["Access permission assigned. Provision or reconcile the resource identity to apply provider-side changes."].Value;
-            SelectedIdentityKey = string.Empty;
-            IdentitySearch = string.Empty;
+            SelectedIdentity = null;
             SelectedPermission = string.Empty;
             CustomPermission = string.Empty;
             await LoadAsync();
@@ -347,9 +357,16 @@
     private static string FormatIdentityOption(IdentityOption identity) =>
         $"{identity.Name} ({identity.IdentityLabel})";
 
-    private bool MatchesIdentitySearch(IdentityOption identity)
+    private void SearchIdentities(OptionsSearchEventArgs<IdentityOption> args)
     {
-        var search = IdentitySearch.Trim();
+        var search = args.Text?.Trim() ?? string.Empty;
+        args.Items = string.IsNullOrWhiteSpace(search)
+            ? IdentityOptions
+            : IdentityOptions.Where(identity => MatchesIdentitySearch(identity, search)).ToArray();
+    }
+
+    private static bool MatchesIdentitySearch(IdentityOption identity, string search)
+    {
         return Contains(identity.Name, search) ||
             Contains(identity.IdentityLabel, search) ||
             Contains(identity.Identity.ResourceId, search) ||
@@ -366,9 +383,14 @@
 
     private bool TryGetSelectedIdentity([NotNullWhen(true)] out IdentityOption? identity)
     {
-        identity = IdentityOptions.FirstOrDefault(option =>
-            string.Equals(option.Key, SelectedIdentityKey, StringComparison.Ordinal));
+        identity = SelectedIdentity;
         return identity is not null;
+    }
+
+    private Task SetSelectedIdentity(IEnumerable<IdentityOption> identities)
+    {
+        SelectedIdentity = identities.FirstOrDefault();
+        return Task.CompletedTask;
     }
 
     private string FormatIdentityName(ResourceIdentityReference identity) =>

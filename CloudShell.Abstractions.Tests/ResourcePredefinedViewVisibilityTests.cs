@@ -38,22 +38,28 @@ public sealed class ResourcePredefinedViewVisibilityTests
     }
 
     [Fact]
-    public void HasIdentityView_LightsUpFromIdentityBinding()
+    public void HasIdentityView_LightsUpFromDefaultIdentityProvider()
+    {
+        var resource = CreateResource();
+
+        Assert.True(ResourcePredefinedViewVisibility.HasIdentityView(
+            resource,
+            hasDefaultIdentityProvider: true));
+        Assert.True(ResourcePredefinedViewVisibility.HasAccessControlView(
+            resource,
+            hasDefaultIdentityProvider: true));
+    }
+
+    [Fact]
+    public void HasIdentityView_StaysHiddenWithoutDefaultIdentityProvider()
     {
         var resource = CreateResource() with
         {
             Identity = ResourceIdentityBinding.RequireIdentity()
         };
 
-        Assert.True(ResourcePredefinedViewVisibility.HasIdentityView(resource));
-    }
-
-    [Fact]
-    public void HasIdentityView_LightsUpFromPermissionGrantContext()
-    {
-        Assert.True(ResourcePredefinedViewVisibility.HasIdentityView(
-            CreateResource(),
-            hasPermissionGrants: true));
+        Assert.False(ResourcePredefinedViewVisibility.HasIdentityView(resource));
+        Assert.False(ResourcePredefinedViewVisibility.HasAccessControlView(resource));
     }
 
     [Fact]

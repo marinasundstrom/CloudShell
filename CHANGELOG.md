@@ -171,6 +171,13 @@ on `git blame --follow`, and then by the broad type of change.
 - The generated Resource Manager Access control tab now filters its permission
   picker to operations relevant to the current target resource while keeping
   custom and all-permission options available.
+- Resource Manager now shows generated Identity and Access control tabs when
+  the environment has a default resource identity provider. Access control
+  shows identity setup guidance instead of assignment controls for resources
+  without identity bindings, the Identity tab reflects identity enablement with
+  an `Enable identity` checkbox, and the resource-identity picker now uses a
+  Fluent UI autocomplete search box instead of a separate search field plus
+  select.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate
