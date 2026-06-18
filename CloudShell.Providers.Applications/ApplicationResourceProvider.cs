@@ -1022,7 +1022,6 @@ public sealed partial class ApplicationResourceProvider(
             definition,
             dependsOn,
             resourceGroupId,
-            registrations,
             resourceManager,
             cancellationToken);
         procedureContext?.AppendProviderEvent(
@@ -1076,14 +1075,12 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationResourceDefinition definition,
         IReadOnlyList<string> dependsOn,
         string? resourceGroupId,
-        IResourceRegistrationStore registrations,
         IResourceManagerStore? resourceManager,
         CancellationToken cancellationToken) =>
         ResolveApplicationEnvironmentVariablesAsync(
             definition,
             dependsOn,
             resourceGroupId,
-            registrations,
             resourceManager,
             includeAspNetCoreProjectVariables: true,
             cancellationToken);
@@ -1158,32 +1155,6 @@ public sealed partial class ApplicationResourceProvider(
             .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToArray();
-
-    private IReadOnlyList<EnvironmentVariableAssignment> ResolveServiceDiscoveryEnvironmentVariables(
-        ApplicationResourceDefinition definition,
-        string? resourceGroupId,
-        IResourceRegistrationStore registrations)
-    {
-        var references = definition.References
-            .Where(reference => !string.IsNullOrWhiteSpace(reference))
-            .Where(reference => IsSameResourceGroup(registrations.GetRegistration(reference), resourceGroupId))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        if (references.Count == 0)
-        {
-            return [];
-        }
-
-        return serviceProvider
-            .GetServices<IResourceProvider>()
-            .SelectMany(provider => provider.GetResources())
-            .Where(resource => references.Contains(resource.Id))
-            .SelectMany(CreateServiceDiscoveryEndpointEnvironmentVariables)
-            .GroupBy(variable => variable.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.Last())
-            .ToArray();
-    }
 
     private IReadOnlyList<EnvironmentVariableAssignment> ResolveServiceDiscoveryEnvironmentVariables(
         ApplicationResourceDefinition definition,
@@ -1300,7 +1271,6 @@ public sealed partial class ApplicationResourceProvider(
         ApplicationResourceDefinition definition,
         IReadOnlyList<string> dependsOn,
         string? resourceGroupId,
-        IResourceRegistrationStore registrations,
         IResourceManagerStore? resourceManager,
         bool includeAspNetCoreProjectVariables,
         CancellationToken cancellationToken)
@@ -1312,7 +1282,7 @@ public sealed partial class ApplicationResourceProvider(
 
         return ResolveDependencyEnvironmentVariables(definition, dependsOn)
             .Concat(definition.UseServiceDiscovery
-                ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, registrations)
+                ? ResolveServiceDiscoveryEnvironmentVariables(definition, resourceGroupId, resourceManager)
                 : [])
             .Concat(ResolveObservabilityEnvironmentVariables(definition))
             .Concat(includeAspNetCoreProjectVariables
@@ -1871,7 +1841,6 @@ public sealed partial class ApplicationResourceProvider(
                      definition,
                      dependsOn,
                      resourceGroupId,
-                     registrations,
                      resourceManager,
                      includeAspNetCoreProjectVariables: false,
                      cancellationToken))
@@ -1976,12 +1945,6 @@ public sealed partial class ApplicationResourceProvider(
                 procedureContext);
         }
     }
-
-    private static bool IsSameResourceGroup(
-        ResourceRegistration? registration,
-        string? resourceGroupId) =>
-        registration is not null &&
-        IsSameResourceGroup(registration.ResourceGroupId, resourceGroupId);
 
     private static bool IsSameResourceGroup(
         string? candidateResourceGroupId,

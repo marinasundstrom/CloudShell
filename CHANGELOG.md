@@ -34,6 +34,15 @@ on `git blame --follow`, and then by the broad type of change.
 - Control Plane API ProblemDetails for setting reference resolution failures
   now include `settingName` and `referenceKind` extensions while preserving
   the `resourceActionUnavailable` error code.
+- Denied resource actions now record warning resource activity entries using
+  the failed action event type before returning the insufficient-permission
+  error.
+
+#### Fixed
+
+- Application start now resolves service-discovery environment variables from
+  the Resource Manager projection instead of resolving scoped resource
+  providers from the root service provider.
 
 ### 2026-06-17
 

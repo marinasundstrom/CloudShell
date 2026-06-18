@@ -111,9 +111,12 @@ types describe resource lifecycle facts, such as `event.lifecycle.starting`,
 `event.lifecycle.started`, `event.lifecycle.stopping`, and
 `event.lifecycle.stopped`. Standard deployment events use
 `event.deployment.*` for resource deployment changes such as image and replica
-updates. Authors can still define custom resource actions and custom resource
-event types under `event.*`; only standard lifecycle action kinds receive
-Resource Manager lifecycle events automatically.
+updates. Authorization-denied resource action attempts use the failed action
+event type, such as `action.lifecycle.stop.failed`, with warning severity and
+trigger metadata when available. Authors can still define custom resource
+actions and custom resource event types under `event.*`; only standard
+lifecycle action kinds receive Resource Manager lifecycle events
+automatically.
 
 Provider-scoped activity events use the `event.provider.*` namespace. They
 are emitted while a provider is fulfilling a resource procedure and are

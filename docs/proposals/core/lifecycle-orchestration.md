@@ -75,6 +75,8 @@ The current implementation already has the first pieces of this model:
   `dependencyAutoStartFailed` Control Plane error code
 - resource events recorded for requested lifecycle actions and resulting
   lifecycle events
+- denied resource actions recorded as warning failed-action resource events
+  before provider dispatch is skipped
 - provider dispatch through `IResourceOrchestrator` and provider procedure
   contracts
 
@@ -89,18 +91,21 @@ The standard lifecycle execution path should be:
 1. A caller requests a resource action through `IResourceManager`.
 2. Resource Manager resolves the target resource and action.
 3. Resource Manager evaluates authorization and action capability policy.
-4. The orchestration service builds the lifecycle plan for the request.
-5. For `Start`, the plan resolves dependencies that must be available.
-6. Each dependency that needs startup is started through the same lifecycle
+4. If authorization denies the action, Resource Manager records a warning
+   failed-action event and returns an access-denied error before provider
+   dispatch.
+5. The orchestration service builds the lifecycle plan for the request.
+6. For `Start`, the plan resolves dependencies that must be available.
+7. Each dependency that needs startup is started through the same lifecycle
    action path.
-7. Resource Manager records the requested action event on each affected
+8. Resource Manager records the requested action event on each affected
    resource.
-8. Resource Manager records the lifecycle transition event before provider
+9. Resource Manager records the lifecycle transition event before provider
    execution, such as `event.lifecycle.starting`.
-9. The selected orchestrator/provider executes the resource-specific work.
-10. Resource Manager records the resulting lifecycle event, such as
+10. The selected orchestrator/provider executes the resource-specific work.
+11. Resource Manager records the resulting lifecycle event, such as
     `event.lifecycle.started` or `event.lifecycle.start.failed`.
-11. Failures are returned as domain-shaped errors with enough context for the
+12. Failures are returned as domain-shaped errors with enough context for the
     UI, API clients, and future automation to explain the blocked operation.
 
 Dependency startup is not a hidden provider side effect. If resource A needs
@@ -261,8 +266,8 @@ For MVP, keep the lifecycle orchestration scope focused:
 
 1. Route standard lifecycle actions through `ResourceOrchestrationService`.
 2. Keep dependency startup plan-driven and non-event-reactive.
-3. Record action and lifecycle events for dependency resources and target
-   resources.
+3. Record action, authorization-denied, and lifecycle events for dependency
+   resources and target resources.
 4. Preserve `dependencyAutoStartFailed` as the stable dependency-start failure
    error.
 5. Add focused tests when lifecycle action behavior changes.

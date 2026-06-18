@@ -339,6 +339,34 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
+    public async Task ExecuteResourceActionAsync_LogsDeniedActionEvent()
+    {
+        var provider = new TestResourceProvider();
+        var resourceEvents = new InMemoryResourceEventStore();
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)],
+            provider,
+            authorization: new DenyAuthorizationService(),
+            resourceEvents: resourceEvents);
+
+        await Assert.ThrowsAsync<ControlPlaneAccessDeniedException>(() =>
+            controlPlane.ExecuteResourceActionAsync(new ExecuteResourceActionCommand(
+                "target",
+                ResourceActionIds.Stop,
+                TriggeredBy: "operator")));
+
+        Assert.Empty(provider.ExecutedActions);
+        var resourceEvent = Assert.Single(resourceEvents.GetEvents(new ResourceEventQuery(
+            ResourceId: "target",
+            EventType: ResourceEventTypes.Actions.ForFailedAction(ResourceActionIds.Stop))));
+        Assert.Equal("operator", resourceEvent.TriggeredBy);
+        Assert.Equal("Warning", resourceEvent.Level);
+        Assert.Equal(
+            "Stop action was denied. The 'CloudShell.Resources/resources/lifecycle/action' or 'resources.manage' permission is required for resource 'target'.",
+            resourceEvent.Message);
+    }
+
+    [Fact]
     public async Task ExecuteResourceActionAsync_AllowsActionSpecificPermission()
     {
         var provider = new TestResourceProvider();

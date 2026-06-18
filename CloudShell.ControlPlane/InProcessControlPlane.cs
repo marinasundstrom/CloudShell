@@ -414,6 +414,7 @@ public sealed class InProcessControlPlane(
         var actionPermission = ResourceActionPermissions.GetRequiredPermission(action);
         if (!CanAccessResource(resource.Id, group?.Id, actionPermission, command.ActingIdentity))
         {
+            RecordDeniedResourceAction(resource, action, actionPermission, command.TriggeredBy);
             throw ControlPlaneAccessDeniedException.ForResource(
                 resource.Id,
                 FormatPermissionRequirement(actionPermission));
@@ -454,6 +455,21 @@ public sealed class InProcessControlPlane(
             notifyResourceChange: NotifyResourcesChanged);
 
         return result;
+    }
+
+    private void RecordDeniedResourceAction(
+        Resource resource,
+        ResourceAction action,
+        string permission,
+        string? triggeredBy)
+    {
+        resourceEvents?.Append(new ResourceEvent(
+            resource.Id,
+            ResourceEventTypes.Actions.ForFailedAction(action.Id),
+            $"{action.DisplayName} action was denied. The '{FormatPermissionRequirement(permission)}' permission is required for resource '{resource.Id}'.",
+            DateTimeOffset.UtcNow,
+            triggeredBy,
+            Level: "Warning"));
     }
 
     public async Task<ResourceProcedureResult> UpdateResourceImageAsync(
