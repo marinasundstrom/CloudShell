@@ -280,11 +280,12 @@ span table:
   service name correlation.
 
 Resource pages should keep common operational investigation in context. Events
-and source logs should have resource-scoped inline views under the Resource
-Manager Management menu instead of requiring users to switch to the shared Logs
-area for normal per-resource work. Traces should get a resource-aware
-Observability entry point when the resource has trace data, while the shared
-trace explorer remains the cross-resource investigation view.
+should have a resource-scoped inline view under the Resource Manager
+Management menu because they describe resource-management history. Source logs
+and traces should have resource-scoped inline views under a Telemetry menu
+group instead of requiring users to switch to shared pages for normal
+per-resource work. The shared Telemetry trace explorer remains the
+cross-resource investigation view.
 
 This is an interaction target, not a requirement to copy any specific vendor
 UI. CloudShell should keep the view consistent with Resource Manager and should
@@ -319,12 +320,14 @@ base log or event entry a blob store.
 - Keep Activity-tab filtering and action/event grouping focused on
   `IResourceEventManager`; broader event schema and audit decisions remain
   separate.
-- Add resource-scoped inline Events and Logs views under Resource Manager's
-  Management menu before making users leave resource details for routine
+- Keep resource-scoped Events under Resource Manager's Management menu as
+  resource-management history.
+- Add resource-scoped inline Logs and Traces views under a resource-detail
+  Telemetry menu group before making users leave resource details for routine
   per-resource investigation.
-- Add a resource-aware Observability view for traces when retained spans are
-  available, with clear links between selected spans, resource logs, activity
-  entries, and the shared trace explorer.
+- Keep shared Telemetry trace exploration available for cross-resource
+  investigation, with clear links between selected spans, resource logs,
+  activity entries, and the relevant resource detail views.
 - Keep resource event trace correlation focused on W3C `traceId`/`spanId`
   fields. Do not turn resource events into trace spans or log records.
 - Use the structured `LogEntry` metadata fields for provider logs only when a

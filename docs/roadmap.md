@@ -154,11 +154,12 @@ listed here before pulling in broader proposal work.
    as the operator entry point for endpoints, discovery, storage, identity,
    logs, traces, activity, and inbound name mappings. Fix UI consistency and
    generated details when they block understanding of those resources. Add
-   resource-scoped Events and Logs views under the resource Management menu so
-   users can inspect operational history without losing resource context, and
-   treat traces as a related Observability view rather than forcing users
-   through only the shared observability pages. Do not start broad new shell
-   areas before the supported samples are stable.
+   resource-scoped Events under the resource Management menu for resource
+   history, and add a resource-scoped Telemetry menu group with inline Logs and
+   Traces views so users can inspect runtime telemetry without losing resource
+   context. Keep shared Telemetry pages for cross-resource investigation
+   instead of forcing normal per-resource work through global views. Do not
+   start broad new shell areas before the supported samples are stable.
    Keep the current quick-create path as a compact shortcut flow, but plan for
    a Resource Manager resource gallery to become the default Add Resource entry
    point, with future wizard-based guided setup for resource types that need a
@@ -378,10 +379,12 @@ listed here before pulling in broader proposal work.
 - Make Resource Manager generated details predictable for common resources:
   Overview first, resource-specific tabs next, Environment after resource
   configuration, and Identity/Activity near the bottom.
-- Keep resource-scoped operations in context. Events and Logs should be
-  reachable from the resource Management menu and render inline on the resource
-  page, while cross-resource trace exploration can keep a shared Observability
-  area with resource-aware links back into the relevant resource detail views.
+- Keep resource-scoped operations in context. Events should remain under the
+  resource Management menu as resource-management history. Logs and Traces
+  should be reachable from a resource-detail Telemetry menu group and render
+  inline on the resource page, while cross-resource trace exploration can keep
+  a shared Telemetry area with resource-aware links back into the relevant
+  resource detail views.
 - Keep resource identity clear when display names are enabled: Resource ID
   should appear first in details and overview identity surfaces, while create
   flows ask for the scoped resource name. Resource Manager now has a
@@ -475,9 +478,9 @@ listed here before pulling in broader proposal work.
   The UI goal is a Zipkin-style trace experience where users can inspect spans
   across services in a compact clickable waterfall while CloudShell keeps
   resource activity, logs, traces, and future metrics as distinct observability
-  signals. Resource detail pages should expose trace entry points through a
-  dedicated Observability view when trace data exists, while the shared traces
-  page remains the cross-resource investigation surface. The trace-detail
+  signals. Resource detail pages should expose trace entry points through the
+  resource Telemetry menu when trace data exists, while shared Telemetry trace
+  pages remain the cross-resource investigation surface. The trace-detail
   target has a service legend, span details panel, and links from spans to
   related logs, activity entries, and Resource Manager details.
 - Define only the audit event schemas needed by current MVP operations:
