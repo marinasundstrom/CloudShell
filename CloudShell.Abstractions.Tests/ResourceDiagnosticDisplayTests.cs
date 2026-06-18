@@ -84,6 +84,25 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
+    public void GetDiagnostics_ShowsProviderSelectedNameMappingAsPendingPublish()
+    {
+        var mapping = CreateNameMapping(
+            string.Empty,
+            materializationStatusReason: "DNS provider 'local-hostnames' is responsible for publishing this name.");
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            mapping,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Info", diagnostic.Severity);
+        Assert.Equal("Name mapping pending publish", diagnostic.Title);
+        Assert.Equal(
+            "DNS provider 'local-hostnames' is responsible for publishing this name. Run Reconcile name mappings on the DNS zone to apply it.",
+            diagnostic.Message);
+    }
+
+    [Fact]
     public void GetDiagnostics_WarnsWhenNameMappingPublishFailed()
     {
         var mapping = CreateNameMapping(

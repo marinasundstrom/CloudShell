@@ -74,6 +74,20 @@ public static class ResourceDiagnosticDisplay
                 "Name mapping publish failed",
                 resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NameMappingMaterializationStatusReason) ??
                     "CloudShell could not publish this name mapping."));
+            return;
+        }
+
+        if (string.Equals(materializationStatus, "ProviderSelected", StringComparison.OrdinalIgnoreCase) &&
+            (!resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NameMappingProviderResourceId, out var providerResourceId) ||
+                string.IsNullOrWhiteSpace(providerResourceId)))
+        {
+            var reason =
+                resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NameMappingMaterializationStatusReason) ??
+                "A DNS publishing provider is selected, but CloudShell has not observed this mapping being published.";
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Info",
+                "Name mapping pending publish",
+                $"{reason} Run Reconcile name mappings on the DNS zone to apply it."));
         }
     }
 
