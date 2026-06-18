@@ -534,7 +534,9 @@ decides later whether and how a specific name is materialized.
   now project hosts-file target and resolver-cache refresh diagnostics after
   reconcile, and local host-name provider validation now feeds wildcard-host
   and unpublishable target address reasons into Reconcile name mappings action
-  availability.
+  availability. Generated name-mapping diagnostics now warn when the target
+  resource, target endpoint, or local host-name target endpoint address is
+  unavailable.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add richer guided resolution for duplicate names in the same scope. Resource
   Manager-authored create/update now preflights duplicate host/exposure

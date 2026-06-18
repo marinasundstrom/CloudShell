@@ -112,6 +112,8 @@ on `git blame --follow`, and then by the broad type of change.
   shows those as materialization diagnostics after reconcile.
 - Local host-name publishing now feeds wildcard-host and unpublishable target
   address checks into DNS zone Reconcile name mappings action availability.
+- Name mapping generated diagnostics now warn when the target resource,
+  target endpoint, or local host-name target endpoint address is unavailable.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate
