@@ -135,14 +135,16 @@ cloudShell.Resources(resources =>
         [
             new("ApplicationTopology:Message", "Hello from CloudShell configuration."),
             new("ApplicationTopology:Mode", "Development")
-        ]);
+        ])
+        .ProvisionIdentityOnStartup();
 
     var secrets = resources
         .AddSecretsVault("application-topology")
         .WithDisplayName("Secrets")
         .WithIdentity(identityProvider)
         .WithResourceGroup(groupId)
-        .WithSecret("external-api-key", "local-development-api-key");
+        .WithSecret("external-api-key", "local-development-api-key")
+        .ProvisionIdentityOnStartup();
 
     var api = resources.AddAspNetCoreProject(
         "application-topology-api",

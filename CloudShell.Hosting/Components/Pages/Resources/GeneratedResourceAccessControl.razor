@@ -1,6 +1,7 @@
 @using CloudShell.Abstractions.Authorization
 @using CloudShell.Abstractions.ControlPlane
 @using CloudShell.Abstractions.ResourceManager
+@using System.Diagnostics.CodeAnalysis
 @inject IResourceManager ResourceManager
 @inject IOptions<ResourceManagerUiOptions> ResourceManagerUiOptions
 @inject IStringLocalizer<SharedResource> L
@@ -18,40 +19,33 @@
             <span>@L["The resource may have been removed or is no longer visible."]</span>
         </div>
     }
-    else if (Resource.IdentityBinding is null)
-    {
-        <section class="generated-section">
-            <h3>@L["Access control"]</h3>
-            <div class="empty-state">
-                <strong>@L["Identity required"]</strong>
-                <span>@L["Set up an identity in the Identity tab before assigning access permissions."]</span>
-                <FluentAnchor Appearance="Appearance.Neutral" Href="@BuildIdentityRoute(Resource.Id)">
-                    @L["Open Identity"]
-                </FluentAnchor>
-            </div>
-        </section>
-    }
     else
     {
         <section class="generated-section">
             <h3>@L["Assign access"]</h3>
             <div class="generated-access-form">
-                <label for="access-control-resource-search">@L["Search resources"]</label>
-                <FluentTextField Id="access-control-resource-search"
-                                 @bind-Value="TargetResourceSearch"
-                                 Placeholder="@L["Name, ID, type, or display name"]" />
+                <label for="access-control-identity-search">@L["Search resource identities"]</label>
+                <input id="access-control-identity-search"
+                       class="generated-access-search"
+                       @bind="IdentitySearch"
+                       @bind:event="oninput"
+                       placeholder="@L["Identity name, resource, type, or provider"]" />
 
-                <label for="access-control-target">@L["Target resource"]</label>
-                <FluentSelect TOption="string" Id="access-control-target" @bind-Value="SelectedTargetResourceId">
-                    <FluentOption TOption="string" Value="">@L["Select a resource"]</FluentOption>
-                    @foreach (var target in FilteredTargetResources)
+                <label for="access-control-identity">@L["Resource identity"]</label>
+                <FluentSelect TOption="string" Id="access-control-identity" @bind-Value="SelectedIdentityKey">
+                    <FluentOption TOption="string" Value="">@L["Select a resource identity"]</FluentOption>
+                    @foreach (var identity in FilteredIdentityOptions)
                     {
-                        <FluentOption TOption="string" Value="@target.Id">@FormatResourceOption(target)</FluentOption>
+                        <FluentOption TOption="string" Value="@identity.Key">@FormatIdentityOption(identity)</FluentOption>
                     }
                 </FluentSelect>
-                @if (TargetResources.Count > 0 && FilteredTargetResources.Count == 0)
+                @if (IdentityOptions.Count == 0)
                 {
-                    <p class="muted">@L["No resources match the current search."]</p>
+                    <p class="muted">@L["No resource identities are available to grant access."]</p>
+                }
+                else if (FilteredIdentityOptions.Count == 0)
+                {
+                    <p class="muted">@L["No resource identities match the current search."]</p>
                 }
 
                 <label for="access-control-permission">@L["Permission"]</label>
@@ -83,14 +77,14 @@
             {
                 <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]</div>
             }
-            <p class="muted">@L["CloudShell records the desired grant. The identity provider applies or reconciles the grant when identity provisioning runs."]</p>
+            <p class="muted">@L["CloudShell records that the selected resource identity can access this resource. The identity provider applies or reconciles the grant when identity provisioning runs."]</p>
         </section>
 
         <section class="generated-section">
-            <h3>@L["Assigned grants"]</h3>
+            <h3>@L["Assigned resource identities"]</h3>
             @if (GrantGroups.Count == 0)
             {
-                <p class="muted">@L["No access permissions are assigned to this resource identity."]</p>
+                <p class="muted">@L["No resource identities have access permissions for this resource."]</p>
             }
             else
             {
@@ -98,15 +92,15 @@
                     @foreach (var group in GrantGroups)
                     {
                         <div>
-                            <strong>@ResourceLink(group.TargetResourceId)</strong>
+                            <strong>@IdentityLink(group.Identity)</strong>
                             @foreach (var permission in group.Permissions)
                             {
                                 <span class="access-control-grant-row">
                                     <span>@permission</span>
                                     <FluentButton Appearance="Appearance.Neutral"
-                                                  Disabled="@(IsReadOnly || IsRevokingPermission(group.TargetResourceId, permission))"
-                                                  OnClick="() => RevokePermission(group.TargetResourceId, permission)">
-                                        @GetRevokeButtonLabel(group.TargetResourceId, permission)
+                                                  Disabled="@(IsReadOnly || IsRevokingPermission(group.Identity, permission))"
+                                                  OnClick="() => RevokePermission(group.Identity, permission)">
+                                        @GetRevokeButtonLabel(group.Identity, permission)
                                     </FluentButton>
                                 </span>
                             }
@@ -141,13 +135,13 @@
     public string ResourceId { get; set; } = string.Empty;
 
     private Resource? Resource { get; set; }
-    private IReadOnlyList<Resource> TargetResources { get; set; } = [];
-    private IReadOnlyList<ResourcePermissionGrant> OutboundGrants { get; set; } = [];
+    private IReadOnlyList<IdentityOption> IdentityOptions { get; set; } = [];
+    private IReadOnlyList<ResourcePermissionGrant> InboundGrants { get; set; } = [];
     private IReadOnlyList<GrantGroup> GrantGroups { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
-    private string SelectedTargetResourceId { get; set; } = string.Empty;
-    private string TargetResourceSearch { get; set; } = string.Empty;
+    private string SelectedIdentityKey { get; set; } = string.Empty;
+    private string IdentitySearch { get; set; } = string.Empty;
     private string SelectedPermission { get; set; } = string.Empty;
     private string CustomPermission { get; set; } = string.Empty;
     private string? ProcedureMessage { get; set; }
@@ -155,11 +149,11 @@
     private string? RevokingPermissionKey { get; set; }
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
     private bool IsCustomPermission => string.Equals(SelectedPermission, CustomPermissionValue, StringComparison.Ordinal);
-    private IReadOnlyList<Resource> FilteredTargetResources =>
-        string.IsNullOrWhiteSpace(TargetResourceSearch)
-            ? TargetResources
-            : TargetResources
-                .Where(MatchesTargetResourceSearch)
+    private IReadOnlyList<IdentityOption> FilteredIdentityOptions =>
+        string.IsNullOrWhiteSpace(IdentitySearch)
+            ? IdentityOptions
+            : IdentityOptions
+                .Where(MatchesIdentitySearch)
                 .ToArray();
 
     protected override async Task OnParametersSetAsync()
@@ -174,8 +168,8 @@
             : await ResourceManager.GetResourceAsync(ResourceId);
         if (Resource is null)
         {
-            TargetResources = [];
-            OutboundGrants = [];
+            IdentityOptions = [];
+            InboundGrants = [];
             GrantGroups = [];
             ResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
             return;
@@ -189,42 +183,38 @@
                 group => group.Key,
                 group => group.First(),
                 StringComparer.OrdinalIgnoreCase);
-        TargetResources = resources
-            .Where(resource => !string.Equals(resource.Id, Resource.Id, StringComparison.OrdinalIgnoreCase))
+        IdentityOptions = resources
+            .Where(resource =>
+                !string.Equals(resource.Id, Resource.Id, StringComparison.OrdinalIgnoreCase) &&
+                resource.IdentityBinding is not null)
+            .Select(resource => new IdentityOption(
+                ResourceIdentityReference.ForResource(resource.Id, resource.IdentityBinding!.Name),
+                resource,
+                GetIdentityKey(ResourceIdentityReference.ForResource(resource.Id, resource.IdentityBinding.Name))))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(resource => resource.Id, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(resource => resource.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(resource => resource.Identity.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        OutboundGrants = await LoadOutboundGrantsAsync();
-        GrantGroups = OutboundGrants
-            .GroupBy(grant => grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+        InboundGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id));
+        GrantGroups = InboundGrants
+            .GroupBy(grant => GetIdentityKey(grant.Identity), StringComparer.OrdinalIgnoreCase)
             .Select(group => new GrantGroup(
-                group.Key,
+                group.First().Identity,
                 group
                     .Select(grant => grant.Permission)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Order(StringComparer.OrdinalIgnoreCase)
                     .ToArray()))
-            .OrderBy(group => FormatResourceName(group.TargetResourceId), StringComparer.OrdinalIgnoreCase)
-            .ThenBy(group => group.TargetResourceId, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => FormatIdentityName(group.Identity), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(group => group.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(group => group.Identity.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-    }
-
-    private async Task<IReadOnlyList<ResourcePermissionGrant>> LoadOutboundGrantsAsync()
-    {
-        if (Resource?.IdentityBinding is not { } identity)
-        {
-            return [];
-        }
-
-        return await ResourceManager.ListResourcePermissionGrantsAsync(
-            new ResourcePermissionGrantQuery(
-                IdentityResourceId: Resource.Id,
-                IdentityName: identity.Name));
     }
 
     private async Task GrantPermission()
     {
-        if (GrantingPermission || Resource?.IdentityBinding is null)
+        if (GrantingPermission || Resource is null)
         {
             return;
         }
@@ -236,9 +226,9 @@
         }
 
         var permission = ResolvePermission();
-        if (string.IsNullOrWhiteSpace(SelectedTargetResourceId))
+        if (!TryGetSelectedIdentity(out var identity))
         {
-            ProcedureMessage = L["Select a target resource."].Value;
+            ProcedureMessage = L["Select a resource identity."].Value;
             return;
         }
 
@@ -254,13 +244,13 @@
         {
             await ResourceManager.GrantResourcePermissionAsync(
                 new GrantResourcePermissionCommand(
+                    identity.Identity.ResourceId,
+                    identity.Identity.Name,
                     Resource.Id,
-                    Resource.IdentityBinding.Name,
-                    SelectedTargetResourceId,
                     permission));
             ProcedureMessage = L["Access permission assigned. Provision or reconcile the resource identity to apply provider-side changes."].Value;
-            SelectedTargetResourceId = string.Empty;
-            TargetResourceSearch = string.Empty;
+            SelectedIdentityKey = string.Empty;
+            IdentitySearch = string.Empty;
             SelectedPermission = string.Empty;
             CustomPermission = string.Empty;
             await LoadAsync();
@@ -275,9 +265,9 @@
         }
     }
 
-    private async Task RevokePermission(string targetResourceId, string permission)
+    private async Task RevokePermission(ResourceIdentityReference identity, string permission)
     {
-        if (Resource?.IdentityBinding is null)
+        if (Resource is null)
         {
             return;
         }
@@ -288,15 +278,15 @@
             return;
         }
 
-        RevokingPermissionKey = GetPermissionKey(targetResourceId, permission);
+        RevokingPermissionKey = GetPermissionKey(identity, permission);
         ProcedureMessage = null;
         try
         {
             await ResourceManager.RevokeResourcePermissionAsync(
                 new RevokeResourcePermissionCommand(
+                    identity.ResourceId,
+                    identity.Name,
                     Resource.Id,
-                    Resource.IdentityBinding.Name,
-                    targetResourceId,
                     permission));
             ProcedureMessage = L["Access permission revoked. Provision or reconcile the resource identity to apply provider-side changes."].Value;
             await LoadAsync();
@@ -319,60 +309,96 @@
             ? L["Assigning access"].Value
             : L["Assign access"].Value;
 
-    private string GetRevokeButtonLabel(string targetResourceId, string permission) =>
-        IsRevokingPermission(targetResourceId, permission)
+    private string GetRevokeButtonLabel(ResourceIdentityReference identity, string permission) =>
+        IsRevokingPermission(identity, permission)
             ? L["Revoking"].Value
             : L["Revoke"].Value;
 
-    private bool IsRevokingPermission(string targetResourceId, string permission) =>
-        string.Equals(RevokingPermissionKey, GetPermissionKey(targetResourceId, permission), StringComparison.Ordinal);
+    private bool IsRevokingPermission(ResourceIdentityReference identity, string permission) =>
+        string.Equals(RevokingPermissionKey, GetPermissionKey(identity, permission), StringComparison.Ordinal);
 
-    private static string GetPermissionKey(string targetResourceId, string permission) =>
-        $"{targetResourceId}\u001f{permission}";
+    private static string GetPermissionKey(ResourceIdentityReference identity, string permission) =>
+        $"{GetIdentityKey(identity)}\u001f{permission}";
 
-    private string FormatResourceOption(Resource resource) =>
-        $"{resource.Name} ({resource.EffectiveTypeId})";
+    private static string GetIdentityKey(ResourceIdentityReference identity) =>
+        $"{identity.ResourceId}\u001f{identity.Name}";
 
-    private bool MatchesTargetResourceSearch(Resource resource)
+    private static string FormatIdentityOption(IdentityOption identity) =>
+        $"{identity.Name} ({identity.IdentityLabel})";
+
+    private bool MatchesIdentitySearch(IdentityOption identity)
     {
-        var search = TargetResourceSearch.Trim();
-        return Contains(resource.Name, search) ||
-            Contains(resource.Id, search) ||
-            Contains(resource.DisplayName, search) ||
-            Contains(resource.EffectiveTypeId, search) ||
-            Contains(resource.ResourceClass.ToString(), search);
+        var search = IdentitySearch.Trim();
+        return Contains(identity.Name, search) ||
+            Contains(identity.IdentityLabel, search) ||
+            Contains(identity.Identity.ResourceId, search) ||
+            Contains(identity.Identity.Name, search) ||
+            Contains(identity.Resource.DisplayName, search) ||
+            Contains(identity.Resource.EffectiveTypeId, search) ||
+            Contains(identity.Resource.ResourceClass.ToString(), search) ||
+            Contains(identity.Resource.IdentityBinding?.ProviderId, search);
     }
 
     private static bool Contains(string? value, string search) =>
         !string.IsNullOrWhiteSpace(value) &&
         value.Contains(search, StringComparison.OrdinalIgnoreCase);
 
-    private string FormatResourceName(string resourceId) =>
-        ResourcesById.GetValueOrDefault(resourceId)?.Name ?? resourceId;
-
-    private RenderFragment ResourceLink(string resourceId) => builder =>
+    private bool TryGetSelectedIdentity([NotNullWhen(true)] out IdentityOption? identity)
     {
-        var resource = ResourcesById.GetValueOrDefault(resourceId);
-        builder.OpenElement(0, "a");
-        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
-        builder.AddAttribute(2, "href", ResourceManagerRoutes.ResourceDetails(resourceId));
-        builder.AddContent(3, resource?.Name ?? resourceId);
+        identity = IdentityOptions.FirstOrDefault(option =>
+            string.Equals(option.Key, SelectedIdentityKey, StringComparison.Ordinal));
+        return identity is not null;
+    }
+
+    private string FormatIdentityName(ResourceIdentityReference identity) =>
+        ResourcesById.GetValueOrDefault(identity.ResourceId)?.Name ?? identity.ResourceId;
+
+    private RenderFragment IdentityLink(ResourceIdentityReference identity) => builder =>
+    {
+        var resource = ResourcesById.GetValueOrDefault(identity.ResourceId);
+        var sequence = 0;
+        builder.OpenElement(sequence++, resource is null ? "span" : "a");
+        builder.AddAttribute(sequence++, "class", "resource-link generated-pill-link");
         if (resource is not null)
         {
-            builder.OpenElement(4, "small");
-            builder.AddContent(5, resource.EffectiveTypeId);
+            builder.AddAttribute(
+                sequence++,
+                "href",
+                ResourceManagerRoutes.ResourceDetails(identity.ResourceId, ResourcePredefinedViewIds.Identity));
+        }
+
+        builder.AddContent(sequence++, resource?.Name ?? identity.ResourceId);
+        builder.OpenElement(sequence++, "small");
+        builder.AddContent(sequence++, FormatIdentityLabel(identity));
+        builder.CloseElement();
+        if (resource is not null)
+        {
+            builder.OpenElement(sequence++, "small");
+            builder.AddContent(sequence++, resource.EffectiveTypeId);
             builder.CloseElement();
         }
 
         builder.CloseElement();
     };
 
-    private static string BuildIdentityRoute(string resourceId) =>
-        ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Identity);
+    private static string FormatIdentityLabel(ResourceIdentityReference identity) =>
+        string.IsNullOrWhiteSpace(identity.Name)
+            ? "Default identity"
+            : identity.Name;
 
     private sealed record PermissionOption(string Label, string Value);
 
+    private sealed record IdentityOption(
+        ResourceIdentityReference Identity,
+        Resource Resource,
+        string Key)
+    {
+        public string Name => Resource.Name;
+
+        public string IdentityLabel => FormatIdentityLabel(Identity);
+    }
+
     private sealed record GrantGroup(
-        string TargetResourceId,
+        ResourceIdentityReference Identity,
         IReadOnlyList<string> Permissions);
 }

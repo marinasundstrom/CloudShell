@@ -138,6 +138,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application Topology now includes a built-in development resource identity
   for the backend API, startup identity provisioning, and scoped grants for
   Configuration Store and Secrets Vault read access.
+- Application Topology now also provisions its Configuration Store and Secrets
+  Vault resource identities on startup so the identity and access-control demo
+  shows provisioned identities on both protected target resources.
 - Application overview pages now surface Start readiness using existing
   Resource Manager action availability reasons so preflight blockers are
   visible before invoking lifecycle actions.
@@ -161,6 +164,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager now includes a generated Management > Access control tab
   for assigning and revoking resource identity grants grouped by target
   resource, with Control Plane API/client commands for grant intent changes.
+- The generated Resource Manager Access control tab now treats the current
+  resource as the protected target, uses a searchable resource-identity picker,
+  and groups assigned access by the resource identity that can access the
+  target resource.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

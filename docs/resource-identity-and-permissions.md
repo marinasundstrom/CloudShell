@@ -340,8 +340,16 @@ metadata when a resource has one. Resource identity actions are isolated in a
 separate generated Identity tab that appears only for resources with identity
 enabled; that tab lists declared permission grants, exposes the provisioning
 command, and shows provider-reported provisioning status and diagnostics for
-the selected resource identity. Editing identity bindings and permission
-grants in the CloudShell UI is future work.
+the selected resource identity.
+
+The generated Access control tab shows who can access the current resource.
+For the current resource-identity MVP it offers a searchable resource-identity
+picker, records grant intent from the selected resource identity to the current
+resource, groups assigned permissions by resource identity, and can revoke
+those grants. User and group principals require a broader principal model and
+should be added as separate assignment surfaces or principal-type selectors
+rather than being folded into the resource-identity picker. Editing identity
+bindings themselves in the CloudShell UI is future work.
 
 Managed identity behavior is also future work. A managed identity provider
 should be able to resolve a resource identity binding and, where supported,

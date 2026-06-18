@@ -433,22 +433,9 @@ public sealed class SampleSmokeTests
                 grant.GetProperty("targetResourceId").GetString() == "configuration:application-topology" &&
                 grant.GetProperty("permission").GetString() == ConfigurationStoreResourceOperationPermissions.ReadEntries);
 
-        var provisioning = await host.GetStringAsync(
-            "/api/control-plane/v1/resources/application%3Aapplication-topology-api/identity/provisioning-status");
-        using var provisioningDocument = JsonDocument.Parse(provisioning);
-        Assert.Equal(
-            "identity:development",
-            provisioningDocument.RootElement.GetProperty("providerId").GetString());
-        var provisioningStatus = Assert.Single(provisioningDocument.RootElement.GetProperty("statuses").EnumerateArray());
-        var state = provisioningStatus.GetProperty("state");
-        if (state.ValueKind == JsonValueKind.String)
-        {
-            Assert.Equal("provisioned", state.GetString()?.ToLowerInvariant());
-        }
-        else
-        {
-            Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, state.GetInt32());
-        }
+        await AssertProvisionedIdentityStatusAsync(host, "application:application-topology-api");
+        await AssertProvisionedIdentityStatusAsync(host, "configuration:application-topology");
+        await AssertProvisionedIdentityStatusAsync(host, "secrets-vault:application-topology");
 
         var resourceToken = await host.GetClientCredentialsTokenAsync(
             "application:application-topology-api/application-topology-api",
@@ -516,6 +503,27 @@ public sealed class SampleSmokeTests
         Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, apiDetailsHtml);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, apiDetailsHtml);
         Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
+
+        var settingsIdentityHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
+        Assert.Contains("Provisioned", settingsIdentityHtml);
+        Assert.Contains("Built-in resource identity client is registered.", settingsIdentityHtml);
+        Assert.Contains("application-topology-api / application-topology-api", settingsIdentityHtml);
+        Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, settingsIdentityHtml);
+
+        var settingsAccessControlHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
+        Assert.Contains("Search resource identities", settingsAccessControlHtml);
+        Assert.Contains("Assigned resource identities", settingsAccessControlHtml);
+        Assert.Contains("application-topology-api", settingsAccessControlHtml);
+        Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, settingsAccessControlHtml);
+
+        var secretsIdentityHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");
+        Assert.Contains("Provisioned", secretsIdentityHtml);
+        Assert.Contains("Built-in resource identity client is registered.", secretsIdentityHtml);
+        Assert.Contains("application-topology-api / application-topology-api", secretsIdentityHtml);
+        Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, secretsIdentityHtml);
 
         var apiEnvironmentHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
@@ -1346,6 +1354,28 @@ public sealed class SampleSmokeTests
     private static string GetPrimaryEndpointAddress(JsonElement resource) =>
         resource.GetProperty("primaryEndpoint").GetString() ??
         throw new InvalidOperationException("The resource did not include a primary endpoint.");
+
+    private static async Task AssertProvisionedIdentityStatusAsync(
+        SampleProcess host,
+        string resourceId)
+    {
+        var provisioning = await host.GetStringAsync(
+            $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/identity/provisioning-status");
+        using var provisioningDocument = JsonDocument.Parse(provisioning);
+        Assert.Equal(
+            "identity:development",
+            provisioningDocument.RootElement.GetProperty("providerId").GetString());
+        var provisioningStatus = Assert.Single(provisioningDocument.RootElement.GetProperty("statuses").EnumerateArray());
+        var state = provisioningStatus.GetProperty("state");
+        if (state.ValueKind == JsonValueKind.String)
+        {
+            Assert.Equal("provisioned", state.GetString()?.ToLowerInvariant());
+        }
+        else
+        {
+            Assert.Equal((int)ResourceIdentityProvisioningState.Provisioned, state.GetInt32());
+        }
+    }
 
     private static async Task<string> RunResourceIdentityCredentialSampleAsync(
         SampleProcess host)

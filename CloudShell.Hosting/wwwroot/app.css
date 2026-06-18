@@ -1152,6 +1152,16 @@ h3 {
     width: 100%;
 }
 
+.generated-access-search {
+    width: 100%;
+    min-height: 2rem;
+    border: 1px solid var(--neutral-stroke-rest);
+    border-radius: 4px;
+    padding: .35rem .55rem;
+    background: var(--neutral-fill-input-rest);
+    color: var(--neutral-foreground-rest);
+}
+
 .generated-access-form label {
     font-weight: 650;
 }
