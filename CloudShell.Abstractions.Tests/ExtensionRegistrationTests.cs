@@ -196,6 +196,26 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void AddResourceTab_UsesPredefinedEnvironmentViewManagementGroup()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<ResourceEnvironmentTabExtension>();
+
+        var registry = GetRegistry(services);
+        var resourceType = Assert.Single(
+            Assert.Single(registry.Extensions).ResourceTypes);
+        var tab = Assert.Single(resourceType.ResourceTabs);
+
+        Assert.Equal(ResourcePredefinedViewIds.Environment, tab.Id);
+        Assert.Equal("Environment", tab.Title);
+        Assert.Equal(ResourceTabGroupIds.Management, tab.GroupId);
+        Assert.Equal("environment", tab.Icon);
+    }
+
+    [Fact]
     public void ConfigurationProviderExtension_RegistersEntriesUnderGeneralWithoutSettingsTab()
     {
         var services = new ServiceCollection();
@@ -988,6 +1008,33 @@ public sealed class ExtensionRegistrationTests
                     "sample.metrics-tab",
                     ResourcePredefinedViewIds.Metrics,
                     "Metrics",
+                    40);
+        }
+    }
+
+    private sealed class ResourceEnvironmentTabExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.environment-tab",
+            "Sample environment tab",
+            "Contributes a standard resource environment tab.",
+            "1.0.0",
+            ["sample.environment-tab"],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .AddResourceType<SampleRegistrationPage>(
+                    "sample.environment-tab",
+                    "Sample environment tab",
+                    "A resource with a provider-owned environment tab.",
+                    "sample",
+                    10)
+                .AddResourceTab<SampleOverviewPage>(
+                    "sample.environment-tab",
+                    ResourcePredefinedViewIds.Environment,
+                    "Environment",
                     40);
         }
     }
