@@ -1543,6 +1543,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             new EmptyLogStore(),
             new EmptyTraceStore(),
             new EmptyMetricStore(),
+            [],
             authorization ?? new AllowAllAuthorizationService(),
             resourceEvents);
     }

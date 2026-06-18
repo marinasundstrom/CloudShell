@@ -752,6 +752,30 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
+    public async Task RemoteControlPlane_MapsResourceMonitoring()
+    {
+        await using var app = await CreateAppAsync(includeImageResource: true);
+        var controlPlane = CreateClient(app);
+
+        var hasMonitoring = await controlPlane.HasResourceMonitoringAsync(
+            ContractImageResourceProvider.ResourceId);
+        var snapshot = await controlPlane.GetResourceMonitoringAsync(
+            ContractImageResourceProvider.ResourceId);
+        var missingSnapshot = await controlPlane.GetResourceMonitoringAsync("missing:resource");
+
+        Assert.True(hasMonitoring);
+        Assert.NotNull(snapshot);
+        Assert.Equal(ContractImageResourceProvider.ResourceId, snapshot.ResourceId);
+        Assert.Equal("Contract Container App", snapshot.Provider);
+        Assert.Equal("Available", snapshot.Status);
+        var cpu = Assert.Single(snapshot.Metrics, metric => metric.Name == "resource.cpu.usage");
+        Assert.Equal(12.5, cpu.Value);
+        Assert.Equal("%", cpu.Unit);
+        Assert.Equal("CPU usage", cpu.DisplayName);
+        Assert.Null(missingSnapshot);
+    }
+
+    [Fact]
     public async Task RemoteSettingsProvider_ManagesEnvironmentSettingsWhenAuthenticationIsDisabled()
     {
         await using var app = await CreateAppAsync();
@@ -1020,6 +1044,8 @@ public sealed class RemoteControlPlaneContractTests
         {
             builder.Services.AddSingleton<ContractImageResourceProvider>();
             builder.Services.AddSingleton<IResourceProvider>(serviceProvider =>
+                serviceProvider.GetRequiredService<ContractImageResourceProvider>());
+            builder.Services.AddSingleton<IResourceMonitoringProvider>(serviceProvider =>
                 serviceProvider.GetRequiredService<ContractImageResourceProvider>());
         }
         if (includeMappedNetwork)
@@ -1368,7 +1394,11 @@ public sealed class RemoteControlPlaneContractTests
                 "Secret 'sample-api-key' was not found in Secrets Vault 'secrets-vault:app'.");
     }
 
-    private sealed class ContractImageResourceProvider : IResourceProvider, IResourceImageUpdateProvider, IResourceReplicaUpdateProvider
+    private sealed class ContractImageResourceProvider :
+        IResourceProvider,
+        IResourceImageUpdateProvider,
+        IResourceReplicaUpdateProvider,
+        IResourceMonitoringProvider
     {
         public const string ProviderId = "contract.container-app";
         public const string ResourceId = "contract:container-app";
@@ -1433,5 +1463,27 @@ public sealed class RemoteControlPlaneContractTests
             return Task.FromResult(ResourceProcedureResult.Completed(
                 $"Updated {context.Resource.Id} to {replicas} replicas."));
         }
+
+        public bool CanMonitor(Resource resource) =>
+            string.Equals(resource.Id, ResourceId, StringComparison.OrdinalIgnoreCase);
+
+        public Task<ResourceMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+            Resource resource,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<ResourceMonitoringSnapshot?>(new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                DateTimeOffset.UtcNow,
+                [
+                    new ResourceMetricSample(
+                        "resource.cpu.usage",
+                        12.5,
+                        "%",
+                        DateTimeOffset.UtcNow,
+                        "CPU usage",
+                        "Provider-observed CPU usage.")
+                ],
+                "Available",
+                "Contract monitoring snapshot."));
     }
 }

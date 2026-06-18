@@ -20,6 +20,7 @@ public sealed class InProcessControlPlane(
     ILogStore logs,
     ITraceStore traces,
     IMetricStore metrics,
+    IEnumerable<IResourceMonitoringProvider> monitoringProviders,
     ICloudShellAuthorizationService authorization,
     IResourceEventStore? resourceEvents = null) : IControlPlane
 {
@@ -684,6 +685,44 @@ public sealed class InProcessControlPlane(
         cancellationToken.ThrowIfCancellationRequested();
         metrics.AddPoints(points);
         return Task.CompletedTask;
+    }
+
+    public Task<bool> HasResourceMonitoringAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resource = resourceManager.GetResource(resourceId);
+        return Task.FromResult(resource is not null &&
+            monitoringProviders.Any(provider => provider.CanMonitor(resource)));
+    }
+
+    public async Task<ResourceMonitoringSnapshot?> GetResourceMonitoringAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var resource = resourceManager.GetResource(resourceId);
+        if (resource is null)
+        {
+            return null;
+        }
+
+        foreach (var provider in monitoringProviders)
+        {
+            if (!provider.CanMonitor(resource))
+            {
+                continue;
+            }
+
+            var snapshot = await provider.GetMonitoringSnapshotAsync(resource, cancellationToken);
+            if (snapshot is not null)
+            {
+                return snapshot;
+            }
+        }
+
+        return null;
     }
 
     private IReadOnlyList<Resource> GetActiveDependents(Resource resource) =>

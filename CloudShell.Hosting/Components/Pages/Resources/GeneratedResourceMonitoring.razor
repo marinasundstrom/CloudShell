@@ -1,0 +1,117 @@
+@using System.Globalization
+@inject IResourceMonitoringManager MonitoringManager
+@inject IStringLocalizer<SharedResource> L
+
+<div class="generated-resource-view">
+    <section class="generated-section">
+        <div class="resource-activity-header">
+            <div>
+                <h3>@L["Monitoring"]</h3>
+                <span>@GetStatusText()</span>
+            </div>
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          Disabled="@IsLoading" OnClick="Refresh">
+                @(IsLoading ? L["Refreshing"] : L["Refresh"])
+            </FluentButton>
+        </div>
+
+        @if (Snapshot is null)
+        {
+            <EmptyState Title="@L["Monitoring unavailable"].Value"
+                        Message="@L["No resource monitoring snapshot is available for this resource."].Value"
+                        Compact="true" />
+        }
+        else if (Snapshot.Metrics.Count == 0)
+        {
+            <EmptyState Title="@L["No metrics available"].Value"
+                        Message="@(Snapshot.Message ?? L["The provider did not return any resource metrics for this snapshot."].Value)"
+                        Compact="true" />
+        }
+        else
+        {
+            <dl class="detail-list">
+                <dt>@L["Provider"]</dt>
+                <dd>@Snapshot.Provider</dd>
+                <dt>@L["Last updated"]</dt>
+                <dd>@Snapshot.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture)</dd>
+                @if (!string.IsNullOrWhiteSpace(Snapshot.Status))
+                {
+                    <dt>@L["Status"]</dt>
+                    <dd>@Snapshot.Status</dd>
+                }
+            </dl>
+
+            <div class="metric-summary-grid" aria-label="@L["Resource metrics"]">
+                @foreach (var metric in Snapshot.Metrics.OrderBy(metric => metric.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    <div class="metric-summary-card">
+                        <span>@(metric.DisplayName ?? metric.Name)</span>
+                        <strong>@FormatValue(metric)</strong>
+                        <small>@(metric.Description ?? metric.Name)</small>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private ResourceMonitoringSnapshot? Snapshot { get; set; }
+    private bool IsLoading { get; set; }
+
+    protected override Task OnParametersSetAsync() => Refresh();
+
+    private async Task Refresh()
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Snapshot = await MonitoringManager.GetResourceMonitoringAsync(ResourceId);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private string GetStatusText()
+    {
+        if (Snapshot is null)
+        {
+            return L["Provider-observed resource metrics"].Value;
+        }
+
+        var updated = Snapshot.Timestamp.ToLocalTime().ToString("HH:mm:ss", CultureInfo.CurrentCulture);
+        return string.IsNullOrWhiteSpace(Snapshot.Status)
+            ? L["Updated {0}", updated].Value
+            : L["{0} / updated {1}", Snapshot.Status, updated].Value;
+    }
+
+    private static string FormatValue(ResourceMetricSample metric) =>
+        string.Equals(metric.Unit, "bytes", StringComparison.OrdinalIgnoreCase)
+            ? FormatBytes(metric.Value)
+            : string.Equals(metric.Unit, "%", StringComparison.Ordinal)
+                ? $"{metric.Value.ToString("0.##", CultureInfo.InvariantCulture)}%"
+                : $"{metric.Value.ToString("0.###", CultureInfo.InvariantCulture)} {metric.Unit}".TrimEnd();
+
+    private static string FormatBytes(double value)
+    {
+        string[] units = ["B", "KB", "MB", "GB", "TB"];
+        var unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.Length - 1)
+        {
+            value /= 1024;
+            unitIndex++;
+        }
+
+        return $"{value.ToString(unitIndex == 0 ? "0" : "0.##", CultureInfo.InvariantCulture)} {units[unitIndex]}";
+    }
+}

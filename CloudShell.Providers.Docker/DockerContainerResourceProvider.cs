@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using Docker.DotNet;
 using Docker.DotNet.Models;
@@ -16,6 +17,7 @@ namespace CloudShell.Providers.Docker;
 public sealed partial class DockerContainerResourceProvider :
     IResourceProvider,
     ILogProvider,
+    IResourceMonitoringProvider,
     IResourceProcedureProvider,
     IResourceActionAvailabilityProvider,
     IProgrammaticResourceDeclarationProvider,
@@ -162,6 +164,67 @@ public sealed partial class DockerContainerResourceProvider :
         await foreach (var entry in ReadContainerLogStreamAsync(stream, cancellationToken))
         {
             yield return entry;
+        }
+    }
+
+    public bool CanMonitor(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "docker.container", StringComparison.OrdinalIgnoreCase);
+
+    public async Task<ResourceMonitoringSnapshot?> GetMonitoringSnapshotAsync(
+        Resource resource,
+        CancellationToken cancellationToken = default)
+    {
+        if (!CanMonitor(resource))
+        {
+            return null;
+        }
+
+        var timestamp = DateTimeOffset.UtcNow;
+        if (resource.State != ResourceState.Running)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Docker container metrics are available only while the container is running.");
+        }
+
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(_options.RequestTimeout);
+
+            var stats = await GetContainerStatsAsync(resource, timeout.Token);
+            if (stats is null)
+            {
+                return new ResourceMonitoringSnapshot(
+                    resource.Id,
+                    DisplayName,
+                    timestamp,
+                    [],
+                    "Unavailable",
+                    "Docker did not return a container stats snapshot.");
+            }
+
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                new DateTimeOffset(stats.Read.ToUniversalTime(), TimeSpan.Zero),
+                CreateContainerMetricSamples(stats),
+                "Available",
+                "Docker container stats.");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                GetErrorMessage(exception));
         }
     }
 
@@ -895,6 +958,81 @@ public sealed partial class DockerContainerResourceProvider :
 
         containerId = null;
         return false;
+    }
+
+    private async Task<ContainerStatsResponse?> GetContainerStatsAsync(
+        Resource resource,
+        CancellationToken cancellationToken)
+    {
+        ContainerStatsResponse? stats = null;
+        var client = GetClientForContainerResource(resource);
+        var progress = new Progress<ContainerStatsResponse>(value => stats = value);
+
+        await client.Containers.GetContainerStatsAsync(
+            GetContainerLookupName(resource.Id),
+            new ContainerStatsParameters { Stream = false, OneShot = true },
+            progress,
+            cancellationToken);
+
+        return stats;
+    }
+
+    private static IReadOnlyList<ResourceMetricSample> CreateContainerMetricSamples(
+        ContainerStatsResponse stats)
+    {
+        var timestamp = new DateTimeOffset(stats.Read.ToUniversalTime(), TimeSpan.Zero);
+        var memoryUsage = stats.MemoryStats?.Usage ?? 0;
+        var memoryLimit = stats.MemoryStats?.Limit ?? 0;
+        var samples = new List<ResourceMetricSample>
+        {
+            new(
+                "resource.cpu.usage",
+                CalculateCpuPercent(stats),
+                "%",
+                timestamp,
+                "CPU usage",
+                "CPU usage percentage reported by Docker for this container."),
+            new(
+                "resource.memory.usage",
+                memoryUsage,
+                "bytes",
+                timestamp,
+                "Memory usage",
+                "Current container memory usage reported by Docker.")
+        };
+
+        if (memoryLimit > 0)
+        {
+            samples.Add(new ResourceMetricSample(
+                "resource.memory.limit",
+                memoryLimit,
+                "bytes",
+                timestamp,
+                "Memory limit",
+                "Current container memory limit reported by Docker."));
+            samples.Add(new ResourceMetricSample(
+                "resource.memory.usagePercent",
+                memoryUsage / (double)memoryLimit * 100,
+                "%",
+                timestamp,
+                "Memory usage percent",
+                "Current container memory usage as a percentage of the Docker memory limit."));
+        }
+
+        return samples;
+    }
+
+    private static double CalculateCpuPercent(ContainerStatsResponse stats)
+    {
+        var cpuDelta = stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage;
+        var systemDelta = stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage;
+        var onlineCpus = stats.CPUStats.OnlineCPUs > 0
+            ? stats.CPUStats.OnlineCPUs
+            : (uint)Math.Max(1, stats.CPUStats.CPUUsage.PercpuUsage?.Count ?? 1);
+
+        return systemDelta > 0 && cpuDelta > 0
+            ? cpuDelta / (double)systemDelta * onlineCpus * 100
+            : 0;
     }
 
     private static async IAsyncEnumerable<LogEntry> ReadContainerLogStreamAsync(

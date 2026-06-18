@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -24,6 +25,8 @@ public sealed class DockerProviderExtension : ICloudShellExtension
         builder.Services.AddSingleton<IResourceOrchestrationDescriptorProvider>(
             serviceProvider => serviceProvider.GetRequiredService<DockerContainerResourceProvider>());
         builder.Services.AddSingleton<IResourceActionAvailabilityProvider>(
+            serviceProvider => serviceProvider.GetRequiredService<DockerContainerResourceProvider>());
+        builder.Services.AddSingleton<IResourceMonitoringProvider>(
             serviceProvider => serviceProvider.GetRequiredService<DockerContainerResourceProvider>());
 
         builder

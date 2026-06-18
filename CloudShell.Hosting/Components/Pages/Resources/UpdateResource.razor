@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @inject IResourceManager ResourceManager
 @inject ILogManager LogManager
+@inject IResourceMonitoringManager MonitoringManager
 @inject ShellCatalog ShellCatalog
 @inject NavigationManager Navigation
 @inject ICloudShellAuthorizationService Authorization
@@ -23,7 +24,7 @@
         ? null
         : ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
-    var tabs = BuildTabs(resource, resourceType, HasIdentityPermissionGrants, ResourceLogs.Count > 0);
+    var tabs = BuildTabs(resource, resourceType, HasIdentityPermissionGrants, ResourceLogs.Count > 0, HasResourceMonitoring);
     var selectedTab = tabs.FirstOrDefault(tab => tab.Id == SelectedTabId) ?? tabs.FirstOrDefault();
     var isGeneratedOverview = selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
     var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
@@ -219,6 +220,7 @@
     private static readonly ResourceViewId GeneratedIdentityTabId = ResourcePredefinedViewIds.Identity;
     private static readonly ResourceViewId GeneratedStorageVolumesTabId = ResourcePredefinedViewIds.Volumes;
     private static readonly ResourceViewId GeneratedActivityTabId = ResourcePredefinedViewIds.Activity;
+    private static readonly ResourceViewId GeneratedMonitoringTabId = ResourcePredefinedViewIds.Monitoring;
     private static readonly ResourceViewId GeneratedLogsTabId = ResourcePredefinedViewIds.Logs;
     private static readonly ResourceViewId GeneratedTracesTabId = ResourcePredefinedViewIds.Traces;
     private static readonly ResourceViewId GeneratedMetricsTabId = ResourcePredefinedViewIds.Metrics;
@@ -244,6 +246,7 @@
     private ResourceHealthSummary? HealthSummary { get; set; }
     private IReadOnlyList<LogDescriptor> ResourceLogs { get; set; } = [];
     private bool HasIdentityPermissionGrants { get; set; }
+    private bool HasResourceMonitoring { get; set; }
     private ResourceOperationCapabilities OperationCapabilities { get; set; } =
         ResourceOperationCapabilities.None(string.Empty);
     private HashSet<string> ExecutingActionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -287,6 +290,7 @@
             HealthSummary = null;
             IsCheckingHealth = false;
             HasIdentityPermissionGrants = false;
+            HasResourceMonitoring = false;
             OperationCapabilities = ResourceOperationCapabilities.None(string.Empty);
         }
         else
@@ -530,6 +534,7 @@
     {
         ResourceLogs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resource.Id));
         HasIdentityPermissionGrants = await HasPermissionGrantsAsync(resource);
+        HasResourceMonitoring = await MonitoringManager.HasResourceMonitoringAsync(resource.Id);
         OperationCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
         await RefreshResourceHealthAsync(resource);
     }
@@ -650,7 +655,8 @@
         Resource? resource,
         ResourceTypeContribution? resourceType,
         bool hasIdentityPermissionGrants,
-        bool hasResourceLogs)
+        bool hasResourceLogs,
+        bool hasResourceMonitoring)
     {
         var contributedTabs = resourceType?.ResourceTabs ?? [];
         var tabs = new List<ResourceTabContribution>();
@@ -722,6 +728,18 @@
                 typeof(ResourceActivity),
                 GroupTitle: ResourceTabGroupTitles.Management,
                 Icon: GetPredefinedViewIcon(GeneratedActivityTabId)));
+        }
+
+        if (hasResourceMonitoring &&
+            !contributedTabs.Any(tab => tab.Id == GeneratedMonitoringTabId))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedMonitoringTabId,
+                "Monitoring",
+                80,
+                typeof(GeneratedResourceMonitoring),
+                GroupTitle: ResourceTabGroupTitles.Management,
+                Icon: GetPredefinedViewIcon(GeneratedMonitoringTabId)));
         }
 
         if (resourceType?.UpdateComponentType is not null &&

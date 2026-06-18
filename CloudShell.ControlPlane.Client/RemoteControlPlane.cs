@@ -548,6 +548,20 @@ public sealed class RemoteControlPlane : IControlPlane
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public Task<bool> HasResourceMonitoringAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        GetRequiredAsync<bool>(
+            $"resources/{Escape(resourceId)}/monitoring/availability",
+            cancellationToken);
+
+    public Task<ResourceMonitoringSnapshot?> GetResourceMonitoringAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default) =>
+        GetOptionalAsync<ResourceMonitoringSnapshot>(
+            $"resources/{Escape(resourceId)}/monitoring",
+            cancellationToken);
+
     private async Task<T?> GetOptionalAsync<T>(
         string path,
         CancellationToken cancellationToken)

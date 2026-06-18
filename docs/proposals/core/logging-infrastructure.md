@@ -312,16 +312,14 @@ resource-scoped Monitoring tab under the Resource Manager Management group when
 a resource provider supports resource metrics for a process or container. That
 view has a standard predefined resource view ID, `management:monitoring`, so
 providers can contribute a consistent tab when resource monitoring is
-available. The view should be extensible so providers can surface
-resource-specific CPU, memory, restart, and runtime usage summaries without
-forcing them into the application telemetry model. ASP.NET Core resources
-already support application-level health checks reported for the resource;
-CloudShell does not currently have a separate resource-level health-check
-model. Monitoring may summarize those application health checks alongside
-process/container resource metrics when useful, but should not blur the line
-between application health signals and provider-owned resource metrics. The
-shared Telemetry trace explorer remains the cross-resource application
-telemetry investigation view.
+available. The detailed plan lives in
+[Resource monitoring](resource-monitoring.md). ASP.NET Core resources already support
+application-level health checks reported for the resource; CloudShell does not
+currently have a separate resource-level health-check model. Monitoring may
+summarize those application health checks alongside process/container resource
+metrics when useful, but should not blur the line between application health
+signals and provider-owned resource metrics. The shared Telemetry trace
+explorer remains the cross-resource application telemetry investigation view.
 
 This is an interaction target, not a requirement to copy any specific vendor
 UI. CloudShell should keep the view consistent with Resource Manager and should
@@ -359,8 +357,8 @@ base log or event entry a blob store.
 - Keep resource-scoped Events under Resource Manager's Management menu as
   resource-management history.
 - Use the standard `management:monitoring` predefined resource view ID for
-  provider-supported resource monitoring tabs. Add resource metrics collection
-  and provider-owned Monitoring tab implementations separately.
+  provider-supported resource monitoring tabs. Track the detailed model and
+  implementation plan in [Resource monitoring](resource-monitoring.md).
 - Keep the current telemetry metrics slice small: in-memory points,
   list/ingest APIs, remote-client support, Metrics views, and Project
   Reference sample request count/duration ingestion are in place. Add durable

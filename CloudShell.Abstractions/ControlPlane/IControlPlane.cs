@@ -11,7 +11,8 @@ public interface IControlPlane :
     IResourceEventManager,
     ILogManager,
     ITraceManager,
-    IMetricManager;
+    IMetricManager,
+    IResourceMonitoringManager;
 
 public interface IResourceManager
 {
@@ -171,6 +172,17 @@ public interface IMetricManager
 
     Task IngestMetricPointsAsync(
         IEnumerable<MetricPoint> points,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IResourceMonitoringManager
+{
+    Task<bool> HasResourceMonitoringAsync(
+        string resourceId,
+        CancellationToken cancellationToken = default);
+
+    Task<ResourceMonitoringSnapshot?> GetResourceMonitoringAsync(
+        string resourceId,
         CancellationToken cancellationToken = default);
 }
 

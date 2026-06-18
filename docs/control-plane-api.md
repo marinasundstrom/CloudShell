@@ -49,6 +49,20 @@ on the resource response, and provider application runs through the advertised
 `applyLoadBalancerConfiguration` resource action. See
 [Load balancers](resources/load-balancers.md).
 
+Resource monitoring uses resource-scoped Control Plane API routes because it is
+provider-observed management data for a selected resource, not application
+telemetry ingestion:
+
+```text
+GET /api/control-plane/v1/resources/{resourceId}/monitoring/availability
+GET /api/control-plane/v1/resources/{resourceId}/monitoring
+```
+
+The first route lets Resource Manager decide whether to show the generated
+Management > Monitoring tab. The second route returns the current provider
+snapshot when one is available. See
+[Resource monitoring](proposals/core/resource-monitoring.md).
+
 Keep breaking changes behind a new route and document, such as
 `/api/control-plane/v2` and `/openapi/control-plane-v2.json`. Remote
 control-plane adapters should pin the generated client to the major API version
@@ -57,11 +71,13 @@ they support.
 ## Shell integrations
 
 Shell integrations should depend on the `IControlPlane` facade, or
-one of its narrower resource, template, log, or trace manager facets, instead of
+one of its narrower resource, template, log, trace, metric, or monitoring
+manager facets, instead of
 in-process control-plane stores, providers, or generated Web API clients. The
 facade is intentionally domain-shaped: consumers ask to list resources, execute
-resource actions, read logs, or import templates without caring whether those
-operations are local service calls or HTTP requests.
+resource actions, read logs, inspect resource monitoring, or import templates
+without caring whether those operations are local service calls or HTTP
+requests.
 
 In combined hosts, CloudShell registers `InProcessControlPlane`, which
 adapts the existing services. In split hosts, an integration registers a remote

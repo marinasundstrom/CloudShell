@@ -54,6 +54,9 @@ on `git blame --follow`, and then by the broad type of change.
   Project Reference sample request count/duration ingestion.
 - Shell navigation now supports parented navigation items, and Logs, Traces,
   and Metrics now appear as child items under Observability.
+- Resource Monitoring now has provider-backed snapshot contracts, Control
+  Plane API/client support, a generated Management > Monitoring tab, Docker
+  container CPU/memory metrics, and a dedicated proposal tracker.
 - Configuration Store and Secrets Vault resource detail menus now use the
   generated General Configuration tab instead of duplicate Settings tabs, and
   place Entries and Secrets under General with distinct icon metadata.

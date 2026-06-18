@@ -168,8 +168,12 @@ listed here before pulling in broader proposal work.
    Management group because resource monitoring is about provider-observed
    resource metrics such as process/container CPU and memory usage rather than
    application telemetry. `management:monitoring` is now the standard
-   predefined resource view ID for provider-owned Monitoring tabs; resource
-   metrics collection and provider implementations remain separate work. Keep
+   predefined resource view ID for provider-owned Monitoring tabs. The first
+   resource monitoring slice adds provider-backed current snapshots, Control
+   Plane API/client support, a generated resource Monitoring tab, and Docker
+   container CPU/memory metrics. Durable resource-metric history, charts,
+   restart counters, and additional provider implementations remain separate
+   work. Keep
    shared Telemetry pages for cross-resource investigation
    instead of forcing normal per-resource work through global views. Do not
    start broad new shell areas before the supported samples are stable.
@@ -398,7 +402,10 @@ listed here before pulling in broader proposal work.
   application/runtime signals are available. Resource Monitoring should be a
   provider-supported, extensible Management tab for resource metrics such as
   process/container CPU and memory usage. `management:monitoring` is now the
-  standard predefined resource view ID for provider-owned Monitoring tabs.
+  standard predefined resource view ID for provider-owned Monitoring tabs, and
+  the generated Monitoring tab appears when a provider can return a current
+  resource monitoring snapshot for the resource. Docker containers now provide
+  CPU and memory snapshots through that path.
   ASP.NET Core resources already report application-level health checks for
   the resource; CloudShell does not currently have a separate resource-level
   health-check model. Cross-resource trace exploration can keep a shared
@@ -515,7 +522,9 @@ listed here before pulling in broader proposal work.
   should use `telemetry:metrics` for application/runtime metrics tabs and
   `management:monitoring` for process/container resource metrics tabs.
   CloudShell now retains application/runtime telemetry metric points in memory
-  for the MVP; durable retention and aggregation remain future work.
+  for the MVP and can query provider-backed current resource monitoring
+  snapshots for Docker containers; durable retention and aggregation remain
+  future work.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.

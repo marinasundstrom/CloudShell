@@ -170,6 +170,12 @@ public static class CloudShellControlPlaneApiExtensions
             .AllowAnonymous()
             .ExcludeFromDescription();
 
+        api.MapGet("/resources/{resourceId}/monitoring/availability", HasResourceMonitoring)
+            .WithName("CloudShellControlPlane_HasResourceMonitoring");
+
+        api.MapGet("/resources/{resourceId}/monitoring", GetResourceMonitoring)
+            .WithName("CloudShellControlPlane_GetResourceMonitoring");
+
         api.MapGet("/environment-settings", ListUserSettings)
             .WithName("CloudShellControlPlane_ListEnvironmentSettings");
 
@@ -925,6 +931,21 @@ public static class CloudShellControlPlaneApiExtensions
     {
         await metrics.IngestMetricPointsAsync(request.Points, cancellationToken);
         return Results.Accepted();
+    }
+
+    private static async Task<IResult> HasResourceMonitoring(
+        string resourceId,
+        IResourceMonitoringManager monitoring,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await monitoring.HasResourceMonitoringAsync(resourceId, cancellationToken));
+
+    private static async Task<IResult> GetResourceMonitoring(
+        string resourceId,
+        IResourceMonitoringManager monitoring,
+        CancellationToken cancellationToken)
+    {
+        var snapshot = await monitoring.GetResourceMonitoringAsync(resourceId, cancellationToken);
+        return snapshot is null ? Results.NotFound() : Results.Ok(snapshot);
     }
 
     private static async Task<IResult> ListUserSettings(
