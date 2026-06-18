@@ -5101,6 +5101,56 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task PlatformProvider_RejectsAuthoredDnsNameMappingDuplicateHostAndExposure()
+    {
+        var options = new PlatformResourceOptions();
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(store, options);
+        var registrations = new MutableResourceRegistrationStore();
+
+        await provider.SetupDnsZoneAsync(
+            new DnsZoneResourceDefinition(
+                "dns:local",
+                "Local DNS",
+                "local",
+                Mappings:
+                [
+                    new DnsNameMappingDefinition(
+                        "dns:local:name:api-local",
+                        "api.local",
+                        "api.local",
+                        "application:api",
+                        "http")
+                ]),
+            "group:network",
+            registrations);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            provider.SetupNameMappingAsync(
+                new DnsNameMappingResourceDefinition(
+                    "dns:local",
+                    "dns:local:name:api-local-copy",
+                    "API local copy",
+                    "API.LOCAL",
+                    "application:web",
+                    "http",
+                    ResourceExposureScope.Public),
+                "group:network",
+                registrations));
+
+        Assert.Equal(
+            "DNS zone resource 'dns:local' already has a name mapping for host 'API.LOCAL' in exposure scope 'Public': dns:local:name:api-local.",
+            exception.Message);
+        Assert.Null(registrations.GetRegistration("dns:local:name:api-local-copy"));
+        var resources = provider.GetResources()
+            .Where(resource => resource.EffectiveTypeId == PlatformResourceProvider.NameMappingResourceType)
+            .ToArray();
+        Assert.Single(resources);
+    }
+
+    [Fact]
     public async Task PlatformProvider_AppliesDnsZoneDeclarationWithNameMappingRegistrations()
     {
         var definition = new DnsZoneResourceDefinition(

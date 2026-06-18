@@ -324,6 +324,7 @@ public sealed class PlatformResourceProvider(
                 .Append(mapping)
                 .ToArray()
         });
+        ValidateAuthoredNameMapping(updated, mapping);
 
         store.SaveDnsZone(updated);
         var existingRegistration = registrations.GetRegistration(updated.Id);
@@ -340,6 +341,25 @@ public sealed class PlatformResourceProvider(
             normalizedGroupId,
             CreateNameMappingDependencies(mapping),
             cancellationToken);
+    }
+
+    private static void ValidateAuthoredNameMapping(
+        DnsZoneResourceDefinition zone,
+        DnsNameMappingDefinition mapping)
+    {
+        var conflict = GetNameMappingConflictGroups(zone)
+            .FirstOrDefault(group => group.Any(candidate =>
+                string.Equals(candidate.Id, mapping.Id, StringComparison.OrdinalIgnoreCase)));
+        if (conflict is null)
+        {
+            return;
+        }
+
+        var conflictingMappings = string.Join(", ", conflict
+            .Where(candidate => !string.Equals(candidate.Id, mapping.Id, StringComparison.OrdinalIgnoreCase))
+            .Select(candidate => candidate.Id));
+        throw new InvalidOperationException(
+            $"DNS zone resource '{zone.Id}' already has a name mapping for host '{mapping.HostName}' in exposure scope '{mapping.Exposure}': {conflictingMappings}.");
     }
 
     public async Task SetupVolumeAsync(
