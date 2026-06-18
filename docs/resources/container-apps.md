@@ -115,6 +115,10 @@ after the update. The tab calls the same domain
 `UpdateResourceImageAsync` operation used by remote clients, then refreshes the
 projected container image and revision.
 
+The Deployment tab also shows update readiness before enabling the deploy
+command. It reports missing manage permission, missing image input, no-op image
+updates, and restart blockers such as a missing or unavailable restart action.
+
 The same tab shows the app's current internal deployment projection: deployment
 status, orchestrator service id, scaling mode, desired replicas, and projected
 runtime replicas. This is an inspection surface over CloudShell's internal

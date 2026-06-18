@@ -650,6 +650,13 @@ public sealed class SampleSmokeTests
             ">Storage<",
             ">Environment<",
             ">Activity<");
+
+        var deploymentTabId = new ResourceViewId(ResourceTabGroupIds.Application, "deployment");
+        var sqlDeploymentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(deploymentTabId.Value)}");
+        Assert.Contains("Deploy image", sqlDeploymentHtml);
+        Assert.Contains("No image change", sqlDeploymentHtml);
+        Assert.Contains("Image update preflight", sqlDeploymentHtml);
     }
 
     [Fact]

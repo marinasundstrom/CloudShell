@@ -154,6 +154,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Application overview pages now surface Start readiness using existing
   Resource Manager action availability reasons so preflight blockers are
   visible before invoking lifecycle actions.
+- Container app Deployment tabs now surface image-update and restart readiness
+  diagnostics before enabling the Deploy command.
 - Application overview pages now summarize configured app setting and
   environment-variable references, including safe target details and identity
   grant status for configuration and secret references.

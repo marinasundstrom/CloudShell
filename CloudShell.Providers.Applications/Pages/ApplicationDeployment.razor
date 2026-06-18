@@ -47,9 +47,15 @@ else
                 Restart if running
             </FluentCheckbox>
 
-            @if (!Capabilities.CanManage)
+            @if (GetDeploymentReadiness() is { } readiness)
             {
-                <div class="procedure-message compact">You do not have permission to deploy images for this resource.</div>
+                <div class="generated-list">
+                    <div class="@readiness.CssClass">
+                        <strong>@readiness.Status</strong>
+                        <span>@readiness.Message</span>
+                        <small>@readiness.Context</small>
+                    </div>
+                </div>
             }
 
             @if (!string.IsNullOrWhiteSpace(ImageDeploymentMessage))
@@ -84,7 +90,8 @@ else
 
     private bool CanSubmitImageDeployment =>
         CanEditDeployment &&
-        !string.IsNullOrWhiteSpace(DeploymentImage);
+        !string.IsNullOrWhiteSpace(DeploymentImage) &&
+        GetDeploymentReadiness()?.BlocksSubmit != true;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -220,6 +227,77 @@ else
             _ => "No orchestrator deployment projection is available for this resource."
         };
 
+    private DeploymentReadinessView? GetDeploymentReadiness()
+    {
+        if (Resource is null)
+        {
+            return null;
+        }
+
+        if (!Capabilities.CanManage)
+        {
+            return DeploymentReadinessView.Blocked(
+                "Update readiness",
+                "The current user cannot deploy images for this resource.",
+                "Missing resource manage permission");
+        }
+
+        var requestedImage = DeploymentImage?.Trim();
+        if (string.IsNullOrWhiteSpace(requestedImage))
+        {
+            return DeploymentReadinessView.Blocked(
+                "Update readiness",
+                "Enter a container image before deploying.",
+                "Image update preflight");
+        }
+
+        var currentImage = GetCurrentContainerImage(Resource);
+        if (string.Equals(currentImage, requestedImage, StringComparison.Ordinal))
+        {
+            return DeploymentReadinessView.Blocked(
+                "No image change",
+                $"This resource already uses image '{currentImage}'.",
+                "Image update preflight");
+        }
+
+        if (!RestartIfRunning || Resource.State != ResourceState.Running)
+        {
+            return DeploymentReadinessView.Ready(
+                "Update readiness",
+                RestartIfRunning
+                    ? "The image update can be saved. The app is not running, so no restart is required."
+                    : "The image update can be saved. Restart the app later to use the new image.",
+                "Image update preflight");
+        }
+
+        var restartAction = Resource.ResourceActions.FirstOrDefault(action =>
+            action.Kind == ResourceActionKind.Restart);
+        if (restartAction is null)
+        {
+            return DeploymentReadinessView.Blocked(
+                "Restart unavailable",
+                "The image update can be saved only if restart is not requested. This resource does not expose a restart action.",
+                "Restart preflight");
+        }
+
+        var reason = Capabilities.GetActionUnavailableReason(restartAction.Id);
+        if (Capabilities.CanExecuteAction(restartAction.Id) &&
+            string.IsNullOrWhiteSpace(reason))
+        {
+            return DeploymentReadinessView.Ready(
+                "Restart readiness",
+                "Restart preflight checks passed. The running app can restart after the image update.",
+                "Restart preflight");
+        }
+
+        return DeploymentReadinessView.Blocked(
+            "Restart blocked",
+            string.IsNullOrWhiteSpace(reason)
+                ? "Restart is unavailable for this resource. Clear Restart if running to save the image without restarting."
+                : reason,
+            "Restart preflight");
+    }
+
     private async Task<string> ReadDeploymentImageAsync()
     {
         var fieldValue = await JS.InvokeAsync<string?>(
@@ -228,5 +306,25 @@ else
         return (string.IsNullOrWhiteSpace(fieldValue)
             ? DeploymentImage
             : fieldValue)?.Trim() ?? string.Empty;
+    }
+
+    private sealed record DeploymentReadinessView(
+        string Status,
+        string Message,
+        string Context,
+        bool BlocksSubmit,
+        string CssClass)
+    {
+        public static DeploymentReadinessView Ready(
+            string status,
+            string message,
+            string context) =>
+            new(status, message, context, false, "generated-diagnostic-info");
+
+        public static DeploymentReadinessView Blocked(
+            string status,
+            string message,
+            string context) =>
+            new(status, message, context, true, "generated-diagnostic-warning");
     }
 }
