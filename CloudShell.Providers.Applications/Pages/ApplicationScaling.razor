@@ -39,6 +39,14 @@ else
                                Disabled="@IsReadOnly"
                                @bind-Value="Replicas" />
 
+            @if (Application is not null &&
+                ApplicationVolumeMountReplicaWarning.ShouldShow(EnableReplicas, Application.VolumeMounts))
+            {
+                <div class="procedure-message compact">
+                    @ApplicationVolumeMountReplicaWarning.Message
+                </div>
+            }
+
             @if (HasInboundEndpoint)
             {
                 <div class="procedure-message compact">

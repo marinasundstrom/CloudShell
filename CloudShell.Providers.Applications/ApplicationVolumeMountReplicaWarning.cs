@@ -16,8 +16,20 @@ public static class ApplicationVolumeMountReplicaWarning
             !string.IsNullOrWhiteSpace(mount.TargetPath));
 
     public static bool ShouldShow(
+        bool replicasEnabled,
+        IEnumerable<ResourceVolumeMount> mounts) =>
+        replicasEnabled &&
+        mounts.Any(mount =>
+            !string.IsNullOrWhiteSpace(mount.VolumeReference) &&
+            !string.IsNullOrWhiteSpace(mount.TargetPath));
+
+    public static bool ShouldShow(
         ApplicationResourceDefinition application,
         IEnumerable<ApplicationVolumeMountInput> mounts) =>
         ApplicationResourceTypes.IsContainerApp(application.ResourceType) &&
         ShouldShow(application.ReplicasEnabled, mounts);
+
+    public static bool ShouldShow(ApplicationResourceDefinition application) =>
+        ApplicationResourceTypes.IsContainerApp(application.ResourceType) &&
+        ShouldShow(application.ReplicasEnabled, application.VolumeMounts);
 }

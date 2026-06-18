@@ -5427,6 +5427,9 @@ public sealed class ResourceDeclarationTests
         Assert.True(ApplicationVolumeMountReplicaWarning.ShouldShow(
             replicasEnabled: true,
             [new ApplicationVolumeMountInput("volume:data", "/data")]));
+        Assert.True(ApplicationVolumeMountReplicaWarning.ShouldShow(
+            replicasEnabled: true,
+            [new ResourceVolumeMount("volume:data", "/data")]));
     }
 
     [Fact]
