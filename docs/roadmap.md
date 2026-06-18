@@ -126,6 +126,40 @@ The remaining MVP work should bias toward release-quality behavior:
   and on-premise hosting work unless a supported MVP sample exposes a blocking
   gap.
 
+### Local Development MVP Target
+
+For the local development experience, the most urgent target is a developer
+who starts with programmatic declarations, runs a realistic distributed app
+locally, diagnoses failures from Resource Manager, and persists the graph when
+it is ready to become Control Plane state. Deployment to a target environment
+remains separate and waits for the orchestrator deployment API.
+
+Prioritize the remaining local-dev work in this order:
+
+1. **Supported sample confidence.** Keep the smoke suite green and make the
+   Application Topology sample the broad proof: container app, SQL Server with
+   mounted storage, configuration, secrets, identity, logs, traces, local
+   exposure, and DNS/name mapping should work together without
+   sample-specific knowledge.
+2. **App-centric Resource Manager workflow.** Keep the container app page as
+   the place where a developer understands endpoints, service discovery,
+   exposure, storage, settings/secrets, identity, logs, traces, monitoring,
+   and inbound names. Prefer small UX and diagnostics fixes here over new
+   platform areas.
+3. **Start/update readiness diagnostics.** Before a local Start, Restart, or
+   image/configuration update fails, Resource Manager should explain missing
+   container hosts, unavailable credentials, occupied ports, unsupported host
+   capabilities, unsafe volume mappings, unresolved setting/secret references,
+   and missing identity grants.
+4. **Configuration, secrets, and identity polish.** The settings/secrets flow
+   should be understandable from Resource Manager: saved references must be
+   visible without leaking secret values, identity grant status must be clear,
+   and failures should produce stable diagnostics and ProblemDetails.
+5. **Persisted-state handoff.** `Persist()` should stay a clear boundary from
+   code-first local declarations to durable Control Plane/provider state.
+   Local development can continue after persistence, but deployment remains a
+   separate orchestrator concern.
+
 ### Immediate Proposal Order
 
 Work the current proposals in this order. For MVP, implement only the slice

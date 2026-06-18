@@ -13,6 +13,10 @@ and built-in identity flows reliable before broadening into larger platform
 features. The identity provider model must still support a separate
 development identity server for local work and Microsoft Entra ID (Azure AD)
 as a required external OIDC/OAuth provider target.
+For the local development MVP, prioritize the path where a developer starts
+from programmatic declarations, runs and diagnoses a realistic distributed app
+locally through Resource Manager, and persists the graph when it is ready to
+become Control Plane state.
 
 This proposal identifies the platform areas that should be treated as foundational and prioritized before introducing more advanced platform features.
 
@@ -214,6 +218,9 @@ hosting, and deployments.
 * Identify cross-cutting dependencies.
 * Define common terminology.
 * Define shared platform services.
+* Keep the local development MVP target focused on supported sample
+  confidence, app-centric Resource Manager workflows, readiness diagnostics,
+  settings/secrets/identity polish, and a clear persisted-state handoff.
 * Define programmatic graph promotion from local declarations to persisted
   Control Plane state, and keep deployment through the future orchestrator
   deployment API separate from `Persist()`. Treat an on-premise CloudShell
