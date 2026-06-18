@@ -554,12 +554,18 @@ Verification:
 ### Observability
 
 `ResourceObservability` describes whether a resource exposes logs, traces,
-metrics, or OTLP configuration.
+metrics, OTLP configuration, telemetry sources, and telemetry scopes.
 
 Implementation:
 
 - Treat observability as projected capability or startup configuration, not as
   embedded telemetry data.
+- Use telemetry sources for stable producer or collection metadata:
+  provider-owned streams, OpenTelemetry exporters, or
+  Prometheus/OpenMetrics-style endpoints.
+- Use telemetry scopes for provider-defined selectable units under a stable
+  resource, such as replicas, partitions, workers, shards, or runtime
+  containers.
 - Providers may inject environment variables or side effects when starting a
   resource, but the projected resource should only expose stable observability
   metadata.

@@ -40,6 +40,17 @@ breakdowns. Provider-observed CPU, memory, restart count, uptime, and runtime
 status remain Resource Metrics under Management > Monitoring, not Telemetry
 Metrics.
 
+Resource observability should also announce telemetry sources. A source
+describes the producer or collection mechanism, such as provider-owned,
+OpenTelemetry exporter, or Prometheus/OpenMetrics-style endpoint telemetry.
+The shell and remote consumers can use the source metadata to understand that a
+resource serves telemetry without having to know whether the data arrived
+through OTLP, was scraped from a standards-based endpoint, or was supplied by a
+provider. Source metadata can carry scope
+descriptors so multi-replica, multi-partition, or multi-worker resources expose
+their selectable telemetry units consistently across resource Telemetry tabs
+and common Observability views.
+
 Related changes: [Changelog](CHANGELOG.md).
 
 ## 2026-06-17

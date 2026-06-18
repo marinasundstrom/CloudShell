@@ -1,5 +1,6 @@
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.Logs;
+using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.Abstractions.Shell;
 using System.Text.Json;
@@ -36,7 +37,39 @@ public sealed record ResourceResponse(
     ResourceManagementMode ManagementMode = ResourceManagementMode.UserManaged,
     ResourceVisibility Visibility = ResourceVisibility.Normal,
     string? OwnerResourceId = null,
-    ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None);
+    ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None,
+    ResourceObservabilityResponse? Observability = null);
+
+public sealed record ResourceObservabilityResponse(
+    bool Logs,
+    bool Traces,
+    bool Metrics,
+    string? OtlpEndpoint,
+    string? OtlpProtocol,
+    string? OtlpHeaders,
+    string? ServiceName,
+    IReadOnlyDictionary<string, string> Attributes,
+    IReadOnlyList<TelemetryScopeDescriptorResponse> Scopes,
+    IReadOnlyList<TelemetrySourceDescriptorResponse> Sources);
+
+public sealed record TelemetryScopeDescriptorResponse(
+    string ScopeResourceId,
+    string Name,
+    string Kind,
+    string? Description,
+    string? DeploymentRevision,
+    IReadOnlyDictionary<string, string> Attributes);
+
+public sealed record TelemetrySourceDescriptorResponse(
+    string Id,
+    string Name,
+    TelemetrySignalKind Signals,
+    TelemetrySourceKind Kind,
+    string? Endpoint,
+    string? Protocol,
+    string? Description,
+    IReadOnlyList<TelemetryScopeDescriptorResponse> Scopes,
+    IReadOnlyDictionary<string, string> Attributes);
 
 public sealed record ResourceEndpointResponse(
     string Name,
@@ -300,7 +333,51 @@ internal static class CloudShellControlPlaneDtoMapper
             resource.ManagementMode,
             resource.Visibility,
             resource.OwnerResourceId,
-            resource.CleanupBehavior);
+            resource.CleanupBehavior,
+            resource.Observability?.ToResponse());
+
+    public static ResourceObservabilityResponse ToResponse(
+        this ResourceObservability observability) =>
+        new(
+            observability.Logs,
+            observability.Traces,
+            observability.Metrics,
+            observability.OtlpEndpoint,
+            observability.OtlpProtocol,
+            observability.OtlpHeaders,
+            observability.ServiceName,
+            observability.Attributes,
+            (observability.Scopes ?? [])
+                .Select(scope => scope.ToResponse())
+                .ToArray(),
+            observability.TelemetrySources
+                .Select(source => source.ToResponse())
+                .ToArray());
+
+    public static TelemetryScopeDescriptorResponse ToResponse(
+        this TelemetryScopeDescriptor scope) =>
+        new(
+            scope.ScopeResourceId,
+            scope.Name,
+            scope.Kind,
+            scope.Description,
+            scope.DeploymentRevision,
+            scope.ScopeAttributes);
+
+    public static TelemetrySourceDescriptorResponse ToResponse(
+        this TelemetrySourceDescriptor source) =>
+        new(
+            source.Id,
+            source.Name,
+            source.Signals,
+            source.Kind,
+            source.Endpoint,
+            source.Protocol,
+            source.Description,
+            source.SourceScopes
+                .Select(scope => scope.ToResponse())
+                .ToArray(),
+            source.SourceAttributes);
 
     public static ResourceEndpointResponse ToResponse(this ResourceEndpoint endpoint) =>
         new(

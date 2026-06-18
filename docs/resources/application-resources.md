@@ -210,6 +210,14 @@ Container-backed application resources include the generated OTEL variables in
 their workload descriptor, so generated Docker Compose files receive the same
 settings as locally started processes.
 
+Applications can also project telemetry source metadata. A typical web
+application uses an OpenTelemetry exporter source when it sends traces or
+metrics to an OTLP collector, while a provider can use an endpoint source for a
+Prometheus/OpenMetrics scrape endpoint or a provider source for provider-owned
+logs or metrics. When a container app runs with multiple replicas, the
+application resource remains the stable telemetry owner and replica descriptors
+can be exposed as telemetry scopes for Trace and Metric filtering.
+
 ## Service Discovery
 
 Application resources can opt in to Aspire-compatible service discovery for

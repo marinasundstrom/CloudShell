@@ -63,6 +63,17 @@ Management > Monitoring tab. The second route returns the current provider
 snapshot when one is available. See
 [Resource monitoring](proposals/core/resource-monitoring.md).
 
+Application telemetry remains resource-owned. `ResourceResponse.observability`
+projects the stable signal declarations, provider-declared telemetry sources,
+and selectable telemetry scopes for a resource. Consumers can list retained
+traces and metrics by resource and optionally pass `scopeResourceId`,
+`scopeName`, `scopeKind`, or `deploymentRevision` to narrow the result set.
+Source metadata is advisory collection metadata: providers use it to describe
+provider-owned streams, OpenTelemetry exporters such as OTLP, or
+Prometheus/OpenMetrics-style endpoints. The retained telemetry APIs stay
+query-oriented so shell views do not need to know which standards-based
+transport or provider path produced the data.
+
 The current API surface remains snapshot/list based while CloudShell proves
 basic monitoring support across resource providers. Future live telemetry and
 resource monitoring updates for split-hosted UIs should use Control

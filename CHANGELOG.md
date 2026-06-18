@@ -96,6 +96,10 @@ on `git blame --follow`, and then by the broad type of change.
   for scope resource ID, scope name, scope kind, and deployment revision so
   future Resource Manager views can filter multi-instance resource signals by
   scope.
+- Resource observability metadata now includes provider-neutral telemetry
+  source and scope declarations, Control Plane API/client resource projection,
+  and shared/inline Trace and Metric scope selectors for resources with
+  multiple announced telemetry scopes.
 
 #### Fixed
 

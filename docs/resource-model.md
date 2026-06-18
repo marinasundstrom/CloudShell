@@ -448,6 +448,12 @@ from lifecycle state.
 
 `Observability` contains resource observability metadata. If missing, it
 defaults to `ResourceObservability.None` through `EffectiveObservability`.
+`ResourceObservability` can also advertise telemetry sources and scopes. A
+source describes how a resource produces or exposes telemetry, such as a
+provider-owned stream, an OpenTelemetry exporter, or a
+Prometheus/OpenMetrics-style endpoint. A scope describes a selectable
+provider-defined unit underneath the stable
+resource, such as a replica, partition, worker, shard, or runtime container.
 
 Logs, resource events, and traces are not embedded in `Resource`. They are
 queried through managers such as `ILogManager`, `IResourceEventManager`, and

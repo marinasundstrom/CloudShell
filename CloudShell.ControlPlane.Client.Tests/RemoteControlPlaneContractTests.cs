@@ -430,6 +430,23 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(ResourceIdentityBindingKind.Required, api.IdentityBinding.Kind);
         Assert.Null(api.IdentityBinding.ProviderId);
         Assert.Equal(["api.read"], api.IdentityBinding.IdentityScopes);
+        Assert.True(api.EffectiveObservability.Traces);
+        Assert.True(api.EffectiveObservability.Metrics);
+        var source = Assert.Single(api.EffectiveObservability.TelemetrySources);
+        Assert.Equal("contract-api-otlp", source.Id);
+        Assert.Equal(TelemetrySourceKind.Exporter, source.Kind);
+        Assert.True(source.Signals.HasFlag(TelemetrySignalKind.Traces));
+        Assert.True(source.Signals.HasFlag(TelemetrySignalKind.Metrics));
+        var scopes = api.EffectiveObservability.TelemetryScopes;
+        Assert.Equal(2, scopes.Count);
+        Assert.Contains(scopes, scope =>
+            scope.ScopeResourceId == "contract:api:replica:0" &&
+            scope.Name == "Replica 0" &&
+            scope.Kind == "containerReplica");
+        Assert.Contains(scopes, scope =>
+            scope.ScopeResourceId == "contract:api:replica:1" &&
+            scope.Name == "Replica 1" &&
+            scope.Kind == "containerReplica");
     }
 
     [Fact]
@@ -1271,6 +1288,32 @@ public sealed class RemoteControlPlaneContractTests
                 DateTimeOffset.UtcNow,
                 [],
                 Identity: ResourceIdentityBinding.RequireIdentity(["api.read"]),
+                Observability: new ResourceObservability(
+                    Logs: true,
+                    Traces: true,
+                    Metrics: true,
+                    ServiceName: "contract-api",
+                    Sources:
+                    [
+                        new TelemetrySourceDescriptor(
+                            "contract-api-otlp",
+                            "Contract API OTLP",
+                            TelemetrySignalKind.Traces | TelemetrySignalKind.Metrics,
+                            TelemetrySourceKind.Exporter,
+                            Endpoint: "http://localhost:4317",
+                            Protocol: "otlp",
+                            Scopes:
+                            [
+                                new TelemetryScopeDescriptor(
+                                    "contract:api:replica:0",
+                                    "Replica 0",
+                                    "containerReplica"),
+                                new TelemetryScopeDescriptor(
+                                    "contract:api:replica:1",
+                                    "Replica 1",
+                                    "containerReplica")
+                            ])
+                    ]),
                 Capabilities: [new(ResourceCapabilityIds.EndpointSource)]),
             new(
                 ProxyResourceId,

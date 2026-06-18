@@ -740,7 +740,39 @@ file sealed record ResourceResponse(
     ResourceManagementMode ManagementMode = ResourceManagementMode.UserManaged,
     ResourceVisibility Visibility = ResourceVisibility.Normal,
     string? OwnerResourceId = null,
-    ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None);
+    ResourceCleanupBehavior CleanupBehavior = ResourceCleanupBehavior.None,
+    ResourceObservabilityResponse? Observability = null);
+
+file sealed record ResourceObservabilityResponse(
+    bool Logs,
+    bool Traces,
+    bool Metrics,
+    string? OtlpEndpoint,
+    string? OtlpProtocol,
+    string? OtlpHeaders,
+    string? ServiceName,
+    IReadOnlyDictionary<string, string>? Attributes,
+    IReadOnlyList<TelemetryScopeDescriptorResponse>? Scopes,
+    IReadOnlyList<TelemetrySourceDescriptorResponse>? Sources);
+
+file sealed record TelemetryScopeDescriptorResponse(
+    string ScopeResourceId,
+    string Name,
+    string Kind,
+    string? Description,
+    string? DeploymentRevision,
+    IReadOnlyDictionary<string, string>? Attributes);
+
+file sealed record TelemetrySourceDescriptorResponse(
+    string Id,
+    string Name,
+    TelemetrySignalKind Signals,
+    TelemetrySourceKind Kind,
+    string? Endpoint,
+    string? Protocol,
+    string? Description,
+    IReadOnlyList<TelemetryScopeDescriptorResponse>? Scopes,
+    IReadOnlyDictionary<string, string>? Attributes);
 
 file sealed record ResourceEndpointResponse(
     string Name,
@@ -1007,7 +1039,51 @@ file static class RemoteControlPlaneMapper
             Visibility: response.Visibility,
             OwnerResourceId: response.OwnerResourceId,
             CleanupBehavior: response.CleanupBehavior,
-            DisplayName: response.DisplayName);
+            DisplayName: response.DisplayName,
+            Observability: response.Observability?.ToResourceObservability());
+
+    public static ResourceObservability ToResourceObservability(
+        this ResourceObservabilityResponse response) =>
+        new(
+            response.Logs,
+            response.Traces,
+            response.Metrics,
+            response.OtlpEndpoint,
+            response.OtlpProtocol,
+            response.OtlpHeaders,
+            response.ServiceName,
+            response.Attributes,
+            response.Scopes?
+                .Select(scope => scope.ToTelemetryScopeDescriptor())
+                .ToArray(),
+            response.Sources?
+                .Select(source => source.ToTelemetrySourceDescriptor())
+                .ToArray());
+
+    public static TelemetryScopeDescriptor ToTelemetryScopeDescriptor(
+        this TelemetryScopeDescriptorResponse response) =>
+        new(
+            response.ScopeResourceId,
+            response.Name,
+            response.Kind,
+            response.Description,
+            response.DeploymentRevision,
+            response.Attributes);
+
+    public static TelemetrySourceDescriptor ToTelemetrySourceDescriptor(
+        this TelemetrySourceDescriptorResponse response) =>
+        new(
+            response.Id,
+            response.Name,
+            response.Signals,
+            response.Kind,
+            response.Endpoint,
+            response.Protocol,
+            response.Description,
+            response.Scopes?
+                .Select(scope => scope.ToTelemetryScopeDescriptor())
+                .ToArray(),
+            response.Attributes);
 
     public static ResourceEndpoint ToResourceEndpoint(this ResourceEndpointResponse response) =>
         ResourceEndpoint.Contract(

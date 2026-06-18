@@ -11,6 +11,22 @@ public static class TelemetryAttributeNames
     public const string DeploymentRevision = "deployment.revision";
 }
 
+[Flags]
+public enum TelemetrySignalKind
+{
+    None = 0,
+    Logs = 1,
+    Traces = 2,
+    Metrics = 4
+}
+
+public enum TelemetrySourceKind
+{
+    Provider,
+    Exporter,
+    Endpoint
+}
+
 public sealed record TelemetryScope(
     string? ScopeResourceId = null,
     string? ScopeName = null,
@@ -36,4 +52,42 @@ public sealed record TelemetryScope(
         string.IsNullOrWhiteSpace(expected) ||
         (attributes.TryGetValue(key, out var actual) &&
             string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase));
+}
+
+public sealed record TelemetryScopeDescriptor(
+    string ScopeResourceId,
+    string Name,
+    string Kind,
+    string? Description = null,
+    string? DeploymentRevision = null,
+    IReadOnlyDictionary<string, string>? Attributes = null)
+{
+    public IReadOnlyDictionary<string, string> ScopeAttributes =>
+        Attributes ?? EmptyAttributes;
+
+    public TelemetryScope ToQueryScope() =>
+        new(ScopeResourceId, Name, Kind, DeploymentRevision);
+
+    private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed record TelemetrySourceDescriptor(
+    string Id,
+    string Name,
+    TelemetrySignalKind Signals,
+    TelemetrySourceKind Kind,
+    string? Endpoint = null,
+    string? Protocol = null,
+    string? Description = null,
+    IReadOnlyList<TelemetryScopeDescriptor>? Scopes = null,
+    IReadOnlyDictionary<string, string>? Attributes = null)
+{
+    public IReadOnlyList<TelemetryScopeDescriptor> SourceScopes => Scopes ?? [];
+
+    public IReadOnlyDictionary<string, string> SourceAttributes =>
+        Attributes ?? EmptyAttributes;
+
+    private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }

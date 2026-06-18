@@ -12,6 +12,8 @@
 @{
     var resources = TraceResources;
     var selected = GetSelectedResource(resources);
+    var scopes = selected?.EffectiveObservability.TelemetryScopes ?? [];
+    var selectedScope = GetSelectedScope(selected);
 }
 
 @if (Inline)
@@ -91,6 +93,21 @@ else
                             }
                         </select>
                     </label>
+                    @if (scopes.Count > 1)
+                    {
+                        <label class="trace-source-filter" for="trace-scope-filter">
+                            <span>@L["Scope"]</span>
+                            <select id="trace-scope-filter" class="trace-source-select"
+                                    value="@(selectedScope?.ScopeResourceId ?? string.Empty)"
+                                    @onchange="SelectScope">
+                                <option value="">@L["All scopes"]</option>
+                                @foreach (var scope in scopes)
+                                {
+                                    <option value="@scope.ScopeResourceId">@scope.Name</option>
+                                }
+                            </select>
+                        </label>
+                    }
                     <FluentAnchor Appearance="Appearance.Neutral" Href="@BuildResourceRoute(selected.Id)">
                         @L["Open resource"]
                     </FluentAnchor>
@@ -112,6 +129,11 @@ else
                     <dd>@selected.PrimaryEndpoint</dd>
                     <dt>@L["Resource attributes"]</dt>
                     <dd>@GetResourceAttributes(selected, observability)</dd>
+                    @if (selectedScope is not null)
+                    {
+                        <dt>@L["Scope"]</dt>
+                        <dd>@selectedScope.Name</dd>
+                    }
                 </dl>
             }
 
@@ -347,6 +369,10 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
     public string? TraceId { get; set; }
 
     [Parameter]
+    [SupplyParameterFromQuery]
+    public string? ScopeResourceId { get; set; }
+
+    [Parameter]
     public bool Inline { get; set; }
 
     private System.Threading.Timer? refreshTimer;
@@ -418,7 +444,8 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
                 : await TraceManager.ListTraceSpansAsync(new TraceQuery(
                     ResourceId: string.IsNullOrWhiteSpace(TraceId) ? selected.Id : null,
                     TraceId: NormalizeFilter(TraceId),
-                    MaxSpans: 200));
+                    MaxSpans: 200,
+                    Scope: GetSelectedScope(selected)?.ToQueryScope()));
 
             if (!RecentSpans.Any(span => string.Equals(span.SpanId, SelectedSpanId, StringComparison.OrdinalIgnoreCase)))
             {
@@ -451,6 +478,17 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         Navigation.NavigateTo(BuildTraceRoute(resourceId, TraceId));
     }
 
+    private void SelectScope(ChangeEventArgs args)
+    {
+        var selected = GetSelectedResource(TraceResources);
+        if (selected is null)
+        {
+            return;
+        }
+
+        Navigation.NavigateTo(BuildTraceRoute(selected.Id, TraceId, args.Value?.ToString()));
+    }
+
     private void ShowAllResources() => Navigation.NavigateTo("/observability/traces");
 
     private void ClearTraceFilter()
@@ -464,7 +502,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             return;
         }
 
-        Navigation.NavigateTo(BuildTraceRoute(selected.Id));
+        Navigation.NavigateTo(BuildTraceRoute(selected.Id, scopeResourceId: ScopeResourceId));
     }
 
     private void SelectSpan(TraceSpan span)
@@ -480,7 +518,10 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             ? L["{0} spans retained in memory", spanCount].Value
             : L["{0} spans retained in memory for trace {1}", spanCount, FormatTraceId(TraceId)].Value;
 
-    private static Dictionary<string, string?> BuildTraceQuery(string resourceId, string? traceId)
+    private static Dictionary<string, string?> BuildTraceQuery(
+        string resourceId,
+        string? traceId,
+        string? scopeResourceId = null)
     {
         var query = new Dictionary<string, string?>
         {
@@ -490,6 +531,11 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         if (!string.IsNullOrWhiteSpace(traceId))
         {
             query["traceId"] = traceId.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(scopeResourceId))
+        {
+            query["scopeResourceId"] = scopeResourceId.Trim();
         }
 
         return query;
@@ -697,7 +743,10 @@ StringComparison.OrdinalIgnoreCase))?.Span
         return ServicePalette[index];
     }
 
-    private string BuildTraceRoute(string resourceId, string? traceId = null)
+    private string BuildTraceRoute(
+        string resourceId,
+        string? traceId = null,
+        string? scopeResourceId = null)
     {
         if (Inline)
         {
@@ -711,6 +760,11 @@ StringComparison.OrdinalIgnoreCase))?.Span
                 query["traceId"] = traceId.Trim();
             }
 
+            if (!string.IsNullOrWhiteSpace(scopeResourceId))
+            {
+                query["scopeResourceId"] = scopeResourceId.Trim();
+            }
+
             return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
                 ResourceManagerRoutes.ResourceDetails(resourceId),
                 query);
@@ -718,7 +772,18 @@ StringComparison.OrdinalIgnoreCase))?.Span
 
         return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
             "/observability/traces",
-            BuildTraceQuery(resourceId, traceId));
+            BuildTraceQuery(resourceId, traceId, scopeResourceId));
+    }
+
+    private TelemetryScopeDescriptor? GetSelectedScope(Resource? resource)
+    {
+        if (resource is null || string.IsNullOrWhiteSpace(ScopeResourceId))
+        {
+            return null;
+        }
+
+        return resource.EffectiveObservability.TelemetryScopes.FirstOrDefault(scope =>
+            string.Equals(scope.ScopeResourceId, ScopeResourceId, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string BuildLogsRoute(string resourceId, string traceId) =>
