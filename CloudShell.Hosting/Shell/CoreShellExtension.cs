@@ -18,6 +18,8 @@ public sealed class CoreShellExtension : ICloudShellExtension
         builder
             .RegisterView<Home>(CoreShellViews.Overview)
             .AddNavigationItem<Home>("overview", "Overview", "grid", 0)
+            .RegisterView<Components.Pages.Account.Users>(CoreShellViews.Users)
+            .AddNavigationItem<Components.Pages.Account.Users>("Users", "users", 80, "Platform")
             .RegisterView<Components.Pages.Extensions.Extensions>(CoreShellViews.Extensions)
             .AddNavigationItem<Components.Pages.Extensions.Extensions>("Extensions", "plug", 90, "Platform");
     }

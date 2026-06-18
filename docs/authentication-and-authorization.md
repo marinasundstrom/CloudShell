@@ -88,6 +88,15 @@ When `AllowLocalSetup` is enabled and no users exist, `/account/setup` creates
 the first administrator. Keep this option disabled in production after
 provisioning accounts.
 
+When CloudShell runs in `Identity` mode, administrators with
+`shell.configure` can use the shell Users page to create additional local test
+users. This is a rudimentary built-in identity-provider surface for local
+development and permission-boundary testing. It can assign one built-in role
+and basic CloudShell scope claims such as resource-group scope, direct resource
+scope, and a single resource-permission claim. It is not the final provider
+management model; future identity-provider integrations should use a dedicated
+provider/setup surface and provider-neutral hooks.
+
 ### Dashboard secret
 
 `Secret` presents a dashboard-secret login and creates an administrator

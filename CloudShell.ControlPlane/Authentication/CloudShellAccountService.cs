@@ -1,4 +1,5 @@
 using CloudShell.Abstractions.Authentication;
+using CloudShell.Abstractions.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -18,9 +19,11 @@ public sealed class CloudShellAccountService(
 
     public bool AllowLocalSetup => options.Value.AllowLocalSetup;
 
+    public bool SupportsLocalUserAdministration => UsesLocalIdentity;
+
     public async Task<bool> HasLocalUsersAsync(CancellationToken cancellationToken = default)
     {
-        if (!IsMode("Identity"))
+        if (!UsesLocalIdentity)
         {
             return false;
         }
@@ -62,7 +65,7 @@ public sealed class CloudShellAccountService(
         string email,
         string password)
     {
-        if (!IsMode("Identity") || !AllowLocalSetup)
+        if (!UsesLocalIdentity || !AllowLocalSetup)
         {
             return AccountOperationResult.Failure("Local account setup is disabled.");
         }
@@ -108,6 +111,109 @@ public sealed class CloudShellAccountService(
         return AccountOperationResult.Success();
     }
 
+    public async Task<IReadOnlyList<CloudShellAccountUser>> ListUsersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        if (!UsesLocalIdentity)
+        {
+            return [];
+        }
+
+        var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+        var users = await userManager.Users
+            .OrderBy(user => user.Email ?? user.UserName)
+            .ToListAsync(cancellationToken);
+        var result = new List<CloudShellAccountUser>(users.Count);
+        foreach (var user in users)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var roles = await userManager.GetRolesAsync(user);
+            var claims = await userManager.GetClaimsAsync(user);
+            result.Add(new CloudShellAccountUser(
+                user.Id,
+                user.UserName ?? user.Email ?? user.Id,
+                user.Email,
+                roles.Order(StringComparer.OrdinalIgnoreCase).ToArray(),
+                claims
+                    .Where(IsCloudShellClaim)
+                    .OrderBy(claim => claim.Type, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(claim => claim.Value, StringComparer.OrdinalIgnoreCase)
+                    .Select(claim => new CloudShellAccountClaim(claim.Type, claim.Value))
+                    .ToArray()));
+        }
+
+        return result;
+    }
+
+    public async Task<AccountOperationResult> CreateUserAsync(
+        CreateCloudShellAccountUserRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!UsesLocalIdentity)
+        {
+            return AccountOperationResult.Failure("Local user administration is unavailable.");
+        }
+
+        var email = request.Email.Trim();
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return AccountOperationResult.Failure("Email is required.");
+        }
+
+        var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+        var user = new IdentityUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true
+        };
+        var createResult = await userManager.CreateAsync(user, request.Password);
+        if (!createResult.Succeeded)
+        {
+            return AccountOperationResult.Failure(
+                createResult.Errors.Select(error => error.Description).ToArray());
+        }
+
+        var errors = new List<string>();
+        var roleName = request.Role?.Trim();
+        if (!string.IsNullOrWhiteSpace(roleName))
+        {
+            if (!options.Value.RolePermissions.ContainsKey(roleName))
+            {
+                await userManager.DeleteAsync(user);
+                return AccountOperationResult.Failure($"The configured role '{roleName}' is not defined.");
+            }
+
+            var roleResult = await userManager.AddToRoleAsync(user, roleName);
+            if (!roleResult.Succeeded)
+            {
+                await userManager.DeleteAsync(user);
+                return AccountOperationResult.Failure(
+                    roleResult.Errors.Select(error => error.Description).ToArray());
+            }
+        }
+
+        foreach (var accountClaim in NormalizeClaims(request.Claims ?? []))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var claimResult = await userManager.AddClaimAsync(
+                user,
+                new System.Security.Claims.Claim(accountClaim.Type, accountClaim.Value));
+            if (!claimResult.Succeeded)
+            {
+                errors.AddRange(claimResult.Errors.Select(error => error.Description));
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            await userManager.DeleteAsync(user);
+            return AccountOperationResult.Failure(errors.ToArray());
+        }
+
+        return AccountOperationResult.Success();
+    }
+
     public async Task SignOutAsync()
     {
         var context = httpContextAccessor.HttpContext
@@ -124,4 +230,30 @@ public sealed class CloudShellAccountService(
 
     private bool IsMode(string mode) =>
         string.Equals(Mode, mode, StringComparison.OrdinalIgnoreCase);
+
+    private bool UsesLocalIdentity =>
+        options.Value.Enabled &&
+        IsMode("Identity");
+
+    private static IReadOnlyList<CloudShellAccountClaim> NormalizeClaims(
+        IReadOnlyList<CloudShellAccountClaim> claims) =>
+        claims
+            .Select(claim => new CloudShellAccountClaim(claim.Type.Trim(), claim.Value.Trim()))
+            .Where(claim =>
+                IsCloudShellClaim(claim) &&
+                !string.IsNullOrWhiteSpace(claim.Value))
+            .Distinct()
+            .ToArray();
+
+    private static bool IsCloudShellClaim(CloudShellAccountClaim claim) =>
+        claim.Type is CloudShellAuthorizationClaimTypes.Permission or
+            CloudShellAuthorizationClaimTypes.ResourceGroup or
+            CloudShellAuthorizationClaimTypes.Resource or
+            CloudShellAuthorizationClaimTypes.ResourcePermission;
+
+    private static bool IsCloudShellClaim(System.Security.Claims.Claim claim) =>
+        claim.Type is CloudShellAuthorizationClaimTypes.Permission or
+            CloudShellAuthorizationClaimTypes.ResourceGroup or
+            CloudShellAuthorizationClaimTypes.Resource or
+            CloudShellAuthorizationClaimTypes.ResourcePermission;
 }

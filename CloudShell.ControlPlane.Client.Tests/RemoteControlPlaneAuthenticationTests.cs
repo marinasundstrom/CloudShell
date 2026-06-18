@@ -1,4 +1,5 @@
 using CloudShell.Client.Authentication;
+using CloudShell.Abstractions.Authentication;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ControlPlane;
 using CloudShell.Abstractions.ResourceManager;
@@ -175,6 +176,44 @@ public sealed class RemoteControlPlaneAuthenticationTests
         var capability = Assert.Single(capabilities).Value;
         Assert.True(capability.CanManage);
         Assert.True(capability.CanDelete);
+    }
+
+    [Fact]
+    public async Task BuiltInAccountService_CreatesLocalPermissionTestUser()
+    {
+        await using var app = await CreateIdentityProtectedAppAsync();
+        await using var scope = app.Services.CreateAsyncScope();
+        var accounts = scope.ServiceProvider.GetRequiredService<CloudShellAccountService>();
+
+        var result = await accounts.CreateUserAsync(new CreateCloudShellAccountUserRequest(
+            "reader@example.test",
+            "CloudShell123!",
+            "CloudShell.Reader",
+            [
+                new(
+                    CloudShellAuthenticationOptions.ResourceGroupClaimType,
+                    CloudShellPermissions.All),
+                new(
+                    CloudShellAuthenticationOptions.ResourcePermissionClaimType,
+                    ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+                        ContractLifecycleResourceProvider.ResourceId,
+                        CloudShellPermissions.Resources.Manage))
+            ]));
+        var users = await accounts.ListUsersAsync();
+
+        Assert.True(result.Succeeded, string.Join(", ", result.Errors));
+        var user = Assert.Single(users, user => user.Email == "reader@example.test");
+        Assert.Equal(["CloudShell.Reader"], user.Roles);
+        Assert.Contains(
+            user.Claims,
+            claim => claim.Type == CloudShellAuthenticationOptions.ResourceGroupClaimType &&
+                     claim.Value == CloudShellPermissions.All);
+        Assert.Contains(
+            user.Claims,
+            claim => claim.Type == CloudShellAuthenticationOptions.ResourcePermissionClaimType &&
+                     claim.Value == ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+                         ContractLifecycleResourceProvider.ResourceId,
+                         CloudShellPermissions.Resources.Manage));
     }
 
     [Fact]

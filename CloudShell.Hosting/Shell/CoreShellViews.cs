@@ -5,4 +5,6 @@ public static class CoreShellViews
     public const string Overview = "cloudshell.core.overview";
 
     public const string Extensions = "cloudshell.core.extensions";
+
+    public const string Users = "cloudshell.core.users";
 }

@@ -180,6 +180,9 @@ on `git blame --follow`, and then by the broad type of change.
   resource as the protected target, uses a searchable resource-identity picker,
   and groups assigned access by the resource identity that can access the
   target resource.
+- The built-in Identity authentication mode now exposes a rudimentary
+  shell Users page for creating local test users with roles and CloudShell
+  resource-group, resource, or resource-permission claims.
 - The generated Resource Manager Access control tab now filters its permission
   picker to operations relevant to the current target resource while keeping
   custom and all-permission options available.

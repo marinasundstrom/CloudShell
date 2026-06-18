@@ -1,0 +1,306 @@
+@page "/account/users"
+@rendermode InteractiveServer
+@inject IAccountService Accounts
+@inject ICloudShellAuthorizationService Authorization
+@inject IStringLocalizer<SharedResource> L
+
+<PageTitle>@L["Users"]</PageTitle>
+
+@if (!CanConfigureUsers)
+{
+    <section class="empty-state">
+        <strong>@L["Access denied"]</strong>
+        <span>@L["Your identity does not have permission to configure local users."]</span>
+    </section>
+}
+else if (!Accounts.SupportsLocalUserAdministration)
+{
+    <section class="empty-state">
+        <strong>@L["Local users unavailable"]</strong>
+        <span>@L["The current authentication mode does not use the built-in local identity provider."]</span>
+    </section>
+}
+else
+{
+    <section class="page-heading compact">
+        <div>
+            <span class="eyebrow">@L["Identity"]</span>
+            <h1>@L["Users"]</h1>
+            <p>@L["Create local test users for exercising CloudShell UI permissions with the built-in identity provider."]</p>
+        </div>
+        <div class="heading-actions">
+            <FluentButton Appearance="Appearance.Neutral"
+                          IconStart="@(new Icons.Regular.Size20.ArrowSyncCircle())"
+                          OnClick="LoadUsersAsync">
+                @L["Refresh"]
+            </FluentButton>
+        </div>
+    </section>
+
+    <section class="dashboard-grid">
+        <article class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2>@L["Create user"]</h2>
+                    <p>@L["Assign a role and optional CloudShell claims."]</p>
+                </div>
+            </div>
+
+            <EditForm Model="@Input" OnValidSubmit="CreateUserAsync">
+                <DataAnnotationsValidator />
+
+                <label for="user-email">@L["Email"]</label>
+                <FluentTextField Id="user-email"
+                                 @bind-Value="Input.Email"
+                                 AutoComplete="email" />
+
+                <label for="user-password">@L["Password"]</label>
+                <FluentTextField Id="user-password"
+                                 TextFieldType="TextFieldType.Password"
+                                 @bind-Value="Input.Password"
+                                 AutoComplete="new-password" />
+
+                <label for="user-confirm-password">@L["Confirm password"]</label>
+                <FluentTextField Id="user-confirm-password"
+                                 TextFieldType="TextFieldType.Password"
+                                 @bind-Value="Input.ConfirmPassword"
+                                 AutoComplete="new-password" />
+
+                <label for="user-role">@L["Role"]</label>
+                <FluentSelect TOption="string" Id="user-role" @bind-Value="Input.Role">
+                    <FluentOption TOption="string" Value="">No role</FluentOption>
+                    <FluentOption TOption="string" Value="CloudShell.Reader">CloudShell.Reader</FluentOption>
+                    <FluentOption TOption="string" Value="CloudShell.Contributor">CloudShell.Contributor</FluentOption>
+                    <FluentOption TOption="string" Value="CloudShell.Administrator">CloudShell.Administrator</FluentOption>
+                </FluentSelect>
+
+                <FluentCheckbox @bind-Value="Input.GrantAllResourceGroups">
+                    @L["Grant all resource groups"]
+                </FluentCheckbox>
+
+                <label for="user-resource-group">@L["Resource group scope"]</label>
+                <FluentTextField Id="user-resource-group"
+                                 @bind-Value="Input.ResourceGroupScope"
+                                 Placeholder="__ungrouped or resource group id" />
+
+                <label for="user-resource-scope">@L["Resource scope"]</label>
+                <FluentTextField Id="user-resource-scope"
+                                 @bind-Value="Input.ResourceScope"
+                                 Placeholder="application:api" />
+
+                <label for="user-direct-permission">@L["Resource permission"]</label>
+                <FluentSelect TOption="string" Id="user-direct-permission" @bind-Value="Input.DirectPermission">
+                    <FluentOption TOption="string" Value="">No resource permission</FluentOption>
+                    <FluentOption TOption="string" Value="@CloudShellPermissions.Resources.Read">resources.read</FluentOption>
+                    <FluentOption TOption="string" Value="@CloudShellPermissions.Resources.Manage">resources.manage</FluentOption>
+                    <FluentOption TOption="string" Value="@CloudShellPermissions.Resources.Actions.Lifecycle">lifecycle action</FluentOption>
+                </FluentSelect>
+
+                <label for="user-direct-resource">@L["Resource permission target"]</label>
+                <FluentTextField Id="user-direct-resource"
+                                 @bind-Value="Input.DirectPermissionResourceId"
+                                 Placeholder="application:api" />
+
+                <ValidationSummary />
+
+                @if (Errors.Count > 0)
+                {
+                    <FluentMessageBar Intent="MessageIntent.Error">
+                        @foreach (var error in Errors)
+                        {
+                            <div>@error</div>
+                        }
+                    </FluentMessageBar>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Message))
+                {
+                    <FluentMessageBar Intent="MessageIntent.Success">
+                        @Message
+                    </FluentMessageBar>
+                }
+
+                <FluentButton Appearance="Appearance.Accent"
+                              Type="ButtonType.Submit"
+                              IconStart="@(new Icons.Regular.Size20.PersonAdd())"
+                              Disabled="@IsCreating">
+                    @(IsCreating ? L["Creating"] : L["Create user"])
+                </FluentButton>
+            </EditForm>
+        </article>
+
+        <article class="panel panel-wide">
+            <div class="panel-header">
+                <div>
+                    <h2>@L["Local users"]</h2>
+                    <p>@L["{0} users", LocalUsers.Count]</p>
+                </div>
+            </div>
+
+            @if (LocalUsers.Count == 0)
+            {
+                <p class="muted">@L["No local users exist yet."]</p>
+            }
+            else
+            {
+                <div class="provider-list">
+                    @foreach (var user in LocalUsers)
+                    {
+                        <div class="provider-row">
+                            <div>
+                                <span class="resource-kind-icon" aria-hidden="true">
+                                    <FluentIcon Value="@(new Icons.Regular.Size20.Person())" />
+                                </span>
+                                <span>@L["user"]</span>
+                            </div>
+                            <div>
+                                <strong>@(user.Email ?? user.UserName)</strong>
+                                <span>@user.Id</span>
+                                <div class="tag-row">
+                                    @foreach (var role in user.Roles)
+                                    {
+                                        <span>@role</span>
+                                    }
+                                    @foreach (var claim in user.Claims)
+                                    {
+                                        <span>@FormatClaim(claim)</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </article>
+    </section>
+}
+
+@code {
+    private CreateUserInput Input { get; set; } = new();
+    private List<CloudShellAccountUser> LocalUsers { get; set; } = [];
+    private List<string> Errors { get; } = [];
+    private string? Message { get; set; }
+    private bool IsCreating { get; set; }
+
+    private bool CanConfigureUsers =>
+        Authorization.HasPermission(CloudShellPermissions.Shell.Configure);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (CanConfigureUsers &&
+            Accounts.SupportsLocalUserAdministration)
+        {
+            await LoadUsersAsync();
+        }
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        LocalUsers = (await Accounts.ListUsersAsync()).ToList();
+    }
+
+    private async Task CreateUserAsync()
+    {
+        Errors.Clear();
+        Message = null;
+
+        var claims = BuildClaims();
+        if (!string.IsNullOrWhiteSpace(Input.DirectPermission) &&
+            string.IsNullOrWhiteSpace(Input.DirectPermissionResourceId))
+        {
+            Errors.Add(L["A resource permission target is required when resource permission is selected."].Value);
+            return;
+        }
+
+        IsCreating = true;
+        try
+        {
+            var result = await Accounts.CreateUserAsync(new CreateCloudShellAccountUserRequest(
+                Input.Email,
+                Input.Password,
+                string.IsNullOrWhiteSpace(Input.Role) ? null : Input.Role,
+                claims));
+            if (!result.Succeeded)
+            {
+                Errors.AddRange(result.Errors);
+                return;
+            }
+
+            Message = L["User created."];
+            Input = new CreateUserInput();
+            await LoadUsersAsync();
+        }
+        finally
+        {
+            IsCreating = false;
+        }
+    }
+
+    private IReadOnlyList<CloudShellAccountClaim> BuildClaims()
+    {
+        var claims = new List<CloudShellAccountClaim>();
+        if (Input.GrantAllResourceGroups)
+        {
+            claims.Add(new CloudShellAccountClaim(
+                CloudShellAuthorizationClaimTypes.ResourceGroup,
+                CloudShellPermissions.All));
+        }
+
+        if (!string.IsNullOrWhiteSpace(Input.ResourceGroupScope))
+        {
+            claims.Add(new CloudShellAccountClaim(
+                CloudShellAuthorizationClaimTypes.ResourceGroup,
+                Input.ResourceGroupScope));
+        }
+
+        if (!string.IsNullOrWhiteSpace(Input.ResourceScope))
+        {
+            claims.Add(new CloudShellAccountClaim(
+                CloudShellAuthorizationClaimTypes.Resource,
+                Input.ResourceScope));
+        }
+
+        if (!string.IsNullOrWhiteSpace(Input.DirectPermission) &&
+            !string.IsNullOrWhiteSpace(Input.DirectPermissionResourceId))
+        {
+            claims.Add(new CloudShellAccountClaim(
+                CloudShellAuthorizationClaimTypes.ResourcePermission,
+                ResourcePermissionClaimAuthorization.CreateResourcePermissionClaimValue(
+                    Input.DirectPermissionResourceId,
+                    Input.DirectPermission)));
+        }
+
+        return claims;
+    }
+
+    private static string FormatClaim(CloudShellAccountClaim claim) =>
+        claim.Type == CloudShellAuthorizationClaimTypes.ResourcePermission
+            ? $"resource-permission:{claim.Value.Replace(CloudShellAuthorizationClaimTypes.ResourcePermissionSeparator, ':')}"
+            : $"{claim.Type}:{claim.Value}";
+
+    private sealed class CreateUserInput
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [MinLength(12)]
+        public string Password { get; set; } = string.Empty;
+
+        [Compare(nameof(Password))]
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        public string Role { get; set; } = "CloudShell.Reader";
+
+        public bool GrantAllResourceGroups { get; set; } = true;
+
+        public string ResourceGroupScope { get; set; } = string.Empty;
+
+        public string ResourceScope { get; set; } = string.Empty;
+
+        public string DirectPermission { get; set; } = string.Empty;
+
+        public string DirectPermissionResourceId { get; set; } = string.Empty;
+    }
+}
