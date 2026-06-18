@@ -1135,8 +1135,14 @@ public sealed class PlatformResourceProvider(
             return null;
         }
 
-        return GetNamePublishingProvider(providerContext) is null
-            ? $"No activated DNS publishing provider can reconcile name mappings for DNS zone resource '{context.Resource.Id}'."
+        var provider = GetNamePublishingProvider(providerContext);
+        if (provider is null)
+        {
+            return $"No activated DNS publishing provider can reconcile name mappings for DNS zone resource '{context.Resource.Id}'.";
+        }
+
+        return provider is INamePublishingActionAvailabilityProvider availabilityProvider
+            ? availabilityProvider.GetUnavailableReason(providerContext)
             : null;
     }
 

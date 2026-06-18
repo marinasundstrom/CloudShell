@@ -5001,6 +5001,102 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public async Task PlatformProvider_ReturnsUnavailableReasonWhenLocalHostNameMappingUsesWildcard()
+    {
+        var definition = new DnsZoneResourceDefinition(
+            "dns:local",
+            "Local DNS",
+            "local",
+            Provider: LocalHostNamePublishingProvider.DefaultProviderName,
+            Mappings:
+            [
+                new DnsNameMappingDefinition(
+                    "dns:local:name:wildcard",
+                    "*.local",
+                    "*.local",
+                    "application:api",
+                    "http")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredDnsZones.Add(new DeclaredDnsZoneResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(
+            store,
+            options,
+            namePublishingProviders: [new LocalHostNamePublishingProvider(options)]);
+        var zone = Assert.Single(provider.GetResources(), resource => resource.Id == "dns:local");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                zone,
+                CreateEndpointResource("application:api", "http", "http://localhost:8080")
+            ],
+            [provider]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                zone,
+                new ResourceRegistration(zone.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                null,
+                new TestResourceRegistrationStore([]),
+                resourceManager),
+            zone.ResourceActions.Single());
+
+        Assert.Equal(
+            "Name mapping 'dns:local:name:wildcard' uses wildcard host '*.local', but provider 'local-hostnames' only supports exact host mappings.",
+            reason);
+    }
+
+    [Fact]
+    public async Task PlatformProvider_ReturnsUnavailableReasonWhenLocalHostNameTargetHostIsNotPublishable()
+    {
+        var definition = new DnsZoneResourceDefinition(
+            "dns:local",
+            "Local DNS",
+            "local",
+            Provider: LocalHostNamePublishingProvider.DefaultProviderName,
+            Mappings:
+            [
+                new DnsNameMappingDefinition(
+                    "dns:local:name:api-local",
+                    "api.local",
+                    "api.local",
+                    "application:api",
+                    "http")
+            ]);
+        var options = new PlatformResourceOptions();
+        options.DeclaredDnsZones.Add(new DeclaredDnsZoneResource(definition));
+        var store = new PlatformResourceStore(
+            options,
+            new TestHostEnvironment(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        var provider = new PlatformResourceProvider(
+            store,
+            options,
+            namePublishingProviders: [new LocalHostNamePublishingProvider(options)]);
+        var zone = Assert.Single(provider.GetResources(), resource => resource.Id == "dns:local");
+        var resourceManager = new StaticResourceManagerStore(
+            [
+                zone,
+                CreateEndpointResourceWithNetworkMapping("application:api", "http", "http://api.internal:8080")
+            ],
+            [provider]);
+
+        var reason = await ((IResourceActionAvailabilityProvider)provider).GetActionUnavailableReasonAsync(
+            new ResourceProcedureContext(
+                zone,
+                new ResourceRegistration(zone.Id, PlatformResourceProvider.ProviderId, null, DateTimeOffset.UtcNow, []),
+                null,
+                new TestResourceRegistrationStore([]),
+                resourceManager),
+            zone.ResourceActions.Single());
+
+        Assert.Equal(
+            "Name mapping 'dns:local:name:api-local' target endpoint 'http' host 'api.internal' is not a local or IP address that can be published through provider 'local-hostnames'.",
+            reason);
+    }
+
+    [Fact]
     public async Task PlatformProvider_DeletesDnsNameMappingFromParentZone()
     {
         var options = new PlatformResourceOptions();
@@ -7903,6 +7999,24 @@ public sealed class ResourceDeclarationTests
             DateTimeOffset.UtcNow,
             [],
             Capabilities: [new(ResourceCapabilityIds.EndpointSource)]);
+
+    private static Resource CreateEndpointResourceWithNetworkMapping(string id, string endpointName, string address) =>
+        new(
+            id,
+            id,
+            "Application",
+            "Test",
+            "local",
+            ResourceState.Running,
+            [ResourceEndpoint.Contract(endpointName, "http", ResourceExposureScope.Public)],
+            "1.0",
+            DateTimeOffset.UtcNow,
+            [],
+            Capabilities: [new(ResourceCapabilityIds.EndpointSource)],
+            EndpointNetworkMappings:
+            [
+                ResourceEndpointNetworkMapping.ForEndpoint(id, endpointName, address, ResourceExposureScope.Public)
+            ]);
 
     private static LocalProcessDefinition CreateLongRunningProcessDefinition() =>
         OperatingSystem.IsWindows()

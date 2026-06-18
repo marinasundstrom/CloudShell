@@ -9,6 +9,7 @@ public sealed class LocalHostNamePublishingProvider(
     PlatformResourceOptions options,
     ILocalHostNameResolverCacheRefresher? resolverCacheRefresher = null) :
     INamePublishingProvider,
+    INamePublishingActionAvailabilityProvider,
     INamePublishingObservationAttributeProvider
 {
     private const string BeginMarker = "# BEGIN CloudShell local hostnames";
@@ -31,6 +32,23 @@ public sealed class LocalHostNamePublishingProvider(
 
     public bool CanPublish(DnsNamePublishingContext context) =>
         string.Equals(context.Definition.Provider, ProviderName, StringComparison.OrdinalIgnoreCase);
+
+    public string? GetUnavailableReason(DnsNamePublishingContext context)
+    {
+        foreach (var mapping in context.Mappings)
+        {
+            try
+            {
+                CreateHostsEntry(mapping);
+            }
+            catch (InvalidOperationException exception)
+            {
+                return exception.Message;
+            }
+        }
+
+        return null;
+    }
 
     public IReadOnlyDictionary<string, string> GetObservationAttributes(DnsNamePublishingContext context) =>
         observationAttributes.TryGetValue(context.Definition.Id, out var attributes)

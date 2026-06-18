@@ -313,6 +313,11 @@ public interface INamePublishingProvider
         CancellationToken cancellationToken = default);
 }
 
+public interface INamePublishingActionAvailabilityProvider
+{
+    string? GetUnavailableReason(DnsNamePublishingContext context);
+}
+
 public interface ILoadBalancerProvider
 {
     string ProviderName { get; }
