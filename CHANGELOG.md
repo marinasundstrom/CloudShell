@@ -107,6 +107,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Provider-selected DNS name mappings now show a Resource Manager
   pending-publish diagnostic before the first reconcile observation, pointing
   users to the DNS zone reconcile action.
+- Resource Manager-authored DNS name mapping create/update now rejects
+  duplicate host/exposure mappings in the same DNS zone before saving.
 
 #### Fixed
 

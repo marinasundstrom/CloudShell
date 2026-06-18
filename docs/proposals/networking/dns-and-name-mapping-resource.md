@@ -532,8 +532,9 @@ decides later whether and how a specific name is materialized.
   now shows a pending-publish diagnostic for provider-selected mappings that do
   not have a reconcile observation yet.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
-* Add create/update blocking or guided resolution for duplicate names in the
-  same scope when DNS/name mappings are authored through Resource Manager.
+* Add richer guided resolution for duplicate names in the same scope. Resource
+  Manager-authored create/update now blocks duplicate host/exposure mappings
+  before saving.
 * Add richer provider runtime publish diagnostics for local host-name
   reconciliation permissions, generated hosts-file targets, resolver-cache
   refresh outcomes, and names that cannot be published beyond the current
