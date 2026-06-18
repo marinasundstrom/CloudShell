@@ -52,6 +52,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Roadmap and logging-infrastructure planning now call out resource-scoped
   inline Events and Logs views under Resource Manager Management, plus a
   resource-aware Observability entry point for traces.
+- Roadmap planning now classifies work as features, backend enhancements, or
+  UX enhancements so impact-based ordering can treat UI polish and backend
+  capability work independently.
 
 ### 2026-06-17
 

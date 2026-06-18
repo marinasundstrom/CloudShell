@@ -86,6 +86,24 @@ The projected focus order is a planning tool, not a constraint: re-evaluate it
 during implementation whenever a different slice better serves the immediate
 MVP goal described in [CloudShell goal](goal.md).
 
+### Roadmap Item Classification
+
+Every roadmap issue should carry a primary category so backend capability work
+and user-facing experience work can be prioritized independently by impact.
+
+Use these categories:
+
+| Category | Use when | Planning rule |
+| --- | --- | --- |
+| Feature | The work introduces a new product capability that naturally spans domain/API/provider behavior and Resource Manager or shell UX. | Keep the end-to-end outcome visible, but split backend and UX implementation slices when they can land or be prioritized separately. |
+| Backend enhancement | The work improves the domain model, Control Plane, provider behavior, API/client projection, persistence, validation, diagnostics, or sample reliability without requiring a new user workflow. | Prioritize by unblock value, correctness, sample/release risk, and how much UX or automation it enables. |
+| UX enhancement | The work improves Resource Manager, shell navigation, generated details, forms, inline views, visual hierarchy, labels, affordances, or workflow clarity without changing the underlying domain capability. | Prioritize by user impact, frequency, confusion removed, and how much it keeps operators in context. UI polish can be high-priority when it materially improves the primary MVP workflow. |
+
+If a roadmap item has both backend and UX value, record the user outcome as the
+feature and track separable backend or UX enhancements below it. Do not bury a
+high-impact UX improvement behind lower-impact backend work just because it is
+smaller or presentation-focused.
+
 ### MVP Readiness Snapshot
 
 The MVP is now primarily a convergence problem, not a concept-discovery
@@ -648,6 +666,12 @@ Resource Manager reliability is the release gate. When choosing between a new
 abstraction and a sharper diagnostic, action capability reason, generated
 detail, or smoke-test assertion for an existing flow, choose the existing flow
 unless the missing abstraction blocks a supported sample.
+
+Classify roadmap entries before ordering them. A small UX enhancement that
+removes repeated confusion in the primary Resource Manager path can outrank a
+larger backend enhancement with lower immediate MVP impact, while a backend
+enhancement that unblocks several user-visible workflows can outrank isolated
+polish.
 
 ### Preserve Boundaries
 
