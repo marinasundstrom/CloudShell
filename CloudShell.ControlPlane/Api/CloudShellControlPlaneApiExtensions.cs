@@ -1096,6 +1096,20 @@ public static class CloudShellControlPlaneApiExtensions
             return Results.Forbid();
         }
 
+        if (exception is ResourceSettingResolutionException settingResolutionException)
+        {
+            return Problem(
+                StatusCodes.Status400BadRequest,
+                "Control plane request failed",
+                settingResolutionException.Message,
+                ControlPlaneErrorCodes.ResourceActionUnavailable,
+                new Dictionary<string, object?>
+                {
+                    ["settingName"] = settingResolutionException.SettingName,
+                    ["referenceKind"] = settingResolutionException.ReferenceKind
+                });
+        }
+
         var error = ToControlPlaneError(exception);
         return Problem(
             StatusCodes.Status400BadRequest,
@@ -1120,7 +1134,8 @@ public static class CloudShellControlPlaneApiExtensions
         int statusCode,
         string title,
         string detail,
-        string? code = null)
+        string? code = null,
+        IReadOnlyDictionary<string, object?>? extensions = null)
     {
         var problem = new ProblemDetails
         {
@@ -1131,6 +1146,11 @@ public static class CloudShellControlPlaneApiExtensions
         if (!string.IsNullOrWhiteSpace(code))
         {
             problem.Extensions["code"] = code;
+        }
+
+        foreach (var extension in extensions ?? Enumerable.Empty<KeyValuePair<string, object?>>())
+        {
+            problem.Extensions[extension.Key] = extension.Value;
         }
 
         return Results.Json(

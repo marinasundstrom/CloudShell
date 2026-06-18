@@ -31,6 +31,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application setting and environment reference displays now distinguish
   unchecked identity grant status from a checked missing grant, so Resource
   Manager does not show a grant-required warning before grant data is loaded.
+- Control Plane API ProblemDetails for setting reference resolution failures
+  now include `settingName` and `referenceKind` extensions while preserving
+  the `resourceActionUnavailable` error code.
 
 ### 2026-06-17
 

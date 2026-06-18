@@ -864,7 +864,12 @@ public sealed class RemoteControlPlaneContractTests
         await AssertProblemAsync(
             response,
             "Could not resolve secret reference for setting 'SAMPLE_API_KEY'. Secret 'sample-api-key' was not found in Secrets Vault 'secrets-vault:app'.",
-            ControlPlaneErrorCodes.ResourceActionUnavailable);
+            ControlPlaneErrorCodes.ResourceActionUnavailable,
+            expectedExtensions: new Dictionary<string, string>
+            {
+                ["settingName"] = "SAMPLE_API_KEY",
+                ["referenceKind"] = "secret"
+            });
     }
 
     [Fact]
@@ -1160,7 +1165,8 @@ public sealed class RemoteControlPlaneContractTests
         string expectedDetail,
         string expectedCode = ControlPlaneErrorCodes.InvalidRequest,
         HttpStatusCode expectedStatusCode = HttpStatusCode.BadRequest,
-        string expectedTitle = "Control plane request failed")
+        string expectedTitle = "Control plane request failed",
+        IReadOnlyDictionary<string, string>? expectedExtensions = null)
     {
         Assert.Equal(expectedStatusCode, response.StatusCode);
 
@@ -1168,6 +1174,10 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(expectedTitle, document.RootElement.GetProperty("title").GetString());
         Assert.Equal(expectedDetail, document.RootElement.GetProperty("detail").GetString());
         Assert.Equal(expectedCode, document.RootElement.GetProperty("code").GetString());
+        foreach (var extension in expectedExtensions ?? new Dictionary<string, string>())
+        {
+            Assert.Equal(extension.Value, document.RootElement.GetProperty(extension.Key).GetString());
+        }
     }
 
     private sealed class ContractLifecycleResourceProvider : IResourceProvider

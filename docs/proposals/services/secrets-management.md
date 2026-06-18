@@ -344,7 +344,9 @@ app settings for non-secret values and vault-backed references for secrets.
   has or needs the read grant required at runtime.
 - Runtime reference-resolution failures are reported with typed setting
   diagnostics and map to resource-action-unavailable API errors instead of
-  generic operation failures.
+  generic operation failures. API ProblemDetails include the failed
+  `settingName` and `referenceKind` so clients can highlight the affected
+  assignment without parsing the message.
 - Application Start/Restart capabilities now preflight safe reference checks for
   missing configuration or Secrets Vault target resources and missing
   identity read grants before dispatch, without resolving or displaying
