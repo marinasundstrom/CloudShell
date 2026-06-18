@@ -16,174 +16,11 @@
         <div class="procedure-message">@ProcedureMessage</div>
     }
 
-    <section class="generated-section">
-        <h3>@L["Essentials"]</h3>
-        <dl class="detail-list">
-            <dt>@L["Resource ID"]</dt>
-            <dd>@Resource.Id</dd>
-            <dt>@L["Name"]</dt>
-            <dd>@DisplaySelection.GetResourceName(Resource)</dd>
-            @if (DisplaySelection.ShouldShowDisplayName(Resource))
-            {
-                <dt>@L["Display name"]</dt>
-                <dd>@Resource.DisplayName</dd>
-            }
-            <dt>@L["Type"]</dt>
-            <dd>@Resource.EffectiveTypeId</dd>
-            <dt>@L["Class"]</dt>
-            <dd>@Resource.ResourceClass</dd>
-            <dt>@L["Provider"]</dt>
-            <dd>@Resource.Provider</dd>
-            <dt>@L["Group"]</dt>
-            <dd>@(ResourceGroup?.Name ?? L["Default group"])</dd>
-            @if (!string.IsNullOrWhiteSpace(Resource.ParentResourceId))
-            {
-                <dt>@L["Parent"]</dt>
-                <dd>@ResourceLink(Resource.ParentResourceId)</dd>
-            }
-            @if (ResourceLifecycleDisplay.ShouldShowStatus(Resource))
-            {
-                <dt>@L["State"]</dt>
-                <dd>
-                    <ResourceStateIndicator State="Resource.State" Variant="inline" />
-                </dd>
-            }
-            <dt>@L["Version"]</dt>
-            <dd>@Resource.Version</dd>
-            <dt>@L["Updated"]</dt>
-            <dd>@Resource.LastUpdated.ToLocalTime().ToString("g")</dd>
-        </dl>
-    </section>
-
-    @if (Resource.IdentityBinding is not null ||
-        Resource.Endpoints.Count > 0 ||
-        InboundNetworkMappings.Count > 0 ||
-        InboundLoadBalancerRoutes.Count > 0 ||
-        InboundNameMappings.Count > 0 ||
-        IsNetworkResource ||
-        IsLoadBalancerResource)
-    {
-        <section class="generated-section">
-            <h3>@L["Runtime"]</h3>
-            <dl class="detail-list">
-                @if (Resource.IdentityBinding is { } identity)
-                {
-                    <dt>@L["Identity"]</dt>
-                    <dd>@FormatIdentitySummary(identity)</dd>
-                }
-                @if (Resource.Endpoints.Count > 0)
-                {
-                    <dt>@L["Primary endpoint"]</dt>
-                    <dd>@EndpointLink(Resource.PrimaryEndpoint)</dd>
-                    <dt>@L["Endpoints"]</dt>
-                    <dd>
-                        <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Endpoints)">
-                            @L["{0} endpoint(s)", Resource.Endpoints.Count]
-                        </a>
-                    </dd>
-                }
-                @if (InboundNetworkMappings.Count > 0 || InboundLoadBalancerRoutes.Count > 0)
-                {
-                    <dt>@L["Exposure"]</dt>
-                    <dd>@FormatExposureSummary()</dd>
-                }
-                @if (InboundNameMappings.Count > 0)
-                {
-                    <dt>@L["DNS"]</dt>
-                    <dd>
-                        <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Dns)">
-                            @FormatDnsSummary()
-                        </a>
-                    </dd>
-                }
-                @if (IsLoadBalancerResource)
-                {
-                    <dt>@L["Load balancing"]</dt>
-                    <dd>@FormatLoadBalancerRouteCounts(Resource)</dd>
-                }
-                @if (IsNetworkResource && !IsLoadBalancerResource)
-                {
-                    <dt>@L["Network readiness"]</dt>
-                    <dd>@FormatNetworkReadiness()</dd>
-                }
-            </dl>
-        </section>
-    }
-
-    @if (ResourceDiagnosticDisplay.GetDiagnostics(Resource, RelatedResources) is { Count: > 0 } diagnostics)
-    {
-        <section class="generated-section">
-            <h3>@L["Diagnostics"]</h3>
-            <div class="generated-list">
-                @foreach (var diagnostic in diagnostics)
-                {
-                    <div class="@GetDiagnosticClass(diagnostic)">
-                        <strong>@diagnostic.Title</strong>
-                        <span>@diagnostic.Message</span>
-                        <small>@diagnostic.Severity</small>
-                    </div>
-                }
-            </div>
-        </section>
-    }
-
-    @if (Resource.DependsOn.Count > 0 || ChildResources.Count > 0)
-    {
-        <section class="generated-section">
-            <h3>@L["Relationships"]</h3>
-            <dl class="detail-list">
-                @if (Resource.DependsOn.Count > 0)
-                {
-                    <dt>@L["Dependencies"]</dt>
-                    <dd>
-                        <div class="dependency-list">
-                            @foreach (var dependency in Resource.DependsOn.Order(StringComparer.OrdinalIgnoreCase).Take(4))
-                            {
-                                @ResourceLink(dependency)
-                            }
-                            @if (Resource.DependsOn.Count > 4)
-                            {
-                                <span class="generated-pill-link">@L["+{0} more", Resource.DependsOn.Count - 4]</span>
-                            }
-                        </div>
-                    </dd>
-                }
-                @if (ChildResources.Count > 0)
-                {
-                    <dt>@L["Children"]</dt>
-                    <dd>@L["{0} child resource(s)", ChildResources.Count]</dd>
-                }
-            </dl>
-        </section>
-    }
-
-    @if (Logs.Count > 0 || Resource.EffectiveObservability != ResourceObservability.None)
-    {
-        <section class="generated-section">
-            <h3>@L["Observability"]</h3>
-            <dl class="detail-list">
-                @if (Logs.Count > 0)
-                {
-                    <dt>@L["Logs"]</dt>
-                    <dd>
-                        <a class="resource-link" href="@BuildLogRoute(Logs[0])">
-                            @L["Open logs"]
-                        </a>
-                    </dd>
-                }
-                <dt>@L["Signals"]</dt>
-                <dd>@FormatObservabilitySummary()</dd>
-            </dl>
-            @if (Resource.EffectiveObservability.Traces)
-            {
-                <a class="resource-link" href="@BuildTraceRoute()">@L["Open traces"]</a>
-            }
-            @if (Resource.EffectiveObservability.Metrics)
-            {
-                <a class="resource-link" href="@BuildMetricRoute()">@L["Open metrics"]</a>
-            }
-        </section>
-    }
+    <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                 ResourceId="Resource.Id"
+                                 Resource="Resource"
+                                 ViewId="@ResourcePredefinedViewIds.Overview"
+                                 Sections="@BuildSections()" />
 </div>
 
 @code {
@@ -232,6 +69,183 @@
         InboundNameMappings = await LoadInboundNameMappingsAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
     }
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections()
+    {
+        var sections = new List<GeneratedResourceViewSection>
+        {
+            new("essentials", L["Essentials"], 0, RenderEssentials())
+        };
+
+        if (HasRuntimeSection)
+        {
+            sections.Add(new("runtime", L["Runtime"], 100, RenderRuntime()));
+        }
+
+        if (ResourceDiagnosticDisplay.GetDiagnostics(Resource, RelatedResources) is { Count: > 0 } diagnostics)
+        {
+            sections.Add(new("diagnostics", L["Diagnostics"], 200, RenderDiagnostics(diagnostics)));
+        }
+
+        if (Resource.DependsOn.Count > 0 || ChildResources.Count > 0)
+        {
+            sections.Add(new("relationships", L["Relationships"], 300, RenderRelationships()));
+        }
+
+        if (Logs.Count > 0 || Resource.EffectiveObservability != ResourceObservability.None)
+        {
+            sections.Add(new("observability", L["Observability"], 400, RenderObservability()));
+        }
+
+        return sections;
+    }
+
+    private bool HasRuntimeSection =>
+        Resource.IdentityBinding is not null ||
+        Resource.Endpoints.Count > 0 ||
+        InboundNetworkMappings.Count > 0 ||
+        InboundLoadBalancerRoutes.Count > 0 ||
+        InboundNameMappings.Count > 0 ||
+        IsNetworkResource ||
+        IsLoadBalancerResource;
+
+    private RenderFragment RenderEssentials() => @<dl class="detail-list">
+        <dt>@L["Resource ID"]</dt>
+        <dd>@Resource.Id</dd>
+        <dt>@L["Name"]</dt>
+        <dd>@DisplaySelection.GetResourceName(Resource)</dd>
+        @if (DisplaySelection.ShouldShowDisplayName(Resource))
+        {
+            <dt>@L["Display name"]</dt>
+            <dd>@Resource.DisplayName</dd>
+        }
+        <dt>@L["Type"]</dt>
+        <dd>@Resource.EffectiveTypeId</dd>
+        <dt>@L["Class"]</dt>
+        <dd>@Resource.ResourceClass</dd>
+        <dt>@L["Provider"]</dt>
+        <dd>@Resource.Provider</dd>
+        <dt>@L["Group"]</dt>
+        <dd>@(ResourceGroup?.Name ?? L["Default group"])</dd>
+        @if (!string.IsNullOrWhiteSpace(Resource.ParentResourceId))
+        {
+            <dt>@L["Parent"]</dt>
+            <dd>@ResourceLink(Resource.ParentResourceId)</dd>
+        }
+        @if (ResourceLifecycleDisplay.ShouldShowStatus(Resource))
+        {
+            <dt>@L["State"]</dt>
+            <dd>
+                <ResourceStateIndicator State="Resource.State" Variant="inline" />
+            </dd>
+        }
+        <dt>@L["Version"]</dt>
+        <dd>@Resource.Version</dd>
+        <dt>@L["Updated"]</dt>
+        <dd>@Resource.LastUpdated.ToLocalTime().ToString("g")</dd>
+    </dl>;
+
+    private RenderFragment RenderRuntime() => @<dl class="detail-list">
+        @if (Resource.IdentityBinding is { } identity)
+        {
+            <dt>@L["Identity"]</dt>
+            <dd>@FormatIdentitySummary(identity)</dd>
+        }
+        @if (Resource.Endpoints.Count > 0)
+        {
+            <dt>@L["Primary endpoint"]</dt>
+            <dd>@EndpointLink(Resource.PrimaryEndpoint)</dd>
+            <dt>@L["Endpoints"]</dt>
+            <dd>
+                <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Endpoints)">
+                    @L["{0} endpoint(s)", Resource.Endpoints.Count]
+                </a>
+            </dd>
+        }
+        @if (InboundNetworkMappings.Count > 0 || InboundLoadBalancerRoutes.Count > 0)
+        {
+            <dt>@L["Exposure"]</dt>
+            <dd>@FormatExposureSummary()</dd>
+        }
+        @if (InboundNameMappings.Count > 0)
+        {
+            <dt>@L["DNS"]</dt>
+            <dd>
+                <a class="resource-link" href="@BuildResourceTabRoute(Resource.Id, ResourcePredefinedViewIds.Dns)">
+                    @FormatDnsSummary()
+                </a>
+            </dd>
+        }
+        @if (IsLoadBalancerResource)
+        {
+            <dt>@L["Load balancing"]</dt>
+            <dd>@FormatLoadBalancerRouteCounts(Resource)</dd>
+        }
+        @if (IsNetworkResource && !IsLoadBalancerResource)
+        {
+            <dt>@L["Network readiness"]</dt>
+            <dd>@FormatNetworkReadiness()</dd>
+        }
+    </dl>;
+
+    private RenderFragment RenderDiagnostics(IReadOnlyList<ResourceDiagnosticView> diagnostics) => @<div class="generated-list">
+        @foreach (var diagnostic in diagnostics)
+        {
+            <div class="@GetDiagnosticClass(diagnostic)">
+                <strong>@diagnostic.Title</strong>
+                <span>@diagnostic.Message</span>
+                <small>@diagnostic.Severity</small>
+            </div>
+        }
+    </div>;
+
+    private RenderFragment RenderRelationships() => @<dl class="detail-list">
+        @if (Resource.DependsOn.Count > 0)
+        {
+            <dt>@L["Dependencies"]</dt>
+            <dd>
+                <div class="dependency-list">
+                    @foreach (var dependency in Resource.DependsOn.Order(StringComparer.OrdinalIgnoreCase).Take(4))
+                    {
+                        @ResourceLink(dependency)
+                    }
+                    @if (Resource.DependsOn.Count > 4)
+                    {
+                        <span class="generated-pill-link">@L["+{0} more", Resource.DependsOn.Count - 4]</span>
+                    }
+                </div>
+            </dd>
+        }
+        @if (ChildResources.Count > 0)
+        {
+            <dt>@L["Children"]</dt>
+            <dd>@L["{0} child resource(s)", ChildResources.Count]</dd>
+        }
+    </dl>;
+
+    private RenderFragment RenderObservability() => @<text>
+        <dl class="detail-list">
+            @if (Logs.Count > 0)
+            {
+                <dt>@L["Logs"]</dt>
+                <dd>
+                    <a class="resource-link" href="@BuildLogRoute(Logs[0])">
+                        @L["Open logs"]
+                    </a>
+                </dd>
+            }
+            <dt>@L["Signals"]</dt>
+            <dd>@FormatObservabilitySummary()</dd>
+        </dl>
+        @if (Resource.EffectiveObservability.Traces)
+        {
+            <a class="resource-link" href="@BuildTraceRoute()">@L["Open traces"]</a>
+        }
+        @if (Resource.EffectiveObservability.Metrics)
+        {
+            <a class="resource-link" href="@BuildMetricRoute()">@L["Open metrics"]</a>
+        }
+    </text>;
 
     private string FormatEnabled(bool enabled) => enabled ? L["Enabled"] : L["Disabled"];
 

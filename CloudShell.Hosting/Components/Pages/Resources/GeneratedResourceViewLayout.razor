@@ -1,20 +1,19 @@
 @using CloudShell.Abstractions.ResourceManager
 
-@if (MatchingSections.Count > 0)
+@foreach (var section in OrderedSections)
 {
-    @foreach (var section in MatchingSections)
-    {
-        <section class="generated-section">
+    <section class="generated-section">
+        @if (!string.IsNullOrWhiteSpace(section.Title))
+        {
             <h3>@section.Title</h3>
-            <DynamicComponent Type="section.ComponentType"
-                              Parameters="@BuildParameters(section)" />
-        </section>
-    }
+        }
+        @section.Content
+    </section>
 }
 
 @code {
-    [Parameter, EditorRequired]
-    public ResourceTypeContribution ResourceType { get; set; } = null!;
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
 
     [Parameter, EditorRequired]
     public string ResourceId { get; set; } = string.Empty;
@@ -25,12 +24,39 @@
     [Parameter, EditorRequired]
     public ResourceViewId ViewId { get; set; }
 
-    private IReadOnlyList<ResourcePredefinedViewSectionContribution> MatchingSections =>
-        ResourceType.ResourcePredefinedViewSections
-            .Where(section => section.ViewId == ViewId)
+    [Parameter]
+    public IReadOnlyList<GeneratedResourceViewSection> Sections { get; set; } = [];
+
+    private IReadOnlyList<GeneratedResourceViewSection> OrderedSections =>
+        Sections
+            .Concat(GetProviderSections())
             .OrderBy(section => section.Order)
             .ThenBy(section => section.Title, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+    private IEnumerable<GeneratedResourceViewSection> GetProviderSections()
+    {
+        if (ResourceType is null)
+        {
+            yield break;
+        }
+
+        foreach (var section in ResourceType.ResourcePredefinedViewSections
+            .Where(section => section.ViewId == ViewId))
+        {
+            yield return new GeneratedResourceViewSection(
+                section.Id,
+                section.Title,
+                section.Order,
+                builder =>
+                {
+                    builder.OpenComponent<DynamicComponent>(0);
+                    builder.AddAttribute(1, nameof(DynamicComponent.Type), section.ComponentType);
+                    builder.AddAttribute(2, nameof(DynamicComponent.Parameters), BuildParameters(section));
+                    builder.CloseComponent();
+                });
+        }
+    }
 
     private Dictionary<string, object?> BuildParameters(ResourcePredefinedViewSectionContribution section)
     {

@@ -23,270 +23,11 @@
     }
     else
     {
-        <section class="generated-section">
-            <div class="blade-section-header">
-                <div>
-                    <h3>@L["Endpoint configuration"]</h3>
-                    <p>@GetEndpointConfigurationMessage()</p>
-                </div>
-                <FluentButton Appearance="Appearance.Neutral"
-                              Disabled="@(!CanEditNetworking)"
-                              OnClick="OpenConfiguration">
-                    @L["Configure endpoints"]
-                </FluentButton>
-            </div>
-        </section>
-
-        @if (Resource.Endpoints.Count > 0)
-        {
-            <section class="generated-section">
-                <div class="generated-section-heading">
-                    <h3>@L["Endpoints"]</h3>
-                    <p>@L["Endpoints are resource-owned protocol and target-port contracts. Network mappings decide where those endpoints are reachable."]</p>
-                </div>
-                <div class="endpoint-list">
-                    @foreach (var endpoint in Resource.Endpoints)
-                    {
-                        <div class="generated-endpoint">
-                            <div class="generated-endpoint-main">
-                                <strong>@endpoint.Name</strong>
-                                <dl class="endpoint-detail-list">
-                                    <dt>@L["Protocol"]</dt>
-                                    <dd>@FormatEndpointProtocol(endpoint)</dd>
-                                    <dt>@L["Target port"]</dt>
-                                    <dd>@FormatTargetPort(endpoint)</dd>
-                                    <dt>@L["Exposure"]</dt>
-                                    <dd>@FormatExposure(endpoint.Exposure)</dd>
-                                </dl>
-                            </div>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (Resource.ResourceEndpointNetworkMappings.Count > 0)
-        {
-            <section class="generated-section">
-                <div class="generated-section-heading">
-                    <h3>@L["Mapped addresses"]</h3>
-                    <p>@L["Mapped addresses are topology-specific bindings created by a network, runtime, or provider for a resource endpoint."]</p>
-                </div>
-                <div class="endpoint-list">
-                    @foreach (var mapping in Resource.ResourceEndpointNetworkMappings)
-                    {
-                        <div class="generated-endpoint">
-                            <div class="generated-endpoint-main">
-                                <strong>@mapping.Name</strong>
-                                <dl class="endpoint-detail-list">
-                                    <dt>@L["Address"]</dt>
-                                    <dd>@EndpointLink(mapping.Address)</dd>
-                                    <dt>@L["Target endpoint"]</dt>
-                                    <dd>@EndpointReference(mapping.Target, Resource)</dd>
-                                    <dt>@L["Topology"]</dt>
-                                    <dd>@FormatEndpointNetworkMappingTopology(mapping)</dd>
-                                    <dt>@L["Exposure"]</dt>
-                                    <dd>@FormatExposure(mapping.Exposure)</dd>
-                                    <dt>@L["Provider"]</dt>
-                                    <dd>@FormatEndpointNetworkMappingProvider(mapping)</dd>
-                                </dl>
-                            </div>
-                            <div class="generated-row-actions">
-                                <FluentButton Appearance="Appearance.Neutral"
-                                              Title="@L["Copy address"]"
-                                              Disabled="@string.IsNullOrWhiteSpace(mapping.Address)"
-                                              OnClick="() => CopyEndpoint(mapping.Address)">
-                                    @L["Copy"]
-                                </FluentButton>
-                                @if (IsLinkEndpoint(mapping.Address))
-                                {
-                                    <FluentButton Appearance="Appearance.Neutral"
-                                                  Title="@L["Open address"]"
-                                                  OnClick="() => OpenEndpoint(mapping.Address)">
-                                        @L["Open"]
-                                    </FluentButton>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (InboundNetworkMappings.Count > 0)
-        {
-            <section class="generated-section">
-                <h3>@L["Network exposure"]</h3>
-                <div class="generated-list">
-                    @foreach (var exposure in InboundNetworkMappings)
-                    {
-                        <div>
-                            <strong>@ResourceLink(exposure.Network)</strong>
-                            <span>
-                                @EndpointReference(exposure.Mapping.Source, exposure.Network)
-                                <span aria-hidden="true">-&gt;</span>
-                                @EndpointReference(exposure.Mapping.Target, Resource)
-                            </span>
-                            <small>@FormatInboundNetworkMappingSummary(exposure)</small>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (InboundLoadBalancerRoutes.Count > 0)
-        {
-            <section class="generated-section">
-                <h3>@L["Load balancer exposure"]</h3>
-                <div class="generated-list">
-                    @foreach (var exposure in InboundLoadBalancerRoutes)
-                    {
-                        <div>
-                            <strong>@ResourceLink(exposure.LoadBalancer)</strong>
-                            <span>
-                                @FormatLoadBalancerRouteMatch(exposure.Route)
-                                <span aria-hidden="true">-&gt;</span>
-                                @FormatLoadBalancerRouteTarget(exposure.Route.Target)
-                            </span>
-                            <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (IsLoadBalancerResource)
-        {
-            <section class="generated-section">
-                <h3>@L["Load balancing"]</h3>
-                <dl class="detail-list">
-                    <dt>@L["Provider"]</dt>
-                    <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerProvider, Resource.Provider)</dd>
-                    <dt>@L["Host"]</dt>
-                    <dd>
-                        @if (GetLoadBalancerHostResourceId(Resource) is { } hostResourceId)
-                        {
-                            @ResourceLink(hostResourceId)
-                        }
-                        else
-                        {
-                            @L["Default container host"]
-                        }
-                    </dd>
-                    <dt>@L["Entrypoints"]</dt>
-                    <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerEntrypointCount, Resource.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
-                    <dt>@L["Routes"]</dt>
-                    <dd>@FormatLoadBalancerRouteCounts(Resource)</dd>
-                    <dt>@L["TLS"]</dt>
-                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingTls))</dd>
-                </dl>
-            </section>
-        }
-
-        @if (IsNetworkResource && !IsLoadBalancerResource)
-        {
-            <section class="generated-section">
-                <h3>@L["Networking"]</h3>
-                <dl class="detail-list">
-                    <dt>@L["Kind"]</dt>
-                    <dd>@GetAttributeValue(ResourceAttributeNames.NetworkKind, Resource.Kind)</dd>
-                    <dt>@L["Host readiness"]</dt>
-                    <dd>@FormatNetworkReadiness()</dd>
-                    @if (Resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.NetworkProvisionedMappingCount))
-                    {
-                        <dt>@L["Provisioned mappings"]</dt>
-                        <dd>@GetAttributeValue(ResourceAttributeNames.NetworkProvisionedMappingCount, "0")</dd>
-                    }
-                    @if (GetMappingProviderIds().Length > 0)
-                    {
-                        <dt>@L["Mapping providers"]</dt>
-                        <dd>
-                            <div class="dependency-list">
-                                @foreach (var providerId in GetMappingProviderIds())
-                                {
-                                    @ResourceLink(providerId)
-                                }
-                            </div>
-                        </dd>
-                    }
-                    <dt>@L["Endpoint mapper"]</dt>
-                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper))</dd>
-                    <dt>@L["Virtual network"]</dt>
-                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork))</dd>
-                    <dt>@L["Ingress"]</dt>
-                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingIngress))</dd>
-                    <dt>@L["Host network"]</dt>
-                    <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingHostNetwork))</dd>
-                </dl>
-            </section>
-        }
-
-        @if (Resource.ResourceEndpointMappings.Count > 0)
-        {
-            <section class="generated-section">
-                <h3>@L["Endpoint mappings"]</h3>
-                <div class="generated-list">
-                    @foreach (var mapping in Resource.ResourceEndpointMappings)
-                    {
-                        <div>
-                            <strong>@mapping.Name</strong>
-                            <span>
-                                @EndpointReference(mapping.Source, Resource)
-                                <span aria-hidden="true">-&gt;</span>
-                                @EndpointReference(mapping.Target)
-                            </span>
-                            <small>@MappingProviderLabel(mapping)</small>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (Resource.ResourceLoadBalancerRoutes.Count > 0)
-        {
-            <section class="generated-section">
-                <h3>@L["Load balancer routes"]</h3>
-                <div class="generated-list">
-                    @foreach (var route in Resource.ResourceLoadBalancerRoutes)
-                    {
-                        <div>
-                            <strong>@route.Name</strong>
-                            <span>
-                                @FormatLoadBalancerRouteMatch(route)
-                                <span aria-hidden="true">-&gt;</span>
-                                @FormatLoadBalancerRouteTarget(route.Target)
-                            </span>
-                            <small>@L["Entrypoint: {0}", route.EntrypointName]</small>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (ResourceDiagnosticDisplay.GetDiagnostics(Resource, RelatedResources) is { Count: > 0 } diagnostics)
-        {
-            <section class="generated-section">
-                <h3>@L["Diagnostics"]</h3>
-                <div class="generated-list">
-                    @foreach (var diagnostic in diagnostics)
-                    {
-                        <div class="@GetDiagnosticClass(diagnostic)">
-                            <strong>@diagnostic.Title</strong>
-                            <span>@diagnostic.Message</span>
-                            <small>@diagnostic.Severity</small>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (ResourceType is not null)
-        {
-            <ResourcePredefinedViewSections ResourceType="ResourceType"
-                                          ResourceId="ResourceId"
-                                          Resource="Resource"
-                                          ViewId="@ResourcePredefinedViewIds.Endpoints" />
-        }
+        <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                     ResourceId="ResourceId"
+                                     Resource="Resource"
+                                     ViewId="@ResourcePredefinedViewIds.Endpoints"
+                                     Sections="@BuildSections()" />
     }
 </div>
 
@@ -332,6 +73,273 @@
         Resource is not null &&
         !IsReadOnly &&
         Resource.State is null or ResourceState.Stopped or ResourceState.Paused;
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections()
+    {
+        var sections = new List<GeneratedResourceViewSection>
+        {
+            new("endpoint-configuration", string.Empty, 0, RenderEndpointConfiguration())
+        };
+
+        if (Resource is null)
+        {
+            return sections;
+        }
+
+        if (Resource.Endpoints.Count > 0)
+        {
+            sections.Add(new("endpoints", string.Empty, 100, RenderEndpoints()));
+        }
+
+        if (Resource.ResourceEndpointNetworkMappings.Count > 0)
+        {
+            sections.Add(new("mapped-addresses", string.Empty, 200, RenderMappedAddresses()));
+        }
+
+        if (InboundNetworkMappings.Count > 0)
+        {
+            sections.Add(new("network-exposure", L["Network exposure"], 300, RenderNetworkExposure()));
+        }
+
+        if (InboundLoadBalancerRoutes.Count > 0)
+        {
+            sections.Add(new("load-balancer-exposure", L["Load balancer exposure"], 400, RenderLoadBalancerExposure()));
+        }
+
+        if (IsLoadBalancerResource)
+        {
+            sections.Add(new("load-balancing", L["Load balancing"], 500, RenderLoadBalancing()));
+        }
+
+        if (IsNetworkResource && !IsLoadBalancerResource)
+        {
+            sections.Add(new("networking", L["Networking"], 500, RenderNetworking()));
+        }
+
+        if (Resource.ResourceEndpointMappings.Count > 0)
+        {
+            sections.Add(new("endpoint-mappings", L["Endpoint mappings"], 600, RenderEndpointMappings()));
+        }
+
+        if (Resource.ResourceLoadBalancerRoutes.Count > 0)
+        {
+            sections.Add(new("load-balancer-routes", L["Load balancer routes"], 700, RenderLoadBalancerRoutes()));
+        }
+
+        if (ResourceDiagnosticDisplay.GetDiagnostics(Resource, RelatedResources) is { Count: > 0 } diagnostics)
+        {
+            sections.Add(new("diagnostics", L["Diagnostics"], 800, RenderDiagnostics(diagnostics)));
+        }
+
+        return sections;
+    }
+
+    private RenderFragment RenderEndpointConfiguration() => @<div class="blade-section-header">
+        <div>
+            <h3>@L["Endpoint configuration"]</h3>
+            <p>@GetEndpointConfigurationMessage()</p>
+        </div>
+        <FluentButton Appearance="Appearance.Neutral"
+                      Disabled="@(!CanEditNetworking)"
+                      OnClick="OpenConfiguration">
+            @L["Configure endpoints"]
+        </FluentButton>
+    </div>;
+
+    private RenderFragment RenderEndpoints() => @<text>
+        <div class="generated-section-heading">
+            <h3>@L["Endpoints"]</h3>
+            <p>@L["Endpoints are resource-owned protocol and target-port contracts. Network mappings decide where those endpoints are reachable."]</p>
+        </div>
+        <div class="endpoint-list">
+            @foreach (var endpoint in Resource!.Endpoints)
+            {
+                <div class="generated-endpoint">
+                    <div class="generated-endpoint-main">
+                        <strong>@endpoint.Name</strong>
+                        <dl class="endpoint-detail-list">
+                            <dt>@L["Protocol"]</dt>
+                            <dd>@FormatEndpointProtocol(endpoint)</dd>
+                            <dt>@L["Target port"]</dt>
+                            <dd>@FormatTargetPort(endpoint)</dd>
+                            <dt>@L["Exposure"]</dt>
+                            <dd>@FormatExposure(endpoint.Exposure)</dd>
+                        </dl>
+                    </div>
+                </div>
+            }
+        </div>
+    </text>;
+
+    private RenderFragment RenderMappedAddresses() => @<text>
+        <div class="generated-section-heading">
+            <h3>@L["Mapped addresses"]</h3>
+            <p>@L["Mapped addresses are topology-specific bindings created by a network, runtime, or provider for a resource endpoint."]</p>
+        </div>
+        <div class="endpoint-list">
+            @foreach (var mapping in Resource!.ResourceEndpointNetworkMappings)
+            {
+                <div class="generated-endpoint">
+                    <div class="generated-endpoint-main">
+                        <strong>@mapping.Name</strong>
+                        <dl class="endpoint-detail-list">
+                            <dt>@L["Address"]</dt>
+                            <dd>@EndpointLink(mapping.Address)</dd>
+                            <dt>@L["Target endpoint"]</dt>
+                            <dd>@EndpointReference(mapping.Target, Resource)</dd>
+                            <dt>@L["Topology"]</dt>
+                            <dd>@FormatEndpointNetworkMappingTopology(mapping)</dd>
+                            <dt>@L["Exposure"]</dt>
+                            <dd>@FormatExposure(mapping.Exposure)</dd>
+                            <dt>@L["Provider"]</dt>
+                            <dd>@FormatEndpointNetworkMappingProvider(mapping)</dd>
+                        </dl>
+                    </div>
+                    <div class="generated-row-actions">
+                        <FluentButton Appearance="Appearance.Neutral"
+                                      Title="@L["Copy address"]"
+                                      Disabled="@string.IsNullOrWhiteSpace(mapping.Address)"
+                                      OnClick="() => CopyEndpoint(mapping.Address)">
+                            @L["Copy"]
+                        </FluentButton>
+                        @if (IsLinkEndpoint(mapping.Address))
+                        {
+                            <FluentButton Appearance="Appearance.Neutral"
+                                          Title="@L["Open address"]"
+                                          OnClick="() => OpenEndpoint(mapping.Address)">
+                                @L["Open"]
+                            </FluentButton>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </text>;
+
+    private RenderFragment RenderNetworkExposure() => @<div class="generated-list">
+        @foreach (var exposure in InboundNetworkMappings)
+        {
+            <div>
+                <strong>@ResourceLink(exposure.Network)</strong>
+                <span>
+                    @EndpointReference(exposure.Mapping.Source, exposure.Network)
+                    <span aria-hidden="true">-&gt;</span>
+                    @EndpointReference(exposure.Mapping.Target, Resource!)
+                </span>
+                <small>@FormatInboundNetworkMappingSummary(exposure)</small>
+            </div>
+        }
+    </div>;
+
+    private RenderFragment RenderLoadBalancerExposure() => @<div class="generated-list">
+        @foreach (var exposure in InboundLoadBalancerRoutes)
+        {
+            <div>
+                <strong>@ResourceLink(exposure.LoadBalancer)</strong>
+                <span>
+                    @FormatLoadBalancerRouteMatch(exposure.Route)
+                    <span aria-hidden="true">-&gt;</span>
+                    @FormatLoadBalancerRouteTarget(exposure.Route.Target)
+                </span>
+                <small>@L["Entrypoint: {0}", exposure.Route.EntrypointName]</small>
+            </div>
+        }
+    </div>;
+
+    private RenderFragment RenderLoadBalancing() => @<dl class="detail-list">
+        <dt>@L["Provider"]</dt>
+        <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerProvider, Resource!.Provider)</dd>
+        <dt>@L["Host"]</dt>
+        <dd>
+            @if (GetLoadBalancerHostResourceId(Resource) is { } hostResourceId)
+            {
+                @ResourceLink(hostResourceId)
+            }
+            else
+            {
+                @L["Default container host"]
+            }
+        </dd>
+        <dt>@L["Entrypoints"]</dt>
+        <dd>@GetAttributeValue(ResourceAttributeNames.LoadBalancerEntrypointCount, Resource.Endpoints.Count.ToString(CultureInfo.InvariantCulture))</dd>
+        <dt>@L["Routes"]</dt>
+        <dd>@FormatLoadBalancerRouteCounts(Resource)</dd>
+        <dt>@L["TLS"]</dt>
+        <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingTls))</dd>
+    </dl>;
+
+    private RenderFragment RenderNetworking() => @<dl class="detail-list">
+        <dt>@L["Kind"]</dt>
+        <dd>@GetAttributeValue(ResourceAttributeNames.NetworkKind, Resource!.Kind)</dd>
+        <dt>@L["Host readiness"]</dt>
+        <dd>@FormatNetworkReadiness()</dd>
+        @if (Resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.NetworkProvisionedMappingCount))
+        {
+            <dt>@L["Provisioned mappings"]</dt>
+            <dd>@GetAttributeValue(ResourceAttributeNames.NetworkProvisionedMappingCount, "0")</dd>
+        }
+        @if (GetMappingProviderIds().Length > 0)
+        {
+            <dt>@L["Mapping providers"]</dt>
+            <dd>
+                <div class="dependency-list">
+                    @foreach (var providerId in GetMappingProviderIds())
+                    {
+                        @ResourceLink(providerId)
+                    }
+                </div>
+            </dd>
+        }
+        <dt>@L["Endpoint mapper"]</dt>
+        <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingEndpointMapper))</dd>
+        <dt>@L["Virtual network"]</dt>
+        <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingVirtualNetwork))</dd>
+        <dt>@L["Ingress"]</dt>
+        <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingIngress))</dd>
+        <dt>@L["Host network"]</dt>
+        <dd>@FormatEnabled(Resource.HasCapability(ResourceCapabilityIds.NetworkingHostNetwork))</dd>
+    </dl>;
+
+    private RenderFragment RenderEndpointMappings() => @<div class="generated-list">
+        @foreach (var mapping in Resource!.ResourceEndpointMappings)
+        {
+            <div>
+                <strong>@mapping.Name</strong>
+                <span>
+                    @EndpointReference(mapping.Source, Resource)
+                    <span aria-hidden="true">-&gt;</span>
+                    @EndpointReference(mapping.Target)
+                </span>
+                <small>@MappingProviderLabel(mapping)</small>
+            </div>
+        }
+    </div>;
+
+    private RenderFragment RenderLoadBalancerRoutes() => @<div class="generated-list">
+        @foreach (var route in Resource!.ResourceLoadBalancerRoutes)
+        {
+            <div>
+                <strong>@route.Name</strong>
+                <span>
+                    @FormatLoadBalancerRouteMatch(route)
+                    <span aria-hidden="true">-&gt;</span>
+                    @FormatLoadBalancerRouteTarget(route.Target)
+                </span>
+                <small>@L["Entrypoint: {0}", route.EntrypointName]</small>
+            </div>
+        }
+    </div>;
+
+    private RenderFragment RenderDiagnostics(IReadOnlyList<ResourceDiagnosticView> diagnostics) => @<div class="generated-list">
+        @foreach (var diagnostic in diagnostics)
+        {
+            <div class="@GetDiagnosticClass(diagnostic)">
+                <strong>@diagnostic.Title</strong>
+                <span>@diagnostic.Message</span>
+                <small>@diagnostic.Severity</small>
+            </div>
+        }
+    </div>;
 
     protected override async Task OnParametersSetAsync()
     {

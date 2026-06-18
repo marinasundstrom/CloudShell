@@ -19,179 +19,20 @@
     }
     else
     {
-        <section class="generated-section">
-            <h3>@L["Resource identity"]</h3>
-            <div class="generated-row-actions">
-                <FluentCheckbox Value="@IdentityEnabled"
-                                ValueChanged="SetIdentityEnabled"
-                                Disabled="@(UpdatingIdentity || IsReadOnly)">
-                    @L["Enable identity"]
-                </FluentCheckbox>
-            </div>
-            @if (Resource.IdentityBinding is { } identity)
-            {
-                <dl class="detail-list">
-                    <dt>@L["Name"]</dt>
-                    <dd>@FormatIdentityName(identity)</dd>
-                    <dt>@L["Kind"]</dt>
-                    <dd>@identity.Kind</dd>
-                    <dt>@L["Provider"]</dt>
-                    <dd>@FormatIdentityProvider(identity)</dd>
-                    <dt>@L["Subject"]</dt>
-                    <dd>@FormatIdentitySubject(identity)</dd>
-                    @if (identity.IdentityScopes.Count > 0)
-                    {
-                        <dt>@L["Scopes"]</dt>
-                        <dd>
-                            <div class="dependency-list">
-                                @foreach (var scope in identity.IdentityScopes.Order(StringComparer.OrdinalIgnoreCase))
-                                {
-                                    <span class="generated-pill-link">@scope</span>
-                                }
-                            </div>
-                        </dd>
-                    }
-                    @if (identity.IdentityClaims.Count > 0)
-                    {
-                        <dt>@L["Claims"]</dt>
-                        <dd>
-                            <div class="generated-list">
-                                @foreach (var claim in identity.IdentityClaims.OrderBy(claim => claim.Key, StringComparer.OrdinalIgnoreCase))
-                                {
-                                    <div>
-                                        <strong>@claim.Key</strong>
-                                        <span>@claim.Value</span>
-                                    </div>
-                                }
-                            </div>
-                        </dd>
-                    }
-                </dl>
-                <div class="generated-row-actions">
-                    <FluentButton Appearance="Appearance.Neutral"
-                                  Disabled="@(ProvisioningIdentity || IsReadOnly)"
-                                  OnClick="ProvisionIdentity">
-                        @GetProvisionIdentityButtonLabel()
-                    </FluentButton>
-                </div>
-                @if (IsReadOnly)
-                {
-                    <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Identity provisioning is disabled in this UI."]</div>
-                }
-            }
-            else
-            {
-                <div class="empty-state">
-                    <strong>@L["Identity not enabled"]</strong>
-                    <span>@L["Enable identity for this resource before provisioning identity or assigning access permissions."]</span>
-                </div>
-                @if (IsReadOnly)
-                {
-                    <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Identity changes are disabled in this UI."]</div>
-                }
-            }
-        </section>
-
-        @if (Resource.IdentityBinding is not null)
-        {
-            <section class="generated-section">
-                <h3>@L["Provisioning status"]</h3>
-                @if (!string.IsNullOrWhiteSpace(ProvisioningStatusError))
-                {
-                    <div class="procedure-message compact">@ProvisioningStatusError</div>
-                }
-                else if (ProvisioningStatus is null)
-                {
-                    <p class="muted">@L["Provisioning status is unavailable."]</p>
-                }
-                else
-                {
-                    <dl class="detail-list">
-                        <dt>@L["Provider"]</dt>
-                        <dd>@FormatProvisioningProvider()</dd>
-                    </dl>
-                    @if (ProvisioningStatus.Statuses.Count == 0)
-                    {
-                        <p class="muted">@L["No provisioning status was reported for this resource identity."]</p>
-                    }
-                    else
-                    {
-                        <div class="generated-list">
-                            @foreach (var status in ProvisioningStatus.Statuses)
-                            {
-                                <div>
-                                    <strong>@FormatIdentityReference(status.Identity)</strong>
-                                    <span>@status.State</span>
-                                    @if (!string.IsNullOrWhiteSpace(status.Detail))
-                                    {
-                                        <small>@status.Detail</small>
-                                    }
-                                    @if (status.ObservedAt is { } observedAt)
-                                    {
-                                        <small>@L["Observed {0}", observedAt.ToLocalTime().ToString("g")]</small>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-                    @if (ProvisioningStatus.ProvisioningDiagnostics.Count > 0)
-                    {
-                        <div class="generated-list">
-                            @foreach (var diagnostic in ProvisioningStatus.ProvisioningDiagnostics)
-                            {
-                                <div>
-                                    <strong>@diagnostic.Severity</strong>
-                                    <span>@diagnostic.Message</span>
-                                    @if (diagnostic.Identity is not null)
-                                    {
-                                        <small>@FormatIdentityReference(diagnostic.Identity)</small>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
-                }
-            </section>
-        }
-
-        @if (HasPermissionGrants)
-        {
-            <section class="generated-section">
-                <h3>@L["Permission grants"]</h3>
-                @if (OutboundPermissionGrants.Count > 0)
-                {
-                    <div class="generated-list">
-                        @foreach (var grant in OutboundPermissionGrants)
-                        {
-                            <div>
-                                <strong>@L["Can access"]</strong>
-                                <span>@ResourceLink(grant.TargetResourceId)</span>
-                                <small>@grant.Permission</small>
-                            </div>
-                        }
-                    </div>
-                }
-                @if (InboundPermissionGrants.Count > 0)
-                {
-                    <div class="generated-list">
-                        @foreach (var grant in InboundPermissionGrants)
-                        {
-                            <div>
-                                <strong>@FormatIdentityReference(grant.Identity)</strong>
-                                <span>@L["Can access this resource"]</span>
-                                <small>@grant.Permission</small>
-                            </div>
-                        }
-                    </div>
-                }
-            </section>
-        }
+        <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                     ResourceId="ResourceId"
+                                     Resource="Resource"
+                                     ViewId="@ResourcePredefinedViewIds.Identity"
+                                     Sections="@BuildSections()" />
     }
 </div>
 
 @code {
     [Parameter, EditorRequired]
     public string ResourceId { get; set; } = string.Empty;
+
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
 
     private Resource? Resource { get; set; }
     private IReadOnlyList<ResourcePermissionGrant> InboundPermissionGrants { get; set; } = [];
@@ -209,6 +50,185 @@
     private bool HasPermissionGrants =>
         InboundPermissionGrants.Count > 0 ||
         OutboundPermissionGrants.Count > 0;
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections()
+    {
+        var sections = new List<GeneratedResourceViewSection>
+        {
+            new("resource-identity", L["Resource identity"], 0, RenderResourceIdentity())
+        };
+
+        if (Resource?.IdentityBinding is not null)
+        {
+            sections.Add(new("provisioning-status", L["Provisioning status"], 100, RenderProvisioningStatus()));
+        }
+
+        if (HasPermissionGrants)
+        {
+            sections.Add(new("permission-grants", L["Permission grants"], 200, RenderPermissionGrants()));
+        }
+
+        return sections;
+    }
+
+    private RenderFragment RenderResourceIdentity() => @<text>
+        <div class="generated-row-actions">
+            <FluentCheckbox Value="@IdentityEnabled"
+                            ValueChanged="SetIdentityEnabled"
+                            Disabled="@(UpdatingIdentity || IsReadOnly)">
+                @L["Enable identity"]
+            </FluentCheckbox>
+        </div>
+        @if (Resource?.IdentityBinding is { } identity)
+        {
+            <dl class="detail-list">
+                <dt>@L["Name"]</dt>
+                <dd>@FormatIdentityName(identity)</dd>
+                <dt>@L["Kind"]</dt>
+                <dd>@identity.Kind</dd>
+                <dt>@L["Provider"]</dt>
+                <dd>@FormatIdentityProvider(identity)</dd>
+                <dt>@L["Subject"]</dt>
+                <dd>@FormatIdentitySubject(identity)</dd>
+                @if (identity.IdentityScopes.Count > 0)
+                {
+                    <dt>@L["Scopes"]</dt>
+                    <dd>
+                        <div class="dependency-list">
+                            @foreach (var scope in identity.IdentityScopes.Order(StringComparer.OrdinalIgnoreCase))
+                            {
+                                <span class="generated-pill-link">@scope</span>
+                            }
+                        </div>
+                    </dd>
+                }
+                @if (identity.IdentityClaims.Count > 0)
+                {
+                    <dt>@L["Claims"]</dt>
+                    <dd>
+                        <div class="generated-list">
+                            @foreach (var claim in identity.IdentityClaims.OrderBy(claim => claim.Key, StringComparer.OrdinalIgnoreCase))
+                            {
+                                <div>
+                                    <strong>@claim.Key</strong>
+                                    <span>@claim.Value</span>
+                                </div>
+                            }
+                        </div>
+                    </dd>
+                }
+            </dl>
+            <div class="generated-row-actions">
+                <FluentButton Appearance="Appearance.Neutral"
+                              Disabled="@(ProvisioningIdentity || IsReadOnly)"
+                              OnClick="ProvisionIdentity">
+                    @GetProvisionIdentityButtonLabel()
+                </FluentButton>
+            </div>
+            @if (IsReadOnly)
+            {
+                <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Identity provisioning is disabled in this UI."]</div>
+            }
+        }
+        else
+        {
+            <div class="empty-state">
+                <strong>@L["Identity not enabled"]</strong>
+                <span>@L["Enable identity for this resource before provisioning identity or assigning access permissions."]</span>
+            </div>
+            @if (IsReadOnly)
+            {
+                <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Identity changes are disabled in this UI."]</div>
+            }
+        }
+    </text>;
+
+    private RenderFragment RenderProvisioningStatus() => @<text>
+        @if (!string.IsNullOrWhiteSpace(ProvisioningStatusError))
+        {
+            <div class="procedure-message compact">@ProvisioningStatusError</div>
+        }
+        else if (ProvisioningStatus is null)
+        {
+            <p class="muted">@L["Provisioning status is unavailable."]</p>
+        }
+        else
+        {
+            <dl class="detail-list">
+                <dt>@L["Provider"]</dt>
+                <dd>@FormatProvisioningProvider()</dd>
+            </dl>
+            @if (ProvisioningStatus.Statuses.Count == 0)
+            {
+                <p class="muted">@L["No provisioning status was reported for this resource identity."]</p>
+            }
+            else
+            {
+                <div class="generated-list">
+                    @foreach (var status in ProvisioningStatus.Statuses)
+                    {
+                        <div>
+                            <strong>@FormatIdentityReference(status.Identity)</strong>
+                            <span>@status.State</span>
+                            @if (!string.IsNullOrWhiteSpace(status.Detail))
+                            {
+                                <small>@status.Detail</small>
+                            }
+                            @if (status.ObservedAt is { } observedAt)
+                            {
+                                <small>@L["Observed {0}", observedAt.ToLocalTime().ToString("g")]</small>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+            @if (ProvisioningStatus.ProvisioningDiagnostics.Count > 0)
+            {
+                <div class="generated-list">
+                    @foreach (var diagnostic in ProvisioningStatus.ProvisioningDiagnostics)
+                    {
+                        <div>
+                            <strong>@diagnostic.Severity</strong>
+                            <span>@diagnostic.Message</span>
+                            @if (diagnostic.Identity is not null)
+                            {
+                                <small>@FormatIdentityReference(diagnostic.Identity)</small>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </text>;
+
+    private RenderFragment RenderPermissionGrants() => @<text>
+        @if (OutboundPermissionGrants.Count > 0)
+        {
+            <div class="generated-list">
+                @foreach (var grant in OutboundPermissionGrants)
+                {
+                    <div>
+                        <strong>@L["Can access"]</strong>
+                        <span>@ResourceLink(grant.TargetResourceId)</span>
+                        <small>@grant.Permission</small>
+                    </div>
+                }
+            </div>
+        }
+        @if (InboundPermissionGrants.Count > 0)
+        {
+            <div class="generated-list">
+                @foreach (var grant in InboundPermissionGrants)
+                {
+                    <div>
+                        <strong>@FormatIdentityReference(grant.Identity)</strong>
+                        <span>@L["Can access this resource"]</span>
+                        <small>@grant.Permission</small>
+                    </div>
+                }
+            </div>
+        }
+    </text>;
 
     protected override async Task OnParametersSetAsync()
     {

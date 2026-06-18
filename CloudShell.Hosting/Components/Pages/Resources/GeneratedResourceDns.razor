@@ -15,50 +15,11 @@
     }
     else
     {
-        <section class="generated-section">
-            <div class="blade-section-header">
-                <div>
-                    <h3>@L["Name mappings"]</h3>
-                    <p>@GetNameMappingConfigurationMessage()</p>
-                </div>
-                <FluentButton Appearance="Appearance.Neutral"
-                              Disabled="@(!CanAddNameMapping)"
-                              OnClick="AddNameMapping">
-                    @L["Add name mapping"]
-                </FluentButton>
-            </div>
-        </section>
-
-        @if (InboundNameMappings.Count == 0)
-        {
-            <EmptyState Title="@L["No name mappings"].Value"
-                        Message="@L["No DNS or domain names target this resource."].Value"
-                        Compact="true" />
-        }
-        else
-        {
-            <section class="generated-section">
-                <h3>@L["DNS and domain names"]</h3>
-                <div class="generated-list">
-                    @foreach (var exposure in InboundNameMappings)
-                    {
-                        <div>
-                            <strong>@ResourceLink(exposure.Mapping)</strong>
-                            <span>@FormatNameMappingSummary(exposure.Mapping)</span>
-                            <small>@FormatNameMappingMetadata(exposure)</small>
-                        </div>
-                    }
-                </div>
-            </section>
-        }
-
-        @if (ResourceType is not null)
-        {
-            <ResourcePredefinedViewSections ResourceType="ResourceType"
-                                          ResourceId="ResourceId"
-                                          Resource="Resource"
-                                          ViewId="@ResourcePredefinedViewIds.Dns" />
-        }
+        <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                     ResourceId="ResourceId"
+                                     Resource="Resource"
+                                     ViewId="@ResourcePredefinedViewIds.Dns"
+                                     Sections="@BuildSections()" />
     }
 </div>
 
@@ -86,6 +47,52 @@
     private bool CanAddNameMapping =>
         CanEditNetworking &&
         Resource?.Endpoints.Count > 0;
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections()
+    {
+        var sections = new List<GeneratedResourceViewSection>
+        {
+            new("name-mappings", string.Empty, 0, RenderNameMappings())
+        };
+
+        sections.Add(new("dns-and-domain-names", L["DNS and domain names"], 100, RenderDnsAndDomainNames()));
+
+        return sections;
+    }
+
+    private RenderFragment RenderNameMappings() => @<div class="blade-section-header">
+        <div>
+            <h3>@L["Name mappings"]</h3>
+            <p>@GetNameMappingConfigurationMessage()</p>
+        </div>
+        <FluentButton Appearance="Appearance.Neutral"
+                      Disabled="@(!CanAddNameMapping)"
+                      OnClick="AddNameMapping">
+            @L["Add name mapping"]
+        </FluentButton>
+    </div>;
+
+    private RenderFragment RenderDnsAndDomainNames() => @<text>
+        @if (InboundNameMappings.Count == 0)
+        {
+            <EmptyState Title="@L["No name mappings"].Value"
+                        Message="@L["No DNS or domain names target this resource."].Value"
+                        Compact="true" />
+        }
+        else
+        {
+            <div class="generated-list">
+                @foreach (var exposure in InboundNameMappings)
+                {
+                    <div>
+                        <strong>@ResourceLink(exposure.Mapping)</strong>
+                        <span>@FormatNameMappingSummary(exposure.Mapping)</span>
+                        <small>@FormatNameMappingMetadata(exposure)</small>
+                    </div>
+                }
+            </div>
+        }
+    </text>;
 
     protected override async Task OnParametersSetAsync()
     {

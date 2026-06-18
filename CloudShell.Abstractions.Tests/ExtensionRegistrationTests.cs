@@ -236,12 +236,21 @@ public sealed class ExtensionRegistrationTests
         Assert.DoesNotContain(
             resourceType.ResourceTabs,
             tab => string.Equals(tab.Title, "Settings", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            resourceType.ResourceTabs,
+            tab => tab.Id == ResourcePredefinedViewIds.Overview);
 
         var entries = Assert.Single(resourceType.ResourceTabs, tab => tab.Title == "Entries");
         Assert.Equal(new ResourceViewId(ResourceTabGroupIds.General, "entries"), entries.Id);
         Assert.Equal(ResourceTabGroupTitles.General, entries.GroupTitle);
         Assert.Equal("entries", entries.Icon);
         Assert.True(entries.ShowsApplyButton);
+
+        var overviewSection = Assert.Single(resourceType.ResourcePredefinedViewSections);
+        Assert.Equal(ResourcePredefinedViewIds.Overview, overviewSection.ViewId);
+        Assert.Equal("configuration.store.summary", overviewSection.Id);
+        Assert.Equal("Configuration Store", overviewSection.Title);
+        Assert.Equal(typeof(CloudShell.Providers.Configuration.Pages.ConfigurationStoreOverviewSection), overviewSection.ComponentType);
     }
 
     [Fact]
@@ -261,12 +270,21 @@ public sealed class ExtensionRegistrationTests
         Assert.DoesNotContain(
             resourceType.ResourceTabs,
             tab => string.Equals(tab.Title, "Settings", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            resourceType.ResourceTabs,
+            tab => tab.Id == ResourcePredefinedViewIds.Overview);
 
         var secrets = Assert.Single(resourceType.ResourceTabs, tab => tab.Title == "Secrets");
         Assert.Equal(new ResourceViewId(ResourceTabGroupIds.General, "secrets"), secrets.Id);
         Assert.Equal(ResourceTabGroupTitles.General, secrets.GroupTitle);
         Assert.Equal("secrets", secrets.Icon);
         Assert.True(secrets.ShowsApplyButton);
+
+        var overviewSection = Assert.Single(resourceType.ResourcePredefinedViewSections);
+        Assert.Equal(ResourcePredefinedViewIds.Overview, overviewSection.ViewId);
+        Assert.Equal("secrets.vault.summary", overviewSection.Id);
+        Assert.Equal("Secrets Vault", overviewSection.Title);
+        Assert.Equal(typeof(CloudShell.Providers.Configuration.Pages.SecretsVaultOverviewSection), overviewSection.ComponentType);
     }
 
     [Fact]
@@ -317,7 +335,7 @@ public sealed class ExtensionRegistrationTests
                 .AddCloudShell()
                 .AddExtension<NonExtensiblePredefinedViewSectionsExtension>());
 
-        Assert.Contains(ResourcePredefinedViewIds.Overview.Value, exception.Message);
+        Assert.Contains(ResourcePredefinedViewIds.Configuration.Value, exception.Message);
     }
 
     [Fact]
@@ -1116,7 +1134,7 @@ public sealed class ExtensionRegistrationTests
                     10)
                 .AddResourcePredefinedViewSection<SampleOverviewPage>(
                     "sample.non-extensible-predefined-view-sections",
-                    ResourcePredefinedViewIds.Overview,
+                    ResourcePredefinedViewIds.Configuration,
                     "sample.summary",
                     "Summary",
                     10);

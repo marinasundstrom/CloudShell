@@ -52,12 +52,12 @@ public sealed class ConfigurationProviderExtension : ICloudShellExtension
                             Name: "health")
                     ]),
                 resourceClass: ResourceClass.Configuration)
-            .AddResourceTab<Pages.ConfigurationStoreOverview>(
+            .AddResourcePredefinedViewSection<Pages.ConfigurationStoreOverviewSection>(
                 "configuration.store",
                 ResourcePredefinedViewIds.Overview,
-                "Overview",
-                10,
-                groupTitle: ResourceTabGroupTitles.General)
+                "configuration.store.summary",
+                "Configuration Store",
+                50)
             .AddResourceTab<Pages.ConfigurationStoreEntries>(
                 "configuration.store",
                 new ResourceViewId(ResourceTabGroupIds.General, "entries"),
@@ -101,12 +101,12 @@ public sealed class SecretsProviderExtension : ICloudShellExtension
                 "lock-closed",
                 16,
                 resourceClass: ResourceClass.SecretsVault)
-            .AddResourceTab<Pages.SecretsVaultOverview>(
+            .AddResourcePredefinedViewSection<Pages.SecretsVaultOverviewSection>(
                 SecretsVaultProvider.ResourceType,
                 ResourcePredefinedViewIds.Overview,
-                "Overview",
-                10,
-                groupTitle: ResourceTabGroupTitles.General)
+                "secrets.vault.summary",
+                "Secrets Vault",
+                50)
             .AddResourceTab<Pages.SecretsVaultSecrets>(
                 SecretsVaultProvider.ResourceType,
                 new ResourceViewId(ResourceTabGroupIds.General, "secrets"),

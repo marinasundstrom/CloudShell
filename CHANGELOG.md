@@ -93,6 +93,13 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource detail Traces and Metrics tabs now compose dedicated resource-tab
   wrappers over shared explorer components, matching the Logs tab treatment
   instead of embedding the route page surfaces directly.
+- Generated Resource Manager tabs now use a shared ordered section layout so
+  provider extensions can append sections to standard views such as Overview,
+  Endpoints, DNS, Identity, Access control, Activity, and Monitoring without
+  replacing the entire tab.
+- Configuration Store and Secrets Vault now contribute provider-owned summary
+  sections to the generated Overview tab instead of replacing the standard
+  Overview page.
 - Configuration Store and Secrets Vault resources now provide the same basic
   service-process resource monitoring snapshots through their local service
   process runner.

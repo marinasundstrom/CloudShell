@@ -7,19 +7,14 @@
 }
 else
 {
-    <div class="type-registration">
-        <div class="provider-summary compact">
-            <div class="provider-status">
-                <span class="state-dot state-running"></span>
-                <div>
-                    <strong>@Store.Name</strong>
-                    <span>
-                        @Store.Entries.Count entries available from @EndpointLink(Store.Endpoint, "the service endpoint") with a resource token.
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
+    <dl class="detail-list">
+        <dt>Entries</dt>
+        <dd>@Store.Entries.Count</dd>
+        <dt>Service endpoint</dt>
+        <dd>@EndpointLink(Store.Endpoint, "Provider default")</dd>
+        <dt>Access</dt>
+        <dd>Resource token required</dd>
+    </dl>
 }
 
 @code {

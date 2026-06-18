@@ -21,87 +21,11 @@
     }
     else
     {
-        <section class="generated-section">
-            <h3>@L["Assign access"]</h3>
-            <div class="generated-access-form">
-                <label for="access-control-principal-search">@L["Principal"]</label>
-                <FluentAutocomplete TOption="PrincipalOption"
-                                    Id="access-control-principal-search"
-                                    AutoComplete="off"
-                                    MaximumSelectedOptions="1"
-                                    MaximumOptionsSearch="12"
-                                    Placeholder="@L["Search principals"]"
-                                    OptionText="FormatPrincipalOption"
-                                    SelectedOptions="@SelectedPrincipals"
-                                    SelectedOptionsChanged="SetSelectedPrincipal"
-                                    OnOptionsSearch="SearchPrincipals">
-                </FluentAutocomplete>
-                @if (PrincipalOptions.Count == 0)
-                {
-                    <p class="muted">@L["No principals are available to grant access. Resource identities are the only principal source in this MVP slice."]</p>
-                }
-
-                <label for="access-control-permission">@L["Permission"]</label>
-                <FluentSelect TOption="string" Id="access-control-permission" @bind-Value="SelectedPermission">
-                    <FluentOption TOption="string" Value="">@L["Select a permission"]</FluentOption>
-                    @foreach (var option in AvailablePermissionOptions)
-                    {
-                        <FluentOption TOption="string" Value="@option.Value">@option.Label</FluentOption>
-                    }
-                </FluentSelect>
-
-                @if (IsCustomPermission)
-                {
-                    <label for="access-control-custom-permission">@L["Custom permission"]</label>
-                    <FluentTextField Id="access-control-custom-permission"
-                                     @bind-Value="CustomPermission"
-                                     Placeholder="Provider.Namespace/resources/action" />
-                }
-
-                <div class="generated-row-actions">
-                    <FluentButton Appearance="Appearance.Accent"
-                                  Disabled="@(GrantingPermission || IsReadOnly)"
-                                  OnClick="GrantPermission">
-                        @GetGrantButtonLabel()
-                    </FluentButton>
-                </div>
-            </div>
-            @if (IsReadOnly)
-            {
-                <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]</div>
-            }
-            <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>
-        </section>
-
-        <section class="generated-section">
-            <h3>@L["Assigned principals"]</h3>
-            @if (GrantGroups.Count == 0)
-            {
-                <p class="muted">@L["No principals have access permissions for this resource."]</p>
-            }
-            else
-            {
-                <div class="generated-list">
-                    @foreach (var group in GrantGroups)
-                    {
-                        <div>
-                            <strong>@IdentityLink(group.Identity)</strong>
-                            @foreach (var permission in group.Permissions)
-                            {
-                                <span class="access-control-grant-row">
-                                    <span>@permission</span>
-                                    <FluentButton Appearance="Appearance.Neutral"
-                                                  Disabled="@(IsReadOnly || IsRevokingPermission(group.Identity, permission))"
-                                                  OnClick="() => RevokePermission(group.Identity, permission)">
-                                        @GetRevokeButtonLabel(group.Identity, permission)
-                                    </FluentButton>
-                                </span>
-                            }
-                        </div>
-                    }
-                </div>
-            }
-        </section>
+        <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                     ResourceId="ResourceId"
+                                     Resource="Resource"
+                                     ViewId="@ResourcePredefinedViewIds.AccessControl"
+                                     Sections="@BuildSections()" />
     }
 </div>
 
@@ -135,6 +59,9 @@
     [Parameter, EditorRequired]
     public string ResourceId { get; set; } = string.Empty;
 
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
     private Resource? Resource { get; set; }
     private IReadOnlyList<PrincipalOption> PrincipalOptions { get; set; } = [];
     private IReadOnlyList<ResourcePermissionGrant> InboundGrants { get; set; } = [];
@@ -148,6 +75,92 @@
     private string CustomPermission { get; set; } = string.Empty;
     private string? ProcedureMessage { get; set; }
     private bool GrantingPermission { get; set; }
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections() =>
+    [
+        new("assign-access", L["Assign access"], 0, RenderAssignAccess()),
+        new("assigned-principals", L["Assigned principals"], 100, RenderAssignedPrincipals())
+    ];
+
+    private RenderFragment RenderAssignAccess() => @<text>
+        <div class="generated-access-form">
+            <label for="access-control-principal-search">@L["Principal"]</label>
+            <FluentAutocomplete TOption="PrincipalOption"
+                                Id="access-control-principal-search"
+                                AutoComplete="off"
+                                MaximumSelectedOptions="1"
+                                MaximumOptionsSearch="12"
+                                Placeholder="@L["Search principals"]"
+                                OptionText="FormatPrincipalOption"
+                                SelectedOptions="@SelectedPrincipals"
+                                SelectedOptionsChanged="SetSelectedPrincipal"
+                                OnOptionsSearch="SearchPrincipals">
+            </FluentAutocomplete>
+            @if (PrincipalOptions.Count == 0)
+            {
+                <p class="muted">@L["No principals are available to grant access. Resource identities are the only principal source in this MVP slice."]</p>
+            }
+
+            <label for="access-control-permission">@L["Permission"]</label>
+            <FluentSelect TOption="string" Id="access-control-permission" @bind-Value="SelectedPermission">
+                <FluentOption TOption="string" Value="">@L["Select a permission"]</FluentOption>
+                @foreach (var option in AvailablePermissionOptions)
+                {
+                    <FluentOption TOption="string" Value="@option.Value">@option.Label</FluentOption>
+                }
+            </FluentSelect>
+
+            @if (IsCustomPermission)
+            {
+                <label for="access-control-custom-permission">@L["Custom permission"]</label>
+                <FluentTextField Id="access-control-custom-permission"
+                                 @bind-Value="CustomPermission"
+                                 Placeholder="Provider.Namespace/resources/action" />
+            }
+
+            <div class="generated-row-actions">
+                <FluentButton Appearance="Appearance.Accent"
+                              Disabled="@(GrantingPermission || IsReadOnly)"
+                              OnClick="GrantPermission">
+                    @GetGrantButtonLabel()
+                </FluentButton>
+            </div>
+        </div>
+        @if (IsReadOnly)
+        {
+            <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]</div>
+        }
+        <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>
+    </text>;
+
+    private RenderFragment RenderAssignedPrincipals() => @<text>
+        @if (GrantGroups.Count == 0)
+        {
+            <p class="muted">@L["No principals have access permissions for this resource."]</p>
+        }
+        else
+        {
+            <div class="generated-list">
+                @foreach (var group in GrantGroups)
+                {
+                    <div>
+                        <strong>@IdentityLink(group.Identity)</strong>
+                        @foreach (var permission in group.Permissions)
+                        {
+                            <span class="access-control-grant-row">
+                                <span>@permission</span>
+                                <FluentButton Appearance="Appearance.Neutral"
+                                              Disabled="@(IsReadOnly || IsRevokingPermission(group.Identity, permission))"
+                                              OnClick="() => RevokePermission(group.Identity, permission)">
+                                    @GetRevokeButtonLabel(group.Identity, permission)
+                                </FluentButton>
+                            </span>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </text>;
     private string? RevokingPermissionKey { get; set; }
     private bool IsReadOnly => ResourceManagerUiOptions.Value.ReadOnly;
     private bool IsCustomPermission => string.Equals(SelectedPermission, CustomPermissionValue, StringComparison.Ordinal);

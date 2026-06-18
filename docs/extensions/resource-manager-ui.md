@@ -270,7 +270,7 @@ builder.AddResourcePredefinedViewSection<Pages.AcmeEndpointPolicy>(
     50);
 ```
 
-The section component receives the following parameters:
+The section component can declare any of the following optional parameters:
 
 ```csharp
 [Parameter]
@@ -281,28 +281,45 @@ public string ViewId { get; set; } = string.Empty;
 
 [Parameter]
 public string SectionId { get; set; } = string.Empty;
+
+[Parameter]
+public Resource? Resource { get; set; }
 ```
+
+CloudShell passes only the parameters declared by the section component. This
+keeps small sections simple while still allowing richer sections to use the
+projected `Resource` when the hosting view has already loaded it.
 
 The section should load resource data through public domain managers such as
 `IResourceManager`. It should not depend directly on provider stores or
 Control Plane internals unless the UI and provider intentionally ship as one
 in-process capability package.
 
-Predefined view sections are currently appended to generated predefined views.
+Generated predefined views use an ordered section layout. Shell-owned sections
+and provider-owned sections are sorted together by `Order`, then by title. A
+provider can append content by choosing an order after the built-in sections,
+or insert content between built-in sections by choosing an order in that range.
+For example, a provider summary for Overview can use an order after the
+standard Essentials section and before Runtime.
+
 The current predefined-view contract is explicit and enforced by the extension
 builder:
 
 | Predefined view | Provider may replace tab by reusing the view ID | Provider may add sections |
 | --- | --- | --- |
-| `general:overview` | Yes | No |
+| `general:overview` | Yes | Yes |
 | `general:configuration` | Yes | No |
 | `networking:endpoints` | Yes | Yes |
 | `networking:dns` | Yes | Yes |
-| `management:identity` | Yes | No |
-| `management:access-control` | Yes | No |
+| `management:identity` | Yes | Yes |
+| `management:access-control` | Yes | Yes |
 | `storage:volumes` | Yes | No |
-| `management:activity` | Yes | No |
+| `management:activity` | Yes | Yes |
+| `management:monitoring` | Yes | Yes |
 | `management:environment` | Yes | No |
+| `telemetry:logs` | Yes | No |
+| `telemetry:traces` | Yes | No |
+| `telemetry:metrics` | Yes | No |
 | `storage:storage` | Yes | No |
 
 This means:
@@ -314,10 +331,10 @@ This means:
 - Unknown or non-extensible predefined-view section targets are rejected during
   extension registration instead of being accepted silently.
 
-The first implemented predefined section hosts are Endpoints and DNS. Future
-slices can extend the contract to other common views, but that should be a
-deliberate platform decision rather than an implicit side effect of the
-current shell implementation.
+Use section contributions when the provider is adding interpretation,
+summaries, diagnostics, or operations to a common concern. Use a custom tab or
+predefined-tab replacement when the provider owns the whole workflow or when
+the generated layout would fight the resource's mental model.
 
 ## Resource Actions and UI Actions
 

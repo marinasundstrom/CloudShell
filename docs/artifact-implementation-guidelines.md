@@ -181,6 +181,10 @@ resource.
    - Render endpoints, attributes, related resources, health checks, logs,
      observability, actions, capability reasons, endpoint mappings, routes, and
      provider detail routes as applicable.
+   - Prefer predefined view sections when provider-owned details extend a
+     standard Resource Manager concern such as Overview, Endpoints, DNS,
+     Identity, Access control, Activity, or Monitoring. Use a custom tab or
+     predefined-tab replacement only when the provider owns the whole workflow.
    - Register custom Resource Manager UI actions only for presentation
      workflows. Use advertised resource actions and Control Plane capabilities
      for domain operations instead of local state guesses.

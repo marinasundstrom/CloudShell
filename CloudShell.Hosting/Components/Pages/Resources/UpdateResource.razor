@@ -709,6 +709,10 @@
     }
 
     private static bool IsGeneratedPredefinedView(ResourceTabContribution tab) =>
+        tab.ComponentType == typeof(GeneratedResourceIdentity) ||
+        tab.ComponentType == typeof(GeneratedResourceAccessControl) ||
+        tab.ComponentType == typeof(ResourceActivity) ||
+        tab.ComponentType == typeof(GeneratedResourceMonitoring) ||
         tab.ComponentType == typeof(GeneratedResourceEndpoints) ||
         tab.ComponentType == typeof(GeneratedResourceDns);
 

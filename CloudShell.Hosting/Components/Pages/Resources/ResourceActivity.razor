@@ -4,7 +4,48 @@
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
-    <section class="generated-section">
+    <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                 ResourceId="@(ResourceId ?? string.Empty)"
+                                 ViewId="@ResourcePredefinedViewIds.Activity"
+                                 Sections="@BuildSections()" />
+</div>
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
+    [Parameter]
+    public string? TraceId { get; set; }
+
+    [Parameter]
+    public string? SpanId { get; set; }
+
+    private IReadOnlyList<ResourceEvent> Events { get; set; } = [];
+    private bool IsLoading { get; set; }
+    private string? EventTypeFilter { get; set; }
+    private string? TriggeredByFilter { get; set; }
+    private string SelectedTimeRange { get; set; } = TimeRangeAll;
+
+    private const string TimeRangeAll = "all";
+    private const string TimeRangeOneHour = "1h";
+    private const string TimeRangeDay = "24h";
+    private const string TimeRangeWeek = "7d";
+
+    protected override Task OnParametersSetAsync() => LoadEventsAsync();
+
+    private Task Refresh() => LoadEventsAsync();
+
+    private Task ApplyFilters() => LoadEventsAsync();
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections() =>
+    [
+        new("activity", string.Empty, 0, RenderActivity())
+    ];
+
+    private RenderFragment RenderActivity() => @<text>
         <div class="resource-activity-header">
             <div>
                 <h3>@L["Activity"]</h3>
@@ -107,35 +148,7 @@
                 }
             </div>
         }
-    </section>
-</div>
-
-@code {
-    [Parameter]
-    public string? ResourceId { get; set; }
-
-    [Parameter]
-    public string? TraceId { get; set; }
-
-    [Parameter]
-    public string? SpanId { get; set; }
-
-    private IReadOnlyList<ResourceEvent> Events { get; set; } = [];
-    private bool IsLoading { get; set; }
-    private string? EventTypeFilter { get; set; }
-    private string? TriggeredByFilter { get; set; }
-    private string SelectedTimeRange { get; set; } = TimeRangeAll;
-
-    private const string TimeRangeAll = "all";
-    private const string TimeRangeOneHour = "1h";
-    private const string TimeRangeDay = "24h";
-    private const string TimeRangeWeek = "7d";
-
-    protected override Task OnParametersSetAsync() => LoadEventsAsync();
-
-    private Task Refresh() => LoadEventsAsync();
-
-    private Task ApplyFilters() => LoadEventsAsync();
+    </text>;
 
     private async Task ClearFilters()
     {

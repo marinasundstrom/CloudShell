@@ -3,7 +3,48 @@
 @inject IStringLocalizer<SharedResource> L
 
 <div class="generated-resource-view">
-    <section class="generated-section">
+    <GeneratedResourceViewLayout ResourceType="ResourceType"
+                                 ResourceId="@(ResourceId ?? string.Empty)"
+                                 ViewId="@ResourcePredefinedViewIds.Monitoring"
+                                 Sections="@BuildSections()" />
+</div>
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    public ResourceTypeContribution? ResourceType { get; set; }
+
+    private ResourceMonitoringSnapshot? Snapshot { get; set; }
+    private bool IsLoading { get; set; }
+
+    protected override Task OnParametersSetAsync() => Refresh();
+
+    private async Task Refresh()
+    {
+        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading)
+        {
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            Snapshot = await MonitoringManager.GetResourceMonitoringAsync(ResourceId);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private IReadOnlyList<GeneratedResourceViewSection> BuildSections() =>
+    [
+        new("monitoring", string.Empty, 0, RenderMonitoring())
+    ];
+
+    private RenderFragment RenderMonitoring() => @<text>
         <div class="resource-activity-header">
             <div>
                 <h3>@L["Monitoring"]</h3>
@@ -52,35 +93,7 @@
                 }
             </div>
         }
-    </section>
-</div>
-
-@code {
-    [Parameter]
-    public string? ResourceId { get; set; }
-
-    private ResourceMonitoringSnapshot? Snapshot { get; set; }
-    private bool IsLoading { get; set; }
-
-    protected override Task OnParametersSetAsync() => Refresh();
-
-    private async Task Refresh()
-    {
-        if (string.IsNullOrWhiteSpace(ResourceId) || IsLoading)
-        {
-            return;
-        }
-
-        IsLoading = true;
-        try
-        {
-            Snapshot = await MonitoringManager.GetResourceMonitoringAsync(ResourceId);
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
+    </text>;
 
     private string GetStatusText()
     {
