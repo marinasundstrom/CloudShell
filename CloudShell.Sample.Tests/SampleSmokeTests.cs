@@ -473,24 +473,28 @@ public sealed class SampleSmokeTests
             ">Activity<");
 
         var settingsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("configuration:sample-app")}/details");
+            $"/resources/{Uri.EscapeDataString("configuration:sample-app")}/details?tab={Uri.EscapeDataString("general:entries")}");
         AssertResourceTabsInOrder(
             settingsDetailsHtml,
             ">Overview<",
             ">Configuration<",
             ">Entries<",
             ">Endpoints<");
+        Assert.Contains("Configuration entries", settingsDetailsHtml);
+        Assert.Contains("2 entries", settingsDetailsHtml);
         Assert.DoesNotContain(">Settings<", settingsDetailsHtml);
         Assert.DoesNotContain("aria-label=\"Entries\"", settingsDetailsHtml);
 
         var secretsDetailsHtml = await host.GetStringAsync(
-            $"/resources/{Uri.EscapeDataString("secrets-vault:sample-app")}/details");
+            $"/resources/{Uri.EscapeDataString("secrets-vault:sample-app")}/details?tab={Uri.EscapeDataString("general:secrets")}");
         AssertResourceTabsInOrder(
             secretsDetailsHtml,
             ">Overview<",
             ">Configuration<",
             ">Secrets<",
             ">Endpoints<");
+        Assert.Contains("Vault secrets", secretsDetailsHtml);
+        Assert.Contains("1 secret", secretsDetailsHtml);
         Assert.DoesNotContain(">Settings<", secretsDetailsHtml);
         Assert.DoesNotContain("aria-label=\"Secrets\"", secretsDetailsHtml);
 

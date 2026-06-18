@@ -49,6 +49,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration Store and Secrets Vault resource detail menus now use the
   generated General Configuration tab instead of duplicate Settings tabs, and
   place Entries and Secrets under General with distinct icon metadata.
+- Configuration Store Entries and Secrets Vault Secrets views now use more
+  specific section headings, compact counts, icon-led editor actions, and
+  responsive row layouts.
 
 #### Fixed
 

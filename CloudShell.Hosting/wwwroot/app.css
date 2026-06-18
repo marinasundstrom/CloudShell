@@ -1324,7 +1324,30 @@ h3 {
 }
 
 .configuration-entry-row {
-    grid-template-columns: minmax(8rem, 1fr) minmax(10rem, 1.5fr) auto auto;
+    grid-template-columns: minmax(10rem, .9fr) minmax(14rem, 1.4fr) auto;
+}
+
+.configuration-secret-row {
+    grid-template-columns: minmax(9rem, .9fr) minmax(8rem, .75fr) minmax(12rem, 1.2fr) minmax(7rem, .7fr) auto;
+}
+
+.configuration-entry-row fluent-text-field,
+.configuration-secret-row fluent-text-field {
+    width: 100%;
+    min-width: 0;
+}
+
+.configuration-editor-heading {
+    display: flex;
+    gap: .55rem;
+    align-items: baseline;
+    min-width: 0;
+}
+
+.configuration-editor-heading span {
+    color: var(--cloudshell-text-subtle);
+    font-size: .88rem;
+    font-weight: 650;
 }
 
 .configuration-entry-summary {
@@ -1381,12 +1404,24 @@ h3 {
     border: 1px solid var(--cloudshell-divider);
     border-radius: 4px;
     background: var(--cloudshell-surface-muted);
+    white-space: nowrap;
 }
 
 .configuration-secret-status {
     color: var(--cloudshell-text-subtle);
     font-size: .88rem;
     font-weight: 650;
+}
+
+@media (max-width: 1000px) {
+    .configuration-entry-row,
+    .configuration-secret-row {
+        grid-template-columns: minmax(0, 1fr);
+        padding: .65rem;
+        border: 1px solid var(--cloudshell-divider);
+        border-radius: 4px;
+        background: var(--cloudshell-surface-muted);
+    }
 }
 
 .form-actions {

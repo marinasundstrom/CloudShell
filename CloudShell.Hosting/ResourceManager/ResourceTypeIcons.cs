@@ -24,7 +24,7 @@ internal static class ResourceTypeIcons
             "service" => new Icons.Regular.Size20.Server(),
             "storage" => new Icons.Regular.Size20.Storage(),
             "database" => new Icons.Regular.Size20.DatabaseMultiple(),
-            "configuration-store" => new Icons.Regular.Size20.DocumentSettings(),
+            "configuration-store" => new Icons.Regular.Size20.AppsSettings(),
             "key" => new Icons.Regular.Size20.KeyMultiple(),
             "lock-closed" => new Icons.Regular.Size20.LockClosed(),
             _ => FromResourceDescriptor(normalized)

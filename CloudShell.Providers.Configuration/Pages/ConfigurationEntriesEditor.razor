@@ -1,6 +1,15 @@
-<ResourceEditorSection Title="Entries">
+<ResourceEditorSection Class="configuration-value-editor">
+    <HeaderContent>
+        <div class="configuration-editor-heading">
+            <strong>Configuration entries</strong>
+            <span>@GetEntryCountLabel()</span>
+        </div>
+    </HeaderContent>
     <Actions>
-        <FluentButton Appearance="Appearance.Neutral" Disabled="@Disabled" OnClick="AddEntry">
+        <FluentButton Appearance="Appearance.Neutral"
+                      IconStart="@(new Icons.Regular.Size20.AddCircle())"
+                      Disabled="@Disabled"
+                      OnClick="AddEntry">
             Add entry
         </FluentButton>
     </Actions>
@@ -9,12 +18,15 @@
         {
             <div class="environment-row configuration-entry-row" @key="entry">
                 <FluentTextField AriaLabel="Configuration entry name"
+                                 Placeholder="Sample:Message"
                                  Disabled="@Disabled"
                                  @bind-Value="entry.Name" />
                 <FluentTextField AriaLabel="Configuration entry value"
+                                 Placeholder="Value"
                                  Disabled="@Disabled"
                                  @bind-Value="entry.Value" />
                 <FluentButton Appearance="Appearance.Neutral"
+                              IconStart="@(new Icons.Regular.Size20.DeleteDismiss())"
                               Disabled="@Disabled"
                               OnClick="() => RemoveEntry(entry)">
                     Remove
@@ -40,5 +52,11 @@
         {
             Entries.Add(new());
         }
+    }
+
+    private string GetEntryCountLabel()
+    {
+        var count = Entries.Count(entry => !string.IsNullOrWhiteSpace(entry.Name));
+        return count == 1 ? "1 entry" : $"{count} entries";
     }
 }
