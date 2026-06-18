@@ -25,8 +25,10 @@
         : ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
     var tabs = BuildTabs(resource, resourceType, HasIdentityPermissionGrants, ResourceLogs.Count > 0, HasResourceMonitoring);
-    var selectedTab = tabs.FirstOrDefault(tab => tab.Id == SelectedTabId) ?? tabs.FirstOrDefault();
-    var isGeneratedOverview = selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
+    var selectedTab = GetSelectedTab(tabs);
+    var selectedTabIssue = GetSelectedTabIssue(tabs);
+    var isGeneratedOverview = selectedTabIssue is null &&
+        selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
     var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
     var canApplyResourceChanges = selectedTab?.ShowsApplyButton == true &&
         CanApplyResourceChanges();
@@ -182,6 +184,15 @@
                 <EmptyState Title="@L["Resource not found"].Value"
                             Message="@L["The resource may have been removed or is no longer visible."].Value" />
             }
+            else if (selectedTabIssue is not null)
+            {
+                <EmptyState Title="@selectedTabIssue.Title"
+                            Message="@selectedTabIssue.Message">
+                    <FluentAnchor Appearance="Appearance.Neutral" Href="@selectedTabIssue.RecoveryHref">
+                        @selectedTabIssue.RecoveryLabel
+                    </FluentAnchor>
+                </EmptyState>
+            }
             else if (selectedTab is null)
             {
                 <EmptyState Title="@L["No resource selected"].Value"
@@ -293,6 +304,7 @@
 
         await LoadResourceAffordancesAsync(resource);
 
+        SelectedTabId = null;
         if (ResourceViewId.TryParse(RequestedQueryTabId, out var requestedTabId))
         {
             SelectedTabId = requestedTabId;
@@ -345,6 +357,50 @@
             ConfigurationContext.StateChanged += HandleConfigurationStateChanged;
         }
     }
+
+    private ResourceTabContribution? GetSelectedTab(IReadOnlyList<ResourceTabContribution> tabs)
+    {
+        if (GetSelectedTabIssue(tabs) is not null)
+        {
+            return null;
+        }
+
+        if (SelectedTabId is { } selectedTabId)
+        {
+            return tabs.FirstOrDefault(tab => tab.Id == selectedTabId);
+        }
+
+        return tabs.FirstOrDefault();
+    }
+
+    private ResourceViewSelectionIssue? GetSelectedTabIssue(IReadOnlyList<ResourceTabContribution> tabs)
+    {
+        if (string.IsNullOrWhiteSpace(RequestedQueryTabId))
+        {
+            return null;
+        }
+
+        var requested = RequestedQueryTabId.Trim();
+        if (!ResourceViewId.TryParse(requested, out var requestedTabId))
+        {
+            return CreateResourceViewSelectionIssue(
+                L["Resource view '{0}' is not a valid view ID.", requested].Value);
+        }
+
+        return tabs.Any(tab => tab.Id == requestedTabId)
+            ? null
+            : CreateResourceViewSelectionIssue(
+                L["Resource view '{0}' is not available for this resource.", requested].Value);
+    }
+
+    private ResourceViewSelectionIssue CreateResourceViewSelectionIssue(string message) =>
+        new(
+            L["Resource view not found"].Value,
+            message,
+            L["Open overview"].Value,
+            string.IsNullOrWhiteSpace(ResourceId)
+                ? ResourceManagerRoutes.Resources
+                : ResourceManagerRoutes.ResourceOverview(ResourceId));
 
     private async Task ApplyChanges()
     {
@@ -1156,6 +1212,12 @@
         string ResourceId,
         string ResourceName,
         string Message);
+
+    private sealed record ResourceViewSelectionIssue(
+        string Title,
+        string Message,
+        string RecoveryLabel,
+        string RecoveryHref);
 
     private sealed record ResourceTabGroup(
         string Id,

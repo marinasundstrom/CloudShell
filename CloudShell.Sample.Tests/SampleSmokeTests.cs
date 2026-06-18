@@ -491,6 +491,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("application:application-topology-missing:logs", missingInlineLogHtml);
         Assert.Contains("Show available logs", missingInlineLogHtml);
 
+        var missingResourceViewHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString("management:does-not-exist")}");
+        Assert.Contains("Resource view not found", missingResourceViewHtml);
+        Assert.Contains("management:does-not-exist", missingResourceViewHtml);
+        Assert.Contains("Open overview", missingResourceViewHtml);
+
         var missingResourceHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:does-not-exist")}/details");
         Assert.Contains("Resource not found", missingResourceHtml);
