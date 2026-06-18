@@ -607,9 +607,12 @@ is used for future lifecycle actions when it can handle the target resource, and
 CloudShell falls back to the default orchestrator otherwise.
 
 By default, programmatic resources are not persisted. The code declaration is
-the source of truth for the current process. If the declaration is removed from
-startup code, the resource no longer appears after restart unless it was
-persisted separately.
+the source of truth for the current process. This is the normal starting point
+for local distributed-application development: the combined host starts the
+local Control Plane, projects the declared graph, and lets the developer
+iterate without first deciding how the environment will be hosted. If the
+declaration is removed from startup code, the resource no longer appears after
+restart unless it was persisted separately.
 
 Use `Persist()` when the declaration should materialize into provider-owned
 configuration and the core resource registration store using the same provider
@@ -629,6 +632,29 @@ controlPlane.Resources(resources =>
 Persisted declarations are written during startup after the CloudShell database
 has been initialized. After that, the resource can continue to exist even if the
 declaration is removed from code.
+
+Persistence is the handoff point where the development flow changes. Before
+that point, the checked-in programmatic graph is the authority and the local
+Control Plane is mostly projecting developer intent. After persistence, the
+Control Plane's resource state and provider-owned configuration become the
+environment record. A developer can still run and iterate locally, but changes
+now need to be considered as updates to a managed environment.
+
+Deployment is deliberately separate from persistence. `Persist()` records the
+resource graph and provider configuration in the Control Plane; it does not
+deploy that graph to an on-premise host. Deploying persisted resources to a
+target host should use the orchestrator deployment API once that API is ready.
+Until then, persisted programmatic resources can establish the intended
+environment state, while runtime deployment remains constrained to the existing
+local/startup and provider lifecycle paths.
+
+The intended flow is:
+
+1. Start with programmatic declarations in a local combined host.
+2. Persist the resources when the graph is ready to become Control Plane state.
+3. Continue local development against the same model.
+4. Deploy the persisted graph through the orchestrator deployment API when that
+   separate mechanism exists for the target on-premise host.
 
 `Persist()` does not overwrite an existing persisted resource. Use
 `Persist(overwrite: true)` when checked-in configuration should replace the
@@ -661,5 +687,9 @@ provider-specific configuration is kept in memory for the current process.
 In split deployments, keep this API in the Control Plane host. The UI host
 should discover resources through the Control Plane API rather than declaring
 resources itself.
+
+Today, `Persist()` is an in-process declaration instruction applied by the
+Control Plane host during startup. A remote deployment flow is a separate
+orchestrator capability, not an extension of UI-host declaration logic.
 
 See [Hosting model](hosting-model.md).

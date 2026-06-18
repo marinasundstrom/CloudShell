@@ -263,6 +263,14 @@ listed here before pulling in broader proposal work.
   endpoint or load balancer -> DNS/name mapping. The UI should let users see
   and operate that path from the application resource configuration experience
   without requiring programmatic-only sample knowledge.
+- Treat programmatic declarations as the normal starting point for local
+  distributed-app development, and `Persist()` as the handoff into
+  Control Plane-owned environment state. `Persist()` is not deployment: it
+  records resources and provider-owned configuration, while deployment to an
+  on-premise host must remain a separate orchestrator deployment API concern.
+  That orchestrator deployment API is not ready yet, so near-term MVP work
+  should keep the boundary explicit and avoid overloading persistence with
+  host deployment behavior.
 - Keep CloudShell's resource addressing layers distinct. Concrete endpoint
   addresses belong to endpoint network mappings; resource endpoints remain
   address-less contracts. Topology-scoped reachability, Aspire-compatible

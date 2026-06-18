@@ -124,6 +124,21 @@ Areas include:
 
 This foundation supports orchestration, runtime-managed resources, deployments, and operational tooling.
 
+### Programmatic Graph Promotion
+
+The main development flow should let a developer begin with programmatic
+declarations in a local combined host, then persist the graph when it is ready
+to become Control Plane-managed environment state. `Persist()` covers that
+persistence boundary: the Control Plane records the resources and each provider
+records provider-owned configuration through its existing setup path.
+
+Deployment is separate. Persisting resources does not deploy them to an
+on-premise host. Deployment of the persisted graph should use the orchestrator
+deployment API once that API is ready. Until then, CloudShell should avoid
+adding host deployment semantics to `Persist()` and should keep local startup,
+Control Plane persistence, and orchestrator deployment as separate lifecycle
+steps.
+
 ### Endpoint Sources and Exposure Defaults
 
 CloudShell should keep endpoint source precedence explicit across resource
@@ -174,6 +189,7 @@ Future proposals are expected for:
 * Traceability and Audit
 * Usage Monitoring and Metrics
 * Resource Reconciliation
+* Programmatic Graph Promotion
 * Endpoint Sources and Exposure Defaults
 * UI Mutability and Read-Only Mode
 
@@ -195,6 +211,9 @@ hosting, and deployments.
 * Identify cross-cutting dependencies.
 * Define common terminology.
 * Define shared platform services.
+* Define programmatic graph promotion from local declarations to persisted
+  Control Plane state, and keep deployment through the future orchestrator
+  deployment API separate from `Persist()`.
 * Define cross-resource endpoint source precedence and exposure-default policy.
 * Define Resource Manager read-only mode and mutability policy.
 

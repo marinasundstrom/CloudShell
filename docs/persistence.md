@@ -26,6 +26,18 @@ Calling `Persist()` on a declaration asks the owning provider to apply the
 resource through the same setup logic used by the UI. Existing persisted state is
 left unchanged unless the declaration uses `Persist(overwrite: true)`.
 
+That call is a persistence boundary, not a deployment operation. Before
+persistence, programmatic declarations describe a local development graph owned
+by the host startup code. After persistence, the Control Plane's persisted
+resource state and each provider's configuration store become the environment
+record. Developers can still run the distributed app locally, but changes should
+be treated as updates to promote into Control Plane state.
+
+Deploying the persisted graph to an on-premise host remains a separate
+orchestrator concern. The intended deployment path is the orchestrator
+deployment API once it is ready; `Persist()` should not grow host deployment
+semantics.
+
 See [Programmatic resources](programmatic-resources.md).
 
 ## SQLite

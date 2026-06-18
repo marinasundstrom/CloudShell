@@ -364,4 +364,18 @@ Programmatic declarations are startup configuration by default. Calling
 setup path used by the UI. Existing persisted state is left unchanged unless the
 declaration uses `Persist(overwrite: true)`.
 
+This is the transition from code-first local development to Control
+Plane-managed environment state. In the local combined-host flow, developers can
+model and run a distributed app entirely from programmatic declarations. Once a
+declaration is persisted, the Control Plane and provider stores become the
+record for that environment, and later local changes should be treated as
+updates to promote into that Control Plane state.
+
+Deployment to an on-premise host is a separate mechanism. `Persist()` records
+the resources and provider configuration; it does not deploy them to a target
+host. Deployment should use the orchestrator deployment API once that API is
+available. Until then, shared or on-premise environments should keep
+declarations in the Control Plane host that owns the environment, while UI
+hosts remain clients of that Control Plane.
+
 See [Programmatic resources](programmatic-resources.md) for the declaration API.
