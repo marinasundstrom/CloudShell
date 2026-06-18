@@ -147,27 +147,6 @@
                                        HealthSummary="HealthSummary"
                                        IsCheckingHealth="IsCheckingHealth"
                                        LifecycleProgressLabel="@GetLifecycleProgressLabel(resource)" />
-
-                <dl class="detail-list">
-                    <dt>@L["Resource ID"]</dt>
-                    <dd>@resource.Id</dd>
-                    <dt>@L["Name"]</dt>
-                    <dd>@DisplaySelection.GetResourceName(resource)</dd>
-                    @if (DisplaySelection.ShouldShowDisplayName(resource))
-                    {
-                        <dt>@L["Display name"]</dt>
-                        <dd>@resource.DisplayName</dd>
-                    }
-                    <dt>@L["Group"]</dt>
-                    <dd>@(group?.Name ?? L["Default group"])</dd>
-                    <dt>@L["Provider"]</dt>
-                    <dd>@resource.Provider</dd>
-                    @if (resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.DeclarationPersistence))
-                    {
-                        <dt>@L["Declaration"]</dt>
-                        <dd>@GetDeclarationPersistenceLabel(resource)</dd>
-                    }
-                </dl>
             }
 
             @if (tabs.Count > 0)
@@ -1116,24 +1095,6 @@
             ResourceActionKind.Restart => L["Restarting"].Value,
             _ => null
         };
-    }
-
-    private static string GetDeclarationPersistenceLabel(Resource resource)
-    {
-        var persistence = resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeclarationPersistence);
-        var overwrite = string.Equals(
-            resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.DeclarationOverwritePersistedState),
-            "true",
-            StringComparison.OrdinalIgnoreCase);
-
-        if (string.Equals(persistence, ResourceDeclarationPersistence.Persisted.ToString(), StringComparison.OrdinalIgnoreCase))
-        {
-            return overwrite
-                ? "Persisted declaration, overwrites provider state"
-                : "Persisted declaration";
-        }
-
-        return "Startup declaration";
     }
 
     private static bool IsStartupDeclaration(Resource resource) =>

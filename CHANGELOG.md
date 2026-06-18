@@ -100,6 +100,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration Store and Secrets Vault now contribute provider-owned summary
   sections to the generated Overview tab instead of replacing the standard
   Overview page.
+- Resource detail side navigation now omits duplicated resource metadata and
+  leaves canonical identity, group, provider, and declaration details in the
+  Overview tab.
 - Configuration Store and Secrets Vault resources now provide the same basic
   service-process resource monitoring snapshots through their local service
   process runner.
