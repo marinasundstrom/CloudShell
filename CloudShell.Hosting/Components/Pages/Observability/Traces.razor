@@ -11,7 +11,8 @@
 
 @{
     var resources = TraceResources;
-    var selected = GetSelectedResource(resources);
+    var selectionIssue = GetSelectionIssue(resources);
+    var selected = selectionIssue is null ? GetSelectedResource(resources) : null;
     var scopes = selected?.EffectiveObservability.TelemetryScopes ?? [];
     var selectedScope = GetSelectedScope(selected);
 }
@@ -65,7 +66,17 @@ else
 
 <section class="trace-workspace">
     <div class="log-viewer panel">
-        @if (selected is null)
+        @if (selectionIssue is not null)
+        {
+            <div class="empty-state">
+                <strong>@selectionIssue.Title</strong>
+                <span>@selectionIssue.Message</span>
+                <FluentAnchor Appearance="Appearance.Neutral" Href="@selectionIssue.RecoveryHref">
+                    @selectionIssue.RecoveryLabel
+                </FluentAnchor>
+            </div>
+        }
+        else if (selected is null)
         {
             <div class="empty-state">
                 <strong>@L["No resource selected"]</strong>
@@ -428,6 +439,35 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         return resources.FirstOrDefault();
     }
 
+    private TelemetrySelectionIssue? GetSelectionIssue(IReadOnlyList<Resource> resources)
+    {
+        if (!string.IsNullOrWhiteSpace(ResourceId) &&
+            !resources.Any(resource => string.Equals(resource.Id, ResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            var resourceId = ResourceId.Trim();
+            return new TelemetrySelectionIssue(
+                L["Trace resource not found"].Value,
+                L["Resource '{0}' does not expose traces or is not available.", resourceId].Value,
+                Inline ? L["Open Resources"].Value : L["All trace resources"].Value,
+                Inline ? ResourceManagerRoutes.Resources : "/observability/traces");
+        }
+
+        var selected = GetSelectedResource(resources);
+        if (selected is not null &&
+            !string.IsNullOrWhiteSpace(ScopeResourceId) &&
+            GetSelectedScope(selected) is null)
+        {
+            var scopeResourceId = ScopeResourceId.Trim();
+            return new TelemetrySelectionIssue(
+                L["Trace scope not found"].Value,
+                L["Telemetry scope '{0}' is not available for {1}.", scopeResourceId, selected.Name].Value,
+                L["Show all scopes"].Value,
+                BuildTraceRoute(selected.Id, TraceId));
+        }
+
+        return null;
+    }
+
     private async Task RefreshSpansAsync()
     {
         if (IsRefreshingSpans || IsDisposed)
@@ -436,7 +476,8 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         }
 
         IsRefreshingSpans = true;
-        var selected = GetSelectedResource(TraceResources);
+        var selectionIssue = GetSelectionIssue(TraceResources);
+        var selected = selectionIssue is null ? GetSelectedResource(TraceResources) : null;
         try
         {
             RecentSpans = selected is null
@@ -846,4 +887,10 @@ StringComparison.OrdinalIgnoreCase))?.Span
         int SpanCount,
         TimeSpan Duration,
         string Services);
+
+    private sealed record TelemetrySelectionIssue(
+        string Title,
+        string Message,
+        string RecoveryLabel,
+        string RecoveryHref);
 }

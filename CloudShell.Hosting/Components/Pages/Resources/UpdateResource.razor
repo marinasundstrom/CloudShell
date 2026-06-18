@@ -240,6 +240,9 @@
     [SupplyParameterFromQuery(Name = "logId")]
     private string? RequestedLogId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "scopeResourceId")]
+    private string? RequestedScopeResourceId { get; set; }
+
     private ResourceConfigurationContext? ConfigurationContext { get; set; }
     private Resource? Resource { get; set; }
     private ResourceGroup? ResourceGroup { get; set; }
@@ -643,10 +646,12 @@
         else if (selectedTab.Id == GeneratedTracesTabId)
         {
             parameters["TraceId"] = RequestedTraceId;
+            parameters["ScopeResourceId"] = RequestedScopeResourceId;
             parameters["Inline"] = true;
         }
         else if (selectedTab.Id == GeneratedMetricsTabId)
         {
+            parameters["ScopeResourceId"] = RequestedScopeResourceId;
             parameters["Inline"] = true;
         }
 

@@ -11,7 +11,8 @@
 
 @{
     var resources = MetricResources;
-    var selected = GetSelectedResource(resources);
+    var selectionIssue = GetSelectionIssue(resources);
+    var selected = selectionIssue is null ? GetSelectedResource(resources) : null;
     var points = RecentPoints;
     var scopes = selected?.EffectiveObservability.TelemetryScopes ?? [];
     var selectedScope = GetSelectedScope(selected);
@@ -54,7 +55,17 @@ else
 
 <section class="trace-workspace">
     <div class="log-viewer panel">
-        @if (selected is null)
+        @if (selectionIssue is not null)
+        {
+            <div class="empty-state">
+                <strong>@selectionIssue.Title</strong>
+                <span>@selectionIssue.Message</span>
+                <FluentAnchor Appearance="Appearance.Neutral" Href="@selectionIssue.RecoveryHref">
+                    @selectionIssue.RecoveryLabel
+                </FluentAnchor>
+            </div>
+        }
+        else if (selected is null)
         {
             <div class="empty-state">
                 <strong>@L["No resource selected"]</strong>
@@ -221,6 +232,35 @@ else
         return resources.FirstOrDefault();
     }
 
+    private TelemetrySelectionIssue? GetSelectionIssue(IReadOnlyList<Resource> resources)
+    {
+        if (!string.IsNullOrWhiteSpace(ResourceId) &&
+            !resources.Any(resource => string.Equals(resource.Id, ResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            var resourceId = ResourceId.Trim();
+            return new TelemetrySelectionIssue(
+                L["Metric resource not found"].Value,
+                L["Resource '{0}' does not expose metrics or is not available.", resourceId].Value,
+                Inline ? L["Open Resources"].Value : L["All metric resources"].Value,
+                Inline ? ResourceManagerRoutes.Resources : "/observability/metrics");
+        }
+
+        var selected = GetSelectedResource(resources);
+        if (selected is not null &&
+            !string.IsNullOrWhiteSpace(ScopeResourceId) &&
+            GetSelectedScope(selected) is null)
+        {
+            var scopeResourceId = ScopeResourceId.Trim();
+            return new TelemetrySelectionIssue(
+                L["Metric scope not found"].Value,
+                L["Telemetry scope '{0}' is not available for {1}.", scopeResourceId, selected.Name].Value,
+                L["Show all scopes"].Value,
+                BuildMetricRoute(selected.Id));
+        }
+
+        return null;
+    }
+
     private async Task RefreshPointsAsync()
     {
         if (IsRefreshingPoints || IsDisposed)
@@ -229,7 +269,8 @@ else
         }
 
         IsRefreshingPoints = true;
-        var selected = GetSelectedResource(MetricResources);
+        var selectionIssue = GetSelectionIssue(MetricResources);
+        var selected = selectionIssue is null ? GetSelectedResource(MetricResources) : null;
         try
         {
             RecentPoints = selected is null
@@ -361,4 +402,10 @@ else
         string? Unit,
         DateTimeOffset LatestTimestamp,
         int PointCount);
+
+    private sealed record TelemetrySelectionIssue(
+        string Title,
+        string Message,
+        string RecoveryLabel,
+        string RecoveryHref);
 }

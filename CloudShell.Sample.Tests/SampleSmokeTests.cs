@@ -193,6 +193,18 @@ public sealed class SampleSmokeTests
             traceHtml);
         Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend/details\"", traceHtml);
 
+        var missingTraceResourceHtml = await host.GetStringAsync(
+            "/observability/traces?resourceId=application%3Aproject-reference-missing");
+        Assert.Contains("Trace resource not found", missingTraceResourceHtml);
+        Assert.Contains("application:project-reference-missing", missingTraceResourceHtml);
+        Assert.Contains("All trace resources", missingTraceResourceHtml);
+
+        var missingTraceScopeHtml = await host.GetStringAsync(
+            "/observability/traces?resourceId=application%3Aproject-reference-frontend&scopeResourceId=application%3Aproject-reference-missing-scope");
+        Assert.Contains("Trace scope not found", missingTraceScopeHtml);
+        Assert.Contains("application:project-reference-missing-scope", missingTraceScopeHtml);
+        Assert.Contains("Show all scopes", missingTraceScopeHtml);
+
         var relatedLogsHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&traceId={traceId}");
         Assert.Contains("Telemetry", relatedLogsHtml);
@@ -216,6 +228,11 @@ public sealed class SampleSmokeTests
             $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
             relatedTracesHtml);
 
+        var missingInlineTraceScopeHtml = await host.GetStringAsync(
+            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}&scopeResourceId=application%3Aproject-reference-missing-scope");
+        Assert.Contains("Trace scope not found", missingInlineTraceScopeHtml);
+        Assert.Contains("application:project-reference-missing-scope", missingInlineTraceScopeHtml);
+
         var relatedMetricsHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
         Assert.Contains("Telemetry", relatedMetricsHtml);
@@ -225,6 +242,23 @@ public sealed class SampleSmokeTests
         Assert.Contains("http.server.requests", relatedMetricsHtml);
         Assert.Contains("http.server.duration", relatedMetricsHtml);
         Assert.Contains("project-reference-frontend", relatedMetricsHtml);
+
+        var missingMetricResourceHtml = await host.GetStringAsync(
+            "/observability/metrics?resourceId=application%3Aproject-reference-missing");
+        Assert.Contains("Metric resource not found", missingMetricResourceHtml);
+        Assert.Contains("application:project-reference-missing", missingMetricResourceHtml);
+        Assert.Contains("All metric resources", missingMetricResourceHtml);
+
+        var missingMetricScopeHtml = await host.GetStringAsync(
+            "/observability/metrics?resourceId=application%3Aproject-reference-frontend&scopeResourceId=application%3Aproject-reference-missing-scope");
+        Assert.Contains("Metric scope not found", missingMetricScopeHtml);
+        Assert.Contains("application:project-reference-missing-scope", missingMetricScopeHtml);
+        Assert.Contains("Show all scopes", missingMetricScopeHtml);
+
+        var missingInlineMetricScopeHtml = await host.GetStringAsync(
+            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}&scopeResourceId=application%3Aproject-reference-missing-scope");
+        Assert.Contains("Metric scope not found", missingInlineMetricScopeHtml);
+        Assert.Contains("application:project-reference-missing-scope", missingInlineMetricScopeHtml);
 
         var relatedActivityHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&traceId={traceId}&spanId=00f067aa0ba902b7");

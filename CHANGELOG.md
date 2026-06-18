@@ -81,6 +81,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Logs views now show explicit not-found states when URL parameters reference
   unavailable log sources or resource log filters instead of silently falling
   back to another log selection.
+- Traces and Metrics views now show explicit not-found states when URL
+  parameters reference unavailable telemetry resources or scopes instead of
+  falling back to the first available resource.
 - Configuration Store and Secrets Vault resources now provide the same basic
   service-process resource monitoring snapshots through their local service
   process runner.
