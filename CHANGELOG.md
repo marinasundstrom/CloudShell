@@ -127,8 +127,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Name mapping generated diagnostics now warn when the target resource,
   target endpoint, or local host-name target endpoint address is unavailable.
 - Container app volume assignment and Scale and replicas surfaces now warn
-  when replicas and mounted volumes are combined so users can choose storage
-  that is safe for concurrent replica access.
+  when replicas would mount volumes that do not advertise access compatible
+  with replica fan-out.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate
