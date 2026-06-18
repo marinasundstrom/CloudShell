@@ -158,6 +158,12 @@ public sealed class ApplicationProviderExtension : ICloudShellExtension
                 "Replicas",
                 40,
                 groupTitle: ResourceTabGroupTitles.Runtime)
+            .AddResourceTab<Pages.ApplicationMonitoring>(
+                ApplicationResourceTypes.ContainerApp,
+                ResourcePredefinedViewIds.Monitoring,
+                "Monitoring",
+                45,
+                groupTitle: ResourceTabGroupTitles.Management)
             .AddResourceTab<Pages.UpdateApplicationResource>(
                 ApplicationResourceTypes.ContainerApp,
                 ResourcePredefinedViewIds.Configuration,

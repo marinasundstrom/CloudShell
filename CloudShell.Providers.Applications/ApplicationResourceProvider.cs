@@ -152,6 +152,13 @@ public sealed partial class ApplicationResourceProvider(
 
     public bool CanMonitor(Resource resource)
     {
+        if (IsRuntimeContainerReplica(resource))
+        {
+            return !string.IsNullOrWhiteSpace(resource.OwnerResourceId) &&
+                store.GetApplication(resource.OwnerResourceId) is { } owner &&
+                IsReplicaModeEnabled(ResolveDefinition(owner));
+        }
+
         if (!ApplicationResourceTypes.IsApplication(resource.EffectiveTypeId))
         {
             return false;
@@ -177,6 +184,14 @@ public sealed partial class ApplicationResourceProvider(
         }
 
         var timestamp = DateTimeOffset.UtcNow;
+        if (IsRuntimeContainerReplica(resource))
+        {
+            return await GetRuntimeContainerMonitoringSnapshotAsync(
+                resource,
+                timestamp,
+                cancellationToken);
+        }
+
         var application = GetApplication(resource.Id);
         if (application is null)
         {
@@ -256,7 +271,89 @@ public sealed partial class ApplicationResourceProvider(
         }
 
         var service = CreateDefaultContainerOrchestratorService(application);
-        var containerName = GetContainerName(service);
+        return await GetContainerMonitoringSnapshotAsync(
+            resource,
+            engine,
+            GetContainerName(service),
+            timestamp,
+            "Container runtime metrics.",
+            "The container runtime did not return a stats snapshot.",
+            cancellationToken);
+    }
+
+    private async Task<ResourceMonitoringSnapshot?> GetRuntimeContainerMonitoringSnapshotAsync(
+        Resource resource,
+        DateTimeOffset timestamp,
+        CancellationToken cancellationToken)
+    {
+        if (resource.State != ResourceState.Running)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Container replica metrics are available only while the replica is running.");
+        }
+
+        var owner = string.IsNullOrWhiteSpace(resource.OwnerResourceId)
+            ? null
+            : GetApplication(resource.OwnerResourceId);
+        if (owner is null)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Container replica metrics require the owning application resource.");
+        }
+
+        var engine = ResolveStaticContainerHost(owner);
+        if (engine is null)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Container replica metrics require a configured container host that the application provider can resolve without Resource Manager context.");
+        }
+
+        var containerName = GetAttribute(resource, ResourceAttributeNames.RuntimeContainerName);
+        if (string.IsNullOrWhiteSpace(containerName))
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Container replica metrics require a projected runtime container name.");
+        }
+
+        return await GetContainerMonitoringSnapshotAsync(
+            resource,
+            engine,
+            containerName,
+            timestamp,
+            "Container replica runtime metrics.",
+            "The container runtime did not return a stats snapshot for the replica.",
+            cancellationToken);
+    }
+
+    private static async Task<ResourceMonitoringSnapshot> GetContainerMonitoringSnapshotAsync(
+        Resource resource,
+        ContainerHostDescriptor engine,
+        string containerName,
+        DateTimeOffset timestamp,
+        string availableMessage,
+        string unavailableMessage,
+        CancellationToken cancellationToken)
+    {
         var result = await CaptureContainerHostCommandAsync(
             engine,
             ["stats", "--no-stream", "--format", "{{json .}}", containerName],
@@ -269,22 +366,22 @@ public sealed partial class ApplicationResourceProvider(
         {
             return new ResourceMonitoringSnapshot(
                 resource.Id,
-                DisplayName,
+                "Applications",
                 timestamp,
                 [],
                 "Unavailable",
                 string.IsNullOrWhiteSpace(result.Error)
-                    ? "The container runtime did not return a stats snapshot."
+                    ? unavailableMessage
                     : result.Error.Trim());
         }
 
         return new ResourceMonitoringSnapshot(
             resource.Id,
-            DisplayName,
+            "Applications",
             containerSnapshot.Timestamp,
             ApplicationContainerMonitoringMetrics.CreateMetricSamples(containerSnapshot),
             "Available",
-            "Container runtime metrics.");
+            availableMessage);
     }
 
     public async Task SetupApplicationAsync(
@@ -2780,6 +2877,7 @@ public sealed partial class ApplicationResourceProvider(
             TypeId: "runtime.container",
             ResourceClass: ResourceClass.Container,
             Attributes: attributes,
+            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
             Source: ResourceSource.Orchestrator,
             ManagementMode: ResourceManagementMode.RuntimeManaged,
             Visibility: ResourceVisibility.Hidden,
@@ -2805,13 +2903,6 @@ public sealed partial class ApplicationResourceProvider(
         if (application.VolumeMounts.Count > 0)
         {
             capabilities.Add(new(ResourceCapabilityIds.StorageVolumeConsumer));
-        }
-
-        if (IsContainerBacked(application) &&
-            IsReplicaModeEnabled(application))
-        {
-            capabilities.RemoveAll(capability =>
-                string.Equals(capability.Id, ResourceCapabilityIds.Monitoring, StringComparison.OrdinalIgnoreCase));
         }
 
         return capabilities;
@@ -4781,6 +4872,13 @@ public sealed partial class ApplicationResourceProvider(
     private static bool IsVolumeResource(Resource resource) =>
         string.Equals(resource.EffectiveTypeId, "cloudshell.volume", StringComparison.OrdinalIgnoreCase) ||
         resource.HasCapability(ResourceCapabilityIds.StorageVolume);
+
+    private static bool IsRuntimeContainerReplica(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeKind),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase);
 
     private static string GetAttribute(Resource resource, string name) =>
         resource.ResourceAttributes.TryGetValue(name, out var value)

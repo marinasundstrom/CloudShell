@@ -60,10 +60,12 @@ The first model shape is:
 - `ResourceMetricSample`: a named resource metric value such as CPU percent or
   memory bytes.
 
-The capability advertises the role on the projected resource. The provider
-contract remains the runtime authority for split-hosted or stale resource
-graphs because the active Control Plane must still decide whether it can
-observe the selected resource and return a current snapshot.
+The capability advertises the role on the projected resource. A resource may
+use the generated snapshot view or a provider-owned Monitoring tab when it
+needs a richer view. The provider contract remains the runtime authority for
+split-hosted or stale resource graphs because the active Control Plane must
+still decide whether it can observe the selected resource and return a current
+snapshot.
 
 This is intentionally different from telemetry metric ingestion. Telemetry
 metrics represent application/runtime instrumentation such as request count,
@@ -118,6 +120,8 @@ The first implementation slice adds:
 - single-instance container-backed application resource CPU, memory, network
   I/O, block I/O, and process count snapshots from container-host stats when
   the application provider can resolve a static/default container host
+- container app provider-owned Monitoring tab that summarizes single-instance
+  app metrics or replicated app metrics by projected runtime replica/container
 - configuration store and Secrets Vault service process CPU, CPU time, memory,
   thread count, process count, and uptime snapshots
 
@@ -133,9 +137,12 @@ usage, total CPU time, working-set memory, private memory, thread count,
 process count, and uptime when the local application process is running.
 Single-instance container-backed application resources can use container-host
 `stats` output when the application provider can resolve a static/default
-container host without Resource Manager context. Replica-mode container apps
-remain excluded from the generated snapshot path because container app
-monitoring needs an app-level summary and per-replica/container breakdown.
+container host without Resource Manager context. Replica-mode container app
+resources use a provider-owned Monitoring tab. Their projected runtime
+replica/container child resources can return container-host metric snapshots
+when their owner application and static/default container host can be
+resolved, letting the tab aggregate app-level CPU, memory, network, and
+process metrics while keeping the user on the stable container app resource.
 
 Configuration Store and Secrets Vault resources report the same local service
 process metrics when their provider-owned service processes are running.
@@ -144,8 +151,9 @@ process metrics when their provider-owned service processes are running.
 
 - Add provider-owned Monitoring tabs when generated metric cards are too
   limited.
-- Add a container app Monitoring tab that summarizes app-level resource usage
-  and shows per-replica/container metrics for replicated applications.
+- Enrich the container app Monitoring tab with provider-observed container IDs,
+  placement, health, restart count, uptime, and materialization diagnostics as
+  providers report them consistently.
 - Add resource-metric history and charting after concrete providers prove the
   retention needs.
 - Decide whether resource monitoring snapshots should emit resource events or

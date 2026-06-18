@@ -1086,6 +1086,7 @@ public sealed class ResourceDeclarationTests
         AssertDeploymentTab(containerAppType);
         AssertScalingTab(containerAppType);
         AssertReplicaTab(containerAppType);
+        AssertContainerAppMonitoringTab(containerAppType);
         AssertStorageTab(containerAppType);
         AssertApplicationExposureSection(containerAppType);
         var sqlServerType = resourceTypes[ApplicationResourceTypes.SqlServer];
@@ -1328,6 +1329,18 @@ public sealed class ResourceDeclarationTests
         Assert.False(replicaTab.ShowsApplyButton);
         Assert.Equal(40, replicaTab.Order);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationReplicas), replicaTab.ComponentType);
+    }
+
+    private static void AssertContainerAppMonitoringTab(ResourceTypeContribution resourceType)
+    {
+        var monitoringTab = Assert.Single(
+            resourceType.ResourceTabs,
+            tab => tab.Id == ResourcePredefinedViewIds.Monitoring);
+
+        Assert.Equal("Monitoring", monitoringTab.Title);
+        Assert.False(monitoringTab.ShowsApplyButton);
+        Assert.Equal(45, monitoringTab.Order);
+        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationMonitoring), monitoringTab.ComponentType);
     }
 
     private static void AssertScalingTab(ResourceTypeContribution resourceType)
@@ -2187,7 +2200,7 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
-    public async Task ApplicationProvider_DoesNotUseGeneratedMonitoringForReplicaModeContainerApps()
+    public async Task ApplicationProvider_UsesReplicaChildrenForReplicaModeContainerMonitoring()
     {
         var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var services = new ServiceCollection();
@@ -2212,10 +2225,25 @@ public sealed class ResourceDeclarationTests
         using var serviceProvider = services.BuildServiceProvider();
         var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
         var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+        var replica = provider.GetResources()
+            .Where(resource =>
+                string.Equals(resource.ParentResourceId, "application:api", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .First();
 
         Assert.False(provider.CanMonitor(resource));
-        Assert.False(resource.HasCapability(ResourceCapabilityIds.Monitoring));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.Monitoring));
         Assert.Null(await provider.GetMonitoringSnapshotAsync(resource));
+        Assert.True(replica.HasCapability(ResourceCapabilityIds.Monitoring));
+        Assert.True(provider.CanMonitor(replica));
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(replica);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(replica.Id, snapshot.ResourceId);
+        Assert.Equal("Unavailable", snapshot.Status);
+        Assert.Empty(snapshot.Metrics);
     }
 
     [Fact]
@@ -6759,6 +6787,7 @@ public sealed class ResourceDeclarationTests
             Assert.Equal(app.Id, replica.ParentResourceId);
             Assert.Equal("runtime.container", replica.EffectiveTypeId);
             Assert.Equal(ResourceClass.Container, replica.ResourceClass);
+            Assert.True(replica.HasCapability(ResourceCapabilityIds.Monitoring));
             Assert.Equal("containerReplica", replica.ResourceAttributes[ResourceAttributeNames.RuntimeKind]);
             Assert.Equal("3", replica.ResourceAttributes[ResourceAttributeNames.RuntimeReplicaCount]);
             Assert.Equal(

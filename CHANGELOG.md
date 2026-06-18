@@ -71,6 +71,13 @@ on `git blame --follow`, and then by the broad type of change.
   resource Monitoring snapshots from container-host stats when a static/default
   container host can be resolved; replica-mode container apps remain on the
   planned provider-owned dashboard path.
+- Container app resources now have a provider-owned Management > Monitoring
+  tab that summarizes single-instance container metrics and aggregates
+  replicated app usage by projected runtime replica/container.
+- Projected container app runtime replica resources now advertise the
+  `monitoring` resource capability and can return resource monitoring snapshots
+  from container-host stats when their owner app and static/default container
+  host can be resolved.
 - Configuration Store and Secrets Vault resources now provide the same basic
   service-process resource monitoring snapshots through their local service
   process runner.

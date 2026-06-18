@@ -176,6 +176,10 @@ Implemented pieces include:
   requiring global hidden/runtime-managed inventory settings; single-instance
   apps explain that replicas are not enabled instead of projecting a
   single-instance container as a replica set
+* app-scoped Monitoring tab under Management that summarizes single-instance
+  container stats and replicated app resource usage from projected
+  replica/container monitoring snapshots when a static/default container host
+  can be resolved
 * application-level service discovery opt-in through `WithServiceDiscovery()`
 * volume mount model and Storage tab for resources that support storage
 * identity binding and standard runtime credential delivery path
@@ -266,9 +270,9 @@ Implemented pieces include:
 * Enrich the Replicas tab with provider-observed container IDs, placement,
   health, and materialization state once providers can report them
   consistently.
-* Add a provider-owned Monitoring dashboard for container apps with aggregate
-  resource usage and per-replica/container metric breakdowns for replicated
-  applications.
+* Enrich the provider-owned Monitoring dashboard for container apps with
+  provider-observed container IDs, placement, health, restart count, uptime,
+  and materialization diagnostics once providers report them consistently.
 * Add deeper container-host readiness diagnostics for unsupported ingress,
   public endpoint, DNS/name publication, registry credential, and storage
   choices before update/start.

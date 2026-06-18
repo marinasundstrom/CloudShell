@@ -177,10 +177,11 @@ listed here before pulling in broader proposal work.
    metrics for executable, ASP.NET Core project, Configuration Store, and
    Secrets Vault service resources. Single-instance container-backed
    application resources can use container-host stats when a static/default
-   container host can be resolved. Add a provider-owned container app
+   container host can be resolved. A provider-owned container app
    Monitoring dashboard under Management that summarizes app-level resource
    usage and breaks down metrics by projected runtime replica/container for
-   replicated apps. Durable resource-metric history, charts, and additional
+   replicated apps is now in place for current snapshots. Durable
+   resource-metric history, charts, richer replica diagnostics, and additional
    provider implementations remain separate work. Keep the near-term focus on
    provider monitoring abstractions and implementations; live telemetry and
    monitoring subscriptions for
@@ -550,9 +551,9 @@ listed here before pulling in broader proposal work.
   snapshots for Docker containers, local application processes, single-instance
   container-backed applications with a resolvable static/default container
   host, and configuration/secrets service processes. Container app resource
-  monitoring should be a custom Management > Monitoring dashboard that
-  aggregates app-level usage and breaks metrics down by runtime
-  replica/container.
+  monitoring now has a custom Management > Monitoring dashboard that aggregates
+  app-level usage and breaks metrics down by runtime replica/container when the
+  application provider can observe projected replicas.
   Control Plane API streaming for live telemetry/monitoring remains a later
   design question after basic provider monitoring support is established;
   durable retention and aggregation remain future work.

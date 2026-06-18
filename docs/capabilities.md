@@ -44,9 +44,11 @@ the provider owns the persistence and update behavior.
 ### `monitoring`
 
 The resource supports provider-observed resource monitoring. Resource Manager
-can use this capability as the stable graph signal for a Monitoring view, while
+can use this capability as the stable graph signal for a generated or
+provider-owned Monitoring view, while
 `IResourceMonitoringProvider.CanMonitor(...)` remains the runtime authority for
-whether the current Control Plane can return a snapshot.
+whether the current Control Plane can return a current snapshot for the
+resource.
 
 This capability is for resource metrics such as process or container CPU,
 memory, process count, network I/O, block I/O, and provider-observed runtime
