@@ -178,6 +178,10 @@
             {
                 <a class="resource-link" href="@BuildTraceRoute()">@L["Open traces"]</a>
             }
+            @if (Resource.EffectiveObservability.Metrics)
+            {
+                <a class="resource-link" href="@BuildMetricRoute()">@L["Open metrics"]</a>
+            }
         </section>
     }
 </div>
@@ -790,6 +794,11 @@
         QueryHelpers.AddQueryString(
             ResourceManagerRoutes.ResourceDetails(Resource.Id),
             new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Traces.Value });
+
+    private string BuildMetricRoute() =>
+        QueryHelpers.AddQueryString(
+            ResourceManagerRoutes.ResourceDetails(Resource.Id),
+            new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Metrics.Value });
 
     private static bool IsLinkEndpoint(string address) =>
         Uri.TryCreate(address, UriKind.Absolute, out var uri) &&

@@ -15,6 +15,8 @@ var otlpEndpoint = builder.Configuration["Observability:OtlpEndpoint"]
 var otlpProtocol = builder.Configuration["Observability:OtlpProtocol"];
 var traceIngestEndpoint = builder.Configuration["Observability:TraceIngestEndpoint"]
     ?? $"{cloudShellEndpoint}/api/control-plane/v1/traces/ingest";
+var metricIngestEndpoint = builder.Configuration["Observability:MetricIngestEndpoint"]
+    ?? $"{cloudShellEndpoint}/api/control-plane/v1/metrics/ingest";
 var frontendEndpoint = builder.Configuration["ProjectReference:FrontendEndpoint"]
     ?? "http://localhost:5218";
 
@@ -39,7 +41,8 @@ cloudShell.Resources(resources =>
         .WithHttpHealthCheck("/health")
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
-        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty);
+        .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+        .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty);
 
     resources
         .AddAspNetCoreProject(
@@ -51,6 +54,7 @@ cloudShell.Resources(resources =>
         .WithHttpProbe(ResourceProbeType.Liveness, "/alive")
         .WithOtlpExporter(otlpEndpoint, otlpProtocol)
         .WithEnvironment("CLOUDSHELL_TRACE_INGEST_ENDPOINT", traceIngestEndpoint ?? string.Empty)
+        .WithEnvironment("CLOUDSHELL_METRIC_INGEST_ENDPOINT", metricIngestEndpoint ?? string.Empty)
         .WithServiceDiscovery()
         .WithReference(api)
         .DependsOn(api);

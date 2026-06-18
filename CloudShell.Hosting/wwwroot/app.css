@@ -2158,6 +2158,40 @@ h3 {
     margin-bottom: .75rem;
 }
 
+.metric-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: .5rem;
+    margin-bottom: .75rem;
+}
+
+.metric-summary-card {
+    display: grid;
+    gap: .18rem;
+    min-width: 0;
+    padding: .65rem .75rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.metric-summary-card span,
+.metric-summary-card strong,
+.metric-summary-card small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.metric-summary-card span,
+.metric-summary-card small {
+    color: var(--cloudshell-text-muted);
+}
+
+.metric-summary-card strong {
+    font-size: 1.25rem;
+}
+
 .recent-trace-item {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;

@@ -690,7 +690,7 @@ public sealed class RemoteControlPlaneContractTests
     }
 
     [Fact]
-    public async Task RemoteControlPlane_MapsLogsAndTraces()
+    public async Task RemoteControlPlane_MapsLogsTracesAndMetrics()
     {
         await using var app = await CreateAppAsync();
         var controlPlane = CreateClient(app);
@@ -725,6 +725,30 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal(span.SpanId, remoteSpan.SpanId);
         Assert.Equal(span.ResourceId, remoteSpan.ResourceId);
         Assert.Equal("GET", remoteSpan.SpanAttributes["http.method"]);
+
+        var metric = new MetricPoint(
+            "http.server.requests",
+            "network:contract",
+            "contract-service",
+            1,
+            DateTimeOffset.UtcNow,
+            "count",
+            new Dictionary<string, string>
+            {
+                ["http.method"] = "GET"
+            });
+        await controlPlane.IngestMetricPointsAsync([metric]);
+
+        var points = await controlPlane.ListMetricPointsAsync(
+            new MetricQuery(ResourceId: "network:contract", MetricName: "http.server.requests", MaxPoints: 10));
+
+        var remotePoint = Assert.Single(points);
+        Assert.Equal(metric.Name, remotePoint.Name);
+        Assert.Equal(metric.ResourceId, remotePoint.ResourceId);
+        Assert.Equal(metric.ServiceName, remotePoint.ServiceName);
+        Assert.Equal(metric.Value, remotePoint.Value);
+        Assert.Equal(metric.Unit, remotePoint.Unit);
+        Assert.Equal("GET", remotePoint.MetricAttributes["http.method"]);
     }
 
     [Fact]

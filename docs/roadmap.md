@@ -159,8 +159,11 @@ listed here before pulling in broader proposal work.
    resource Telemetry menu group when matching signals exist so users can
    inspect application/runtime telemetry without losing resource context.
    `telemetry:metrics` is now the standard predefined resource view ID for
-   provider-owned application/runtime Metrics tabs; telemetry metrics
-   collection and provider implementations remain separate work.
+   provider-owned application/runtime Metrics tabs. The first metrics slice
+   adds in-memory metric points, Control Plane list/ingest APIs, remote-client
+   support, shared and inline Metrics views, and Project Reference request
+   count/duration ingestion; durable retention, aggregation, OpenTelemetry
+   metrics ingestion, and provider implementations remain separate work.
    Track provider-supported resource Monitoring separately under the resource
    Management group because resource monitoring is about provider-observed
    resource metrics such as process/container CPU and memory usage rather than
@@ -511,6 +514,8 @@ listed here before pulling in broader proposal work.
   Management, and application telemetry belongs under Telemetry. Providers
   should use `telemetry:metrics` for application/runtime metrics tabs and
   `management:monitoring` for process/container resource metrics tabs.
+  CloudShell now retains application/runtime telemetry metric points in memory
+  for the MVP; durable retention and aggregation remain future work.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.

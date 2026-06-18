@@ -345,6 +345,7 @@ public sealed class ExtensionRegistrationTests
         Assert.Equal("sample.nav", item.Id);
         Assert.Equal("/sample-overview", item.Href);
         Assert.Equal(typeof(SampleOverviewPage), item.Target.ViewType);
+        Assert.Equal("sample.parent", item.ParentId);
         Assert.False(item.ReplacesExisting);
     }
 
@@ -673,7 +674,8 @@ public sealed class ExtensionRegistrationTests
                 "sample.nav",
                 "Sample nav",
                 "sample",
-                10);
+                10,
+                parentId: "sample.parent");
         }
     }
 

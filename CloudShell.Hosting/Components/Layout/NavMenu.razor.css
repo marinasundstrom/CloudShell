@@ -168,6 +168,24 @@
     display: none;
 }
 
+.nav-subitems {
+    margin: .1rem 0 .35rem 1.35rem;
+}
+
+::deep .nav-subitems .fluent-nav-link {
+    min-height: 2rem;
+    font-size: .84rem;
+}
+
+::deep .nav-subitems .fluent-nav-link .positioning-region {
+    min-height: 2rem;
+    padding-block: .4rem;
+}
+
+::deep .nav-subitems .fluent-nav-link .fluent-nav-text {
+    margin-inline-start: .5rem;
+}
+
 ::deep .fluent-nav-icon:not(fluent-menu-item) {
     min-width: 1.5rem;
     display: flex;

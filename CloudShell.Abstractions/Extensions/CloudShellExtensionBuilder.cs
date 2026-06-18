@@ -42,27 +42,31 @@ internal sealed class CloudShellExtensionBuilder(
         string text,
         string icon,
         int order,
-        string group = "Workspace") =>
+        string group = "Workspace",
+        string? parentId = null) =>
         AddNavigationItem<TView>(
             GetRegisteredView(typeof(TView)).Id,
             text,
             icon,
             order,
-            group);
+            group,
+            parentId);
 
     public ICloudShellExtensionBuilder AddNavigationItem<TView>(
         string id,
         string text,
         string icon,
         int order,
-        string group = "Workspace") =>
+        string group = "Workspace",
+        string? parentId = null) =>
         AddNavigationItem(
             id,
             text,
             NavItemTarget.ForView<TView>(),
             icon,
             order,
-            group);
+            group,
+            parentId);
 
     public ICloudShellExtensionBuilder AddNavigationItem(
         string id,
@@ -70,7 +74,8 @@ internal sealed class CloudShellExtensionBuilder(
         NavItemTarget target,
         string icon,
         int order,
-        string group = "Workspace")
+        string group = "Workspace",
+        string? parentId = null)
     {
         AddNavigationItem(
             id,
@@ -79,6 +84,7 @@ internal sealed class CloudShellExtensionBuilder(
             icon,
             order,
             group,
+            parentId,
             replacesExisting: false);
 
         return this;
@@ -89,14 +95,16 @@ internal sealed class CloudShellExtensionBuilder(
         string text,
         string icon,
         int order,
-        string group = "Workspace") =>
+        string group = "Workspace",
+        string? parentId = null) =>
         ReplaceNavigationItem(
             id,
             text,
             NavItemTarget.ForView<TView>(),
             icon,
             order,
-            group);
+            group,
+            parentId);
 
     public ICloudShellExtensionBuilder ReplaceNavigationItem(
         string id,
@@ -104,7 +112,8 @@ internal sealed class CloudShellExtensionBuilder(
         NavItemTarget target,
         string icon,
         int order,
-        string group = "Workspace")
+        string group = "Workspace",
+        string? parentId = null)
     {
         AddNavigationItem(
             id,
@@ -113,6 +122,7 @@ internal sealed class CloudShellExtensionBuilder(
             icon,
             order,
             group,
+            parentId,
             replacesExisting: true);
 
         return this;
@@ -468,6 +478,7 @@ internal sealed class CloudShellExtensionBuilder(
         string icon,
         int order,
         string group,
+        string? parentId,
         bool replacesExisting)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -484,7 +495,8 @@ internal sealed class CloudShellExtensionBuilder(
             icon,
             order,
             group,
-            replacesExisting));
+            replacesExisting,
+            ParentId: parentId));
     }
 
     private ShellViewContribution GetRegisteredView(string viewId) =>

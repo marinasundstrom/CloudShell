@@ -7,4 +7,6 @@ public static class ObservabilityViews
     public const string Logs = "cloudshell.observability.logs";
 
     public const string Traces = "cloudshell.observability.traces";
+
+    public const string Metrics = "cloudshell.observability.metrics";
 }

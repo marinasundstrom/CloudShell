@@ -221,6 +221,7 @@
     private static readonly ResourceViewId GeneratedActivityTabId = ResourcePredefinedViewIds.Activity;
     private static readonly ResourceViewId GeneratedLogsTabId = ResourcePredefinedViewIds.Logs;
     private static readonly ResourceViewId GeneratedTracesTabId = ResourcePredefinedViewIds.Traces;
+    private static readonly ResourceViewId GeneratedMetricsTabId = ResourcePredefinedViewIds.Metrics;
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -633,6 +634,10 @@
             parameters["TraceId"] = RequestedTraceId;
             parameters["Inline"] = true;
         }
+        else if (selectedTab.Id == GeneratedMetricsTabId)
+        {
+            parameters["Inline"] = true;
+        }
 
         return parameters;
     }
@@ -767,6 +772,18 @@
                 typeof(CloudShell.Hosting.Components.Pages.Observability.Traces),
                 GroupTitle: ResourceTabGroupTitles.Telemetry,
                 Icon: GetPredefinedViewIcon(GeneratedTracesTabId)));
+        }
+
+        if (resource?.EffectiveObservability.Metrics == true &&
+            !contributedTabs.Any(tab => tab.Id == GeneratedMetricsTabId))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedMetricsTabId,
+                "Metrics",
+                90,
+                typeof(CloudShell.Hosting.Components.Pages.Observability.Metrics),
+                GroupTitle: ResourceTabGroupTitles.Telemetry,
+                Icon: GetPredefinedViewIcon(GeneratedMetricsTabId)));
         }
 
         return tabs

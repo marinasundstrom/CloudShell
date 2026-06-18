@@ -18,14 +18,16 @@ public interface ICloudShellExtensionBuilder
         string text,
         string icon,
         int order,
-        string group = "Workspace");
+        string group = "Workspace",
+        string? parentId = null);
 
     ICloudShellExtensionBuilder AddNavigationItem<TView>(
         string id,
         string text,
         string icon,
         int order,
-        string group = "Workspace");
+        string group = "Workspace",
+        string? parentId = null);
 
     ICloudShellExtensionBuilder AddNavigationItem(
         string id,
@@ -33,14 +35,16 @@ public interface ICloudShellExtensionBuilder
         NavItemTarget target,
         string icon,
         int order,
-        string group = "Workspace");
+        string group = "Workspace",
+        string? parentId = null);
 
     ICloudShellExtensionBuilder ReplaceNavigationItem<TView>(
         string id,
         string text,
         string icon,
         int order,
-        string group = "Workspace");
+        string group = "Workspace",
+        string? parentId = null);
 
     ICloudShellExtensionBuilder ReplaceNavigationItem(
         string id,
@@ -48,7 +52,8 @@ public interface ICloudShellExtensionBuilder
         NavItemTarget target,
         string icon,
         int order,
-        string group = "Workspace");
+        string group = "Workspace",
+        string? parentId = null);
 
     ICloudShellExtensionBuilder AddCustomView(
         string id,

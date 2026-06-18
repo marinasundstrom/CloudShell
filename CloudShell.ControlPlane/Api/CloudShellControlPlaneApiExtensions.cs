@@ -162,6 +162,14 @@ public static class CloudShellControlPlaneApiExtensions
             .AllowAnonymous()
             .ExcludeFromDescription();
 
+        api.MapGet("/metrics", ListMetricPoints)
+            .WithName("CloudShellControlPlane_ListMetricPoints");
+
+        api.MapPost("/metrics/ingest", IngestMetricPoints)
+            .WithName("CloudShellControlPlane_IngestMetricPoints")
+            .AllowAnonymous()
+            .ExcludeFromDescription();
+
         api.MapGet("/environment-settings", ListUserSettings)
             .WithName("CloudShellControlPlane_ListEnvironmentSettings");
 
@@ -900,6 +908,25 @@ public static class CloudShellControlPlaneApiExtensions
         return Results.Accepted();
     }
 
+    private static async Task<IResult> ListMetricPoints(
+        string? resourceId,
+        string? metricName,
+        int? maxPoints,
+        IMetricManager metrics,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await metrics.ListMetricPointsAsync(
+            new MetricQuery(resourceId, metricName, Math.Clamp(maxPoints ?? 200, 1, 1000)),
+            cancellationToken));
+
+    private static async Task<IResult> IngestMetricPoints(
+        MetricIngestRequest request,
+        IMetricManager metrics,
+        CancellationToken cancellationToken)
+    {
+        await metrics.IngestMetricPointsAsync(request.Points, cancellationToken);
+        return Results.Accepted();
+    }
+
     private static async Task<IResult> ListUserSettings(
         ICloudShellControlPlaneUserSettingsProvider settings,
         CancellationToken cancellationToken)
@@ -1162,4 +1189,6 @@ public static class CloudShellControlPlaneApiExtensions
     }
 
     private sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);
+
+    private sealed record MetricIngestRequest(IReadOnlyList<MetricPoint> Points);
 }

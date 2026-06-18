@@ -24,9 +24,9 @@ Both resources also enable OTLP export explicitly:
 
 The host reads `Observability:OtlpProtocol` from `appsettings.json` and derives
 the local CloudShell endpoint from `--urls`, `ASPNETCORE_URLS`, or
-`Observability:Endpoint`. You can still override `Observability:OtlpEndpoint`
-or `Observability:TraceIngestEndpoint` when the trace collector is not the
-current host.
+`Observability:Endpoint`. You can still override `Observability:OtlpEndpoint`,
+`Observability:TraceIngestEndpoint`, or `Observability:MetricIngestEndpoint`
+when the telemetry collector is not the current host.
 
 For example, running the host on `http://localhost:5011` injects:
 
@@ -42,11 +42,20 @@ summaries back to CloudShell through:
 http://localhost:5011/api/control-plane/v1/traces/ingest
 ```
 
+It also posts basic ASP.NET Core request metric points, including request count
+and duration, through:
+
+```text
+http://localhost:5011/api/control-plane/v1/metrics/ingest
+```
+
 To see traces, run the host, start the API and frontend resources from Resource
 Manager, open `http://localhost:5218/upstream`, then open
 `/observability/traces`. The trace page refreshes while it is open. CloudShell
-keeps these spans in memory while the host is running. CloudShell still writes
-stdout and stderr to the resource Logs view independently of trace collection.
+keeps these spans in memory while the host is running. To see metrics, open
+the resource detail page for the API or frontend and select `Telemetry` /
+`Metrics`, or open `/observability/metrics`. CloudShell still writes stdout and
+stderr to the resource Logs view independently of telemetry collection.
 
 The expected trace includes spans from both web services:
 
@@ -115,6 +124,6 @@ and is ignored by git.
 
 This sample remains the focused ASP.NET Core project-reference baseline for
 service discovery, project dependencies, structured logs, and distributed
-tracing. The broader MVP application-topology work has moved to the forked
-`samples/ApplicationTopology` sample so this baseline can stay small and easy
-to diagnose.
+tracing and metrics. The broader MVP application-topology work has moved to
+the forked `samples/ApplicationTopology` sample so this baseline can stay small
+and easy to diagnose.

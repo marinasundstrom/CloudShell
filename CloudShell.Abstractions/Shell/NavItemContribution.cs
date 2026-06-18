@@ -9,15 +9,25 @@ public sealed record NavItemContribution(
     int Order,
     string Group = "Workspace",
     bool ReplacesExisting = false,
-    bool ShowInNavigation = true)
+    bool ShowInNavigation = true,
+    string? ParentId = null)
 {
     public NavItemContribution(
         string text,
         string href,
         string icon,
         int order,
-        string group = "Workspace")
-        : this($"navigation:{href}", text, href, NavItemTarget.ForHref(href), icon, order, group)
+        string group = "Workspace",
+        string? parentId = null)
+        : this(
+            $"navigation:{href}",
+            text,
+            href,
+            NavItemTarget.ForHref(href),
+            icon,
+            order,
+            group,
+            ParentId: parentId)
     {
     }
 }

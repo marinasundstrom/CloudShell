@@ -10,7 +10,7 @@ public sealed class ObservabilityExtension : ICloudShellExtension
         "Observability",
         "Shared telemetry views for resources, providers, and extension-owned artifacts.",
         "0.1.0",
-        ["observability.views", "logs.views", "logs.sources", "traces.views"],
+        ["observability.views", "logs.views", "logs.sources", "traces.views", "metrics.views"],
         ["resource-manager.resources"]);
 
     public void Configure(ICloudShellExtensionBuilder builder)
@@ -19,8 +19,25 @@ public sealed class ObservabilityExtension : ICloudShellExtension
             .RegisterView<Components.Pages.Observability.Observability>(ObservabilityViews.Overview)
             .AddNavigationItem<Components.Pages.Observability.Observability>("Observability", "pulse", 20)
             .RegisterView<Components.Pages.Logs.Logs>(ObservabilityViews.Logs)
-            .AddNavigationItem<Components.Pages.Logs.Logs>("Logs", "document", 21)
+            .AddNavigationItem<Components.Pages.Logs.Logs>(
+                ObservabilityViews.Logs,
+                "Logs",
+                "document",
+                21,
+                parentId: ObservabilityViews.Overview)
             .RegisterView<Components.Pages.Observability.Traces>(ObservabilityViews.Traces)
-            .AddNavigationItem<Components.Pages.Observability.Traces>("Traces", "traces", 22);
+            .AddNavigationItem<Components.Pages.Observability.Traces>(
+                ObservabilityViews.Traces,
+                "Traces",
+                "traces",
+                22,
+                parentId: ObservabilityViews.Overview)
+            .RegisterView<Components.Pages.Observability.Metrics>(ObservabilityViews.Metrics)
+            .AddNavigationItem<Components.Pages.Observability.Metrics>(
+                ObservabilityViews.Metrics,
+                "Metrics",
+                "metrics",
+                23,
+                parentId: ObservabilityViews.Overview);
     }
 }

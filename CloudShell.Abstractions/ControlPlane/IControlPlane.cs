@@ -10,7 +10,8 @@ public interface IControlPlane :
     IResourceTemplateManager,
     IResourceEventManager,
     ILogManager,
-    ITraceManager;
+    ITraceManager,
+    IMetricManager;
 
 public interface IResourceManager
 {
@@ -159,6 +160,17 @@ public interface ITraceManager
 
     Task IngestTraceSpansAsync(
         IEnumerable<TraceSpan> spans,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IMetricManager
+{
+    Task<IReadOnlyList<MetricPoint>> ListMetricPointsAsync(
+        MetricQuery? query = null,
+        CancellationToken cancellationToken = default);
+
+    Task IngestMetricPointsAsync(
+        IEnumerable<MetricPoint> points,
         CancellationToken cancellationToken = default);
 }
 

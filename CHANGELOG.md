@@ -49,6 +49,11 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager now defines a standard `telemetry:metrics` predefined
   resource view ID and icon metadata so providers can contribute application
   Metrics tabs under Telemetry.
+- Telemetry metrics now have in-memory Control Plane storage, list/ingest API
+  endpoints, remote-client support, shared and inline Metrics views, and
+  Project Reference sample request count/duration ingestion.
+- Shell navigation now supports parented navigation items, and Logs, Traces,
+  and Metrics now appear as child items under Observability.
 - Configuration Store and Secrets Vault resource detail menus now use the
   generated General Configuration tab instead of duplicate Settings tabs, and
   place Entries and Secrets under General with distinct icon metadata.

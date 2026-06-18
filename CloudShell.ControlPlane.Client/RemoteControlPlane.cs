@@ -526,6 +526,28 @@ public sealed class RemoteControlPlane : IControlPlane
         await EnsureSuccessAsync(response, cancellationToken);
     }
 
+    public Task<IReadOnlyList<MetricPoint>> ListMetricPointsAsync(
+        MetricQuery? query = null,
+        CancellationToken cancellationToken = default) =>
+        GetRequiredAsync<IReadOnlyList<MetricPoint>>(
+            "metrics",
+            cancellationToken,
+            ("resourceId", query?.ResourceId),
+            ("metricName", query?.MetricName),
+            ("maxPoints", (query?.MaxPoints ?? 200).ToString()));
+
+    public async Task IngestMetricPointsAsync(
+        IEnumerable<MetricPoint> points,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsJsonAsync(
+            BuildUri("metrics/ingest"),
+            new MetricIngestRequest(points.ToArray()),
+            SerializerOptions,
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+    }
+
     private async Task<T?> GetOptionalAsync<T>(
         string path,
         CancellationToken cancellationToken)
@@ -918,6 +940,8 @@ file sealed record LogEntryResponse(
     IReadOnlyDictionary<string, string>? Attributes);
 
 file sealed record TraceIngestRequest(IReadOnlyList<TraceSpan> Spans);
+
+file sealed record MetricIngestRequest(IReadOnlyList<MetricPoint> Points);
 
 sealed record ProblemResponse(string? Title, string? Detail, string? Code);
 

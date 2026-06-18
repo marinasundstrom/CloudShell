@@ -132,5 +132,7 @@ public static class ControlPlaneClientServiceCollectionExtensions
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         services.AddScoped<ITraceManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        services.AddScoped<IMetricManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
     }
 }

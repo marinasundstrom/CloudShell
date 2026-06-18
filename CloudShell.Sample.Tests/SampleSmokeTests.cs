@@ -141,6 +141,42 @@ public sealed class SampleSmokeTests
             }
             """);
 
+        await host.SendJsonAsync(
+            HttpMethod.Post,
+            "/api/control-plane/v1/metrics/ingest",
+            """
+            {
+              "points": [
+                {
+                  "name": "http.server.requests",
+                  "resourceId": "application:project-reference-frontend",
+                  "serviceName": "project-reference-frontend",
+                  "value": 1,
+                  "timestamp": "2026-06-16T00:00:01Z",
+                  "unit": "count",
+                  "attributes": {
+                    "http.method": "GET",
+                    "http.route": "/upstream",
+                    "http.status_code": "200"
+                  }
+                },
+                {
+                  "name": "http.server.duration",
+                  "resourceId": "application:project-reference-frontend",
+                  "serviceName": "project-reference-frontend",
+                  "value": 125,
+                  "timestamp": "2026-06-16T00:00:01Z",
+                  "unit": "ms",
+                  "attributes": {
+                    "http.method": "GET",
+                    "http.route": "/upstream",
+                    "http.status_code": "200"
+                  }
+                }
+              ]
+            }
+            """);
+
         var traceHtml = await host.GetStringAsync(
             $"/observability/traces?resourceId=application%3Aproject-reference-frontend&traceId={traceId}");
         Assert.Contains("Trace chart", traceHtml);
@@ -179,6 +215,16 @@ public sealed class SampleSmokeTests
         Assert.Contains(
             $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
             relatedTracesHtml);
+
+        var relatedMetricsHtml = await host.GetStringAsync(
+            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
+        Assert.Contains("Telemetry", relatedMetricsHtml);
+        Assert.Contains("Resource telemetry", relatedMetricsHtml);
+        Assert.Contains("Metric source", relatedMetricsHtml);
+        Assert.Contains("id=\"metric-source-filter\"", relatedMetricsHtml);
+        Assert.Contains("http.server.requests", relatedMetricsHtml);
+        Assert.Contains("http.server.duration", relatedMetricsHtml);
+        Assert.Contains("project-reference-frontend", relatedMetricsHtml);
 
         var relatedActivityHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&traceId={traceId}&spanId=00f067aa0ba902b7");

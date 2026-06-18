@@ -59,6 +59,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<ILogProvider, ResourceEventLogProvider>());
         builder.Services.AddSingleton<ITraceStore, InMemoryTraceStore>();
+        builder.Services.AddSingleton<IMetricStore, InMemoryMetricStore>();
         builder.Services.AddScoped<ResourceTemplateService>();
         builder.Services.AddScoped<IContainerHostResolver, ContainerHostResolver>();
         builder.Services.AddScoped<ResourceOrchestrationService>();
@@ -116,6 +117,8 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
         builder.Services.AddScoped<ILogManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<ITraceManager>(
+            serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
+        builder.Services.AddScoped<IMetricManager>(
             serviceProvider => serviceProvider.GetRequiredService<IControlPlane>());
         builder.Services.AddScoped<ControlPlaneUserSettingsProvider>();
         builder.Services.AddScoped<ICloudShellControlPlaneUserSettingsProvider>(

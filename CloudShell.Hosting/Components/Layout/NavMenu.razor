@@ -18,7 +18,17 @@
     <FluentNavMenu Class="cloudshell-nav-menu"
                    Title="@L["Primary"]"
                    Margin="0">
-    @foreach (var group in ShellCatalog.NavigationItems.GroupBy(item => item.Group))
+    @{
+        var navigationItems = ShellCatalog.NavigationItems;
+        var childItemsByParent = navigationItems
+            .Where(item => !string.IsNullOrWhiteSpace(item.ParentId))
+            .GroupBy(item => item.ParentId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+        var rootItems = navigationItems
+            .Where(item => string.IsNullOrWhiteSpace(item.ParentId))
+            .ToArray();
+    }
+    @foreach (var group in rootItems.GroupBy(item => item.Group))
     {
         <section class="nav-group">
             <div class="nav-group-title">@L[group.Key]</div>
@@ -34,6 +44,24 @@
                                ActiveClass="active">
                     <span class="nav-label">@L[item.Text]</span>
                 </FluentNavLink>
+
+                @if (childItemsByParent.TryGetValue(item.Id, out var childItems))
+                {
+                    <div class="nav-subitems">
+                        @foreach (var child in childItems)
+                        {
+                            <FluentNavLink Class="cloudshell-nav-link cloudshell-nav-sub-link"
+                                           Href="@child.Href"
+                                           Match="@GetMatch(child.Href)"
+                                           Icon="@ShellNavigationIcons.FromName(child.Icon)"
+                                           IconColor="Color.Neutral"
+                                           Tooltip="@L[child.Text]"
+                                           ActiveClass="active">
+                                <span class="nav-label">@L[child.Text]</span>
+                            </FluentNavLink>
+                        }
+                    </div>
+                }
             }
         </section>
     }

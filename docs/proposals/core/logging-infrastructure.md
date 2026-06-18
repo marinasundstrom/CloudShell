@@ -300,9 +300,11 @@ CloudShell should keep the signal taxonomy explicit:
 
 Telemetry metrics have a standard predefined resource view ID,
 `telemetry:metrics`, so providers can contribute a consistent application
-metrics tab when application/runtime metric data is available. Metrics
-collection, retention, and provider-owned metrics views remain separate work;
-the predefined ID is only the resource-detail placement convention.
+metrics tab when application/runtime metric data is available. CloudShell now
+has an in-memory metrics manager, list/ingest API, remote-client projection,
+and shared/resource-scoped Metrics views. Durable metrics retention,
+aggregation, OpenTelemetry metrics ingestion, and provider-owned metrics views
+remain separate work.
 
 Telemetry is application/runtime signal investigation, not the same concept as
 resource monitoring. Resource monitoring should have a separate
@@ -359,9 +361,11 @@ base log or event entry a blob store.
 - Use the standard `management:monitoring` predefined resource view ID for
   provider-supported resource monitoring tabs. Add resource metrics collection
   and provider-owned Monitoring tab implementations separately.
-- Use the standard `telemetry:metrics` predefined resource view ID for
-  provider-supported application/runtime metrics tabs. Add telemetry metrics
-  collection and provider-owned Metrics tab implementations separately.
+- Keep the current telemetry metrics slice small: in-memory points,
+  list/ingest APIs, remote-client support, Metrics views, and Project
+  Reference sample request count/duration ingestion are in place. Add durable
+  retention, aggregation, OpenTelemetry metrics ingestion, and provider-owned
+  Metrics tab implementations separately.
 - Keep resource-scoped Logs and Traces under the resource-detail Telemetry menu
   group for routine per-resource investigation.
 - Keep shared Telemetry trace exploration available for cross-resource

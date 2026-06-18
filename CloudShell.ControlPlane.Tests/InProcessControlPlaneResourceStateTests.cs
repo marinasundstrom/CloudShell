@@ -1542,6 +1542,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             templates,
             new EmptyLogStore(),
             new EmptyTraceStore(),
+            new EmptyMetricStore(),
             authorization ?? new AllowAllAuthorizationService(),
             resourceEvents);
     }
@@ -2085,6 +2086,18 @@ public sealed class InProcessControlPlaneResourceStateTests
             int maxSpans = 200) => [];
 
         public void AddSpans(IEnumerable<TraceSpan> spans)
+        {
+        }
+    }
+
+    private sealed class EmptyMetricStore : IMetricStore
+    {
+        public IReadOnlyList<MetricPoint> GetPoints(
+            string? resourceId = null,
+            string? metricName = null,
+            int maxPoints = 200) => [];
+
+        public void AddPoints(IEnumerable<MetricPoint> points)
         {
         }
     }

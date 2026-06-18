@@ -76,6 +76,10 @@
     padding-inline: .55rem;
 }
 
+.shell.nav-collapsed ::deep .nav-subitems {
+    margin-inline-start: 0;
+}
+
 .shell.nav-collapsed ::deep .sidebar-footer {
     justify-content: center;
 }

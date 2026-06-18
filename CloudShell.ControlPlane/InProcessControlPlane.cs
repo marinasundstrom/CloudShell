@@ -19,6 +19,7 @@ public sealed class InProcessControlPlane(
     ResourceTemplateService templates,
     ILogStore logs,
     ITraceStore traces,
+    IMetricStore metrics,
     ICloudShellAuthorizationService authorization,
     IResourceEventStore? resourceEvents = null) : IControlPlane
 {
@@ -662,6 +663,26 @@ public sealed class InProcessControlPlane(
     {
         cancellationToken.ThrowIfCancellationRequested();
         traces.AddSpans(spans);
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<MetricPoint>> ListMetricPointsAsync(
+        MetricQuery? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(metrics.GetPoints(
+            query?.ResourceId,
+            query?.MetricName,
+            query?.MaxPoints ?? 200));
+    }
+
+    public Task IngestMetricPointsAsync(
+        IEnumerable<MetricPoint> points,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        metrics.AddPoints(points);
         return Task.CompletedTask;
     }
 
