@@ -484,6 +484,7 @@ public sealed partial class ConfigurationResourceProvider :
             TypeId: "configuration.store",
             Actions: CreateActions(configurationStore),
             HealthChecks: configurationStore.HealthChecks,
+            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
             ResourceClass: ResourceClass.Configuration,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {

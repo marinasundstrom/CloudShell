@@ -2108,7 +2108,10 @@ public sealed class ResourceDeclarationTests
 
         Assert.True(provider.CanMonitor(worker));
         Assert.True(provider.CanMonitor(api));
-        Assert.False(provider.CanMonitor(redis));
+        Assert.True(provider.CanMonitor(redis));
+        Assert.True(worker.HasCapability(ResourceCapabilityIds.Monitoring));
+        Assert.True(api.HasCapability(ResourceCapabilityIds.Monitoring));
+        Assert.True(redis.HasCapability(ResourceCapabilityIds.Monitoring));
 
         var snapshot = await provider.GetMonitoringSnapshotAsync(worker);
 
@@ -2117,6 +2120,102 @@ public sealed class ResourceDeclarationTests
         Assert.Equal("Applications", snapshot.Provider);
         Assert.Equal("Unavailable", snapshot.Status);
         Assert.Empty(snapshot.Metrics);
+    }
+
+    [Fact]
+    public void ApplicationContainerMonitoringMetrics_ParsesContainerStatsJson()
+    {
+        var timestamp = DateTimeOffset.UtcNow;
+        var json = """
+            {"Name":"app","CPUPerc":"12.5%","MemUsage":"49.13MiB / 2GiB","NetIO":"1.5kB / 2MB","BlockIO":"3MiB / 4MiB","PIDs":"26"}
+            """;
+
+        var parsed = ApplicationContainerMonitoringMetrics.TryParseStatsJson(
+            json,
+            timestamp,
+            out var snapshot);
+        var samples = ApplicationContainerMonitoringMetrics.CreateMetricSamples(snapshot)
+            .ToDictionary(metric => metric.Name, StringComparer.OrdinalIgnoreCase);
+
+        Assert.True(parsed);
+        Assert.Equal("app", snapshot.ContainerName);
+        Assert.Equal(12.5, snapshot.CpuUsagePercent);
+        Assert.Equal(26, snapshot.ProcessCount);
+        Assert.Equal(49.13 * 1024 * 1024, snapshot.MemoryUsageBytes, precision: 1);
+        Assert.Equal(2d * 1024 * 1024 * 1024, snapshot.MemoryLimitBytes, precision: 1);
+        Assert.Contains("resource.cpu.usage", samples.Keys);
+        Assert.Contains("resource.network.rxBytes", samples.Keys);
+        Assert.Contains("resource.block.writeBytes", samples.Keys);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_MonitorsStoppedSingleContainerResourcesAsUnavailable()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddContainer(
+                    "redis",
+                    "redis:7.2");
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:redis");
+
+        Assert.True(provider.CanMonitor(resource));
+        Assert.True(resource.HasCapability(ResourceCapabilityIds.Monitoring));
+
+        var snapshot = await provider.GetMonitoringSnapshotAsync(resource);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(resource.Id, snapshot.ResourceId);
+        Assert.Equal("Applications", snapshot.Provider);
+        Assert.Equal("Unavailable", snapshot.Status);
+        Assert.Empty(snapshot.Metrics);
+    }
+
+    [Fact]
+    public async Task ApplicationProvider_DoesNotUseGeneratedMonitoringForReplicaModeContainerApps()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IHostEnvironment>(new TestHostEnvironment(contentRoot));
+        services
+            .AddControlPlane()
+            .AddApplicationProvider(options =>
+            {
+                options.DefinitionsPath = "application-resources.json";
+                options.RuntimeStatePath = "application-runtime-state.json";
+                options.LogDirectory = "application-logs";
+            })
+            .Resources(resources =>
+            {
+                resources.AddContainer(
+                    "api",
+                    "example/api:latest",
+                    replicas: 2);
+            });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var provider = serviceProvider.GetRequiredService<ApplicationResourceProvider>();
+        var resource = Assert.Single(provider.GetResources(), resource => resource.Id == "application:api");
+
+        Assert.False(provider.CanMonitor(resource));
+        Assert.False(resource.HasCapability(ResourceCapabilityIds.Monitoring));
+        Assert.Null(await provider.GetMonitoringSnapshotAsync(resource));
     }
 
     [Fact]

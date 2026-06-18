@@ -169,12 +169,15 @@ listed here before pulling in broader proposal work.
    resource metrics such as process/container CPU and memory usage rather than
    application telemetry. `management:monitoring` is now the standard
    predefined resource view ID for provider-owned Monitoring tabs. The first
-   resource monitoring slice adds provider-backed current snapshots, Control
-   Plane API/client support, a generated resource Monitoring tab, and Docker
+   resource monitoring slice adds the `monitoring` resource capability,
+   provider-backed current snapshots, Control Plane API/client support, a
+   generated resource Monitoring tab, and Docker
    container CPU/memory, network I/O, block I/O, process count, restart count,
    and uptime metrics, plus application process CPU/memory/thread/uptime
    metrics for executable, ASP.NET Core project, Configuration Store, and
-   Secrets Vault service resources. Add a provider-owned container app
+   Secrets Vault service resources. Single-instance container-backed
+   application resources can use container-host stats when a static/default
+   container host can be resolved. Add a provider-owned container app
    Monitoring dashboard under Management that summarizes app-level resource
    usage and breaks down metrics by projected runtime replica/container for
    replicated apps. Durable resource-metric history, charts, and additional
@@ -411,14 +414,17 @@ listed here before pulling in broader proposal work.
   provider-supported, extensible Management tab for resource metrics such as
   process/container CPU and memory usage. `management:monitoring` is now the
   standard predefined resource view ID for provider-owned Monitoring tabs, and
-  the generated Monitoring tab appears when a provider can return a current
-  resource monitoring snapshot for the resource. Docker containers now provide
-  CPU, memory, network I/O, block I/O, process count, restart count, and
-  uptime snapshots through that path. Executable and ASP.NET Core project
-  resources now provide basic application process CPU, memory, thread count,
-  process count, and uptime snapshots, and Configuration Store plus Secrets
-  Vault resources expose the same service-process metrics. The generated tab
-  is not enough for replicated container apps; those need a provider-owned
+  the generated Monitoring tab appears when the resource advertises the
+  `monitoring` capability and a provider can return a current resource
+  monitoring snapshot for the resource. Docker containers now provide CPU,
+  memory, network I/O, block I/O, process count, restart count, and uptime
+  snapshots through that path. Executable and ASP.NET Core project resources
+  now provide basic application process CPU, memory, thread count, process
+  count, and uptime snapshots, Configuration Store plus Secrets Vault resources
+  expose the same service-process metrics, and single-instance
+  container-backed application resources can use container-host stats when a
+  static/default container host can be resolved. The generated tab is not
+  enough for replicated container apps; those need a provider-owned
   Monitoring dashboard that keeps users on the container app resource while
   summarizing app usage and showing each projected replica/container
   separately. Split-hosted live monitoring and telemetry should flow through
@@ -541,10 +547,12 @@ listed here before pulling in broader proposal work.
   `management:monitoring` for process/container resource metrics tabs.
   CloudShell now retains application/runtime telemetry metric points in memory
   for the MVP and can query provider-backed current resource monitoring
-  snapshots for Docker containers, local application processes, and
-  configuration/secrets service processes. Container app resource monitoring
-  should be a custom Management > Monitoring dashboard that aggregates
-  app-level usage and breaks metrics down by runtime replica/container.
+  snapshots for Docker containers, local application processes, single-instance
+  container-backed applications with a resolvable static/default container
+  host, and configuration/secrets service processes. Container app resource
+  monitoring should be a custom Management > Monitoring dashboard that
+  aggregates app-level usage and breaks metrics down by runtime
+  replica/container.
   Control Plane API streaming for live telemetry/monitoring remains a later
   design question after basic provider monitoring support is established;
   durable retention and aggregation remain future work.

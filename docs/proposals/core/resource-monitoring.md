@@ -51,12 +51,19 @@ whether it can monitor a projected `Resource` and can return a current
 
 The first model shape is:
 
+- `ResourceCapabilityIds.Monitoring`: stable resource graph signal that the
+  resource supports provider-observed resource monitoring.
 - `IResourceMonitoringProvider`: provider opt-in and snapshot query contract.
 - `IResourceMonitoringManager`: shell/client-facing Control Plane manager.
 - `ResourceMonitoringSnapshot`: one provider observation for one resource at
   one timestamp.
 - `ResourceMetricSample`: a named resource metric value such as CPU percent or
   memory bytes.
+
+The capability advertises the role on the projected resource. The provider
+contract remains the runtime authority for split-hosted or stale resource
+graphs because the active Control Plane must still decide whether it can
+observe the selected resource and return a current snapshot.
 
 This is intentionally different from telemetry metric ingestion. Telemetry
 metrics represent application/runtime instrumentation such as request count,
@@ -76,8 +83,8 @@ inventory or treating implementation containers as the stable app surface.
 
 Resource Manager uses the standard predefined view ID
 `management:monitoring`. The generated Monitoring tab appears under the
-Management group only when a provider reports support for the selected
-resource.
+Management group only when the resource advertises the monitoring capability
+and a provider reports support for the selected resource.
 
 The generated tab should show:
 
@@ -102,10 +109,15 @@ The first implementation slice adds:
 - provider-backed resource monitoring contracts
 - Control Plane manager, API, and remote-client projection
 - generated Resource Manager Monitoring tab
+- `monitoring` resource capability projection for resources that support
+  generated resource monitoring
 - Docker container CPU, memory, network I/O, block I/O, process count,
   restart count, and uptime snapshots
 - application process CPU, CPU time, memory, thread count, process count, and
   uptime snapshots for executable and ASP.NET Core project resources
+- single-instance container-backed application resource CPU, memory, network
+  I/O, block I/O, and process count snapshots from container-host stats when
+  the application provider can resolve a static/default container host
 - configuration store and Secrets Vault service process CPU, CPU time, memory,
   thread count, process count, and uptime snapshots
 
@@ -119,9 +131,11 @@ live Docker metrics are unavailable until the container is running.
 Executable application and ASP.NET Core project resources report process CPU
 usage, total CPU time, working-set memory, private memory, thread count,
 process count, and uptime when the local application process is running.
-Container-backed application resources remain excluded from the generated
-process snapshot path because container app monitoring needs an app-level
-summary and per-replica/container breakdown.
+Single-instance container-backed application resources can use container-host
+`stats` output when the application provider can resolve a static/default
+container host without Resource Manager context. Replica-mode container apps
+remain excluded from the generated snapshot path because container app
+monitoring needs an app-level summary and per-replica/container breakdown.
 
 Configuration Store and Secrets Vault resources report the same local service
 process metrics when their provider-owned service processes are running.

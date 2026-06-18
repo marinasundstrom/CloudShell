@@ -1387,6 +1387,7 @@ public sealed partial class DockerContainerResourceProvider :
             ParentResourceId: hostResourceId,
             TypeId: "docker.container",
             Actions: CreateContainerActions(container.State),
+            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
             ResourceClass: ResourceClass.Container,
             Attributes: CreateContainerAttributes(
                 container.Image,
@@ -1443,6 +1444,7 @@ public sealed partial class DockerContainerResourceProvider :
             TypeId: "docker.container",
             Actions: container is null ? [] : CreateContainerActions(container.State),
             HealthChecks: definition.HealthChecks,
+            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
             ResourceClass: ResourceClass.Container,
             Attributes: CreateContainerAttributes(
                 container?.Image ?? definition.Image,

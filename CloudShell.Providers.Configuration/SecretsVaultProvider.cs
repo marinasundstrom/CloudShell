@@ -418,6 +418,7 @@ public sealed partial class SecretsVaultProvider(
             TypeId: ResourceType,
             Actions: CreateActions(vault),
             HealthChecks: vault.HealthChecks,
+            Capabilities: [new(ResourceCapabilityIds.Monitoring)],
             ResourceClass: ResourceClass.SecretsVault,
             Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {

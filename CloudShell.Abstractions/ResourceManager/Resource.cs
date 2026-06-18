@@ -287,6 +287,7 @@ public static class ResourceCapabilityIds
     public const string EndpointSource = "endpoint.source";
     public const string ContainerHost = "container.host";
     public const string EnvironmentVariables = "environment.variables";
+    public const string Monitoring = "monitoring";
     public const string NetworkingProvider = "networking.provider";
     public const string NetworkingEndpointProvider = "networking.endpointProvider";
     public const string NetworkingEndpointMapper = "networking.endpointMapper";

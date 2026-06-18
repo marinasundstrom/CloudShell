@@ -158,7 +158,13 @@ public sealed partial class ApplicationResourceProvider(
         }
 
         var application = store.GetApplication(resource.Id);
-        return application is not null && !IsContainerBacked(ResolveDefinition(application));
+        if (application is null)
+        {
+            return false;
+        }
+
+        var resolved = ResolveDefinition(application);
+        return !IsContainerBacked(resolved) || !IsReplicaModeEnabled(resolved);
     }
 
     public async Task<ResourceMonitoringSnapshot?> GetMonitoringSnapshotAsync(
@@ -175,6 +181,15 @@ public sealed partial class ApplicationResourceProvider(
         if (application is null)
         {
             return null;
+        }
+
+        if (IsContainerBacked(application))
+        {
+            return await GetContainerBackedMonitoringSnapshotAsync(
+                resource,
+                application,
+                timestamp,
+                cancellationToken);
         }
 
         if (resource.State != ResourceState.Running)
@@ -209,6 +224,67 @@ public sealed partial class ApplicationResourceProvider(
             LocalProcessMonitoringMetrics.CreateMetricSamples(processSnapshot, "application process"),
             "Available",
             "Application process metrics.");
+    }
+
+    private async Task<ResourceMonitoringSnapshot?> GetContainerBackedMonitoringSnapshotAsync(
+        Resource resource,
+        ApplicationResourceDefinition application,
+        DateTimeOffset timestamp,
+        CancellationToken cancellationToken)
+    {
+        if (resource.State != ResourceState.Running)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Container metrics are available only while the resource is running.");
+        }
+
+        var engine = ResolveStaticContainerHost(application);
+        if (engine is null)
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                "Container metrics require a configured container host that the application provider can resolve without Resource Manager context.");
+        }
+
+        var service = CreateDefaultContainerOrchestratorService(application);
+        var containerName = GetContainerName(service);
+        var result = await CaptureContainerHostCommandAsync(
+            engine,
+            ["stats", "--no-stream", "--format", "{{json .}}", containerName],
+            cancellationToken);
+        if (result.ExitCode != 0 ||
+            !ApplicationContainerMonitoringMetrics.TryParseStatsJson(
+                result.Output,
+                DateTimeOffset.UtcNow,
+                out var containerSnapshot))
+        {
+            return new ResourceMonitoringSnapshot(
+                resource.Id,
+                DisplayName,
+                timestamp,
+                [],
+                "Unavailable",
+                string.IsNullOrWhiteSpace(result.Error)
+                    ? "The container runtime did not return a stats snapshot."
+                    : result.Error.Trim());
+        }
+
+        return new ResourceMonitoringSnapshot(
+            resource.Id,
+            DisplayName,
+            containerSnapshot.Timestamp,
+            ApplicationContainerMonitoringMetrics.CreateMetricSamples(containerSnapshot),
+            "Available",
+            "Container runtime metrics.");
     }
 
     public async Task SetupApplicationAsync(
@@ -2495,6 +2571,46 @@ public sealed partial class ApplicationResourceProvider(
         }
     }
 
+    private static async Task<ContainerHostCommandResult> CaptureContainerHostCommandAsync(
+        ContainerHostDescriptor engine,
+        IReadOnlyList<string> arguments,
+        CancellationToken cancellationToken)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = GetContainerHostExecutable(engine),
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        ConfigureContainerHostEnvironment(startInfo, engine);
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        try
+        {
+            using var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return new ContainerHostCommandResult(-1, string.Empty, "Container host command could not be started.");
+            }
+
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            return new ContainerHostCommandResult(
+                process.ExitCode,
+                await outputTask,
+                await errorTask);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return new ContainerHostCommandResult(-1, string.Empty, exception.Message);
+        }
+    }
+
     private async Task PublishProjectContainerImageAsync(
         ApplicationResourceDefinition definition,
         string repository,
@@ -2677,7 +2793,8 @@ public sealed partial class ApplicationResourceProvider(
     {
         var capabilities = new List<ResourceCapability>
         {
-            new(ResourceCapabilityIds.EnvironmentVariables)
+            new(ResourceCapabilityIds.EnvironmentVariables),
+            new(ResourceCapabilityIds.Monitoring)
         };
 
         if (endpoints.Count > 0)
@@ -2688,6 +2805,13 @@ public sealed partial class ApplicationResourceProvider(
         if (application.VolumeMounts.Count > 0)
         {
             capabilities.Add(new(ResourceCapabilityIds.StorageVolumeConsumer));
+        }
+
+        if (IsContainerBacked(application) &&
+            IsReplicaModeEnabled(application))
+        {
+            capabilities.RemoveAll(capability =>
+                string.Equals(capability.Id, ResourceCapabilityIds.Monitoring, StringComparison.OrdinalIgnoreCase));
         }
 
         return capabilities;
@@ -4091,6 +4215,21 @@ public sealed partial class ApplicationResourceProvider(
             ?? await ResolveDefaultContainerHostResourceAsync(resourceManager, cancellationToken);
     }
 
+    private ContainerHostDescriptor? ResolveStaticContainerHost(ApplicationResourceDefinition definition)
+    {
+        var hosts = GetContainerHosts();
+        if (!string.IsNullOrWhiteSpace(definition.ContainerHostId))
+        {
+            return hosts.FirstOrDefault(host =>
+                string.Equals(host.Id, definition.ContainerHostId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return hosts
+            .Where(host => host.IsDefault)
+            .OrderBy(host => host.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+    }
+
     private async Task<ContainerHostDescriptor?> ResolveContainerHostByIdAsync(
         string engineId,
         IResourceManagerStore resourceManager,
@@ -4988,6 +5127,11 @@ public sealed partial class ApplicationResourceProvider(
     private sealed record ApplicationProcessCommand(
         string ExecutablePath,
         string? Arguments);
+
+    private sealed record ContainerHostCommandResult(
+        int ExitCode,
+        string Output,
+        string Error);
 
     private sealed record ApplicationResourceTemplateConfiguration(
         string ExecutablePath,

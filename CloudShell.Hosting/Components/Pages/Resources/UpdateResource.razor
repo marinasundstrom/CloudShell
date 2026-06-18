@@ -534,7 +534,8 @@
     {
         ResourceLogs = await LogManager.ListLogsAsync(new LogQuery(ResourceId: resource.Id));
         HasIdentityPermissionGrants = await HasPermissionGrantsAsync(resource);
-        HasResourceMonitoring = await MonitoringManager.HasResourceMonitoringAsync(resource.Id);
+        HasResourceMonitoring = resource.HasCapability(ResourceCapabilityIds.Monitoring) &&
+            await MonitoringManager.HasResourceMonitoringAsync(resource.Id);
         OperationCapabilities = await ResourceManager.GetResourceOperationCapabilitiesAsync(resource);
         await RefreshResourceHealthAsync(resource);
     }

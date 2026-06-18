@@ -57,12 +57,20 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Monitoring now has provider-backed snapshot contracts, Control
   Plane API/client support, a generated Management > Monitoring tab, Docker
   container CPU/memory metrics, and a dedicated proposal tracker.
+- Resources that support generated resource monitoring now advertise the
+  `monitoring` resource capability, and Resource Manager requires both that
+  capability and provider monitoring availability before showing the generated
+  Monitoring tab.
 - Docker resource monitoring snapshots now include network I/O, block I/O,
   process count, restart count, and uptime metrics when Docker reports them.
 - Application resources now provide basic process resource monitoring for
   executable and ASP.NET Core project resources, including CPU, memory, thread
   count, process count, and uptime snapshots while the local process is
   running.
+- Single-instance container-backed application resources now expose generated
+  resource Monitoring snapshots from container-host stats when a static/default
+  container host can be resolved; replica-mode container apps remain on the
+  planned provider-owned dashboard path.
 - Configuration Store and Secrets Vault resources now provide the same basic
   service-process resource monitoring snapshots through their local service
   process runner.

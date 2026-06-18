@@ -41,6 +41,18 @@ This capability is not limited to application resources. Any provider can
 advertise it when the resource has an environment-like execution surface and
 the provider owns the persistence and update behavior.
 
+### `monitoring`
+
+The resource supports provider-observed resource monitoring. Resource Manager
+can use this capability as the stable graph signal for a Monitoring view, while
+`IResourceMonitoringProvider.CanMonitor(...)` remains the runtime authority for
+whether the current Control Plane can return a snapshot.
+
+This capability is for resource metrics such as process or container CPU,
+memory, process count, network I/O, block I/O, and provider-observed runtime
+status. Application telemetry metrics remain separate and belong under
+Telemetry.
+
 ### `networking.provider`
 
 The resource participates in network management. This is the broad signal for
