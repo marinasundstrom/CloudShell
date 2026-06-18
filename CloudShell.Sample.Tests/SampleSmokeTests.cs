@@ -994,6 +994,15 @@ public sealed class SampleSmokeTests
         Assert.Equal("load-balancer:public", apiNameAttributes.GetProperty("nameMapping.targetResourceId").GetString());
         Assert.Equal("ProviderSelected", apiNameAttributes.GetProperty("nameMapping.materializationStatus").GetString());
 
+        var apiEndpointsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
+        Assert.Contains("Add route to load balancer", apiEndpointsHtml);
+        Assert.Contains("/resources/load-balancer%3Apublic/details", apiEndpointsHtml);
+        Assert.Contains("tab=general%3Aconfiguration", apiEndpointsHtml);
+        Assert.Contains("targetResourceId=application%3Aapi", apiEndpointsHtml);
+        Assert.Contains("targetEndpointName=http", apiEndpointsHtml);
+        Assert.DoesNotContain("type=cloudshell.loadBalancer", apiEndpointsHtml);
+
         var applyAction = loadBalancer
             .GetProperty("resourceActions")
             .GetProperty("applyLoadBalancerConfiguration");

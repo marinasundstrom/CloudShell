@@ -1,3 +1,5 @@
+@inject IResourceManager ResourceManager
+
 @if (Resource is null)
 {
     <p class="muted">This application resource is unavailable.</p>
@@ -17,7 +19,7 @@ else
                 <FluentAnchor Appearance="Appearance.Neutral"
                               IconStart="@(new Icons.Regular.Size20.ArrowRouting())"
                               Href="@BuildAddLoadBalancerRoute(Resource)">
-                    Add load-balancer route
+                    @GetLoadBalancerActionLabel()
                 </FluentAnchor>
             </div>
         </div>
@@ -48,6 +50,15 @@ else
 
     [Parameter]
     public Resource? Resource { get; set; }
+
+    private IReadOnlyList<Resource> LoadBalancers { get; set; } = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        LoadBalancers = Resource is null
+            ? []
+            : await LoadLoadBalancersAsync(Resource);
+    }
 
     private static bool HasExposureTarget(Resource resource) =>
         resource.Endpoints.Count > 0;
@@ -81,13 +92,54 @@ else
             resource,
             ResourcePredefinedViewIds.Endpoints);
 
-    private static string BuildAddLoadBalancerRoute(Resource resource) =>
-        ApplicationResourceExposureRoutes.BuildAddLoadBalancerRoute(
+    private string BuildAddLoadBalancerRoute(Resource resource)
+    {
+        if (LoadBalancers.Count == 1)
+        {
+            return ApplicationResourceExposureRoutes.BuildUpdateLoadBalancerRoute(
+                LoadBalancers[0].Id,
+                resource,
+                ResourcePredefinedViewIds.Endpoints);
+        }
+
+        return ApplicationResourceExposureRoutes.BuildAddLoadBalancerRoute(
             resource,
             ResourcePredefinedViewIds.Endpoints);
+    }
+
+    private string GetLoadBalancerActionLabel() =>
+        LoadBalancers.Count == 1
+            ? "Add route to load balancer"
+            : "Add load-balancer route";
 
     private static ResourceEndpoint? GetTargetEndpoint(Resource resource) =>
         resource.Endpoints.FirstOrDefault(endpoint =>
             string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase)) ??
         resource.Endpoints.FirstOrDefault();
+
+    private async Task<IReadOnlyList<Resource>> LoadLoadBalancersAsync(Resource resource)
+    {
+        var resourceGroup = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
+        var candidates = await ResourceManager.ListResourcesAsync(new ResourceQuery(ResourceClass: ResourceClass.Network));
+        var result = new List<Resource>();
+        foreach (var candidate in candidates.Where(IsLoadBalancerResource))
+        {
+            var candidateGroup = await ResourceManager.GetResourceGroupForResourceAsync(candidate.Id);
+            if (resourceGroup is null
+                    ? candidateGroup is null
+                    : string.Equals(candidateGroup?.Id, resourceGroup.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(candidate);
+            }
+        }
+
+        return result
+            .OrderBy(candidate => candidate.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static bool IsLoadBalancerResource(Resource resource) =>
+        resource.HasCapability(ResourceCapabilityIds.NetworkingLoadBalancer) ||
+        resource.ResourceLoadBalancerRoutes.Count > 0 ||
+        resource.ResourceAttributes.ContainsKey(ResourceAttributeNames.LoadBalancerProvider);
 }

@@ -1284,6 +1284,29 @@ public sealed class ResourceDeclarationTests
         Assert.Empty(nameMappingType.ResourceTabs);
     }
 
+    [Fact]
+    public void ResourceManagerExtension_RegistersLoadBalancerUpdateComponent()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddControlPlane()
+            .AddExtension<ResourceManagerExtension>();
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var registry = serviceProvider.GetRequiredService<CloudShellExtensionRegistry>();
+        var resourceTypes = registry.Extensions
+            .SelectMany(extension => extension.ResourceTypes)
+            .ToDictionary(resourceType => resourceType.Id, StringComparer.OrdinalIgnoreCase);
+
+        var loadBalancerType = resourceTypes["cloudshell.loadBalancer"];
+
+        Assert.Equal("Load Balancer", loadBalancerType.DisplayName);
+        Assert.Equal(ResourceClass.Network, loadBalancerType.ResourceClass);
+        Assert.Equal(typeof(RegisterLoadBalancerResource), loadBalancerType.RegistrationComponentType);
+        Assert.Equal(typeof(UpdateLoadBalancerResource), loadBalancerType.UpdateComponentType);
+    }
+
     private static void AssertStorageTab(ResourceTypeContribution resourceType)
     {
         var storageTab = Assert.Single(

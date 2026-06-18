@@ -41,6 +41,17 @@ internal static class ApplicationResourceExposureRoutes
             GetTargetEndpoint(resource),
             returnViewId));
 
+    public static string BuildUpdateLoadBalancerRoute(
+        string loadBalancerResourceId,
+        Resource resource,
+        ResourceViewId returnViewId) =>
+        BuildResourceUpdateRoute(
+            loadBalancerResourceId,
+            BuildLoadBalancerRouteQuery(
+                resource.Id,
+                GetTargetEndpoint(resource),
+                returnViewId));
+
     private static Dictionary<string, string?> BuildLoadBalancerQuery(
         string resourceId,
         EndpointSelection? endpoint,
@@ -51,6 +62,29 @@ internal static class ApplicationResourceExposureRoutes
             resourceId,
             endpoint?.Name,
             returnViewId);
+        if (string.Equals(endpoint?.Protocol, "tcp", StringComparison.OrdinalIgnoreCase))
+        {
+            query["routeKind"] = "tcp";
+        }
+
+        return query;
+    }
+
+    private static Dictionary<string, string?> BuildLoadBalancerRouteQuery(
+        string resourceId,
+        EndpointSelection? endpoint,
+        ResourceViewId returnViewId)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["targetResourceId"] = resourceId,
+            ["returnUrl"] = ResourceManagerRoutes.ResourceDetails(resourceId, returnViewId)
+        };
+        if (!string.IsNullOrWhiteSpace(endpoint?.Name))
+        {
+            query["targetEndpointName"] = endpoint.Name;
+        }
+
         if (string.Equals(endpoint?.Protocol, "tcp", StringComparison.OrdinalIgnoreCase))
         {
             query["routeKind"] = "tcp";
@@ -94,6 +128,11 @@ internal static class ApplicationResourceExposureRoutes
     private static string BuildResourceAddRoute(Dictionary<string, string?> query) =>
         BuildRoute("/resources/add", query);
 
+    private static string BuildResourceUpdateRoute(string resourceId, Dictionary<string, string?> query) =>
+        BuildRoute(
+            ResourceManagerRoutes.ResourceDetails(resourceId, ResourcePredefinedViewIds.Configuration),
+            query);
+
     private static string BuildRoute(string path, Dictionary<string, string?> query)
     {
         var queryString = string.Join(
@@ -105,7 +144,7 @@ internal static class ApplicationResourceExposureRoutes
 
         return string.IsNullOrWhiteSpace(queryString)
             ? path
-            : $"{path}?{queryString}";
+            : $"{path}{(path.Contains('?', StringComparison.Ordinal) ? '&' : '?')}{queryString}";
     }
 
     private sealed record EndpointSelection(string Name, string Protocol);

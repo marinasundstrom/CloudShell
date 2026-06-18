@@ -1,0 +1,615 @@
+@using System.Globalization
+@using System.Text.Json
+@inject IResourceManager ResourceManager
+@inject NavigationManager Navigation
+
+@if (LoadBalancer is null)
+{
+    <EmptyState Title="Load balancer unavailable"
+                Message="The load balancer resource may have been removed or is no longer visible." />
+}
+else
+{
+    <div class="type-registration">
+        <div class="form-panel">
+            <label for="load-balancer-update-name">Name</label>
+            <FluentTextField Id="load-balancer-update-name" @bind-Value="Name" />
+
+            <ResourceGroupSelect Id="load-balancer-update-group"
+                                 ResourceGroups="ResourceGroups"
+                                 @bind-Value="SelectedGroupId" />
+
+            <label for="load-balancer-update-provider">Provider</label>
+            <FluentSelect TOption="string"
+                          Id="load-balancer-update-provider"
+                          @bind-Value="Provider"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="traefik">Traefik</FluentOption>
+            </FluentSelect>
+
+            <label for="load-balancer-update-host">Container host</label>
+            <FluentSelect TOption="string"
+                          Id="load-balancer-update-host"
+                          @bind-Value="SelectedHostResourceId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Default container host</FluentOption>
+                @foreach (var host in GetHostCandidates())
+                {
+                    <FluentOption TOption="string" Value="@host.Id">@host.Name</FluentOption>
+                }
+            </FluentSelect>
+
+            <ResourceEditorSection Title="Entrypoints">
+                @if (LoadBalancer.Endpoints.Count == 0)
+                {
+                    <p class="muted">This load balancer does not expose entrypoints.</p>
+                }
+                else
+                {
+                    <div class="generated-list">
+                        @foreach (var endpoint in LoadBalancer.Endpoints)
+                        {
+                            <div>
+                                <strong>@endpoint.Name</strong>
+                                <span>@FormatEntrypoint(endpoint)</span>
+                                <small>@endpoint.Exposure</small>
+                            </div>
+                        }
+                    </div>
+                }
+            </ResourceEditorSection>
+
+            <ResourceEditorSection Title="Routes">
+                @if (LoadBalancer.ResourceLoadBalancerRoutes.Count > 0)
+                {
+                    <div class="generated-list">
+                        @foreach (var route in LoadBalancer.ResourceLoadBalancerRoutes)
+                        {
+                            <div>
+                                <strong>@route.Name</strong>
+                                <span>@FormatRoute(route)</span>
+                                <small>@route.EntrypointName</small>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <label for="load-balancer-update-route">Route</label>
+                <FluentSelect TOption="string"
+                              Id="load-balancer-update-route"
+                              @bind-Value="SelectedRouteId"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">New route</FluentOption>
+                    @foreach (var route in LoadBalancer.ResourceLoadBalancerRoutes)
+                    {
+                        <FluentOption TOption="string" Value="@route.Id">@route.Name</FluentOption>
+                    }
+                </FluentSelect>
+
+                <label for="load-balancer-update-route-name">Route name</label>
+                <FluentTextField Id="load-balancer-update-route-name" @bind-Value="RouteName" />
+
+                <label for="load-balancer-update-route-kind">Route kind</label>
+                <FluentSelect TOption="string"
+                              Id="load-balancer-update-route-kind"
+                              @bind-Value="RouteKind"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="http">HTTP</FluentOption>
+                    <FluentOption TOption="string" Value="tcp">TCP</FluentOption>
+                </FluentSelect>
+
+                <label for="load-balancer-update-entrypoint">Entrypoint</label>
+                <FluentSelect TOption="string"
+                              Id="load-balancer-update-entrypoint"
+                              @bind-Value="EntrypointName"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">Select an entrypoint</FluentOption>
+                    @foreach (var entrypoint in GetRouteEntrypoints())
+                    {
+                        <FluentOption TOption="string" Value="@entrypoint.Name">@entrypoint.Name</FluentOption>
+                    }
+                </FluentSelect>
+
+                @if (IsHttpRoute)
+                {
+                    <label for="load-balancer-update-http-host">Host</label>
+                    <FluentTextField Id="load-balancer-update-http-host" @bind-Value="HttpHost" Placeholder="app.local" />
+
+                    <label for="load-balancer-update-http-path">Path prefix</label>
+                    <FluentTextField Id="load-balancer-update-http-path" @bind-Value="HttpPathPrefix" Placeholder="/v1" />
+                }
+
+                <label for="load-balancer-update-target">Target resource</label>
+                <FluentSelect TOption="string"
+                              Id="load-balancer-update-target"
+                              @bind-Value="TargetResourceId"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">Select a resource</FluentOption>
+                    @foreach (var target in GetTargetCandidates())
+                    {
+                        <FluentOption TOption="string" Value="@target.Id">@target.Name</FluentOption>
+                    }
+                </FluentSelect>
+
+                @if (GetTargetEndpoints(TargetResourceId).Count > 0)
+                {
+                    <label for="load-balancer-update-target-endpoint">Target endpoint</label>
+                    <FluentSelect TOption="string"
+                                  Id="load-balancer-update-target-endpoint"
+                                  @bind-Value="TargetEndpointName"
+                                  Appearance="Appearance.Outline">
+                        <FluentOption TOption="string" Value="">Use target port</FluentOption>
+                        @foreach (var endpoint in GetTargetEndpoints(TargetResourceId))
+                        {
+                            <FluentOption TOption="string" Value="@endpoint.Name">@endpoint.Name</FluentOption>
+                        }
+                    </FluentSelect>
+                }
+
+                <label for="load-balancer-update-target-port">Target port</label>
+                <FluentNumberField TValue="int?" Id="load-balancer-update-target-port" Min="1" @bind-Value="TargetPort" />
+            </ResourceEditorSection>
+
+            @if (ErrorMessage is not null)
+            {
+                <div class="provider-error">@ErrorMessage</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private const string PlatformProviderId = "cloudshell.platform";
+    private const string NetworkResourceType = "cloudshell.network";
+    private const string VirtualNetworkResourceType = "cloudshell.virtualNetwork";
+    private const string LoadBalancerResourceType = "cloudshell.loadBalancer";
+    private const string TargetResourceQueryParameter = "targetResourceId";
+    private const string TargetEndpointQueryParameter = "targetEndpointName";
+    private const string RouteKindQueryParameter = "routeKind";
+
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private Resource? LoadBalancer { get; set; }
+    private ResourceGroup? ResourceGroup { get; set; }
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+    private IReadOnlyList<ResourceGroup> ResourceGroups { get; set; } = [];
+    private IReadOnlyList<Resource> Resources { get; set; } = [];
+    private IReadOnlyDictionary<string, ResourceGroup> ResourceGroupsByResourceId { get; set; } =
+        ResourceManagerUiAccess.EmptyGroupLookup;
+    private string Name { get; set; } = string.Empty;
+    private string Provider { get; set; } = "traefik";
+    private string SelectedHostResourceId { get; set; } = string.Empty;
+    private string SelectedGroupId { get; set; } = string.Empty;
+    private string selectedRouteId = string.Empty;
+    private string SelectedRouteId
+    {
+        get => selectedRouteId;
+        set
+        {
+            selectedRouteId = value;
+            PopulateRouteFieldsFromSelection();
+        }
+    }
+
+    private string RouteName { get; set; } = string.Empty;
+    private string RouteKind { get; set; } = "http";
+    private string EntrypointName { get; set; } = string.Empty;
+    private string HttpHost { get; set; } = string.Empty;
+    private string HttpPathPrefix { get; set; } = string.Empty;
+    private string TargetResourceId { get; set; } = string.Empty;
+    private string TargetEndpointName { get; set; } = string.Empty;
+    private int? TargetPort { get; set; }
+    private string? ErrorMessage { get; set; }
+
+    private bool IsHttpRoute =>
+        string.Equals(RouteKind, "http", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        ResourceGroups = await ResourceManager.ListResourceGroupsAsync();
+        Resources = await ResourceManager.ListResourcesAsync();
+        ResourceGroupsByResourceId = await ResourceManagerUiAccess.CreateGroupLookupAsync(
+            ResourceManager,
+            Resources);
+        LoadBalancer = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : await ResourceManager.GetResourceAsync(ResourceId);
+        ResourceGroup = LoadBalancer is null
+            ? null
+            : await ResourceManager.GetResourceGroupForResourceAsync(LoadBalancer.Id);
+
+        if (LoadBalancer is not null)
+        {
+            Name = LoadBalancer.Name;
+            Provider = GetAttribute(ResourceAttributeNames.LoadBalancerProvider, LoadBalancer.Provider);
+            SelectedHostResourceId = NormalizeHostResourceId(
+                GetAttribute(ResourceAttributeNames.LoadBalancerHostResourceId, string.Empty));
+            SelectedGroupId = ResourceGroup?.Id ?? string.Empty;
+
+            var requestedTargetResourceId = GetRequestedTargetResourceId();
+            if (!string.IsNullOrWhiteSpace(requestedTargetResourceId))
+            {
+                selectedRouteId = string.Empty;
+                PopulateRouteFieldsFromRequest(requestedTargetResourceId);
+            }
+            else
+            {
+                selectedRouteId = LoadBalancer.ResourceLoadBalancerRoutes.FirstOrDefault()?.Id ?? string.Empty;
+                PopulateRouteFieldsFromSelection();
+            }
+        }
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        ErrorMessage = null;
+        if (LoadBalancer is null)
+        {
+            return ResourceProcedureResult.Completed("Load balancer resource is unavailable.");
+        }
+
+        var entrypoints = BuildEntrypoints();
+        if (entrypoints.Count == 0)
+        {
+            ErrorMessage = "Load balancer routes require at least one entrypoint.";
+            return ResourceProcedureResult.Completed(ErrorMessage);
+        }
+
+        var route = BuildRoute();
+        if (route is null)
+        {
+            return ResourceProcedureResult.Completed(ErrorMessage ?? "Load balancer route was not updated.");
+        }
+
+        var routes = LoadBalancer.ResourceLoadBalancerRoutes
+            .Where(existing => !string.Equals(existing.Id, SelectedRouteId, StringComparison.OrdinalIgnoreCase))
+            .Append(route)
+            .ToArray();
+        var definition = new LoadBalancerResourceDefinition(
+            LoadBalancer.Id,
+            string.IsNullOrWhiteSpace(Name) ? LoadBalancer.Name : Name.Trim(),
+            string.IsNullOrWhiteSpace(Provider) ? "traefik" : Provider.Trim(),
+            string.IsNullOrWhiteSpace(SelectedHostResourceId) ? null : SelectedHostResourceId.Trim(),
+            entrypoints,
+            routes,
+            LoadBalancer.State);
+
+        await ResourceManager.CreateResourceAsync(
+            new CreateResourceCommand(
+                PlatformProviderId,
+                LoadBalancerResourceType,
+                LoadBalancer.Id,
+                definition.Name,
+                JsonSerializer.SerializeToElement(definition),
+                string.IsNullOrWhiteSpace(SelectedGroupId) ? null : SelectedGroupId,
+                ResourceClass.Network),
+            cancellationToken);
+
+        return ResourceProcedureResult.Completed(string.IsNullOrWhiteSpace(SelectedRouteId)
+            ? "Load balancer route added."
+            : "Load balancer route updated.");
+    }
+
+    private IReadOnlyList<LoadBalancerEntrypoint> BuildEntrypoints() =>
+        LoadBalancer?.Endpoints
+            .Select(endpoint => new LoadBalancerEntrypoint(
+                endpoint.Name,
+                ParseEndpointProtocol(endpoint.Protocol),
+                Math.Max(1, endpoint.TargetPort ?? 1),
+                endpoint.Exposure))
+            .ToArray() ?? [];
+
+    private LoadBalancerRoute? BuildRoute()
+    {
+        if (string.IsNullOrWhiteSpace(EntrypointName))
+        {
+            ErrorMessage = "Route entrypoint is required.";
+            return null;
+        }
+
+        if (IsHttpRoute && string.IsNullOrWhiteSpace(HttpHost))
+        {
+            ErrorMessage = "HTTP routes require a host.";
+            return null;
+        }
+
+        var target = BuildTarget();
+        if (target is null)
+        {
+            return null;
+        }
+
+        var kind = IsHttpRoute ? LoadBalancerRouteKind.Http : LoadBalancerRouteKind.Tcp;
+        var routeId = string.IsNullOrWhiteSpace(SelectedRouteId)
+            ? CreateRouteId(
+                RouteKind,
+                EntrypointName,
+                IsHttpRoute ? HttpHost : null,
+                IsHttpRoute ? HttpPathPrefix : null,
+                IsHttpRoute ? null : EntrypointName,
+                TargetResourceId,
+                TargetEndpointName,
+                TargetPort?.ToString(CultureInfo.InvariantCulture))
+            : SelectedRouteId;
+        var name = string.IsNullOrWhiteSpace(RouteName)
+            ? FormatRouteName(kind, target)
+            : RouteName.Trim();
+
+        return new LoadBalancerRoute(
+            routeId,
+            name,
+            kind,
+            EntrypointName,
+            IsHttpRoute
+                ? new LoadBalancerRouteMatch(
+                    Host: HttpHost.Trim(),
+                    PathPrefix: string.IsNullOrWhiteSpace(HttpPathPrefix) ? null : HttpPathPrefix.Trim())
+                : new LoadBalancerRouteMatch(Port: ResolveEntrypointPort(EntrypointName)),
+            target);
+    }
+
+    private LoadBalancerRouteTarget? BuildTarget()
+    {
+        if (string.IsNullOrWhiteSpace(TargetResourceId))
+        {
+            ErrorMessage = "Route target resource is required.";
+            return null;
+        }
+
+        if (!GetTargetCandidates().Any(resource => string.Equals(resource.Id, TargetResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            ErrorMessage = "Route target must be in the load balancer group and expose endpoints.";
+            return null;
+        }
+
+        var selectedEndpointName = string.IsNullOrWhiteSpace(TargetEndpointName)
+            ? GetTargetEndpoints(TargetResourceId).FirstOrDefault()?.Name
+            : TargetEndpointName;
+        if (string.IsNullOrWhiteSpace(selectedEndpointName) && TargetPort is null)
+        {
+            ErrorMessage = "Route target endpoint or target port is required.";
+            return null;
+        }
+
+        return new LoadBalancerRouteTarget(
+            TargetResourceId,
+            string.IsNullOrWhiteSpace(selectedEndpointName) ? null : selectedEndpointName,
+            TargetPort);
+    }
+
+    private IReadOnlyList<Resource> GetHostCandidates() =>
+        Resources
+            .Where(resource => !string.Equals(resource.EffectiveTypeId, LoadBalancerResourceType, StringComparison.OrdinalIgnoreCase))
+            .Where(IsContainerHostCandidate)
+            .Where(IsInLoadBalancerGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<Resource> GetTargetCandidates() =>
+        Resources
+            .Where(resource => !IsNetworkBoundaryResource(resource))
+            .Where(resource => !string.Equals(resource.Id, LoadBalancer?.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(resource => resource.Endpoints.Count > 0 || resource.HasCapability(ResourceCapabilityIds.EndpointSource))
+            .Where(IsInLoadBalancerGroup)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private IReadOnlyList<ResourceEndpoint> GetTargetEndpoints(string resourceId) =>
+        Resources
+            .FirstOrDefault(resource => string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase))
+            ?.Endpoints ?? [];
+
+    private IReadOnlyList<ResourceEndpoint> GetRouteEntrypoints() =>
+        LoadBalancer?.Endpoints
+            .Where(endpoint =>
+                IsHttpRoute
+                    ? IsHttpEntrypoint(endpoint)
+                    : IsTcpEntrypoint(endpoint))
+            .OrderBy(endpoint => endpoint.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray() ?? [];
+
+    private void PopulateRouteFieldsFromRequest(string targetResourceId)
+    {
+        var requestedRouteKind = GetRequestedRouteKind();
+        RouteKind = string.Equals(requestedRouteKind, "tcp", StringComparison.OrdinalIgnoreCase)
+            ? "tcp"
+            : "http";
+        EntrypointName = GetRouteEntrypoints().FirstOrDefault()?.Name ?? string.Empty;
+        TargetResourceId = targetResourceId;
+        TargetEndpointName = GetRequestedTargetEndpointName(targetResourceId) ??
+            GetTargetEndpoints(targetResourceId).FirstOrDefault()?.Name ??
+            string.Empty;
+        TargetPort = null;
+        HttpHost = GetDefaultHttpHost(targetResourceId);
+        HttpPathPrefix = string.Empty;
+        RouteName = string.Empty;
+    }
+
+    private void PopulateRouteFieldsFromSelection()
+    {
+        if (LoadBalancer is null)
+        {
+            return;
+        }
+
+        var route = LoadBalancer.ResourceLoadBalancerRoutes.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, SelectedRouteId, StringComparison.OrdinalIgnoreCase));
+        if (route is null)
+        {
+            RouteKind = "http";
+            EntrypointName = GetRouteEntrypoints().FirstOrDefault()?.Name ?? string.Empty;
+            RouteName = string.Empty;
+            HttpHost = string.Empty;
+            HttpPathPrefix = string.Empty;
+            TargetResourceId = string.Empty;
+            TargetEndpointName = string.Empty;
+            TargetPort = null;
+            return;
+        }
+
+        RouteKind = route.Kind == LoadBalancerRouteKind.Tcp ? "tcp" : "http";
+        EntrypointName = route.EntrypointName;
+        RouteName = route.Name;
+        HttpHost = route.Match.Host ?? string.Empty;
+        HttpPathPrefix = route.Match.PathPrefix ?? string.Empty;
+        TargetResourceId = route.Target.ResourceId;
+        TargetEndpointName = route.Target.EndpointName ?? string.Empty;
+        TargetPort = route.Target.Port;
+    }
+
+    private bool IsInLoadBalancerGroup(Resource resource)
+    {
+        var loadBalancerGroup = LoadBalancer is null
+            ? null
+            : ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, LoadBalancer.Id);
+        var group = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, resource.Id);
+        return loadBalancerGroup is null
+            ? group is null
+            : string.Equals(group?.Id, loadBalancerGroup.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string? GetRequestedTargetResourceId()
+    {
+        var requested = GetRequestedQueryValue(TargetResourceQueryParameter);
+        return string.IsNullOrWhiteSpace(requested) ||
+            !GetTargetCandidates().Any(resource => string.Equals(resource.Id, requested, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : requested;
+    }
+
+    private string? GetRequestedTargetEndpointName(string targetResourceId)
+    {
+        var requested = GetRequestedQueryValue(TargetEndpointQueryParameter);
+        return string.IsNullOrWhiteSpace(requested) ||
+            !GetTargetEndpoints(targetResourceId).Any(endpoint => string.Equals(endpoint.Name, requested, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : requested;
+    }
+
+    private string? GetRequestedRouteKind()
+    {
+        var requested = GetRequestedQueryValue(RouteKindQueryParameter);
+        return string.Equals(requested, "tcp", StringComparison.OrdinalIgnoreCase)
+            ? "tcp"
+            : null;
+    }
+
+    private string? GetRequestedQueryValue(string name)
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        return query.TryGetValue(name, out var values)
+            ? values.ToString()
+            : null;
+    }
+
+    private string GetAttribute(string name, string fallback) =>
+        LoadBalancer?.ResourceAttributes.TryGetValue(name, out var value) == true &&
+        !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private int ResolveEntrypointPort(string entrypointName) =>
+        LoadBalancer?.Endpoints.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, entrypointName, StringComparison.OrdinalIgnoreCase))?.TargetPort ?? 1;
+
+    private static string NormalizeHostResourceId(string value) =>
+        string.Equals(value, "default", StringComparison.OrdinalIgnoreCase)
+            ? string.Empty
+            : value;
+
+    private static bool IsContainerHostCandidate(Resource resource) =>
+        resource.HasCapability(ResourceCapabilityIds.ContainerHost) ||
+        (resource.ResourceClass == ResourceClass.Infrastructure &&
+            (resource.EffectiveTypeId.Contains("docker", StringComparison.OrdinalIgnoreCase) ||
+                resource.EffectiveTypeId.Contains("host", StringComparison.OrdinalIgnoreCase)));
+
+    private static bool IsNetworkBoundaryResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, NetworkResourceType, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(resource.EffectiveTypeId, VirtualNetworkResourceType, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsHttpEntrypoint(ResourceEndpoint endpoint) =>
+        string.Equals(endpoint.Protocol, "http", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(endpoint.Protocol, "https", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsTcpEntrypoint(ResourceEndpoint endpoint) =>
+        string.Equals(endpoint.Protocol, "tcp", StringComparison.OrdinalIgnoreCase);
+
+    private static ResourceEndpointProtocol ParseEndpointProtocol(string protocol) =>
+        Enum.TryParse<ResourceEndpointProtocol>(protocol, ignoreCase: true, out var parsed)
+            ? parsed
+            : ResourceEndpointProtocol.Http;
+
+    private static string GetDefaultHttpHost(string targetResourceId)
+    {
+        var name = targetResourceId.Contains(':', StringComparison.Ordinal)
+            ? targetResourceId[(targetResourceId.LastIndexOf(':') + 1)..]
+            : targetResourceId;
+        return $"{CreateRouteId(name)}.local";
+    }
+
+    private static string FormatEntrypoint(ResourceEndpoint endpoint)
+    {
+        var port = endpoint.TargetPort?.ToString(CultureInfo.InvariantCulture) ?? "unspecified";
+        return $"{endpoint.Protocol}:{port}";
+    }
+
+    private string FormatRoute(LoadBalancerRoute route) =>
+        $"{FormatRouteMatch(route)} -> {FormatRouteTarget(route.Target)}";
+
+    private static string FormatRouteMatch(LoadBalancerRoute route)
+    {
+        if (route.Kind == LoadBalancerRouteKind.Tcp)
+        {
+            return $"TCP {route.Match.Port?.ToString(CultureInfo.InvariantCulture) ?? route.EntrypointName}";
+        }
+
+        var host = string.IsNullOrWhiteSpace(route.Match.Host)
+            ? "any host"
+            : route.Match.Host;
+        return string.IsNullOrWhiteSpace(route.Match.PathPrefix)
+            ? host
+            : $"{host}{route.Match.PathPrefix}";
+    }
+
+    private string FormatRouteTarget(LoadBalancerRouteTarget target)
+    {
+        var resource = Resources.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, target.ResourceId, StringComparison.OrdinalIgnoreCase));
+        var label = resource?.Name ?? target.ResourceId;
+        return !string.IsNullOrWhiteSpace(target.EndpointName)
+            ? $"{label}/{target.EndpointName}"
+            : target.Port is null ? label : $"{label}:{target.Port.Value}";
+    }
+
+    private string FormatRouteName(LoadBalancerRouteKind kind, LoadBalancerRouteTarget target) =>
+        kind == LoadBalancerRouteKind.Tcp
+            ? $"TCP {ResolveEntrypointPort(EntrypointName).ToString(CultureInfo.InvariantCulture)} to {target.ResourceId}"
+            : string.IsNullOrWhiteSpace(HttpPathPrefix)
+                ? $"{HttpHost} to {target.ResourceId}"
+                : $"{HttpHost}{HttpPathPrefix} to {target.ResourceId}";
+
+    private static string CreateRouteId(params string?[] parts)
+    {
+        var value = string.Join(
+            "-",
+            parts
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .Select(part => part!.Trim().ToLowerInvariant()));
+        return new string(value
+            .Select(character => char.IsLetterOrDigit(character) ? character : '-')
+            .ToArray())
+            .Trim('-');
+    }
+}

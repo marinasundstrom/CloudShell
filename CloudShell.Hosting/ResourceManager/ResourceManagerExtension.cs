@@ -88,7 +88,7 @@ public sealed class ResourceManagerExtension(bool includeSettings = true) : IClo
                 20,
                 showsApplyButton: true,
                 groupTitle: ResourceTabGroupTitles.General)
-            .AddResourceType<RegisterLoadBalancerResource>(
+            .AddResourceType<RegisterLoadBalancerResource, UpdateLoadBalancerResource>(
                 "cloudshell.loadBalancer",
                 "Load Balancer",
                 "Create provider-backed HTTP, HTTPS, or TCP routes to registered resources.",
