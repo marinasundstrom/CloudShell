@@ -2084,7 +2084,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         public IReadOnlyList<TraceSpan> GetSpans(
             string? resourceId = null,
             string? traceId = null,
-            int maxSpans = 200) => [];
+            int maxSpans = 200,
+            TelemetryScope? scope = null) => [];
 
         public void AddSpans(IEnumerable<TraceSpan> spans)
         {
@@ -2096,7 +2097,8 @@ public sealed class InProcessControlPlaneResourceStateTests
         public IReadOnlyList<MetricPoint> GetPoints(
             string? resourceId = null,
             string? metricName = null,
-            int maxPoints = 200) => [];
+            int maxPoints = 200,
+            TelemetryScope? scope = null) => [];
 
         public void AddPoints(IEnumerable<MetricPoint> points)
         {

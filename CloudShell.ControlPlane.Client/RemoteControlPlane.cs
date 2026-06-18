@@ -512,7 +512,11 @@ public sealed class RemoteControlPlane : IControlPlane
             cancellationToken,
             ("resourceId", query?.ResourceId),
             ("traceId", query?.TraceId),
-            ("maxSpans", (query?.MaxSpans ?? 200).ToString()));
+            ("maxSpans", (query?.MaxSpans ?? 200).ToString()),
+            ("scopeResourceId", query?.Scope?.ScopeResourceId),
+            ("scopeName", query?.Scope?.ScopeName),
+            ("scopeKind", query?.Scope?.ScopeKind),
+            ("deploymentRevision", query?.Scope?.DeploymentRevision));
 
     public async Task IngestTraceSpansAsync(
         IEnumerable<TraceSpan> spans,
@@ -534,7 +538,11 @@ public sealed class RemoteControlPlane : IControlPlane
             cancellationToken,
             ("resourceId", query?.ResourceId),
             ("metricName", query?.MetricName),
-            ("maxPoints", (query?.MaxPoints ?? 200).ToString()));
+            ("maxPoints", (query?.MaxPoints ?? 200).ToString()),
+            ("scopeResourceId", query?.Scope?.ScopeResourceId),
+            ("scopeName", query?.Scope?.ScopeName),
+            ("scopeKind", query?.Scope?.ScopeKind),
+            ("deploymentRevision", query?.Scope?.DeploymentRevision));
 
     public async Task IngestMetricPointsAsync(
         IEnumerable<MetricPoint> points,

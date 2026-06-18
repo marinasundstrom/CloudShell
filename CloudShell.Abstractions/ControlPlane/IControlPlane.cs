@@ -231,7 +231,8 @@ public sealed record LogQuery(
 public sealed record TraceQuery(
     string? ResourceId = null,
     string? TraceId = null,
-    int MaxSpans = 200);
+    int MaxSpans = 200,
+    TelemetryScope? Scope = null);
 
 public sealed record CreateResourceGroupCommand(
     string Name,

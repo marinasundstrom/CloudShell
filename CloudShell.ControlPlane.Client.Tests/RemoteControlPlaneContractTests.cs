@@ -713,12 +713,40 @@ public sealed class RemoteControlPlaneContractTests
             TimeSpan.FromMilliseconds(42),
             new Dictionary<string, string>
             {
-                ["http.method"] = "GET"
+                ["http.method"] = "GET",
+                [TelemetryAttributeNames.ScopeResourceId] = "runtime:orders-1",
+                [TelemetryAttributeNames.ScopeName] = "Instance 1",
+                [TelemetryAttributeNames.ScopeKind] = "containerReplica",
+                [TelemetryAttributeNames.RuntimeReplicaOrdinal] = "1",
+                [TelemetryAttributeNames.RuntimeContainerName] = "orders-api-replica-1",
+                [TelemetryAttributeNames.DeploymentRevision] = "rev-a"
             });
-        await controlPlane.IngestTraceSpansAsync([span]);
+        var otherSpan = span with
+        {
+            SpanId = "span-other",
+            Attributes = new Dictionary<string, string>
+            {
+                ["http.method"] = "GET",
+                [TelemetryAttributeNames.ScopeResourceId] = "runtime:orders-2",
+                [TelemetryAttributeNames.ScopeName] = "Instance 2",
+                [TelemetryAttributeNames.ScopeKind] = "containerReplica",
+                [TelemetryAttributeNames.RuntimeReplicaOrdinal] = "2",
+                [TelemetryAttributeNames.RuntimeContainerName] = "orders-api-replica-2",
+                [TelemetryAttributeNames.DeploymentRevision] = "rev-a"
+            }
+        };
+        await controlPlane.IngestTraceSpansAsync([span, otherSpan]);
 
         var spans = await controlPlane.ListTraceSpansAsync(
-            new TraceQuery(ResourceId: "network:contract", TraceId: "trace-contract", MaxSpans: 10));
+            new TraceQuery(
+                ResourceId: "network:contract",
+                TraceId: "trace-contract",
+                MaxSpans: 10,
+                Scope: new TelemetryScope(
+                    ScopeResourceId: "runtime:orders-1",
+                    ScopeName: "Instance 1",
+                    ScopeKind: "containerReplica",
+                    DeploymentRevision: "rev-a")));
 
         var remoteSpan = Assert.Single(spans);
         Assert.Equal(span.TraceId, remoteSpan.TraceId);
@@ -735,12 +763,39 @@ public sealed class RemoteControlPlaneContractTests
             "count",
             new Dictionary<string, string>
             {
-                ["http.method"] = "GET"
+                ["http.method"] = "GET",
+                [TelemetryAttributeNames.ScopeResourceId] = "runtime:orders-1",
+                [TelemetryAttributeNames.ScopeName] = "Instance 1",
+                [TelemetryAttributeNames.ScopeKind] = "containerReplica",
+                [TelemetryAttributeNames.RuntimeReplicaOrdinal] = "1",
+                [TelemetryAttributeNames.RuntimeContainerName] = "orders-api-replica-1",
+                [TelemetryAttributeNames.DeploymentRevision] = "rev-a"
             });
-        await controlPlane.IngestMetricPointsAsync([metric]);
+        var otherMetric = metric with
+        {
+            Attributes = new Dictionary<string, string>
+            {
+                ["http.method"] = "GET",
+                [TelemetryAttributeNames.ScopeResourceId] = "runtime:orders-2",
+                [TelemetryAttributeNames.ScopeName] = "Instance 2",
+                [TelemetryAttributeNames.ScopeKind] = "containerReplica",
+                [TelemetryAttributeNames.RuntimeReplicaOrdinal] = "2",
+                [TelemetryAttributeNames.RuntimeContainerName] = "orders-api-replica-2",
+                [TelemetryAttributeNames.DeploymentRevision] = "rev-a"
+            }
+        };
+        await controlPlane.IngestMetricPointsAsync([metric, otherMetric]);
 
         var points = await controlPlane.ListMetricPointsAsync(
-            new MetricQuery(ResourceId: "network:contract", MetricName: "http.server.requests", MaxPoints: 10));
+            new MetricQuery(
+                ResourceId: "network:contract",
+                MetricName: "http.server.requests",
+                MaxPoints: 10,
+                Scope: new TelemetryScope(
+                    ScopeResourceId: "runtime:orders-1",
+                    ScopeName: "Instance 1",
+                    ScopeKind: "containerReplica",
+                    DeploymentRevision: "rev-a")));
 
         var remotePoint = Assert.Single(points);
         Assert.Equal(metric.Name, remotePoint.Name);

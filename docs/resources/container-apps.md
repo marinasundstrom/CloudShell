@@ -375,7 +375,7 @@ should default to `All instances` and expose a compact scope or instance
 selector for individual replicas or containers. Logs can use that scope to
 filter source output. Traces stay trace-first and service-aware, so a scope
 filter narrows spans rather than redefining trace ownership. Telemetry Metrics
-should default to app-level aggregate data with optional per-runtime filtering
+should default to app-level aggregate data with optional per-scope filtering
 or breakdowns.
 
 Telemetry records need the stable app `resourceId` plus optional runtime

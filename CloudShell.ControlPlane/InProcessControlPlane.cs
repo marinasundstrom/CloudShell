@@ -655,7 +655,8 @@ public sealed class InProcessControlPlane(
         return Task.FromResult(traces.GetSpans(
             query?.ResourceId,
             query?.TraceId,
-            query?.MaxSpans ?? 200));
+            query?.MaxSpans ?? 200,
+            query?.Scope));
     }
 
     public Task IngestTraceSpansAsync(
@@ -675,7 +676,8 @@ public sealed class InProcessControlPlane(
         return Task.FromResult(metrics.GetPoints(
             query?.ResourceId,
             query?.MetricName,
-            query?.MaxPoints ?? 200));
+            query?.MaxPoints ?? 200,
+            query?.Scope));
     }
 
     public Task IngestMetricPointsAsync(

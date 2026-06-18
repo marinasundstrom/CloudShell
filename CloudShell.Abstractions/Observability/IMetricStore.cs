@@ -7,7 +7,8 @@ public interface IMetricStore
     IReadOnlyList<MetricPoint> GetPoints(
         string? resourceId = null,
         string? metricName = null,
-        int maxPoints = 200);
+        int maxPoints = 200,
+        TelemetryScope? scope = null);
 
     void AddPoints(IEnumerable<MetricPoint> points);
 }
@@ -32,4 +33,5 @@ public sealed record MetricPoint(
 public sealed record MetricQuery(
     string? ResourceId = null,
     string? MetricName = null,
-    int MaxPoints = 200);
+    int MaxPoints = 200,
+    TelemetryScope? Scope = null);

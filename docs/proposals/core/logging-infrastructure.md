@@ -200,13 +200,13 @@ as inline text noise. Log source selection lives in the page header, structured
 entries can be filtered, and selecting a structured entry shows category,
 event, trace/span, exception, and attribute fields in a side pane.
 
-For replicated container apps, Logs should stay scoped to the stable
-container app resource by default. When multiple runtime instances are
-observed, the view should add an `All instances` runtime scope default plus
-per-instance options. A single observed instance should not add selector
-chrome. Implementing that consistently requires log entries or descriptors to
-carry runtime scope dimensions such as runtime resource ID, replica ordinal,
-container name, and deployment revision.
+For multi-instance resources, Logs should stay scoped to the stable managed
+resource by default. When multiple telemetry scopes are observed, the view
+should add an `All instances` default plus provider-defined scope options. A
+single observed scope should not add selector chrome. Implementing that
+consistently requires log entries or descriptors to carry scope dimensions
+such as scope resource ID, scope name, scope kind, and any provider-specific
+details such as replica ordinal, container name, or deployment revision.
 
 Remaining structured-log work should decide:
 
@@ -287,12 +287,13 @@ span table:
   and resource details using shared `traceId`, `spanId`, `resourceId`, and
   service name correlation.
 
-Replicated container apps should also keep traces app-scoped by default. A
-runtime scope selector can narrow spans to one observed instance when that is
-useful, but trace identity remains trace-first and service-aware; a distributed
-trace may cross services and replicas. Telemetry metric views should likewise
-default to app-level aggregates and expose per-runtime scope filtering or
-breakdowns only when metric points carry stable runtime dimensions.
+Multi-instance resources should also keep traces scoped to the stable managed
+resource by default. A scope selector can narrow spans to one observed
+provider-defined scope when that is useful, but trace identity remains
+trace-first and service-aware; a distributed trace may cross services and
+scopes. Telemetry metric views should likewise default to resource-level
+aggregates and expose per-scope filtering or breakdowns only when metric
+points carry stable scope dimensions.
 Provider-observed CPU, memory, restart count, uptime, and materialization
 state remain Resource Metrics under Management > Monitoring.
 

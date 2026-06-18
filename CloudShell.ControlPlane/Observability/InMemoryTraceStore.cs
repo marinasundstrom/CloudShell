@@ -11,7 +11,8 @@ public sealed class InMemoryTraceStore : ITraceStore
     public IReadOnlyList<TraceSpan> GetSpans(
         string? resourceId = null,
         string? traceId = null,
-        int maxSpans = 200)
+        int maxSpans = 200,
+        TelemetryScope? scope = null)
     {
         lock (_gate)
         {
@@ -20,6 +21,8 @@ public sealed class InMemoryTraceStore : ITraceStore
                     string.Equals(span.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
                 .Where(span => string.IsNullOrWhiteSpace(traceId) ||
                     string.Equals(span.TraceId, traceId, StringComparison.OrdinalIgnoreCase))
+                .Where(span => scope?.HasAnyFilter != true ||
+                    scope.Matches(span.SpanAttributes))
                 .OrderByDescending(span => span.StartTime)
                 .Take(Math.Clamp(maxSpans, 1, MaxStoredSpans))
                 .ToArray();

@@ -5,7 +5,8 @@ public interface ITraceStore
     IReadOnlyList<TraceSpan> GetSpans(
         string? resourceId = null,
         string? traceId = null,
-        int maxSpans = 200);
+        int maxSpans = 200,
+        TelemetryScope? scope = null);
 
     void AddSpans(IEnumerable<TraceSpan> spans);
 }

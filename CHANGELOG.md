@@ -92,6 +92,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Container app Deployment and Scale and replicas tabs now appear under an
   Application resource menu group, and replica diagnostics are merged into
   Scale and replicas instead of a separate Replicas tab.
+- Telemetry trace and metric queries now accept provider-neutral scope filters
+  for scope resource ID, scope name, scope kind, and deployment revision so
+  future Resource Manager views can filter multi-instance resource signals by
+  scope.
 
 #### Fixed
 
@@ -125,8 +129,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Control Plane API planning now records live telemetry and resource
   monitoring subscriptions for split-hosted UIs as a later design question
   after basic provider monitoring support.
-- Container app telemetry planning now defines app-scoped Logs, Traces, and
-  Metrics with an `All instances` runtime scope default for replicated apps,
+- Telemetry planning now defines stable resource-scoped Logs, Traces, and
+  Metrics with an `All instances` scope default for multi-instance resources,
   while keeping provider-observed resource metrics under Management >
   Monitoring.
 

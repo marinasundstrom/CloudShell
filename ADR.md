@@ -11,31 +11,34 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-18
 
-### ADR-20260618-001: Keep replicated container app telemetry app-scoped with runtime scope filters
+### ADR-20260618-001: Use provider-neutral scopes for multi-instance telemetry
 
-Container app telemetry belongs to the stable container app resource by
-default, even when the app is implemented by multiple runtime replicas. Logs,
-traces, and telemetry metrics should open at app scope so users can investigate
-the service they manage without navigating to hidden runtime-managed replica
-resources.
+Telemetry belongs to the stable resource users manage by default, even when a
+provider implements that resource with multiple runtime instances, shards,
+replicas, partitions, workers, or other lower-level artifacts. Logs, traces,
+and telemetry metrics should open at resource scope so users can investigate
+the managed service without navigating to hidden or provider-owned
+implementation resources.
 
-When a container app has one observed runtime instance, the resource Telemetry
-views should not show an instance selector. When multiple runtime instances
-exist, Logs, Traces, and Metrics should expose a compact runtime scope selector
-whose default is `All instances`. Individual options represent runtime
-instances or replicas, not independent management targets. The selector should
-be labeled as scope or instance rather than as the primary Replicas management
-concept.
+When a resource has one observed telemetry scope, the resource Telemetry views
+should not show a scope selector. When multiple scopes exist, Logs, Traces, and
+Metrics should expose a compact selector whose default is `All instances`.
+Individual options represent provider-defined telemetry scopes, not independent
+management targets. A container app replica is one scope kind, but the same
+abstraction should work for other providers that expose multiple resources or
+runtime units as telemetry scopes.
 
-Telemetry records should carry the stable app resource identity plus optional
-runtime scope dimensions, such as runtime resource ID, replica ordinal,
-replica count, container name, and deployment revision. Logs use the scope to
+Telemetry records should carry the stable resource identity plus optional
+provider-neutral scope dimensions, such as scope resource ID, scope name, and
+scope kind. Providers can add more specific dimensions such as replica ordinal,
+container name, partition ID, or deployment revision. Logs use the scope to
 filter or combine source output. Traces remain trace-first and service-aware:
-runtime scope filtering may narrow displayed spans, but it should not redefine
-the trace as belonging only to one replica. Telemetry Metrics should default
-to app-level aggregate views and allow per-runtime filtering or breakdowns.
-Provider-observed CPU, memory, restart count, uptime, and container status
-remain Resource Metrics under Management > Monitoring, not Telemetry Metrics.
+scope filtering may narrow displayed spans, but it should not redefine the
+trace as belonging only to one implementation unit. Telemetry Metrics should
+default to resource-level aggregate views and allow per-scope filtering or
+breakdowns. Provider-observed CPU, memory, restart count, uptime, and runtime
+status remain Resource Metrics under Management > Monitoring, not Telemetry
+Metrics.
 
 Related changes: [Changelog](CHANGELOG.md).
 

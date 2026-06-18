@@ -899,10 +899,22 @@ public static class CloudShellControlPlaneApiExtensions
         string? resourceId,
         string? traceId,
         int? maxSpans,
+        string? scopeResourceId,
+        string? scopeName,
+        string? scopeKind,
+        string? deploymentRevision,
         ITraceManager traces,
         CancellationToken cancellationToken) =>
         Results.Ok(await traces.ListTraceSpansAsync(
-                new TraceQuery(resourceId, traceId, Math.Clamp(maxSpans ?? 200, 1, 1000)),
+                new TraceQuery(
+                    resourceId,
+                    traceId,
+                    Math.Clamp(maxSpans ?? 200, 1, 1000),
+                    CreateScope(
+                        scopeResourceId,
+                        scopeName,
+                        scopeKind,
+                        deploymentRevision)),
                 cancellationToken));
 
     private static async Task<IResult> IngestTraceSpans(
@@ -918,11 +930,41 @@ public static class CloudShellControlPlaneApiExtensions
         string? resourceId,
         string? metricName,
         int? maxPoints,
+        string? scopeResourceId,
+        string? scopeName,
+        string? scopeKind,
+        string? deploymentRevision,
         IMetricManager metrics,
         CancellationToken cancellationToken) =>
         Results.Ok(await metrics.ListMetricPointsAsync(
-            new MetricQuery(resourceId, metricName, Math.Clamp(maxPoints ?? 200, 1, 1000)),
+            new MetricQuery(
+                resourceId,
+                metricName,
+                Math.Clamp(maxPoints ?? 200, 1, 1000),
+                CreateScope(
+                    scopeResourceId,
+                    scopeName,
+                    scopeKind,
+                    deploymentRevision)),
             cancellationToken));
+
+    private static TelemetryScope? CreateScope(
+        string? scopeResourceId,
+        string? scopeName,
+        string? scopeKind,
+        string? deploymentRevision)
+    {
+        var scope = new TelemetryScope(
+            NormalizeNullable(scopeResourceId),
+            NormalizeNullable(scopeName),
+            NormalizeNullable(scopeKind),
+            NormalizeNullable(deploymentRevision));
+
+        return scope.HasAnyFilter ? scope : null;
+    }
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static async Task<IResult> IngestMetricPoints(
         MetricIngestRequest request,

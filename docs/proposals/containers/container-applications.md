@@ -188,7 +188,7 @@ Implemented pieces include:
 * structured logs and trace views for application diagnostics
 * app-scoped telemetry design for multi-replica container apps, where
   resource Telemetry views default to all runtime instances and later expose a
-  runtime scope selector only when multiple instances exist
+  telemetry scope selector only when multiple instances exist
 * app-owned ingress for replicated Docker-backed apps
 * inbound virtual-network, load-balancer, and DNS/name-mapping relationship
   display on application overview pages
@@ -281,7 +281,7 @@ Implemented pieces include:
 * Add deeper container-host readiness diagnostics for unsupported ingress,
   public endpoint, DNS/name publication, registry credential, and storage
   choices before update/start.
-* Add runtime scope dimensions to container app logs, traces, and telemetry
+* Add telemetry scope dimensions to container app logs, traces, and telemetry
   metrics so Resource Manager can offer an `All instances` default plus
   per-instance scope filtering when a replicated app has multiple runtime
   instances. Single-instance apps should not show a selector.
@@ -311,5 +311,5 @@ Implemented pieces include:
   TLS/certificate automation exists?
 * What is the smallest useful revision history that belongs to the container
   app before the richer orchestrator deployment/revision model lands?
-* Which runtime scope dimension names should become stable telemetry contract
+* Which telemetry scope dimension names should become stable contract
   fields versus provider-owned attributes on logs, spans, and metric points?

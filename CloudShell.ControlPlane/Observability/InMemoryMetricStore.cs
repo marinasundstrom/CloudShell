@@ -11,7 +11,8 @@ public sealed class InMemoryMetricStore : IMetricStore
     public IReadOnlyList<MetricPoint> GetPoints(
         string? resourceId = null,
         string? metricName = null,
-        int maxPoints = 200)
+        int maxPoints = 200,
+        TelemetryScope? scope = null)
     {
         lock (_gate)
         {
@@ -20,6 +21,8 @@ public sealed class InMemoryMetricStore : IMetricStore
                     string.Equals(point.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase))
                 .Where(point => string.IsNullOrWhiteSpace(metricName) ||
                     string.Equals(point.Name, metricName, StringComparison.OrdinalIgnoreCase))
+                .Where(point => scope?.HasAnyFilter != true ||
+                    scope.Matches(point.MetricAttributes))
                 .OrderByDescending(point => point.Timestamp)
                 .Take(Math.Clamp(maxPoints, 1, MaxStoredPoints))
                 .ToArray();
