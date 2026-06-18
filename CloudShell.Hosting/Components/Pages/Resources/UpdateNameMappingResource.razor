@@ -232,6 +232,18 @@ else
             return ResourceProcedureResult.Completed(ErrorMessage);
         }
 
+        var exposure = GetExposure();
+        if (NameMappingAuthoringConflicts.FindDuplicate(
+                Resources,
+                DnsZone.Id,
+                HostName,
+                exposure,
+                NameMapping.Id) is { } conflict)
+        {
+            ErrorMessage = conflict.Message;
+            return ResourceProcedureResult.Completed(ErrorMessage);
+        }
+
         var name = string.IsNullOrWhiteSpace(Name)
             ? HostName.Trim()
             : Name.Trim();
@@ -242,7 +254,7 @@ else
             HostName,
             TargetResourceId,
             GetTargetEndpointName(),
-            GetExposure(),
+            exposure,
             string.IsNullOrWhiteSpace(ProviderResourceId) ? null : ProviderResourceId);
         var zoneGroup = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, DnsZone.Id);
 

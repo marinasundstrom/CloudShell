@@ -286,6 +286,17 @@
             return;
         }
 
+        var exposure = GetExposure();
+        if (NameMappingAuthoringConflicts.FindDuplicate(
+                Resources,
+                SelectedZoneResourceId,
+                HostName,
+                exposure) is { } conflict)
+        {
+            ErrorMessage = conflict.Message;
+            return;
+        }
+
         var resourceId = string.IsNullOrWhiteSpace(ResourceId)
             ? CreateMappingId(SelectedZoneResourceId, HostName)
             : NormalizeMappingId(SelectedZoneResourceId, ResourceId);
@@ -298,7 +309,7 @@
             HostName,
             TargetResourceId,
             GetTargetEndpointName(),
-            GetExposure(),
+            exposure,
             string.IsNullOrWhiteSpace(ProviderResourceId) ? null : ProviderResourceId);
         var zoneGroup = ResourceManagerUiAccess.GetResourceGroup(ResourceGroupsByResourceId, SelectedZoneResourceId);
 
