@@ -264,9 +264,10 @@ Implemented pieces include:
 * Continue conflict and readiness diagnostics before start/update where
   possible. Load-balancer route-shape validation, duplicate route-match
   validation, duplicate entrypoint validation, host-port conflict validation,
-  and missing target/endpoint action-capability reasons exist; remaining work
-  should focus on DNS/name plus provider-backed endpoint diagnostics where they
-  still affect MVP flows.
+  missing target/endpoint action-capability reasons, and pending-publish
+  diagnostics for provider-selected name mappings exist; remaining work should
+  focus on DNS/name provider-runtime diagnostics where they still affect MVP
+  flows.
 * Add host capability diagnostics for unsupported storage media, ingress,
   public endpoint, or DNS/name publication choices.
 * Add deeper app-owned ingress/provider guidance after the first Scale and

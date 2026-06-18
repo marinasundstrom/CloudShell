@@ -528,13 +528,16 @@ decides later whether and how a specific name is materialized.
 ## Remaining Tasks
 
 * Add provider-specific publish/materialization diagnostics from DNS provider
-  runtime state beyond the current last-reconcile observation.
+  runtime state beyond the current last-reconcile observation. Resource Manager
+  now shows a pending-publish diagnostic for provider-selected mappings that do
+  not have a reconcile observation yet.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add create/update blocking or guided resolution for duplicate names in the
   same scope when DNS/name mappings are authored through Resource Manager.
 * Add richer provider runtime publish diagnostics for local host-name
   reconciliation permissions, generated hosts-file targets, resolver-cache
-  refresh outcomes, and names that cannot be published.
+  refresh outcomes, and names that cannot be published beyond the current
+  reconcile result and pending-publish Resource Manager diagnostic.
 * Add richer UI affordances for authoring and resolving name mappings.
 * Add integration examples with virtual networks and ingress resources.
 * Decide the first provider-backed network-level service discovery sample.

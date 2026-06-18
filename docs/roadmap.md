@@ -334,8 +334,10 @@ listed here before pulling in broader proposal work.
   target/endpoint action-capability reasons are now in place. Resource Manager
   can add or edit routes on an existing load balancer from its Configuration
   tab, and application endpoint shortcuts now prefer the existing load balancer
-  in the same group when there is exactly one candidate. Next it needs richer
-  provider-specific DNS diagnostics when the MVP management flow needs them.
+  in the same group when there is exactly one candidate. Provider-selected
+  name mappings now show a pending-publish diagnostic before the first
+  reconcile observation. Next it needs richer provider-specific DNS runtime
+  diagnostics when the MVP management flow needs them.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when
