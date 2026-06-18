@@ -141,6 +141,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application overview pages now surface Start readiness using existing
   Resource Manager action availability reasons so preflight blockers are
   visible before invoking lifecycle actions.
+- Application overview pages now summarize configured app setting and
+  environment-variable references, including safe target details and identity
+  grant status for configuration and secret references.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

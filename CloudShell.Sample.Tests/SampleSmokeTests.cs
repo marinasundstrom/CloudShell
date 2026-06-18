@@ -494,6 +494,13 @@ public sealed class SampleSmokeTests
         Assert.Contains(">Identity<", apiDetailsHtml);
         Assert.Contains("Start readiness", apiDetailsHtml);
         Assert.Contains("Start preflight checks passed.", apiDetailsHtml);
+        Assert.Contains("Environment references", apiDetailsHtml);
+        Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
+        Assert.Contains("Configuration entry", apiDetailsHtml);
+        Assert.Contains("ApplicationTopology__ExternalApiKey", apiDetailsHtml);
+        Assert.Contains("Secret reference", apiDetailsHtml);
+        Assert.Contains(">Granted<", apiDetailsHtml);
+        Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
 
         var sqlEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");

@@ -114,6 +114,26 @@ else
         </dl>
     </section>
 
+    @if (Application.AppSettings.Count > 0 || Application.EnvironmentVariables.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Environment references</h3>
+            <div class="generated-list">
+                @foreach (var row in GetEnvironmentRows())
+                {
+                    <div>
+                        <strong>@row.Name</strong>
+                        <span>@row.Source</span>
+                        <ApplicationSettingValueCell Row="row" />
+                        <small>
+                            <span class="@row.StatusCssClass">@row.Status</span>
+                        </small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     @if (IsContainerBacked(Application))
     {
         <section class="blade-section">
@@ -870,6 +890,18 @@ else
             ProjectedResource?.IdentityBinding,
             resourceId => ResolveMappingResource(resourceId),
             PermissionGrantEvaluator);
+
+    private IEnumerable<ApplicationSettingDisplayRow> GetEnvironmentRows()
+    {
+        if (Application is null)
+        {
+            return [];
+        }
+
+        return Application.AppSettings
+            .Select(CreateSettingRow)
+            .Concat(Application.EnvironmentVariables.Select(CreateSettingRow));
+    }
 
     private static string BuildResourceRoute(string resourceId) =>
         ResourceManagerRoutes.ResourceOverview(resourceId);
