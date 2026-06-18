@@ -432,6 +432,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("application-topology-api / Console logs", apiLogsHtml);
         Assert.DoesNotContain("application-topology-frontend / Console logs", apiLogsHtml);
 
+        var inlineApiLogsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}");
+        Assert.Contains("Resource telemetry", inlineApiLogsHtml);
+        Assert.Contains("application-topology-api / Console logs", inlineApiLogsHtml);
+        Assert.DoesNotContain("application-topology-frontend / Console logs", inlineApiLogsHtml);
+
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
         AssertResourceTabsInOrder(
