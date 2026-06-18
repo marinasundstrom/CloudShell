@@ -412,8 +412,9 @@ listed here before pulling in broader proposal work.
   then opt into identity and resource-scoped grants when access enforcement is
   needed.
 - Make Resource Manager generated details predictable for common resources:
-  Overview first, resource-specific tabs next, Environment after resource
-  configuration, and Identity/Activity near the bottom.
+  Overview first, resource-specific tabs next, Management tabs for resource
+  concerns such as Environment, Identity, Monitoring, and Activity near the
+  bottom.
 - Keep resource-scoped operations in context. Events should remain under the
   resource Management menu as resource-management history. Logs and Traces now
   render inline from a resource-detail Telemetry menu group when matching

@@ -533,8 +533,9 @@ decides later whether and how a specific name is materialized.
   not have a reconcile observation yet.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add richer guided resolution for duplicate names in the same scope. Resource
-  Manager-authored create/update now blocks duplicate host/exposure mappings
-  before saving.
+  Manager-authored create/update now preflights duplicate host/exposure
+  mappings before submit, and backend setup still rejects duplicates before
+  saving.
 * Add richer provider runtime publish diagnostics for local host-name
   reconciliation permissions, generated hosts-file targets, resolver-cache
   refresh outcomes, and names that cannot be published beyond the current

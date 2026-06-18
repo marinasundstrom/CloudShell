@@ -263,7 +263,7 @@ builder:
 | `management:identity` | Yes | No |
 | `storage:volumes` | Yes | No |
 | `management:activity` | Yes | No |
-| `environment:environment` | Yes | No |
+| `management:environment` | Yes | No |
 | `storage:storage` | Yes | No |
 
 This means:

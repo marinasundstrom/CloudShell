@@ -109,6 +109,11 @@ on `git blame --follow`, and then by the broad type of change.
   users to the DNS zone reconcile action.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
+- Resource Manager DNS name mapping create/update forms now show duplicate
+  host/exposure conflicts before submitting.
+- The generated Resource Manager Environment tab now uses the
+  `management:environment` predefined view ID so it appears under Management
+  with other resource concerns.
 
 #### Fixed
 
