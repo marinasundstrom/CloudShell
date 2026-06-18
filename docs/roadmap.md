@@ -161,7 +161,10 @@ listed here before pulling in broader proposal work.
    Track provider-supported resource Monitoring separately under the resource
    Management group because resource monitoring is about provider-observed
    resource metrics such as process/container CPU and memory usage rather than
-   application telemetry. Keep shared Telemetry pages for cross-resource investigation
+   application telemetry. `management:monitoring` is now the standard
+   predefined resource view ID for provider-owned Monitoring tabs; resource
+   metrics collection and provider implementations remain separate work. Keep
+   shared Telemetry pages for cross-resource investigation
    instead of forcing normal per-resource work through global views. Do not
    start broad new shell areas before the supported samples are stable.
    Keep the current quick-create path as a compact shortcut flow, but plan for
@@ -388,11 +391,13 @@ listed here before pulling in broader proposal work.
   render inline from a resource-detail Telemetry menu group when matching
   application/runtime signals are available. Resource Monitoring should be a
   provider-supported, extensible Management tab for resource metrics such as
-  process/container CPU and memory usage. ASP.NET Core resources already
-  report application-level health checks for the resource; CloudShell does not
-  currently have a separate resource-level health-check model. Cross-resource
-  trace exploration can keep a shared Telemetry area with resource-aware links
-  back into the relevant resource detail views.
+  process/container CPU and memory usage. `management:monitoring` is now the
+  standard predefined resource view ID for provider-owned Monitoring tabs.
+  ASP.NET Core resources already report application-level health checks for
+  the resource; CloudShell does not currently have a separate resource-level
+  health-check model. Cross-resource trace exploration can keep a shared
+  Telemetry area with resource-aware links back into the relevant resource
+  detail views.
 - Keep resource identity clear when display names are enabled: Resource ID
   should appear first in details and overview identity surfaces, while create
   flows ask for the scoped resource name. Resource Manager now has a
@@ -493,7 +498,9 @@ listed here before pulling in broader proposal work.
   related logs, activity entries, and Resource Manager details. Provider-owned
   resource Monitoring is separate from this application telemetry model and
   belongs under the resource Management group when a provider contributes
-  process/container resource metrics such as CPU and memory usage.
+  process/container resource metrics such as CPU and memory usage. Providers
+  should use the standard `management:monitoring` predefined view ID for those
+  Monitoring tabs.
 - Keep the observability taxonomy explicit: Telemetry Events and Telemetry
   Metrics are application/runtime signals; Resource Events and Resource Metrics
   are management/provider-observed signals. Resource Events belong under

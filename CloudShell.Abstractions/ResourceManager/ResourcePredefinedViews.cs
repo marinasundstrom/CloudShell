@@ -18,6 +18,7 @@ public static class ResourcePredefinedViews
         new(ResourcePredefinedViewIds.Identity, "Identity", SupportsSections: false, Icon: "identity"),
         new(ResourcePredefinedViewIds.Volumes, "Volumes", SupportsSections: false, Icon: "volumes"),
         new(ResourcePredefinedViewIds.Activity, "Activity", SupportsSections: false, Icon: "activity"),
+        new(ResourcePredefinedViewIds.Monitoring, "Monitoring", SupportsSections: false, Icon: "monitoring"),
         new(ResourcePredefinedViewIds.Environment, "Environment", SupportsSections: false, Icon: "environment"),
         new(ResourcePredefinedViewIds.Logs, "Logs", SupportsSections: false, Icon: "document"),
         new(ResourcePredefinedViewIds.Traces, "Traces", SupportsSections: false, Icon: "traces"),

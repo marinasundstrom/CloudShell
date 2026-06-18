@@ -43,6 +43,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource detail pages now expose resource logs and traces as inline
   `Telemetry` views when matching signals exist, and trace/log links now keep
   users in the resource detail context.
+- Resource Manager now defines a standard `management:monitoring` predefined
+  resource view ID and icon metadata so providers can contribute resource
+  Monitoring tabs under Management.
 
 #### Fixed
 

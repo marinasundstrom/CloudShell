@@ -23,6 +23,7 @@ internal static class ResourceViewIcons
             "identity" or "permissions" => new Icons.Regular.Size20.LockClosed(),
             "storage" or "volumes" or "volume" => new Icons.Regular.Size20.Storage(),
             "activity" or "events" => new Icons.Regular.Size20.DataUsage(),
+            "monitoring" or "metrics" or "metric" => new Icons.Regular.Size20.ChartMultiple(),
             "environment" => new Icons.Regular.Size20.WindowApps(),
             "document" or "logs" or "log" => new Icons.Regular.Size20.SlideTextSparkle(),
             "traces" or "trace" => new Icons.Regular.Size20.GanttChart(),

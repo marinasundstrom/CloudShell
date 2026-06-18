@@ -9,6 +9,7 @@ public static class ResourcePredefinedViewIds
     public static ResourceViewId Identity { get; } = new(ResourceTabGroupIds.Management, "identity");
     public static ResourceViewId Volumes { get; } = new(ResourceTabGroupIds.Storage, "volumes");
     public static ResourceViewId Activity { get; } = new(ResourceTabGroupIds.Management, "activity");
+    public static ResourceViewId Monitoring { get; } = new(ResourceTabGroupIds.Management, "monitoring");
     public static ResourceViewId Environment { get; } = new(ResourceTabGroupIds.Environment, "environment");
     public static ResourceViewId Logs { get; } = new(ResourceTabGroupIds.Telemetry, "logs");
     public static ResourceViewId Traces { get; } = new(ResourceTabGroupIds.Telemetry, "traces");

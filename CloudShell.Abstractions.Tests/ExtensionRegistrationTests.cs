@@ -155,6 +155,26 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void AddResourceTab_UsesPredefinedMonitoringViewIcon()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<ResourceMonitoringTabExtension>();
+
+        var registry = GetRegistry(services);
+        var resourceType = Assert.Single(
+            Assert.Single(registry.Extensions).ResourceTypes);
+        var tab = Assert.Single(resourceType.ResourceTabs);
+
+        Assert.Equal(ResourcePredefinedViewIds.Monitoring, tab.Id);
+        Assert.Equal("Monitoring", tab.Title);
+        Assert.Equal(ResourceTabGroupIds.Management, tab.GroupId);
+        Assert.Equal("monitoring", tab.Icon);
+    }
+
+    [Fact]
     public void AddResourcePredefinedViewSection_RecordsSectionsForResourceType()
     {
         var services = new ServiceCollection();
@@ -838,6 +858,33 @@ public sealed class ExtensionRegistrationTests
                 .AddResourceTypeEndpoint(
                     "sample.endpoint-descriptors",
                     ResourceEndpointDescriptor.Http(targetPort: 8080));
+        }
+    }
+
+    private sealed class ResourceMonitoringTabExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.monitoring-tab",
+            "Sample monitoring tab",
+            "Contributes a standard resource monitoring tab.",
+            "1.0.0",
+            ["sample.monitoring-tab"],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .AddResourceType<SampleRegistrationPage>(
+                    "sample.monitoring-tab",
+                    "Sample monitoring tab",
+                    "A resource with a provider-owned monitoring tab.",
+                    "sample",
+                    10)
+                .AddResourceTab<SampleOverviewPage>(
+                    "sample.monitoring-tab",
+                    ResourcePredefinedViewIds.Monitoring,
+                    "Monitoring",
+                    30);
         }
     }
 
