@@ -11,5 +11,6 @@ public static class ResourcePredefinedViewIds
     public static ResourceViewId Activity { get; } = new(ResourceTabGroupIds.Management, "activity");
     public static ResourceViewId Environment { get; } = new(ResourceTabGroupIds.Environment, "environment");
     public static ResourceViewId Logs { get; } = new(ResourceTabGroupIds.Telemetry, "logs");
+    public static ResourceViewId Traces { get; } = new(ResourceTabGroupIds.Telemetry, "traces");
     public static ResourceViewId Storage { get; } = new(ResourceTabGroupIds.Storage, "storage");
 }

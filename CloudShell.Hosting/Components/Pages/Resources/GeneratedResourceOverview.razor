@@ -788,8 +788,8 @@
 
     private string BuildTraceRoute() =>
         QueryHelpers.AddQueryString(
-            "/observability/traces",
-            new Dictionary<string, string?> { ["resourceId"] = Resource.Id });
+            ResourceManagerRoutes.ResourceDetails(Resource.Id),
+            new Dictionary<string, string?> { ["tab"] = ResourcePredefinedViewIds.Traces.Value });
 
     private static bool IsLinkEndpoint(string address) =>
         Uri.TryCreate(address, UriKind.Absolute, out var uri) &&

@@ -40,9 +40,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource event queries now support `spanId` filtering alongside `traceId`
   across the in-process store, persisted store, Control Plane API, remote
   client, and Resource Manager related-activity links.
-- Resource detail pages now expose resource logs as an inline `Telemetry`
-  view when log sources exist, and trace related-log links now keep users in
-  the resource detail context.
+- Resource detail pages now expose resource logs and traces as inline
+  `Telemetry` views when matching signals exist, and trace/log links now keep
+  users in the resource detail context.
 
 #### Fixed
 

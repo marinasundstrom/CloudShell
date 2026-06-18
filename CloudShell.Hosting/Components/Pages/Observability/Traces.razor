@@ -14,28 +14,52 @@
     var selected = GetSelectedResource(resources);
 }
 
-<section class="page-heading compact">
-    <div>
-        <span class="eyebrow">@L["Observability"]</span>
-        <h1>@L["Traces"]</h1>
-        <p>@L["Inspect resources that are configured to export distributed traces."]</p>
-    </div>
-    <div class="heading-actions">
-        @if (!string.IsNullOrWhiteSpace(TraceId))
-        {
-            <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
-                @L["Clear trace filter"]
+@if (Inline)
+{
+    <div class="resource-activity-header">
+        <div>
+            <h3>@L["Traces"]</h3>
+            <span>@L["Resource telemetry"]</span>
+        </div>
+        <div class="heading-actions">
+            @if (!string.IsNullOrWhiteSpace(TraceId))
+            {
+                <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
+                    @L["Clear trace filter"]
+                </FluentButton>
+            }
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshSpansAsync">
+                @L["Refresh"]
             </FluentButton>
-        }
-        <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllResources">
-            @L["All trace resources"]
-        </FluentButton>
-        <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
-                      OnClick="RefreshSpansAsync">
-            @L["Refresh"]
-        </FluentButton>
+        </div>
     </div>
-</section>
+}
+else
+{
+    <section class="page-heading compact">
+        <div>
+            <span class="eyebrow">@L["Observability"]</span>
+            <h1>@L["Traces"]</h1>
+            <p>@L["Inspect resources that are configured to export distributed traces."]</p>
+        </div>
+        <div class="heading-actions">
+            @if (!string.IsNullOrWhiteSpace(TraceId))
+            {
+                <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
+                    @L["Clear trace filter"]
+                </FluentButton>
+            }
+            <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllResources">
+                @L["All trace resources"]
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshSpansAsync">
+                @L["Refresh"]
+            </FluentButton>
+        </div>
+    </section>
+}
 
 <section class="trace-workspace">
     <div class="log-viewer panel">
@@ -314,11 +338,16 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
 </section>
 
 @code {
+    [Parameter]
     [SupplyParameterFromQuery]
     public string? ResourceId { get; set; }
 
+    [Parameter]
     [SupplyParameterFromQuery]
     public string? TraceId { get; set; }
+
+    [Parameter]
+    public bool Inline { get; set; }
 
     private System.Threading.Timer? refreshTimer;
     private IReadOnlyList<Resource> TraceResources { get; set; } = [];
@@ -419,10 +448,7 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
             return;
         }
 
-        Navigation.NavigateTo(
-            Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                "/observability/traces",
-                BuildTraceQuery(resourceId, TraceId)));
+        Navigation.NavigateTo(BuildTraceRoute(resourceId, TraceId));
     }
 
     private void ShowAllResources() => Navigation.NavigateTo("/observability/traces");
@@ -432,15 +458,13 @@ span @span.SpanId@(span.ParentSpanId is null ? string.Empty : $" parent {span.Pa
         var selected = GetSelectedResource(TraceResources);
         if (selected is null)
         {
-            Navigation.NavigateTo("/observability/traces");
+            Navigation.NavigateTo(Inline && !string.IsNullOrWhiteSpace(ResourceId)
+                ? ResourceManagerRoutes.ResourceDetails(ResourceId, ResourcePredefinedViewIds.Traces)
+                : "/observability/traces");
             return;
         }
 
-        Navigation.NavigateTo(
-            Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                "/observability/traces",
-                "resourceId",
-                selected.Id));
+        Navigation.NavigateTo(BuildTraceRoute(selected.Id));
     }
 
     private void SelectSpan(TraceSpan span)
@@ -673,10 +697,29 @@ StringComparison.OrdinalIgnoreCase))?.Span
         return ServicePalette[index];
     }
 
-    private static string BuildTraceRoute(string resourceId, string traceId) =>
-        Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+    private string BuildTraceRoute(string resourceId, string? traceId = null)
+    {
+        if (Inline)
+        {
+            var query = new Dictionary<string, string?>
+            {
+                ["tab"] = ResourcePredefinedViewIds.Traces.Value
+            };
+
+            if (!string.IsNullOrWhiteSpace(traceId))
+            {
+                query["traceId"] = traceId.Trim();
+            }
+
+            return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                ResourceManagerRoutes.ResourceDetails(resourceId),
+                query);
+        }
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
             "/observability/traces",
             BuildTraceQuery(resourceId, traceId));
+    }
 
     private static string BuildLogsRoute(string resourceId, string traceId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(

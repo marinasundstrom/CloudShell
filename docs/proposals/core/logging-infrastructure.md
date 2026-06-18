@@ -282,11 +282,10 @@ span table:
 Resource pages should keep common operational investigation in context. Events
 should have a resource-scoped inline view under the Resource Manager
 Management menu because they describe resource-management history. Source logs
-now have a resource-scoped inline view under a Telemetry menu group when log
-sources exist. Traces should follow in the same resource Telemetry group
-instead of requiring users to switch to shared pages for normal per-resource
-work. The shared Telemetry trace explorer remains the cross-resource
-investigation view.
+and traces now have resource-scoped inline views under a Telemetry menu group
+when matching signals exist instead of requiring users to switch to shared
+pages for normal per-resource work. The shared Telemetry trace explorer remains
+the cross-resource investigation view.
 
 This is an interaction target, not a requirement to copy any specific vendor
 UI. CloudShell should keep the view consistent with Resource Manager and should
@@ -323,9 +322,8 @@ base log or event entry a blob store.
   separate.
 - Keep resource-scoped Events under Resource Manager's Management menu as
   resource-management history.
-- Keep resource-scoped Logs under the resource-detail Telemetry menu group.
-- Add resource-scoped Traces under the same Telemetry group before making users
-  leave resource details for routine per-resource investigation.
+- Keep resource-scoped Logs and Traces under the resource-detail Telemetry menu
+  group for routine per-resource investigation.
 - Keep shared Telemetry trace exploration available for cross-resource
   investigation, with clear links between selected spans, resource logs,
   activity entries, and the relevant resource detail views.

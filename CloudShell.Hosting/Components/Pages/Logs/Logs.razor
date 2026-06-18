@@ -916,12 +916,21 @@ else
     private static bool IsTraceMetadata(KeyValuePair<string, string> item) =>
         string.Equals(item.Key, "traceId", StringComparison.OrdinalIgnoreCase);
 
-    private static string BuildTraceRoute(string? resourceId, string traceId)
+    private string BuildTraceRoute(string? resourceId, string traceId)
     {
         var query = new Dictionary<string, string?>
         {
             ["traceId"] = traceId
         };
+
+        if (Inline && !string.IsNullOrWhiteSpace(resourceId))
+        {
+            query["tab"] = ResourcePredefinedViewIds.Traces.Value;
+
+            return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                ResourceManagerRoutes.ResourceDetails(resourceId),
+                query);
+        }
 
         if (!string.IsNullOrWhiteSpace(resourceId))
         {

@@ -167,6 +167,19 @@ public sealed class SampleSmokeTests
         Assert.Contains("Showing entries correlated with trace", relatedLogsHtml);
         Assert.Contains("Clear trace filter", relatedLogsHtml);
 
+        var relatedTracesHtml = await host.GetStringAsync(
+            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}&traceId={traceId}");
+        Assert.Contains("Telemetry", relatedTracesHtml);
+        Assert.Contains("Resource telemetry", relatedTracesHtml);
+        Assert.Contains("Trace chart", relatedTracesHtml);
+        Assert.Contains("id=\"trace-source-filter\"", relatedTracesHtml);
+        Assert.Contains("Related logs", relatedTracesHtml);
+        Assert.Contains("Related activity", relatedTracesHtml);
+        Assert.Contains("Clear trace filter", relatedTracesHtml);
+        Assert.Contains(
+            $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
+            relatedTracesHtml);
+
         var relatedActivityHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&traceId={traceId}&spanId=00f067aa0ba902b7");
         Assert.Contains("Activity", relatedActivityHtml);

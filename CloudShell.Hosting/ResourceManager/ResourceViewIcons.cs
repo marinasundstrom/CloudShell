@@ -24,6 +24,8 @@ internal static class ResourceViewIcons
             "storage" or "volumes" or "volume" => new Icons.Regular.Size20.Storage(),
             "activity" or "events" => new Icons.Regular.Size20.DataUsage(),
             "environment" => new Icons.Regular.Size20.WindowApps(),
+            "document" or "logs" or "log" => new Icons.Regular.Size20.SlideTextSparkle(),
+            "traces" or "trace" => new Icons.Regular.Size20.GanttChart(),
             "runtime" or "deployment" or "replicas" or "containers" => new Icons.Regular.Size20.CubeTree(),
             "scaling" or "scale" => new Icons.Regular.Size20.ChartMultiple(),
             "entries" or "secrets" => new Icons.Regular.Size20.KeyMultiple(),
