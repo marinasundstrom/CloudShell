@@ -157,8 +157,11 @@ listed here before pulling in broader proposal work.
    resource-scoped Events under the resource Management menu for resource
    history. Resource-scoped Logs and Traces now render inline under the
    resource Telemetry menu group when matching signals exist so users can
-   inspect runtime telemetry without losing resource context. Keep shared
-   Telemetry pages for cross-resource investigation
+   inspect application/runtime telemetry without losing resource context.
+   Track provider-supported resource Monitoring separately under the resource
+   Management group because resource monitoring is about provider-observed
+   resource metrics such as process/container CPU and memory usage rather than
+   application telemetry. Keep shared Telemetry pages for cross-resource investigation
    instead of forcing normal per-resource work through global views. Do not
    start broad new shell areas before the supported samples are stable.
    Keep the current quick-create path as a compact shortcut flow, but plan for
@@ -383,9 +386,13 @@ listed here before pulling in broader proposal work.
 - Keep resource-scoped operations in context. Events should remain under the
   resource Management menu as resource-management history. Logs and Traces now
   render inline from a resource-detail Telemetry menu group when matching
-  signals are available, while cross-resource trace exploration can keep a
-  shared Telemetry area with resource-aware links back into the relevant
-  resource detail views.
+  application/runtime signals are available. Resource Monitoring should be a
+  provider-supported, extensible Management tab for resource metrics such as
+  process/container CPU and memory usage. ASP.NET Core resources already
+  report application-level health checks for the resource; CloudShell does not
+  currently have a separate resource-level health-check model. Cross-resource
+  trace exploration can keep a shared Telemetry area with resource-aware links
+  back into the relevant resource detail views.
 - Keep resource identity clear when display names are enabled: Resource ID
   should appear first in details and overview identity surfaces, while create
   flows ask for the scoped resource name. Resource Manager now has a
@@ -483,7 +490,15 @@ listed here before pulling in broader proposal work.
   resource Telemetry menu when trace data exists, while shared Telemetry trace
   pages remain the cross-resource investigation surface. The trace-detail
   target has a service legend, span details panel, and links from spans to
-  related logs, activity entries, and Resource Manager details.
+  related logs, activity entries, and Resource Manager details. Provider-owned
+  resource Monitoring is separate from this application telemetry model and
+  belongs under the resource Management group when a provider contributes
+  process/container resource metrics such as CPU and memory usage.
+- Keep the observability taxonomy explicit: Telemetry Events and Telemetry
+  Metrics are application/runtime signals; Resource Events and Resource Metrics
+  are management/provider-observed signals. Resource Events belong under
+  Management as resource history, Resource Metrics belong in Monitoring under
+  Management, and application telemetry belongs under Telemetry.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.

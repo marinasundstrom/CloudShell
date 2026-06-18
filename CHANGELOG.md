@@ -54,7 +54,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 - Roadmap and logging-infrastructure planning now call out resource-scoped
   inline Events under Resource Manager Management, plus Logs and Traces under
-  a resource-detail Telemetry menu group.
+  a resource-detail Telemetry menu group, while distinguishing application
+  Telemetry Events/Metrics from Resource Events/Metrics and placing provider
+  process/container resource monitoring under Management.
 - Roadmap planning now classifies work as features, backend enhancements, or
   UX enhancements so impact-based ordering can treat UI polish and backend
   capability work independently.
