@@ -466,6 +466,11 @@ best-effort resolver cache refresh using fixed platform commands:
 hosts-file targets skip resolver refresh because they are normally used for
 safe inspection and tests rather than host name resolution.
 
+After reconciliation, Resource Manager projects local host-name publishing
+details onto each affected name mapping. The generated diagnostics show the
+hosts-file target, whether resolver-cache refresh succeeded, failed, or was
+skipped, and `.local` suffix warnings when applicable.
+
 Programmatic declarations can use:
 
 ```csharp

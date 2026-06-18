@@ -107,6 +107,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Provider-selected DNS name mappings now show a Resource Manager
   pending-publish diagnostic before the first reconcile observation, pointing
   users to the DNS zone reconcile action.
+- Local host-name publishing observations now project hosts-file target and
+  resolver-cache refresh details onto name mappings, and Resource Manager
+  shows those as materialization diagnostics after reconcile.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate
@@ -114,6 +117,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The generated Resource Manager Environment tab now uses the
   `management:environment` predefined view ID so it appears under Management
   with other resource concerns.
+- Container app Storage now appears under the Application Resource Manager menu
+  group, and container app Deployment plus Scale and replicas tabs now carry
+  explicit icon metadata.
 
 #### Fixed
 
