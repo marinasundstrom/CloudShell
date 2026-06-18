@@ -20,9 +20,9 @@ balancer just because it is a container app.
 Replicas are an explicit scaling mode, not merely the default value of a
 replica-count field. Programmatic declarations opt into scaling with
 `WithReplicas(...)` or a replica count greater than one. Resource Manager owns
-scaling through a dedicated Scaling tab, where users enable replicas and set
-the desired count. The diagnostic Replicas tab remains focused on projected
-runtime replica artifacts.
+scaling through a dedicated Application > Scale and replicas tab, where users
+enable replicas, set the desired count, and inspect projected runtime replica
+artifacts.
 
 When a container app has inbound endpoints and replicas are enabled,
 CloudShell must provide an ingress or load-balancer strategy so traffic can be
@@ -33,6 +33,11 @@ replicated apps without inbound endpoints do not require a load balancer. A
 later guided Resource Manager flow should prompt users to assign or create a
 load balancer/ingress provider when replicas are enabled for an
 endpoint-bearing app.
+
+Revision management remains a separate future Application view. The current
+Deployment tab can show and update the current projected revision, but
+rollout history, rollback, activation, and traffic splitting should not be
+mixed into Scale and replicas.
 
 Related changes: [Changelog](CHANGELOG.md).
 

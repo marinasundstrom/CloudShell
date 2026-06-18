@@ -156,8 +156,8 @@ Implemented pieces include:
 * `AsContainer(...)` conversion for ASP.NET Core project resources
 * current revision projection when a container app image is updated
 * Resource Manager Deployment tab with image update action
-* Resource Manager Scaling tab for enabling replicas and setting desired
-  replica count
+* Resource Manager Application > Scale and replicas tab for enabling replicas
+  and setting desired replica count
 * app-owned internal deployment projection with status, service id, workload
   version, desired replicas, and projected runtime replicas. This is the
   container app use of the broader default-deployment rule: a resource remains
@@ -172,10 +172,10 @@ Implemented pieces include:
 * hidden runtime-managed child resources for container app replica/container
   projections, parented to and owned by the stable container app resource,
   with deployment/service/revision correlation metadata
-* app-scoped Replicas tab that lists projected runtime replicas without
-  requiring global hidden/runtime-managed inventory settings; single-instance
-  apps explain that replicas are not enabled instead of projecting a
-  single-instance container as a replica set
+* app-scoped Scale and replicas diagnostics that list projected runtime
+  replicas without requiring global hidden/runtime-managed inventory settings;
+  single-instance apps explain that replicas are not enabled instead of
+  projecting a single-instance container as a replica set
 * app-scoped Monitoring tab under Management that summarizes single-instance
   container stats and replicated app resource usage from projected
   replica/container monitoring snapshots when a static/default container host
@@ -225,18 +225,19 @@ Implemented pieces include:
    route, DNS, and provider-backed diagnostics remain open.
 6. Keep image update, current revision, explicit replica scaling, and hidden
    runtime ownership metadata as the MVP deployment surface. Container apps
-   default to single-instance mode; enabling replicas is a deliberate Scaling
-   tab action or programmatic `WithReplicas(...)` declaration. The Scaling tab
-   now prompts endpoint-bearing apps to create a load-balancer route when
-   replicas are enabled. Use the internal orchestrator deployment/revision
-   contracts for container app implementation work, but defer public rollout
-   history, rollback, and traffic splitting to later deployment/revision
-   slices.
-7. Keep the container app Replicas tab app-scoped. It shows app-owned
-   replica/runtime diagnostics to users who can view or manage the container
-   app without requiring the global runtime-managed inventory view; the global
-   `Show runtime-managed resources` setting remains for browsing hidden
-   runtime-managed artifacts directly in the resource inventory.
+   default to single-instance mode; enabling replicas is a deliberate
+   Application > Scale and replicas action or programmatic `WithReplicas(...)`
+   declaration. Scale and replicas now prompts endpoint-bearing apps to create
+   a load-balancer route when replicas are enabled. Use the internal
+   orchestrator deployment/revision contracts for container app implementation
+   work, but defer public rollout history, rollback, revision management, and
+   traffic splitting to later deployment/revision slices.
+7. Keep container app replica diagnostics app-scoped in Scale and replicas. It
+   shows app-owned replica/runtime diagnostics to users who can view or manage
+   the container app without requiring the global runtime-managed inventory
+   view; the global `Show runtime-managed resources` setting remains for
+   browsing hidden runtime-managed artifacts directly in the resource
+   inventory.
 8. Add an app-scoped Monitoring tab for container apps that summarizes
    provider-observed resource metrics for the app and shows each projected
    runtime replica/container separately. This should use the resource
@@ -259,15 +260,15 @@ Implemented pieces include:
   start/update where possible.
 * Add host capability diagnostics for unsupported storage media, ingress,
   public endpoint, or DNS/name publication choices.
-* Add deeper app-owned ingress/provider guidance after the first Scaling tab
-  load-balancer prompt. The endpoint remains owned by the container app: a
+* Add deeper app-owned ingress/provider guidance after the first Scale and
+  replicas load-balancer prompt. The endpoint remains owned by the container app: a
   single container binds it in single-instance mode, and an ingress or load
   balancer binds it on behalf of the app in replicated mode. Worker-style
   replicated apps without inbound endpoints should not require a load balancer.
 * Enrich hidden replica/container child resources with provider-observed
   container IDs, health, placement, and materialization state once providers
   can report them consistently.
-* Enrich the Replicas tab with provider-observed container IDs, placement,
+* Enrich Scale and replicas with provider-observed container IDs, placement,
   health, and materialization state once providers can report them
   consistently.
 * Enrich the provider-owned Monitoring dashboard for container apps with

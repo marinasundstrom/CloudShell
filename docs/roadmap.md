@@ -144,12 +144,12 @@ listed here before pulling in broader proposal work.
    orchestrator service model is clearer. Container app usefulness depends on
    a thin deployment/revision/runtime-owned resource foundation: keep this
    foundation internal and diagnostic first, and do not pull in broad rollout
-   history, rollback, or traffic-splitting work for the MVP. Container apps
-   default to single-instance mode; replicas are an explicit Scaling tab or
-   programmatic `WithReplicas(...)` opt-in. Endpoint-bearing apps now prompt
-   from the Scaling tab to create a load-balancer route when replicas are
-   enabled; deeper app-owned ingress provider diagnostics remain separate
-   hardening work.
+   history, rollback, revision-management views, or traffic-splitting work for
+   the MVP. Container apps default to single-instance mode; replicas are an
+   explicit Application > Scale and replicas tab or programmatic
+   `WithReplicas(...)` opt-in. Endpoint-bearing apps now prompt from Scale and
+   replicas to create a load-balancer route when replicas are enabled; deeper
+   app-owned ingress provider diagnostics remain separate hardening work.
 2. Resource Manager convergence for the same path: keep the app resource page
    as the operator entry point for endpoints, discovery, storage, identity,
    logs, traces, activity, and inbound name mappings. Fix UI consistency and
@@ -245,11 +245,11 @@ listed here before pulling in broader proposal work.
    declared Docker containers remain normal user-managed resources. Generic
    child-resource UI should honor visibility settings; providers should expose
    deliberate host/app-scoped tabs when those artifacts need first-class
-   inspection. Container apps now have an app-scoped Replicas tab for projected
-   runtime children. Next slices should enrich those children only where
-   container apps need provider-observed container IDs, health, placement, or
-   materialization diagnostics, not as a broad public deployment product
-   surface.
+   inspection. Container apps now have app-scoped projected runtime-child
+   diagnostics in Application > Scale and replicas. Next slices should enrich
+   those children only where container apps need provider-observed container
+   IDs, health, placement, or materialization diagnostics, not as a broad
+   public deployment product surface.
 12. Advanced app and environment concepts: defer autoscaling, backend pools,
    traffic splitting, provider-backed network-level service discovery,
    provider-backed DNS propagation, external deployment projection,

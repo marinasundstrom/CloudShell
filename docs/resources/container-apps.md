@@ -148,15 +148,16 @@ own endpoint directly and does not need a load balancer just because it is a
 container app.
 
 Replicas are an explicit scaling mode. Resource Manager exposes this on the
-Scaling tab, where users enable replicas and set the desired count.
+Application > Scale and replicas tab, where users enable replicas and set the
+desired count.
 Programmatic declarations opt in with `.WithReplicas(...)` or by passing a
 replica count greater than one to the container app declaration helpers.
 
 Container apps project replica intent through `container.replicas.enabled` and
 `container.replicas`. The current MVP supports updating that explicit count;
 autoscaling policy, traffic splitting, and replica health are future
-resource-model work. The Replicas tab is diagnostic: it lists projected
-runtime replica artifacts only after scaling is enabled.
+resource-model work. The Scale and replicas tab is also diagnostic: it lists
+projected runtime replica artifacts only after scaling is enabled.
 
 When a container app has inbound endpoints and replicas are enabled,
 CloudShell needs ingress or a load balancer so traffic can be distributed
@@ -203,10 +204,15 @@ projected as a Resource Manager resource by default. It is also distinct from
 the `cloudshell.service` resource type at the CloudShell model/API layer.
 
 Runtime replica child resources carry the app deployment id, orchestrator
-service id, and deployment revision they implement. The app-scoped Replicas tab
-shows those identifiers after scaling is enabled so operators can correlate
-expected runtime artifacts with the current Deployment tab projection without
-enabling global hidden runtime-managed inventory.
+service id, and deployment revision they implement. The app-scoped Scale and
+replicas tab shows those identifiers after scaling is enabled so operators can
+correlate expected runtime artifacts with the current Deployment tab
+projection without enabling global hidden runtime-managed inventory.
+
+Revision management is a separate future Application view. The current
+Deployment tab projects the latest revision and image update operation, but
+CloudShell does not yet expose rollout history, rollback, activation, or
+traffic splitting.
 
 A `cloudshell.service` resource can still be
 declared when a stable CloudShell Service resource or facade should expose

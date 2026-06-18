@@ -89,6 +89,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Configuration Store Entries and Secrets Vault Secrets views now use more
   specific section headings, compact counts, icon-led editor actions, and
   responsive row layouts.
+- Container app Deployment and Scale and replicas tabs now appear under an
+  Application resource menu group, and replica diagnostics are merged into
+  Scale and replicas instead of a separate Replicas tab.
 
 #### Fixed
 

@@ -17,7 +17,7 @@ public sealed class ApplicationResourceExposureRoutesTests
             [
                 new ServicePort("tds", 1433, Protocol: "tcp")
             ]);
-        var returnView = new ResourceViewId(ResourceTabGroupIds.Runtime, "scaling");
+        var returnView = new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas");
 
         var route = ApplicationResourceExposureRoutes.BuildAddLoadBalancerRoute(
             application,

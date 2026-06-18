@@ -10,18 +10,20 @@
 }
 else if (!ApplicationResourceTypes.IsContainerApp(Application.ResourceType))
 {
-    <EmptyState Title="Scaling is not supported"
-                Message="This resource type does not expose container app scaling." />
+    <EmptyState Title="Scale and replicas are not supported"
+                Message="This resource type does not expose container app scale controls." />
 }
 else
 {
     <section class="blade-section">
-        <h3>Scaling</h3>
+        <h3>Scale and replicas</h3>
         <dl class="detail-list">
             <dt>Mode</dt>
             <dd>@(EnableReplicas ? "Replicated" : "Single instance")</dd>
-            <dt>Replicas</dt>
+            <dt>Configured replicas</dt>
             <dd>@(EnableReplicas ? Replicas.ToString(CultureInfo.InvariantCulture) : "not enabled")</dd>
+            <dt>Projected replicas</dt>
+            <dd>@(EnableReplicas ? ProjectedReplicas.Count.ToString(CultureInfo.InvariantCulture) : "not enabled")</dd>
         </dl>
 
         <FluentCheckbox Disabled="@IsReadOnly" @bind-Value="EnableReplicas">
@@ -61,6 +63,87 @@ else
             </div>
         }
     </section>
+
+    @if (EnableReplicas)
+    {
+        <section class="blade-section">
+            <h3>Replica set</h3>
+            @if (ProjectedResource is null)
+            {
+                <EmptyState Title="Replicas are unavailable"
+                            Message="The projected resource may have been removed or is no longer visible." />
+            }
+            else
+            {
+                <dl class="detail-list">
+                    <dt>Deployment</dt>
+                    <dd>@GetAttribute(ProjectedResource, ResourceAttributeNames.DeploymentId, "not projected")</dd>
+                    <dt>Service</dt>
+                    <dd>@GetAttribute(ProjectedResource, ResourceAttributeNames.DeploymentServiceId, "not projected")</dd>
+                    <dt>Revision</dt>
+                    <dd>@GetAttribute(ProjectedResource, ResourceAttributeNames.DeploymentRevision, ProjectedResource.Version)</dd>
+                    <dt>Image</dt>
+                    <dd>@GetAttribute(ProjectedResource, ResourceAttributeNames.ContainerImage, "none")</dd>
+                </dl>
+            }
+        </section>
+
+        <section class="blade-section">
+            <h3>Replicas</h3>
+            @if (ProjectedReplicas.Count == 0)
+            {
+                <EmptyState Title="No replicas are projected"
+                            Message="The provider has not projected runtime replica artifacts for this app." />
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table class="resource-table">
+                        <thead>
+                            <tr>
+                                <th>Replica</th>
+                                <th>State</th>
+                                <th>Revision</th>
+                                <th>Container</th>
+                                <th>Materialization</th>
+                                <th>Host</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var replica in ProjectedReplicas)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="resource-table-identity">
+                                            <span class="resource-kind-icon">
+                                                <FluentIcon Value="@(new Icons.Regular.Size20.CubeTree())" />
+                                            </span>
+                                            <span>
+                                                <strong>@replica.Name</strong>
+                                                <span>@FormatReplicaOrdinal(replica)</span>
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="state-pill @GetStateClass(replica.State)">
+                                            @GetStateLabel(replica.State)
+                                        </span>
+                                    </td>
+                                    <td>@GetAttribute(replica, ResourceAttributeNames.RuntimeRevision, replica.Version)</td>
+                                    <td>
+                                        <strong>@GetAttribute(replica, ResourceAttributeNames.RuntimeContainerName, replica.Name)</strong>
+                                        <span>@replica.Id</span>
+                                    </td>
+                                    <td>@GetMaterializationLabel(replica)</td>
+                                    <td>@GetAttribute(replica, ResourceAttributeNames.ContainerHostId, "default host")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
 }
 
 @code {
@@ -74,11 +157,13 @@ else
     public string? ResourceId { get; set; }
 
     private ApplicationResourceDefinition? Application { get; set; }
+    private Resource? ProjectedResource { get; set; }
+    private IReadOnlyList<Resource> ProjectedReplicas { get; set; } = [];
     private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
     private bool EnableReplicas { get; set; }
     private int Replicas { get; set; } = 2;
     private static readonly ResourceViewId ScalingViewId =
-        new(ResourceTabGroupIds.Runtime, "scaling");
+        new(ResourceTabGroupIds.Application, "scale-replicas");
 
     private bool HasInboundEndpoint =>
         Application?.EndpointPorts.Count > 0;
@@ -95,6 +180,16 @@ else
         Application = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : ApplicationProvider.GetApplication(ResourceId);
+        ProjectedResource = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ResourceManager.GetResource(ResourceId);
+        ProjectedReplicas = ProjectedResource is null
+            ? []
+            : ResourceManager.GetChildren(ProjectedResource.Id)
+                .Where(IsReplicaResource)
+                .OrderBy(GetReplicaOrdinal)
+                .ThenBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
         if (Application is not null)
         {
@@ -155,4 +250,52 @@ else
                 "The container app is running. Restart it to apply scaling changes.")
             : ResourceProcedureResult.Completed("Scaling configuration updated.");
     }
+
+    private static bool IsReplicaResource(Resource resource) =>
+        string.Equals(resource.EffectiveTypeId, "runtime.container", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeKind, string.Empty),
+            "containerReplica",
+            StringComparison.OrdinalIgnoreCase);
+
+    private static int GetReplicaOrdinal(Resource resource) =>
+        int.TryParse(
+            GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, string.Empty),
+            out var ordinal)
+            ? ordinal
+            : int.MaxValue;
+
+    private static string FormatReplicaOrdinal(Resource resource)
+    {
+        var ordinal = GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaOrdinal, "?");
+        var count = GetAttribute(resource, ResourceAttributeNames.RuntimeReplicaCount, "?");
+        return $"{ordinal} of {count}";
+    }
+
+    private static string GetMaterializationLabel(Resource resource) =>
+        GetAttribute(resource, ResourceAttributeNames.RuntimeMaterialization, "unknown") switch
+        {
+            "orchestratorProjection" => "projected by orchestrator",
+            { Length: > 0 } value => value,
+            _ => "unknown"
+        };
+
+    private static string GetAttribute(Resource resource, string key, string fallback) =>
+        resource.ResourceAttributes.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value
+            : fallback;
+
+    private static string GetStateLabel(ResourceState? state) =>
+        state?.ToString() ?? "Unknown";
+
+    private static string GetStateClass(ResourceState? state) => state switch
+    {
+        ResourceState.Running => "state-running",
+        ResourceState.Starting => "state-starting",
+        ResourceState.Stopping => "state-stopping",
+        ResourceState.Paused => "state-paused",
+        ResourceState.Degraded => "state-degraded",
+        ResourceState.Stopped => "state-stopped",
+        _ => "state-unknown"
+    };
 }

@@ -1085,7 +1085,7 @@ public sealed class ResourceDeclarationTests
         var containerAppType = resourceTypes[ApplicationResourceTypes.ContainerApp];
         AssertDeploymentTab(containerAppType);
         AssertScalingTab(containerAppType);
-        AssertReplicaTab(containerAppType);
+        AssertNoStandaloneReplicaTab(containerAppType);
         AssertContainerAppMonitoringTab(containerAppType);
         AssertStorageTab(containerAppType);
         AssertApplicationExposureSection(containerAppType);
@@ -1101,25 +1101,25 @@ public sealed class ResourceDeclarationTests
         AssertResourceEndpointDescriptor(sqlServerType, "tds", 1433, "tcp");
         Assert.DoesNotContain(
             sqlServerType.ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "replicas"));
         Assert.DoesNotContain(
             sqlServerType.ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "scaling"));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"));
         Assert.DoesNotContain(
             sqlServerType.ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "deployment"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "replicas"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "scaling"));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
             tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Storage, "storage"));
         Assert.DoesNotContain(
             resourceTypes[ApplicationResourceTypes.AspNetCoreProject].ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "deployment"));
     }
 
     private static void AssertResourceEndpointDescriptor(
@@ -1311,24 +1311,20 @@ public sealed class ResourceDeclarationTests
     {
         var deploymentTab = Assert.Single(
             resourceType.ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "deployment"));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "deployment"));
 
         Assert.Equal("Deployment", deploymentTab.Title);
+        Assert.Equal(ResourceTabGroupTitles.Application, deploymentTab.GroupTitle);
         Assert.False(deploymentTab.ShowsApplyButton);
         Assert.Equal(20, deploymentTab.Order);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationDeployment), deploymentTab.ComponentType);
     }
 
-    private static void AssertReplicaTab(ResourceTypeContribution resourceType)
+    private static void AssertNoStandaloneReplicaTab(ResourceTypeContribution resourceType)
     {
-        var replicaTab = Assert.Single(
+        Assert.DoesNotContain(
             resourceType.ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "replicas"));
-
-        Assert.Equal("Replicas", replicaTab.Title);
-        Assert.False(replicaTab.ShowsApplyButton);
-        Assert.Equal(40, replicaTab.Order);
-        Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationReplicas), replicaTab.ComponentType);
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "replicas"));
     }
 
     private static void AssertContainerAppMonitoringTab(ResourceTypeContribution resourceType)
@@ -1347,9 +1343,10 @@ public sealed class ResourceDeclarationTests
     {
         var scalingTab = Assert.Single(
             resourceType.ResourceTabs,
-            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Runtime, "scaling"));
+            tab => tab.Id == new ResourceViewId(ResourceTabGroupIds.Application, "scale-replicas"));
 
-        Assert.Equal("Scaling", scalingTab.Title);
+        Assert.Equal("Scale and replicas", scalingTab.Title);
+        Assert.Equal(ResourceTabGroupTitles.Application, scalingTab.GroupTitle);
         Assert.True(scalingTab.ShowsApplyButton);
         Assert.Equal(30, scalingTab.Order);
         Assert.Equal(typeof(CloudShell.Providers.Applications.Pages.ApplicationScaling), scalingTab.ComponentType);

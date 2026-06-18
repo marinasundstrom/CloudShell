@@ -3,6 +3,7 @@ namespace CloudShell.Abstractions.ResourceManager;
 public static class ResourceTabGroupTitles
 {
     public const string General = "General";
+    public const string Application = "Application";
     public const string Networking = "Networking";
     public const string Runtime = "Runtime";
     public const string Storage = "Storage";
