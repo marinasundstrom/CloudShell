@@ -492,6 +492,8 @@ public sealed class SampleSmokeTests
         var apiDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details");
         Assert.Contains(">Identity<", apiDetailsHtml);
+        Assert.Contains("Start readiness", apiDetailsHtml);
+        Assert.Contains("Start preflight checks passed.", apiDetailsHtml);
 
         var sqlEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");

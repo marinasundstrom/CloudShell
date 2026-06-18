@@ -18,6 +18,8 @@
 }
 else
 {
+    var startReadiness = GetStartReadiness();
+
     <section class="blade-section">
         <h3>Essentials</h3>
         <dl class="detail-list">
@@ -143,6 +145,20 @@ else
         </section>
     }
 
+    @if (startReadiness is not null)
+    {
+        <section class="blade-section">
+            <h3>Start readiness</h3>
+            <div class="generated-list">
+                <div>
+                    <strong>@startReadiness.Status</strong>
+                    <span>@startReadiness.Message</span>
+                    <small>@startReadiness.ActionLabel preflight</small>
+                </div>
+            </div>
+        </section>
+    }
+
     @if (ServiceDiscoveryReferences.Count > 0)
     {
         <section class="blade-section">
@@ -256,6 +272,8 @@ else
     private ApplicationResourceDefinition? Application { get; set; }
     private Resource? ProjectedResource { get; set; }
     private ApplicationRuntimeState? RuntimeState { get; set; }
+    private ResourceOperationCapabilities OperationCapabilities { get; set; } =
+        ResourceOperationCapabilities.None(string.Empty);
     private ResourcePermissionGrantEvaluator? PermissionGrantEvaluator { get; set; }
     private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
     private IReadOnlyList<NetworkEndpointMappingView> InboundNetworkMappings { get; set; } = [];
@@ -277,6 +295,9 @@ else
         RuntimeState = Application is null
             ? null
             : RuntimeStates.Get(Application.Id);
+        OperationCapabilities = ProjectedResource is null
+            ? ResourceOperationCapabilities.None(ResourceId ?? string.Empty)
+            : await ResourceManagerClient.GetResourceOperationCapabilitiesAsync(ProjectedResource);
         EffectiveDependencies = Application is null
             ? []
             : ProjectedResource?.DependsOn ?? Application.DependsOn;
@@ -378,6 +399,35 @@ else
         return ContainerHostPlacement.Host.CredentialsAvailable
             ? "Available"
             : "Credentials unavailable";
+    }
+
+    private StartReadinessView? GetStartReadiness()
+    {
+        var action = ProjectedResource?.ResourceActions.FirstOrDefault(action =>
+                action.Kind == ResourceActionKind.Start) ??
+            ProjectedResource?.ResourceActions.FirstOrDefault(action =>
+                action.Kind == ResourceActionKind.Restart);
+        if (action is null)
+        {
+            return null;
+        }
+
+        var reason = OperationCapabilities.GetActionUnavailableReason(action.Id);
+        if (OperationCapabilities.CanExecuteAction(action.Id) &&
+            string.IsNullOrWhiteSpace(reason))
+        {
+            return new StartReadinessView(
+                action.DisplayName,
+                "Ready",
+                $"{action.DisplayName} preflight checks passed.");
+        }
+
+        return new StartReadinessView(
+            action.DisplayName,
+            "Blocked",
+            string.IsNullOrWhiteSpace(reason)
+                ? $"{action.DisplayName} is unavailable for this resource."
+                : reason);
     }
 
     private static string GetContainerHostCapabilitiesLabel(ContainerHostDescriptor host) =>
@@ -1184,6 +1234,11 @@ else
         string? RequestedHostId,
         ContainerHostDescriptor? Host,
         Resource? HostResource);
+
+    private sealed record StartReadinessView(
+        string ActionLabel,
+        string Status,
+        string Message);
 
     private sealed record OverviewEndpoint(
         string? Address,
