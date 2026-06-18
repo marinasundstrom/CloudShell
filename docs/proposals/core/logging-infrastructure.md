@@ -298,6 +298,12 @@ CloudShell should keep the signal taxonomy explicit:
 - Resource metrics are provider-observed process/container measurements such
   as CPU usage, memory usage, restarts, or runtime resource consumption.
 
+Telemetry metrics have a standard predefined resource view ID,
+`telemetry:metrics`, so providers can contribute a consistent application
+metrics tab when application/runtime metric data is available. Metrics
+collection, retention, and provider-owned metrics views remain separate work;
+the predefined ID is only the resource-detail placement convention.
+
 Telemetry is application/runtime signal investigation, not the same concept as
 resource monitoring. Resource monitoring should have a separate
 resource-scoped Monitoring tab under the Resource Manager Management group when
@@ -353,6 +359,9 @@ base log or event entry a blob store.
 - Use the standard `management:monitoring` predefined resource view ID for
   provider-supported resource monitoring tabs. Add resource metrics collection
   and provider-owned Monitoring tab implementations separately.
+- Use the standard `telemetry:metrics` predefined resource view ID for
+  provider-supported application/runtime metrics tabs. Add telemetry metrics
+  collection and provider-owned Metrics tab implementations separately.
 - Keep resource-scoped Logs and Traces under the resource-detail Telemetry menu
   group for routine per-resource investigation.
 - Keep shared Telemetry trace exploration available for cross-resource

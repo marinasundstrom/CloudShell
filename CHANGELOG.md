@@ -46,6 +46,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Manager now defines a standard `management:monitoring` predefined
   resource view ID and icon metadata so providers can contribute resource
   Monitoring tabs under Management.
+- Resource Manager now defines a standard `telemetry:metrics` predefined
+  resource view ID and icon metadata so providers can contribute application
+  Metrics tabs under Telemetry.
 - Configuration Store and Secrets Vault resource detail menus now use the
   generated General Configuration tab instead of duplicate Settings tabs, and
   place Entries and Secrets under General with distinct icon metadata.

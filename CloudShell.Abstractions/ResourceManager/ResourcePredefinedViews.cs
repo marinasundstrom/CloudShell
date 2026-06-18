@@ -22,6 +22,7 @@ public static class ResourcePredefinedViews
         new(ResourcePredefinedViewIds.Environment, "Environment", SupportsSections: false, Icon: "environment"),
         new(ResourcePredefinedViewIds.Logs, "Logs", SupportsSections: false, Icon: "document"),
         new(ResourcePredefinedViewIds.Traces, "Traces", SupportsSections: false, Icon: "traces"),
+        new(ResourcePredefinedViewIds.Metrics, "Metrics", SupportsSections: false, Icon: "metrics"),
         new(ResourcePredefinedViewIds.Storage, "Storage", SupportsSections: false, Icon: "storage")
     ];
 

@@ -158,6 +158,9 @@ listed here before pulling in broader proposal work.
    history. Resource-scoped Logs and Traces now render inline under the
    resource Telemetry menu group when matching signals exist so users can
    inspect application/runtime telemetry without losing resource context.
+   `telemetry:metrics` is now the standard predefined resource view ID for
+   provider-owned application/runtime Metrics tabs; telemetry metrics
+   collection and provider implementations remain separate work.
    Track provider-supported resource Monitoring separately under the resource
    Management group because resource monitoring is about provider-observed
    resource metrics such as process/container CPU and memory usage rather than
@@ -505,7 +508,9 @@ listed here before pulling in broader proposal work.
   Metrics are application/runtime signals; Resource Events and Resource Metrics
   are management/provider-observed signals. Resource Events belong under
   Management as resource history, Resource Metrics belong in Monitoring under
-  Management, and application telemetry belongs under Telemetry.
+  Management, and application telemetry belongs under Telemetry. Providers
+  should use `telemetry:metrics` for application/runtime metrics tabs and
+  `management:monitoring` for process/container resource metrics tabs.
 - Define only the audit event schemas needed by current MVP operations:
   resource actions, host/runtime operations, image deployments, authorization
   decisions, identity provisioning, configuration reads, and secret reads.

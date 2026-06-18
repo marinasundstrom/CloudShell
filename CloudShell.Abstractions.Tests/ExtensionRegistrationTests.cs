@@ -176,6 +176,26 @@ public sealed class ExtensionRegistrationTests
     }
 
     [Fact]
+    public void AddResourceTab_UsesPredefinedMetricsViewIcon()
+    {
+        var services = new ServiceCollection();
+
+        services
+            .AddCloudShell()
+            .AddExtension<ResourceMetricsTabExtension>();
+
+        var registry = GetRegistry(services);
+        var resourceType = Assert.Single(
+            Assert.Single(registry.Extensions).ResourceTypes);
+        var tab = Assert.Single(resourceType.ResourceTabs);
+
+        Assert.Equal(ResourcePredefinedViewIds.Metrics, tab.Id);
+        Assert.Equal("Metrics", tab.Title);
+        Assert.Equal(ResourceTabGroupIds.Telemetry, tab.GroupId);
+        Assert.Equal("metrics", tab.Icon);
+    }
+
+    [Fact]
     public void ConfigurationProviderExtension_RegistersEntriesUnderGeneralWithoutSettingsTab()
     {
         var services = new ServiceCollection();
@@ -940,6 +960,33 @@ public sealed class ExtensionRegistrationTests
                     ResourcePredefinedViewIds.Monitoring,
                     "Monitoring",
                     30);
+        }
+    }
+
+    private sealed class ResourceMetricsTabExtension : ICloudShellExtension
+    {
+        public CloudShellExtensionManifest Manifest => new(
+            "sample.metrics-tab",
+            "Sample metrics tab",
+            "Contributes a standard resource telemetry metrics tab.",
+            "1.0.0",
+            ["sample.metrics-tab"],
+            []);
+
+        public void Configure(ICloudShellExtensionBuilder builder)
+        {
+            builder
+                .AddResourceType<SampleRegistrationPage>(
+                    "sample.metrics-tab",
+                    "Sample metrics tab",
+                    "A resource with a provider-owned telemetry metrics tab.",
+                    "sample",
+                    10)
+                .AddResourceTab<SampleOverviewPage>(
+                    "sample.metrics-tab",
+                    ResourcePredefinedViewIds.Metrics,
+                    "Metrics",
+                    40);
         }
     }
 
