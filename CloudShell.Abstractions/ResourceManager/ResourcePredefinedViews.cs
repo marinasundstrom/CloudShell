@@ -19,6 +19,7 @@ public static class ResourcePredefinedViews
         new(ResourcePredefinedViewIds.Volumes, "Volumes", SupportsSections: false, Icon: "volumes"),
         new(ResourcePredefinedViewIds.Activity, "Activity", SupportsSections: false, Icon: "activity"),
         new(ResourcePredefinedViewIds.Environment, "Environment", SupportsSections: false, Icon: "environment"),
+        new(ResourcePredefinedViewIds.Logs, "Logs", SupportsSections: false, Icon: "document"),
         new(ResourcePredefinedViewIds.Storage, "Storage", SupportsSections: false, Icon: "storage")
     ];
 

@@ -779,11 +779,11 @@
     {
         var query = new Dictionary<string, string?>
         {
-            ["resourceId"] = Resource.Id,
+            ["tab"] = ResourcePredefinedViewIds.Logs.Value,
             ["logId"] = log.Id
         };
 
-        return QueryHelpers.AddQueryString("/logs", query);
+        return QueryHelpers.AddQueryString(ResourceManagerRoutes.ResourceDetails(Resource.Id), query);
     }
 
     private string BuildTraceRoute() =>

@@ -23,7 +23,7 @@
         ? null
         : ShellCatalog.ResourceTypes.FirstOrDefault(type =>
             string.Equals(type.Id, resource.EffectiveTypeId, StringComparison.OrdinalIgnoreCase));
-    var tabs = BuildTabs(resource, resourceType, HasIdentityPermissionGrants);
+    var tabs = BuildTabs(resource, resourceType, HasIdentityPermissionGrants, ResourceLogs.Count > 0);
     var selectedTab = tabs.FirstOrDefault(tab => tab.Id == SelectedTabId) ?? tabs.FirstOrDefault();
     var isGeneratedOverview = selectedTab?.ComponentType == typeof(GeneratedResourceOverview);
     var isReadOnly = ResourceManagerUiOptions.Value.ReadOnly;
@@ -219,6 +219,7 @@
     private static readonly ResourceViewId GeneratedIdentityTabId = ResourcePredefinedViewIds.Identity;
     private static readonly ResourceViewId GeneratedStorageVolumesTabId = ResourcePredefinedViewIds.Volumes;
     private static readonly ResourceViewId GeneratedActivityTabId = ResourcePredefinedViewIds.Activity;
+    private static readonly ResourceViewId GeneratedLogsTabId = ResourcePredefinedViewIds.Logs;
 
     [Parameter]
     public string? ResourceId { get; set; }
@@ -231,6 +232,9 @@
 
     [SupplyParameterFromQuery(Name = "spanId")]
     private string? RequestedSpanId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "logId")]
+    private string? RequestedLogId { get; set; }
 
     private ResourceConfigurationContext? ConfigurationContext { get; set; }
     private Resource? Resource { get; set; }
@@ -617,6 +621,12 @@
             parameters["TraceId"] = RequestedTraceId;
             parameters["SpanId"] = RequestedSpanId;
         }
+        else if (selectedTab.Id == GeneratedLogsTabId)
+        {
+            parameters["LogId"] = RequestedLogId;
+            parameters["TraceId"] = RequestedTraceId;
+            parameters["Inline"] = true;
+        }
 
         return parameters;
     }
@@ -628,7 +638,8 @@
     private static IReadOnlyList<ResourceTabContribution> BuildTabs(
         Resource? resource,
         ResourceTypeContribution? resourceType,
-        bool hasIdentityPermissionGrants)
+        bool hasIdentityPermissionGrants,
+        bool hasResourceLogs)
     {
         var contributedTabs = resourceType?.ResourceTabs ?? [];
         var tabs = new List<ResourceTabContribution>();
@@ -728,6 +739,18 @@
                 Icon: GetPredefinedViewIcon(ResourcePredefinedViewIds.Environment)));
         }
 
+        if (hasResourceLogs &&
+            !contributedTabs.Any(tab => tab.Id == GeneratedLogsTabId))
+        {
+            tabs.Add(new ResourceTabContribution(
+                GeneratedLogsTabId,
+                "Logs",
+                70,
+                typeof(CloudShell.Hosting.Components.Pages.Logs.Logs),
+                GroupTitle: ResourceTabGroupTitles.Telemetry,
+                Icon: GetPredefinedViewIcon(GeneratedLogsTabId)));
+        }
+
         return tabs
             .Concat(contributedTabs)
             .OrderBy(GetResourceTabOrder)
@@ -779,8 +802,21 @@
             currentGroup.Tabs.Add(tab);
         }
 
-        return groups;
+        return groups
+            .Select((group, index) => new { Group = group, Index = index })
+            .OrderBy(item => GetResourceTabGroupOrder(item.Group.Id))
+            .ThenBy(item => item.Index)
+            .Select(item => item.Group)
+            .ToArray();
     }
+
+    private static int GetResourceTabGroupOrder(string groupId) =>
+        groupId switch
+        {
+            ResourceTabGroupIds.Telemetry => 90,
+            ResourceTabGroupIds.Management => 100,
+            _ => 0
+        };
 
     private static string ResolveResourceTabGroupTitle(ResourceTabContribution tab) =>
         !string.IsNullOrWhiteSpace(tab.GroupTitle)
@@ -791,6 +827,7 @@
                 ResourceTabGroupIds.Networking => ResourceTabGroupTitles.Networking,
                 ResourceTabGroupIds.Storage => ResourceTabGroupTitles.Storage,
                 ResourceTabGroupIds.Environment => ResourceTabGroupTitles.Environment,
+                ResourceTabGroupIds.Telemetry => ResourceTabGroupTitles.Telemetry,
                 ResourceTabGroupIds.Management => ResourceTabGroupTitles.Management,
                 ResourceTabGroupIds.Runtime => ResourceTabGroupTitles.Runtime,
                 ResourceTabGroupIds.Entries => ResourceTabGroupTitles.Entries,
@@ -977,7 +1014,7 @@
 
         var query = new Dictionary<string, string?>
         {
-            ["resourceId"] = Resource.Id
+            ["tab"] = ResourcePredefinedViewIds.Logs.Value
         };
 
         if (ResourceLogs.Count == 1)
@@ -985,7 +1022,9 @@
             query["logId"] = ResourceLogs[0].Id;
         }
 
-        Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
+        Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            ResourceManagerRoutes.ResourceDetails(Resource.Id),
+            query));
     }
 
     private string GetLogsActionLabel(int logCount) =>

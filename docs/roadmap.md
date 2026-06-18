@@ -155,8 +155,9 @@ listed here before pulling in broader proposal work.
    logs, traces, activity, and inbound name mappings. Fix UI consistency and
    generated details when they block understanding of those resources. Add
    resource-scoped Events under the resource Management menu for resource
-   history, and add a resource-scoped Telemetry menu group with inline Logs and
-   Traces views so users can inspect runtime telemetry without losing resource
+   history. Resource-scoped Logs now render inline under the resource
+   Telemetry menu group when log sources exist; next add resource-scoped Traces
+   there so users can inspect runtime telemetry without losing resource
    context. Keep shared Telemetry pages for cross-resource investigation
    instead of forcing normal per-resource work through global views. Do not
    start broad new shell areas before the supported samples are stable.
@@ -380,11 +381,11 @@ listed here before pulling in broader proposal work.
   Overview first, resource-specific tabs next, Environment after resource
   configuration, and Identity/Activity near the bottom.
 - Keep resource-scoped operations in context. Events should remain under the
-  resource Management menu as resource-management history. Logs and Traces
-  should be reachable from a resource-detail Telemetry menu group and render
-  inline on the resource page, while cross-resource trace exploration can keep
-  a shared Telemetry area with resource-aware links back into the relevant
-  resource detail views.
+  resource Management menu as resource-management history. Logs now render
+  inline from a resource-detail Telemetry menu group; Traces should follow
+  there when retained spans are available, while cross-resource trace
+  exploration can keep a shared Telemetry area with resource-aware links back
+  into the relevant resource detail views.
 - Keep resource identity clear when display names are enabled: Resource ID
   should appear first in details and overview identity surfaces, while create
   flows ask for the scoped resource name. Resource Manager now has a
