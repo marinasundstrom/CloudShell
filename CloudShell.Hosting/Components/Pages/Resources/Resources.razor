@@ -1451,6 +1451,27 @@ resourceGroups) =>
         IsUserManagedNormalResource(resource) &&
         GetCapabilities(resource).CanExecuteAction(action.Id);
 
+    private string GetActionTitle(Resource resource, ResourceAction action)
+    {
+        if (IsReadOnly)
+        {
+            return $"{action.DisplayName} unavailable. Resource Manager is in read-only mode.";
+        }
+
+        if (!IsUserManagedNormalResource(resource))
+        {
+            return $"{action.DisplayName} unavailable. Resource is not user-managed.";
+        }
+
+        var reason = GetCapabilities(resource).GetActionUnavailableReason(action.Id);
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            return $"{action.DisplayName} unavailable. {reason}";
+        }
+
+        return action.DisplayName;
+    }
+
     private ResourceOperationCapabilities GetCapabilities(Resource resource) =>
         ResourceCapabilities.GetValueOrDefault(resource.Id) ??
         ResourceOperationCapabilities.None(resource.Id);
@@ -1839,7 +1860,7 @@ resourceGroups) =>
             builder.AddAttribute(sequence++, "Class", "action-icon-button");
             builder.AddAttribute(sequence++, "Appearance", Appearance.Neutral);
             builder.AddAttribute(sequence++, "Style", "width: 2rem; min-width: 2rem;");
-            builder.AddAttribute(sequence++, "Title", action.DisplayName);
+            builder.AddAttribute(sequence++, "Title", GetActionTitle(resource, action));
             builder.AddAttribute(sequence++, "Disabled",
                 !CanExecuteAction(resource, action) || IsExecutingAction(resource, action));
             builder.AddAttribute(sequence++, "OnClick",

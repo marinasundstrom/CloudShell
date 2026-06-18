@@ -283,6 +283,9 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain(">Add resource<", resourcesHtml);
         Assert.DoesNotContain(">Create group<", resourcesHtml);
 
+        var resourceDetailsHtml = await host.GetStringAsync("/resources/application%3Aproject-reference-api/details");
+        Assert.Contains("Stop unavailable. Resource Manager is in read-only mode.", resourceDetailsHtml);
+
         var addResourceHtml = await host.GetStringAsync("/resources/add");
         Assert.Contains("Resource registration is disabled", addResourceHtml);
         Assert.DoesNotContain("Create a resource group", addResourceHtml);

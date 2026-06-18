@@ -1000,7 +1000,7 @@
             builder.OpenComponent<FluentButton>(sequence++);
             builder.AddAttribute(sequence++, "Class", "action-icon-button");
             builder.AddAttribute(sequence++, "Appearance", Appearance.Neutral);
-            builder.AddAttribute(sequence++, "Title", action.DisplayName);
+            builder.AddAttribute(sequence++, "Title", GetActionTitle(action));
             builder.AddAttribute(sequence++, "Disabled", !CanExecuteAction(action) || IsExecutingAction(action));
             builder.AddAttribute(sequence++, "OnClick",
                 EventCallback.Factory.Create<MouseEventArgs>(this, () => ExecuteAction(action)));
@@ -1057,6 +1057,22 @@
 
     private bool CanExecuteAction(ResourceAction action) =>
         !IsReadOnly && OperationCapabilities.CanExecuteAction(action.Id);
+
+    private string GetActionTitle(ResourceAction action)
+    {
+        if (IsReadOnly)
+        {
+            return $"{action.DisplayName} unavailable. Resource Manager is in read-only mode.";
+        }
+
+        var reason = OperationCapabilities.GetActionUnavailableReason(action.Id);
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            return $"{action.DisplayName} unavailable. {reason}";
+        }
+
+        return action.DisplayName;
+    }
 
     private bool CanApplyResourceChanges() =>
         !IsReadOnly && OperationCapabilities.CanManage;
