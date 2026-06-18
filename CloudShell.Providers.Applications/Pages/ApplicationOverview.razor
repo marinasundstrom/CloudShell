@@ -269,6 +269,49 @@ else
                     </a>
                 </dd>
             </dl>
+            @if (InboundNetworkMappings.Count > 0 ||
+                InboundLoadBalancerRoutes.Count > 0 ||
+                InboundNameMappings.Count > 0)
+            {
+                <div class="generated-list">
+                    @foreach (var mapping in InboundNetworkMappings)
+                    {
+                        <div>
+                            <strong>
+                                <a class="resource-link" href="@BuildResourceRoute(mapping.Network.Id)">
+                                    @mapping.Network.Name
+                                </a>
+                            </strong>
+                            <span>@FormatMappingSummary(mapping.Mapping, mapping.Network, Application.Id)</span>
+                            <small>@FormatMappingProvider(mapping.Mapping)</small>
+                        </div>
+                    }
+                    @foreach (var route in InboundLoadBalancerRoutes)
+                    {
+                        <div>
+                            <strong>
+                                <a class="resource-link" href="@BuildResourceRoute(route.LoadBalancer.Id)">
+                                    @route.LoadBalancer.Name
+                                </a>
+                            </strong>
+                            <span>@FormatLoadBalancerRoute(route.Route)</span>
+                            <small>Load-balancer route</small>
+                        </div>
+                    }
+                    @foreach (var mapping in InboundNameMappings)
+                    {
+                        <div>
+                            <strong>
+                                <a class="resource-link" href="@BuildResourceRoute(mapping.Mapping.Id)">
+                                    @ApplicationNameMappingDisplay.GetHostName(mapping.Mapping)
+                                </a>
+                            </strong>
+                            <span>@ApplicationNameMappingDisplay.GetSummary(mapping.Mapping, Application.Name)</span>
+                            <small>@FormatNameMappingMetadata(mapping)</small>
+                        </div>
+                    }
+                </div>
+            }
         </section>
     }
 

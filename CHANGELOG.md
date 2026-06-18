@@ -153,6 +153,8 @@ on `git blame --follow`, and then by the broad type of change.
   control-plane action-unavailable reasons in their titles.
 - Application overview pages now show configured storage mounts with volume,
   target path, access mode, and runtime materialization status.
+- Application overview pages now list inbound network mappings,
+  load-balancer routes, and DNS name mappings with target and provider status.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

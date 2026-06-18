@@ -514,6 +514,14 @@ public sealed class SampleSmokeTests
         Assert.Contains("This resource is a startup declaration.", apiEnvironmentHtml);
         Assert.Contains("host startup code remains the source of truth", apiEnvironmentHtml);
 
+        var frontendDetailsHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details");
+        Assert.Contains("app.application-topology.cloudshell.local", frontendDetailsHtml);
+        Assert.Contains("app.application-topology.cloudshell.local -&gt; application-topology-frontend/http", frontendDetailsHtml);
+        Assert.Contains("Zone: application-topology-local", frontendDetailsHtml);
+        Assert.Contains("Provider: local-hostnames", frontendDetailsHtml);
+        Assert.Contains("Materialization: provider selected", frontendDetailsHtml);
+
         var sqlEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
         Assert.Contains("Application exposure", sqlEndpointsHtml);
