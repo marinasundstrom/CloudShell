@@ -47,6 +47,12 @@ on `git blame --follow`, and then by the broad type of change.
   the Resource Manager projection instead of resolving scoped resource
   providers from the root service provider.
 
+#### Documentation
+
+- Roadmap and logging-infrastructure planning now call out resource-scoped
+  inline Events and Logs views under Resource Manager Management, plus a
+  resource-aware Observability entry point for traces.
+
 ### 2026-06-17
 
 #### Changed
