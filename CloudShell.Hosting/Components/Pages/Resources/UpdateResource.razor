@@ -633,7 +633,6 @@
         {
             parameters["LogId"] = RequestedLogId;
             parameters["TraceId"] = RequestedTraceId;
-            parameters["Inline"] = true;
         }
         else if (selectedTab.Id == GeneratedTracesTabId)
         {
@@ -776,7 +775,7 @@
                 GeneratedLogsTabId,
                 "Logs",
                 70,
-                typeof(CloudShell.Hosting.Components.Pages.Logs.Logs),
+                typeof(CloudShell.Hosting.Components.Pages.Logs.ResourceLogs),
                 GroupTitle: ResourceTabGroupTitles.Telemetry,
                 Icon: GetPredefinedViewIcon(GeneratedLogsTabId)));
         }

@@ -128,8 +128,9 @@ on `git blame --follow`, and then by the broad type of change.
   Activity when application/runtime logs exist, expose an explicit `All
   resources` resource filter for the standalone Logs page, and open log-entry
   details only after selecting an entry so the log feed can use the full width.
-  The shared log feed, convenience viewer, and details blade are now separate
-  components for custom log views.
+  The standalone Logs page and generated resource Logs tab now compose shared
+  log explorer/feed/viewer/details components without embedding the route page
+  in the resource tab.
 
 #### Fixed
 

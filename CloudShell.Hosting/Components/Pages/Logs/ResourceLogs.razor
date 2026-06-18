@@ -1,23 +1,15 @@
-@page "/logs"
-@rendermode InteractiveServer
-@inject IStringLocalizer<SharedResource> L
-
-<PageTitle>@L["Logs"]</PageTitle>
-
 <LogExplorer ResourceId="@ResourceId"
              LogId="@LogId"
-             TraceId="@TraceId" />
+             TraceId="@TraceId"
+             Inline="true" />
 
 @code {
     [Parameter]
-    [SupplyParameterFromQuery]
     public string? ResourceId { get; set; }
 
     [Parameter]
-    [SupplyParameterFromQuery]
     public string? LogId { get; set; }
 
     [Parameter]
-    [SupplyParameterFromQuery]
     public string? TraceId { get; set; }
 }

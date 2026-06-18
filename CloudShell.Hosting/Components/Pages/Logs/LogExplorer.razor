@@ -1,0 +1,869 @@
+@implements IAsyncDisposable
+@inject ILogManager LogManager
+@inject IResourceManager ResourceManager
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
+
+@{
+    var logs = GetSelectableLogs();
+    var selected = GetSelectedLog(logs);
+    var selectedResourceFilterId = GetSelectedResourceFilterId();
+}
+
+@if (Inline)
+{
+    <div class="resource-activity-header">
+        <div>
+            <h3>@L["Logs"]</h3>
+            <span>@L["Resource telemetry"]</span>
+        </div>
+        <div class="heading-actions">
+            @if (!string.IsNullOrWhiteSpace(TraceId))
+            {
+                <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
+                    @L["Clear trace filter"]
+                </FluentButton>
+            }
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshSelectedLog">
+                @L["Refresh"]
+            </FluentButton>
+        </div>
+    </div>
+}
+else
+{
+    <section class="page-heading compact">
+        <div>
+            <span class="eyebrow">@L["Logs"]</span>
+            <h1>@L["Logs"]</h1>
+            <p>@L["Browse logs registered by resources, providers, and extension-owned artifacts."]</p>
+        </div>
+        <div class="heading-actions">
+            @if (!string.IsNullOrWhiteSpace(TraceId))
+            {
+                <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
+                    @L["Clear trace filter"]
+                </FluentButton>
+            }
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshSelectedLog">
+                @L["Refresh"]
+            </FluentButton>
+        </div>
+    </section>
+}
+
+<section class="trace-workspace">
+    <div class="log-viewer panel">
+        @if (selected is null)
+        {
+            <div class="empty-state">
+                <strong>@L["No log selected"]</strong>
+                <span>@L["Select a log source to inspect recent entries."]</span>
+            </div>
+        }
+        else
+        {
+            <div class="panel-header log-viewer-header">
+                <div>
+                    <h2>@selected.SourceName</h2>
+                    <p>@selected.Name / @selected.Provider / @selected.SourceKind</p>
+                </div>
+                <div class="log-viewer-actions">
+                    @if (!Inline)
+                    {
+                        <label class="trace-source-filter" for="log-resource-filter">
+                            <span>@L["Resource"]</span>
+                            <select id="log-resource-filter" class="trace-source-select"
+                                    value="@(selectedResourceFilterId ?? string.Empty)"
+                                    @onchange="SelectResourceFilter">
+                                <option value="">@L["All resources"]</option>
+                                @foreach (var resource in LogResourceFilters)
+                                {
+                                    <option value="@resource.ResourceId">@resource.Name</option>
+                                }
+                            </select>
+                        </label>
+                    }
+                    <label class="trace-source-filter" for="log-source-filter">
+                        <span>@L["Log source"]</span>
+                        <select id="log-source-filter" class="trace-source-select" value="@selected.Id"
+                                @onchange="SelectLog">
+                            @foreach (var log in logs)
+                            {
+                                <option value="@log.Id">@GetLogOptionLabel(log)</option>
+                            }
+                        </select>
+                    </label>
+                    <FluentCheckbox Class="log-wrap-toggle" @bind-Value="WrapLogMessages">
+                        @L["Wrap"]
+                    </FluentCheckbox>
+                    <FluentCheckbox Class="log-wrap-toggle" @bind-Value="ShowStructuredOnly"
+                                    Disabled="@(GetStructuredEntryCount() == 0)">
+                        @L["Structured only"]
+                    </FluentCheckbox>
+                    @if (selected.SupportsStreaming)
+                    {
+                        <FluentCheckbox Class="log-stream-toggle" Value="@IsSelectedLogStreaming(selected)"
+                                        ValueChanged="enabled => SetStreamingEnabled(selected, enabled)" Disabled="@IsLoading">
+                            @(IsSelectedLogStreaming(selected) ? L["Streaming"] : L["Stream"])
+                        </FluentCheckbox>
+                    }
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(selected.Description))
+            {
+                <p class="log-description">@selected.Description</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(TraceId))
+            {
+                <p class="log-description">@L["Showing entries correlated with trace {0}.", FormatTraceId(TraceId)]</p>
+            }
+
+            @if (IsLoading)
+            {
+                <div class="empty-state compact">
+                    <strong>@L["Loading log entries"]</strong>
+                    <span>@L["Reading recent output from {0}.", selected.Provider]</span>
+                </div>
+            }
+            else if (ReadError is not null)
+            {
+                <div class="procedure-message">@ReadError</div>
+            }
+            else if (Entries.Count == 0)
+            {
+                <div class="empty-state compact">
+                    <strong>@(IsSelectedLogStreaming(selected) ? L["Waiting for entries"] : L["No entries"])</strong>
+                    <span>@(IsSelectedLogStreaming(selected)
+                                                ? L["Streaming is active for this log source."]
+                                                : L["This log source did not return recent entries."])</span>
+                    </div>
+                }
+            else
+                {
+                    var visibleEntries = GetVisibleEntries();
+
+                    <div class="log-history-bar">
+                        <FluentButton Appearance="Appearance.Neutral" Disabled="@(!CanLoadOlderEntries || IsLoadingOlder)"
+                                      OnClick="LoadOlderEntriesAsync">
+                            @(IsLoadingOlder ? L["Loading older"] : L["Load older"])
+                        </FluentButton>
+                        <span>@GetEntryCountLabel(visibleEntries.Count)</span>
+                    </div>
+
+                    @if (visibleEntries.Count == 0)
+                    {
+                        <div class="empty-state compact">
+                            <strong>@GetEmptyFilteredTitle()</strong>
+                            <span>@GetEmptyFilteredMessage()</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <LogViewer @ref="LogViewerComponent"
+                                   Entries="visibleEntries"
+                                   WrapMessages="WrapLogMessages"
+                                   AriaLabel="@selected.Name"
+                                   TraceRouteFactory="entry => BuildTraceRoute(selected.ResourceId, entry.TraceId!)" />
+                    }
+                }
+            }
+        </div>
+    </section>
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    public string? LogId { get; set; }
+
+    [Parameter]
+    public string? TraceId { get; set; }
+
+    [Parameter]
+    public bool Inline { get; set; }
+
+    private IReadOnlyList<LogEntry> Entries { get; set; } = [];
+    private string? LoadedLogId { get; set; }
+    private string? StreamingLogId { get; set; }
+    private string? ReadError { get; set; }
+    private CancellationTokenSource? StreamingCancellation { get; set; }
+    private Task? StreamingTask { get; set; }
+    private HashSet<string> DisabledStreamingLogIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+    private bool IsLoading { get; set; }
+    private bool IsLoadingOlder { get; set; }
+    private bool CanLoadOlderEntries { get; set; }
+    private bool IsStreaming { get; set; }
+    private bool WrapLogMessages { get; set; }
+    private bool ShowStructuredOnly { get; set; }
+    private bool ShouldScrollToLatest { get; set; }
+    private double? PreservePrependedScrollHeight { get; set; }
+    private bool IsDisposed { get; set; }
+    private IReadOnlyList<LogDescriptor> VisibleLogs { get; set; } = [];
+    private IReadOnlyList<LogResourceFilterOption> LogResourceFilters { get; set; } = [];
+    private Resource? SelectedResource { get; set; }
+    private LogViewer? LogViewerComponent { get; set; }
+
+    private const string AllLogsId = "__all";
+    private const int InitialWindowEntries = 100;
+    private const int HistoryPageEntries = 100;
+    private const int MaxWindowEntries = 500;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadVisibleLogsAsync();
+
+        var selected = GetSelectedLog(GetSelectableLogs());
+        if (selected is null)
+        {
+            await StopStreamingAsync();
+            Entries = [];
+            LoadedLogId = null;
+            CanLoadOlderEntries = false;
+            return;
+        }
+
+        if (!string.Equals(LoadedLogId, selected.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            await StopStreamingAsync();
+            await LoadLogAsync(selected);
+            await StartStreamingByDefaultAsync(selected);
+        }
+        else
+        {
+            await StartStreamingByDefaultAsync(selected);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!ShouldScrollToLatest)
+        {
+            if (PreservePrependedScrollHeight is { } previousScrollHeight)
+            {
+                PreservePrependedScrollHeight = null;
+                await PreservePrependedScrollAsync(previousScrollHeight);
+            }
+
+            return;
+        }
+
+        if (await ScrollLogToLatestAsync())
+        {
+            ShouldScrollToLatest = false;
+        }
+    }
+
+    private IReadOnlyList<LogDescriptor> GetVisibleLogs() =>
+        VisibleLogs;
+
+    private IReadOnlyList<LogDescriptor> GetSelectableLogs()
+    {
+        var logs = GetVisibleLogs();
+        var operationalLogs = GetOperationalLogSources(logs);
+        if (operationalLogs.Count == 0)
+        {
+            return logs;
+        }
+
+        return operationalLogs.Count == 1
+            ? operationalLogs
+            : [CreateCombinedLogDescriptor(operationalLogs), .. operationalLogs];
+    }
+
+    private IReadOnlyList<LogDescriptor> GetOperationalLogSources(IReadOnlyList<LogDescriptor> logs) =>
+        logs
+            .Where(log => !IsCombinedLog(log) && !IsActivityLog(log))
+            .ToArray();
+
+    private LogDescriptor CreateCombinedLogDescriptor(IReadOnlyList<LogDescriptor> logs)
+    {
+        var selectedResourceFilterId = GetSelectedResourceFilterId();
+        var resourceId = Inline
+            ? (string.IsNullOrWhiteSpace(ResourceId) ? null : ResourceId)
+            : selectedResourceFilterId;
+        var sourceName = SelectedResource?.Name
+            ?? (selectedResourceFilterId is null
+                ? L["All resources"].Value
+                : LogResourceFilters.FirstOrDefault(option =>
+                    string.Equals(option.ResourceId, selectedResourceFilterId, StringComparison.OrdinalIgnoreCase))?.Name
+                    ?? selectedResourceFilterId);
+        return new LogDescriptor(
+            AllLogsId,
+            L["All logs"].Value,
+            L["Telemetry"].Value,
+            sourceName,
+            LogSourceKind.Resource,
+            ResourceId: resourceId,
+            Description: logs.Count == 1
+                ? L["Recent entries from the available operational log source."].Value
+                : L["Merged recent entries from all operational log sources."].Value);
+    }
+
+    private IReadOnlyList<LogEntry> GetVisibleEntries()
+    {
+        var entries = Entries.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(TraceId))
+        {
+            entries = entries.Where(entry =>
+                string.Equals(entry.TraceId, TraceId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (ShowStructuredOnly)
+        {
+            entries = entries.Where(LogView.HasStructuredMetadata);
+        }
+
+        return entries.ToArray();
+    }
+
+    private int GetStructuredEntryCount() =>
+        Entries.Count(LogView.HasStructuredMetadata);
+
+    private string GetEntryCountLabel(int visibleEntryCount)
+    {
+        var structuredCount = GetStructuredEntryCount();
+        return ShowStructuredOnly
+            ? L["{0} structured entries in view", visibleEntryCount].Value
+            : L["{0} entries in view / {1} structured", visibleEntryCount, structuredCount].Value;
+    }
+
+    private async Task LoadVisibleLogsAsync()
+    {
+        if (Inline)
+        {
+            VisibleLogs = await LogManager.ListLogsAsync(
+                string.IsNullOrWhiteSpace(ResourceId)
+                    ? null
+                    : new LogQuery(ResourceId: ResourceId));
+            LogResourceFilters = [];
+            SelectedResource = string.IsNullOrWhiteSpace(ResourceId)
+                ? null
+                : await ResourceManager.GetResourceAsync(ResourceId);
+            return;
+        }
+
+        var logs = await LogManager.ListLogsAsync();
+        var resourceIds = logs
+            .Select(log => log.ResourceId)
+            .Where(resourceId => !string.IsNullOrWhiteSpace(resourceId))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        IReadOnlyList<Resource> resources = resourceIds.Length == 0
+            ? []
+            : await ResourceManager.ListResourcesAsync();
+        var resourcesById = resources.ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        LogResourceFilters = resourceIds
+            .Select(resourceId => new LogResourceFilterOption(
+                resourceId!,
+                resourcesById.TryGetValue(resourceId!, out var resource)
+                    ? resource.Name
+                    : logs.First(log => string.Equals(log.ResourceId, resourceId, StringComparison.OrdinalIgnoreCase)).SourceName))
+            .OrderBy(option => option.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var selectedResourceFilterId = GetSelectedResourceFilterId();
+        SelectedResource = selectedResourceFilterId is not null &&
+            resourcesById.TryGetValue(selectedResourceFilterId, out var selectedResource)
+                ? selectedResource
+                : null;
+        VisibleLogs = selectedResourceFilterId is null
+            ? logs
+            : logs
+                .Where(log => string.Equals(log.ResourceId, selectedResourceFilterId, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+    }
+
+    private LogDescriptor? GetSelectedLog(IReadOnlyList<LogDescriptor> logs)
+    {
+        if (!string.IsNullOrWhiteSpace(LogId))
+        {
+            var requested = logs.FirstOrDefault(log =>
+                string.Equals(log.Id, LogId, StringComparison.OrdinalIgnoreCase));
+            if (requested is not null)
+            {
+                return requested;
+            }
+        }
+
+        return GetDefaultLog(logs);
+    }
+
+    private static LogDescriptor? GetDefaultLog(IReadOnlyList<LogDescriptor> logs) =>
+        logs.FirstOrDefault(IsCombinedLog)
+        ?? logs.FirstOrDefault(log => log.SupportsStreaming)
+        ?? logs.FirstOrDefault(log => !IsActivityLog(log))
+        ?? logs.FirstOrDefault();
+
+    private static bool IsCombinedLog(LogDescriptor log) =>
+        string.Equals(log.Id, AllLogsId, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsActivityLog(LogDescriptor log) =>
+        string.Equals(log.Provider, "Activity", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(log.Name, "Activity", StringComparison.OrdinalIgnoreCase);
+
+    private void SelectLog(ChangeEventArgs args) =>
+        SelectLog(args.Value?.ToString());
+
+    private void SelectResourceFilter(ChangeEventArgs args)
+    {
+        var resourceId = args.Value?.ToString();
+        var query = new Dictionary<string, string?>();
+        if (!string.IsNullOrWhiteSpace(resourceId))
+        {
+            query["resourceId"] = resourceId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(TraceId))
+        {
+            query["traceId"] = TraceId.Trim();
+        }
+
+        Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
+    }
+
+    private void SelectLog(string? logId)
+    {
+        if (string.IsNullOrWhiteSpace(logId) ||
+            string.Equals(logId, LogId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var log = GetSelectableLogs().FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, logId, StringComparison.OrdinalIgnoreCase));
+        if (log is not null)
+        {
+            Navigation.NavigateTo(BuildLogSourceRoute(log, TraceId));
+        }
+    }
+
+    private string GetLogOptionLabel(LogDescriptor log) =>
+        IsCombinedLog(log)
+            ? log.Name
+            : $"{log.SourceName} / {log.Name}";
+
+    private void ClearTraceFilter()
+    {
+        var selected = GetSelectedLog(GetSelectableLogs());
+        if (selected is null)
+        {
+            if (Inline && !string.IsNullOrWhiteSpace(ResourceId))
+            {
+                Navigation.NavigateTo(ResourceManagerRoutes.ResourceDetails(ResourceId, ResourcePredefinedViewIds.Logs));
+            }
+            else
+            {
+                var query = new Dictionary<string, string?>();
+                if (GetSelectedResourceFilterId() is { Length: > 0 } resourceId)
+                {
+                    query["resourceId"] = resourceId;
+                }
+
+                Navigation.NavigateTo(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query));
+            }
+
+            return;
+        }
+
+        Navigation.NavigateTo(BuildLogRoute(selected));
+    }
+
+    private async Task RefreshSelectedLog()
+    {
+        await LoadVisibleLogsAsync();
+        var selected = GetSelectedLog(GetSelectableLogs());
+        if (selected is not null)
+        {
+            await StopStreamingAsync();
+            await LoadLogAsync(selected);
+            await StartStreamingByDefaultAsync(selected);
+        }
+    }
+
+    private async Task LoadLogAsync(LogDescriptor log)
+    {
+        IsLoading = true;
+        ReadError = null;
+        try
+        {
+            Entries = IsCombinedLog(log)
+                ? await ReadCombinedLogAsync(InitialWindowEntries)
+                : await LogManager.ReadLogAsync(
+                    log.Id,
+                    new ReadLogOptions(MaxEntries: InitialWindowEntries));
+            CanLoadOlderEntries = Entries.Count >= InitialWindowEntries;
+            ShouldScrollToLatest = Entries.Count > 0;
+            LoadedLogId = log.Id;
+        }
+        catch (Exception exception)
+        {
+            Entries = [];
+            CanLoadOlderEntries = false;
+            ReadError = exception.Message;
+            LoadedLogId = log.Id;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task<IReadOnlyList<LogEntry>> ReadCombinedLogAsync(
+        int maxEntries,
+        DateTimeOffset? before = null)
+    {
+        var sources = GetOperationalLogSources(VisibleLogs);
+        if (sources.Count == 0)
+        {
+            return [];
+        }
+
+        var reads = await Task.WhenAll(
+            sources.Select(log =>
+                LogManager.ReadLogAsync(
+                    log.Id,
+                    new ReadLogOptions(
+                        MaxEntries: maxEntries,
+                        Before: before))));
+
+        return reads
+            .SelectMany(entries => entries)
+            .DistinctBy(GetEntryKey)
+            .OrderBy(entry => entry.Timestamp)
+            .TakeLast(maxEntries)
+            .ToArray();
+    }
+
+    private async Task LoadOlderEntriesAsync()
+    {
+        var selected = GetSelectedLog(GetSelectableLogs());
+        if (selected is null ||
+            Entries.Count == 0 ||
+            IsLoadingOlder)
+        {
+            return;
+        }
+
+        IsLoadingOlder = true;
+        ReadError = null;
+        var previousScrollHeight = await GetLogScrollHeightAsync();
+
+        try
+        {
+            var before = Entries.Min(entry => entry.Timestamp);
+            var olderEntries = IsCombinedLog(selected)
+                ? await ReadCombinedLogAsync(HistoryPageEntries, before)
+                : await LogManager.ReadLogAsync(
+                    selected.Id,
+                    new ReadLogOptions(
+                        MaxEntries: HistoryPageEntries,
+                        Before: before));
+
+            CanLoadOlderEntries = olderEntries.Count >= HistoryPageEntries;
+            Entries = olderEntries
+                .Concat(Entries)
+                .DistinctBy(GetEntryKey)
+                .OrderBy(entry => entry.Timestamp)
+                .Take(MaxWindowEntries)
+                .ToArray();
+            ShouldScrollToLatest = false;
+            PreservePrependedScrollHeight = previousScrollHeight;
+        }
+        catch (Exception exception)
+        {
+            ReadError = exception.Message;
+        }
+        finally
+        {
+            IsLoadingOlder = false;
+        }
+    }
+
+    private async Task SetStreamingEnabled(LogDescriptor log, bool enabled)
+    {
+        if (enabled)
+        {
+            DisabledStreamingLogIds.Remove(log.Id);
+            await StartStreamingAsync(log);
+            return;
+        }
+
+        DisabledStreamingLogIds.Add(log.Id);
+        await StopStreamingAsync();
+    }
+
+    private async Task StartStreamingByDefaultAsync(LogDescriptor log)
+    {
+        if (log.SupportsStreaming && !DisabledStreamingLogIds.Contains(log.Id))
+        {
+            await StartStreamingAsync(log);
+        }
+    }
+
+    private async Task StartStreamingAsync(LogDescriptor log)
+    {
+        if (!log.SupportsStreaming ||
+            IsSelectedLogStreaming(log))
+        {
+            return;
+        }
+
+        await StopStreamingAsync();
+
+        ReadError = null;
+        var cancellation = new CancellationTokenSource();
+        StreamingCancellation = cancellation;
+        StreamingLogId = log.Id;
+        IsStreaming = true;
+        ShouldScrollToLatest = true;
+        StreamingTask = StreamEntriesAsync(log, cancellation);
+    }
+
+    private async Task StopStreamingAsync()
+    {
+        var cancellation = StreamingCancellation;
+        if (cancellation is null)
+        {
+            IsStreaming = false;
+            StreamingLogId = null;
+            StreamingTask = null;
+            return;
+        }
+
+        cancellation.Cancel();
+        StreamingCancellation = null;
+        StreamingTask = null;
+        StreamingLogId = null;
+        IsStreaming = false;
+        await Task.CompletedTask;
+    }
+
+    private async Task StreamEntriesAsync(LogDescriptor log, CancellationTokenSource cancellation)
+    {
+        try
+        {
+            await foreach (var entry in LogManager.StreamLogAsync(
+                log.Id,
+                new StreamLogOptions(InitialEntries: 0),
+                cancellation.Token))
+            {
+                var shouldFollowLatest = true;
+                await InvokeAsync(async () =>
+                {
+                    shouldFollowLatest = await IsLogAtLatestAsync();
+                });
+                await InvokeAsync(() =>
+                {
+                    if (!string.Equals(LoadedLogId, log.Id, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+
+                    Entries = Entries
+                        .Concat([entry])
+                        .TakeLast(MaxWindowEntries)
+                        .ToArray();
+                    ShouldScrollToLatest = shouldFollowLatest;
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception exception)
+        {
+            if (!cancellation.IsCancellationRequested)
+            {
+                await InvokeAsync(() => ReadError = exception.Message);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(StreamingCancellation, cancellation))
+            {
+                StreamingCancellation = null;
+                StreamingTask = null;
+                StreamingLogId = null;
+                IsStreaming = false;
+                cancellation.Dispose();
+
+                if (!IsDisposed)
+                {
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            else
+            {
+                cancellation.Dispose();
+            }
+        }
+    }
+
+    private bool IsSelectedLogStreaming(LogDescriptor log) =>
+        IsStreaming &&
+        string.Equals(StreamingLogId, log.Id, StringComparison.OrdinalIgnoreCase);
+
+    private async Task<bool> IsLogAtLatestAsync()
+    {
+        return LogViewerComponent is null || await LogViewerComponent.IsAtLatestAsync();
+    }
+
+    private async Task<bool> ScrollLogToLatestAsync()
+    {
+        return LogViewerComponent is not null && await LogViewerComponent.ScrollToLatestAsync();
+    }
+
+    private async Task<double> GetLogScrollHeightAsync() =>
+        LogViewerComponent is null ? 0 : await LogViewerComponent.GetScrollHeightAsync();
+
+    private async Task PreservePrependedScrollAsync(double previousScrollHeight)
+    {
+        if (LogViewerComponent is not null)
+        {
+            await LogViewerComponent.PreservePrependedScrollAsync(previousScrollHeight);
+        }
+    }
+
+    private static (
+        DateTimeOffset Timestamp,
+        string Message,
+        string? Severity,
+        string? Source,
+        string? EventId,
+        string? Category,
+        string? TraceId,
+        string? SpanId) GetEntryKey(LogEntry entry) =>
+        (
+            entry.Timestamp,
+            entry.Message,
+            entry.Severity,
+            entry.Source,
+            entry.EventId,
+            entry.Category,
+            entry.TraceId,
+            entry.SpanId);
+
+    private string BuildLogRoute(LogDescriptor log, string? traceId = null)
+    {
+        var query = new Dictionary<string, string?>();
+        if (!IsCombinedLog(log))
+        {
+            query["logId"] = log.Id;
+        }
+
+        if (Inline && !string.IsNullOrWhiteSpace(log.ResourceId))
+        {
+            query["tab"] = ResourcePredefinedViewIds.Logs.Value;
+            if (!string.IsNullOrWhiteSpace(traceId))
+            {
+                query["traceId"] = traceId.Trim();
+            }
+
+            return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                ResourceManagerRoutes.ResourceDetails(log.ResourceId),
+                query);
+        }
+
+        if (GetSelectedResourceFilterId() is { Length: > 0 } resourceId)
+        {
+            query["resourceId"] = resourceId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(traceId))
+        {
+            query["traceId"] = traceId.Trim();
+        }
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
+    }
+
+    private string BuildLogSourceRoute(LogDescriptor log, string? traceId = null)
+    {
+        if (Inline || IsCombinedLog(log))
+        {
+            return BuildLogRoute(log, traceId);
+        }
+
+        var query = new Dictionary<string, string?>
+        {
+            ["logId"] = log.Id
+        };
+
+        if (!string.IsNullOrWhiteSpace(traceId))
+        {
+            query["traceId"] = traceId.Trim();
+        }
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/logs", query);
+    }
+
+    private string GetEmptyFilteredTitle() =>
+        !string.IsNullOrWhiteSpace(TraceId)
+            ? L["No related log entries"].Value
+            : L["No structured entries"].Value;
+
+    private string GetEmptyFilteredMessage() =>
+        !string.IsNullOrWhiteSpace(TraceId)
+            ? L["This log source has entries, but none are correlated with the selected trace."].Value
+            : L["This log source has entries, but none contain structured metadata."].Value;
+
+    private string BuildTraceRoute(string? resourceId, string traceId)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["traceId"] = traceId
+        };
+
+        if (Inline && !string.IsNullOrWhiteSpace(resourceId))
+        {
+            query["tab"] = ResourcePredefinedViewIds.Traces.Value;
+
+            return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                ResourceManagerRoutes.ResourceDetails(resourceId),
+                query);
+        }
+
+        if (!string.IsNullOrWhiteSpace(resourceId))
+        {
+            query["resourceId"] = resourceId;
+        }
+
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            "/observability/traces",
+            query);
+    }
+
+    private static string FormatTraceId(string traceId) =>
+        traceId.Length <= 12
+            ? traceId
+            : traceId[^12..];
+
+    public async ValueTask DisposeAsync()
+    {
+        IsDisposed = true;
+        await StopStreamingAsync();
+    }
+
+    private string? GetSelectedResourceFilterId()
+    {
+        if (Inline || string.IsNullOrWhiteSpace(ResourceId))
+        {
+            return null;
+        }
+
+        return LogResourceFilters.Any(option =>
+            string.Equals(option.ResourceId, ResourceId, StringComparison.OrdinalIgnoreCase))
+                ? ResourceId
+                : null;
+    }
+
+    private sealed record LogResourceFilterOption(string ResourceId, string Name);
+}
