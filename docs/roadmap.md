@@ -266,11 +266,15 @@ listed here before pulling in broader proposal work.
 - Treat programmatic declarations as the normal starting point for local
   distributed-app development, and `Persist()` as the handoff into
   Control Plane-owned environment state. `Persist()` is not deployment: it
-  records resources and provider-owned configuration, while deployment to an
-  on-premise host must remain a separate orchestrator deployment API concern.
-  That orchestrator deployment API is not ready yet, so near-term MVP work
-  should keep the boundary explicit and avoid overloading persistence with
-  host deployment behavior.
+  records resources and provider-owned configuration, while deployment to a
+  target must remain a separate orchestrator deployment API concern. An
+  on-premise CloudShell environment is one deployment target: a standalone
+  CloudShell cloud environment, potentially for shared hosting, similar in role
+  to future Azure or AWS targets. Whether deployment is triggered by CLI,
+  Resource Manager UI, or another automation surface is a later product
+  decision. The orchestrator deployment API is not ready yet, so near-term MVP
+  work should keep the boundary explicit and avoid overloading persistence with
+  deployment behavior.
 - Keep CloudShell's resource addressing layers distinct. Concrete endpoint
   addresses belong to endpoint network mappings; resource endpoints remain
   address-less contracts. Topology-scoped reachability, Aspire-compatible

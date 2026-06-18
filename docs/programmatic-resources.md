@@ -642,11 +642,15 @@ now need to be considered as updates to a managed environment.
 
 Deployment is deliberately separate from persistence. `Persist()` records the
 resource graph and provider configuration in the Control Plane; it does not
-deploy that graph to an on-premise host. Deploying persisted resources to a
-target host should use the orchestrator deployment API once that API is ready.
-Until then, persisted programmatic resources can establish the intended
-environment state, while runtime deployment remains constrained to the existing
-local/startup and provider lifecycle paths.
+deploy that graph to a target. An on-premise CloudShell environment is a
+deployment target: a standalone CloudShell cloud environment, potentially for
+shared hosting, similar in role to future targets such as Azure or AWS.
+Deploying persisted resources to any target should use the orchestrator
+deployment API once that API is ready. Whether that deployment is triggered
+from a CLI, Resource Manager UI, or another automation surface is a later
+product decision. Until then, persisted programmatic resources can establish
+the intended environment state, while runtime deployment remains constrained to
+the existing local/startup and provider lifecycle paths.
 
 The intended flow is:
 
@@ -654,7 +658,7 @@ The intended flow is:
 2. Persist the resources when the graph is ready to become Control Plane state.
 3. Continue local development against the same model.
 4. Deploy the persisted graph through the orchestrator deployment API when that
-   separate mechanism exists for the target on-premise host.
+   separate mechanism exists for the target environment.
 
 `Persist()` does not overwrite an existing persisted resource. Use
 `Persist(overwrite: true)` when checked-in configuration should replace the

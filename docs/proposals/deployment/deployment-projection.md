@@ -100,6 +100,8 @@ CloudShell requires a platform-wide deployment projection model.
 * Do not replace provider-native deployment systems.
 * Do not define every possible infrastructure abstraction.
 * Do not require deployment targets to expose identical capabilities.
+* Do not decide whether deployments are triggered from CLI, Resource Manager
+  UI, or another automation surface in the first projection model.
 
 ## Projection Model
 
@@ -113,6 +115,14 @@ Serialization answers:
 Projection answers:
 
 > How is the CloudShell graph deployed to a target platform?
+
+An on-premise CloudShell environment is a deployment target in this sense: a
+standalone CloudShell cloud environment, potentially for shared hosting,
+similar in role to future targets such as Azure or AWS. The target is backed by
+CloudShell's own on-premise Control Plane and orchestrator; external provider
+targets may use their own provider projections. The trigger surface is a
+separate product decision; the deployment model should first define the target,
+compatibility, projection, and orchestrator API contract.
 
 CloudShell projections may include:
 

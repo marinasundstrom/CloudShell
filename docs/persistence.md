@@ -33,10 +33,13 @@ resource state and each provider's configuration store become the environment
 record. Developers can still run the distributed app locally, but changes should
 be treated as updates to promote into Control Plane state.
 
-Deploying the persisted graph to an on-premise host remains a separate
-orchestrator concern. The intended deployment path is the orchestrator
-deployment API once it is ready; `Persist()` should not grow host deployment
-semantics.
+Deploying the persisted graph remains a separate orchestrator concern.
+An on-premise CloudShell environment is a deployment target: a standalone
+CloudShell cloud environment, potentially for shared hosting, similar in role
+to future targets such as Azure or AWS. The intended deployment path is the
+orchestrator deployment API once it is ready; `Persist()` should not grow target
+deployment semantics. Whether deployment is initiated by CLI, UI, or automation
+can be decided later.
 
 See [Programmatic resources](programmatic-resources.md).
 

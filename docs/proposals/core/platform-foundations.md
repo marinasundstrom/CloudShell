@@ -132,12 +132,15 @@ to become Control Plane-managed environment state. `Persist()` covers that
 persistence boundary: the Control Plane records the resources and each provider
 records provider-owned configuration through its existing setup path.
 
-Deployment is separate. Persisting resources does not deploy them to an
-on-premise host. Deployment of the persisted graph should use the orchestrator
-deployment API once that API is ready. Until then, CloudShell should avoid
-adding host deployment semantics to `Persist()` and should keep local startup,
-Control Plane persistence, and orchestrator deployment as separate lifecycle
-steps.
+Deployment is separate. Persisting resources does not deploy them to a target.
+An on-premise CloudShell environment is one deployment target: a standalone
+CloudShell cloud environment, potentially for shared hosting, similar in role
+to future Azure or AWS targets. Deployment of the persisted graph should use
+the orchestrator deployment API once that API is ready. Whether deployment is
+initiated by CLI, Resource Manager UI, or another automation surface is a later
+product decision. Until then, CloudShell should avoid adding deployment
+semantics to `Persist()` and should keep local startup, Control Plane
+persistence, and orchestrator deployment as separate lifecycle steps.
 
 ### Endpoint Sources and Exposure Defaults
 
@@ -213,7 +216,9 @@ hosting, and deployments.
 * Define shared platform services.
 * Define programmatic graph promotion from local declarations to persisted
   Control Plane state, and keep deployment through the future orchestrator
-  deployment API separate from `Persist()`.
+  deployment API separate from `Persist()`. Treat an on-premise CloudShell
+  environment as a standalone CloudShell cloud environment and deployment target
+  alongside future provider targets such as Azure or AWS.
 * Define cross-resource endpoint source precedence and exposure-default policy.
 * Define Resource Manager read-only mode and mutability policy.
 

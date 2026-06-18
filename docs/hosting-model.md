@@ -8,6 +8,11 @@ cloud-like environment that users inspect and operate. It is anchored by
 Control Plane resource state and installed capability packages, and it can be
 served by one combined host or by separate Control Plane and UI hosts.
 
+An on-premise CloudShell environment is a CloudShell instance running as its own
+cloud environment, potentially for shared hosting. It owns its Control Plane
+state, installed capabilities, provider integrations, and runtime placement
+policy instead of acting as only a developer workstation process.
+
 A CloudShell host application is an ASP.NET Core application owned by the
 integrator. It can host the CloudShell UI, the Control Plane, or both. A
 CloudShell capability package is an installable environment capability that can
@@ -371,11 +376,15 @@ declaration is persisted, the Control Plane and provider stores become the
 record for that environment, and later local changes should be treated as
 updates to promote into that Control Plane state.
 
-Deployment to an on-premise host is a separate mechanism. `Persist()` records
-the resources and provider configuration; it does not deploy them to a target
-host. Deployment should use the orchestrator deployment API once that API is
-available. Until then, shared or on-premise environments should keep
-declarations in the Control Plane host that owns the environment, while UI
-hosts remain clients of that Control Plane.
+Deployment is a separate mechanism. `Persist()` records the resources and
+provider configuration; it does not deploy them to a target host. An on-premise
+CloudShell environment should be treated as a deployment target: a standalone
+CloudShell cloud environment, potentially for shared hosting, similar in role
+to future targets such as Azure or AWS. Deployment should use the orchestrator
+deployment API once that API is available. Whether deployment is triggered from
+a CLI, Resource Manager UI, or another automation surface is a later decision.
+Until then, shared or on-premise environments should keep declarations in the
+Control Plane host that owns the environment, while UI hosts remain clients of
+that Control Plane.
 
 See [Programmatic resources](programmatic-resources.md) for the declaration API.
