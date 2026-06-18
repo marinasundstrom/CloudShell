@@ -1,0 +1,17 @@
+<MetricExplorer ResourceId="@ResourceId"
+                ScopeResourceId="@ScopeResourceId"
+                Inline="true"
+                ShowHeading="false"
+                ShowSourceSummary="false"
+                ShowResourceSelector="false"
+                ShowResourceLink="false"
+                ShowResourceDetails="false"
+                UsePanel="false" />
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    public string? ScopeResourceId { get; set; }
+}

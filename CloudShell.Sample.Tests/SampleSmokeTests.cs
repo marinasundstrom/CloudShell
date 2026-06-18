@@ -218,9 +218,9 @@ public sealed class SampleSmokeTests
         var relatedTracesHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Traces.Value)}&traceId={traceId}");
         Assert.Contains("Telemetry", relatedTracesHtml);
-        Assert.Contains("Resource telemetry", relatedTracesHtml);
+        Assert.DoesNotContain("Resource telemetry", relatedTracesHtml);
         Assert.Contains("Trace chart", relatedTracesHtml);
-        Assert.Contains("id=\"trace-source-filter\"", relatedTracesHtml);
+        Assert.DoesNotContain("id=\"trace-source-filter\"", relatedTracesHtml);
         Assert.Contains("Related logs", relatedTracesHtml);
         Assert.Contains("Related activity", relatedTracesHtml);
         Assert.Contains("Clear trace filter", relatedTracesHtml);
@@ -236,9 +236,9 @@ public sealed class SampleSmokeTests
         var relatedMetricsHtml = await host.GetStringAsync(
             $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Metrics.Value)}");
         Assert.Contains("Telemetry", relatedMetricsHtml);
-        Assert.Contains("Resource telemetry", relatedMetricsHtml);
-        Assert.Contains("Metric source", relatedMetricsHtml);
-        Assert.Contains("id=\"metric-source-filter\"", relatedMetricsHtml);
+        Assert.DoesNotContain("Resource telemetry", relatedMetricsHtml);
+        Assert.DoesNotContain("Metric source", relatedMetricsHtml);
+        Assert.DoesNotContain("id=\"metric-source-filter\"", relatedMetricsHtml);
         Assert.Contains("http.server.requests", relatedMetricsHtml);
         Assert.Contains("http.server.duration", relatedMetricsHtml);
         Assert.Contains("project-reference-frontend", relatedMetricsHtml);

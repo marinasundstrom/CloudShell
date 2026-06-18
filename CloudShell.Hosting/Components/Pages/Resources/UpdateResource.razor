@@ -703,12 +703,10 @@
         {
             parameters["TraceId"] = RequestedTraceId;
             parameters["ScopeResourceId"] = RequestedScopeResourceId;
-            parameters["Inline"] = true;
         }
         else if (selectedTab.Id == GeneratedMetricsTabId)
         {
             parameters["ScopeResourceId"] = RequestedScopeResourceId;
-            parameters["Inline"] = true;
         }
 
         return parameters;
@@ -854,7 +852,7 @@
                 GeneratedTracesTabId,
                 "Traces",
                 80,
-                typeof(CloudShell.Hosting.Components.Pages.Observability.Traces),
+                typeof(CloudShell.Hosting.Components.Pages.Observability.ResourceTraces),
                 GroupTitle: ResourceTabGroupTitles.Telemetry,
                 Icon: GetPredefinedViewIcon(GeneratedTracesTabId)));
         }
@@ -866,7 +864,7 @@
                 GeneratedMetricsTabId,
                 "Metrics",
                 90,
-                typeof(CloudShell.Hosting.Components.Pages.Observability.Metrics),
+                typeof(CloudShell.Hosting.Components.Pages.Observability.ResourceMetrics),
                 GroupTitle: ResourceTabGroupTitles.Telemetry,
                 Icon: GetPredefinedViewIcon(GeneratedMetricsTabId)));
         }

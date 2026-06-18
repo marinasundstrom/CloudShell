@@ -90,6 +90,9 @@ on `git blame --follow`, and then by the broad type of change.
 - The Add Resource page now shows an explicit not-found state when the `type`
   query parameter references an unavailable resource type instead of silently
   falling back to the first installed type.
+- Resource detail Traces and Metrics tabs now compose dedicated resource-tab
+  wrappers over shared explorer components, matching the Logs tab treatment
+  instead of embedding the route page surfaces directly.
 - Configuration Store and Secrets Vault resources now provide the same basic
   service-process resource monitoring snapshots through their local service
   process runner.

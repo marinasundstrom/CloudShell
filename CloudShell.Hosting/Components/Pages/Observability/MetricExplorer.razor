@@ -1,0 +1,441 @@
+@implements IDisposable
+@using System.Globalization
+@inject IMetricManager MetricManager
+@inject IResourceManager ResourceManager
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedResource> L
+
+@{
+    var resources = MetricResources;
+    var selectionIssue = GetSelectionIssue(resources);
+    var selected = selectionIssue is null ? GetSelectedResource(resources) : null;
+    var points = RecentPoints;
+    var scopes = selected?.EffectiveObservability.TelemetryScopes ?? [];
+    var selectedScope = GetSelectedScope(selected);
+}
+
+@if (ShowHeading && Inline)
+{
+    <div class="resource-activity-header">
+        <div>
+            <h3>@L["Metrics"]</h3>
+            <span>@L["Resource telemetry"]</span>
+        </div>
+        <div class="heading-actions">
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshPointsAsync">
+                @L["Refresh"]
+            </FluentButton>
+        </div>
+    </div>
+}
+else if (ShowHeading)
+{
+    <section class="page-heading compact">
+        <div>
+            <span class="eyebrow">@L["Observability"]</span>
+            <h1>@L["Metrics"]</h1>
+            <p>@L["Inspect application/runtime metric points retained by CloudShell."]</p>
+        </div>
+        <div class="heading-actions">
+            <FluentButton Appearance="Appearance.Neutral" OnClick="ShowAllResources">
+                @L["All metric resources"]
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Neutral" IconStart="@(new Icons.Regular.Size20.ArrowSync())"
+                          OnClick="RefreshPointsAsync">
+                @L["Refresh"]
+            </FluentButton>
+        </div>
+    </section>
+}
+
+<section class="trace-workspace">
+    <div class="log-viewer @(UsePanel ? "panel" : null)">
+        @if (selectionIssue is not null)
+        {
+            <div class="empty-state">
+                <strong>@selectionIssue.Title</strong>
+                <span>@selectionIssue.Message</span>
+                <FluentAnchor Appearance="Appearance.Neutral" Href="@selectionIssue.RecoveryHref">
+                    @selectionIssue.RecoveryLabel
+                </FluentAnchor>
+            </div>
+        }
+        else if (selected is null)
+        {
+            <div class="empty-state">
+                <strong>@L["No resource selected"]</strong>
+                <span>@L["No visible resources currently declare metric support."]</span>
+            </div>
+        }
+        else
+        {
+            var metricSummaries = BuildMetricSummaries(points);
+
+            @if (ShouldShowSourceHeader(scopes))
+            {
+                <div class="panel-header log-viewer-header @(ShowSourceSummary ? null : "controls-only")">
+                    @if (ShowSourceSummary)
+                    {
+                        <div>
+                            <h2>@selected.Name</h2>
+                            <p>@selected.Kind / @selected.Provider@GetStateSuffix(selected)</p>
+                        </div>
+                    }
+                    <div class="log-viewer-actions">
+                        @if (ShowResourceSelector)
+                        {
+                            <label class="trace-source-filter" for="metric-source-filter">
+                                <span>@L["Metric source"]</span>
+                                <select id="metric-source-filter" class="trace-source-select" value="@selected.Id"
+                                        @onchange="SelectResource">
+                                    @foreach (var resource in resources)
+                                    {
+                                        <option value="@resource.Id">@resource.Name</option>
+                                    }
+                                </select>
+                            </label>
+                        }
+                        @if (scopes.Count > 1)
+                        {
+                            <label class="trace-source-filter" for="metric-scope-filter">
+                                <span>@L["Scope"]</span>
+                                <select id="metric-scope-filter" class="trace-source-select"
+                                        value="@(selectedScope?.ScopeResourceId ?? string.Empty)"
+                                        @onchange="SelectScope">
+                                    <option value="">@L["All scopes"]</option>
+                                    @foreach (var scope in scopes)
+                                    {
+                                        <option value="@scope.ScopeResourceId">@scope.Name</option>
+                                    }
+                                </select>
+                            </label>
+                        }
+                        @if (ShowResourceLink)
+                        {
+                            <FluentAnchor Appearance="Appearance.Neutral" Href="@BuildResourceRoute(selected.Id)">
+                                @L["Open resource"]
+                            </FluentAnchor>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (ShowResourceDetails)
+            {
+                <dl class="detail-list">
+                    <dt>@L["Resource ID"]</dt>
+                    <dd>@selected.Id</dd>
+                    <dt>@L["Service name"]</dt>
+                    <dd>@(selected.EffectiveObservability.ServiceName ?? NormalizeServiceName(selected.Name, selected.Id))</dd>
+                    <dt>@L["Metric points"]</dt>
+                    <dd>@GetPointSummary(points.Count)</dd>
+                    @if (selectedScope is not null)
+                    {
+                        <dt>@L["Scope"]</dt>
+                        <dd>@selectedScope.Name</dd>
+                    }
+                </dl>
+            }
+
+            @if (points.Count == 0)
+            {
+                <div class="empty-state compact">
+                    <strong>@L["No metrics received"]</strong>
+                    <span>@L["Start this resource and send traffic through it. Metrics are retained only while CloudShell is running."]</span>
+                </div>
+            }
+            else
+            {
+                <div class="metric-summary-grid" aria-label="@L["Metric summaries"]">
+                    @foreach (var summary in metricSummaries)
+                    {
+                        <div class="metric-summary-card">
+                            <span>@summary.Name</span>
+                            <strong>@FormatMetricValue(summary.LatestValue, summary.Unit)</strong>
+                            <small>@L["{0} point(s) / latest {1}", summary.PointCount, summary.LatestTimestamp.ToLocalTime().ToString("HH:mm:ss")]</small>
+                        </div>
+                    }
+                </div>
+
+                <div class="log-entry-list wrap" role="log" aria-label="@L["Recent metric points"]">
+                    @foreach (var point in points)
+                    {
+                        <div class="log-entry">
+                            <time>@point.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time>
+                            <span class="log-entry-source">@point.ServiceName</span>
+                            <span class="log-entry-level">@FormatMetricValue(point.Value, point.Unit)</span>
+                            <div class="log-entry-body">
+                                <pre>@point.Name@GetMetricAttributes(point)</pre>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    [Parameter]
+    public string? ScopeResourceId { get; set; }
+
+    [Parameter]
+    public bool Inline { get; set; }
+
+    [Parameter]
+    public bool ShowHeading { get; set; } = true;
+
+    [Parameter]
+    public bool UsePanel { get; set; } = true;
+
+    [Parameter]
+    public bool ShowSourceSummary { get; set; } = true;
+
+    [Parameter]
+    public bool ShowResourceSelector { get; set; } = true;
+
+    [Parameter]
+    public bool ShowResourceLink { get; set; } = true;
+
+    [Parameter]
+    public bool ShowResourceDetails { get; set; } = true;
+
+    private System.Threading.Timer? refreshTimer;
+    private IReadOnlyList<Resource> MetricResources { get; set; } = [];
+    private IReadOnlyList<MetricPoint> RecentPoints { get; set; } = [];
+    private bool IsDisposed { get; set; }
+    private bool IsRefreshingPoints { get; set; }
+
+    protected override void OnInitialized()
+    {
+        refreshTimer = new System.Threading.Timer(
+            _ =>
+            {
+                if (!IsDisposed)
+                {
+                    _ = InvokeAsync(RefreshPointsAsync);
+                }
+            },
+            null,
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(5));
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        MetricResources = (await ResourceManager.ListResourcesAsync())
+            .Where(resource => resource.EffectiveObservability.Metrics)
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        await RefreshPointsAsync();
+    }
+
+    public void Dispose()
+    {
+        IsDisposed = true;
+        refreshTimer?.Dispose();
+    }
+
+    private Resource? GetSelectedResource(IReadOnlyList<Resource> resources)
+    {
+        if (!string.IsNullOrWhiteSpace(ResourceId))
+        {
+            var requested = resources.FirstOrDefault(resource =>
+                string.Equals(resource.Id, ResourceId, StringComparison.OrdinalIgnoreCase));
+            if (requested is not null)
+            {
+                return requested;
+            }
+        }
+
+        return resources.FirstOrDefault();
+    }
+
+    private TelemetrySelectionIssue? GetSelectionIssue(IReadOnlyList<Resource> resources)
+    {
+        if (!string.IsNullOrWhiteSpace(ResourceId) &&
+            !resources.Any(resource => string.Equals(resource.Id, ResourceId, StringComparison.OrdinalIgnoreCase)))
+        {
+            var resourceId = ResourceId.Trim();
+            return new TelemetrySelectionIssue(
+                L["Metric resource not found"].Value,
+                L["Resource '{0}' does not expose metrics or is not available.", resourceId].Value,
+                Inline ? L["Open Resources"].Value : L["All metric resources"].Value,
+                Inline ? ResourceManagerRoutes.Resources : "/observability/metrics");
+        }
+
+        var selected = GetSelectedResource(resources);
+        if (selected is not null &&
+            !string.IsNullOrWhiteSpace(ScopeResourceId) &&
+            GetSelectedScope(selected) is null)
+        {
+            var scopeResourceId = ScopeResourceId.Trim();
+            return new TelemetrySelectionIssue(
+                L["Metric scope not found"].Value,
+                L["Telemetry scope '{0}' is not available for {1}.", scopeResourceId, selected.Name].Value,
+                L["Show all scopes"].Value,
+                BuildMetricRoute(selected.Id));
+        }
+
+        return null;
+    }
+
+    private async Task RefreshPointsAsync()
+    {
+        if (IsRefreshingPoints || IsDisposed)
+        {
+            return;
+        }
+
+        IsRefreshingPoints = true;
+        var selectionIssue = GetSelectionIssue(MetricResources);
+        var selected = selectionIssue is null ? GetSelectedResource(MetricResources) : null;
+        try
+        {
+            RecentPoints = selected is null
+                ? []
+                : await MetricManager.ListMetricPointsAsync(new MetricQuery(
+                    ResourceId: selected.Id,
+                    MaxPoints: 200,
+                    Scope: GetSelectedScope(selected)?.ToQueryScope()));
+
+            await InvokeAsync(StateHasChanged);
+        }
+        finally
+        {
+            IsRefreshingPoints = false;
+        }
+    }
+
+    private void SelectResource(ChangeEventArgs args) =>
+        SelectResource(args.Value?.ToString());
+
+    private void SelectResource(string? resourceId)
+    {
+        if (string.IsNullOrWhiteSpace(resourceId) ||
+            string.Equals(resourceId, ResourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        Navigation.NavigateTo(BuildMetricRoute(resourceId));
+    }
+
+    private void SelectScope(ChangeEventArgs args)
+    {
+        var selected = GetSelectedResource(MetricResources);
+        if (selected is null)
+        {
+            return;
+        }
+
+        Navigation.NavigateTo(BuildMetricRoute(selected.Id, args.Value?.ToString()));
+    }
+
+    private void ShowAllResources() => Navigation.NavigateTo("/observability/metrics");
+
+    private string BuildMetricRoute(string resourceId, string? scopeResourceId = null)
+    {
+        var query = new Dictionary<string, string?>();
+        if (!string.IsNullOrWhiteSpace(scopeResourceId))
+        {
+            query["scopeResourceId"] = scopeResourceId.Trim();
+        }
+
+        if (Inline)
+        {
+            query["tab"] = ResourcePredefinedViewIds.Metrics.Value;
+            return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                ResourceManagerRoutes.ResourceDetails(resourceId),
+                query);
+        }
+
+        query["resourceId"] = resourceId;
+        return Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+            "/observability/metrics",
+            query);
+    }
+
+    private TelemetryScopeDescriptor? GetSelectedScope(Resource? resource)
+    {
+        if (resource is null || string.IsNullOrWhiteSpace(ScopeResourceId))
+        {
+            return null;
+        }
+
+        return resource.EffectiveObservability.TelemetryScopes.FirstOrDefault(scope =>
+            string.Equals(scope.ScopeResourceId, ScopeResourceId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string BuildResourceRoute(string resourceId) =>
+        ResourceManagerRoutes.ResourceDetails(resourceId);
+
+    private static string GetStateSuffix(Resource resource) =>
+        resource.State is { } state ? $" / {state}" : string.Empty;
+
+    private string GetPointSummary(int pointCount) =>
+        L["{0} points retained in memory", pointCount].Value;
+
+    private bool ShouldShowSourceHeader(IReadOnlyList<TelemetryScopeDescriptor> scopes) =>
+        ShowSourceSummary ||
+        ShowResourceSelector ||
+        scopes.Count > 1 ||
+        ShowResourceLink;
+
+    private static string NormalizeServiceName(string name, string resourceId)
+    {
+        var candidate = string.IsNullOrWhiteSpace(name) ? resourceId : name;
+        var normalized = string.Join(
+                "-",
+                candidate.Trim().ToLowerInvariant().Split(
+                    [' ', '.', '_', ':', '/', '\\'],
+                    StringSplitOptions.RemoveEmptyEntries))
+            .Trim('-');
+
+        return string.IsNullOrWhiteSpace(normalized) ? resourceId : normalized;
+    }
+
+    private static string FormatMetricValue(double value, string? unit) =>
+        string.IsNullOrWhiteSpace(unit)
+            ? value.ToString("0.###", CultureInfo.InvariantCulture)
+            : $"{value.ToString("0.###", CultureInfo.InvariantCulture)} {unit}";
+
+    private static string GetMetricAttributes(MetricPoint point) =>
+        point.MetricAttributes.Count == 0
+            ? string.Empty
+            : $"{Environment.NewLine}{string.Join(", ", point.MetricAttributes.Select(attribute => $"{attribute.Key}={attribute.Value}"))}";
+
+    private static IReadOnlyList<MetricSummary> BuildMetricSummaries(IReadOnlyList<MetricPoint> points) =>
+        points
+            .GroupBy(point => point.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var latest = group.OrderByDescending(point => point.Timestamp).First();
+                return new MetricSummary(
+                    group.Key,
+                    latest.Value,
+                    latest.Unit,
+                    latest.Timestamp,
+                    group.Count());
+            })
+            .OrderBy(summary => summary.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private sealed record MetricSummary(
+        string Name,
+        double LatestValue,
+        string? Unit,
+        DateTimeOffset LatestTimestamp,
+        int PointCount);
+
+    private sealed record TelemetrySelectionIssue(
+        string Title,
+        string Message,
+        string RecoveryLabel,
+        string RecoveryHref);
+}
