@@ -274,48 +274,54 @@
         Resource = string.IsNullOrWhiteSpace(ResourceId)
             ? null
             : await ResourceManager.GetResourceAsync(ResourceId);
-        ResourceGroup = Resource is null
-            ? null
-            : await ResourceManager.GetResourceGroupForResourceAsync(Resource.Id);
+        if (Resource is null)
+        {
+            NavigateToResourceNotFound();
+            return;
+        }
 
-        if (Resource is not null &&
-            !ResourceManagerUiAccess.CanReadResource(Authorization, Resource, ResourceGroup?.Id))
+        var resource = Resource;
+        ResourceGroup = await ResourceManager.GetResourceGroupForResourceAsync(resource.Id);
+
+        if (!ResourceManagerUiAccess.CanReadResource(Authorization, resource, ResourceGroup?.Id))
         {
             Navigation.NavigateTo("/account/access-denied");
         }
 
-        if (Resource is null)
-        {
-            ResourceLogs = [];
-            HealthSummary = null;
-            IsCheckingHealth = false;
-            HasIdentityPermissionGrants = false;
-            HasResourceMonitoring = false;
-            OperationCapabilities = ResourceOperationCapabilities.None(string.Empty);
-        }
-        else
-        {
-            await LoadResourceAffordancesAsync(Resource);
-        }
+        await LoadResourceAffordancesAsync(resource);
 
         if (ResourceViewId.TryParse(RequestedQueryTabId, out var requestedTabId))
         {
             SelectedTabId = requestedTabId;
         }
 
-        if (Resource is not null && ConfigurationContext?.ResourceId != Resource.Id)
+        if (ConfigurationContext?.ResourceId != resource.Id)
         {
             if (ConfigurationContext is not null)
             {
                 ConfigurationContext.StateChanged -= HandleConfigurationStateChanged;
             }
 
-            ConfigurationContext = new ResourceConfigurationContext(Resource.Id);
+            ConfigurationContext = new ResourceConfigurationContext(resource.Id);
             ConfigurationContext.StateChanged += HandleConfigurationStateChanged;
         }
     }
 
     private void Cancel() => Navigation.NavigateTo("/resources");
+
+    private void NavigateToResourceNotFound()
+    {
+        ResourceLogs = [];
+        HealthSummary = null;
+        IsCheckingHealth = false;
+        HasIdentityPermissionGrants = false;
+        HasResourceMonitoring = false;
+        OperationCapabilities = ResourceOperationCapabilities.None(string.Empty);
+        if (!string.IsNullOrWhiteSpace(ResourceId))
+        {
+            Navigation.NavigateTo(ResourceManagerRoutes.ResourceNotFound(ResourceId), replace: true);
+        }
+    }
 
     private void SelectTab(ResourceViewId tabId)
     {

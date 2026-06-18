@@ -439,6 +439,12 @@ public sealed class SampleSmokeTests
         Assert.DoesNotContain("Resource telemetry", inlineApiLogsHtml);
         Assert.DoesNotContain("application-topology-frontend / Console logs", inlineApiLogsHtml);
 
+        var missingResourceHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:does-not-exist")}/details");
+        Assert.Contains("Resource not found", missingResourceHtml);
+        Assert.Contains("application:does-not-exist", missingResourceHtml);
+        Assert.Contains("Open Resources", missingResourceHtml);
+
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
         AssertResourceTabsInOrder(

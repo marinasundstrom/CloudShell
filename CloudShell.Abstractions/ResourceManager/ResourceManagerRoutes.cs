@@ -20,4 +20,11 @@ public static class ResourceManagerRoutes
 
     public static string ResourceOverview(string resourceId) =>
         ResourceDetails(resourceId, ResourcePredefinedViewIds.Overview);
+
+    public static string ResourceNotFound(string resourceId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(resourceId);
+
+        return $"/resources/not-found?resourceId={Uri.EscapeDataString(resourceId)}";
+    }
 }

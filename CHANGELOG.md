@@ -135,6 +135,9 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Fixed
 
+- Invalid Resource Manager details URLs now navigate to a dedicated Resource
+  not found page that shows the missing resource ID instead of rendering the
+  standard resource details layout.
 - Application start now resolves service-discovery environment variables from
   the Resource Manager projection instead of resolving scoped resource
   providers from the root service provider.

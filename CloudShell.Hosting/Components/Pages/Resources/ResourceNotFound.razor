@@ -1,0 +1,38 @@
+@page "/resources/not-found"
+@rendermode InteractiveServer
+@inject IStringLocalizer<SharedResource> L
+
+<PageTitle>@L["Resource not found"]</PageTitle>
+
+<section class="page-heading compact">
+    <div>
+        <span class="eyebrow">@L["Resource Manager"]</span>
+        <h1>@L["Resource not found"]</h1>
+        <p>@L["The requested resource could not be found in this CloudShell environment."]</p>
+    </div>
+    <div class="heading-actions">
+        <FluentAnchor Appearance="Appearance.Neutral" Href="@ResourceManagerRoutes.Resources">
+            @L["Open Resources"]
+        </FluentAnchor>
+    </div>
+</section>
+
+<section class="panel">
+    <EmptyState Title="@L["Resource not found"].Value"
+                Message="@GetMessage()">
+        <dl class="detail-list compact">
+            <dt>@L["Resource ID"]</dt>
+            <dd>@(string.IsNullOrWhiteSpace(ResourceId) ? L["none"].Value : ResourceId)</dd>
+        </dl>
+    </EmptyState>
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "resourceId")]
+    private string? ResourceId { get; set; }
+
+    private string GetMessage() =>
+        string.IsNullOrWhiteSpace(ResourceId)
+            ? L["No resource ID was provided."].Value
+            : L["Resource '{0}' may have been removed, renamed, or is no longer visible.", ResourceId].Value;
+}

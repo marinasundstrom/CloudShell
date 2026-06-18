@@ -29,4 +29,12 @@ public sealed class ResourceManagerRoutesTests
 
         Assert.Equal("/resources/application%3Aapi/details?tab=general%3Aoverview", route);
     }
+
+    [Fact]
+    public void ResourceNotFound_AddsEscapedResourceIdQuery()
+    {
+        var route = ResourceManagerRoutes.ResourceNotFound("application:orders api");
+
+        Assert.Equal("/resources/not-found?resourceId=application%3Aorders%20api", route);
+    }
 }
