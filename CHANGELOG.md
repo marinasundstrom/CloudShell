@@ -100,6 +100,10 @@ on `git blame --follow`, and then by the broad type of change.
   source and scope declarations, Control Plane API/client resource projection,
   and shared/inline Trace and Metric scope selectors for resources with
   multiple announced telemetry scopes.
+- Load balancer resources now have a Resource Manager Configuration tab for
+  adding or editing routes on existing load balancers, and application endpoint
+  shortcuts now route to that editor when exactly one same-group load balancer
+  is available.
 
 #### Fixed
 

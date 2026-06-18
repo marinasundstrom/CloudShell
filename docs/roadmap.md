@@ -329,9 +329,13 @@ listed here before pulling in broader proposal work.
   Resource Manager create flow for the target app and endpoint. Container
   app overviews also provide a first app-centric "Add load-balancer route"
   action that opens a prefilled load-balancer create flow for the target app
-  endpoint; richer route editing on existing load balancers remains deferred.
-  Next it needs richer provider-specific DNS diagnostics when the MVP
-  management flow needs them.
+  endpoint. Route-shape validation, duplicate route-match validation, duplicate
+  entrypoint validation, host-port conflict validation, and missing
+  target/endpoint action-capability reasons are now in place. Resource Manager
+  can add or edit routes on an existing load balancer from its Configuration
+  tab, and application endpoint shortcuts now prefer the existing load balancer
+  in the same group when there is exactly one candidate. Next it needs richer
+  provider-specific DNS diagnostics when the MVP management flow needs them.
 - Keep public endpoint exposure explicit. A resource can expose an endpoint
   directly, through app-owned ingress, through a virtual-network mapping,
   through a load-balancer route, or through an optional service facade when

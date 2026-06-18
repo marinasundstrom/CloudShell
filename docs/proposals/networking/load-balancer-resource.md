@@ -379,5 +379,7 @@ mappings.
   target resources/endpoints. File-config apply is in place; managed container
   mode now uses load-balancer Start/Stop and Delete cleanup rather than
   starting as a side effect of Apply.
-- Add end-to-end validation for TLS, route conflicts, and backend target
-  resolution before the design is considered production-ready.
+- Add end-to-end validation for TLS and richer backend target resolution before
+  the design is considered production-ready. In-resource route-shape,
+  duplicate route-match, duplicate entrypoint, and host-port conflict
+  validation already exist for load-balancer setup.

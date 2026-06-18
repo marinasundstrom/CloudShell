@@ -258,10 +258,15 @@ Implemented pieces include:
   runtime paths.
 * Add application-centric UI for internal exposure and public endpoint
   exposure. Load-balancer and DNS/domain mapping authoring now have first
-  app-centric entry points, but route editing on existing load balancers,
-  richer provider-specific publishing, and custom domain guidance remain open.
-* Add route, DNS/name, and provider-backed endpoint conflict diagnostics before
-  start/update where possible.
+  app-centric entry points, and Resource Manager can add or edit routes on an
+  existing load balancer. Richer provider-specific publishing and custom domain
+  guidance remain open.
+* Continue conflict and readiness diagnostics before start/update where
+  possible. Load-balancer route-shape validation, duplicate route-match
+  validation, duplicate entrypoint validation, host-port conflict validation,
+  and missing target/endpoint action-capability reasons exist; remaining work
+  should focus on DNS/name plus provider-backed endpoint diagnostics where they
+  still affect MVP flows.
 * Add host capability diagnostics for unsupported storage media, ingress,
   public endpoint, or DNS/name publication choices.
 * Add deeper app-owned ingress/provider guidance after the first Scale and
