@@ -78,6 +78,9 @@ on `git blame --follow`, and then by the broad type of change.
   `monitoring` resource capability and can return resource monitoring snapshots
   from container-host stats when their owner app and static/default container
   host can be resolved.
+- Logs views now show explicit not-found states when URL parameters reference
+  unavailable log sources or resource log filters instead of silently falling
+  back to another log selection.
 - Configuration Store and Secrets Vault resources now provide the same basic
   service-process resource monitoring snapshots through their local service
   process runner.

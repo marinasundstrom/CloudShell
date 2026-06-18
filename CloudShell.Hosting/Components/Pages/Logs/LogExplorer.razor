@@ -6,7 +6,8 @@
 
 @{
     var logs = GetSelectableLogs();
-    var selected = GetSelectedLog(logs);
+    var selectionIssue = GetSelectionIssue(logs);
+    var selected = selectionIssue is null ? GetSelectedLog(logs) : null;
     var selectedResourceFilterId = GetSelectedResourceFilterId();
 }
 
@@ -56,7 +57,17 @@ else if (ShowHeading)
 
 <section class="trace-workspace">
     <div class="log-viewer @(UsePanel ? "panel" : null)">
-        @if (selected is null)
+        @if (selectionIssue is not null)
+        {
+            <div class="empty-state">
+                <strong>@selectionIssue.Title</strong>
+                <span>@selectionIssue.Message</span>
+                <FluentAnchor Appearance="Appearance.Neutral" Href="@selectionIssue.RecoveryHref">
+                    @selectionIssue.RecoveryLabel
+                </FluentAnchor>
+            </div>
+        }
+        else if (selected is null)
         {
             <div class="empty-state">
                 <strong>@L["No log selected"]</strong>
@@ -74,6 +85,12 @@ else if (ShowHeading)
                     </div>
                 }
                 <div class="log-viewer-actions">
+                    @if (!ShowHeading && !string.IsNullOrWhiteSpace(TraceId))
+                    {
+                        <FluentButton Appearance="Appearance.Neutral" OnClick="ClearTraceFilter">
+                            @L["Clear trace filter"]
+                        </FluentButton>
+                    }
                     @if (!Inline)
                     {
                         <label class="trace-source-filter" for="log-resource-filter">
@@ -397,6 +414,11 @@ else if (ShowHeading)
 
     private LogDescriptor? GetSelectedLog(IReadOnlyList<LogDescriptor> logs)
     {
+        if (GetSelectionIssue(logs) is not null)
+        {
+            return null;
+        }
+
         if (!string.IsNullOrWhiteSpace(LogId))
         {
             var requested = logs.FirstOrDefault(log =>
@@ -408,6 +430,34 @@ else if (ShowHeading)
         }
 
         return GetDefaultLog(logs);
+    }
+
+    private LogSelectionIssue? GetSelectionIssue(IReadOnlyList<LogDescriptor> logs)
+    {
+        if (IsRequestedResourceFilterUnavailable())
+        {
+            var resourceId = ResourceId?.Trim() ?? string.Empty;
+            return new LogSelectionIssue(
+                L["Resource log filter not found"].Value,
+                L["No log sources are registered for resource '{0}'.", resourceId].Value,
+                L["Show all logs"].Value,
+                "/logs");
+        }
+
+        if (!string.IsNullOrWhiteSpace(LogId) &&
+            !logs.Any(log => string.Equals(log.Id, LogId, StringComparison.OrdinalIgnoreCase)))
+        {
+            var recoveryHref = Inline && !string.IsNullOrWhiteSpace(ResourceId)
+                ? ResourceManagerRoutes.ResourceDetails(ResourceId, ResourcePredefinedViewIds.Logs)
+                : BuildAllLogsRoute();
+            return new LogSelectionIssue(
+                L["Log source not found"].Value,
+                L["Log source '{0}' is not available in the current log view.", LogId.Trim()].Value,
+                L["Show available logs"].Value,
+                recoveryHref);
+        }
+
+        return null;
     }
 
     private static LogDescriptor? GetDefaultLog(IReadOnlyList<LogDescriptor> logs) =>
@@ -879,6 +929,20 @@ else if (ShowHeading)
                 ? ResourceId
                 : null;
     }
+
+    private bool IsRequestedResourceFilterUnavailable() =>
+        !Inline &&
+        !string.IsNullOrWhiteSpace(ResourceId) &&
+        !LogResourceFilters.Any(option =>
+            string.Equals(option.ResourceId, ResourceId, StringComparison.OrdinalIgnoreCase));
+
+    private static string BuildAllLogsRoute() => "/logs";
+
+    private sealed record LogSelectionIssue(
+        string Title,
+        string Message,
+        string RecoveryLabel,
+        string RecoveryHref);
 
     private sealed record LogResourceFilterOption(string ResourceId, string Name);
 }
