@@ -134,6 +134,34 @@ else
         </section>
     }
 
+    @if (VolumeMounts.Count > 0)
+    {
+        <section class="blade-section">
+            <h3>Storage mounts</h3>
+            <div class="generated-list">
+                @foreach (var volumeMount in VolumeMounts)
+                {
+                    <div>
+                        <strong>
+                            @if (volumeMount.Volume is null)
+                            {
+                                @volumeMount.Mount.NormalizedVolumeReference
+                            }
+                            else
+                            {
+                                <a class="resource-link" href="@BuildResourceRoute(volumeMount.Volume.Id)">
+                                    @ApplicationVolumeResourceDisplay.GetMountSourceLabel(volumeMount.Mount, volumeMount.Volume)
+                                </a>
+                            }
+                        </strong>
+                        <span>@volumeMount.Mount.NormalizedTargetPath</span>
+                        <small>@GetMountRuntimeLabel(volumeMount)</small>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
     @if (IsContainerBacked(Application))
     {
         <section class="blade-section">

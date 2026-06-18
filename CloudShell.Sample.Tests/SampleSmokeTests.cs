@@ -581,6 +581,10 @@ public sealed class SampleSmokeTests
 
         var sqlDetailsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details");
+        Assert.Contains("Storage mounts", sqlDetailsHtml);
+        Assert.Contains("application-topology-sql-data (FileSystem)", sqlDetailsHtml);
+        Assert.Contains("/var/opt/mssql", sqlDetailsHtml);
+        Assert.Contains("Read/write", sqlDetailsHtml);
         AssertResourceTabsInOrder(
             sqlDetailsHtml,
             ">Overview<",

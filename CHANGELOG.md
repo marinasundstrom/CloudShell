@@ -151,6 +151,8 @@ on `git blame --follow`, and then by the broad type of change.
   startup declaration before applying provider-state changes.
 - Resource Manager inline action buttons now include read-only and
   control-plane action-unavailable reasons in their titles.
+- Application overview pages now show configured storage mounts with volume,
+  target path, access mode, and runtime materialization status.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate
