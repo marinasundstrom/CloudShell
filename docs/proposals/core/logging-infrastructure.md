@@ -200,6 +200,14 @@ as inline text noise. Log source selection lives in the page header, structured
 entries can be filtered, and selecting a structured entry shows category,
 event, trace/span, exception, and attribute fields in a side pane.
 
+For replicated container apps, Logs should stay scoped to the stable
+container app resource by default. When multiple runtime instances are
+observed, the view should add an `All instances` runtime scope default plus
+per-instance options. A single observed instance should not add selector
+chrome. Implementing that consistently requires log entries or descriptors to
+carry runtime scope dimensions such as runtime resource ID, replica ordinal,
+container name, and deployment revision.
+
 Remaining structured-log work should decide:
 
 - whether CloudShell needs a typed event ID shape instead of the current stable
@@ -278,6 +286,15 @@ span table:
 - Navigation from a selected span to related resource logs, activity entries,
   and resource details using shared `traceId`, `spanId`, `resourceId`, and
   service name correlation.
+
+Replicated container apps should also keep traces app-scoped by default. A
+runtime scope selector can narrow spans to one observed instance when that is
+useful, but trace identity remains trace-first and service-aware; a distributed
+trace may cross services and replicas. Telemetry metric views should likewise
+default to app-level aggregates and expose per-runtime scope filtering or
+breakdowns only when metric points carry stable runtime dimensions.
+Provider-observed CPU, memory, restart count, uptime, and materialization
+state remain Resource Metrics under Management > Monitoring.
 
 Resource pages should keep common operational investigation in context. Events
 should have a resource-scoped inline view under the Resource Manager

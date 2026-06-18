@@ -125,6 +125,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Control Plane API planning now records live telemetry and resource
   monitoring subscriptions for split-hosted UIs as a later design question
   after basic provider monitoring support.
+- Container app telemetry planning now defines app-scoped Logs, Traces, and
+  Metrics with an `All instances` runtime scope default for replicated apps,
+  while keeping provider-observed resource metrics under Management >
+  Monitoring.
 
 ### 2026-06-17
 

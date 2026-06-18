@@ -9,6 +9,36 @@ Decision IDs are stable enough to reference from changelog entries and related
 docs. When an implementation change follows a decision, the changelog should
 link to the decision so the dependency is visible.
 
+## 2026-06-18
+
+### ADR-20260618-001: Keep replicated container app telemetry app-scoped with runtime scope filters
+
+Container app telemetry belongs to the stable container app resource by
+default, even when the app is implemented by multiple runtime replicas. Logs,
+traces, and telemetry metrics should open at app scope so users can investigate
+the service they manage without navigating to hidden runtime-managed replica
+resources.
+
+When a container app has one observed runtime instance, the resource Telemetry
+views should not show an instance selector. When multiple runtime instances
+exist, Logs, Traces, and Metrics should expose a compact runtime scope selector
+whose default is `All instances`. Individual options represent runtime
+instances or replicas, not independent management targets. The selector should
+be labeled as scope or instance rather than as the primary Replicas management
+concept.
+
+Telemetry records should carry the stable app resource identity plus optional
+runtime scope dimensions, such as runtime resource ID, replica ordinal,
+replica count, container name, and deployment revision. Logs use the scope to
+filter or combine source output. Traces remain trace-first and service-aware:
+runtime scope filtering may narrow displayed spans, but it should not redefine
+the trace as belonging only to one replica. Telemetry Metrics should default
+to app-level aggregate views and allow per-runtime filtering or breakdowns.
+Provider-observed CPU, memory, restart count, uptime, and container status
+remain Resource Metrics under Management > Monitoring, not Telemetry Metrics.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ## 2026-06-17
 
 ### ADR-20260617-001: Make container app replicas an explicit scaling mode

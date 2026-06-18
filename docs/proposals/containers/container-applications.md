@@ -135,7 +135,8 @@ surface for:
 * internal exposure on the host network or virtual networks
 * public endpoint and load-balancer exposure
 * DNS-style internal names and custom domain mappings
-* logs, structured logs, traces, metrics, and activity events
+* app-scoped logs, structured logs, traces, telemetry metrics, and activity
+  events
 * resource monitoring summaries and per-replica runtime metrics
 
 Related resources should still be visible and navigable. A load balancer,
@@ -185,6 +186,9 @@ Implemented pieces include:
 * identity binding and standard runtime credential delivery path
 * observability environment variable projection
 * structured logs and trace views for application diagnostics
+* app-scoped telemetry design for multi-replica container apps, where
+  resource Telemetry views default to all runtime instances and later expose a
+  runtime scope selector only when multiple instances exist
 * app-owned ingress for replicated Docker-backed apps
 * inbound virtual-network, load-balancer, and DNS/name-mapping relationship
   display on application overview pages
@@ -277,6 +281,10 @@ Implemented pieces include:
 * Add deeper container-host readiness diagnostics for unsupported ingress,
   public endpoint, DNS/name publication, registry credential, and storage
   choices before update/start.
+* Add runtime scope dimensions to container app logs, traces, and telemetry
+  metrics so Resource Manager can offer an `All instances` default plus
+  per-instance scope filtering when a replicated app has multiple runtime
+  instances. Single-instance apps should not show a selector.
 * Keep local container-registry configuration explicit so CloudShell does not
   assume `localhost:5000`. The Container App Deployment sample already uses an
   explicit non-default port, and declared Docker container resources now
@@ -303,3 +311,5 @@ Implemented pieces include:
   TLS/certificate automation exists?
 * What is the smallest useful revision history that belongs to the container
   app before the richer orchestrator deployment/revision model lands?
+* Which runtime scope dimension names should become stable telemetry contract
+  fields versus provider-owned attributes on logs, spans, and metric points?

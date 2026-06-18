@@ -360,3 +360,27 @@ Container apps should also expose console logs from the underlying workload as
 resource-type-specific logs. Those logs show stdout/stderr from the running
 container. They complement, but do not replace, the platform-owned `Resource
 events` stream that records who or what changed the resource.
+
+## Telemetry Scope
+
+Container app Telemetry views are app-scoped by default. Logs, Traces, and
+Telemetry Metrics should open on the stable container app resource even when
+the app is implemented by multiple runtime replicas. Users should not need to
+open hidden runtime-managed replica resources for normal telemetry
+investigation.
+
+When only one runtime instance is observed, the Telemetry views should not
+show a scope selector. When multiple runtime instances are observed, the views
+should default to `All instances` and expose a compact scope or instance
+selector for individual replicas or containers. Logs can use that scope to
+filter source output. Traces stay trace-first and service-aware, so a scope
+filter narrows spans rather than redefining trace ownership. Telemetry Metrics
+should default to app-level aggregate data with optional per-runtime filtering
+or breakdowns.
+
+Telemetry records need the stable app `resourceId` plus optional runtime
+dimensions such as runtime resource ID, replica ordinal, replica count,
+container name, and deployment revision before Resource Manager can implement
+that selector consistently across Logs, Traces, and Metrics. Provider-observed
+CPU, memory, restart count, uptime, and container status remain Resource
+Metrics under Management > Monitoring.

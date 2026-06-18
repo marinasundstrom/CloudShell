@@ -546,6 +546,12 @@ listed here before pulling in broader proposal work.
   Management, and application telemetry belongs under Telemetry. Providers
   should use `telemetry:metrics` for application/runtime metrics tabs and
   `management:monitoring` for process/container resource metrics tabs.
+  Replicated container app telemetry should remain scoped to the stable app
+  resource by default. Resource Telemetry views should show no runtime scope
+  selector for one observed instance, then use an `All instances` default plus
+  per-instance scope options when multiple runtime instances exist. Logs,
+  traces, and telemetry metrics need stable runtime scope dimensions before
+  Resource Manager can implement that filtering consistently.
   CloudShell now retains application/runtime telemetry metric points in memory
   for the MVP and can query provider-backed current resource monitoring
   snapshots for Docker containers, local application processes, single-instance
