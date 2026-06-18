@@ -251,6 +251,10 @@ public static class ResourceAttributeNames
     public const string NameMappingStatusReason = "nameMapping.statusReason";
     public const string NameMappingMaterializationStatus = "nameMapping.materializationStatus";
     public const string NameMappingMaterializationStatusReason = "nameMapping.materializationStatusReason";
+    public const string NameMappingLocalHostNamesHostsFilePath = "nameMapping.localHostNames.hostsFilePath";
+    public const string NameMappingLocalHostNamesHostsFileTarget = "nameMapping.localHostNames.hostsFileTarget";
+    public const string NameMappingLocalHostNamesResolverRefreshStatus = "nameMapping.localHostNames.resolverRefreshStatus";
+    public const string NameMappingLocalHostNamesResolverRefreshReason = "nameMapping.localHostNames.resolverRefreshReason";
     public const string LoadBalancerProvider = "loadBalancer.provider";
     public const string LoadBalancerHostResourceId = "loadBalancer.hostResourceId";
     public const string LoadBalancerEntrypointCount = "loadBalancer.entrypoints";

@@ -17,12 +17,14 @@ public sealed class DnsNamePublishingObservationStore
         DnsNamePublishingContext context,
         string providerName,
         ResourceProcedureResult result,
+        IReadOnlyDictionary<string, string>? attributes = null,
         DateTimeOffset? observedAt = null) =>
         Record(
             context,
             providerName,
             DnsNamePublishingObservationStatus.Published,
             result.Message,
+            attributes,
             observedAt);
 
     public void RecordFailed(
@@ -35,6 +37,7 @@ public sealed class DnsNamePublishingObservationStore
             providerName,
             DnsNamePublishingObservationStatus.Failed,
             message,
+            null,
             observedAt);
 
     private void Record(
@@ -42,6 +45,7 @@ public sealed class DnsNamePublishingObservationStore
         string providerName,
         DnsNamePublishingObservationStatus status,
         string message,
+        IReadOnlyDictionary<string, string>? attributes,
         DateTimeOffset? observedAt)
     {
         observations[context.Definition.Id] = new DnsNamePublishingObservation(
@@ -54,7 +58,8 @@ public sealed class DnsNamePublishingObservationStore
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .ToArray(),
             message,
-            observedAt ?? DateTimeOffset.UtcNow);
+            observedAt ?? DateTimeOffset.UtcNow,
+            attributes ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
     }
 
     private static string NormalizeHostName(string hostName) =>
@@ -67,7 +72,13 @@ public sealed record DnsNamePublishingObservation(
     DnsNamePublishingObservationStatus Status,
     IReadOnlyList<string> HostNames,
     string Message,
-    DateTimeOffset ObservedAt);
+    DateTimeOffset ObservedAt,
+    IReadOnlyDictionary<string, string> Attributes);
+
+public interface INamePublishingObservationAttributeProvider
+{
+    IReadOnlyDictionary<string, string> GetObservationAttributes(DnsNamePublishingContext context);
+}
 
 public enum DnsNamePublishingObservationStatus
 {

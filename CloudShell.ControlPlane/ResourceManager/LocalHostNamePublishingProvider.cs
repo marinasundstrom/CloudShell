@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
 using CloudShell.Abstractions.ResourceManager;
@@ -6,17 +7,35 @@ namespace CloudShell.ControlPlane.ResourceManager;
 
 public sealed class LocalHostNamePublishingProvider(
     PlatformResourceOptions options,
-    ILocalHostNameResolverCacheRefresher? resolverCacheRefresher = null) : INamePublishingProvider
+    ILocalHostNameResolverCacheRefresher? resolverCacheRefresher = null) :
+    INamePublishingProvider,
+    INamePublishingObservationAttributeProvider
 {
     private const string BeginMarker = "# BEGIN CloudShell local hostnames";
     private const string EndMarker = "# END CloudShell local hostnames";
+    private const string HostsFileTargetSystem = "System";
+    private const string HostsFileTargetCustom = "Custom";
+    private const string ResolverRefreshDisabled = "Disabled";
+    private const string ResolverRefreshFailed = "Failed";
+    private const string ResolverRefreshNotAttempted = "NotAttempted";
+    private const string ResolverRefreshSkipped = "Skipped";
+    private const string ResolverRefreshSucceeded = "Succeeded";
+    private const string ResolverRefreshUnavailable = "Unavailable";
 
     public const string DefaultProviderName = "local-hostnames";
+
+    private readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, string>> observationAttributes =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public string ProviderName => options.LocalHostNameProviderName;
 
     public bool CanPublish(DnsNamePublishingContext context) =>
         string.Equals(context.Definition.Provider, ProviderName, StringComparison.OrdinalIgnoreCase);
+
+    public IReadOnlyDictionary<string, string> GetObservationAttributes(DnsNamePublishingContext context) =>
+        observationAttributes.TryGetValue(context.Definition.Id, out var attributes)
+            ? attributes
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     public async Task<ResourceProcedureResult> ReconcileAsync(
         DnsNamePublishingContext context,
@@ -28,6 +47,7 @@ public sealed class LocalHostNamePublishingProvider(
                 $"DNS zone resource '{context.Definition.Id}' is not configured for provider '{ProviderName}'.");
         }
 
+        observationAttributes.TryRemove(context.Definition.Id, out _);
         var entries = context.Mappings
             .Select(CreateHostsEntry)
             .OrderBy(entry => entry.HostName, StringComparer.OrdinalIgnoreCase)
@@ -46,14 +66,28 @@ public sealed class LocalHostNamePublishingProvider(
 
         var message =
             $"Published {entries.Length.ToString(CultureInfo.InvariantCulture)} local host name mapping(s) to '{hostsFile.Path}'.";
-        message += " " + await GetResolverRefreshMessageAsync(hostsFile, cancellationToken).ConfigureAwait(false);
+        var refresh = await GetResolverRefreshObservationAsync(hostsFile, cancellationToken).ConfigureAwait(false);
+        message += " " + refresh.Message;
         if (entries.Any(entry => IsLocalDomain(entry.HostName)))
         {
             message += " Warning: .local host names may conflict with mDNS/Bonjour on the host network.";
         }
 
+        observationAttributes[context.Definition.Id] = CreateObservationAttributes(hostsFile, refresh);
         return ResourceProcedureResult.Completed(message);
     }
+
+    private static IReadOnlyDictionary<string, string> CreateObservationAttributes(
+        HostsFileTarget hostsFile,
+        ResolverRefreshObservation refresh) =>
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.NameMappingLocalHostNamesHostsFilePath] = hostsFile.Path,
+            [ResourceAttributeNames.NameMappingLocalHostNamesHostsFileTarget] =
+                hostsFile.IsSystemHostsFile ? HostsFileTargetSystem : HostsFileTargetCustom,
+            [ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshStatus] = refresh.Status,
+            [ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshReason] = refresh.Message
+        };
 
     private HostsEntry CreateHostsEntry(DnsNameMappingResolution resolution)
     {
@@ -107,27 +141,36 @@ public sealed class LocalHostNamePublishingProvider(
             $"Name mapping '{mappingId}' target endpoint '{endpointName}' host '{host}' is not a local or IP address that can be published through provider '{ProviderName}'.");
     }
 
-    private async Task<string> GetResolverRefreshMessageAsync(
+    private async Task<ResolverRefreshObservation> GetResolverRefreshObservationAsync(
         HostsFileTarget hostsFile,
         CancellationToken cancellationToken)
     {
         if (options.LocalHostNameResolverRefreshMode == LocalHostNameResolverRefreshMode.Disabled)
         {
-            return "Resolver cache refresh is disabled.";
+            return new ResolverRefreshObservation(
+                ResolverRefreshDisabled,
+                "Resolver cache refresh is disabled.");
         }
 
         if (!hostsFile.IsSystemHostsFile)
         {
-            return "Resolver cache was not refreshed because a custom hosts-file target is configured.";
+            return new ResolverRefreshObservation(
+                ResolverRefreshSkipped,
+                "Resolver cache was not refreshed because a custom hosts-file target is configured.");
         }
 
         if (resolverCacheRefresher is null)
         {
-            return "Resolver cache was not refreshed because no refresh service is registered.";
+            return new ResolverRefreshObservation(
+                ResolverRefreshUnavailable,
+                "Resolver cache was not refreshed because no refresh service is registered.");
         }
 
         var result = await resolverCacheRefresher.RefreshAsync(cancellationToken).ConfigureAwait(false);
-        return result.Message;
+        var status = result.Attempted
+            ? result.Succeeded ? ResolverRefreshSucceeded : ResolverRefreshFailed
+            : ResolverRefreshNotAttempted;
+        return new ResolverRefreshObservation(status, result.Message);
     }
 
     private HostsFileTarget ResolveHostsFile()
@@ -241,4 +284,6 @@ public sealed class LocalHostNamePublishingProvider(
     private sealed record HostsEntry(string Address, string HostName);
 
     private sealed record HostsFileTarget(string Path, bool IsSystemHostsFile);
+
+    private sealed record ResolverRefreshObservation(string Status, string Message);
 }

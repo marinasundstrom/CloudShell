@@ -108,6 +108,41 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
+    public void GetDiagnostics_ShowsLocalHostNamePublishingDiagnostics()
+    {
+        var mapping = CreateNameMapping(
+            string.Empty,
+            materializationStatus: "Published",
+            materializationStatusReason: "Published to custom hosts-file target.",
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NameMappingHostName] = "api.local",
+                [ResourceAttributeNames.NameMappingLocalHostNamesHostsFilePath] = "/tmp/cloudshell-hosts",
+                [ResourceAttributeNames.NameMappingLocalHostNamesHostsFileTarget] = "Custom",
+                [ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshStatus] = "Skipped",
+                [ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshReason] =
+                    "Resolver cache was not refreshed because a custom hosts-file target is configured."
+            });
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            mapping,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+
+        Assert.Contains(diagnostics, diagnostic =>
+            diagnostic.Severity == "Info" &&
+            diagnostic.Title == "Local host-name target" &&
+            diagnostic.Message == "Published to custom hosts-file target '/tmp/cloudshell-hosts'.");
+        Assert.Contains(diagnostics, diagnostic =>
+            diagnostic.Severity == "Info" &&
+            diagnostic.Title == "Resolver cache not refreshed" &&
+            diagnostic.Message.Contains("custom hosts-file target", StringComparison.Ordinal));
+        Assert.Contains(diagnostics, diagnostic =>
+            diagnostic.Severity == "Warning" &&
+            diagnostic.Title == "Local suffix warning" &&
+            diagnostic.Message.Contains("mDNS/Bonjour", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void GetDiagnostics_WarnsWhenNameMappingPublishFailed()
     {
         var mapping = CreateNameMapping(
@@ -457,7 +492,29 @@ public sealed class ResourceDiagnosticDisplayTests
     private static Resource CreateNameMapping(
         string providerResourceId,
         string materializationStatus = "ProviderSelected",
-        string? materializationStatusReason = null) =>
+        string? materializationStatusReason = null,
+        IReadOnlyDictionary<string, string>? attributes = null)
+    {
+        var resourceAttributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.NameMappingHostName] = "api.local",
+            [ResourceAttributeNames.NameMappingTargetResourceId] = "application:api",
+            [ResourceAttributeNames.NameMappingExposure] = ResourceExposureScope.Public.ToString(),
+            [ResourceAttributeNames.NameMappingStatus] = "Ready",
+            [ResourceAttributeNames.NameMappingMaterializationStatus] = materializationStatus,
+            [ResourceAttributeNames.NameMappingMaterializationStatusReason] =
+                materializationStatusReason ?? "Provider selected.",
+            [ResourceAttributeNames.NameMappingProviderResourceId] = providerResourceId
+        };
+        if (attributes is not null)
+        {
+            foreach (var (name, value) in attributes)
+            {
+                resourceAttributes[name] = value;
+            }
+        }
+
+        return
         new(
             "dns:local:name:api-local",
             "api.local",
@@ -471,18 +528,9 @@ public sealed class ResourceDiagnosticDisplayTests
             [providerResourceId],
             TypeId: PlatformResourceProvider.NameMappingResourceType,
             ResourceClass: ResourceClass.Network,
-            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                [ResourceAttributeNames.NameMappingHostName] = "api.local",
-                [ResourceAttributeNames.NameMappingTargetResourceId] = "application:api",
-                [ResourceAttributeNames.NameMappingExposure] = ResourceExposureScope.Public.ToString(),
-                [ResourceAttributeNames.NameMappingStatus] = "Ready",
-                [ResourceAttributeNames.NameMappingMaterializationStatus] = materializationStatus,
-                [ResourceAttributeNames.NameMappingMaterializationStatusReason] =
-                    materializationStatusReason ?? "Provider selected.",
-                [ResourceAttributeNames.NameMappingProviderResourceId] = providerResourceId
-            },
+            Attributes: resourceAttributes,
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
+    }
 
     private static Resource CreateNetworkWithEndpointMapping(string? providerResourceId) =>
         new(

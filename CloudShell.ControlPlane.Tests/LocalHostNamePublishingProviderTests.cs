@@ -81,6 +81,20 @@ public sealed class LocalHostNamePublishingProviderTests
         var content = await File.ReadAllTextAsync(hostsPath);
         Assert.Contains("Published 1 local host name mapping", result.Message);
         Assert.Contains("127.0.0.1 api.cloudshell.local", content);
+        var projectedMapping = platform.GetResources().Single(resource => resource.Id == "dns:dev:name:api");
+        Assert.Equal(
+            hostsPath,
+            projectedMapping.ResourceAttributes[ResourceAttributeNames.NameMappingLocalHostNamesHostsFilePath]);
+        Assert.Equal(
+            "Custom",
+            projectedMapping.ResourceAttributes[ResourceAttributeNames.NameMappingLocalHostNamesHostsFileTarget]);
+        Assert.Equal(
+            "Skipped",
+            projectedMapping.ResourceAttributes[ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshStatus]);
+        Assert.Contains(
+            "custom hosts-file target",
+            projectedMapping.ResourceAttributes[ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshReason],
+            StringComparison.Ordinal);
         var events = resourceEvents.GetEvents(new ResourceEventQuery(ResourceId: zone.Id));
         Assert.Contains(events, resourceEvent =>
             resourceEvent.EventType == ResourceEventTypes.Events.Provider.ForEvent(

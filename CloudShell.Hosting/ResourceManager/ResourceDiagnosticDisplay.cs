@@ -89,6 +89,58 @@ public static class ResourceDiagnosticDisplay
                 "Name mapping pending publish",
                 $"{reason} Run Reconcile name mappings on the DNS zone to apply it."));
         }
+
+        AddLocalHostNamePublishingDiagnostics(resource, diagnostics);
+    }
+
+    private static void AddLocalHostNamePublishingDiagnostics(
+        Resource resource,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        if (!resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingLocalHostNamesHostsFilePath,
+                out var hostsFilePath) ||
+            string.IsNullOrWhiteSpace(hostsFilePath))
+        {
+            return;
+        }
+
+        var target = resource.ResourceAttributes.GetValueOrDefault(
+            ResourceAttributeNames.NameMappingLocalHostNamesHostsFileTarget);
+        diagnostics.Add(new ResourceDiagnosticView(
+            "Info",
+            "Local host-name target",
+            string.Equals(target, "Custom", StringComparison.OrdinalIgnoreCase)
+                ? $"Published to custom hosts-file target '{hostsFilePath}'."
+                : $"Published to system hosts-file target '{hostsFilePath}'."));
+
+        if (resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshStatus,
+                out var refreshStatus) &&
+            !string.IsNullOrWhiteSpace(refreshStatus))
+        {
+            var reason =
+                resource.ResourceAttributes.GetValueOrDefault(
+                    ResourceAttributeNames.NameMappingLocalHostNamesResolverRefreshReason) ??
+                "Resolver cache refresh status was reported by the publishing provider.";
+            diagnostics.Add(new ResourceDiagnosticView(
+                string.Equals(refreshStatus, "Failed", StringComparison.OrdinalIgnoreCase) ? "Warning" : "Info",
+                string.Equals(refreshStatus, "Succeeded", StringComparison.OrdinalIgnoreCase)
+                    ? "Resolver cache refreshed"
+                    : "Resolver cache not refreshed",
+                reason));
+        }
+
+        if (resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingHostName,
+                out var hostName) &&
+            ShouldWarnAboutLocalSuffix(hostName))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Local suffix warning",
+                ".local host names may conflict with mDNS/Bonjour on the host network."));
+        }
     }
 
     private static bool HasResolvableNamePublisher(
@@ -105,6 +157,13 @@ public static class ResourceDiagnosticDisplay
 
         return relatedResources?.TryGetValue(providerResourceId, out var provider) == true &&
             provider.HasCapability(ResourceCapabilityIds.NetworkingNamePublisher);
+    }
+
+    private static bool ShouldWarnAboutLocalSuffix(string value)
+    {
+        var normalized = value.Trim().TrimEnd('.');
+        return normalized.Equals("local", StringComparison.OrdinalIgnoreCase) ||
+            normalized.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AddVolumeMountMaterializationDiagnostics(

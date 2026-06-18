@@ -1086,7 +1086,14 @@ public sealed class PlatformResourceProvider(
                 "dns.nameMappings.publishing",
                 $"CloudShell platform provider is applying {providerContext.Mappings.Count.ToString(CultureInfo.InvariantCulture)} DNS name mapping(s) through '{provider.ProviderName}'.");
             var result = await provider.ReconcileAsync(providerContext, cancellationToken);
-            namePublishingObservations.RecordPublished(providerContext, provider.ProviderName, result);
+            var observationAttributes = provider is INamePublishingObservationAttributeProvider attributeProvider
+                ? attributeProvider.GetObservationAttributes(providerContext)
+                : null;
+            namePublishingObservations.RecordPublished(
+                providerContext,
+                provider.ProviderName,
+                result,
+                observationAttributes);
             context.AppendProviderEvent(
                 ProviderId,
                 "dns.nameMappings.published",
@@ -2066,6 +2073,14 @@ public sealed class PlatformResourceProvider(
         if (!string.IsNullOrWhiteSpace(mapping.ProviderResourceId))
         {
             attributes[ResourceAttributeNames.NameMappingProviderResourceId] = mapping.ProviderResourceId;
+        }
+
+        if (TryGetPublishingObservationForMapping(mapping, publishingObservation, out var observation))
+        {
+            foreach (var (name, value) in observation.Attributes)
+            {
+                attributes[name] = value;
+            }
         }
 
         return new(
