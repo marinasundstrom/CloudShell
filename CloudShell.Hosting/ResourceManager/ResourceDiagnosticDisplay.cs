@@ -35,7 +35,7 @@ public static class ResourceDiagnosticDisplay
                     "This name mapping is not ready."));
         }
 
-        AddNameMappingMaterializationDiagnostics(resource, diagnostics);
+        AddNameMappingMaterializationDiagnostics(resource, relatedResources, diagnostics);
 
         AddNamePublisherDiagnostics(resource, relatedResources, diagnostics);
         AddEndpointMappingDiagnostics(resource, relatedResources, diagnostics);
@@ -48,6 +48,7 @@ public static class ResourceDiagnosticDisplay
 
     private static void AddNameMappingMaterializationDiagnostics(
         Resource resource,
+        IReadOnlyDictionary<string, Resource>? relatedResources,
         List<ResourceDiagnosticView> diagnostics)
     {
         if (!resource.ResourceAttributes.TryGetValue(
@@ -78,8 +79,7 @@ public static class ResourceDiagnosticDisplay
         }
 
         if (string.Equals(materializationStatus, "ProviderSelected", StringComparison.OrdinalIgnoreCase) &&
-            (!resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.NameMappingProviderResourceId, out var providerResourceId) ||
-                string.IsNullOrWhiteSpace(providerResourceId)))
+            HasResolvableNamePublisher(resource, relatedResources))
         {
             var reason =
                 resource.ResourceAttributes.GetValueOrDefault(ResourceAttributeNames.NameMappingMaterializationStatusReason) ??
@@ -89,6 +89,22 @@ public static class ResourceDiagnosticDisplay
                 "Name mapping pending publish",
                 $"{reason} Run Reconcile name mappings on the DNS zone to apply it."));
         }
+    }
+
+    private static bool HasResolvableNamePublisher(
+        Resource resource,
+        IReadOnlyDictionary<string, Resource>? relatedResources)
+    {
+        if (!resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingProviderResourceId,
+                out var providerResourceId) ||
+            string.IsNullOrWhiteSpace(providerResourceId))
+        {
+            return true;
+        }
+
+        return relatedResources?.TryGetValue(providerResourceId, out var provider) == true &&
+            provider.HasCapability(ResourceCapabilityIds.NetworkingNamePublisher);
     }
 
     private static void AddVolumeMountMaterializationDiagnostics(

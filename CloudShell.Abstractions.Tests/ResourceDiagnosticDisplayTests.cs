@@ -57,7 +57,7 @@ public sealed class ResourceDiagnosticDisplayTests
     }
 
     [Fact]
-    public void GetDiagnostics_DoesNotWarnWhenNameMappingPublisherAdvertisesCapability()
+    public void GetDiagnostics_ShowsPublisherResourceNameMappingAsPendingPublishWhenPublisherAdvertisesCapability()
     {
         var mapping = CreateNameMapping("networking:publisher");
         var provider = new Resource(
@@ -80,7 +80,12 @@ public sealed class ResourceDiagnosticDisplayTests
                 [provider.Id] = provider
             });
 
-        Assert.Empty(diagnostics);
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Info", diagnostic.Severity);
+        Assert.Equal("Name mapping pending publish", diagnostic.Title);
+        Assert.Equal(
+            "Provider selected. Run Reconcile name mappings on the DNS zone to apply it.",
+            diagnostic.Message);
     }
 
     [Fact]
