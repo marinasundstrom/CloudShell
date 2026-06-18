@@ -532,17 +532,19 @@ decides later whether and how a specific name is materialized.
   now shows a pending-publish diagnostic for provider-selected mappings that do
   not have a reconcile observation yet. Local host-name publishing observations
   now project hosts-file target and resolver-cache refresh diagnostics after
-  reconcile.
+  reconcile, and local host-name provider validation now feeds wildcard-host
+  and unpublishable target address reasons into Reconcile name mappings action
+  availability.
 * Decide whether DNS records should always be first-class resources or whether simple mappings can be projected from provider configuration.
 * Add richer guided resolution for duplicate names in the same scope. Resource
   Manager-authored create/update now preflights duplicate host/exposure
   mappings before submit, and backend setup still rejects duplicates before
   saving.
 * Add richer provider runtime publish diagnostics for local host-name
-  reconciliation permissions and names that cannot be published beyond the
-  current reconcile result, pending-publish diagnostic, hosts-file target
-  projection, resolver-cache refresh diagnostics, and publish-failed
-  materialization status.
+  reconciliation permissions beyond the current reconcile result,
+  pending-publish diagnostic, provider-specific action availability,
+  hosts-file target projection, resolver-cache refresh diagnostics, and
+  publish-failed materialization status.
 * Add richer UI affordances for authoring and resolving name mappings.
 * Add integration examples with virtual networks and ingress resources.
 * Decide the first provider-backed network-level service discovery sample.
