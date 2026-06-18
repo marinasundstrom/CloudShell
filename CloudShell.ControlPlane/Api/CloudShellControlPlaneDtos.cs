@@ -146,8 +146,17 @@ public sealed record ResourceIdentityReferenceResponse(
     string ResourceId,
     string? Name);
 
+public sealed record ResourcePrincipalReferenceResponse(
+    ResourcePrincipalKind Kind,
+    string Id,
+    string? DisplayName,
+    string? ProviderId,
+    string? SourceResourceId,
+    string? SourceIdentityName);
+
 public sealed record ResourcePermissionGrantResponse(
     ResourceIdentityReferenceResponse Identity,
+    ResourcePrincipalReferenceResponse Principal,
     string TargetResourceId,
     string Permission);
 
@@ -170,6 +179,7 @@ public sealed record ResourcePermissionEvaluationRequest(
 
 public sealed record ResourcePermissionEvaluationResponse(
     ResourceIdentityReferenceResponse Identity,
+    ResourcePrincipalReferenceResponse Principal,
     string TargetResourceId,
     string Permission,
     bool IsAllowed,
@@ -485,10 +495,21 @@ internal static class CloudShellControlPlaneDtoMapper
         this ResourceIdentityReference identity) =>
         new(identity.ResourceId, identity.Name);
 
+    public static ResourcePrincipalReferenceResponse ToResponse(
+        this ResourcePrincipalReference principal) =>
+        new(
+            principal.Kind,
+            principal.Id,
+            principal.DisplayName,
+            principal.ProviderId,
+            principal.SourceResourceId,
+            principal.SourceIdentityName);
+
     public static ResourcePermissionGrantResponse ToResponse(
         this ResourcePermissionGrant grant) =>
         new(
             grant.Identity.ToResponse(),
+            grant.Principal.ToResponse(),
             grant.TargetResourceId,
             grant.Permission);
 
@@ -496,6 +517,7 @@ internal static class CloudShellControlPlaneDtoMapper
         this ResourcePermissionEvaluation evaluation) =>
         new(
             evaluation.Identity.ToResponse(),
+            evaluation.Principal.ToResponse(),
             evaluation.TargetResourceId,
             evaluation.Permission,
             evaluation.IsAllowed,

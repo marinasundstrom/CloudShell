@@ -332,8 +332,24 @@ public sealed class RemoteControlPlaneContractTests
         Assert.Equal("network-service", grant.Identity.Name);
         Assert.Equal("network:contract", grant.TargetResourceId);
         Assert.Equal(NetworkResourceOperationPermissions.ReconcileEndpointMappings, grant.Permission);
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
+        Assert.Equal("network:contract/identities/network-service", grant.Principal.Id);
+
+        var httpClient = app.GetTestClient();
+        var response = await httpClient.GetAsync(
+            "/api/control-plane/v1/resource-permission-grants?targetResourceId=network%3Acontract");
+        response.EnsureSuccessStatusCode();
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var responseGrant = Assert.Single(document.RootElement.EnumerateArray());
+        var principal = responseGrant.GetProperty("principal");
+        Assert.Equal((int)ResourcePrincipalKind.ResourceIdentity, principal.GetProperty("kind").GetInt32());
+        Assert.Equal("network:contract/identities/network-service", principal.GetProperty("id").GetString());
+        Assert.Equal("network:contract", principal.GetProperty("sourceResourceId").GetString());
+        Assert.Equal("network-service", principal.GetProperty("sourceIdentityName").GetString());
+
         Assert.True(allowed.IsAllowed);
         Assert.NotNull(allowed.Grant);
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, allowed.Principal.Kind);
         Assert.False(denied.IsAllowed);
         Assert.Null(denied.Grant);
         Assert.True(granted.IsAllowed);
@@ -752,6 +768,7 @@ public sealed class RemoteControlPlaneContractTests
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/revoke", out _));
         Assert.True(paths.TryGetProperty("/api/control-plane/v1/resource-permission-grants/evaluate", out _));
         Assert.True(schemas.TryGetProperty(nameof(ResourcePermissionGrantResponse), out _));
+        Assert.True(schemas.TryGetProperty(nameof(ResourcePrincipalReferenceResponse), out _));
         Assert.True(schemas.TryGetProperty(nameof(GrantResourcePermissionRequest), out _));
         Assert.True(schemas.TryGetProperty(nameof(RevokeResourcePermissionRequest), out _));
         Assert.True(schemas.TryGetProperty(nameof(ResourcePermissionEvaluationResponse), out _));

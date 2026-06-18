@@ -110,6 +110,8 @@ public sealed record ResourcePermissionGrant(
     string TargetResourceId,
     string Permission)
 {
+    public ResourcePrincipalReference Principal => Identity.ToPrincipal();
+
     public string TargetResourceId { get; init; } = RequireValue(TargetResourceId);
 
     public string Permission { get; init; } = RequireValue(Permission);
@@ -126,7 +128,10 @@ public sealed record ResourcePermissionEvaluation(
     string TargetResourceId,
     string Permission,
     bool IsAllowed,
-    ResourcePermissionGrant? Grant = null);
+    ResourcePermissionGrant? Grant = null)
+{
+    public ResourcePrincipalReference Principal => Identity.ToPrincipal();
+}
 
 public sealed class ResourcePermissionGrantEvaluator(
     IEnumerable<ResourcePermissionGrant> grants)

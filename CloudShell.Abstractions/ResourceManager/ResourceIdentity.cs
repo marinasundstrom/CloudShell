@@ -54,6 +54,15 @@ public sealed record ResourceIdentityProviderDefinition(
         string.IsNullOrWhiteSpace(ProvisioningResourceId) ? null : ProvisioningResourceId.Trim();
 }
 
+/// <summary>
+/// Provider adapter hook that provisions or reconciles resource identities and
+/// the access grants assigned to those identities.
+/// </summary>
+/// <remarks>
+/// Public preview API. Implementations may call an external identity provider
+/// directly or delegate to a provider-owned web service that translates
+/// CloudShell identity and grant intent into provider-native registrations.
+/// </remarks>
 public interface IResourceIdentityProvisioner
 {
     string ProviderId { get; }
@@ -65,6 +74,10 @@ public interface IResourceIdentityProvisioner
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Provider adapter hook that reports observed provisioning state for resource
+/// identities and grant reconciliation.
+/// </summary>
 public interface IResourceIdentityProvisioningStatusProvider
 {
     string ProviderId { get; }
@@ -76,6 +89,15 @@ public interface IResourceIdentityProvisioningStatusProvider
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Provider adapter hook that sets up or reconciles provider-level identity
+/// infrastructure for a CloudShell environment.
+/// </summary>
+/// <remarks>
+/// Setup can initialize provider-native clients, audiences, roles, groups,
+/// token mappers, or a bridge service that later handles resource identity and
+/// access-grant provisioning.
+/// </remarks>
 public interface IResourceIdentityProviderSetupHandler
 {
     string ProviderId { get; }
@@ -123,6 +145,17 @@ public sealed record ResourceIdentityCredentialEnvironmentRequest(
     ResourceIdentityBinding Binding,
     string DefaultScope);
 
+/// <summary>
+/// Provider-neutral provisioning request for identities and the permission
+/// grants that should be applied for those identities.
+/// </summary>
+/// <param name="Provider">The resolved identity provider definition.</param>
+/// <param name="Identities">Resource identities to provision or reconcile.</param>
+/// <param name="PermissionGrants">
+/// Access-control grants whose principal can be resolved by this provider.
+/// Providers can translate these grants into scopes, app roles, groups, RBAC
+/// assignments, token claims, or other provider-native access records.
+/// </param>
 public sealed record ResourceIdentityProvisioningRequest(
     ResourceIdentityProviderDefinition Provider,
     IReadOnlyList<ResourceIdentityProvisioningEntry> Identities,
@@ -318,6 +351,141 @@ public enum ResourceIdentityBindingKind
     Required
 }
 
+public enum ResourcePrincipalKind
+{
+    ResourceIdentity,
+    User,
+    Group,
+    ServiceAccount,
+    ServicePrincipal,
+    ManagedIdentity,
+    WorkloadIdentity,
+    External
+}
+
+public sealed record ResourcePrincipalReference(
+    ResourcePrincipalKind Kind,
+    string Id,
+    string? DisplayName = null,
+    string? ProviderId = null,
+    string? SourceResourceId = null,
+    string? SourceIdentityName = null)
+{
+    public string Id { get; init; } = RequireValue(Id);
+
+    public string? DisplayName { get; init; } = NormalizeOptional(DisplayName);
+
+    public string? ProviderId { get; init; } = NormalizeOptional(ProviderId);
+
+    public string? SourceResourceId { get; init; } = NormalizeOptional(SourceResourceId);
+
+    public string? SourceIdentityName { get; init; } = NormalizeOptional(SourceIdentityName);
+
+    public static ResourcePrincipalReference ForResourceIdentity(
+        string resourceId,
+        string? identityName = null,
+        string? displayName = null,
+        string? providerId = null)
+    {
+        var normalizedResourceId = RequireValue(resourceId);
+        var normalizedIdentityName = NormalizeOptional(identityName);
+        return new(
+            ResourcePrincipalKind.ResourceIdentity,
+            string.IsNullOrWhiteSpace(normalizedIdentityName)
+                ? normalizedResourceId
+                : $"{normalizedResourceId}/identities/{normalizedIdentityName}",
+            displayName,
+            providerId,
+            normalizedResourceId,
+            normalizedIdentityName);
+    }
+
+    private static string RequireValue(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        return value.Trim();
+    }
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
+
+public sealed record ResourcePrincipal(
+    ResourcePrincipalReference Reference,
+    string DisplayName,
+    string? Description = null,
+    IReadOnlyDictionary<string, string>? Attributes = null)
+{
+    private static readonly IReadOnlyDictionary<string, string> EmptyAttributes =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    public ResourcePrincipalReference Reference { get; init; } =
+        Reference ?? throw new ArgumentNullException(nameof(Reference));
+
+    public string DisplayName { get; init; } = RequireDisplayName(DisplayName);
+
+    public IReadOnlyDictionary<string, string> PrincipalAttributes => Attributes ?? EmptyAttributes;
+
+    private static string RequireDisplayName(string displayName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+        return displayName.Trim();
+    }
+}
+
+public sealed record ResourceIdentityDirectoryQuery(
+    string? SearchText = null,
+    IReadOnlySet<ResourcePrincipalKind>? Kinds = null,
+    int? Limit = null)
+{
+    public string? SearchText { get; init; } =
+        string.IsNullOrWhiteSpace(SearchText) ? null : SearchText.Trim();
+
+    public IReadOnlySet<ResourcePrincipalKind> PrincipalKinds => Kinds ?? new HashSet<ResourcePrincipalKind>();
+}
+
+public sealed record ResourceIdentityDirectoryRequest(
+    ResourceIdentityProviderDefinition Provider,
+    ResourceIdentityDirectoryQuery Query)
+{
+    public ResourceIdentityProviderDefinition Provider { get; init; } =
+        Provider ?? throw new ArgumentNullException(nameof(Provider));
+
+    public ResourceIdentityDirectoryQuery Query { get; init; } =
+        Query ?? throw new ArgumentNullException(nameof(Query));
+}
+
+public sealed record ResourceIdentityDirectoryResult(
+    string ProviderId,
+    IReadOnlyList<ResourcePrincipal> Principals,
+    IReadOnlyList<ResourceIdentityProvisioningDiagnostic>? Diagnostics = null)
+{
+    public IReadOnlyList<ResourceIdentityProvisioningDiagnostic> DirectoryDiagnostics =>
+        Diagnostics ?? [];
+}
+
+/// <summary>
+/// Provider adapter hook that queries principal data from an identity provider
+/// directory, such as users, groups, service principals, managed identities,
+/// workload identities, and provider-owned identity references.
+/// </summary>
+/// <remarks>
+/// Public preview API. Implementations may call a provider directly, such as
+/// Microsoft Entra ID or Active Directory, or delegate to a provider-owned web
+/// service that translates CloudShell directory queries to the backing
+/// authority.
+/// </remarks>
+public interface IResourceIdentityDirectoryProvider
+{
+    string ProviderId { get; }
+
+    bool CanQueryDirectory(ResourceIdentityProviderDefinition provider);
+
+    Task<ResourceIdentityDirectoryResult> QueryDirectoryAsync(
+        ResourceIdentityDirectoryRequest request,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record ResourceIdentityReference(
     string ResourceId,
     string? Name = null)
@@ -328,6 +496,11 @@ public sealed record ResourceIdentityReference(
         string resourceId,
         string? name = null) =>
         new(resourceId, NormalizeOptional(name));
+
+    public ResourcePrincipalReference ToPrincipal(
+        string? displayName = null,
+        string? providerId = null) =>
+        ResourcePrincipalReference.ForResourceIdentity(ResourceId, Name, displayName, providerId);
 
     private static string RequireResourceId(string resourceId)
     {

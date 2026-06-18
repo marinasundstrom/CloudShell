@@ -67,8 +67,8 @@ audit trails cannot reliably explain who or what changed a resource.
   selection.
 - Support resource identity bindings for application, workload, service, and
   provider-owned scenarios.
-- Model resource access as grants from a source principal or resource identity
-  to a target resource operation.
+- Model resource access as grants from a principal to a target resource
+  operation.
 - Authorize resource actions, configuration reads, secret reads, deployment
   operations, provider operations, and identity-management operations through
   the same resource-operation permission model.
@@ -132,6 +132,10 @@ Implemented today:
 - Optional provisioning-resource authorization for resource identity providers.
 - Provisioning-status authorization requiring read access on both the target
   resource and the provisioning resource.
+- Provider-neutral `IResourceIdentityDirectoryProvider` contract for querying
+  identity-provider directory data such as users, groups, service principals,
+  managed identities, workload identities, and provider-owned identity
+  references.
 - A `setupIdentityProvider` Resource Manager action on identity provisioning
   resources that runs the attached provider's setup/reconcile hook with the
   same provisioning-resource permission boundary as the setup endpoint.
@@ -282,6 +286,21 @@ claims, or another provider-native shape.
 
 Identity binding metadata must stay non-secret.
 
+### Principals
+
+CloudShell access control should use the common IAM shape: a principal receives
+a permission grant on a protected resource. Principals are actors, not
+resources. A principal can be a user, group, service account, service
+principal, managed identity, workload identity, resource identity,
+provider-owned identity reference, or automation identity.
+
+The current implementation projects resource identities as
+`ResourceIdentity` principals because those are the only principals CloudShell
+can resolve and provision today. This is a principal source, not the access
+model itself. Future user, group, service-account, and provider-owned
+principal sources should feed the same grant model instead of adding separate
+resource-specific access paths.
+
 ### Resource Identity Flow
 
 CloudShell-managed platform services such as configuration stores and secrets
@@ -354,13 +373,13 @@ CloudShell secrets vault.
 
 ### Resource Access Grants
 
-Resource access grants define which source principal or resource identity may
-perform which operation on which target resource.
+Resource access grants define which principal may perform which operation on
+which target resource.
 
 Conceptually:
 
 ```text
-Source principal
+Principal
   -> operation permission
   -> target resource
 ```
@@ -388,6 +407,10 @@ default orchestrator identity
 Grants are domain relationships. Provider implementations may project them
 into token claims, scopes, app roles, groups, RBAC assignments, or other
 authority-specific records.
+
+The target resource is the protected object. It does not need its own identity
+binding just to be protected by grants. A resource identity binding is needed
+only when that resource itself should act as a principal.
 
 Future versions may add inheritance, wildcard matching, roles, effective
 permission projection, policy evaluation, and requested-versus-effective grant
@@ -544,9 +567,9 @@ service-principal automation flows.
    provider-backed secret storage and production-style protected API audience
    registration.
 4. Microsoft Entra ID compatibility.
-   Map the same resource identity and grant model to Entra app registrations,
-   service principals, app roles or groups, token validation, and automation
-   flows.
+   Map the same principal, resource identity, and grant model to Entra app
+   registrations, service principals, managed identities, app roles or groups,
+   token validation, directory queries, and automation flows.
 5. UI management.
    Expand the generated Identity tab into guided identity binding, grant
    editing, richer diagnostics, provisioning, and provider-resource
@@ -571,6 +594,10 @@ service-principal automation flows.
   provider when no explicit identity provider is declared.
 - Add durable provider-backed provisioning and status reconciliation for
   identities and grants.
+- Wire `IResourceIdentityDirectoryProvider` into Control Plane/API and
+  Resource Manager principal search so Access control can query provider-backed
+  users, groups, service principals, managed identities, workload identities,
+  and provider-owned identity references instead of only resource identities.
 - Add Microsoft Entra ID provider mapping notes and compatibility tests.
 - Define identity-provider resources, provisioning-service resources,
   lifecycle, configuration projection, and protected management operations.

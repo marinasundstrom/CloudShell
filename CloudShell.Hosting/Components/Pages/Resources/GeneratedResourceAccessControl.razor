@@ -21,79 +21,63 @@
     }
     else
     {
-        @if (Resource.IdentityBinding is null)
-        {
-            <section class="generated-section">
-                <h3>@L["Assign access"]</h3>
-                <div class="empty-state">
-                    <strong>@L["Identity required"]</strong>
-                    <span>@L["Set up an identity for this resource before assigning access permissions."]</span>
-                    <FluentAnchor Href="@ResourceManagerRoutes.ResourceDetails(Resource.Id, ResourcePredefinedViewIds.Identity)">
-                        @L["Open Identity"]
-                    </FluentAnchor>
-                </div>
-            </section>
-        }
-        else
-        {
-            <section class="generated-section">
-                <h3>@L["Assign access"]</h3>
-                <div class="generated-access-form">
-                    <label for="access-control-identity-search">@L["Resource identity"]</label>
-                    <FluentAutocomplete TOption="IdentityOption"
-                                        Id="access-control-identity-search"
-                                        AutoComplete="off"
-                                        MaximumSelectedOptions="1"
-                                        MaximumOptionsSearch="12"
-                                        Placeholder="@L["Search resource identities"]"
-                                        OptionText="FormatIdentityOption"
-                                        SelectedOptions="@SelectedIdentities"
-                                        SelectedOptionsChanged="SetSelectedIdentity"
-                                        OnOptionsSearch="SearchIdentities">
-                    </FluentAutocomplete>
-                    @if (IdentityOptions.Count == 0)
-                    {
-                        <p class="muted">@L["No other resource identities are available to grant access."]</p>
-                    }
-
-                    <label for="access-control-permission">@L["Permission"]</label>
-                    <FluentSelect TOption="string" Id="access-control-permission" @bind-Value="SelectedPermission">
-                        <FluentOption TOption="string" Value="">@L["Select a permission"]</FluentOption>
-                        @foreach (var option in AvailablePermissionOptions)
-                        {
-                            <FluentOption TOption="string" Value="@option.Value">@option.Label</FluentOption>
-                        }
-                    </FluentSelect>
-
-                    @if (IsCustomPermission)
-                    {
-                        <label for="access-control-custom-permission">@L["Custom permission"]</label>
-                        <FluentTextField Id="access-control-custom-permission"
-                                         @bind-Value="CustomPermission"
-                                         Placeholder="Provider.Namespace/resources/action" />
-                    }
-
-                    <div class="generated-row-actions">
-                        <FluentButton Appearance="Appearance.Accent"
-                                      Disabled="@(GrantingPermission || IsReadOnly)"
-                                      OnClick="GrantPermission">
-                            @GetGrantButtonLabel()
-                        </FluentButton>
-                    </div>
-                </div>
-                @if (IsReadOnly)
+        <section class="generated-section">
+            <h3>@L["Assign access"]</h3>
+            <div class="generated-access-form">
+                <label for="access-control-principal-search">@L["Principal"]</label>
+                <FluentAutocomplete TOption="PrincipalOption"
+                                    Id="access-control-principal-search"
+                                    AutoComplete="off"
+                                    MaximumSelectedOptions="1"
+                                    MaximumOptionsSearch="12"
+                                    Placeholder="@L["Search principals"]"
+                                    OptionText="FormatPrincipalOption"
+                                    SelectedOptions="@SelectedPrincipals"
+                                    SelectedOptionsChanged="SetSelectedPrincipal"
+                                    OnOptionsSearch="SearchPrincipals">
+                </FluentAutocomplete>
+                @if (PrincipalOptions.Count == 0)
                 {
-                    <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]</div>
+                    <p class="muted">@L["No principals are available to grant access. Resource identities are the only principal source in this MVP slice."]</p>
                 }
-                <p class="muted">@L["CloudShell records that the selected resource identity can access this resource. The identity provider applies or reconciles the grant when identity provisioning runs."]</p>
-            </section>
-        }
+
+                <label for="access-control-permission">@L["Permission"]</label>
+                <FluentSelect TOption="string" Id="access-control-permission" @bind-Value="SelectedPermission">
+                    <FluentOption TOption="string" Value="">@L["Select a permission"]</FluentOption>
+                    @foreach (var option in AvailablePermissionOptions)
+                    {
+                        <FluentOption TOption="string" Value="@option.Value">@option.Label</FluentOption>
+                    }
+                </FluentSelect>
+
+                @if (IsCustomPermission)
+                {
+                    <label for="access-control-custom-permission">@L["Custom permission"]</label>
+                    <FluentTextField Id="access-control-custom-permission"
+                                     @bind-Value="CustomPermission"
+                                     Placeholder="Provider.Namespace/resources/action" />
+                }
+
+                <div class="generated-row-actions">
+                    <FluentButton Appearance="Appearance.Accent"
+                                  Disabled="@(GrantingPermission || IsReadOnly)"
+                                  OnClick="GrantPermission">
+                        @GetGrantButtonLabel()
+                    </FluentButton>
+                </div>
+            </div>
+            @if (IsReadOnly)
+            {
+                <div class="procedure-message compact">@L["Resource Manager is in read-only mode. Access control changes are disabled in this UI."]</div>
+            }
+            <p class="muted">@L["CloudShell records that the selected principal can access this resource. Identity and access providers apply or reconcile the grant when provisioning runs."]</p>
+        </section>
 
         <section class="generated-section">
-            <h3>@L["Assigned resource identities"]</h3>
+            <h3>@L["Assigned principals"]</h3>
             @if (GrantGroups.Count == 0)
             {
-                <p class="muted">@L["No resource identities have access permissions for this resource."]</p>
+                <p class="muted">@L["No principals have access permissions for this resource."]</p>
             }
             else
             {
@@ -152,14 +136,14 @@
     public string ResourceId { get; set; } = string.Empty;
 
     private Resource? Resource { get; set; }
-    private IReadOnlyList<IdentityOption> IdentityOptions { get; set; } = [];
+    private IReadOnlyList<PrincipalOption> PrincipalOptions { get; set; } = [];
     private IReadOnlyList<ResourcePermissionGrant> InboundGrants { get; set; } = [];
     private IReadOnlyList<GrantGroup> GrantGroups { get; set; } = [];
     private IReadOnlyDictionary<string, Resource> ResourcesById { get; set; } =
         new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
-    private IdentityOption? SelectedIdentity { get; set; }
-    private IEnumerable<IdentityOption> SelectedIdentities =>
-        SelectedIdentity is null ? [] : [SelectedIdentity];
+    private PrincipalOption? SelectedPrincipal { get; set; }
+    private IEnumerable<PrincipalOption> SelectedPrincipals =>
+        SelectedPrincipal is null ? [] : [SelectedPrincipal];
     private string SelectedPermission { get; set; } = string.Empty;
     private string CustomPermission { get; set; } = string.Empty;
     private string? ProcedureMessage { get; set; }
@@ -186,11 +170,11 @@
             : await ResourceManager.GetResourceAsync(ResourceId);
         if (Resource is null)
         {
-            IdentityOptions = [];
+            PrincipalOptions = [];
             InboundGrants = [];
             GrantGroups = [];
             ResourcesById = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase);
-            SelectedIdentity = null;
+            SelectedPrincipal = null;
             return;
         }
 
@@ -202,22 +186,27 @@
                 group => group.Key,
                 group => group.First(),
                 StringComparer.OrdinalIgnoreCase);
-        IdentityOptions = resources
+        PrincipalOptions = resources
             .Where(resource =>
                 !string.Equals(resource.Id, Resource.Id, StringComparison.OrdinalIgnoreCase) &&
                 resource.IdentityBinding is not null)
-            .Select(resource => new IdentityOption(
+            .Select(resource => new PrincipalOption(
                 ResourceIdentityReference.ForResource(resource.Id, resource.IdentityBinding!.Name),
+                ResourcePrincipalReference.ForResourceIdentity(
+                    resource.Id,
+                    resource.IdentityBinding.Name,
+                    resource.DisplayName ?? resource.Name,
+                    resource.IdentityBinding.ProviderId),
                 resource,
                 GetIdentityKey(ResourceIdentityReference.ForResource(resource.Id, resource.IdentityBinding.Name))))
             .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(resource => resource.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(resource => resource.Identity.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
-        if (SelectedIdentity is not null &&
-            !IdentityOptions.Any(identity => string.Equals(identity.Key, SelectedIdentity.Key, StringComparison.Ordinal)))
+        if (SelectedPrincipal is not null &&
+            !PrincipalOptions.Any(principal => string.Equals(principal.Key, SelectedPrincipal.Key, StringComparison.Ordinal)))
         {
-            SelectedIdentity = null;
+            SelectedPrincipal = null;
         }
 
         InboundGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
@@ -258,9 +247,9 @@
         }
 
         var permission = ResolvePermission();
-        if (!TryGetSelectedIdentity(out var identity))
+        if (!TryGetSelectedPrincipal(out var principal))
         {
-            ProcedureMessage = L["Select a resource identity."].Value;
+            ProcedureMessage = L["Select a principal."].Value;
             return;
         }
 
@@ -276,12 +265,12 @@
         {
             await ResourceManager.GrantResourcePermissionAsync(
                 new GrantResourcePermissionCommand(
-                    identity.Identity.ResourceId,
-                    identity.Identity.Name,
+                    principal.Identity.ResourceId,
+                    principal.Identity.Name,
                     Resource.Id,
                     permission));
-            ProcedureMessage = L["Access permission assigned. Provision or reconcile the resource identity to apply provider-side changes."].Value;
-            SelectedIdentity = null;
+            ProcedureMessage = L["Access permission assigned. Provision or reconcile the principal to apply provider-side changes."].Value;
+            SelectedPrincipal = null;
             SelectedPermission = string.Empty;
             CustomPermission = string.Empty;
             await LoadAsync();
@@ -319,7 +308,7 @@
                     identity.Name,
                     Resource.Id,
                     permission));
-            ProcedureMessage = L["Access permission revoked. Provision or reconcile the resource identity to apply provider-side changes."].Value;
+            ProcedureMessage = L["Access permission revoked. Provision or reconcile the principal to apply provider-side changes."].Value;
             await LoadAsync();
         }
         catch (Exception exception)
@@ -354,42 +343,45 @@
     private static string GetIdentityKey(ResourceIdentityReference identity) =>
         $"{identity.ResourceId}\u001f{identity.Name}";
 
-    private static string FormatIdentityOption(IdentityOption identity) =>
-        $"{identity.Name} ({identity.IdentityLabel})";
+    private static string FormatPrincipalOption(PrincipalOption principal) =>
+        $"{principal.Name} ({principal.PrincipalKindLabel})";
 
-    private void SearchIdentities(OptionsSearchEventArgs<IdentityOption> args)
+    private void SearchPrincipals(OptionsSearchEventArgs<PrincipalOption> args)
     {
         var search = args.Text?.Trim() ?? string.Empty;
         args.Items = string.IsNullOrWhiteSpace(search)
-            ? IdentityOptions
-            : IdentityOptions.Where(identity => MatchesIdentitySearch(identity, search)).ToArray();
+            ? PrincipalOptions
+            : PrincipalOptions.Where(principal => MatchesPrincipalSearch(principal, search)).ToArray();
     }
 
-    private static bool MatchesIdentitySearch(IdentityOption identity, string search)
+    private static bool MatchesPrincipalSearch(PrincipalOption principal, string search)
     {
-        return Contains(identity.Name, search) ||
-            Contains(identity.IdentityLabel, search) ||
-            Contains(identity.Identity.ResourceId, search) ||
-            Contains(identity.Identity.Name, search) ||
-            Contains(identity.Resource.DisplayName, search) ||
-            Contains(identity.Resource.EffectiveTypeId, search) ||
-            Contains(identity.Resource.ResourceClass.ToString(), search) ||
-            Contains(identity.Resource.IdentityBinding?.ProviderId, search);
+        return Contains(principal.Name, search) ||
+            Contains(principal.PrincipalKindLabel, search) ||
+            Contains(principal.IdentityLabel, search) ||
+            Contains(principal.Identity.ResourceId, search) ||
+            Contains(principal.Identity.Name, search) ||
+            Contains(principal.Principal.Id, search) ||
+            Contains(principal.Principal.DisplayName, search) ||
+            Contains(principal.Resource.DisplayName, search) ||
+            Contains(principal.Resource.EffectiveTypeId, search) ||
+            Contains(principal.Resource.ResourceClass.ToString(), search) ||
+            Contains(principal.Resource.IdentityBinding?.ProviderId, search);
     }
 
     private static bool Contains(string? value, string search) =>
         !string.IsNullOrWhiteSpace(value) &&
         value.Contains(search, StringComparison.OrdinalIgnoreCase);
 
-    private bool TryGetSelectedIdentity([NotNullWhen(true)] out IdentityOption? identity)
+    private bool TryGetSelectedPrincipal([NotNullWhen(true)] out PrincipalOption? principal)
     {
-        identity = SelectedIdentity;
-        return identity is not null;
+        principal = SelectedPrincipal;
+        return principal is not null;
     }
 
-    private Task SetSelectedIdentity(IEnumerable<IdentityOption> identities)
+    private Task SetSelectedPrincipal(IEnumerable<PrincipalOption> principals)
     {
-        SelectedIdentity = identities.FirstOrDefault();
+        SelectedPrincipal = principals.FirstOrDefault();
         return Task.CompletedTask;
     }
 
@@ -478,14 +470,28 @@
         CustomAction
     }
 
-    private sealed record IdentityOption(
+    private sealed record PrincipalOption(
         ResourceIdentityReference Identity,
+        ResourcePrincipalReference Principal,
         Resource Resource,
         string Key)
     {
         public string Name => Resource.Name;
 
         public string IdentityLabel => FormatIdentityLabel(Identity);
+
+        public string PrincipalKindLabel => Principal.Kind switch
+        {
+            ResourcePrincipalKind.ResourceIdentity => "Resource identity",
+            ResourcePrincipalKind.User => "User",
+            ResourcePrincipalKind.Group => "Group",
+            ResourcePrincipalKind.ServiceAccount => "Service account",
+            ResourcePrincipalKind.ServicePrincipal => "Service principal",
+            ResourcePrincipalKind.ManagedIdentity => "Managed identity",
+            ResourcePrincipalKind.WorkloadIdentity => "Workload identity",
+            ResourcePrincipalKind.External => "External principal",
+            _ => Principal.Kind.ToString()
+        };
     }
 
     private sealed record GrantGroup(

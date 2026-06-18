@@ -514,8 +514,8 @@ public sealed class SampleSmokeTests
 
         var settingsAccessControlHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("configuration:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search resource identities", settingsAccessControlHtml);
-        Assert.Contains("Assigned resource identities", settingsAccessControlHtml);
+        Assert.Contains("Search principals", settingsAccessControlHtml);
+        Assert.Contains("Assigned principals", settingsAccessControlHtml);
         Assert.Contains("Configuration entries: read", settingsAccessControlHtml);
         Assert.Contains("application-topology-api", settingsAccessControlHtml);
         Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, settingsAccessControlHtml);
@@ -531,8 +531,8 @@ public sealed class SampleSmokeTests
 
         var secretsAccessControlHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("secrets-vault:application-topology")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Search resource identities", secretsAccessControlHtml);
-        Assert.Contains("Assigned resource identities", secretsAccessControlHtml);
+        Assert.Contains("Search principals", secretsAccessControlHtml);
+        Assert.Contains("Assigned principals", secretsAccessControlHtml);
         Assert.Contains("Secrets: read", secretsAccessControlHtml);
         Assert.Contains("application-topology-api", secretsAccessControlHtml);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, secretsAccessControlHtml);
@@ -545,11 +545,12 @@ public sealed class SampleSmokeTests
 
         var frontendAccessControlHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");
-        Assert.Contains("Identity required", frontendAccessControlHtml);
-        Assert.Contains("Set up an identity for this resource before assigning access permissions.", frontendAccessControlHtml);
-        Assert.Contains("Open Identity", frontendAccessControlHtml);
-        Assert.DoesNotContain("Search resource identities", frontendAccessControlHtml);
-        Assert.DoesNotContain("Select a permission", frontendAccessControlHtml);
+        Assert.Contains("Search principals", frontendAccessControlHtml);
+        Assert.Contains("Assigned principals", frontendAccessControlHtml);
+        Assert.Contains("Select a permission", frontendAccessControlHtml);
+        Assert.DoesNotContain("Identity required", frontendAccessControlHtml);
+        Assert.DoesNotContain("Set up an identity for this resource before assigning access permissions.", frontendAccessControlHtml);
+        Assert.DoesNotContain("Open Identity", frontendAccessControlHtml);
 
         var frontendIdentityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Identity.Value)}");

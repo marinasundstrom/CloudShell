@@ -278,6 +278,53 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void ResourcePermissionGrant_ProjectsResourceIdentityPrincipal()
+    {
+        var grant = new ResourcePermissionGrant(
+            ResourceIdentityReference.ForResource("application:api", "api-service"),
+            "configuration:database",
+            "Database/databases/read/action");
+
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
+        Assert.Equal("application:api/identities/api-service", grant.Principal.Id);
+        Assert.Equal("application:api", grant.Principal.SourceResourceId);
+        Assert.Equal("api-service", grant.Principal.SourceIdentityName);
+    }
+
+    [Fact]
+    public void ResourceIdentityDirectoryQuery_NormalizesPrincipalSearch()
+    {
+        var principal = new ResourcePrincipal(
+            new ResourcePrincipalReference(
+                ResourcePrincipalKind.ServicePrincipal,
+                "  spn:api  ",
+                DisplayName: "  API service principal  ",
+                ProviderId: "  identity:entra  "),
+            "  API service principal  ",
+            Attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["appId"] = "client-id"
+            });
+        var query = new ResourceIdentityDirectoryQuery(
+            "  api  ",
+            new HashSet<ResourcePrincipalKind>
+            {
+                ResourcePrincipalKind.ServicePrincipal,
+                ResourcePrincipalKind.ManagedIdentity
+            },
+            25);
+
+        Assert.Equal(ResourcePrincipalKind.ServicePrincipal, principal.Reference.Kind);
+        Assert.Equal("spn:api", principal.Reference.Id);
+        Assert.Equal("API service principal", principal.DisplayName);
+        Assert.Equal("identity:entra", principal.Reference.ProviderId);
+        Assert.Equal("client-id", principal.PrincipalAttributes["appId"]);
+        Assert.Equal("api", query.SearchText);
+        Assert.Contains(ResourcePrincipalKind.ManagedIdentity, query.PrincipalKinds);
+        Assert.Equal(25, query.Limit);
+    }
+
+    [Fact]
     public void ResourcePermissionGrantExtensions_CanGrantToResourceBuilderIdentity()
     {
         var services = new ServiceCollection();

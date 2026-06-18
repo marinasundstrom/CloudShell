@@ -172,12 +172,20 @@ on `git blame --follow`, and then by the broad type of change.
   picker to operations relevant to the current target resource while keeping
   custom and all-permission options available.
 - Resource Manager now shows generated Identity and Access control tabs when
-  the environment has a default resource identity provider. Access control
-  shows identity setup guidance instead of assignment controls for resources
-  without identity bindings, the Identity tab reflects identity enablement with
-  an editable `Enable identity` checkbox backed by Control Plane registration
-  identity state, and the resource-identity picker now uses a Fluent UI
-  autocomplete search box instead of a separate search field plus select.
+  the environment has a default resource identity provider. The Identity tab
+  reflects identity enablement with an editable `Enable identity` checkbox
+  backed by Control Plane registration identity state, and Access control uses
+  a Fluent UI autocomplete search box instead of a separate search field plus
+  select.
+- Access control now projects resource identities as `ResourceIdentity`
+  principals, exposes principal metadata on permission-grant API responses,
+  and shows assignment controls for protected target resources even when the
+  target resource does not have its own identity binding. This follows
+  [ADR-20260618-002](ADR.md#adr-20260618-002-model-access-control-as-principal-to-resource-grants).
+- Identity providers now have a provider-neutral directory query contract for
+  future Entra/AD-style principal lookup across users, groups, service
+  principals, managed identities, workload identities, and provider-owned
+  identity references.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

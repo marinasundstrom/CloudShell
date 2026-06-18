@@ -28,10 +28,11 @@ The domain separates related but distinct concepts:
 - A resource identity binding is per-resource intent. It says that a resource
   has, or requires, an identity that can later be resolved and provisioned by a
   provider.
-- A principal or actor is the identity that performs an operation. Resource
-  identities are one principal source; user, group, service account, and
-  provider-owned identity references should be able to use the same grant
-  model.
+- A principal or actor is the identity that performs an operation. This follows
+  common IAM terminology: users, groups, service accounts, service principals,
+  managed identities, workload identities, and provider-owned identities are
+  all possible principals. Resource identities are the first principal source
+  CloudShell can resolve today.
 - A permission grant authorizes a principal to perform an operation against a
   target resource.
 - Resource events and activity logs should record the acting principal so users
@@ -372,22 +373,20 @@ Resource Manager stores a `Required` binding through
 environment default provider instead of hard-coding a provider ID.
 
 The generated Access control tab shows who can access the current resource.
-For the current MVP it requires the current resource to have an identity
-binding before the assignment UI is shown; otherwise the tab points the user to
-Identity setup. That requirement is a temporary UI guard and not a domain
-requirement for protected target resources. The tab offers a searchable picker
-for resources with identity bindings, records grant intent from the selected
-principal identity to the current resource, groups assigned permissions by
-principal identity, and can revoke those grants. The current resource's own
-identity is not included in the assignment picker. The permission picker is
-filtered to operations that are relevant to the current target resource, such
-as configuration-entry reads for Configuration Store resources, secret reads
-for Secrets Vault resources, mount permissions for volumes, networking
+It treats the current resource as the protected target and does not require the
+target to have its own identity binding. For the current MVP, the assignable
+principals are projected from resources with identity bindings. The tab offers
+a searchable principal picker, records grant intent from the selected
+principal to the current resource, groups assigned permissions by principal,
+and can revoke those grants. When the current resource itself has an identity,
+that identity is not included in the assignment picker. The permission picker
+is filtered to operations that are relevant to the current target resource,
+such as configuration-entry reads for Configuration Store resources, secret
+reads for Secrets Vault resources, mount permissions for volumes, networking
 reconciliation for network resources, and resource-action permissions where the
 target advertises actions. User, group, service account, and provider-owned
-principal references require a broader principal model and should be added as
-separate assignment surfaces or principal-type selectors rather than being
-folded into the resource-identity picker.
+principal references require principal sources beyond resource identities and
+should be added as separate assignment surfaces or principal-type selectors.
 
 Managed identity behavior is also future work. A managed identity provider
 should be able to resolve a resource identity binding and, where supported,
@@ -405,15 +404,29 @@ when the selected provider names a provisioning resource,
 `CloudShell.Identity/provisioningServices/identities/provision/action` or
 `resources.manage` on that provisioning resource.
 
-Provisioning starts from the provider-neutral `IResourceIdentityProvisioner`
-contract. Provider setup starts from the separate provider-neutral
-`IResourceIdentityProviderSetupHandler` contract. Runtime credential injection
-starts from `IResourceIdentityCredentialEnvironmentProvider` when a selected
-provider needs to supply workload-specific token acquisition settings. The
-Control Plane can build provisioning requests from declared resource identities
-and matching permission grants, grouped by resolved resource identity provider.
-A concrete provisioner, setup handler, or runtime credential provider
-translates that request into its backing authority.
+Identity providers integrate through a standard provider-neutral adapter
+surface:
+
+- `IResourceIdentityProviderSetupHandler` sets up or reconciles
+  provider-level infrastructure, such as clients, audiences, roles, groups,
+  token mappers, or a bridge service.
+- `IResourceIdentityDirectoryProvider` queries identity data from the backing
+  directory, such as users, groups, service principals, managed identities,
+  workload identities, and provider-owned identity references.
+- `IResourceIdentityProvisioner` provisions or reconciles resource identities
+  and the matching access grants for those identities.
+- `IResourceIdentityProvisioningStatusProvider` reports observed
+  provisioning and grant-reconciliation state from provider-owned data.
+- `IResourceIdentityCredentialEnvironmentProvider` supplies runtime credential
+  acquisition settings when a selected provider needs workload-specific token
+  configuration.
+
+The Control Plane builds provisioning requests from declared resource
+identities and matching permission grants, grouped by resolved resource
+identity provider. A concrete provider adapter can call the backing authority
+directly, or it can call a provider-owned web service that translates the
+CloudShell request into Microsoft Entra ID, Active Directory, Keycloak,
+OIDC/OAuth, RBAC, app-role, group, or provider-native records.
 
 ## Operation Permissions
 

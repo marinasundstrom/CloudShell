@@ -905,8 +905,17 @@ file sealed record ResourceIdentityReferenceResponse(
     string ResourceId,
     string? Name);
 
+file sealed record ResourcePrincipalReferenceResponse(
+    ResourcePrincipalKind Kind,
+    string Id,
+    string? DisplayName,
+    string? ProviderId,
+    string? SourceResourceId,
+    string? SourceIdentityName);
+
 file sealed record ResourcePermissionGrantResponse(
     ResourceIdentityReferenceResponse Identity,
+    ResourcePrincipalReferenceResponse? Principal,
     string TargetResourceId,
     string Permission);
 
@@ -929,6 +938,7 @@ file sealed record ResourcePermissionEvaluationRequest(
 
 file sealed record ResourcePermissionEvaluationResponse(
     ResourceIdentityReferenceResponse Identity,
+    ResourcePrincipalReferenceResponse? Principal,
     string TargetResourceId,
     string Permission,
     bool IsAllowed,
@@ -1250,6 +1260,16 @@ file static class RemoteControlPlaneMapper
     public static ResourceIdentityReference ToResourceIdentityReference(
         this ResourceIdentityReferenceResponse response) =>
         new(response.ResourceId, response.Name);
+
+    public static ResourcePrincipalReference ToResourcePrincipalReference(
+        this ResourcePrincipalReferenceResponse response) =>
+        new(
+            response.Kind,
+            response.Id,
+            response.DisplayName,
+            response.ProviderId,
+            response.SourceResourceId,
+            response.SourceIdentityName);
 
     public static ResourcePermissionGrant ToResourcePermissionGrant(
         this ResourcePermissionGrantResponse response) =>

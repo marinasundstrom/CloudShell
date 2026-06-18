@@ -11,6 +11,38 @@ link to the decision so the dependency is visible.
 
 ## 2026-06-18
 
+### ADR-20260618-002: Model access control as principal-to-resource grants
+
+CloudShell access control follows the common IAM shape: a principal receives a
+permission grant on a protected resource. Principals are actors, not resources.
+A principal can be a user, group, service account, service principal, managed
+identity, workload identity, resource identity, provider-owned identity
+reference, or automation identity.
+
+Resource identity bindings remain per-resource identity intent. They matter
+when a resource itself should act as a principal, acquire credentials, or be
+provisioned by an identity provider. They are not required for a resource to be
+protected by grants. The protected resource is the target of the grant, and it
+can be a configuration store, secrets vault, volume, network, application,
+load balancer, or any other managed CloudShell resource.
+
+The current Resource Manager Access control UI uses resources with identity
+bindings as the first principal source because that is the principal set the
+platform can resolve and provision today. This is transitional. Future user,
+group, service-account, and provider-owned principal sources should feed the
+same grant model and UI vocabulary instead of adding separate resource-specific
+access paths.
+
+Identity providers should integrate through provider-neutral hooks for setup,
+directory queries, resource identity provisioning, access-grant reconciliation,
+provisioning status, and runtime credential projection. A provider adapter can
+call the backing authority directly, or it can call a provider-owned bridge
+service that translates CloudShell principal and grant intent into systems such
+as Microsoft Entra ID, Active Directory, OIDC/OAuth providers, RBAC
+assignments, app roles, or groups.
+
+Related changes: [Changelog](CHANGELOG.md).
+
 ### ADR-20260618-001: Use provider-neutral scopes for multi-instance telemetry
 
 Telemetry belongs to the stable resource users manage by default, even when a
