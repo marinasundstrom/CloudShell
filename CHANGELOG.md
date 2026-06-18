@@ -147,6 +147,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Programmatic resource projections now include declaration persistence
   metadata, and resource details show whether a resource is a startup
   declaration or a persisted declaration.
+- Editable Resource Manager tabs now warn when a resource is still owned by a
+  startup declaration before applying provider-state changes.
 - Resource Manager-authored DNS name mapping create/update now rejects
   duplicate host/exposure mappings in the same DNS zone before saving.
 - Resource Manager DNS name mapping create/update forms now show duplicate

@@ -506,6 +506,11 @@ public sealed class SampleSmokeTests
         Assert.Contains(">Granted<", apiDetailsHtml);
         Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
 
+        var apiEnvironmentHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
+        Assert.Contains("This resource is a startup declaration.", apiEnvironmentHtml);
+        Assert.Contains("host startup code remains the source of truth", apiEnvironmentHtml);
+
         var sqlEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
         Assert.Contains("Application exposure", sqlEndpointsHtml);
