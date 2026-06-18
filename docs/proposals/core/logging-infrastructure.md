@@ -345,6 +345,9 @@ base log or event entry a blob store.
 - Which events should be visible to users without manage permission?
 - How should OpenTelemetry logs, traces, and metrics map into CloudShell's
   product-shaped managers?
+- How should split-hosted UIs subscribe to live telemetry and monitoring data
+  through the Control Plane API, and what parts require SignalR/WebSockets
+  versus polling fallbacks?
 - What correlation ID should connect a UI action, Control Plane request,
   provider operation, resource event, source log, trace span, and audit record?
 
@@ -369,6 +372,10 @@ base log or event entry a blob store.
 - Keep shared Telemetry trace exploration available for cross-resource
   investigation, with clear links between selected spans, resource logs,
   activity entries, and the relevant resource detail views.
+- Later, design Control Plane-owned streaming subscriptions for live telemetry
+  and resource monitoring in split-hosted deployments, including
+  authentication, authorization, reconnect, bounded update rates, and
+  backpressure behavior.
 - Keep resource event trace correlation focused on W3C `traceId`/`spanId`
   fields. Do not turn resource events into trace spans or log records.
 - Use the structured `LogEntry` metadata fields for provider logs only when a

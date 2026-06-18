@@ -64,6 +64,14 @@ request duration, queue depth, or service-specific counters. Resource metrics
 represent provider-observed process/container/runtime usage such as CPU,
 memory, restart count, or provider runtime status.
 
+The generic snapshot contract is intentionally per resource. Multi-instance
+resources such as `application.container-app` can still use resource metric
+samples with replica/container attributes, but their primary Resource Manager
+Monitoring experience should be provider-owned. A container app Monitoring tab
+needs to summarize app-level usage and show each projected runtime replica or
+container separately without forcing users into the global runtime-managed
+inventory or treating implementation containers as the stable app surface.
+
 ## Resource Manager UX
 
 Resource Manager uses the standard predefined view ID
@@ -81,7 +89,11 @@ The generated tab should show:
 
 Providers can later replace the generated tab with a provider-owned
 Monitoring tab when they need charts, history, runtime-specific detail, or
-advanced diagnostics.
+advanced diagnostics. Container applications are a first-class example: their
+Monitoring tab should show aggregate app resource usage plus a per-replica
+breakdown for CPU, memory, process count, network I/O, block I/O, restart
+count, uptime, and provider health/materialization details when the runtime
+provider can observe them.
 
 ## Current Implementation
 
@@ -90,20 +102,22 @@ The first implementation slice adds:
 - provider-backed resource monitoring contracts
 - Control Plane manager, API, and remote-client projection
 - generated Resource Manager Monitoring tab
-- Docker container CPU and memory snapshots
+- Docker container CPU, memory, network I/O, block I/O, process count,
+  restart count, and uptime snapshots
 
 Docker-backed container resources report current CPU usage, memory usage,
-memory limit, and memory usage percentage from Docker stats when the container
-is running. Stopped containers can still expose the Monitoring tab, but the
-snapshot reports that live Docker metrics are unavailable until the container
-is running.
+memory limit, memory usage percentage, network bytes received/sent, block
+bytes read/written, process count, restart count, and container uptime from
+Docker stats and inspection data when the container is running. Stopped
+containers can still expose the Monitoring tab, but the snapshot reports that
+live Docker metrics are unavailable until the container is running.
 
 ## Remaining Work
 
-- Add richer Docker/runtime metrics such as restart count, network I/O, block
-  I/O, and container uptime.
 - Add provider-owned Monitoring tabs when generated metric cards are too
   limited.
+- Add a container app Monitoring tab that summarizes app-level resource usage
+  and shows per-replica/container metrics for replicated applications.
 - Add resource-metric history and charting after concrete providers prove the
   retention needs.
 - Decide whether resource monitoring snapshots should emit resource events or
@@ -111,6 +125,12 @@ is running.
 - Decide whether CloudShell needs a separate resource-level health-check model
   beyond current application-level health checks.
 - Add monitoring providers for other runtime providers as they land.
+
+## Future Questions
+
+- Should live Monitoring views subscribe through the Control Plane API rather
+  than poll current snapshots, and should the first ASP.NET Core transport use
+  SignalR/WebSockets or a polling fallback?
 
 ## Relationship To Observability
 

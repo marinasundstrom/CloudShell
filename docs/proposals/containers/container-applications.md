@@ -136,6 +136,7 @@ surface for:
 * public endpoint and load-balancer exposure
 * DNS-style internal names and custom domain mappings
 * logs, structured logs, traces, metrics, and activity events
+* resource monitoring summaries and per-replica runtime metrics
 
 Related resources should still be visible and navigable. A load balancer,
 virtual network, volume, DNS zone, or name mapping remains its own resource
@@ -232,7 +233,13 @@ Implemented pieces include:
    app without requiring the global runtime-managed inventory view; the global
    `Show runtime-managed resources` setting remains for browsing hidden
    runtime-managed artifacts directly in the resource inventory.
-8. Validate the managed-service story with samples that combine container app,
+8. Add an app-scoped Monitoring tab for container apps that summarizes
+   provider-observed resource metrics for the app and shows each projected
+   runtime replica/container separately. This should use the resource
+   Monitoring menu item under Management, not the shared Telemetry metrics
+   surface, because CPU, memory, network, block I/O, process count, restart,
+   uptime, and provider materialization state are resource metrics.
+9. Validate the managed-service story with samples that combine container app,
    storage, service discovery, identity, secrets/configuration, logs, traces,
    and public/name exposure.
 
@@ -259,6 +266,9 @@ Implemented pieces include:
 * Enrich the Replicas tab with provider-observed container IDs, placement,
   health, and materialization state once providers can report them
   consistently.
+* Add a provider-owned Monitoring dashboard for container apps with aggregate
+  resource usage and per-replica/container metric breakdowns for replicated
+  applications.
 * Add deeper container-host readiness diagnostics for unsupported ingress,
   public endpoint, DNS/name publication, registry credential, and storage
   choices before update/start.

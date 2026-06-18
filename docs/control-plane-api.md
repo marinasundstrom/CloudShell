@@ -63,6 +63,16 @@ Management > Monitoring tab. The second route returns the current provider
 snapshot when one is available. See
 [Resource monitoring](proposals/core/resource-monitoring.md).
 
+The current API surface remains snapshot/list based while CloudShell proves
+basic monitoring support across resource providers. Future live telemetry and
+resource monitoring updates for split-hosted UIs should use Control
+Plane-owned streaming subscriptions rather than WebUI-to-provider
+connections. That future streaming contract should be designed as a versioned
+Control Plane API capability with the same authentication and authorization
+boundary as the HTTP routes. SignalR over WebSockets is a likely ASP.NET Core
+transport, while the domain shape should stay transport-neutral enough to
+support polling fallbacks or other streaming transports later.
+
 Keep breaking changes behind a new route and document, such as
 `/api/control-plane/v2` and `/openapi/control-plane-v2.json`. Remote
 control-plane adapters should pin the generated client to the major API version

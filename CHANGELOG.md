@@ -57,6 +57,8 @@ on `git blame --follow`, and then by the broad type of change.
 - Resource Monitoring now has provider-backed snapshot contracts, Control
   Plane API/client support, a generated Management > Monitoring tab, Docker
   container CPU/memory metrics, and a dedicated proposal tracker.
+- Docker resource monitoring snapshots now include network I/O, block I/O,
+  process count, restart count, and uptime metrics when Docker reports them.
 - Configuration Store and Secrets Vault resource detail menus now use the
   generated General Configuration tab instead of duplicate Settings tabs, and
   place Entries and Secrets under General with distinct icon metadata.
@@ -82,6 +84,12 @@ on `git blame --follow`, and then by the broad type of change.
 - Roadmap planning now classifies work as features, backend enhancements, or
   UX enhancements so impact-based ordering can treat UI polish and backend
   capability work independently.
+- Resource monitoring planning now calls out provider-owned container app
+  Monitoring dashboards for app-level summaries and per-replica/container
+  resource metric breakdowns.
+- Control Plane API planning now records live telemetry and resource
+  monitoring subscriptions for split-hosted UIs as a later design question
+  after basic provider monitoring support.
 
 ### 2026-06-17
 

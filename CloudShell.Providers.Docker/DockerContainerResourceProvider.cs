@@ -208,11 +208,12 @@ public sealed partial class DockerContainerResourceProvider :
                     "Docker did not return a container stats snapshot.");
             }
 
+            var inspection = await TryInspectContainerAsync(resource, timeout.Token);
             return new ResourceMonitoringSnapshot(
                 resource.Id,
                 DisplayName,
                 new DateTimeOffset(stats.Read.ToUniversalTime(), TimeSpan.Zero),
-                CreateContainerMetricSamples(stats),
+                CreateContainerMetricSamples(stats, inspection),
                 "Available",
                 "Docker container stats.");
         }
@@ -977,8 +978,26 @@ public sealed partial class DockerContainerResourceProvider :
         return stats;
     }
 
+    private async Task<ContainerInspectResponse?> TryInspectContainerAsync(
+        Resource resource,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var client = GetClientForContainerResource(resource);
+            return await client.Containers.InspectContainerAsync(
+                GetContainerLookupName(resource.Id),
+                cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
     private static IReadOnlyList<ResourceMetricSample> CreateContainerMetricSamples(
-        ContainerStatsResponse stats)
+        ContainerStatsResponse stats,
+        ContainerInspectResponse? inspection)
     {
         var timestamp = new DateTimeOffset(stats.Read.ToUniversalTime(), TimeSpan.Zero);
         var memoryUsage = stats.MemoryStats?.Usage ?? 0;
@@ -1019,7 +1038,170 @@ public sealed partial class DockerContainerResourceProvider :
                 "Current container memory usage as a percentage of the Docker memory limit."));
         }
 
+        AddNetworkMetricSamples(samples, stats, timestamp);
+        AddBlockIoMetricSamples(samples, stats, timestamp);
+        AddProcessMetricSamples(samples, stats, timestamp);
+        AddInspectionMetricSamples(samples, inspection, timestamp);
+
         return samples;
+    }
+
+    private static void AddNetworkMetricSamples(
+        List<ResourceMetricSample> samples,
+        ContainerStatsResponse stats,
+        DateTimeOffset timestamp)
+    {
+        if (stats.Networks is not { Count: > 0 })
+        {
+            return;
+        }
+
+        double rxBytes = 0;
+        double txBytes = 0;
+        foreach (var network in stats.Networks.Values)
+        {
+            rxBytes += network.RxBytes;
+            txBytes += network.TxBytes;
+        }
+
+        samples.Add(new ResourceMetricSample(
+            "resource.network.rxBytes",
+            rxBytes,
+            "bytes",
+            timestamp,
+            "Network received",
+            "Total container network bytes received across Docker network interfaces."));
+        samples.Add(new ResourceMetricSample(
+            "resource.network.txBytes",
+            txBytes,
+            "bytes",
+            timestamp,
+            "Network sent",
+            "Total container network bytes sent across Docker network interfaces."));
+    }
+
+    private static void AddBlockIoMetricSamples(
+        List<ResourceMetricSample> samples,
+        ContainerStatsResponse stats,
+        DateTimeOffset timestamp)
+    {
+        var entries = stats.BlkioStats?.IoServiceBytesRecursive;
+        if (entries is not { Count: > 0 })
+        {
+            return;
+        }
+
+        if (TrySumBlockIoOperation(entries, "Read", out var readBytes))
+        {
+            samples.Add(new ResourceMetricSample(
+                "resource.block.readBytes",
+                readBytes,
+                "bytes",
+                timestamp,
+                "Block read",
+                "Total bytes read from block devices by the Docker container."));
+        }
+
+        if (TrySumBlockIoOperation(entries, "Write", out var writeBytes))
+        {
+            samples.Add(new ResourceMetricSample(
+                "resource.block.writeBytes",
+                writeBytes,
+                "bytes",
+                timestamp,
+                "Block written",
+                "Total bytes written to block devices by the Docker container."));
+        }
+    }
+
+    private static bool TrySumBlockIoOperation(
+        IEnumerable<BlkioStatEntry> entries,
+        string operation,
+        out double value)
+    {
+        var matched = false;
+        value = 0;
+
+        foreach (var entry in entries)
+        {
+            if (!string.Equals(entry.Op, operation, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            matched = true;
+            value += entry.Value;
+        }
+
+        return matched;
+    }
+
+    private static void AddProcessMetricSamples(
+        List<ResourceMetricSample> samples,
+        ContainerStatsResponse stats,
+        DateTimeOffset timestamp)
+    {
+        if (stats.PidsStats is null)
+        {
+            return;
+        }
+
+        samples.Add(new ResourceMetricSample(
+            "resource.process.count",
+            stats.PidsStats.Current,
+            "count",
+            timestamp,
+            "Process count",
+            "Current process count reported by Docker for this container."));
+    }
+
+    private static void AddInspectionMetricSamples(
+        List<ResourceMetricSample> samples,
+        ContainerInspectResponse? inspection,
+        DateTimeOffset timestamp)
+    {
+        if (inspection is null)
+        {
+            return;
+        }
+
+        samples.Add(new ResourceMetricSample(
+            "resource.container.restartCount",
+            inspection.RestartCount,
+            "count",
+            timestamp,
+            "Restart count",
+            "Number of container restarts reported by Docker."));
+
+        if (inspection.State?.Running == true &&
+            TryGetContainerStartedAt(inspection.State.StartedAt, out var startedAt))
+        {
+            samples.Add(new ResourceMetricSample(
+                "resource.container.uptime",
+                Math.Max(0, (timestamp - startedAt).TotalSeconds),
+                "seconds",
+                timestamp,
+                "Container uptime",
+                "Seconds since Docker reports that the container started."));
+        }
+    }
+
+    private static bool TryGetContainerStartedAt(
+        string? value,
+        out DateTimeOffset startedAt)
+    {
+        if (DateTimeOffset.TryParse(
+                value,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                out startedAt) &&
+            startedAt > DateTimeOffset.UnixEpoch)
+        {
+            return true;
+        }
+
+        startedAt = default;
+        return false;
     }
 
     private static double CalculateCpuPercent(ContainerStatsResponse stats)
