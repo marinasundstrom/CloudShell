@@ -791,6 +791,7 @@ public static class CloudShellControlPlaneApiExtensions
         string? eventType,
         string? triggeredBy,
         string? traceId,
+        string? spanId,
         DateTimeOffset? since,
         DateTimeOffset? before,
         int? maxEvents,
@@ -804,7 +805,8 @@ public static class CloudShellControlPlaneApiExtensions
                     Since: since,
                     Before: before,
                     MaxEvents: Math.Clamp(maxEvents ?? 200, 1, 1000),
-                    TraceId: NormalizeOptional(traceId)),
+                    TraceId: NormalizeOptional(traceId),
+                    SpanId: NormalizeOptional(spanId)),
                 cancellationToken))
             .Select(resourceEvent => resourceEvent.ToResponse())
             .ToArray());

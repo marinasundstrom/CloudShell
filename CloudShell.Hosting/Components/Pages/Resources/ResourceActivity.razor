@@ -53,6 +53,10 @@
         {
             <p class="log-description">@L["Showing activity correlated with trace {0}.", FormatTraceId(TraceId)]</p>
         }
+        @if (!string.IsNullOrWhiteSpace(SpanId))
+        {
+            <p class="log-description">@L["Showing activity correlated with span {0}.", FormatTraceId(SpanId)]</p>
+        }
 
         @if (Events.Count == 0)
         {
@@ -113,6 +117,9 @@
     [Parameter]
     public string? TraceId { get; set; }
 
+    [Parameter]
+    public string? SpanId { get; set; }
+
     private IReadOnlyList<ResourceEvent> Events { get; set; } = [];
     private bool IsLoading { get; set; }
     private string? EventTypeFilter { get; set; }
@@ -135,7 +142,8 @@
         EventTypeFilter = null;
         TriggeredByFilter = null;
         SelectedTimeRange = TimeRangeAll;
-        if (!string.IsNullOrWhiteSpace(TraceId) && !string.IsNullOrWhiteSpace(ResourceId))
+        if ((!string.IsNullOrWhiteSpace(TraceId) || !string.IsNullOrWhiteSpace(SpanId)) &&
+            !string.IsNullOrWhiteSpace(ResourceId))
         {
             Navigation.NavigateTo(BuildActivityRoute(ResourceId), replace: true);
             return;
@@ -162,7 +170,8 @@
                     TriggeredBy: NormalizeFilter(TriggeredByFilter),
                     Since: GetSinceFilter(),
                     MaxEvents: 100,
-                    TraceId: NormalizeFilter(TraceId)));
+                    TraceId: NormalizeFilter(TraceId),
+                    SpanId: NormalizeFilter(SpanId)));
         }
         finally
         {
@@ -174,6 +183,7 @@
         !string.IsNullOrWhiteSpace(EventTypeFilter) ||
         !string.IsNullOrWhiteSpace(TriggeredByFilter) ||
         !string.IsNullOrWhiteSpace(TraceId) ||
+        !string.IsNullOrWhiteSpace(SpanId) ||
         !string.Equals(SelectedTimeRange, TimeRangeAll, StringComparison.Ordinal);
 
     private string GetEventCountLabel() =>

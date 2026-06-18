@@ -151,7 +151,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("<fluent-anchor", traceHtml);
         Assert.Contains("href=\"/logs?resourceId=application%3Aproject-reference-frontend&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"", traceHtml);
         Assert.Contains(
-            $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736\"",
+            $"href=\"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&amp;traceId=4bf92f3577b34da6a3ce929d0e0e4736&amp;spanId=00f067aa0ba902b7\"",
             traceHtml);
         Assert.Contains("href=\"/resources/application%3Aproject-reference-frontend/details\"", traceHtml);
 
@@ -164,9 +164,10 @@ public sealed class SampleSmokeTests
         Assert.Contains("Clear trace filter", relatedLogsHtml);
 
         var relatedActivityHtml = await host.GetStringAsync(
-            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&traceId={traceId}");
+            $"/resources/application%3Aproject-reference-frontend/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}&traceId={traceId}&spanId=00f067aa0ba902b7");
         Assert.Contains("Activity", relatedActivityHtml);
         Assert.Contains("Showing activity correlated with trace", relatedActivityHtml);
+        Assert.Contains("Showing activity correlated with span", relatedActivityHtml);
         Assert.Contains("Clear", relatedActivityHtml);
     }
 

@@ -438,6 +438,7 @@ public sealed class RemoteControlPlane : IControlPlane
             ("eventType", query?.EventType),
             ("triggeredBy", query?.TriggeredBy),
             ("traceId", query?.TraceId),
+            ("spanId", query?.SpanId),
             ("since", query?.Since?.ToString("O")),
             ("before", query?.Before?.ToString("O")),
             ("maxEvents", (query?.MaxEvents ?? 200).ToString())))

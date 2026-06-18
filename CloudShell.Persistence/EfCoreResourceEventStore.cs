@@ -70,6 +70,12 @@ public sealed class EfCoreResourceEventStore(
             events = events.Where(resourceEvent => resourceEvent.TraceId == traceId);
         }
 
+        if (!string.IsNullOrWhiteSpace(query.SpanId))
+        {
+            var spanId = query.SpanId.Trim();
+            events = events.Where(resourceEvent => resourceEvent.SpanId == spanId);
+        }
+
         return events
             .OrderByDescending(resourceEvent => resourceEvent.Timestamp)
             .ThenByDescending(resourceEvent => resourceEvent.Id)

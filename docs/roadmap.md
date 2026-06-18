@@ -428,10 +428,12 @@ listed here before pulling in broader proposal work.
   `IResourceEventManager`, and Resource Manager now has a generated Activity
   tab for resource events with filters and action/event grouping. Resource
   events now carry optional W3C trace/span context so activity can be tied back
-  to distributed traces during development. Denied resource actions now record
-  warning failed-action activity entries with trigger metadata before the
-  access-denied response. Next work is event schema polish and broader
-  integration with authorization/audit decisions.
+  to distributed traces during development, with trace and span filters
+  available through the Control Plane API/client and Resource Manager
+  related-activity links. Denied resource actions now record warning
+  failed-action activity entries with trigger metadata before the access-denied
+  response. Next work is event schema polish and broader integration with
+  authorization/audit decisions.
 - Use [Lifecycle orchestration](proposals/core/lifecycle-orchestration.md) to
   keep dependency startup, lifecycle action execution, resource activity, and
   future event-triggered automation on one common orchestration model.

@@ -147,7 +147,7 @@ resource-manager state-transition metadata remain future event-schema work.
 The current contracts are:
 
 - `ResourceEvent`: platform activity record
-- `ResourceEventQuery`: query filters, including `traceId`
+- `ResourceEventQuery`: query filters, including `traceId` and `spanId`
 - `ResourceEventTypes`: standardized action and lifecycle event type constants
 - `IResourceEventStore`: internal append/query storage
 - `IResourceEventManager`: consumer-facing query API
@@ -162,7 +162,8 @@ For MVP, implement the smallest useful split:
 
 1. Keep provider logs source-oriented and text-compatible.
 2. Persist resource events as platform-owned activity.
-3. Query resource events by resource, event type, actor, and time range.
+3. Query resource events by resource, event type, actor, time range, and
+   trace/span correlation.
 4. Use Resource Manager activity views to render resource events separately
    from raw provider logs. A generated resource Activity tab now reads from
    `IResourceEventManager`.

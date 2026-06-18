@@ -35,7 +35,8 @@ public sealed record ResourceEventQuery(
     DateTimeOffset? Since = null,
     DateTimeOffset? Before = null,
     int MaxEvents = 200,
-    string? TraceId = null);
+    string? TraceId = null,
+    string? SpanId = null);
 
 public interface IResourceEventSink
 {

@@ -239,7 +239,7 @@
                                             @L["Related logs"]
                                         </FluentAnchor>
                                         <FluentAnchor Appearance="Appearance.Neutral"
-                                                      Href="@BuildActivityRoute(selectedSpan.ResourceId, selectedSpan.TraceId)">
+                                                      Href="@BuildActivityRoute(selectedSpan.ResourceId, selectedSpan.TraceId, selectedSpan.SpanId)">
                                             @L["Related activity"]
                                         </FluentAnchor>
                                         <FluentAnchor Appearance="Appearance.Neutral"
@@ -687,13 +687,14 @@ StringComparison.OrdinalIgnoreCase))?.Span
                 ["traceId"] = traceId
             });
 
-    private static string BuildActivityRoute(string resourceId, string traceId) =>
+    private static string BuildActivityRoute(string resourceId, string traceId, string spanId) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
             ResourceManagerRoutes.ResourceDetails(resourceId),
             new Dictionary<string, string?>
             {
                 ["tab"] = ResourcePredefinedViewIds.Activity.Value,
-                ["traceId"] = traceId
+                ["traceId"] = traceId,
+                ["spanId"] = spanId
             });
 
     private static string BuildResourceRoute(string resourceId) =>

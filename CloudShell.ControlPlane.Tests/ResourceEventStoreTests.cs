@@ -21,7 +21,8 @@ public sealed class ResourceEventStoreTests
 
         var resourceEvent = Assert.Single(store.GetEvents(new ResourceEventQuery(
             ResourceId: "application:test",
-            TraceId: activity.TraceId.ToString())));
+            TraceId: activity.TraceId.ToString(),
+            SpanId: activity.SpanId.ToString())));
         Assert.Equal(activity.TraceId.ToString(), resourceEvent.TraceId);
         Assert.Equal(activity.SpanId.ToString(), resourceEvent.SpanId);
     }

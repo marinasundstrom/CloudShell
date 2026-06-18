@@ -66,6 +66,12 @@ public sealed class InMemoryResourceEventStore : IResourceEventStore
                 string.Equals(resourceEvent.TraceId, query.TraceId, StringComparison.OrdinalIgnoreCase));
         }
 
+        if (!string.IsNullOrWhiteSpace(query.SpanId))
+        {
+            events = events.Where(resourceEvent =>
+                string.Equals(resourceEvent.SpanId, query.SpanId, StringComparison.OrdinalIgnoreCase));
+        }
+
         return events
             .OrderByDescending(resourceEvent => resourceEvent.Timestamp)
             .Take(maxEvents)

@@ -229,6 +229,9 @@
     [SupplyParameterFromQuery(Name = "traceId")]
     private string? RequestedTraceId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "spanId")]
+    private string? RequestedSpanId { get; set; }
+
     private ResourceConfigurationContext? ConfigurationContext { get; set; }
     private Resource? Resource { get; set; }
     private ResourceGroup? ResourceGroup { get; set; }
@@ -612,6 +615,7 @@
         if (selectedTab.Id == GeneratedActivityTabId)
         {
             parameters["TraceId"] = RequestedTraceId;
+            parameters["SpanId"] = RequestedSpanId;
         }
 
         return parameters;

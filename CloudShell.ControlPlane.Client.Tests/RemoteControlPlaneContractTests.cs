@@ -506,10 +506,12 @@ public sealed class RemoteControlPlaneContractTests
             new ResourceEventQuery(
                 ResourceId: ContractImageResourceProvider.ResourceId,
                 TraceId: resourceEvent.TraceId,
+                SpanId: resourceEvent.SpanId,
                 MaxEvents: 10));
         Assert.Contains(correlatedEvents, correlatedEvent =>
             correlatedEvent.EventType == ResourceEventTypes.Events.Deployment.ImageUpdated &&
-            correlatedEvent.TraceId == resourceEvent.TraceId);
+            correlatedEvent.TraceId == resourceEvent.TraceId &&
+            correlatedEvent.SpanId == resourceEvent.SpanId);
         Assert.Contains(events, entry =>
             entry.Source == "event" &&
             entry.EventId == ResourceEventTypes.Events.Deployment.ImageUpdated &&

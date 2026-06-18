@@ -37,6 +37,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Denied resource actions now record warning resource activity entries using
   the failed action event type before returning the insufficient-permission
   error.
+- Resource event queries now support `spanId` filtering alongside `traceId`
+  across the in-process store, persisted store, Control Plane API, remote
+  client, and Resource Manager related-activity links.
 
 #### Fixed
 
