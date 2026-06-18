@@ -256,8 +256,8 @@ Implemented pieces include:
 
 * Materialize container app volume mounts reliably through the supported local
   runtime paths. Resource Manager volume assignment now warns when replicas
-  are enabled so users can choose storage that is safe for concurrent replica
-  access.
+  are enabled, and Scale and replicas warns when mounted volumes already exist,
+  so users can choose storage that is safe for concurrent replica access.
 * Add application-centric UI for internal exposure and public endpoint
   exposure. Load-balancer and DNS/domain mapping authoring now have first
   app-centric entry points, and Resource Manager can add or edit routes on an
