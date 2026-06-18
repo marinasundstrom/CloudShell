@@ -273,7 +273,10 @@ public sealed partial class SecretsVaultProvider(
             case ResourceActionKind.Start:
                 store.Save(vault);
                 await processes.StartAsync(process, cancellationToken);
-                await WaitForServiceReadyAsync(GetServiceBaseUrl(vault), cancellationToken);
+                await WaitForServiceReadyAsync(
+                    GetServiceBaseUrl(vault),
+                    options.SecretsServiceStartupTimeout ?? options.ServiceStartupTimeout,
+                    cancellationToken);
                 break;
             case ResourceActionKind.Stop:
                 await processes.StopAsync(process, cancellationToken: cancellationToken);
@@ -282,7 +285,10 @@ public sealed partial class SecretsVaultProvider(
                 store.Save(vault);
                 await processes.StopAsync(process, cancellationToken: cancellationToken);
                 await processes.StartAsync(process, cancellationToken);
-                await WaitForServiceReadyAsync(GetServiceBaseUrl(vault), cancellationToken);
+                await WaitForServiceReadyAsync(
+                    GetServiceBaseUrl(vault),
+                    options.SecretsServiceStartupTimeout ?? options.ServiceStartupTimeout,
+                    cancellationToken);
                 break;
             default:
                 throw new NotSupportedException(
@@ -694,14 +700,20 @@ public sealed partial class SecretsVaultProvider(
 
     private static async Task WaitForServiceReadyAsync(
         string baseUrl,
+        TimeSpan startupTimeout,
         CancellationToken cancellationToken)
     {
+        if (startupTimeout <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Secrets Vault service startup timeout must be greater than zero.");
+        }
+
         using var client = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(2)
         };
         var healthUrl = $"{baseUrl.TrimEnd('/')}/healthz";
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+        var deadline = DateTimeOffset.UtcNow.Add(startupTimeout);
         Exception? lastException = null;
 
         while (DateTimeOffset.UtcNow < deadline)
@@ -725,9 +737,12 @@ public sealed partial class SecretsVaultProvider(
         }
 
         throw new TimeoutException(
-            $"Secrets Vault endpoint '{healthUrl}' did not become ready within 20 seconds.",
+            $"Secrets Vault endpoint '{healthUrl}' did not become ready within {FormatTimeout(startupTimeout)}.",
             lastException);
     }
+
+    private static string FormatTimeout(TimeSpan timeout) =>
+        $"{timeout.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture)} seconds";
 
     private string GetSecretsEndpoint(string resourceId)
     {

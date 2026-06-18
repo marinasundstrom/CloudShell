@@ -265,7 +265,10 @@ public sealed partial class ConfigurationResourceProvider :
             case ResourceActionKind.Start:
                 store.Save(configurationStore);
                 await processes.StartAsync(process, cancellationToken);
-                await WaitForServiceReadyAsync(GetServiceBaseUrl(configurationStore), cancellationToken);
+                await WaitForServiceReadyAsync(
+                    GetServiceBaseUrl(configurationStore),
+                    options.ServiceStartupTimeout,
+                    cancellationToken);
                 break;
             case ResourceActionKind.Stop:
                 await processes.StopAsync(process, cancellationToken: cancellationToken);
@@ -274,7 +277,10 @@ public sealed partial class ConfigurationResourceProvider :
                 store.Save(configurationStore);
                 await processes.StopAsync(process, cancellationToken: cancellationToken);
                 await processes.StartAsync(process, cancellationToken);
-                await WaitForServiceReadyAsync(GetServiceBaseUrl(configurationStore), cancellationToken);
+                await WaitForServiceReadyAsync(
+                    GetServiceBaseUrl(configurationStore),
+                    options.ServiceStartupTimeout,
+                    cancellationToken);
                 break;
             default:
                 throw new NotSupportedException(
@@ -708,14 +714,20 @@ public sealed partial class ConfigurationResourceProvider :
 
     private static async Task WaitForServiceReadyAsync(
         string baseUrl,
+        TimeSpan startupTimeout,
         CancellationToken cancellationToken)
     {
+        if (startupTimeout <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Configuration Store service startup timeout must be greater than zero.");
+        }
+
         using var client = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(2)
         };
         var healthUrl = $"{baseUrl.TrimEnd('/')}/healthz";
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+        var deadline = DateTimeOffset.UtcNow.Add(startupTimeout);
         Exception? lastException = null;
 
         while (DateTimeOffset.UtcNow < deadline)
@@ -739,9 +751,12 @@ public sealed partial class ConfigurationResourceProvider :
         }
 
         throw new TimeoutException(
-            $"Configuration Store endpoint '{healthUrl}' did not become ready within 20 seconds.",
+            $"Configuration Store endpoint '{healthUrl}' did not become ready within {FormatTimeout(startupTimeout)}.",
             lastException);
     }
+
+    private static string FormatTimeout(TimeSpan timeout) =>
+        $"{timeout.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture)} seconds";
 
     private static string QuoteCommandArgument(string value)
     {

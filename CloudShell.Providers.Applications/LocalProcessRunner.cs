@@ -367,7 +367,7 @@ public sealed partial class LocalProcessRunner(
     private static ProcessStartInfo CreateScopedStartInfo(LocalProcessDefinition definition) =>
         new()
         {
-            FileName = definition.ExecutablePath,
+            FileName = ResolveExecutablePath(definition.ExecutablePath),
             Arguments = definition.Arguments ?? string.Empty,
             WorkingDirectory = ResolveWorkingDirectory(definition),
             UseShellExecute = false,
@@ -380,11 +380,12 @@ public sealed partial class LocalProcessRunner(
         string logPath)
     {
         var workingDirectory = ResolveWorkingDirectory(definition);
+        var executablePath = ResolveExecutablePath(definition.ExecutablePath);
         var arguments = definition.Arguments ?? string.Empty;
 
         if (OperatingSystem.IsWindows())
         {
-            var command = $"\"{EscapeWindowsCommandArgument(definition.ExecutablePath)}\" {arguments} >> \"{EscapeWindowsCommandArgument(logPath)}\" 2>&1";
+            var command = $"\"{EscapeWindowsCommandArgument(executablePath)}\" {arguments} >> \"{EscapeWindowsCommandArgument(logPath)}\" 2>&1";
             var startInfo = new ProcessStartInfo
             {
                 FileName = Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe",
@@ -399,7 +400,7 @@ public sealed partial class LocalProcessRunner(
             return startInfo;
         }
 
-        var shellCommand = $"exec {QuoteUnixShellArgument(definition.ExecutablePath)} {arguments} >> {QuoteUnixShellArgument(logPath)} 2>&1";
+        var shellCommand = $"exec {QuoteUnixShellArgument(executablePath)} {arguments} >> {QuoteUnixShellArgument(logPath)} 2>&1";
         var unixStartInfo = new ProcessStartInfo
         {
             FileName = "/bin/sh",
@@ -416,6 +417,48 @@ public sealed partial class LocalProcessRunner(
         string.IsNullOrWhiteSpace(definition.WorkingDirectory)
             ? Environment.CurrentDirectory
             : definition.WorkingDirectory;
+
+    private static string ResolveExecutablePath(string executablePath)
+    {
+        if (!IsDotNetCommand(executablePath))
+        {
+            return executablePath;
+        }
+
+        var hostPath = AppContext.GetData("DOTNET_HOST_PATH") as string ??
+            Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+        if (IsUsableDotNetPath(hostPath))
+        {
+            return hostPath!;
+        }
+
+        var processPath = Environment.ProcessPath;
+        if (IsUsableDotNetPath(processPath))
+        {
+            return processPath!;
+        }
+
+        var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+        if (!string.IsNullOrWhiteSpace(dotnetRoot))
+        {
+            var rootDotNet = Path.Combine(dotnetRoot, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet");
+            if (IsUsableDotNetPath(rootDotNet))
+            {
+                return rootDotNet;
+            }
+        }
+
+        return executablePath;
+    }
+
+    private static bool IsDotNetCommand(string executablePath) =>
+        string.Equals(executablePath, "dotnet", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(executablePath, "dotnet.exe", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsUsableDotNetPath(string? executablePath) =>
+        !string.IsNullOrWhiteSpace(executablePath) &&
+        IsDotNetCommand(Path.GetFileName(executablePath)) &&
+        File.Exists(executablePath);
 
     private static bool ProcessStartMatches(
         Process process,

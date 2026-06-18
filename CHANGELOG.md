@@ -95,6 +95,14 @@ on `git blame --follow`, and then by the broad type of change.
 - Application start now resolves service-discovery environment variables from
   the Resource Manager projection instead of resolving scoped resource
   providers from the root service provider.
+- Configuration Store and Secrets Vault resource startup now use configurable
+  service readiness timeouts with a longer default so sample dependency
+  autostart tolerates local child-service startup cost.
+- Sample smoke test command failures now include the response body and allow
+  longer resource-action requests for dependency startup.
+- Detached local process launches now resolve the current `dotnet` host path
+  so provider-owned child services and project resources can start when
+  non-interactive shells do not have `dotnet` on `PATH`.
 
 #### Documentation
 

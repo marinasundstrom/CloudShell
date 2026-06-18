@@ -25,7 +25,7 @@ public sealed class SampleSmokeCollection
 [Collection(SampleSmokeCollection.Name)]
 public sealed class SampleSmokeTests
 {
-    private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(45);
+    private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(90);
 
     [Fact]
     public async Task ContainerHostSample_DeclaresLocalStorageBackedSqlServerVolume()
@@ -1592,8 +1592,11 @@ public sealed class SampleSmokeTests
             }
 
             using var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsStringAsync();
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.True(
+                response.IsSuccessStatusCode,
+                $"{method} {path} returned {(int)response.StatusCode} {response.ReasonPhrase}: {body}");
+            return body;
         }
 
         public async Task<string> SendJsonAsync(

@@ -29,6 +29,10 @@ public sealed class ConfigurationProviderOptions
 
     public string ServiceExecutablePath { get; set; } = "dotnet";
 
+    public TimeSpan ServiceStartupTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+    public TimeSpan? SecretsServiceStartupTimeout { get; set; }
+
     public string? ServiceProjectPath { get; set; }
 
     public string? SecretsServiceProjectPath { get; set; }
