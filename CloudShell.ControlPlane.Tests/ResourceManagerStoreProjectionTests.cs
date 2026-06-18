@@ -84,6 +84,38 @@ public sealed class ResourceManagerStoreProjectionTests
     }
 
     [Fact]
+    public void GetResources_AppliesDeclarationPersistenceAttributes()
+    {
+        var startup = CreateResource("startup", "Startup");
+        var persisted = CreateResource("persisted", "Persisted");
+        var declarations = new ResourceDeclarationStore();
+        var builder = new TestCloudShellBuilder();
+        declarations.Declare(builder, "test", "startup");
+        declarations.Declare(builder, "test", "persisted");
+        declarations.Persist("persisted", overwrite: true);
+        var store = CreateStore(
+            [startup, persisted],
+            registrations: [CreateRegistration("startup"), CreateRegistration("persisted")],
+            declarations: declarations);
+
+        var resources = store.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal(
+            ResourceDeclarationPersistence.Transient.ToString(),
+            resources["startup"].ResourceAttributes[ResourceAttributeNames.DeclarationPersistence]);
+        Assert.Equal(
+            "false",
+            resources["startup"].ResourceAttributes[ResourceAttributeNames.DeclarationOverwritePersistedState]);
+        Assert.Equal(
+            ResourceDeclarationPersistence.Persisted.ToString(),
+            resources["persisted"].ResourceAttributes[ResourceAttributeNames.DeclarationPersistence]);
+        Assert.Equal(
+            "true",
+            resources["persisted"].ResourceAttributes[ResourceAttributeNames.DeclarationOverwritePersistedState]);
+    }
+
+    [Fact]
     public void GetResources_AppliesDeclarationIdentity()
     {
         var resource = CreateResource("declared", "Declared");

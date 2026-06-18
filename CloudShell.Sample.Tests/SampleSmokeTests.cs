@@ -400,6 +400,9 @@ public sealed class SampleSmokeTests
 
         Assert.Equal(ApplicationResourceTypes.AspNetCoreProject, api.GetProperty("typeId").GetString());
         Assert.Equal("../Api/CloudShell.ApplicationTopologyApi.csproj", apiAttributes.GetProperty(ResourceAttributeNames.ProjectPath).GetString());
+        Assert.Equal(
+            ResourceDeclarationPersistence.Transient.ToString(),
+            apiAttributes.GetProperty(ResourceAttributeNames.DeclarationPersistence).GetString());
         Assert.Equal("identity:development", apiIdentity.GetProperty("providerId").GetString());
         Assert.Equal("application-topology-api", apiIdentity.GetProperty("name").GetString());
         Assert.Contains(
@@ -494,6 +497,7 @@ public sealed class SampleSmokeTests
         Assert.Contains(">Identity<", apiDetailsHtml);
         Assert.Contains("Start readiness", apiDetailsHtml);
         Assert.Contains("Start preflight checks passed.", apiDetailsHtml);
+        Assert.Contains("Startup declaration", apiDetailsHtml);
         Assert.Contains("Environment references", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
         Assert.Contains("Configuration entry", apiDetailsHtml);

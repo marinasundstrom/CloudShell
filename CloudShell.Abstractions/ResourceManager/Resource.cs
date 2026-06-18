@@ -187,6 +187,8 @@ public enum ResourceClass
 
 public static class ResourceAttributeNames
 {
+    public const string DeclarationPersistence = "declaration.persistence";
+    public const string DeclarationOverwritePersistedState = "declaration.overwritePersistedState";
     public const string WorkloadKind = "workload.kind";
     public const string ExecutablePath = "executable.path";
     public const string ExecutableArguments = "executable.arguments";

@@ -248,11 +248,7 @@ public sealed class ResourceManagerStore(
         IReadOnlyDictionary<string, ResourceClass> resourceTypeClasses,
         List<ResourceModelDiagnostic> diagnostics)
     {
-        if (!declarationsById.TryGetValue(resource.Id, out var declaration) ||
-            (string.IsNullOrWhiteSpace(declaration.ParentResourceId) &&
-             declaration.ResourceClassOverride is null &&
-             declaration.ResourceAttributes.Count == 0 &&
-             declaration.IdentityBinding is null))
+        if (!declarationsById.TryGetValue(resource.Id, out var declaration))
         {
             return resource;
         }
@@ -265,9 +261,26 @@ public sealed class ResourceManagerStore(
                 ? resource.ParentResourceId
                 : declaration.ParentResourceId,
             ResourceClass = resourceClass,
-            Attributes = MergeAttributes(resource.ResourceAttributes, declaration.ResourceAttributes),
+            Attributes = MergeAttributes(
+                resource.ResourceAttributes,
+                AddDeclarationPersistenceAttributes(declaration.ResourceAttributes, declaration)),
             Identity = declaration.IdentityBinding ?? resource.IdentityBinding
         };
+    }
+
+    private static IReadOnlyDictionary<string, string> AddDeclarationPersistenceAttributes(
+        IReadOnlyDictionary<string, string> declarationAttributes,
+        ResourceDeclaration declaration)
+    {
+        var attributes = new Dictionary<string, string>(
+            declarationAttributes,
+            StringComparer.OrdinalIgnoreCase)
+        {
+            [ResourceAttributeNames.DeclarationPersistence] = declaration.Persistence.ToString(),
+            [ResourceAttributeNames.DeclarationOverwritePersistedState] =
+                declaration.OverwritePersistedState.ToString().ToLowerInvariant()
+        };
+        return attributes;
     }
 
     private static IReadOnlyDictionary<string, string> MergeAttributes(
