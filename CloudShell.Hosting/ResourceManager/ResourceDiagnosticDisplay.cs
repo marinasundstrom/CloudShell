@@ -35,7 +35,12 @@ public static class ResourceDiagnosticDisplay
                     "This name mapping is not ready."));
         }
 
-        AddNameMappingMaterializationDiagnostics(resource, relatedResources, diagnostics);
+        var hasNameMappingTargetDiagnostics = AddNameMappingTargetDiagnostics(resource, relatedResources, diagnostics);
+        AddNameMappingMaterializationDiagnostics(
+            resource,
+            relatedResources,
+            diagnostics,
+            suppressPendingPublish: hasNameMappingTargetDiagnostics);
 
         AddNamePublisherDiagnostics(resource, relatedResources, diagnostics);
         AddEndpointMappingDiagnostics(resource, relatedResources, diagnostics);
@@ -49,7 +54,8 @@ public static class ResourceDiagnosticDisplay
     private static void AddNameMappingMaterializationDiagnostics(
         Resource resource,
         IReadOnlyDictionary<string, Resource>? relatedResources,
-        List<ResourceDiagnosticView> diagnostics)
+        List<ResourceDiagnosticView> diagnostics,
+        bool suppressPendingPublish)
     {
         if (!resource.ResourceAttributes.TryGetValue(
                 ResourceAttributeNames.NameMappingMaterializationStatus,
@@ -78,7 +84,8 @@ public static class ResourceDiagnosticDisplay
             return;
         }
 
-        if (string.Equals(materializationStatus, "ProviderSelected", StringComparison.OrdinalIgnoreCase) &&
+        if (!suppressPendingPublish &&
+            string.Equals(materializationStatus, "ProviderSelected", StringComparison.OrdinalIgnoreCase) &&
             HasResolvableNamePublisher(resource, relatedResources))
         {
             var reason =
@@ -91,6 +98,62 @@ public static class ResourceDiagnosticDisplay
         }
 
         AddLocalHostNamePublishingDiagnostics(resource, diagnostics);
+    }
+
+    private static bool AddNameMappingTargetDiagnostics(
+        Resource resource,
+        IReadOnlyDictionary<string, Resource>? relatedResources,
+        List<ResourceDiagnosticView> diagnostics)
+    {
+        if (relatedResources is null ||
+            !resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingTargetResourceId,
+                out var targetResourceId) ||
+            string.IsNullOrWhiteSpace(targetResourceId))
+        {
+            return false;
+        }
+
+        var hasDiagnostics = false;
+        var target = FindResource(resource, relatedResources, targetResourceId);
+        if (target is null)
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Name mapping target unavailable",
+                $"Target resource '{targetResourceId}' could not be found."));
+            return true;
+        }
+
+        if (!resource.ResourceAttributes.TryGetValue(
+                ResourceAttributeNames.NameMappingTargetEndpointName,
+                out var targetEndpointName) ||
+            string.IsNullOrWhiteSpace(targetEndpointName))
+        {
+            return hasDiagnostics;
+        }
+
+        if (!target.Endpoints.Any(endpoint =>
+            string.Equals(endpoint.Name, targetEndpointName, StringComparison.OrdinalIgnoreCase)))
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Name mapping target endpoint unavailable",
+                $"Target endpoint '{targetEndpointName}' could not be found on resource '{target.Name}'."));
+            return true;
+        }
+
+        if (IsLocalHostNameMapping(resource) &&
+            target.GetEndpointNetworkMapping(targetEndpointName) is null)
+        {
+            diagnostics.Add(new ResourceDiagnosticView(
+                "Warning",
+                "Name mapping target address unavailable",
+                $"Target endpoint '{targetEndpointName}' on resource '{target.Name}' does not have a mapped address for local host-name publishing."));
+            hasDiagnostics = true;
+        }
+
+        return hasDiagnostics;
     }
 
     private static void AddLocalHostNamePublishingDiagnostics(
@@ -165,6 +228,10 @@ public static class ResourceDiagnosticDisplay
         return normalized.Equals("local", StringComparison.OrdinalIgnoreCase) ||
             normalized.EndsWith(".local", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsLocalHostNameMapping(Resource resource) =>
+        resource.ResourceAttributes.TryGetValue(ResourceAttributeNames.DnsProvider, out var provider) &&
+        string.Equals(provider, "local-hostnames", StringComparison.OrdinalIgnoreCase);
 
     private static void AddVolumeMountMaterializationDiagnostics(
         Resource resource,

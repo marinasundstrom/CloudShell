@@ -14,7 +14,7 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
             mapping,
-            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+            CreateNameMappingRelatedResources());
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("Warning", diagnostic.Severity);
@@ -43,10 +43,7 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
             mapping,
-            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
-            {
-                [provider.Id] = provider
-            });
+            CreateNameMappingRelatedResources(provider));
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("Warning", diagnostic.Severity);
@@ -75,10 +72,7 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
             mapping,
-            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
-            {
-                [provider.Id] = provider
-            });
+            CreateNameMappingRelatedResources(provider));
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("Info", diagnostic.Severity);
@@ -97,7 +91,7 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
             mapping,
-            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+            CreateNameMappingRelatedResources());
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("Info", diagnostic.Severity);
@@ -126,7 +120,7 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
             mapping,
-            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+            CreateNameMappingRelatedResources());
 
         Assert.Contains(diagnostics, diagnostic =>
             diagnostic.Severity == "Info" &&
@@ -164,10 +158,7 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
             mapping,
-            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
-            {
-                [provider.Id] = provider
-            });
+            CreateNameMappingRelatedResources(provider));
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("Warning", diagnostic.Severity);
@@ -196,12 +187,71 @@ public sealed class ResourceDiagnosticDisplayTests
 
         var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
             mapping,
-            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
-            {
-                [provider.Id] = provider
-            });
+            CreateNameMappingRelatedResources(provider));
 
         Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void GetDiagnostics_WarnsWhenNameMappingTargetResourceIsMissing()
+    {
+        var mapping = CreateNameMapping(string.Empty);
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            mapping,
+            new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Name mapping target unavailable", diagnostic.Title);
+        Assert.Equal("Target resource 'application:api' could not be found.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_WarnsWhenNameMappingTargetEndpointIsMissing()
+    {
+        var mapping = CreateNameMapping(
+            string.Empty,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.NameMappingTargetEndpointName] = "http"
+            });
+        var target = CreateEndpointResource(
+            "application:api",
+            "API",
+            ResourceEndpoint.Http("admin", "api.local", 8081));
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            mapping,
+            CreateNameMappingRelatedResources(target));
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Name mapping target endpoint unavailable", diagnostic.Title);
+        Assert.Equal("Target endpoint 'http' could not be found on resource 'API'.", diagnostic.Message);
+    }
+
+    [Fact]
+    public void GetDiagnostics_WarnsWhenLocalHostNameMappingTargetEndpointHasNoMappedAddress()
+    {
+        var mapping = CreateNameMapping(
+            string.Empty,
+            attributes: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                [ResourceAttributeNames.DnsProvider] = "local-hostnames",
+                [ResourceAttributeNames.NameMappingTargetEndpointName] = "http"
+            });
+
+        var diagnostics = ResourceDiagnosticDisplay.GetDiagnostics(
+            mapping,
+            CreateNameMappingRelatedResources());
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("Warning", diagnostic.Severity);
+        Assert.Equal("Name mapping target address unavailable", diagnostic.Title);
+        Assert.Equal(
+            "Target endpoint 'http' on resource 'API' does not have a mapped address for local host-name publishing.",
+            diagnostic.Message);
     }
 
     [Fact]
@@ -530,6 +580,24 @@ public sealed class ResourceDiagnosticDisplayTests
             ResourceClass: ResourceClass.Network,
             Attributes: resourceAttributes,
             Capabilities: [new(ResourceCapabilityIds.NetworkingNameMapping)]);
+    }
+
+    private static Dictionary<string, Resource> CreateNameMappingRelatedResources(params Resource[] resources)
+    {
+        var relatedResources = new Dictionary<string, Resource>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["application:api"] = CreateEndpointResource(
+                "application:api",
+                "API",
+                ResourceEndpoint.Http("http", "api.local", 8080))
+        };
+
+        foreach (var resource in resources)
+        {
+            relatedResources[resource.Id] = resource;
+        }
+
+        return relatedResources;
     }
 
     private static Resource CreateNetworkWithEndpointMapping(string? providerResourceId) =>
