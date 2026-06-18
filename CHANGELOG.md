@@ -130,7 +130,8 @@ on `git blame --follow`, and then by the broad type of change.
   details only after selecting an entry so the log feed can use the full width.
   The standalone Logs page and generated resource Logs tab now compose shared
   log explorer/feed/viewer/details components without embedding the route page
-  in the resource tab.
+  in the resource tab, and the resource tab uses a slimmer log view that omits
+  standalone Logs page context.
 
 #### Fixed
 

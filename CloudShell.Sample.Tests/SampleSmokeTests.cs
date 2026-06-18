@@ -434,8 +434,9 @@ public sealed class SampleSmokeTests
 
         var inlineApiLogsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Logs.Value)}");
-        Assert.Contains("Resource telemetry", inlineApiLogsHtml);
         Assert.Contains("application-topology-api / Console logs", inlineApiLogsHtml);
+        Assert.DoesNotContain("All resources", inlineApiLogsHtml);
+        Assert.DoesNotContain("Resource telemetry", inlineApiLogsHtml);
         Assert.DoesNotContain("application-topology-frontend / Console logs", inlineApiLogsHtml);
 
         var sqlDetailsHtml = await host.GetStringAsync(

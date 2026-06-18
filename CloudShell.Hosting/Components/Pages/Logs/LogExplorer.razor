@@ -10,7 +10,7 @@
     var selectedResourceFilterId = GetSelectedResourceFilterId();
 }
 
-@if (Inline)
+@if (ShowHeading && Inline)
 {
     <div class="resource-activity-header">
         <div>
@@ -31,7 +31,7 @@
         </div>
     </div>
 }
-else
+else if (ShowHeading)
 {
     <section class="page-heading compact">
         <div>
@@ -55,7 +55,7 @@ else
 }
 
 <section class="trace-workspace">
-    <div class="log-viewer panel">
+    <div class="log-viewer @(UsePanel ? "panel" : null)">
         @if (selected is null)
         {
             <div class="empty-state">
@@ -65,11 +65,14 @@ else
         }
         else
         {
-            <div class="panel-header log-viewer-header">
-                <div>
-                    <h2>@selected.SourceName</h2>
-                    <p>@selected.Name / @selected.Provider / @selected.SourceKind</p>
-                </div>
+            <div class="panel-header log-viewer-header @(ShowSourceSummary ? null : "controls-only")">
+                @if (ShowSourceSummary)
+                {
+                    <div>
+                        <h2>@selected.SourceName</h2>
+                        <p>@selected.Name / @selected.Provider / @selected.SourceKind</p>
+                    </div>
+                }
                 <div class="log-viewer-actions">
                     @if (!Inline)
                     {
@@ -113,7 +116,7 @@ else
                 </div>
             </div>
 
-            @if (!string.IsNullOrWhiteSpace(selected.Description))
+            @if (ShowSourceDescription && !string.IsNullOrWhiteSpace(selected.Description))
             {
                 <p class="log-description">@selected.Description</p>
             }
@@ -187,6 +190,18 @@ else
 
     [Parameter]
     public bool Inline { get; set; }
+
+    [Parameter]
+    public bool ShowHeading { get; set; } = true;
+
+    [Parameter]
+    public bool ShowSourceSummary { get; set; } = true;
+
+    [Parameter]
+    public bool ShowSourceDescription { get; set; } = true;
+
+    [Parameter]
+    public bool UsePanel { get; set; } = true;
 
     private IReadOnlyList<LogEntry> Entries { get; set; } = [];
     private string? LoadedLogId { get; set; }
