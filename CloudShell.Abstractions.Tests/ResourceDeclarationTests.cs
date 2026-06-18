@@ -4641,6 +4641,59 @@ public sealed class ResourceDeclarationTests
     }
 
     [Fact]
+    public void PlatformResources_ProjectVolumeRuntimeStatus()
+    {
+        var contentRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var availablePath = Path.Combine(contentRoot, "Data/volume");
+        var storageRoot = Path.Combine(contentRoot, "Data/storage");
+        Directory.CreateDirectory(availablePath);
+        Directory.CreateDirectory(storageRoot);
+        var options = new PlatformResourceOptions();
+        options.DeclaredStorages.Add(new DeclaredStorageResource(new StorageResourceDefinition(
+            "storage:local",
+            "Local Storage",
+            Location: "./Data/storage")));
+        options.DeclaredVolumes.Add(new DeclaredVolumeResource(new VolumeResourceDefinition(
+            "volume:available",
+            "Available",
+            Location: "./Data/volume")));
+        options.DeclaredVolumes.Add(new DeclaredVolumeResource(new VolumeResourceDefinition(
+            "volume:missing",
+            "Missing",
+            Location: "./Data/missing")));
+        options.DeclaredVolumes.Add(new DeclaredVolumeResource(new VolumeResourceDefinition(
+            "volume:escape",
+            "Escape",
+            StorageResourceId: "storage:local",
+            SubPath: "../escape")));
+        var environment = new TestHostEnvironment(contentRoot);
+        var platformStore = new PlatformResourceStore(options, environment);
+        var provider = new PlatformResourceProvider(platformStore, options, environment: environment);
+
+        var resources = provider.GetResources()
+            .ToDictionary(resource => resource.Id, StringComparer.OrdinalIgnoreCase);
+
+        var available = resources["volume:available"];
+        Assert.Equal("available", available.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatus]);
+        Assert.Equal(
+            $"Local volume path '{Path.GetFullPath(availablePath)}' exists.",
+            available.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatusReason]);
+
+        var missing = resources["volume:missing"];
+        var expectedMissingPath = Path.GetFullPath(Path.Combine(contentRoot, "Data/missing"));
+        Assert.Equal("unavailable", missing.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatus]);
+        Assert.Equal(
+            $"Local volume path '{expectedMissingPath}' does not exist yet. Start or restart a consumer to let the runtime materialize it, or create the directory before attaching the volume.",
+            missing.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatusReason]);
+
+        var escape = resources["volume:escape"];
+        Assert.Equal("unavailable", escape.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatus]);
+        Assert.Equal(
+            "Volume resource 'volume:escape' has subpath '../escape' outside storage resource 'storage:local'.",
+            escape.ResourceAttributes[ResourceAttributeNames.StorageRuntimeStatusReason]);
+    }
+
+    [Fact]
     public void PlatformResources_DeclareDnsZoneWithNameMapping()
     {
         var services = new ServiceCollection();

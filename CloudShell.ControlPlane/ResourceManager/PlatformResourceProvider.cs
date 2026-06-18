@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.ResourceManager;
@@ -1963,6 +1964,8 @@ public sealed class PlatformResourceProvider(
             attributes[ResourceAttributeNames.VolumeSubPath] = definition.SubPath;
         }
 
+        AddVolumeRuntimeAttributes(definition, attributes);
+
         return new(
             definition.Id,
             GetResourceName(definition.Id),
@@ -1984,6 +1987,133 @@ public sealed class PlatformResourceProvider(
                 : ResourceVisibility.Hidden,
             OwnerResourceId: NormalizeNullable(definition.StorageResourceId),
             DisplayName: definition.Name);
+    }
+
+    private void AddVolumeRuntimeAttributes(
+        VolumeResourceDefinition definition,
+        IDictionary<string, string> attributes)
+    {
+        var (status, reason) = GetVolumeRuntimeStatus(definition);
+        attributes[ResourceAttributeNames.StorageRuntimeStatus] = status;
+        attributes[ResourceAttributeNames.StorageRuntimeStatusReason] = reason;
+    }
+
+    private (string Status, string Reason) GetVolumeRuntimeStatus(
+        VolumeResourceDefinition definition)
+    {
+        if (!string.IsNullOrWhiteSpace(definition.StorageResourceId))
+        {
+            return GetStorageOwnedVolumeRuntimeStatus(definition);
+        }
+
+        var medium = GetVolumeStorageMedium(definition);
+        if (!IsLocalStorageProvider(definition.Provider) ||
+            !string.Equals(medium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            return (
+                "providerManaged",
+                "Volume runtime is provider-managed; CloudShell has no local filesystem observation for this volume resource.");
+        }
+
+        if (string.IsNullOrWhiteSpace(definition.Location))
+        {
+            return (
+                "pending",
+                "Local volume is using the provider default location; no filesystem path has been materialized yet.");
+        }
+
+        var path = ResolveStoragePath(definition.Location);
+        return Directory.Exists(path)
+            ? (
+                "available",
+                $"Local volume path '{path}' exists.")
+            : (
+                "unavailable",
+                $"Local volume path '{path}' does not exist yet. Start or restart a consumer to let the runtime materialize it, or create the directory before attaching the volume.");
+    }
+
+    private (string Status, string Reason) GetStorageOwnedVolumeRuntimeStatus(
+        VolumeResourceDefinition definition)
+    {
+        var storage = store.GetStorage(definition.StorageResourceId!);
+        if (storage is null)
+        {
+            return (
+                "unavailable",
+                $"Volume resource '{definition.Id}' references storage resource '{definition.StorageResourceId}', but that Storage resource was not found.");
+        }
+
+        if (!string.Equals(storage.Medium, StorageMedia.FileSystem, StringComparison.OrdinalIgnoreCase))
+        {
+            return (
+                "providerManaged",
+                $"Volume runtime is provider-managed; Storage resource '{storage.Id}' uses storage medium '{storage.Medium}'.");
+        }
+
+        if (string.IsNullOrWhiteSpace(definition.SubPath))
+        {
+            return (
+                "pending",
+                $"Storage-owned volume resource '{definition.Id}' has no provider subpath to observe yet.");
+        }
+
+        if (Path.IsPathRooted(definition.SubPath))
+        {
+            return (
+                "unavailable",
+                $"Volume resource '{definition.Id}' has absolute subpath '{definition.SubPath}'. Storage-owned volume subpaths must be relative.");
+        }
+
+        var storageRoot = GetStorageObservationRoot(storage);
+        var fullStorageRoot = ResolveStoragePath(storageRoot);
+        var fullPath = Path.GetFullPath(Path.Combine(fullStorageRoot, definition.SubPath));
+        if (!IsPathWithin(fullPath, fullStorageRoot))
+        {
+            return (
+                "unavailable",
+                $"Volume resource '{definition.Id}' has subpath '{definition.SubPath}' outside storage resource '{storage.Id}'.");
+        }
+
+        return Directory.Exists(fullPath)
+            ? (
+                "available",
+                $"Storage-owned volume path '{fullPath}' exists.")
+            : (
+                "pending",
+                $"Storage-owned volume path '{fullPath}' has not been materialized yet.");
+    }
+
+    private string GetStorageObservationRoot(StorageResourceDefinition storage) =>
+        !string.IsNullOrWhiteSpace(storage.Location)
+            ? storage.Location
+            : Path.Combine(
+                contentRootPath ?? Directory.GetCurrentDirectory(),
+                "Data",
+                "storage",
+                CreateStableIdentifier(storage.Id));
+
+    private static string CreateStableIdentifier(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            builder.Append(char.IsLetterOrDigit(character) ? character : '-');
+        }
+
+        var identifier = builder.ToString().Trim('-');
+        return string.IsNullOrWhiteSpace(identifier) ? "cloudshell" : identifier;
+    }
+
+    private static bool IsPathWithin(string candidatePath, string rootPath)
+    {
+        var normalizedRoot = Path.GetFullPath(rootPath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedCandidate = Path.GetFullPath(candidatePath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return string.Equals(normalizedCandidate, normalizedRoot, StringComparison.Ordinal) ||
+            normalizedCandidate.StartsWith(
+                normalizedRoot + Path.DirectorySeparatorChar,
+                StringComparison.Ordinal);
     }
 
     private Resource CreateDnsZoneResource(DnsZoneResourceDefinition definition)
