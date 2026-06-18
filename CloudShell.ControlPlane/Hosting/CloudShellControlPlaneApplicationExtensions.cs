@@ -25,9 +25,13 @@ public static class CloudShellControlPlaneApplicationExtensions
         var usesLocalIdentity =
             authenticationOptions.Enabled &&
             authenticationOptions.Mode.Equals("Identity", StringComparison.OrdinalIgnoreCase);
+        var inMemoryIdentity = app.Services.GetRequiredService<InMemoryIdentitySetupOptions>();
+        var usesInMemoryIdentityStore =
+            inMemoryIdentity.IsConfigured &&
+            inMemoryIdentity.UseAspNetCoreIdentityStore;
 
-        app.Services.InitializeCloudShellDatabase(usesLocalIdentity);
-        app.Services.PersistProgrammaticResourceDeclarations();
+        app.Services.InitializeCloudShellDatabase(usesLocalIdentity && !usesInMemoryIdentityStore);
+        app.Services.ApplyPersistedProgrammaticResourceDeclarations();
         foreach (var provider in app.Services.GetServices<IHostScopedResourceCleanupProvider>())
         {
             await provider.CleanupHostScopedResourcesAsync();

@@ -215,7 +215,9 @@ public sealed class ResourceIdentityProvisioningService(
             .ToArray();
 
         return declarations.GetPermissionGrants()
-            .Where(grant => identitySet.Any(identity => Matches(identity, grant.Identity)))
+            .Where(grant =>
+                grant.ResourceIdentity is { } grantIdentity &&
+                identitySet.Any(identity => Matches(identity, grantIdentity)))
             .ToArray();
     }
 

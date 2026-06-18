@@ -59,8 +59,8 @@ public static class CloudShellControlPlaneApiExtensions
         api.MapPost("/resources/capabilities", GetResourceOperationCapabilities)
             .WithName("CloudShellControlPlane_GetResourceOperationCapabilities");
 
-        api.MapGet("/resource-principals", ListResourcePrincipals)
-            .WithName("CloudShellControlPlane_ListResourcePrincipals")
+        api.MapGet("/resource-principals", QueryResourcePrincipals)
+            .WithName("CloudShellControlPlane_QueryResourcePrincipals")
             .Produces<ResourcePrincipalResponse[]>(StatusCodes.Status200OK);
 
         api.MapGet("/resource-permission-grants", ListResourcePermissionGrants)
@@ -346,8 +346,9 @@ public static class CloudShellControlPlaneApiExtensions
     }
 
     private static async Task<IResult> ListResourcePermissionGrants(
-        string? identityResourceId,
-        string? identityName,
+        ResourcePrincipalKind? principalKind,
+        string? principalId,
+        string? principalProviderId,
         string? targetResourceId,
         string? permission,
         IResourceManager resourceManager,
@@ -355,8 +356,7 @@ public static class CloudShellControlPlaneApiExtensions
     {
         var grants = await resourceManager.ListResourcePermissionGrantsAsync(
             new ResourcePermissionGrantQuery(
-                identityResourceId,
-                identityName,
+                CreatePrincipalFilter(principalKind, principalId, principalProviderId),
                 targetResourceId,
                 permission),
             cancellationToken);
@@ -364,7 +364,26 @@ public static class CloudShellControlPlaneApiExtensions
         return Results.Ok(grants.Select(grant => grant.ToResponse()).ToArray());
     }
 
-    private static async Task<IResult> ListResourcePrincipals(
+    private static ResourcePrincipalReference? CreatePrincipalFilter(
+        ResourcePrincipalKind? kind,
+        string? id,
+        string? providerId)
+    {
+        if (kind is null && string.IsNullOrWhiteSpace(id) && string.IsNullOrWhiteSpace(providerId))
+        {
+            return null;
+        }
+
+        if (kind is null || string.IsNullOrWhiteSpace(id))
+        {
+            throw new ControlPlaneException(ControlPlaneError.InvalidRequest(
+                "principalKind and principalId are required when filtering grants by principal."));
+        }
+
+        return new ResourcePrincipalReference(kind.Value, id, ProviderId: providerId);
+    }
+
+    private static async Task<IResult> QueryResourcePrincipals(
         string? searchText,
         string? kinds,
         string? providerId,
@@ -374,7 +393,7 @@ public static class CloudShellControlPlaneApiExtensions
     {
         try
         {
-            var principals = await resourceManager.ListResourcePrincipalsAsync(
+            var principals = await resourceManager.QueryResourcePrincipalsAsync(
                 new ResourcePrincipalQuery(
                     searchText,
                     ParsePrincipalKinds(kinds),
@@ -399,8 +418,7 @@ public static class CloudShellControlPlaneApiExtensions
         {
             await resourceManager.GrantResourcePermissionAsync(
                 new GrantResourcePermissionCommand(
-                    RequireValue(request.IdentityResourceId, nameof(request.IdentityResourceId)),
-                    request.IdentityName,
+                    request.Principal.ToDomain(),
                     RequireValue(request.TargetResourceId, nameof(request.TargetResourceId)),
                     RequireValue(request.Permission, nameof(request.Permission))),
                 cancellationToken);
@@ -422,8 +440,7 @@ public static class CloudShellControlPlaneApiExtensions
         {
             await resourceManager.RevokeResourcePermissionAsync(
                 new RevokeResourcePermissionCommand(
-                    RequireValue(request.IdentityResourceId, nameof(request.IdentityResourceId)),
-                    request.IdentityName,
+                    request.Principal.ToDomain(),
                     RequireValue(request.TargetResourceId, nameof(request.TargetResourceId)),
                     RequireValue(request.Permission, nameof(request.Permission))),
                 cancellationToken);

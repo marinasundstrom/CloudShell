@@ -161,20 +161,17 @@ public sealed record ResourcePrincipalResponse(
     IReadOnlyDictionary<string, string> Attributes);
 
 public sealed record ResourcePermissionGrantResponse(
-    ResourceIdentityReferenceResponse Identity,
     ResourcePrincipalReferenceResponse Principal,
     string TargetResourceId,
     string Permission);
 
 public sealed record GrantResourcePermissionRequest(
-    string IdentityResourceId,
-    string? IdentityName,
+    ResourcePrincipalReferenceResponse Principal,
     string TargetResourceId,
     string Permission);
 
 public sealed record RevokeResourcePermissionRequest(
-    string IdentityResourceId,
-    string? IdentityName,
+    ResourcePrincipalReferenceResponse Principal,
     string TargetResourceId,
     string Permission);
 
@@ -511,6 +508,16 @@ internal static class CloudShellControlPlaneDtoMapper
             principal.SourceResourceId,
             principal.SourceIdentityName);
 
+    public static ResourcePrincipalReference ToDomain(
+        this ResourcePrincipalReferenceResponse principal) =>
+        new(
+            principal.Kind,
+            principal.Id,
+            principal.DisplayName,
+            principal.ProviderId,
+            principal.SourceResourceId,
+            principal.SourceIdentityName);
+
     public static ResourcePrincipalResponse ToResponse(
         this ResourcePrincipal principal) =>
         new(
@@ -522,7 +529,6 @@ internal static class CloudShellControlPlaneDtoMapper
     public static ResourcePermissionGrantResponse ToResponse(
         this ResourcePermissionGrant grant) =>
         new(
-            grant.Identity.ToResponse(),
             grant.Principal.ToResponse(),
             grant.TargetResourceId,
             grant.Permission);

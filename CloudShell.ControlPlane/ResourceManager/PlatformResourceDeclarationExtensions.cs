@@ -680,7 +680,7 @@ internal sealed class DnsZoneResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public IDnsZoneResourceBuilder UseProvider(string provider)
     {
@@ -869,7 +869,7 @@ internal sealed class NetworkResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public INetworkResourceBuilder AsDefault(bool isDefault = true)
     {
@@ -1099,7 +1099,7 @@ internal sealed class ServiceResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public IServiceResourceBuilder Targets(IResourceBuilder resource, int weight = 100)
     {
@@ -1312,7 +1312,7 @@ internal sealed class VolumeResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public IVolumeResourceBuilder UseProvider(string provider)
     {
@@ -1499,7 +1499,7 @@ internal sealed class StorageResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public IStorageResourceBuilder UseLocation(string location)
     {
@@ -1620,7 +1620,7 @@ internal sealed class LoadBalancerResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public ILoadBalancerResourceBuilder UseProvider(string provider)
     {

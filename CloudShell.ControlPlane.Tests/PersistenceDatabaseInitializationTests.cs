@@ -1,6 +1,8 @@
 using CloudShell.Abstractions.Extensions;
+using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.ResourceManager;
+using CloudShell.ControlPlane.ResourceManager;
 using CloudShell.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +11,48 @@ namespace CloudShell.ControlPlane.Tests;
 
 public sealed class PersistenceDatabaseInitializationTests
 {
+    [Fact]
+    public void ApplyPersistedProgrammaticResourceDeclarations_SkipsTransientDeclarations()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "cloudshell-persistence-tests",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var declarations = new ResourceDeclarationStore();
+            var builder = new TestCloudShellBuilder();
+            declarations.Declare(builder, "test", "transient");
+            declarations.Declare(builder, "test", "persisted").Persist();
+
+            var services = new ServiceCollection();
+            services.AddCloudShellPersistence(new CloudShellPersistenceOptions
+            {
+                Provider = "Sqlite",
+                ConnectionString = $"Data Source={Path.Combine(directory, "cloudshell.db")}",
+                IdentityConnectionString = $"Data Source={Path.Combine(directory, "identity.db")}"
+            });
+            services.AddSingleton(declarations);
+            services.AddSingleton<IResourceProvider>(new RecordingProgrammaticDeclarationProvider());
+
+            using var provider = services.BuildServiceProvider();
+            provider.InitializeCloudShellDatabase(initializeIdentityStore: false);
+
+            provider.ApplyPersistedProgrammaticResourceDeclarations();
+
+            var registrations = provider.GetRequiredService<EfCoreResourceStore>();
+            Assert.Null(registrations.GetRegistration("transient"));
+            var persisted = registrations.GetRegistration("persisted");
+            Assert.NotNull(persisted);
+            Assert.Equal("test", persisted.ProviderId);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task EfCoreResourceStore_RoundTripsRegistrationIdentityBinding()
     {
@@ -183,5 +227,33 @@ public sealed class PersistenceDatabaseInitializationTests
         await using var command = connection.CreateCommand();
         command.CommandText = sql;
         await command.ExecuteNonQueryAsync();
+    }
+
+    private sealed class RecordingProgrammaticDeclarationProvider : IResourceProvider, IProgrammaticResourceDeclarationProvider
+    {
+        public string Id => "test";
+
+        public string DisplayName => "Test Provider";
+
+        public IReadOnlyList<Resource> GetResources() => [];
+
+        public bool CanApplyDeclaration(ResourceDeclaration declaration) =>
+            string.Equals(declaration.ProviderId, Id, StringComparison.OrdinalIgnoreCase);
+
+        public Task ApplyDeclarationAsync(
+            ResourceDeclaration declaration,
+            IResourceRegistrationStore registrations,
+            CancellationToken cancellationToken = default) =>
+            registrations.RegisterAsync(
+                declaration.ProviderId,
+                declaration.ResourceId,
+                declaration.ResourceGroupId,
+                declaration.DependsOn,
+                cancellationToken);
+    }
+
+    private sealed class TestCloudShellBuilder : ICloudShellBuilder
+    {
+        public IServiceCollection Services { get; } = new ServiceCollection();
     }
 }

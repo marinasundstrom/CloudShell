@@ -419,7 +419,9 @@ public sealed class SampleSmokeTests
             api.GetProperty("dependsOn").EnumerateArray().Select(item => item.GetString()));
 
         var grantsJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resource-permission-grants?identityResourceId=application%3Aapplication-topology-api&identityName=application-topology-api");
+            "/api/control-plane/v1/resource-permission-grants" +
+            $"?principalKind={(int)ResourcePrincipalKind.ResourceIdentity}" +
+            $"&principalId={Uri.EscapeDataString("application:application-topology-api/identities/application-topology-api")}");
         using var grantsDocument = JsonDocument.Parse(grantsJson);
         var grants = grantsDocument.RootElement.EnumerateArray().ToArray();
         Assert.Contains(
@@ -700,7 +702,9 @@ public sealed class SampleSmokeTests
         Assert.Equal("settings-secrets-api", identity.GetProperty("name").GetString());
 
         var grantsJson = await host.GetStringAsync(
-            "/api/control-plane/v1/resource-permission-grants?identityResourceId=application%3Asettings-secrets-api&identityName=settings-secrets-api");
+            "/api/control-plane/v1/resource-permission-grants" +
+            $"?principalKind={(int)ResourcePrincipalKind.ResourceIdentity}" +
+            $"&principalId={Uri.EscapeDataString("application:settings-secrets-api/identities/settings-secrets-api")}");
         using var grantsDocument = JsonDocument.Parse(grantsJson);
         var grants = grantsDocument.RootElement.EnumerateArray().ToArray();
         Assert.Contains(
@@ -1041,6 +1045,19 @@ public sealed class SampleSmokeTests
         Assert.Equal((int)ResourceState.Stopped, stoppedResource.GetProperty("state").GetInt32());
         Assert.True(stoppedResource.GetProperty("resourceActions").TryGetProperty("start", out _));
 
+        var sampleDatabaseGrantsJson = await host.GetStringAsync(
+            "/api/control-plane/v1/resource-permission-grants?targetResourceId=sample%3Adatabase");
+        using var sampleDatabaseGrantsDocument = JsonDocument.Parse(sampleDatabaseGrantsJson);
+        Assert.Contains(
+            sampleDatabaseGrantsDocument.RootElement.EnumerateArray(),
+            grant =>
+            {
+                var grantPrincipal = grant.GetProperty("principal");
+                return grantPrincipal.GetProperty("kind").GetInt32() == (int)ResourcePrincipalKind.User &&
+                    grantPrincipal.GetProperty("id").GetString() == "alice" &&
+                    grant.GetProperty("permission").GetString() == CloudShellPermissions.Resources.Manage;
+            });
+
         var activityHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("sample:api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Activity.Value)}");
         Assert.Contains("Activity", activityHtml);
@@ -1052,6 +1069,96 @@ public sealed class SampleSmokeTests
         Assert.Contains("action.lifecycle.stop", activityHtml);
         Assert.Contains("event.lifecycle.stopped", activityHtml);
         Assert.Contains("Stop completed", activityHtml);
+    }
+
+    [Fact]
+    public async Task ResourceHostSample_InMemoryIdentityUserCanLoginAndAccessGrantedResource()
+    {
+        using var host = await SampleProcess.StartAsync(
+            "samples/CloudShell.ResourceHost/CloudShell.ResourceHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("Authentication__Enabled", "true"),
+                ("Authentication__Mode", "Identity"),
+                ("Authentication__AllowLocalSetup", "true")
+            ]);
+
+        await host.WaitForHttpOkAsync("/account/login", StartupTimeout);
+
+        var cookies = new CookieContainer();
+        using var handler = new HttpClientHandler
+        {
+            CookieContainer = cookies,
+            AllowAutoRedirect = false
+        };
+        using var client = new HttpClient(handler)
+        {
+            BaseAddress = host.BaseAddress,
+            Timeout = StartupTimeout
+        };
+        var loginHtml = await client.GetStringAsync("/account/login");
+        Assert.Contains("Sign in to CloudShell", loginHtml);
+
+        var loginToken = ExtractRequestVerificationToken(loginHtml);
+        using var loginResponse = await client.PostAsync(
+            "/account/login",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["_handler"] = "login",
+                ["__RequestVerificationToken"] = loginToken,
+                ["Input.UserName"] = "alice",
+                ["Input.Credential"] = "CloudShell123!"
+            }));
+        Assert.Equal(HttpStatusCode.Redirect, loginResponse.StatusCode);
+
+        var resourcesJson = await client.GetStringAsync("/api/control-plane/v1/resources");
+        using var resourcesDocument = JsonDocument.Parse(resourcesJson);
+        var resourceIds = resourcesDocument.RootElement
+            .EnumerateArray()
+            .Select(resource => resource.GetProperty("id").GetString())
+            .OfType<string>()
+            .ToArray();
+        Assert.Equal(["sample:database"], resourceIds);
+
+        using var apiResponse = await client.GetAsync(
+            "/api/control-plane/v1/resources/sample%3Aapi");
+        Assert.Equal(HttpStatusCode.NotFound, apiResponse.StatusCode);
+
+        var databaseJson = await client.GetStringAsync(
+            "/api/control-plane/v1/resources/sample%3Adatabase");
+        using var databaseDocument = JsonDocument.Parse(databaseJson);
+        Assert.Equal("sample:database", databaseDocument.RootElement.GetProperty("id").GetString());
+
+        var principalsJson = await client.GetStringAsync(
+            "/api/control-plane/v1/resource-principals?kinds=User&searchText=alice");
+        using var principalsDocument = JsonDocument.Parse(principalsJson);
+        var principal = Assert.Single(principalsDocument.RootElement.EnumerateArray());
+        Assert.Equal("Alice Local Developer", principal.GetProperty("displayName").GetString());
+        Assert.Equal("alice", principal.GetProperty("reference").GetProperty("id").GetString());
+
+        var grantsJson = await client.GetStringAsync(
+            "/api/control-plane/v1/resource-permission-grants?targetResourceId=sample%3Adatabase");
+        using var grantsDocument = JsonDocument.Parse(grantsJson);
+        Assert.Contains(
+            grantsDocument.RootElement.EnumerateArray(),
+            grant =>
+                grant.GetProperty("principal").GetProperty("id").GetString() == "alice" &&
+                grant.GetProperty("permission").GetString() == CloudShellPermissions.Resources.Manage);
+
+        var failedLoginHtml = await client.GetStringAsync("/account/login");
+        var failedLoginToken = ExtractRequestVerificationToken(failedLoginHtml);
+        using var failedLoginResponse = await client.PostAsync(
+            "/account/login",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["_handler"] = "login",
+                ["__RequestVerificationToken"] = failedLoginToken,
+                ["Input.UserName"] = "alice",
+                ["Input.Credential"] = "WrongPassword123!"
+            }));
+        Assert.Equal(HttpStatusCode.OK, failedLoginResponse.StatusCode);
+        var failedLoginResponseHtml = await failedLoginResponse.Content.ReadAsStringAsync();
+        Assert.Contains("The username or password is invalid.", failedLoginResponseHtml);
     }
 
     [Fact]
@@ -1271,6 +1378,25 @@ public sealed class SampleSmokeTests
             listener.Stop();
             await Task.Yield();
         }
+    }
+
+    private static string ExtractRequestVerificationToken(string html)
+    {
+        const string marker = "name=\"__RequestVerificationToken\" value=\"";
+        var start = html.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            throw new InvalidOperationException("The response did not include a request verification token.");
+        }
+
+        start += marker.Length;
+        var end = html.IndexOf('"', start);
+        if (end < 0)
+        {
+            throw new InvalidOperationException("The request verification token was not closed.");
+        }
+
+        return WebUtility.HtmlDecode(html[start..end]);
     }
 
     private static async Task WaitForHttpSuccessAsync(string url, TimeSpan timeout)

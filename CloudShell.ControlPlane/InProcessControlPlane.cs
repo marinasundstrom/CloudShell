@@ -172,7 +172,7 @@ public sealed class InProcessControlPlane(
                 StringComparer.OrdinalIgnoreCase);
     }
 
-    public async Task<IReadOnlyList<ResourcePrincipal>> ListResourcePrincipalsAsync(
+    public async Task<IReadOnlyList<ResourcePrincipal>> QueryResourcePrincipalsAsync(
         ResourcePrincipalQuery? query = null,
         CancellationToken cancellationToken = default)
     {
@@ -255,16 +255,15 @@ public sealed class InProcessControlPlane(
         ArgumentNullException.ThrowIfNull(command);
 
         var grant = CreatePermissionGrant(
-            command.IdentityResourceId,
-            command.IdentityName,
+            command.Principal,
             command.TargetResourceId,
             command.Permission);
         declarations.AddPermissionGrant(grant);
 
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourcePermissionGrantsChanged,
-            grant.Identity.ResourceId,
-            AffectedResourceIds: [grant.Identity.ResourceId, grant.TargetResourceId]));
+            grant.ResourceIdentity?.ResourceId,
+            AffectedResourceIds: GetGrantAffectedResourceIds(grant)));
 
         return Task.CompletedTask;
     }
@@ -277,16 +276,15 @@ public sealed class InProcessControlPlane(
         ArgumentNullException.ThrowIfNull(command);
 
         var grant = CreatePermissionGrant(
-            command.IdentityResourceId,
-            command.IdentityName,
+            command.Principal,
             command.TargetResourceId,
             command.Permission);
         declarations.RemovePermissionGrant(grant);
 
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourcePermissionGrantsChanged,
-            grant.Identity.ResourceId,
-            AffectedResourceIds: [grant.Identity.ResourceId, grant.TargetResourceId]));
+            grant.ResourceIdentity?.ResourceId,
+            AffectedResourceIds: GetGrantAffectedResourceIds(grant)));
 
         return Task.CompletedTask;
     }
@@ -1485,16 +1483,10 @@ public sealed class InProcessControlPlane(
         }
 
         var filtered = grants.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(query.IdentityResourceId))
+        if (query.Principal is not null)
         {
             filtered = filtered.Where(grant =>
-                string.Equals(grant.Identity.ResourceId, query.IdentityResourceId, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.IdentityName))
-        {
-            filtered = filtered.Where(grant =>
-                string.Equals(grant.Identity.Name, query.IdentityName, StringComparison.OrdinalIgnoreCase));
+                MatchesPrincipalFilter(grant.Principal, query.Principal));
         }
 
         if (!string.IsNullOrWhiteSpace(query.TargetResourceId))
@@ -1512,43 +1504,61 @@ public sealed class InProcessControlPlane(
         return filtered.ToArray();
     }
 
+    private static bool MatchesPrincipalFilter(
+        ResourcePrincipalReference grantPrincipal,
+        ResourcePrincipalReference principalFilter) =>
+        grantPrincipal.Kind == principalFilter.Kind &&
+        string.Equals(grantPrincipal.Id, principalFilter.Id, StringComparison.OrdinalIgnoreCase) &&
+        (string.IsNullOrWhiteSpace(principalFilter.ProviderId) ||
+         string.Equals(grantPrincipal.ProviderId, principalFilter.ProviderId, StringComparison.OrdinalIgnoreCase));
+
     private ResourcePermissionGrant CreatePermissionGrant(
-        string identityResourceId,
-        string? identityName,
+        ResourcePrincipalReference principal,
         string targetResourceId,
         string permission)
     {
-        identityResourceId = RequireValue(identityResourceId, nameof(identityResourceId));
+        ArgumentNullException.ThrowIfNull(principal);
         targetResourceId = RequireValue(targetResourceId, nameof(targetResourceId));
         permission = RequireValue(permission, nameof(permission));
-        var identityResource = resourceManager.GetResource(identityResourceId)
-            ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(identityResourceId));
         var targetResource = resourceManager.GetResource(targetResourceId)
             ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(targetResourceId));
-        if (identityResource.IdentityBinding is null)
-        {
-            throw new ControlPlaneException(ControlPlaneError.InvalidRequest(
-                $"Resource '{identityResource.Id}' does not have an identity binding."));
-        }
 
-        var normalizedIdentityName = string.IsNullOrWhiteSpace(identityName)
-            ? identityResource.IdentityBinding.Name
-            : identityName.Trim();
-        if (!string.Equals(identityResource.IdentityBinding.Name, normalizedIdentityName, StringComparison.OrdinalIgnoreCase))
+        if (principal.Kind == ResourcePrincipalKind.ResourceIdentity)
         {
-            throw new ControlPlaneException(ControlPlaneError.InvalidRequest(
-                $"Resource '{identityResource.Id}' does not have identity '{normalizedIdentityName}'."));
-        }
+            var identityResourceId = RequireValue(principal.SourceResourceId, nameof(principal.SourceResourceId));
+            var identityResource = resourceManager.GetResource(identityResourceId)
+                ?? throw new ControlPlaneException(ControlPlaneError.ResourceNotRegistered(identityResourceId));
+            if (identityResource.IdentityBinding is null)
+            {
+                throw new ControlPlaneException(ControlPlaneError.InvalidRequest(
+                    $"Resource '{identityResource.Id}' does not have an identity binding."));
+            }
 
-        var identityGroup = resourceManager.GetGroupForResource(identityResource.Id);
-        if (!authorization.CanAccessResource(
+            var normalizedIdentityName = string.IsNullOrWhiteSpace(principal.SourceIdentityName)
+                ? identityResource.IdentityBinding.Name
+                : principal.SourceIdentityName.Trim();
+            if (!string.Equals(identityResource.IdentityBinding.Name, normalizedIdentityName, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ControlPlaneException(ControlPlaneError.InvalidRequest(
+                    $"Resource '{identityResource.Id}' does not have identity '{normalizedIdentityName}'."));
+            }
+
+            var identityGroup = resourceManager.GetGroupForResource(identityResource.Id);
+            if (!authorization.CanAccessResource(
+                    identityResource.Id,
+                    identityGroup?.Id,
+                    CloudShellPermissions.Resources.Manage))
+            {
+                throw ControlPlaneAccessDeniedException.ForResource(
+                    identityResource.Id,
+                    CloudShellPermissions.Resources.Manage);
+            }
+
+            principal = ResourcePrincipalReference.ForResourceIdentity(
                 identityResource.Id,
-                identityGroup?.Id,
-                CloudShellPermissions.Resources.Manage))
-        {
-            throw ControlPlaneAccessDeniedException.ForResource(
-                identityResource.Id,
-                CloudShellPermissions.Resources.Manage);
+                normalizedIdentityName,
+                principal.DisplayName,
+                principal.ProviderId);
         }
 
         var targetGroup = resourceManager.GetGroupForResource(targetResource.Id);
@@ -1563,9 +1573,23 @@ public sealed class InProcessControlPlane(
         }
 
         return new ResourcePermissionGrant(
-            new ResourceIdentityReference(identityResource.Id, normalizedIdentityName),
+            principal,
             targetResource.Id,
             permission);
+    }
+
+    private static IReadOnlyList<string> GetGrantAffectedResourceIds(ResourcePermissionGrant grant)
+    {
+        var affected = new List<string>();
+        if (grant.ResourceIdentity is { } identity)
+        {
+            affected.Add(identity.ResourceId);
+        }
+
+        affected.Add(grant.TargetResourceId);
+        return affected
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static IReadOnlyList<LogDescriptor> ApplyQuery(

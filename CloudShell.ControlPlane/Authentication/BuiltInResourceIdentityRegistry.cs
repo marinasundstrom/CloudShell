@@ -1,4 +1,6 @@
 using CloudShell.Abstractions.ResourceManager;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CloudShell.ControlPlane.Authentication;
 
@@ -25,7 +27,9 @@ public sealed class BuiltInResourceIdentityRegistry
         var clientId = CreateClientId(entry.Identity);
         var secret = ResolveClientSecret(provider, clientId);
         var matchingGrants = grants
-            .Where(grant => Matches(entry.Identity, grant.Identity))
+            .Where(grant =>
+                grant.ResourceIdentity is { } grantIdentity &&
+                Matches(entry.Identity, grantIdentity))
             .ToArray();
         var client = new BuiltInAuthorityClientOptions
         {
@@ -129,7 +133,9 @@ public sealed record BuiltInResourceIdentityRegistration(
     string ClientId);
 
 public sealed class BuiltInResourceIdentityProvisioner(
-    BuiltInResourceIdentityRegistry registry) :
+    BuiltInResourceIdentityRegistry registry,
+    IServiceScopeFactory? scopeFactory = null,
+    InMemoryIdentitySetupOptions? inMemoryIdentity = null) :
     IResourceIdentityProvisioner,
     IResourceIdentityProvisioningStatusProvider,
     IResourceIdentityDirectoryProvider
@@ -194,7 +200,7 @@ public sealed class BuiltInResourceIdentityProvisioner(
                 .ToArray()));
     }
 
-    public Task<ResourceIdentityDirectoryResult> QueryDirectoryAsync(
+    public async Task<ResourceIdentityDirectoryResult> QueryDirectoryAsync(
         ResourceIdentityDirectoryRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -217,26 +223,106 @@ public sealed class BuiltInResourceIdentityProvisioner(
                     ["clientId"] = registration.ClientId,
                     ["resourceId"] = registration.Identity.ResourceId
                 }))
-            .Where(principal =>
-                request.Query.PrincipalKinds.Count == 0 ||
-                request.Query.PrincipalKinds.Contains(principal.Reference.Kind))
-            .Where(principal =>
-                string.IsNullOrWhiteSpace(request.Query.SearchText) ||
-                Contains(principal.DisplayName, request.Query.SearchText) ||
-                Contains(principal.Reference.Id, request.Query.SearchText) ||
-                Contains(principal.Reference.SourceResourceId, request.Query.SearchText) ||
-                Contains(principal.Reference.SourceIdentityName, request.Query.SearchText) ||
-                principal.PrincipalAttributes.Any(attribute =>
-                    Contains(attribute.Key, request.Query.SearchText) ||
-                    Contains(attribute.Value, request.Query.SearchText)))
+            .Concat(await ListUserPrincipalsAsync(request.Provider.Id, cancellationToken))
+            .Where(principal => MatchesQuery(principal, request.Query))
+            .GroupBy(
+                principal => $"{principal.Reference.Kind}\u001f{principal.Reference.ProviderId}\u001f{principal.Reference.Id}",
+                StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderBy(principal => principal.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(principal => principal.Reference.Kind)
+            .ThenBy(principal => principal.Reference.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        return Task.FromResult(new ResourceIdentityDirectoryResult(
+        return new ResourceIdentityDirectoryResult(
             request.Provider.Id,
             request.Query.Limit is > 0
                 ? principals.Take(request.Query.Limit.Value).ToArray()
-                : principals));
+                : principals);
     }
+
+    private async Task<IReadOnlyList<ResourcePrincipal>> ListUserPrincipalsAsync(
+        string providerId,
+        CancellationToken cancellationToken)
+    {
+        var principals = new List<ResourcePrincipal>();
+        if (scopeFactory is null)
+        {
+            return principals;
+        }
+
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var userManager = scope.ServiceProvider.GetService<UserManager<IdentityUser>>();
+        if (userManager is null)
+        {
+            return principals;
+        }
+
+        var users = userManager.Users
+            .OrderBy(user => user.Email ?? user.UserName)
+            .ToArray();
+        foreach (var user in users)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var email = user.Email ?? user.UserName ?? user.Id;
+            var displayName = inMemoryIdentity is not null &&
+                user.UserName is not null &&
+                inMemoryIdentity.Users.TryGetValue(user.UserName, out var configuredUser) &&
+                !string.IsNullOrWhiteSpace(configuredUser.DisplayName)
+                    ? configuredUser.DisplayName.Trim()
+                    : email;
+            principals.Add(CreateUserPrincipal(
+                new ResourcePrincipalReference(
+                    ResourcePrincipalKind.User,
+                    InMemoryIdentityUserOptions.CreatePrincipalId(user.UserName ?? email),
+                    displayName,
+                    providerId),
+                user.UserName ?? email,
+                email,
+                user.Id,
+                "Built-in local user."));
+        }
+
+        return principals;
+    }
+
+    private static ResourcePrincipal CreateUserPrincipal(
+        ResourcePrincipalReference reference,
+        string userName,
+        string? email = null,
+        string? userId = null,
+        string description = "Built-in local user.")
+    {
+        var attributes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["userName"] = userName,
+            ["userId"] = userId ?? reference.Id
+        };
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            attributes["email"] = email;
+        }
+
+        return new ResourcePrincipal(
+            reference,
+            reference.DisplayName ?? userName,
+            description,
+            attributes);
+    }
+
+    private static bool MatchesQuery(
+        ResourcePrincipal principal,
+        ResourceIdentityDirectoryQuery query) =>
+        (query.PrincipalKinds.Count == 0 ||
+         query.PrincipalKinds.Contains(principal.Reference.Kind)) &&
+        (string.IsNullOrWhiteSpace(query.SearchText) ||
+         Contains(principal.DisplayName, query.SearchText) ||
+         Contains(principal.Reference.Id, query.SearchText) ||
+         Contains(principal.Reference.SourceResourceId, query.SearchText) ||
+         Contains(principal.Reference.SourceIdentityName, query.SearchText) ||
+         principal.PrincipalAttributes.Any(attribute =>
+             Contains(attribute.Key, query.SearchText) ||
+             Contains(attribute.Value, query.SearchText)));
 
     private static bool Contains(string? value, string search) =>
         !string.IsNullOrWhiteSpace(value) &&

@@ -3,7 +3,9 @@ using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Authentication;
 using CloudShell.ControlPlane.ResourceManager;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace CloudShell.ControlPlane.Tests;
 
@@ -32,15 +34,15 @@ public sealed class ResourceIdentityProvisioningServiceTests
             useAsDefault: true);
         declarations.Declare(builder, "test", "database");
         declarations.AddPermissionGrant(new ResourcePermissionGrant(
-            ResourceIdentityReference.ForResource("api", "api-service"),
+            ResourcePrincipalReference.ForResourceIdentity("api", "api-service"),
             "database",
             "Database/databases/readWrite/action"));
         declarations.AddPermissionGrant(new ResourcePermissionGrant(
-            ResourceIdentityReference.ForResource("worker"),
+            ResourcePrincipalReference.ForResourceIdentity("worker"),
             "queue",
             "Queue/queues/read/action"));
         declarations.AddPermissionGrant(new ResourcePermissionGrant(
-            ResourceIdentityReference.ForResource("missing", "missing-service"),
+            ResourcePrincipalReference.ForResourceIdentity("missing", "missing-service"),
             "database",
             "Database/databases/read/action"));
 
@@ -60,7 +62,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal(
             ["api:api-service:Database/databases/readWrite/action", "worker::Queue/queues/read/action"],
             request.PermissionGrants
-                .Select(grant => $"{grant.Identity.ResourceId}:{grant.Identity.Name}:{grant.Permission}")
+                .Select(grant => $"{grant.ResourceIdentity!.ResourceId}:{grant.ResourceIdentity.Name}:{grant.Permission}")
                 .ToArray());
         Assert.Empty(plan.Diagnostics);
     }
@@ -101,7 +103,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
                 ResourceIdentityProviderKind.BuiltIn),
             useAsDefault: true);
         declarations.AddPermissionGrant(new ResourcePermissionGrant(
-            ResourceIdentityReference.ForResource("registered"),
+            ResourcePrincipalReference.ForResourceIdentity("registered"),
             "database",
             "Database/databases/read/action"));
         var registrations = new TestResourceRegistrationStore(
@@ -128,8 +130,52 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal("registered", identity.Identity.ResourceId);
         Assert.Equal(ResourceIdentityBindingKind.Required, identity.Binding.Kind);
         var grant = Assert.Single(request.PermissionGrants);
-        Assert.Equal("registered", grant.Identity.ResourceId);
+        Assert.Equal("registered", grant.Principal.SourceResourceId);
         Assert.Empty(plan.Diagnostics);
+    }
+
+    [Fact]
+    public void CreatePlan_ExcludesNonResourcePrincipalGrantsFromResourceIdentityProvisioning()
+    {
+        var declarations = new ResourceDeclarationStore();
+        var builder = new TestCloudShellBuilder();
+        declarations.Declare(
+            builder,
+            "test",
+            "api",
+            identity: new ResourceIdentityBinding("identity:dev", Name: "api-service"));
+        declarations.AddIdentityProvider(
+            new ResourceIdentityProviderDefinition(
+                "identity:dev",
+                "Development",
+                ResourceIdentityProviderKind.BuiltIn),
+            useAsDefault: true);
+        declarations.AddPermissionGrant(new ResourcePermissionGrant(
+            ResourcePrincipalReference.ForResourceIdentity("api", "api-service"),
+            "configuration:app",
+            ConfigurationStoreResourceOperationPermissions.ReadEntries));
+        declarations.AddPermissionGrant(new ResourcePermissionGrant(
+            new ResourcePrincipalReference(
+                ResourcePrincipalKind.User,
+                "alice",
+                "Alice Local Developer",
+                "identity:dev"),
+            "configuration:app",
+            CloudShellPermissions.Resources.Manage));
+
+        var service = new ResourceIdentityProvisioningService(
+            declarations,
+            new EmptyResourceRegistrationStore(),
+            new ResourceIdentityProviderCatalog(),
+            []);
+
+        var plan = service.CreatePlan();
+
+        var request = Assert.Single(plan.Requests);
+        var grant = Assert.Single(request.PermissionGrants);
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
+        Assert.Equal("api", grant.Principal.SourceResourceId);
+        Assert.Equal(ConfigurationStoreResourceOperationPermissions.ReadEntries, grant.Permission);
     }
 
     [Fact]
@@ -221,7 +267,7 @@ public sealed class ResourceIdentityProvisioningServiceTests
                 ],
                 [
                     new ResourcePermissionGrant(
-                        identity,
+                        identity.ToPrincipal(),
                         "configuration:app",
                         ConfigurationStoreResourceOperationPermissions.ReadEntries)
                 ]));
@@ -243,6 +289,68 @@ public sealed class ResourceIdentityProvisioningServiceTests
         Assert.Equal("api", principal.Reference.SourceResourceId);
         Assert.Equal("api-service", principal.Reference.SourceIdentityName);
         Assert.Equal("api/api-service", principal.PrincipalAttributes["clientId"]);
+    }
+
+    [Fact]
+    public async Task BuiltInProvisioner_ListsInMemoryUserPrincipals()
+    {
+        var users = new InMemoryIdentitySetupOptions();
+        users.IsConfigured = true;
+        users.Users.Add(
+            "Alice",
+            password: "CloudShell123!",
+            displayName: "Alice Local Developer",
+            email: "alice@example.test");
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(users);
+        services.AddSingleton(new ResourceDeclarationStore());
+        services.AddSingleton(Options.Create(new CloudShellAuthenticationOptions()));
+        services.AddSingleton<InMemoryIdentityStore>();
+        services.AddScoped<IUserStore<IdentityUser>>(
+            serviceProvider => serviceProvider.GetRequiredService<InMemoryIdentityStore>());
+        services.AddScoped<IRoleStore<IdentityRole>>(
+            serviceProvider => serviceProvider.GetRequiredService<InMemoryIdentityStore>());
+        services.AddIdentity<IdentityUser, IdentityRole>();
+        services.AddScoped<CloudShellIdentitySeeder>();
+        await using var serviceProvider = services.BuildServiceProvider();
+        await using (var scope = serviceProvider.CreateAsyncScope())
+        {
+            await scope.ServiceProvider
+                .GetRequiredService<CloudShellIdentitySeeder>()
+                .SeedAsync();
+        }
+
+        var provisioner = new BuiltInResourceIdentityProvisioner(
+            new BuiltInResourceIdentityRegistry(),
+            serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+            users);
+        var provider = new ResourceIdentityProviderDefinition(
+            "identity:dev",
+            "Development",
+            ResourceIdentityProviderKind.BuiltIn);
+
+        var result = await provisioner.QueryDirectoryAsync(
+            new ResourceIdentityDirectoryRequest(
+                provider,
+                new ResourceIdentityDirectoryQuery(
+                    "alice",
+                    new HashSet<ResourcePrincipalKind>
+                    {
+                        ResourcePrincipalKind.User
+                    })));
+
+        var principal = Assert.Single(result.Principals);
+        Assert.Equal("identity:dev", result.ProviderId);
+        Assert.Equal(ResourcePrincipalKind.User, principal.Reference.Kind);
+        Assert.Equal("alice", principal.Reference.Id);
+        Assert.Equal("Alice Local Developer", principal.Reference.DisplayName);
+        Assert.Equal("identity:dev", principal.Reference.ProviderId);
+        Assert.Equal("Alice Local Developer", principal.DisplayName);
+        Assert.Equal("Built-in local user.", principal.Description);
+        Assert.Equal("Alice", principal.PrincipalAttributes["userName"]);
+        Assert.False(string.IsNullOrWhiteSpace(principal.PrincipalAttributes["userId"]));
+        Assert.Equal("alice@example.test", principal.PrincipalAttributes["email"]);
     }
 
     [Fact]

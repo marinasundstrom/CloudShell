@@ -139,7 +139,9 @@ public sealed class KeycloakResourceIdentityProvisioner(
                 entry,
                 cancellationToken);
             var grants = request.PermissionGrants
-                .Where(grant => Matches(entry.Identity, grant.Identity))
+                .Where(grant =>
+                    grant.ResourceIdentity is { } grantIdentity &&
+                    Matches(entry.Identity, grantIdentity))
                 .ToArray();
             var roles = new List<KeycloakRoleRepresentation>();
             foreach (var grant in grants)

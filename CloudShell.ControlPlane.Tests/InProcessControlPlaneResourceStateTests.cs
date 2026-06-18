@@ -456,7 +456,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             permissionGrants:
             [
                 new ResourcePermissionGrant(
-                    identity,
+                    identity.ToPrincipal(),
                     "target",
                     CloudShellPermissions.Resources.Actions.Lifecycle)
             ]);
@@ -500,16 +500,15 @@ public sealed class InProcessControlPlaneResourceStateTests
 
         await controlPlane.GrantResourcePermissionAsync(
             new GrantResourcePermissionCommand(
-                "caller",
-                "caller-service",
+                ResourcePrincipalReference.ForResourceIdentity("caller", "caller-service"),
                 "target",
                 CloudShellPermissions.Resources.Actions.Lifecycle));
 
         var grants = await controlPlane.ListResourcePermissionGrantsAsync(
             new ResourcePermissionGrantQuery(TargetResourceId: "target"));
         var grant = Assert.Single(grants);
-        Assert.Equal("caller", grant.Identity.ResourceId);
-        Assert.Equal("caller-service", grant.Identity.Name);
+        Assert.Equal("caller", grant.Principal.SourceResourceId);
+        Assert.Equal("caller-service", grant.Principal.SourceIdentityName);
         Assert.Equal(CloudShellPermissions.Resources.Actions.Lifecycle, grant.Permission);
 
         var evaluation = await controlPlane.EvaluateResourcePermissionGrantAsync(
@@ -517,6 +516,35 @@ public sealed class InProcessControlPlaneResourceStateTests
             "target",
             CloudShellPermissions.Resources.Actions.Lifecycle);
         Assert.True(evaluation.IsAllowed);
+    }
+
+    [Fact]
+    public async Task GrantResourcePermissionAsync_AddsUserPrincipalGrant()
+    {
+        var principal = new ResourcePrincipalReference(
+            ResourcePrincipalKind.User,
+            "alice",
+            "Alice Local Developer",
+            "identity:dev");
+        var controlPlane = CreateControlPlane(
+            [CreateResource("target", ResourceState.Running)]);
+
+        await controlPlane.GrantResourcePermissionAsync(
+            new GrantResourcePermissionCommand(
+                principal,
+                "target",
+                CloudShellPermissions.Resources.Actions.Lifecycle));
+
+        var grants = await controlPlane.ListResourcePermissionGrantsAsync(
+            new ResourcePermissionGrantQuery(Principal: principal));
+        var grant = Assert.Single(grants);
+        Assert.Equal(ResourcePrincipalKind.User, grant.Principal.Kind);
+        Assert.Equal("alice", grant.Principal.Id);
+        Assert.Equal("Alice Local Developer", grant.Principal.DisplayName);
+        Assert.Equal("identity:dev", grant.Principal.ProviderId);
+        Assert.Equal("target", grant.TargetResourceId);
+        Assert.Equal(CloudShellPermissions.Resources.Actions.Lifecycle, grant.Permission);
+        Assert.Null(grant.ResourceIdentity);
     }
 
     [Fact]
@@ -531,15 +559,14 @@ public sealed class InProcessControlPlaneResourceStateTests
             permissionGrants:
             [
                 new ResourcePermissionGrant(
-                    identity,
+                    identity.ToPrincipal(),
                     "target",
                     CloudShellPermissions.Resources.Actions.Lifecycle)
             ]);
 
         await controlPlane.RevokeResourcePermissionAsync(
             new RevokeResourcePermissionCommand(
-                "caller",
-                "caller-service",
+                ResourcePrincipalReference.ForResourceIdentity("caller", "caller-service"),
                 "target",
                 CloudShellPermissions.Resources.Actions.Lifecycle));
 
@@ -553,7 +580,7 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
-    public async Task ListResourcePrincipalsAsync_ReturnsResourceIdentitiesAndDirectoryPrincipals()
+    public async Task QueryResourcePrincipalsAsync_ReturnsResourceIdentitiesAndDirectoryPrincipals()
     {
         var directoryProvider = new TestResourceIdentityDirectoryProvider();
         var controlPlane = CreateControlPlane(
@@ -570,7 +597,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             ],
             identityDirectoryProviders: [directoryProvider]);
 
-        var principals = await controlPlane.ListResourcePrincipalsAsync(
+        var principals = await controlPlane.QueryResourcePrincipalsAsync(
             new ResourcePrincipalQuery(SearchText: "platform", Limit: 10));
 
         var user = Assert.Single(principals, principal =>
@@ -583,7 +610,7 @@ public sealed class InProcessControlPlaneResourceStateTests
     }
 
     [Fact]
-    public async Task ListResourcePrincipalsAsync_CanLimitToResourceIdentityPrincipals()
+    public async Task QueryResourcePrincipalsAsync_CanLimitToResourceIdentityPrincipals()
     {
         var directoryProvider = new TestResourceIdentityDirectoryProvider();
         var controlPlane = CreateControlPlane(
@@ -600,7 +627,7 @@ public sealed class InProcessControlPlaneResourceStateTests
             ],
             identityDirectoryProviders: [directoryProvider]);
 
-        var principals = await controlPlane.ListResourcePrincipalsAsync(
+        var principals = await controlPlane.QueryResourcePrincipalsAsync(
             new ResourcePrincipalQuery(
                 Kinds: new HashSet<ResourcePrincipalKind>
                 {
@@ -625,8 +652,7 @@ public sealed class InProcessControlPlaneResourceStateTests
         var exception = await Assert.ThrowsAsync<ControlPlaneException>(() =>
             controlPlane.GrantResourcePermissionAsync(
                 new GrantResourcePermissionCommand(
-                    "caller",
-                    null,
+                    ResourcePrincipalReference.ForResourceIdentity("caller"),
                     "target",
                     CloudShellPermissions.Resources.Actions.Lifecycle)));
 

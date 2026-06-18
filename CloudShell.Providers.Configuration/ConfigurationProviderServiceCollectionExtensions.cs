@@ -267,7 +267,7 @@ internal sealed class SecretsVaultResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public ISecretsVaultResourceBuilder WithSecrets(IReadOnlyList<SecretsVaultSecret> secrets)
     {
@@ -442,7 +442,7 @@ internal sealed class HostConfigurationSourceResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public IHostConfigurationSourceResourceBuilder WithEntries(IReadOnlyList<string> entries)
     {
@@ -617,7 +617,7 @@ internal sealed class ConfigurationStoreResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public IConfigurationStoreResourceBuilder WithEntries(IReadOnlyList<ConfigurationEntry> entries)
     {

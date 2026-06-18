@@ -4,6 +4,7 @@ using CloudShell.Abstractions.Logs;
 using CloudShell.Abstractions.Observability;
 using CloudShell.Abstractions.ResourceManager;
 using Microsoft.Extensions.Options;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
@@ -183,14 +184,17 @@ public sealed class RemoteControlPlane : IControlPlane
         (await GetRequiredAsync<IReadOnlyList<ResourcePermissionGrantResponse>>(
             "resource-permission-grants",
             cancellationToken,
-            ("identityResourceId", query?.IdentityResourceId),
-            ("identityName", query?.IdentityName),
+            ("principalKind", query?.Principal is { } principal
+                ? ((int)principal.Kind).ToString(CultureInfo.InvariantCulture)
+                : null),
+            ("principalId", query?.Principal?.Id),
+            ("principalProviderId", query?.Principal?.ProviderId),
             ("targetResourceId", query?.TargetResourceId),
             ("permission", query?.Permission)))
         .Select(response => response.ToResourcePermissionGrant())
         .ToArray();
 
-    public async Task<IReadOnlyList<ResourcePrincipal>> ListResourcePrincipalsAsync(
+    public async Task<IReadOnlyList<ResourcePrincipal>> QueryResourcePrincipalsAsync(
         ResourcePrincipalQuery? query = null,
         CancellationToken cancellationToken = default) =>
         (await GetRequiredAsync<IReadOnlyList<ResourcePrincipalResponse>>(
@@ -229,8 +233,7 @@ public sealed class RemoteControlPlane : IControlPlane
         var response = await httpClient.PostAsJsonAsync(
             BuildUri("resource-permission-grants"),
             new GrantResourcePermissionRequest(
-                command.IdentityResourceId,
-                command.IdentityName,
+                command.Principal.ToResponse(),
                 command.TargetResourceId,
                 command.Permission),
             SerializerOptions,
@@ -238,8 +241,8 @@ public sealed class RemoteControlPlane : IControlPlane
         await EnsureSuccessAsync(response, cancellationToken);
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourcePermissionGrantsChanged,
-            command.IdentityResourceId,
-            AffectedResourceIds: [command.IdentityResourceId, command.TargetResourceId]));
+            command.Principal.SourceResourceId,
+            AffectedResourceIds: GetGrantAffectedResourceIds(command.Principal, command.TargetResourceId)));
     }
 
     public async Task RevokeResourcePermissionAsync(
@@ -249,8 +252,7 @@ public sealed class RemoteControlPlane : IControlPlane
         var response = await httpClient.PostAsJsonAsync(
             BuildUri("resource-permission-grants/revoke"),
             new RevokeResourcePermissionRequest(
-                command.IdentityResourceId,
-                command.IdentityName,
+                command.Principal.ToResponse(),
                 command.TargetResourceId,
                 command.Permission),
             SerializerOptions,
@@ -258,8 +260,8 @@ public sealed class RemoteControlPlane : IControlPlane
         await EnsureSuccessAsync(response, cancellationToken);
         NotifyResourcesChanged(new ResourceChangeNotification(
             ResourceChangeKind.ResourcePermissionGrantsChanged,
-            command.IdentityResourceId,
-            AffectedResourceIds: [command.IdentityResourceId, command.TargetResourceId]));
+            command.Principal.SourceResourceId,
+            AffectedResourceIds: GetGrantAffectedResourceIds(command.Principal, command.TargetResourceId)));
     }
 
     public async Task<ResourceIdentityProvisioningResult> ProvisionResourceIdentityAsync(
@@ -464,6 +466,23 @@ public sealed class RemoteControlPlane : IControlPlane
 
     private void NotifyResourcesChanged(ResourceChangeNotification notification) =>
         ResourcesChanged?.Invoke(this, notification);
+
+    private static IReadOnlyList<string> GetGrantAffectedResourceIds(
+        ResourcePrincipalReference principal,
+        string targetResourceId)
+    {
+        var affected = new List<string>();
+        if (principal.Kind == ResourcePrincipalKind.ResourceIdentity &&
+            !string.IsNullOrWhiteSpace(principal.SourceResourceId))
+        {
+            affected.Add(principal.SourceResourceId);
+        }
+
+        affected.Add(targetResourceId);
+        return affected
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
 
     public Task<ResourceGroupTemplateExportResult> ExportResourceGroupTemplateAsync(
         string resourceGroupId,
@@ -938,20 +957,17 @@ file sealed record ResourcePrincipalResponse(
     IReadOnlyDictionary<string, string>? Attributes);
 
 file sealed record ResourcePermissionGrantResponse(
-    ResourceIdentityReferenceResponse Identity,
     ResourcePrincipalReferenceResponse? Principal,
     string TargetResourceId,
     string Permission);
 
 file sealed record GrantResourcePermissionRequest(
-    string IdentityResourceId,
-    string? IdentityName,
+    ResourcePrincipalReferenceResponse Principal,
     string TargetResourceId,
     string Permission);
 
 file sealed record RevokeResourcePermissionRequest(
-    string IdentityResourceId,
-    string? IdentityName,
+    ResourcePrincipalReferenceResponse Principal,
     string TargetResourceId,
     string Permission);
 
@@ -1295,6 +1311,16 @@ file static class RemoteControlPlaneMapper
             response.SourceResourceId,
             response.SourceIdentityName);
 
+    public static ResourcePrincipalReferenceResponse ToResponse(
+        this ResourcePrincipalReference principal) =>
+        new(
+            principal.Kind,
+            principal.Id,
+            principal.DisplayName,
+            principal.ProviderId,
+            principal.SourceResourceId,
+            principal.SourceIdentityName);
+
     public static ResourcePrincipal ToResourcePrincipal(
         this ResourcePrincipalResponse response) =>
         new(
@@ -1306,7 +1332,8 @@ file static class RemoteControlPlaneMapper
     public static ResourcePermissionGrant ToResourcePermissionGrant(
         this ResourcePermissionGrantResponse response) =>
         new(
-            response.Identity.ToResourceIdentityReference(),
+            response.Principal?.ToResourcePrincipalReference() ??
+                throw new InvalidOperationException("Resource permission grant response did not include a principal."),
             response.TargetResourceId,
             response.Permission);
 

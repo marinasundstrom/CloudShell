@@ -1,3 +1,4 @@
+using CloudShell.Abstractions.Authorization;
 using CloudShell.Abstractions.Hosting;
 using CloudShell.Abstractions.ResourceManager;
 using CloudShell.ControlPlane.Hosting;
@@ -5,6 +6,7 @@ using CloudShell.Hosting;
 using CloudShell.Hosting.Components;
 using CloudShell.Hosting.ResourceManager;
 using CloudShell.Hosting.Shell;
+using CloudShell.ControlPlane.Authentication;
 using CloudShell.ResourceHost;
 
 var builder = CloudShellApplication.CreateBuilder(args);
@@ -17,8 +19,20 @@ cloudShell
     .AddExtension<ObservabilityExtension>()
     .AddExtension<SampleResourceExtension>();
 
+cloudShell.ConfigureInMemoryIdentity(identity =>
+{
+    identity.Users.Add(
+        "alice",
+        password: "CloudShell123!",
+        displayName: "Alice Local Developer",
+        email: "alice@example.test",
+        role: "CloudShell.Reader");
+});
+
 cloudShell.Resources(resources =>
 {
+    var identity = resources.GetIdentityProvider();
+    var alice = identity.GetUser("alice");
     var database = resources.Declare(
         SampleResourceProvider.ProviderId,
         "sample:database");
@@ -28,6 +42,8 @@ cloudShell.Resources(resources =>
             SampleResourceProvider.ProviderId,
             "sample:api")
         .DependsOn(database);
+
+    database.Allow(alice, CloudShellPermissions.Resources.Manage);
 });
 
 var app = builder.Build();

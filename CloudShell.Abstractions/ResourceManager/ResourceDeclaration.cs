@@ -46,7 +46,7 @@ public interface IResourceBuilder
 
     string ResourceId { get; }
 
-    ResourceIdentityReference Identity { get; }
+    ResourcePrincipalReference Principal { get; }
 
     IResourceBuilder WithResourceGroup(string? resourceGroupId);
 
@@ -106,11 +106,17 @@ public interface IProgrammaticResourceDeclarationProvider
 }
 
 public sealed record ResourcePermissionGrant(
-    ResourceIdentityReference Identity,
+    ResourcePrincipalReference Principal,
     string TargetResourceId,
     string Permission)
 {
-    public ResourcePrincipalReference Principal => Identity.ToPrincipal();
+    public ResourceIdentityReference? ResourceIdentity =>
+        Principal.Kind == ResourcePrincipalKind.ResourceIdentity &&
+        !string.IsNullOrWhiteSpace(Principal.SourceResourceId)
+            ? ResourceIdentityReference.ForResource(
+                Principal.SourceResourceId,
+                Principal.SourceIdentityName)
+            : null;
 
     public string TargetResourceId { get; init; } = RequireValue(TargetResourceId);
 
@@ -150,7 +156,8 @@ public sealed class ResourcePermissionGrantEvaluator(
         var normalizedTargetResourceId = targetResourceId.Trim();
         var normalizedPermission = permission.Trim();
         var grant = grants.FirstOrDefault(grant =>
-            MatchesIdentity(grant.Identity, identity) &&
+            grant.ResourceIdentity is { } grantIdentity &&
+            MatchesIdentity(grantIdentity, identity) &&
             Matches(grant.TargetResourceId, normalizedTargetResourceId) &&
             MatchesPermission(grant.Permission, normalizedPermission));
 
@@ -495,16 +502,16 @@ public static class ResourceDeclarationBuilderExtensions
 
     public static TBuilder Allow<TBuilder>(
         this TBuilder builder,
-        ResourceIdentityReference identity,
+        ResourcePrincipalReference principal,
         string permission)
         where TBuilder : IResourceBuilder
     {
         ArgumentNullException.ThrowIfNull(builder);
-        ArgumentNullException.ThrowIfNull(identity);
+        ArgumentNullException.ThrowIfNull(principal);
 
         GetOrAddDeclarationStore(builder.CloudShellBuilder.Services)
             .AddPermissionGrant(new ResourcePermissionGrant(
-                identity,
+                principal,
                 builder.ResourceId,
                 permission));
         return builder;
@@ -517,7 +524,7 @@ public static class ResourceDeclarationBuilderExtensions
         where TBuilder : IResourceBuilder
     {
         ArgumentNullException.ThrowIfNull(resource);
-        return builder.Allow(resource.Identity, permission);
+        return builder.Allow(resource.Principal, permission);
     }
 
     private static string? NormalizeOptional(string? value) =>
@@ -839,8 +846,9 @@ public sealed class ResourceDeclarationStore
         {
             return _permissionGrants
                 .OrderBy(grant => grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(grant => grant.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
-                .ThenBy(grant => grant.Identity.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(grant => grant.Principal.ProviderId, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(grant => grant.Principal.Kind)
+                .ThenBy(grant => grant.Principal.Id, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }
@@ -989,8 +997,7 @@ public sealed class ResourceDeclarationStore
             if (_permissionGrants.Any(existing =>
                     string.Equals(existing.TargetResourceId, grant.TargetResourceId, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(existing.Permission, grant.Permission, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(existing.Identity.ResourceId, grant.Identity.ResourceId, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(existing.Identity.Name, grant.Identity.Name, StringComparison.OrdinalIgnoreCase)))
+                    SamePrincipal(existing.Principal, grant.Principal)))
             {
                 return;
             }
@@ -1008,10 +1015,14 @@ public sealed class ResourceDeclarationStore
             _permissionGrants.RemoveAll(existing =>
                 string.Equals(existing.TargetResourceId, grant.TargetResourceId, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(existing.Permission, grant.Permission, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(existing.Identity.ResourceId, grant.Identity.ResourceId, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(existing.Identity.Name, grant.Identity.Name, StringComparison.OrdinalIgnoreCase));
+                SamePrincipal(existing.Principal, grant.Principal));
         }
     }
+
+    private static bool SamePrincipal(ResourcePrincipalReference left, ResourcePrincipalReference right) =>
+        left.Kind == right.Kind &&
+        string.Equals(left.ProviderId, right.ProviderId, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(left.Id, right.Id, StringComparison.OrdinalIgnoreCase);
 
     public bool ShouldAutoStart(string resourceId)
     {
@@ -1165,10 +1176,18 @@ internal sealed class ResourceBuilder(
 
     public string ResourceId { get; } = resourceId;
 
-    public ResourceIdentityReference Identity =>
-        ResourceIdentityReference.ForResource(
-            ResourceId,
-            declarations.GetDeclaration(ResourceId)?.IdentityBinding?.Name);
+    public ResourcePrincipalReference Principal
+    {
+        get
+        {
+            var declaration = declarations.GetDeclaration(ResourceId);
+            return ResourcePrincipalReference.ForResourceIdentity(
+                ResourceId,
+                declaration?.IdentityBinding?.Name,
+                declaration?.DisplayName,
+                declaration?.IdentityBinding?.ProviderId);
+        }
+    }
 
     public IResourceBuilder WithResourceGroup(string? resourceGroupId)
     {

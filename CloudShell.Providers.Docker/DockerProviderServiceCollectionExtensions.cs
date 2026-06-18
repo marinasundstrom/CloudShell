@@ -378,7 +378,7 @@ internal sealed class DockerResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public IDockerResourceBuilder UseLocalHost()
     {
@@ -692,7 +692,7 @@ internal sealed class DockerContainerResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public IDockerContainerResourceBuilder WithImage(string image)
     {

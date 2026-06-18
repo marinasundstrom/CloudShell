@@ -410,7 +410,7 @@ internal sealed class ExecutableApplicationResourceBuilder(
 
     public string ResourceId => inner.ResourceId;
 
-    public ResourceIdentityReference Identity => inner.Identity;
+    public ResourcePrincipalReference Principal => inner.Principal;
 
     public IExecutableResourceBuilder WithCommand(
         string executablePath,

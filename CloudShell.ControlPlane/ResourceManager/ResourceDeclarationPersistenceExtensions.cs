@@ -7,7 +7,7 @@ namespace CloudShell.ControlPlane.ResourceManager;
 
 public static class ResourceDeclarationPersistenceExtensions
 {
-    public static void PersistProgrammaticResourceDeclarations(this IServiceProvider services)
+    public static void ApplyPersistedProgrammaticResourceDeclarations(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
         var providers = scope.ServiceProvider

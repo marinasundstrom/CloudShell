@@ -59,7 +59,7 @@ public interface IResourceManager
         IReadOnlyList<string> resourceIds,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<ResourcePrincipal>> ListResourcePrincipalsAsync(
+    Task<IReadOnlyList<ResourcePrincipal>> QueryResourcePrincipalsAsync(
         ResourcePrincipalQuery? query = null,
         CancellationToken cancellationToken = default);
 
@@ -225,22 +225,47 @@ public sealed record ResourcePrincipalQuery(
 }
 
 public sealed record ResourcePermissionGrantQuery(
-    string? IdentityResourceId = null,
-    string? IdentityName = null,
+    ResourcePrincipalReference? Principal = null,
     string? TargetResourceId = null,
     string? Permission = null);
 
-public sealed record GrantResourcePermissionCommand(
-    string IdentityResourceId,
-    string? IdentityName,
-    string TargetResourceId,
-    string Permission);
+public sealed record GrantResourcePermissionCommand
+{
+    public GrantResourcePermissionCommand(
+        ResourcePrincipalReference principal,
+        string targetResourceId,
+        string permission)
+    {
+        Principal = principal;
+        TargetResourceId = targetResourceId;
+        Permission = permission;
+    }
 
-public sealed record RevokeResourcePermissionCommand(
-    string IdentityResourceId,
-    string? IdentityName,
-    string TargetResourceId,
-    string Permission);
+    public ResourcePrincipalReference Principal { get; init; }
+
+    public string TargetResourceId { get; init; }
+
+    public string Permission { get; init; }
+}
+
+public sealed record RevokeResourcePermissionCommand
+{
+    public RevokeResourcePermissionCommand(
+        ResourcePrincipalReference principal,
+        string targetResourceId,
+        string permission)
+    {
+        Principal = principal;
+        TargetResourceId = targetResourceId;
+        Permission = permission;
+    }
+
+    public ResourcePrincipalReference Principal { get; init; }
+
+    public string TargetResourceId { get; init; }
+
+    public string Permission { get; init; }
+}
 
 public sealed record ResourceChangeNotification(
     ResourceChangeKind Kind,

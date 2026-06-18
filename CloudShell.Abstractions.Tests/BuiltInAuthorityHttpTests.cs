@@ -96,7 +96,7 @@ public sealed class BuiltInAuthorityHttpTests
                 ResourceIdentityFlowProvider.ProviderId,
                 ResourceIdentityFlowProvider.VaultResourceId,
                 resourceClass: ResourceClass.SecretsVault);
-            vault.Allow(api.Identity, SecretsVaultResourceOperationPermissions.ReadSecrets);
+            vault.Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
         });
         var client = app.GetTestClient();
         var adminToken = await GetTokenAsync(client);
@@ -155,10 +155,10 @@ public sealed class BuiltInAuthorityHttpTests
             var denied = resources.Declare(
                 ResourceIdentityFlowProvider.ProviderId,
                 ResourceIdentityFlowProvider.DeniedActionResourceId);
-            api.Allow(api.Identity, CloudShellPermissions.Resources.Read);
-            allowed.Allow(api.Identity, CloudShellPermissions.Resources.Read);
-            allowed.Allow(api.Identity, CommonResourceOperationPermissions.LifecycleAction);
-            denied.Allow(api.Identity, CloudShellPermissions.Resources.Read);
+            api.Allow(api.Principal, CloudShellPermissions.Resources.Read);
+            allowed.Allow(api.Principal, CloudShellPermissions.Resources.Read);
+            allowed.Allow(api.Principal, CommonResourceOperationPermissions.LifecycleAction);
+            denied.Allow(api.Principal, CloudShellPermissions.Resources.Read);
         });
         await RegisterIdentityFlowResourcesAsync(
             app,

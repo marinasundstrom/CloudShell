@@ -112,7 +112,7 @@ cloudShell.Resources(resources =>
         .WithAutoStart(false)
         .ProvisionIdentityOnStartup();
 
-    settings.Allow(api.Identity, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+    settings.Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
 });
 
 var app = builder.Build();

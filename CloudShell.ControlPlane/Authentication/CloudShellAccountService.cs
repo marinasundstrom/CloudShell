@@ -29,7 +29,8 @@ public sealed class CloudShellAccountService(
         }
 
         var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
-        return await userManager.Users.AnyAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        return userManager.Users.Any();
     }
 
     public async Task<AccountOperationResult> SignInAsync(
@@ -120,9 +121,10 @@ public sealed class CloudShellAccountService(
         }
 
         var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
-        var users = await userManager.Users
+        cancellationToken.ThrowIfCancellationRequested();
+        var users = userManager.Users
             .OrderBy(user => user.Email ?? user.UserName)
-            .ToListAsync(cancellationToken);
+            .ToList();
         var result = new List<CloudShellAccountUser>(users.Count);
         foreach (var user in users)
         {

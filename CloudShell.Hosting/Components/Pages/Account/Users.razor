@@ -46,7 +46,11 @@ else
                 </div>
             </div>
 
-            <EditForm Model="@Input" OnValidSubmit="CreateUserAsync">
+            <EditForm Model="@Input"
+                      method="post"
+                      OnValidSubmit="CreateUserAsync"
+                      FormName="create-user"
+                      Enhance="false">
                 <DataAnnotationsValidator />
 
                 <label for="user-email">@L["Email"]</label>

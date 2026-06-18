@@ -166,7 +166,7 @@ public sealed class ResourceSettingDisplayTests
         var evaluator = new ResourcePermissionGrantEvaluator(
         [
             new ResourcePermissionGrant(
-                ResourceIdentityReference.ForResource("application:api", "api-service"),
+                ResourcePrincipalReference.ForResourceIdentity("application:api", "api-service"),
                 "secrets-vault:app",
                 SecretsVaultResourceOperationPermissions.ReadSecrets)
         ]);

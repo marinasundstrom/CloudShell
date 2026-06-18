@@ -46,6 +46,7 @@ public static class CloudShellControlPlaneApplicationBuilderExtensions
             serviceProvider.GetRequiredService<IOptions<ResourceIdentityOptions>>()
                 .Value
                 .ToCatalog());
+        builder.Services.TryAddSingleton(new InMemoryIdentitySetupOptions());
 
         builder.Services.AddScoped<IResourceGroupStore, AuthorizedResourceGroupStore>();
         builder.Services.AddScoped<IResourceRegistrationStore, AuthorizedResourceRegistrationStore>();

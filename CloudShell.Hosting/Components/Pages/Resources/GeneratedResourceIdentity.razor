@@ -221,7 +221,7 @@
                 @foreach (var grant in InboundPermissionGrants)
                 {
                     <div>
-                        <strong>@FormatIdentityReference(grant.Identity)</strong>
+                        <strong>@FormatIdentityReference(grant.ResourceIdentity!)</strong>
                         <span>@L["Can access this resource"]</span>
                         <small>@grant.Permission</small>
                     </div>
@@ -250,8 +250,10 @@
             return;
         }
 
-        InboundPermissionGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
-            new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id));
+        InboundPermissionGrants = (await ResourceManager.ListResourcePermissionGrantsAsync(
+                new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id)))
+            .Where(grant => grant.ResourceIdentity is not null)
+            .ToArray();
         OutboundPermissionGrants = await LoadOutboundPermissionGrantsAsync();
         await LoadProvisioningStatusAsync();
         RelatedResources = await LoadRelatedResourcesAsync();
@@ -333,8 +335,7 @@
 
         return await ResourceManager.ListResourcePermissionGrantsAsync(
             new ResourcePermissionGrantQuery(
-                IdentityResourceId: Resource.Id,
-                IdentityName: identity.Name));
+                Principal: ResourcePrincipalReference.ForResourceIdentity(Resource.Id, identity.Name)));
     }
 
     private async Task LoadProvisioningStatusAsync()
@@ -359,8 +360,9 @@
     private async Task<IReadOnlyDictionary<string, Resource>> LoadRelatedResourcesAsync()
     {
         var ids = InboundPermissionGrants
-            .Select(grant => grant.Identity.ResourceId)
+            .Select(grant => grant.ResourceIdentity?.ResourceId)
             .Concat(OutboundPermissionGrants.Select(grant => grant.TargetResourceId))
+            .OfType<string>()
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();

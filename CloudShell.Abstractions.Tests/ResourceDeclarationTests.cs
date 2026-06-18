@@ -262,8 +262,8 @@ public sealed class ResourceDeclarationTests
 
                 resources
                     .Declare("configuration", "configuration:database")
-                    .Allow(api.Identity, "Database/databases/readWrite/action")
-                    .Allow(api.Identity, "Database/databases/readWrite/action");
+                    .Allow(api.Principal, "Database/databases/readWrite/action")
+                    .Allow(api.Principal, "Database/databases/readWrite/action");
             });
 
         var store = services
@@ -271,8 +271,9 @@ public sealed class ResourceDeclarationTests
             .GetRequiredService<ResourceDeclarationStore>();
         var grant = Assert.Single(store.GetPermissionGrants());
 
-        Assert.Equal("application:api", grant.Identity.ResourceId);
-        Assert.Equal("api-service", grant.Identity.Name);
+        Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
+        Assert.Equal("application:api", grant.Principal.SourceResourceId);
+        Assert.Equal("api-service", grant.Principal.SourceIdentityName);
         Assert.Equal("configuration:database", grant.TargetResourceId);
         Assert.Equal("Database/databases/readWrite/action", grant.Permission);
     }
@@ -281,7 +282,7 @@ public sealed class ResourceDeclarationTests
     public void ResourcePermissionGrant_ProjectsResourceIdentityPrincipal()
     {
         var grant = new ResourcePermissionGrant(
-            ResourceIdentityReference.ForResource("application:api", "api-service"),
+            ResourcePrincipalReference.ForResourceIdentity("application:api", "api-service"),
             "configuration:database",
             "Database/databases/read/action");
 
@@ -345,7 +346,7 @@ public sealed class ResourceDeclarationTests
             .GetRequiredService<ResourceDeclarationStore>();
         var grant = Assert.Single(store.GetPermissionGrants());
 
-        Assert.Equal("application:api", grant.Identity.ResourceId);
+        Assert.Equal("application:api", grant.Principal.SourceResourceId);
         Assert.Equal("configuration:database", grant.TargetResourceId);
         Assert.Equal("Database/databases/read/action", grant.Permission);
     }
@@ -356,7 +357,7 @@ public sealed class ResourceDeclarationTests
         var evaluator = new ResourcePermissionGrantEvaluator(
             [
                 new(
-                    ResourceIdentityReference.ForResource("application:api", "api-service"),
+                    ResourcePrincipalReference.ForResourceIdentity("application:api", "api-service"),
                     "configuration:database",
                     "Database/databases/read/action")
             ]);
@@ -388,7 +389,7 @@ public sealed class ResourceDeclarationTests
         var evaluator = new ResourcePermissionGrantEvaluator(
             [
                 new(
-                    ResourceIdentityReference.ForResource("application:api"),
+                    ResourcePrincipalReference.ForResourceIdentity("application:api"),
                     "configuration:database",
                     CloudShellPermissions.All)
             ]);
@@ -406,7 +407,7 @@ public sealed class ResourceDeclarationTests
     {
         var store = new ResourceDeclarationStore();
         store.AddPermissionGrant(new ResourcePermissionGrant(
-            ResourceIdentityReference.ForResource("application:api"),
+            ResourcePrincipalReference.ForResourceIdentity("application:api"),
             "configuration:database",
             "Database/databases/read/action"));
 
@@ -1497,7 +1498,7 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddSecretsVault("secrets-vault:app").WithDisplayName("App Secrets")
                     .WithSecret("token", "secret-token")
-                    .Allow(api.Identity, SecretsVaultResourceOperationPermissions.ReadSecrets);
+                    .Allow(api.Principal, SecretsVaultResourceOperationPermissions.ReadSecrets);
                 resources
                     .AddSecretsVault("secrets-vault:other").WithDisplayName("Other Secrets")
                     .WithSecret("token", "other-token");
@@ -2773,7 +2774,7 @@ public sealed class ResourceDeclarationTests
                 resources
                     .AddConfigurationStore("configuration:app").WithDisplayName("App Settings")
                     .WithEntry("Message", "hello")
-                    .Allow(api.Identity, ConfigurationStoreResourceOperationPermissions.ReadEntries);
+                    .Allow(api.Principal, ConfigurationStoreResourceOperationPermissions.ReadEntries);
                 resources
                     .AddConfigurationStore("configuration:other").WithDisplayName("Other Settings")
                     .WithEntry("Message", "other");

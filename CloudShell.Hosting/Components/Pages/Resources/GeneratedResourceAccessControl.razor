@@ -144,15 +144,15 @@
                 @foreach (var group in GrantGroups)
                 {
                     <div>
-                        <strong>@IdentityLink(group.Identity)</strong>
+                        <strong>@PrincipalLink(group.Principal)</strong>
                         @foreach (var permission in group.Permissions)
                         {
                             <span class="access-control-grant-row">
                                 <span>@permission</span>
                                 <FluentButton Appearance="Appearance.Neutral"
-                                              Disabled="@(IsReadOnly || IsRevokingPermission(group.Identity, permission))"
-                                              OnClick="() => RevokePermission(group.Identity, permission)">
-                                    @GetRevokeButtonLabel(group.Identity, permission)
+                                              Disabled="@(IsReadOnly || IsRevokingPermission(group.Principal, permission))"
+                                              OnClick="() => RevokePermission(group.Principal, permission)">
+                                    @GetRevokeButtonLabel(group.Principal, permission)
                                 </FluentButton>
                             </span>
                         }
@@ -199,32 +199,23 @@
                 group => group.Key,
                 group => group.First(),
                 StringComparer.OrdinalIgnoreCase);
-        var principals = await ResourceManager.ListResourcePrincipalsAsync(
-            new ResourcePrincipalQuery(
-                Kinds: new HashSet<ResourcePrincipalKind>
-                {
-                    ResourcePrincipalKind.ResourceIdentity
-                }));
+        var principals = await ResourceManager.QueryResourcePrincipalsAsync();
         PrincipalOptions = principals
-            .Where(principal =>
-                principal.Reference.Kind == ResourcePrincipalKind.ResourceIdentity &&
-                !string.IsNullOrWhiteSpace(principal.Reference.SourceResourceId) &&
-                !string.Equals(principal.Reference.SourceResourceId, Resource.Id, StringComparison.OrdinalIgnoreCase))
+            .Where(principal => !IsCurrentResourceIdentity(principal.Reference))
             .Select(principal =>
             {
-                var identity = ResourceIdentityReference.ForResource(
-                    principal.Reference.SourceResourceId!,
-                    principal.Reference.SourceIdentityName);
+                var resource = string.IsNullOrWhiteSpace(principal.Reference.SourceResourceId)
+                    ? null
+                    : ResourcesById.GetValueOrDefault(principal.Reference.SourceResourceId);
                 return new PrincipalOption(
-                    identity,
                     principal.Reference,
                     principal,
-                    ResourcesById.GetValueOrDefault(identity.ResourceId),
-                    GetIdentityKey(identity));
+                    resource,
+                    GetPrincipalKey(principal.Reference));
             })
             .OrderBy(principal => principal.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(principal => principal.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(principal => principal.Identity.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(principal => principal.Principal.Kind)
+            .ThenBy(principal => principal.Principal.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         if (SelectedPrincipal is not null &&
             !PrincipalOptions.Any(principal => string.Equals(principal.Key, SelectedPrincipal.Key, StringComparison.Ordinal)))
@@ -235,17 +226,17 @@
         InboundGrants = await ResourceManager.ListResourcePermissionGrantsAsync(
             new ResourcePermissionGrantQuery(TargetResourceId: Resource.Id));
         GrantGroups = InboundGrants
-            .GroupBy(grant => GetIdentityKey(grant.Identity), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(grant => GetPrincipalKey(grant.Principal), StringComparer.OrdinalIgnoreCase)
             .Select(group => new GrantGroup(
-                group.First().Identity,
+                group.First().Principal,
                 group
                     .Select(grant => grant.Permission)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Order(StringComparer.OrdinalIgnoreCase)
                     .ToArray()))
-            .OrderBy(group => FormatIdentityName(group.Identity), StringComparer.OrdinalIgnoreCase)
-            .ThenBy(group => group.Identity.ResourceId, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(group => group.Identity.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => FormatPrincipalName(group.Principal), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(group => group.Principal.Kind)
+            .ThenBy(group => group.Principal.Id, StringComparer.OrdinalIgnoreCase)
             .ToArray();
         if (!string.IsNullOrWhiteSpace(SelectedPermission) &&
             !AvailablePermissionOptions.Any(option =>
@@ -288,8 +279,7 @@
         {
             await ResourceManager.GrantResourcePermissionAsync(
                 new GrantResourcePermissionCommand(
-                    principal.Identity.ResourceId,
-                    principal.Identity.Name,
+                    principal.Principal,
                     Resource.Id,
                     permission));
             ProcedureMessage = L["Access permission assigned. Provision or reconcile the principal to apply provider-side changes."].Value;
@@ -308,7 +298,7 @@
         }
     }
 
-    private async Task RevokePermission(ResourceIdentityReference identity, string permission)
+    private async Task RevokePermission(ResourcePrincipalReference principal, string permission)
     {
         if (Resource is null)
         {
@@ -321,14 +311,13 @@
             return;
         }
 
-        RevokingPermissionKey = GetPermissionKey(identity, permission);
+        RevokingPermissionKey = GetPermissionKey(principal, permission);
         ProcedureMessage = null;
         try
         {
             await ResourceManager.RevokeResourcePermissionAsync(
                 new RevokeResourcePermissionCommand(
-                    identity.ResourceId,
-                    identity.Name,
+                    principal,
                     Resource.Id,
                     permission));
             ProcedureMessage = L["Access permission revoked. Provision or reconcile the principal to apply provider-side changes."].Value;
@@ -352,19 +341,19 @@
             ? L["Assigning access"].Value
             : L["Assign access"].Value;
 
-    private string GetRevokeButtonLabel(ResourceIdentityReference identity, string permission) =>
-        IsRevokingPermission(identity, permission)
+    private string GetRevokeButtonLabel(ResourcePrincipalReference principal, string permission) =>
+        IsRevokingPermission(principal, permission)
             ? L["Revoking"].Value
             : L["Revoke"].Value;
 
-    private bool IsRevokingPermission(ResourceIdentityReference identity, string permission) =>
-        string.Equals(RevokingPermissionKey, GetPermissionKey(identity, permission), StringComparison.Ordinal);
+    private bool IsRevokingPermission(ResourcePrincipalReference principal, string permission) =>
+        string.Equals(RevokingPermissionKey, GetPermissionKey(principal, permission), StringComparison.Ordinal);
 
-    private static string GetPermissionKey(ResourceIdentityReference identity, string permission) =>
-        $"{GetIdentityKey(identity)}\u001f{permission}";
+    private static string GetPermissionKey(ResourcePrincipalReference principal, string permission) =>
+        $"{GetPrincipalKey(principal)}\u001f{permission}";
 
-    private static string GetIdentityKey(ResourceIdentityReference identity) =>
-        $"{identity.ResourceId}\u001f{identity.Name}";
+    private static string GetPrincipalKey(ResourcePrincipalReference principal) =>
+        $"{principal.ProviderId}\u001f{principal.Kind}\u001f{principal.Id}";
 
     private static string FormatPrincipalOption(PrincipalOption principal) =>
         $"{principal.Name} ({principal.PrincipalKindLabel})";
@@ -381,11 +370,10 @@
     {
         return Contains(principal.Name, search) ||
             Contains(principal.PrincipalKindLabel, search) ||
-            Contains(principal.IdentityLabel, search) ||
-            Contains(principal.Identity.ResourceId, search) ||
-            Contains(principal.Identity.Name, search) ||
             Contains(principal.Principal.Id, search) ||
             Contains(principal.Principal.DisplayName, search) ||
+            Contains(principal.Principal.SourceResourceId, search) ||
+            Contains(principal.Principal.SourceIdentityName, search) ||
             Contains(principal.ResourcePrincipal.DisplayName, search) ||
             Contains(principal.ResourcePrincipal.Description, search) ||
             principal.ResourcePrincipal.PrincipalAttributes.Any(attribute =>
@@ -412,12 +400,17 @@
         return Task.CompletedTask;
     }
 
-    private string FormatIdentityName(ResourceIdentityReference identity) =>
-        ResourcesById.GetValueOrDefault(identity.ResourceId)?.Name ?? identity.ResourceId;
+    private string FormatPrincipalName(ResourcePrincipalReference principal) =>
+        principal.Kind == ResourcePrincipalKind.ResourceIdentity &&
+        !string.IsNullOrWhiteSpace(principal.SourceResourceId)
+            ? ResourcesById.GetValueOrDefault(principal.SourceResourceId)?.Name ?? principal.SourceResourceId
+            : principal.DisplayName ?? principal.Id;
 
-    private RenderFragment IdentityLink(ResourceIdentityReference identity) => builder =>
+    private RenderFragment PrincipalLink(ResourcePrincipalReference principal) => builder =>
     {
-        var resource = ResourcesById.GetValueOrDefault(identity.ResourceId);
+        var resource = string.IsNullOrWhiteSpace(principal.SourceResourceId)
+            ? null
+            : ResourcesById.GetValueOrDefault(principal.SourceResourceId);
         var sequence = 0;
         builder.OpenElement(sequence++, resource is null ? "span" : "a");
         builder.AddAttribute(sequence++, "class", "resource-link generated-pill-link");
@@ -426,12 +419,12 @@
             builder.AddAttribute(
                 sequence++,
                 "href",
-                ResourceManagerRoutes.ResourceDetails(identity.ResourceId, ResourcePredefinedViewIds.Identity));
+                ResourceManagerRoutes.ResourceDetails(resource.Id, ResourcePredefinedViewIds.Identity));
         }
 
-        builder.AddContent(sequence++, resource?.Name ?? identity.ResourceId);
+        builder.AddContent(sequence++, resource?.Name ?? principal.DisplayName ?? principal.Id);
         builder.OpenElement(sequence++, "small");
-        builder.AddContent(sequence++, FormatIdentityLabel(identity));
+        builder.AddContent(sequence++, FormatPrincipalLabel(principal));
         builder.CloseElement();
         if (resource is not null)
         {
@@ -443,10 +436,18 @@
         builder.CloseElement();
     };
 
-    private static string FormatIdentityLabel(ResourceIdentityReference identity) =>
-        string.IsNullOrWhiteSpace(identity.Name)
-            ? "Default identity"
-            : identity.Name;
+    private static string FormatPrincipalLabel(ResourcePrincipalReference principal) =>
+        principal.Kind == ResourcePrincipalKind.ResourceIdentity
+            ? string.IsNullOrWhiteSpace(principal.SourceIdentityName)
+                ? "Default identity"
+                : principal.SourceIdentityName
+            : principal.Kind.ToString();
+
+    private bool IsCurrentResourceIdentity(ResourcePrincipalReference principal) =>
+        principal.Kind == ResourcePrincipalKind.ResourceIdentity &&
+        !string.IsNullOrWhiteSpace(principal.SourceResourceId) &&
+        Resource is not null &&
+        string.Equals(principal.SourceResourceId, Resource.Id, StringComparison.OrdinalIgnoreCase);
 
     private sealed record PermissionOption(
         string Label,
@@ -498,7 +499,6 @@
     }
 
     private sealed record PrincipalOption(
-        ResourceIdentityReference Identity,
         ResourcePrincipalReference Principal,
         ResourcePrincipal ResourcePrincipal,
         Resource? Resource,
@@ -508,8 +508,6 @@
             ResourcePrincipal.DisplayName ??
             Principal.DisplayName ??
             Principal.Id;
-
-        public string IdentityLabel => FormatIdentityLabel(Identity);
 
         public string PrincipalKindLabel => Principal.Kind switch
         {
@@ -526,6 +524,6 @@
     }
 
     private sealed record GrantGroup(
-        ResourceIdentityReference Identity,
+        ResourcePrincipalReference Principal,
         IReadOnlyList<string> Permissions);
 }

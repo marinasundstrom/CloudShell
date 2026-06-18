@@ -588,8 +588,9 @@ else
 
         return grants
             .Where(grant =>
-                string.Equals(grant.Identity.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(grant.Identity.Name, identity.Name, StringComparison.OrdinalIgnoreCase))
+                grant.ResourceIdentity is { } grantIdentity &&
+                string.Equals(grantIdentity.ResourceId, resource.Id, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(grantIdentity.Name, identity.Name, StringComparison.OrdinalIgnoreCase))
             .OrderBy(grant => ResolveMappingResource(grant.TargetResourceId)?.Name ?? grant.TargetResourceId, StringComparer.OrdinalIgnoreCase)
             .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
             .ToArray();

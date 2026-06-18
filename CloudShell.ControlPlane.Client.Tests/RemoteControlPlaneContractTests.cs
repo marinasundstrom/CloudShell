@@ -296,7 +296,7 @@ public sealed class RemoteControlPlaneContractTests
         await using var app = await CreateAppAsync();
         var controlPlane = CreateClient(app);
 
-        var principals = await controlPlane.ListResourcePrincipalsAsync(
+        var principals = await controlPlane.QueryResourcePrincipalsAsync(
             new ResourcePrincipalQuery(
                 Kinds: new HashSet<ResourcePrincipalKind>
                 {
@@ -314,8 +314,7 @@ public sealed class RemoteControlPlaneContractTests
             LoadBalancerResourceOperationPermissions.ApplyConfiguration);
         await controlPlane.GrantResourcePermissionAsync(
             new GrantResourcePermissionCommand(
-                "network:contract",
-                "network-service",
+                ResourcePrincipalReference.ForResourceIdentity("network:contract", "network-service"),
                 "network:contract",
                 LoadBalancerResourceOperationPermissions.ApplyConfiguration));
         var granted = await controlPlane.EvaluateResourcePermissionGrantAsync(
@@ -324,8 +323,7 @@ public sealed class RemoteControlPlaneContractTests
             LoadBalancerResourceOperationPermissions.ApplyConfiguration);
         await controlPlane.RevokeResourcePermissionAsync(
             new RevokeResourcePermissionCommand(
-                "network:contract",
-                "network-service",
+                ResourcePrincipalReference.ForResourceIdentity("network:contract", "network-service"),
                 "network:contract",
                 LoadBalancerResourceOperationPermissions.ApplyConfiguration));
         var revoked = await controlPlane.EvaluateResourcePermissionGrantAsync(
@@ -334,8 +332,8 @@ public sealed class RemoteControlPlaneContractTests
             LoadBalancerResourceOperationPermissions.ApplyConfiguration);
 
         var grant = Assert.Single(grants);
-        Assert.Equal("network:contract", grant.Identity.ResourceId);
-        Assert.Equal("network-service", grant.Identity.Name);
+        Assert.Equal("network:contract", grant.Principal.SourceResourceId);
+        Assert.Equal("network-service", grant.Principal.SourceIdentityName);
         Assert.Equal("network:contract", grant.TargetResourceId);
         Assert.Equal(NetworkResourceOperationPermissions.ReconcileEndpointMappings, grant.Permission);
         Assert.Equal(ResourcePrincipalKind.ResourceIdentity, grant.Principal.Kind);
@@ -390,7 +388,7 @@ public sealed class RemoteControlPlaneContractTests
         await using var app = await CreateAppAsync();
         var controlPlane = CreateClient(app);
 
-        var principals = await controlPlane.ListResourcePrincipalsAsync(
+        var principals = await controlPlane.QueryResourcePrincipalsAsync(
             new ResourcePrincipalQuery(SearchText: "platform", ProviderId: "identity:contract"));
 
         var principal = Assert.Single(principals, item => item.Reference.Kind == ResourcePrincipalKind.User);
@@ -1277,7 +1275,7 @@ public sealed class RemoteControlPlaneContractTests
                 .Persist()
                 .WithIdentity("development", name: "network-service");
             network.Allow(
-                network.Identity,
+                network.Principal,
                 NetworkResourceOperationPermissions.ReconcileEndpointMappings);
             if (includeMappedNetwork)
             {
