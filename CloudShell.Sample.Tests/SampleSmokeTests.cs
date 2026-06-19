@@ -495,8 +495,10 @@ public sealed class SampleSmokeTests
         Assert.Contains("Environment references", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
         Assert.Contains("Configuration entry", apiDetailsHtml);
+        Assert.Contains("ApplicationTopology__SqlServer__Password", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__ExternalApiKey", apiDetailsHtml);
         Assert.Contains("Secret reference", apiDetailsHtml);
+        Assert.Contains(">Hidden<", apiDetailsHtml);
         Assert.Contains(">Granted<", apiDetailsHtml);
         Assert.Contains("Resource identity", apiDetailsHtml);
         Assert.Contains("Access control", apiDetailsHtml);
@@ -506,6 +508,7 @@ public sealed class SampleSmokeTests
         Assert.Contains("Built-in resource identity client is registered.", apiDetailsHtml);
         Assert.Contains(ConfigurationStoreResourceOperationPermissions.ReadEntries, apiDetailsHtml);
         Assert.Contains(SecretsVaultResourceOperationPermissions.ReadSecrets, apiDetailsHtml);
+        Assert.DoesNotContain("CloudShell-Passw0rd!", apiDetailsHtml);
         Assert.DoesNotContain("local-development-api-key", apiDetailsHtml);
 
         var settingsIdentityHtml = await host.GetStringAsync(
