@@ -74,6 +74,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Application overview environment references now mask literal values for
   common credential-like names such as API keys, tokens, client secrets,
   credentials, and connection strings instead of only password names.
+- Generated environment editors now treat credential-like literal setting and
+  environment variable names as sensitive, avoid pre-populating stored values,
+  and preserve the stored value when the hidden field is left blank.
 
 ### 2026-06-18
 

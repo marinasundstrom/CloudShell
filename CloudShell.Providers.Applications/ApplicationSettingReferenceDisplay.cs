@@ -5,19 +5,6 @@ namespace CloudShell.Providers.Applications;
 
 internal static class ApplicationSettingReferenceDisplay
 {
-    private static readonly string[] SensitiveLiteralNameTokens =
-    [
-        "apikey",
-        "api_key",
-        "clientsecret",
-        "client_secret",
-        "connectionstring",
-        "credential",
-        "password",
-        "secret",
-        "token"
-    ];
-
     public static ApplicationSettingDisplayRow Create(
         AppSetting setting,
         string applicationResourceId,
@@ -56,9 +43,9 @@ internal static class ApplicationSettingReferenceDisplay
             "Literal value",
             string.IsNullOrEmpty(setting.Value) ? "empty" : setting.Value,
             null,
-            IsSensitiveLiteralName(setting.Name) ? "Hidden" : "Visible",
-            IsSensitiveLiteralName(setting.Name) ? "info" : "ok",
-            IsSensitiveLiteralName(setting.Name));
+            ResourceSettingDisplay.IsSensitiveLiteralName(setting.Name) ? "Hidden" : "Visible",
+            ResourceSettingDisplay.IsSensitiveLiteralName(setting.Name) ? "info" : "ok",
+            ResourceSettingDisplay.IsSensitiveLiteralName(setting.Name));
     }
 
     public static ApplicationSettingDisplayRow Create(
@@ -99,9 +86,9 @@ internal static class ApplicationSettingReferenceDisplay
             "Literal value",
             string.IsNullOrEmpty(assignment.Value) ? "empty" : assignment.Value,
             null,
-            IsSensitiveLiteralName(assignment.Name) ? "Hidden" : "Visible",
-            IsSensitiveLiteralName(assignment.Name) ? "info" : "ok",
-            IsSensitiveLiteralName(assignment.Name));
+            ResourceSettingDisplay.IsSensitiveLiteralName(assignment.Name) ? "Hidden" : "Visible",
+            ResourceSettingDisplay.IsSensitiveLiteralName(assignment.Name) ? "info" : "ok",
+            ResourceSettingDisplay.IsSensitiveLiteralName(assignment.Name));
     }
 
     private static ApplicationSettingDisplayRow CreateConfigurationReferenceRow(
@@ -239,16 +226,6 @@ internal static class ApplicationSettingReferenceDisplay
             ? applicationResourceId
             : $"{applicationResourceId}/{identityBinding.Name}";
 
-    private static bool IsSensitiveLiteralName(string name)
-    {
-        var normalizedName = name
-            .Replace(":", string.Empty, StringComparison.Ordinal)
-            .Replace("_", string.Empty, StringComparison.Ordinal)
-            .Replace("-", string.Empty, StringComparison.Ordinal);
-        return SensitiveLiteralNameTokens.Any(token =>
-            normalizedName.Contains(token.Replace("_", string.Empty, StringComparison.Ordinal), StringComparison.OrdinalIgnoreCase) ||
-            name.Contains(token, StringComparison.OrdinalIgnoreCase));
-    }
 }
 
 public sealed record ApplicationSettingDisplayRow(

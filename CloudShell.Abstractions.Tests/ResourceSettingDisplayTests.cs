@@ -98,6 +98,26 @@ public sealed class ResourceSettingDisplayTests
     [InlineData("Orders--Api--ClientSecret")]
     [InlineData("ConnectionStrings:Default")]
     [InlineData("Registry__Credentials")]
+    public void IsSensitiveLiteralName_ReturnsTrueForCredentialLikeNames(string name)
+    {
+        Assert.True(ResourceSettingDisplay.IsSensitiveLiteralName(name));
+    }
+
+    [Theory]
+    [InlineData("Sample:Mode")]
+    [InlineData("ApplicationTopology__Message")]
+    [InlineData("")]
+    public void IsSensitiveLiteralName_ReturnsFalseForBenignNames(string name)
+    {
+        Assert.False(ResourceSettingDisplay.IsSensitiveLiteralName(name));
+    }
+
+    [Theory]
+    [InlineData("Sample:ApiKey")]
+    [InlineData("Sample:AccessToken")]
+    [InlineData("Orders--Api--ClientSecret")]
+    [InlineData("ConnectionStrings:Default")]
+    [InlineData("Registry__Credentials")]
     public void ApplicationSettingReferenceDisplay_HidesSensitiveLiteralNames(string name)
     {
         var row = ApplicationSettingReferenceDisplay.Create(

@@ -15,6 +15,7 @@
                                  Disabled="@Disabled"
                                  @bind-Value="variable.Name" />
                 <FluentTextField AriaLabel="Environment variable value"
+                                 TextFieldType="@GetLiteralValueTextFieldType(variable.Name)"
                                  Disabled="@Disabled"
                                  @bind-Value="variable.Value" />
                 <FluentButton Appearance="Appearance.Neutral"
@@ -44,4 +45,9 @@
             Variables.Add(new());
         }
     }
+
+    private static TextFieldType GetLiteralValueTextFieldType(string? name) =>
+        ResourceSettingDisplay.IsSensitiveLiteralName(name)
+            ? TextFieldType.Password
+            : TextFieldType.Text;
 }

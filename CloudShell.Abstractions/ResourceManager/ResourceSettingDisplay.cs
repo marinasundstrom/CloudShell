@@ -2,6 +2,19 @@ namespace CloudShell.Abstractions.ResourceManager;
 
 public static class ResourceSettingDisplay
 {
+    private static readonly string[] SensitiveLiteralNameTokens =
+    [
+        "apikey",
+        "api_key",
+        "clientsecret",
+        "client_secret",
+        "connectionstring",
+        "credential",
+        "password",
+        "secret",
+        "token"
+    ];
+
     public static string Format(AppSetting setting)
     {
         ArgumentNullException.ThrowIfNull(setting);
@@ -52,6 +65,22 @@ public static class ResourceSettingDisplay
         return AppendVersion(
             $"@CloudShell.Secret(vaultResourceId={reference.VaultResourceId}; secretName={reference.SecretName}",
             reference.Version);
+    }
+
+    public static bool IsSensitiveLiteralName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        var normalizedName = name
+            .Replace(":", string.Empty, StringComparison.Ordinal)
+            .Replace("_", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal);
+        return SensitiveLiteralNameTokens.Any(token =>
+            normalizedName.Contains(token.Replace("_", string.Empty, StringComparison.Ordinal), StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(token, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string AppendVersion(string value, string? version) =>

@@ -549,6 +549,9 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Environment.Value)}");
         Assert.Contains("Startup declaration", apiEnvironmentHtml);
         Assert.Contains("Declared by code for this host process.", apiEnvironmentHtml);
+        Assert.Contains("ApplicationTopology__SqlServer__Password", apiEnvironmentHtml);
+        Assert.Contains("Stored value hidden", apiEnvironmentHtml);
+        Assert.DoesNotContain("CloudShell-Passw0rd!", apiEnvironmentHtml);
 
         var frontendAccessControlHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.AccessControl.Value)}");

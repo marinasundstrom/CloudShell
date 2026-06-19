@@ -60,6 +60,8 @@ else
                         @if (setting.Source == EnvironmentVariableSource.Literal)
                         {
                             <FluentTextField AriaLabel="@L["App setting value"]"
+                                             TextFieldType="@GetLiteralValueTextFieldType(setting.Name, setting.HasStoredSensitiveValue)"
+                                             Placeholder="@GetLiteralValuePlaceholder(setting.HasStoredSensitiveValue)"
                                              Disabled="@IsReadOnly"
                                              @bind-Value="setting.Value" />
                         }
@@ -162,6 +164,8 @@ else
                         @if (variable.Source == EnvironmentVariableSource.Literal)
                         {
                             <FluentTextField AriaLabel="@L["Environment variable value"]"
+                                             TextFieldType="@GetLiteralValueTextFieldType(variable.Name, variable.HasStoredSensitiveValue)"
+                                             Placeholder="@GetLiteralValuePlaceholder(variable.HasStoredSensitiveValue)"
                                              Disabled="@IsReadOnly"
                                              @bind-Value="variable.Value" />
                         }
@@ -418,13 +422,25 @@ else
     private static string FormatUnavailableReference(string? resourceId) =>
         $"{resourceId} (unavailable)";
 
+    private static TextFieldType GetLiteralValueTextFieldType(string? name, bool hasStoredSensitiveValue) =>
+        hasStoredSensitiveValue || ResourceSettingDisplay.IsSensitiveLiteralName(name)
+            ? TextFieldType.Password
+            : TextFieldType.Text;
+
+    private string? GetLiteralValuePlaceholder(bool hasStoredSensitiveValue) =>
+        hasStoredSensitiveValue ? L["Stored value hidden"].Value : null;
+
     private sealed class AppSettingInput
     {
         public string? Name { get; set; }
 
+        public string? OriginalName { get; set; }
+
         public EnvironmentVariableSource Source { get; set; }
 
         public string? Value { get; set; }
+
+        public string? StoredSensitiveValue { get; set; }
 
         public string? ReferenceResourceId { get; set; }
 
@@ -435,6 +451,11 @@ else
         public string DisplayName =>
             string.IsNullOrWhiteSpace(Name) ? "(unnamed)" : Name.Trim();
 
+        public bool HasStoredSensitiveValue =>
+            Source == EnvironmentVariableSource.Literal &&
+            !string.IsNullOrWhiteSpace(StoredSensitiveValue) &&
+            string.Equals(OriginalName, Name, StringComparison.OrdinalIgnoreCase);
+
         public static AppSettingInput FromSetting(AppSetting setting)
         {
             if (setting.ConfigurationEntry is not null)
@@ -442,6 +463,7 @@ else
                 return new AppSettingInput
                 {
                     Name = setting.Name,
+                    OriginalName = setting.Name,
                     Source = EnvironmentVariableSource.Configuration,
                     ReferenceResourceId = setting.ConfigurationEntry.StoreResourceId,
                     ReferenceName = setting.ConfigurationEntry.EntryName,
@@ -454,6 +476,7 @@ else
                 return new AppSettingInput
                 {
                     Name = setting.Name,
+                    OriginalName = setting.Name,
                     Source = EnvironmentVariableSource.Secret,
                     ReferenceResourceId = setting.Secret.VaultResourceId,
                     ReferenceName = setting.Secret.SecretName,
@@ -464,8 +487,12 @@ else
             return new AppSettingInput
             {
                 Name = setting.Name,
+                OriginalName = setting.Name,
                 Source = EnvironmentVariableSource.Literal,
-                Value = setting.Value
+                Value = ResourceSettingDisplay.IsSensitiveLiteralName(setting.Name) ? null : setting.Value,
+                StoredSensitiveValue = ResourceSettingDisplay.IsSensitiveLiteralName(setting.Name)
+                    ? setting.Value
+                    : null
             };
         }
 
@@ -492,9 +519,14 @@ else
                         ReferenceResourceId?.Trim() ?? string.Empty,
                         ReferenceName?.Trim() ?? string.Empty,
                         Normalize(Version))),
-                _ => AppSetting.Literal(name, Value ?? string.Empty)
+                _ => AppSetting.Literal(name, ResolveLiteralValue())
             };
         }
+
+        private string ResolveLiteralValue() =>
+            HasStoredSensitiveValue && string.IsNullOrEmpty(Value)
+                ? StoredSensitiveValue ?? string.Empty
+                : Value ?? string.Empty;
 
         private static string? Normalize(string? value) =>
             string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -504,9 +536,13 @@ else
     {
         public string? Name { get; set; }
 
+        public string? OriginalName { get; set; }
+
         public EnvironmentVariableSource Source { get; set; }
 
         public string? Value { get; set; }
+
+        public string? StoredSensitiveValue { get; set; }
 
         public string? ReferenceResourceId { get; set; }
 
@@ -517,6 +553,11 @@ else
         public string DisplayName =>
             string.IsNullOrWhiteSpace(Name) ? "(unnamed)" : Name.Trim();
 
+        public bool HasStoredSensitiveValue =>
+            Source == EnvironmentVariableSource.Literal &&
+            !string.IsNullOrWhiteSpace(StoredSensitiveValue) &&
+            string.Equals(OriginalName, Name, StringComparison.OrdinalIgnoreCase);
+
         public static EnvironmentVariableInput FromAssignment(EnvironmentVariableAssignment assignment)
         {
             if (assignment.ConfigurationEntry is not null)
@@ -524,6 +565,7 @@ else
                 return new EnvironmentVariableInput
                 {
                     Name = assignment.Name,
+                    OriginalName = assignment.Name,
                     Source = EnvironmentVariableSource.Configuration,
                     ReferenceResourceId = assignment.ConfigurationEntry.StoreResourceId,
                     ReferenceName = assignment.ConfigurationEntry.EntryName,
@@ -536,6 +578,7 @@ else
                 return new EnvironmentVariableInput
                 {
                     Name = assignment.Name,
+                    OriginalName = assignment.Name,
                     Source = EnvironmentVariableSource.Secret,
                     ReferenceResourceId = assignment.Secret.VaultResourceId,
                     ReferenceName = assignment.Secret.SecretName,
@@ -546,8 +589,12 @@ else
             return new EnvironmentVariableInput
             {
                 Name = assignment.Name,
+                OriginalName = assignment.Name,
                 Source = EnvironmentVariableSource.Literal,
-                Value = assignment.Value
+                Value = ResourceSettingDisplay.IsSensitiveLiteralName(assignment.Name) ? null : assignment.Value,
+                StoredSensitiveValue = ResourceSettingDisplay.IsSensitiveLiteralName(assignment.Name)
+                    ? assignment.Value
+                    : null
             };
         }
 
@@ -574,9 +621,14 @@ else
                         ReferenceResourceId?.Trim() ?? string.Empty,
                         ReferenceName?.Trim() ?? string.Empty,
                         Normalize(Version))),
-                _ => new EnvironmentVariableAssignment(name, Value ?? string.Empty)
+                _ => new EnvironmentVariableAssignment(name, ResolveLiteralValue())
             };
         }
+
+        private string ResolveLiteralValue() =>
+            HasStoredSensitiveValue && string.IsNullOrEmpty(Value)
+                ? StoredSensitiveValue ?? string.Empty
+                : Value ?? string.Empty;
 
         private static string? Normalize(string? value) =>
             string.IsNullOrWhiteSpace(value) ? null : value.Trim();
