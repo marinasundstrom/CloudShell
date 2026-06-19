@@ -161,7 +161,7 @@ else
                 </div>
 
                 <aside class="dependency-map-sidebar" aria-label="@L["Service nodes"]">
-                    @RenderEdgeList(graph)
+                    @RenderEdgeList(graph, compact: true)
                     @RenderNodeList(graph)
                 </aside>
             </div>
@@ -244,23 +244,67 @@ else
         </text>
     </g>;
 
-    private RenderFragment RenderEdgeList(DependencyGraphViewModel graph) => @<section class="dependency-map-edge-list" aria-label="@L["Request edges"]">
+    private RenderFragment RenderEdgeList(DependencyGraphViewModel graph, bool compact = false) => @<section class="dependency-map-edge-list" aria-label="@L["Request edges"]">
         <h3>@L["Request paths"]</h3>
         <div role="list">
             @foreach (var edge in graph.Edges)
             {
-                <div class="dependency-map-edge-row @(edge.ErrorSpanCount > 0 ? "has-errors" : null)" role="listitem">
-                    <strong>@edge.Source.Label -> @edge.Target.Label</strong>
-                    <span>@FormatEdgeKind(edge)</span>
-                    <small>@FormatEdgeMetric(edge)</small>
-                    @if (BuildTraceRoute(edge) is { } traceRoute)
-                    {
-                        <a class="resource-link" href="@traceRoute">@GetTraceLinkLabel(edge)</a>
-                    }
-                </div>
+                @if (compact)
+                {
+                    <div class="dependency-map-edge-row @(edge.ErrorSpanCount > 0 ? "has-errors" : null)" role="listitem">
+                        <strong>@edge.Source.Label -> @edge.Target.Label</strong>
+                        <span>@FormatEdgeKind(edge)</span>
+                        <small>@FormatEdgeMetric(edge)</small>
+                        @if (BuildTraceRoute(edge) is { } traceRoute)
+                        {
+                            <a class="resource-link" href="@traceRoute">@GetTraceLinkLabel(edge)</a>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="dependency-map-edge-row boxed @(edge.ErrorSpanCount > 0 ? "has-errors" : null)" role="listitem">
+                        @RenderEdgeEndpoint(edge.Source)
+                        <div class="dependency-map-link" aria-label="@FormatEdgeLabel(edge)">
+                            <span class="dependency-map-line" aria-hidden="true"></span>
+                            <strong>@FormatEdgeKind(edge)</strong>
+                            <small>@FormatEdgeMetric(edge)</small>
+                            @if (BuildTraceRoute(edge) is { } traceRoute)
+                            {
+                                <a class="resource-link" href="@traceRoute">@GetTraceLinkLabel(edge)</a>
+                            }
+                        </div>
+                        @RenderEdgeEndpoint(edge.Target)
+                    </div>
+                }
             }
         </div>
     </section>;
+
+    private RenderFragment RenderEdgeEndpoint(DependencyNode node) => @<text>
+        @if (node.Resource is not null)
+        {
+            <a class="dependency-map-node" href="@BuildResourceRoute(node.Resource.Id)">
+                <ResourceKindIcon Resource="node.Resource" />
+                <span>
+                    <strong>@node.Label</strong>
+                    <small>@node.Subtitle</small>
+                    <em class="dependency-map-status @node.StatusKind">@node.StatusLabel</em>
+                </span>
+            </a>
+        }
+        else
+        {
+            <span class="dependency-map-node missing">
+                <span class="dependency-map-node-placeholder"></span>
+                <span>
+                    <strong>@node.Label</strong>
+                    <small>@L["Unavailable resource"]</small>
+                    <em class="dependency-map-status @node.StatusKind">@node.StatusLabel</em>
+                </span>
+            </span>
+        }
+    </text>;
 
     private RenderFragment RenderNodeList(DependencyGraphViewModel graph) => @<section class="dependency-map-node-list" aria-label="@L["Service nodes"]">
         <h3>@L["Services"]</h3>

@@ -2287,6 +2287,13 @@ h3 {
     background: var(--cloudshell-danger-fill);
 }
 
+.dependency-map-edge-row.boxed {
+    grid-template-columns: minmax(12rem, 1fr) minmax(9rem, 14rem) minmax(12rem, 1fr);
+    align-items: center;
+    gap: .7rem;
+    padding: .7rem;
+}
+
 .dependency-map-edge-row strong,
 .dependency-map-edge-row span,
 .dependency-map-edge-row small,
@@ -2401,6 +2408,12 @@ h3 {
     overflow-wrap: anywhere;
 }
 
+.dependency-map-link a {
+    justify-self: center;
+    width: fit-content;
+    font-size: .78rem;
+}
+
 .dependency-map-line {
     position: relative;
     display: block;
@@ -2476,6 +2489,18 @@ h3 {
 
     .dependency-map-edge-row {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dependency-map-edge-row.boxed {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dependency-map-edge-row.boxed .dependency-map-link {
+        justify-items: stretch;
+    }
+
+    .dependency-map-edge-row.boxed .dependency-map-line {
+        transform: rotate(90deg);
     }
 }
 
