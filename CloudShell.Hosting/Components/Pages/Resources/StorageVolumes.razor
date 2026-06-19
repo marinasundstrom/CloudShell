@@ -177,38 +177,11 @@ else
 
     private static string? GetConsumerMountMaterialization(StorageVolumeConsumerView consumer)
     {
-        if (!consumer.Resource.ResourceAttributes.TryGetValue(
-                ResourceAttributeNames.VolumeMountMaterializationStatus,
-                out var status) ||
-            string.IsNullOrWhiteSpace(status))
-        {
-            return null;
-        }
-
-        var label = GetVolumeMountMaterializationStatusLabel(status);
-        if (consumer.Resource.ResourceAttributes.TryGetValue(
-                ResourceAttributeNames.VolumeMountMaterializedCount,
-                out var materializedCount) &&
-            consumer.Resource.ResourceAttributes.TryGetValue(
-                ResourceAttributeNames.VolumeMountCount,
-                out var mountCount))
-        {
-            label = $"{label} ({materializedCount}/{mountCount})";
-        }
-
-        return $"{ResourceDisplayLabels.GetLabel(consumer.Resource)}: {label}";
+        var label = ResourceVolumeMountDisplay.GetMaterializationSummary(consumer.Resource);
+        return label is null
+            ? null
+            : $"{ResourceDisplayLabels.GetLabel(consumer.Resource)}: {label}";
     }
-
-    private static string GetVolumeMountMaterializationStatusLabel(string status) =>
-        status switch
-        {
-            "materialized" => "materialized",
-            "partial" => "partially materialized",
-            "notActive" => "not active",
-            "unknown" => "unknown",
-            "notApplicable" => "not applicable",
-            _ => status
-        };
 
     private static string Pluralize(int count) =>
         count == 1 ? string.Empty : "s";

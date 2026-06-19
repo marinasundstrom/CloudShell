@@ -67,6 +67,9 @@ on `git blame --follow`, and then by the broad type of change.
 - Adopted the shared resource display-label helper in application overview,
   app setting references, and volume display helpers to keep app-centric
   resource labels consistent.
+- Added a shared volume-mount display helper for mount summaries and
+  materialization labels, replacing duplicate formatting in application,
+  storage, and volume views.
 - Access Control principal search results now render as a vertical list with
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.

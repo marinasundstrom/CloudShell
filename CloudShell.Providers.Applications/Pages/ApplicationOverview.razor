@@ -930,7 +930,7 @@ else
         }
         else
         {
-            parts.Add($"Materialization: {GetVolumeMountStatusLabel(volumeMount.RuntimeMount.Status)}");
+            parts.Add($"Materialization: {ResourceVolumeMountDisplay.GetMaterializationStatusLabel(volumeMount.RuntimeMount.Status)}");
             if (!string.IsNullOrWhiteSpace(volumeMount.RuntimeMount.Source))
             {
                 parts.Add($"Source: {volumeMount.RuntimeMount.Source}");
@@ -939,14 +939,6 @@ else
 
         return string.Join(" - ", parts);
     }
-
-    private static string GetVolumeMountStatusLabel(string status) =>
-        status switch
-        {
-            ResourceVolumeMountMaterializationStatus.Materialized => "materialized",
-            ResourceVolumeMountMaterializationStatus.NotActive => "not active",
-            _ => string.IsNullOrWhiteSpace(status) ? "unknown" : status
-        };
 
     private string FormatMappingSummary(
         ResourceEndpointMappingDefinition mapping,
