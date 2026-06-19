@@ -17,6 +17,10 @@ on `git blame --follow`, and then by the broad type of change.
 
 #### Changed
 
+- Application Topology smoke coverage can now exercise the SQL-inclusive
+  runtime path when Docker and the local SQL Server image are available,
+  proving frontend-to-API, settings, secrets, and API-to-SQL connectivity
+  without forcing a container image pull in default test runs.
 - Application Topology smoke coverage now starts the project-backed API and
   frontend resources and verifies that the deliberate frontend-to-API failure
   path returns correlated ProblemDetails without requiring Docker or SQL

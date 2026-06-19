@@ -208,14 +208,14 @@ Already covered by the sample:
 - Smoke-tested runtime correlation for the API `/failure` response and the
   frontend `/upstream/failure` response, including trace IDs and ProblemDetails
   fields that point back to the failing resources.
+- Optional smoke-tested SQL-inclusive runtime path, gated on Docker and the
+  local SQL Server image, that starts the frontend with dependencies and
+  verifies frontend-to-API, settings, secrets, and API-to-SQL connectivity.
 
 Remaining useful additions:
 
 - Identity-backed SQL Server authentication, so the API can use its CloudShell
   resource identity to access the database in an Azure-like flow.
-- A full SQL-inclusive runtime walkthrough after the API, frontend, and SQL
-  resources are started, including the successful `/upstream` database path
-  and the correlated failed request path from `/upstream/failure`.
 - Optional container-app variants for the frontend and API only when they prove
   a distinct local-development workflow instead of duplicating the
   project-backed path.

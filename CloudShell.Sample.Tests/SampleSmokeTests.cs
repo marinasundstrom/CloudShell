@@ -15,6 +15,7 @@ using CloudShell.Providers.Applications;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using ApplicationTopologySqlServerResources = CloudShell.ApplicationTopology.SqlServerResourceBuilderExtensions;
 
 namespace CloudShell.Sample.Tests;
 
@@ -797,6 +798,66 @@ public sealed class SampleSmokeTests
         Assert.Equal("intentional", frontendFailureDocument.RootElement.GetProperty("sampleFailureKind").GetString());
         Assert.Equal(500, frontendFailureDocument.RootElement.GetProperty("upstreamStatusCode").GetInt32());
         Assert.Matches("^[0-9a-f]{32}$", frontendFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
+    }
+
+    [Fact]
+    public async Task ApplicationTopologyHost_SqlInclusiveRuntimePathConnectsFrontendApiAndDatabase()
+    {
+        if (!await DockerComposeStack.IsAvailableAsync() ||
+            !await DockerComposeStack.IsImageAvailableAsync(ApplicationTopologySqlServerResources.DefaultSqlServerImage))
+        {
+            return;
+        }
+
+        var frontendPort = await GetFreePortAsync();
+        var sqlPort = await GetFreePortAsync();
+        var configurationServiceBasePort = await GetServiceBasePortAsync("configuration:application-topology");
+        var secretsServiceBasePort = await GetServiceBasePortAsync("secrets-vault:application-topology");
+        using var host = await SampleProcess.StartAsync(
+            "samples/ApplicationTopology/Host/CloudShell.ApplicationTopologyHost.csproj",
+            await GetFreePortAsync(),
+            [
+                ("ApplicationTopology__FrontendEndpoint", $"http://localhost:{frontendPort}"),
+                ("ApplicationTopology__SqlServer__Port", sqlPort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__ConfigurationServiceBasePort", configurationServiceBasePort.ToString(CultureInfo.InvariantCulture)),
+                ("ApplicationTopology__SecretsServiceBasePort", secretsServiceBasePort.ToString(CultureInfo.InvariantCulture))
+            ]);
+
+        try
+        {
+            await host.WaitForHttpOkAsync("/", StartupTimeout);
+            await host.SendAsync(
+                HttpMethod.Post,
+                "/api/control-plane/v1/resources/application%3Aapplication-topology-frontend/actions/start?startDependencies=true");
+
+            var upstreamJson = await host.WaitForAbsoluteHttpOkAndGetStringAsync(
+                $"http://localhost:{frontendPort}/upstream",
+                StartupTimeout);
+            using var upstreamDocument = JsonDocument.Parse(upstreamJson);
+            var upstream = upstreamDocument.RootElement;
+            Assert.Equal("Application Topology Frontend", upstream.GetProperty("frontend").GetString());
+            Assert.Equal("https+http://application-topology-api", upstream.GetProperty("logicalApiEndpoint").GetString());
+            Assert.Equal("Hello from the referenced API project.", upstream.GetProperty("upstream").GetProperty("message").GetString());
+            Assert.Equal("Development", upstream.GetProperty("settings").GetProperty("mode").GetString());
+            Assert.True(upstream.GetProperty("settings").GetProperty("externalApiKeyConfigured").GetBoolean());
+            Assert.Equal("ok", upstream.GetProperty("database").GetProperty("status").GetString());
+            Assert.Equal("mssql", upstream.GetProperty("database").GetProperty("provider").GetString());
+
+            var frontendFailureJson = await host.WaitForAbsoluteHttpStatusAsync(
+                $"http://localhost:{frontendPort}/upstream/failure",
+                HttpStatusCode.BadGateway,
+                StartupTimeout);
+            using var frontendFailureDocument = JsonDocument.Parse(frontendFailureJson);
+            Assert.Equal("application-topology-frontend", frontendFailureDocument.RootElement.GetProperty("resourceName").GetString());
+            Assert.Equal(500, frontendFailureDocument.RootElement.GetProperty("upstreamStatusCode").GetInt32());
+            Assert.Matches("^[0-9a-f]{32}$", frontendFailureDocument.RootElement.GetProperty("traceId").GetString() ?? string.Empty);
+        }
+        finally
+        {
+            await StopResourceIfRunningAsync(host, "application:application-topology-frontend");
+            await StopResourceIfRunningAsync(host, "application:application-topology-api");
+            await StopResourceIfRunningAsync(host, "application:application-topology-sql-server");
+        }
     }
 
     [Fact]
@@ -1753,6 +1814,22 @@ public sealed class SampleSmokeTests
         }
     }
 
+    private static async Task StopResourceIfRunningAsync(
+        SampleProcess host,
+        string resourceId)
+    {
+        try
+        {
+            await host.SendAsync(
+                HttpMethod.Post,
+                $"/api/control-plane/v1/resources/{Uri.EscapeDataString(resourceId)}/actions/stop?ignoreDependentWarning=true");
+        }
+        catch
+        {
+            // Cleanup should not hide the original test failure.
+        }
+    }
+
     private static async Task<string> RunResourceIdentityCredentialSampleAsync(
         SampleProcess host)
     {
@@ -1860,6 +1937,24 @@ public sealed class SampleSmokeTests
                 var result = await RunDockerAsync(
                     SampleProcess.FindRepositoryRoot(),
                     ["compose", "version"],
+                    null,
+                    TimeSpan.FromSeconds(10),
+                    throwOnError: false);
+                return result.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static async Task<bool> IsImageAvailableAsync(string image)
+        {
+            try
+            {
+                var result = await RunDockerAsync(
+                    SampleProcess.FindRepositoryRoot(),
+                    ["image", "inspect", image],
                     null,
                     TimeSpan.FromSeconds(10),
                     throwOnError: false);
@@ -2145,6 +2240,50 @@ public sealed class SampleSmokeTests
 
                     lastStatus = $"{(int)response.StatusCode} {response.ReasonPhrase}: " +
                         await response.Content.ReadAsStringAsync();
+                }
+                catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+                {
+                    lastException = exception;
+                }
+
+                await Task.Delay(250);
+            }
+
+            throw new TimeoutException(
+                $"Sample process did not return a successful response for '{url}' within {timeout}." +
+                $"{Environment.NewLine}{lastStatus ?? lastException?.Message}{Environment.NewLine}{GetOutput()}");
+        }
+
+        public async Task<string> WaitForAbsoluteHttpOkAndGetStringAsync(
+            string url,
+            TimeSpan timeout)
+        {
+            using var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromSeconds(3)
+            };
+            var deadline = DateTimeOffset.UtcNow.Add(timeout);
+            Exception? lastException = null;
+            string? lastStatus = null;
+
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                if (process.HasExited)
+                {
+                    throw new InvalidOperationException(
+                        $"Sample process exited with code {process.ExitCode} before '{url}' was ready.{Environment.NewLine}{GetOutput()}");
+                }
+
+                try
+                {
+                    using var response = await client.GetAsync(url);
+                    var body = await response.Content.ReadAsStringAsync();
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return body;
+                    }
+
+                    lastStatus = $"{(int)response.StatusCode} {response.ReasonPhrase}: {body}";
                 }
                 catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
                 {
