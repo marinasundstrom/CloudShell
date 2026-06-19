@@ -1,4 +1,5 @@
 @using System.Text.Json
+@using CloudShell.Abstractions.Authorization
 @using Microsoft.JSInterop
 @inject ApplicationResourceService ApplicationProvider
 @inject ILogManager LogManager
@@ -141,6 +142,16 @@ else
                                        CurrentMetadata="@Application.ResourceType"
                                        DependsOn="@GetDependencyNodes()"
                                        UsedBy="@GetDependentNodes()" />
+        </section>
+    }
+
+    @if (ShouldShowSqlAccessGrantNotice())
+    {
+        <section class="blade-section">
+            <h3>Access control</h3>
+            <FluentMessageBar Intent="MessageIntent.Warning">
+                Database grants are recorded in CloudShell. SQL Server users and roles are not created yet, so workloads still need configured SQL credentials.
+            </FluentMessageBar>
         </section>
     }
 
@@ -429,6 +440,7 @@ else
         ResourceOperationCapabilities.None(string.Empty);
     private ResourcePermissionGrantEvaluator? PermissionGrantEvaluator { get; set; }
     private IReadOnlyList<ResourcePermissionGrant> OutboundPermissionGrants { get; set; } = [];
+    private IReadOnlyList<ResourcePermissionGrant> InboundPermissionGrants { get; set; } = [];
     private ResourceIdentityProvisioningStatusResult? IdentityProvisioningStatus { get; set; }
     private string? IdentityProvisioningStatusError { get; set; }
     private IReadOnlyList<string> EffectiveDependencies { get; set; } = [];
@@ -487,6 +499,9 @@ else
         OutboundPermissionGrants = ProjectedResource is null
             ? []
             : GetOutboundPermissionGrants(ProjectedResource, permissionGrants);
+        InboundPermissionGrants = ProjectedResource is null
+            ? []
+            : GetInboundPermissionGrants(ProjectedResource, permissionGrants);
         await LoadIdentityProvisioningStatusAsync();
     }
 
@@ -614,6 +629,23 @@ else
             .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
+
+    private static IReadOnlyList<ResourcePermissionGrant> GetInboundPermissionGrants(
+        Resource resource,
+        IEnumerable<ResourcePermissionGrant> grants) =>
+        grants
+            .Where(grant => string.Equals(grant.TargetResourceId, resource.Id, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(grant => grant.Principal.DisplayName ?? grant.Principal.Id, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(grant => grant.Permission, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private bool ShouldShowSqlAccessGrantNotice() =>
+        Application is not null &&
+        IsSqlServer(Application) &&
+        InboundPermissionGrants.Any(grant => string.Equals(
+            grant.Permission,
+            DatabaseResourceOperationPermissions.ReadWrite,
+            StringComparison.OrdinalIgnoreCase));
 
     private async Task LoadIdentityProvisioningStatusAsync()
     {

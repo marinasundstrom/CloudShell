@@ -759,6 +759,8 @@ public sealed class SampleSmokeTests
         Assert.Contains("SQL Data (FileSystem)", sqlDetailsHtml);
         Assert.Contains("/var/opt/mssql", sqlDetailsHtml);
         Assert.Contains("Read/write", sqlDetailsHtml);
+        Assert.Contains("Database grants are recorded in CloudShell.", sqlDetailsHtml);
+        Assert.Contains("SQL Server users and roles are not created yet", sqlDetailsHtml);
         Assert.DoesNotContain("<dt>Image</dt>", sqlDetailsHtml);
         Assert.DoesNotContain("<h3>Container host</h3>", sqlDetailsHtml);
         AssertResourceTabsInOrder(

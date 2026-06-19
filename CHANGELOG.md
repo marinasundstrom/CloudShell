@@ -35,6 +35,8 @@ on `git blame --follow`, and then by the broad type of change.
 - SQL Server **Databases** now keeps live databases in the normal list and
   shows a separate missing-declarations section only after runtime verification
   proves declared databases do not exist on the server.
+- SQL Server overview now warns when database access grants are modeled in
+  CloudShell but have not been materialized as SQL Server users or roles yet.
 - SQL Server resource overview now leads with SQL service details instead of
   generic container image, revision, and host placement fields.
 
