@@ -84,6 +84,10 @@ on `git blame --follow`, and then by the broad type of change.
 - Environment setting updates now preserve structured procedure signals from
   app-setting and environment-variable provider results when the Resource
   Manager combines both updates into one apply response.
+- Application overview pages now include an immediate dependency graph with
+  links, state/type metadata, and incoming dependents so the app-centric
+  Resource Manager path explains local resource relationships, not only a
+  dependency count.
 
 ### 2026-06-18
 

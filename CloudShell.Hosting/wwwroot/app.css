@@ -1047,6 +1047,83 @@ h3 {
     overflow-wrap: anywhere;
 }
 
+.application-dependency-graph {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: .65rem;
+    align-items: stretch;
+}
+
+.application-dependency-group {
+    display: grid;
+    gap: .45rem;
+    min-width: 0;
+}
+
+.application-dependency-group h4 {
+    margin: 0;
+    color: var(--cloudshell-text-muted);
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.application-dependency-node,
+.application-dependency-current {
+    display: grid;
+    gap: .12rem;
+    min-width: 0;
+    padding: .55rem;
+    border: 1px solid var(--cloudshell-divider);
+    border-radius: 4px;
+    background: var(--cloudshell-surface-muted);
+}
+
+.application-dependency-node strong,
+.application-dependency-node span,
+.application-dependency-node small,
+.application-dependency-current strong,
+.application-dependency-current span,
+.application-dependency-current small {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.application-dependency-node span,
+.application-dependency-node small,
+.application-dependency-current span,
+.application-dependency-current small {
+    color: var(--cloudshell-text-muted);
+}
+
+.application-dependency-node.missing {
+    border-color: #f2c94c;
+    background: var(--cloudshell-warning-fill);
+}
+
+.application-dependency-node.empty {
+    border-style: dashed;
+    background: transparent;
+}
+
+.application-dependency-current {
+    align-self: center;
+    min-width: 8.5rem;
+    border-color: var(--cloudshell-accent);
+    background: var(--cloudshell-selected);
+    text-align: center;
+}
+
+@media (max-width: 860px) {
+    .application-dependency-graph {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .application-dependency-current {
+        justify-self: stretch;
+    }
+}
+
 .generated-list>.resource-list-item {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;

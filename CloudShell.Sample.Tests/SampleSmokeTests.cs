@@ -492,6 +492,12 @@ public sealed class SampleSmokeTests
         Assert.Contains("Startup declaration", apiDetailsHtml);
         Assert.Contains("Declared by code for this host process.", apiDetailsHtml);
         Assert.Contains("UI changes are temporary until the resource is persisted.", apiDetailsHtml);
+        Assert.Contains(">Dependency graph<", apiDetailsHtml);
+        Assert.Contains(">Depends on<", apiDetailsHtml);
+        Assert.Contains(">Used by<", apiDetailsHtml);
+        Assert.Contains("application-topology-sql-server", apiDetailsHtml);
+        Assert.Contains("application-topology-frontend", apiDetailsHtml);
+        Assert.Contains("application.container-app", apiDetailsHtml);
         Assert.Contains("Environment references", apiDetailsHtml);
         Assert.Contains("ApplicationTopology__Message", apiDetailsHtml);
         Assert.Contains("Configuration entry", apiDetailsHtml);
@@ -572,6 +578,11 @@ public sealed class SampleSmokeTests
             $"/resources/{Uri.EscapeDataString("application:application-topology-frontend")}/details");
         Assert.Contains(">Identity<", frontendDetailsHtml);
         Assert.Contains("Access control", frontendDetailsHtml);
+        Assert.Contains(">Dependency graph<", frontendDetailsHtml);
+        Assert.Contains(">Depends on<", frontendDetailsHtml);
+        Assert.Contains(">Used by<", frontendDetailsHtml);
+        Assert.Contains("application-topology-api", frontendDetailsHtml);
+        Assert.Contains("application.aspnet-core-project", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local", frontendDetailsHtml);
         Assert.Contains("app.application-topology.cloudshell.local -&gt; application-topology-frontend/http", frontendDetailsHtml);
         Assert.Contains("Zone: application-topology-local", frontendDetailsHtml);
