@@ -1867,42 +1867,22 @@ resourceGroups) =>
         ResourceInventory.FirstOrDefault(resource =>
             string.Equals(resource.Id, resourceId, StringComparison.OrdinalIgnoreCase));
 
-    private RenderFragment ResourceRelationshipLink(string resourceId) => builder =>
+    private RenderFragment ResourceRelationshipLink(string resourceId)
     {
         var resource = FindResource(resourceId);
         if (resource is null)
         {
-            builder.OpenElement(0, "span");
-            builder.AddAttribute(1, "class", "generated-pill-link");
-            builder.AddContent(2, resourceId);
-            builder.OpenElement(3, "small");
-            builder.AddContent(4, L["Missing resource"]);
-            builder.CloseElement();
-            builder.CloseElement();
-            return;
+            return @<ResourcePillLink Label="@resourceId"
+                                      Metadata="@L["Missing resource"].Value" />;
         }
 
-        builder.OpenElement(5, "a");
-        builder.AddAttribute(6, "class", "resource-link generated-pill-link");
-        builder.AddAttribute(7, "href", ResourceManagerRoutes.ResourceOverview(resource.Id));
-        builder.AddContent(8, GetResourceLabel(resource));
-        builder.OpenElement(9, "small");
-        builder.AddContent(10, resource.EffectiveTypeId);
-        builder.CloseElement();
-        builder.CloseElement();
-    };
+        return ResourceRelationshipLink(resource);
+    }
 
-    private RenderFragment ResourceRelationshipLink(Resource resource) => builder =>
-    {
-        builder.OpenElement(0, "a");
-        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
-        builder.AddAttribute(2, "href", ResourceManagerRoutes.ResourceOverview(resource.Id));
-        builder.AddContent(3, GetResourceLabel(resource));
-        builder.OpenElement(4, "small");
-        builder.AddContent(5, resource.EffectiveTypeId);
-        builder.CloseElement();
-        builder.CloseElement();
-    };
+    private RenderFragment ResourceRelationshipLink(Resource resource) =>
+        @<ResourcePillLink Label="@GetResourceLabel(resource)"
+                           Href="@ResourceManagerRoutes.ResourceOverview(resource.Id)"
+                           Metadata="@resource.EffectiveTypeId" />;
 
     private string FormatLoadBalancerRouteCounts(Resource resource)
     {

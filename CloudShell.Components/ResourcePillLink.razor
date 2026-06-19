@@ -6,6 +6,10 @@
         {
             <small>@Metadata</small>
         }
+        @if (!string.IsNullOrWhiteSpace(SecondaryMetadata))
+        {
+            <small>@SecondaryMetadata</small>
+        }
     </a>
 }
 else
@@ -15,6 +19,10 @@ else
         @if (!string.IsNullOrWhiteSpace(Metadata))
         {
             <small>@Metadata</small>
+        }
+        @if (!string.IsNullOrWhiteSpace(SecondaryMetadata))
+        {
+            <small>@SecondaryMetadata</small>
         }
     </span>
 }
@@ -28,6 +36,9 @@ else
 
     [Parameter]
     public string? Metadata { get; set; }
+
+    [Parameter]
+    public string? SecondaryMetadata { get; set; }
 
     [Parameter]
     public string? Class { get; set; }

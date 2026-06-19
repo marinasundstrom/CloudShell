@@ -416,35 +416,22 @@
                 : principal.SourceResourceId
             : principal.DisplayName ?? principal.Id;
 
-    private RenderFragment PrincipalLink(ResourcePrincipalReference principal) => builder =>
+    private RenderFragment PrincipalLink(ResourcePrincipalReference principal)
     {
         var resource = string.IsNullOrWhiteSpace(principal.SourceResourceId)
             ? null
             : ResourcesById.GetValueOrDefault(principal.SourceResourceId);
-        var sequence = 0;
-        builder.OpenElement(sequence++, resource is null ? "span" : "a");
-        builder.AddAttribute(sequence++, "class", "resource-link generated-pill-link");
-        if (resource is not null)
-        {
-            builder.AddAttribute(
-                sequence++,
-                "href",
-                ResourceManagerRoutes.ResourceDetails(resource.Id, ResourcePredefinedViewIds.Identity));
-        }
-
-        builder.AddContent(sequence++, resource is null ? principal.DisplayName ?? principal.Id : FormatResourcePrincipalName(resource));
-        builder.OpenElement(sequence++, "small");
-        builder.AddContent(sequence++, FormatPrincipalLabel(principal));
-        builder.CloseElement();
-        if (resource is not null)
-        {
-            builder.OpenElement(sequence++, "small");
-            builder.AddContent(sequence++, resource.EffectiveTypeId);
-            builder.CloseElement();
-        }
-
-        builder.CloseElement();
-    };
+        var label = resource is null
+            ? principal.DisplayName ?? principal.Id
+            : FormatResourcePrincipalName(resource);
+        var href = resource is null
+            ? null
+            : ResourceManagerRoutes.ResourceDetails(resource.Id, ResourcePredefinedViewIds.Identity);
+        return @<ResourcePillLink Label="@label"
+                                  Href="@href"
+                                  Metadata="@FormatPrincipalLabel(principal)"
+                                  SecondaryMetadata="@resource?.EffectiveTypeId" />;
+    }
 
     private static string GetResourceLabel(Resource resource) =>
         !string.IsNullOrWhiteSpace(resource.DisplayName)

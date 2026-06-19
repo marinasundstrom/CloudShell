@@ -392,23 +392,14 @@
         return RelatedResources.GetValueOrDefault(resourceId);
     }
 
-    private RenderFragment ResourceLink(string resourceId) => builder =>
+    private RenderFragment ResourceLink(string resourceId)
     {
         var resource = FindRelatedResource(resourceId);
         var label = resource is null ? resourceId : GetResourceLabel(resource);
-        builder.OpenElement(0, "a");
-        builder.AddAttribute(1, "class", "resource-link generated-pill-link");
-        builder.AddAttribute(2, "href", BuildResourceRoute(resourceId));
-        builder.AddContent(3, label);
-        if (resource is not null)
-        {
-            builder.OpenElement(4, "small");
-            builder.AddContent(5, resource.EffectiveTypeId);
-            builder.CloseElement();
-        }
-
-        builder.CloseElement();
-    };
+        return @<ResourcePillLink Label="@label"
+                                  Href="@BuildResourceRoute(resourceId)"
+                                  Metadata="@resource?.EffectiveTypeId" />;
+    }
 
     private static string GetResourceLabel(Resource resource) =>
         !string.IsNullOrWhiteSpace(resource.DisplayName)

@@ -51,7 +51,8 @@ on `git blame --follow`, and then by the broad type of change.
   full-width principal rows and disambiguate resource identity display names as
   `<DisplayName> (<resource name>)` when those values differ.
 - Added a reusable `ResourcePillLink` component for display-name-aware resource
-  relationship pills and adopted it in application overview access summaries.
+  relationship pills and adopted it in application overview, generated
+  resource views, Access Control, and the resource-list blade.
 - Resource Manager now includes a top-level Health workspace that polls
   configured resource health checks at the Resource Manager health-check
   interval, summarizes resource status, and links back to resource details.
