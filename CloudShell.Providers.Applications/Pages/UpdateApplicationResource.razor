@@ -72,7 +72,7 @@ else
                 <EnumValueSelect TEnum="ApplicationLifetime"
                                  Id="application-update-lifetime"
                                  Label="Lifetime"
-                                 LabelSelector="GetLifetimeLabel"
+                                 LabelSelector="@ApplicationResourceDisplay.GetLifetimeLabel"
                                  Disabled="@IsReadOnly"
                                  @bind-Value="SelectedLifetime" />
             }
@@ -131,7 +131,7 @@ else
                     <FluentOption TOption="string" Value="">Default host</FluentOption>
                     @foreach (var host in GetContainerHosts())
                     {
-                        <FluentOption TOption="string" Value="@host.Id">@GetHostLabel(host)</FluentOption>
+                        <FluentOption TOption="string" Value="@host.Id">@ApplicationResourceDisplay.GetContainerHostLabel(host)</FluentOption>
                     }
                 </FluentSelect>
             }
@@ -670,13 +670,6 @@ else
             ? lifetime
             : ApplicationLifetime.Detached;
 
-    private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
-        lifetime switch
-        {
-            ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
-            _ => "Detached"
-        };
-
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
@@ -757,9 +750,6 @@ else
             return null;
         }
     }
-
-    private static string GetHostLabel(ContainerHostDescriptor host) =>
-        host.IsDefault ? $"{host.Name} (default)" : host.Name;
 
     private bool ValidateRegistryCredentials()
     {

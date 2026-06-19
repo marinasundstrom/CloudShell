@@ -47,7 +47,7 @@
         <EnumValueSelect TEnum="ApplicationLifetime"
                          Id="application-lifetime"
                          Label="Lifetime"
-                         LabelSelector="GetLifetimeLabel"
+                         LabelSelector="@ApplicationResourceDisplay.GetLifetimeLabel"
                          @bind-Value="SelectedLifetime" />
 
         <FluentCheckbox @bind-Value="UseServiceDiscovery">
@@ -283,13 +283,6 @@
         Enum.TryParse<ApplicationLifetime>(SelectedLifetime, out var lifetime)
             ? lifetime
             : ApplicationLifetime.Detached;
-
-    private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
-        lifetime switch
-        {
-            ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
-            _ => "Detached"
-        };
 
     private static string? NormalizeNullable(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

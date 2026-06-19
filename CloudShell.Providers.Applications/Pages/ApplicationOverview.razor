@@ -85,7 +85,7 @@ else
                 </dd>
             }
             <dt>Lifetime</dt>
-            <dd>@GetLifetimeLabel(Application.Lifetime)</dd>
+            <dd>@ApplicationResourceDisplay.GetLifetimeLabel(Application.Lifetime)</dd>
             @if (TryFormatDeclarationPersistence(out var declarationPersistence))
             {
                 <dt>Declaration</dt>
@@ -476,13 +476,6 @@ else
             : GetOutboundPermissionGrants(ProjectedResource, permissionGrants);
         await LoadIdentityProvisioningStatusAsync();
     }
-
-    private static string GetLifetimeLabel(ApplicationLifetime lifetime) =>
-        lifetime switch
-        {
-            ApplicationLifetime.ControlPlaneScoped => "Control plane scoped",
-            _ => "Detached"
-        };
 
     private bool TryFormatDeclarationPersistence(out string? persistence)
     {
