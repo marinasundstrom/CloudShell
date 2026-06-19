@@ -10,39 +10,17 @@
 
 <div class="type-registration">
     <div class="form-panel">
-        @if (!HasImplicitContainerHost())
-        {
-            <div class="procedure-confirmation">
-                <strong>No default container host</strong>
-                <span>Select a container host for this SQL Server resource or register a default host with UseDocker().</span>
-            </div>
-        }
-
         <ResourceIdentityFields ResourceIdInputId="sql-resource-id"
                                 ResourceIdPlaceholder="sql-server"
                                 @bind-ResourceId="ResourceId" />
 
-        <label for="sql-image">Image</label>
-        <FluentTextField Id="sql-image" @bind-Value="Image" />
-
         <label for="sql-password">SA password</label>
         <FluentTextField Id="sql-password" TextFieldType="TextFieldType.Password" @bind-Value="Password" />
 
-        <label for="sql-host">Container host</label>
-        <FluentSelect TOption="string"
-                      Id="sql-host"
-                      @bind-Value="SelectedHostId"
-                      Appearance="Appearance.Outline">
-            <FluentOption TOption="string" Value="">Default host</FluentOption>
-            @foreach (var host in GetContainerHosts())
-            {
-                <FluentOption TOption="string" Value="@host.Id">@ApplicationResourceDisplay.GetContainerHostLabel(host)</FluentOption>
-            }
-        </FluentSelect>
-
         <EndpointAssignmentEditor AssignmentId="sql-port-assignment"
+                                  AssignmentLabel="TDS endpoint assignment"
                                   PortId="sql-local-port"
-                                  PortLabel="Local port"
+                                  PortLabel="Local TDS port"
                                   ShowNetwork="true"
                                   NetworkCandidates="GetNetworkCandidates()"
                                   ShowManualAddress="true"
@@ -55,11 +33,38 @@
                              ResourceGroups="ResourceGroups.GetResourceGroups()"
                              @bind-Value="SelectedGroupId" />
 
+        <details>
+            <summary>Advanced runtime settings</summary>
+
+            @if (!HasImplicitRuntimeHost())
+            {
+                <div class="procedure-confirmation">
+                    <strong>No default runtime host</strong>
+                    <span>Select a runtime host for this SQL Server resource or register a default host with UseDocker().</span>
+                </div>
+            }
+
+            <label for="sql-image">SQL Server image</label>
+            <FluentTextField Id="sql-image" @bind-Value="Image" />
+
+            <label for="sql-host">Runtime host</label>
+            <FluentSelect TOption="string"
+                          Id="sql-host"
+                          @bind-Value="SelectedHostId"
+                          Appearance="Appearance.Outline">
+                <FluentOption TOption="string" Value="">Default runtime host</FluentOption>
+                @foreach (var host in GetContainerHosts())
+                {
+                    <FluentOption TOption="string" Value="@host.Id">@ApplicationResourceDisplay.GetContainerHostLabel(host)</FluentOption>
+                }
+            </FluentSelect>
+        </details>
+
         <ResourceEditorSection Title="Storage">
             @if (GetVolumeCandidates().Count == 0)
             {
                 <ProcedureMessage Compact="true">
-                    No volume resources are available in this group. SQL Server data will not be persisted if the container is recreated.
+                    No volume resources are available in this group. SQL Server data will not be persisted if the provider runtime is recreated.
                 </ProcedureMessage>
             }
             else
@@ -219,7 +224,7 @@
                 return true;
             }
 
-            ErrorMessage = $"Container host '{SelectedHostId}' is not registered.";
+            ErrorMessage = $"Runtime host '{SelectedHostId}' is not registered.";
             return false;
         }
 
@@ -228,7 +233,7 @@
             return true;
         }
 
-        ErrorMessage = "A default container host is required unless this resource selects an explicit host.";
+        ErrorMessage = "A default runtime host is required unless this resource selects an explicit host.";
         return false;
     }
 
@@ -238,7 +243,7 @@
         Registrations.GetRegistration(resourceId) is not null ||
         ApplicationProvider.GetApplication(resourceId) is not null;
 
-    private bool HasImplicitContainerHost() =>
+    private bool HasImplicitRuntimeHost() =>
         GetContainerHosts().Any(host => host.IsDefault);
 
     private IReadOnlyList<ResourceVolumeMount> BuildVolumeMounts() =>

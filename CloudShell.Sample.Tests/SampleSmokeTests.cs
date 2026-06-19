@@ -513,6 +513,27 @@ public sealed class SampleSmokeTests
         Assert.Contains("Add volume", storageVolumesHtml);
         Assert.Contains("This Storage resource cannot be deleted while it owns volumes.", storageVolumesHtml);
 
+        var addSqlServerHtml = await host.GetStringAsync(
+            $"/resources/add?type={Uri.EscapeDataString(ApplicationResourceTypes.SqlServer)}");
+        Assert.Contains("SA password", addSqlServerHtml);
+        Assert.Contains("TDS endpoint", addSqlServerHtml);
+        Assert.Contains("Advanced runtime settings", addSqlServerHtml);
+        Assert.DoesNotContain("Container host", addSqlServerHtml);
+        Assert.DoesNotContain("Container image", addSqlServerHtml);
+        Assert.DoesNotContain("Registry username", addSqlServerHtml);
+        Assert.DoesNotContain("Dockerfile", addSqlServerHtml);
+
+        var sqlConfigurationHtml = await host.GetStringAsync(
+            $"/resources/{Uri.EscapeDataString("application:application-topology-sql-server")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Configuration.Value)}");
+        Assert.Contains("SA password", sqlConfigurationHtml);
+        Assert.Contains("TDS endpoint assignment", sqlConfigurationHtml);
+        Assert.Contains("Advanced runtime settings", sqlConfigurationHtml);
+        Assert.DoesNotContain("Container host", sqlConfigurationHtml);
+        Assert.DoesNotContain("Container image", sqlConfigurationHtml);
+        Assert.DoesNotContain("Registry username", sqlConfigurationHtml);
+        Assert.DoesNotContain("Dockerfile", sqlConfigurationHtml);
+        Assert.DoesNotContain("Scale and replicas", sqlConfigurationHtml);
+
         var apiEndpointsHtml = await host.GetStringAsync(
             $"/resources/{Uri.EscapeDataString("application:application-topology-api")}/details?tab={Uri.EscapeDataString(ResourcePredefinedViewIds.Endpoints.Value)}");
         Assert.Contains("Application exposure", apiEndpointsHtml);

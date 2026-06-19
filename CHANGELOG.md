@@ -13,6 +13,14 @@ link to ADR entries when a change depends on a recorded decision.
 Entries are grouped by the date their first bullet line was introduced, based
 on `git blame --follow`, and then by the broad type of change.
 
+### 2026-06-20
+
+#### Changed
+
+- SQL Server Add Resource and Configuration views now use SQL service language
+  and hide provider runtime image/host settings behind advanced controls instead
+  of presenting the resource as a container app.
+
 ### 2026-06-19
 
 #### Changed

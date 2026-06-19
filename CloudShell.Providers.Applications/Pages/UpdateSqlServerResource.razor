@@ -1,0 +1,331 @@
+@using System.Text.Json
+@inject ApplicationResourceService ApplicationProvider
+@inject IResourceManagerStore ResourceManager
+@inject IResourceGroupStore ResourceGroups
+@inject IResourceRegistrationStore Registrations
+@inject IEnumerable<IContainerHostProvider> ContainerHostProviders
+@inject IEnumerable<IResourceOrchestrationDescriptorProvider> DescriptorProviders
+
+@if (Application is null)
+{
+    <EmptyState Title="SQL Server is unavailable"
+                Message="The resource may have been removed or is no longer visible." />
+}
+else
+{
+    <div class="type-registration">
+        <div class="form-panel">
+            <label for="sql-update-name">Name</label>
+            <FluentTextField Id="sql-update-name" @bind-Value="Name" Disabled="@IsReadOnly" />
+
+            <label for="sql-update-password">SA password</label>
+            <FluentTextField Id="sql-update-password"
+                             TextFieldType="TextFieldType.Password"
+                             @bind-Value="Password"
+                             Disabled="@IsReadOnly"
+                             Placeholder="Leave unchanged" />
+
+            <EndpointAssignmentEditor AssignmentId="sql-update-port-assignment"
+                                      AssignmentLabel="TDS endpoint assignment"
+                                      PortId="sql-update-local-port"
+                                      PortLabel="Local TDS port"
+                                      Assignments="SqlEndpointAssignments"
+                                      Disabled="@IsReadOnly"
+                                      ShowNetwork="true"
+                                      NetworkCandidates="GetNetworkCandidates()"
+                                      ShowManualAddress="true"
+                                      HelpText="@SqlEndpointHelpText"
+                                      @bind-Assignment="EndpointAssignment"
+                                      @bind-NetworkResourceId="SelectedNetworkResourceId"
+                                      @bind-ManualAddress="ManualEndpointHost"
+                                      @bind-Port="LocalPort" />
+
+            <ResourceGroupSelect Id="sql-update-group"
+                                 ResourceGroups="ResourceGroups.GetResourceGroups()"
+                                 Disabled="@IsReadOnly"
+                                 @bind-Value="SelectedGroupId" />
+
+            <details>
+                <summary>Advanced runtime settings</summary>
+
+                @if (!HasImplicitRuntimeHost() && string.IsNullOrWhiteSpace(SelectedHostId))
+                {
+                    <div class="procedure-confirmation">
+                        <strong>No default runtime host</strong>
+                        <span>Select a runtime host for this SQL Server resource or register a default host with UseDocker().</span>
+                    </div>
+                }
+
+                <label for="sql-update-image">SQL Server image</label>
+                <FluentTextField Id="sql-update-image" @bind-Value="Image" Disabled="@IsReadOnly" />
+
+                <label for="sql-update-host">Runtime host</label>
+                <FluentSelect TOption="string"
+                              Id="sql-update-host"
+                              @bind-Value="SelectedHostId"
+                              Disabled="@IsReadOnly"
+                              Appearance="Appearance.Outline">
+                    <FluentOption TOption="string" Value="">Default runtime host</FluentOption>
+                    @foreach (var host in GetRuntimeHosts())
+                    {
+                        <FluentOption TOption="string" Value="@host.Id">@ApplicationResourceDisplay.GetContainerHostLabel(host)</FluentOption>
+                    }
+                </FluentSelect>
+            </details>
+        </div>
+    </div>
+}
+
+@code {
+    private const string AdministratorPasswordEnvironmentVariable = "MSSQL_SA_PASSWORD";
+    private const string SqlEndpointHelpText =
+        "CloudShell assigns a local TDS endpoint for development. Use a fixed local port only when tools on this machine need a stable address.";
+
+    private static IReadOnlyList<ResourceEndpointAssignment> SqlEndpointAssignments { get; } =
+    [
+        ResourceEndpointAssignment.ProviderDefault,
+        ResourceEndpointAssignment.Manual
+    ];
+
+    [CascadingParameter]
+    public ResourceConfigurationContext? Configuration { get; set; }
+
+    [CascadingParameter(Name = ResourceManagerCascadingParameterNames.ReadOnly)]
+    public bool IsReadOnly { get; set; }
+
+    [Parameter]
+    public string? ResourceId { get; set; }
+
+    private ApplicationResourceDefinition? Application { get; set; }
+    private ResourceConfigurationContext? RegisteredConfiguration { get; set; }
+    private string Name { get; set; } = string.Empty;
+    private string? Image { get; set; }
+    private string? Password { get; set; }
+    private string SelectedHostId { get; set; } = string.Empty;
+    private ResourceEndpointAssignment EndpointAssignment { get; set; } = ResourceEndpointAssignment.ProviderDefault;
+    private int? LocalPort { get; set; }
+    private string? SelectedNetworkResourceId { get; set; }
+    private string? ManualEndpointHost { get; set; }
+    private string SelectedGroupId { get; set; } = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        Application = string.IsNullOrWhiteSpace(ResourceId)
+            ? null
+            : ApplicationProvider.GetApplication(ResourceId);
+
+        if (Application is not null)
+        {
+            Name = Application.Name;
+            Image = Application.ContainerImage;
+            Password = null;
+            SelectedHostId = Application.ContainerHostId ?? string.Empty;
+            var tdsEndpoint = GetTdsEndpoint(Application);
+            EndpointAssignment = tdsEndpoint?.Port is null
+                ? tdsEndpoint?.Assignment ?? ResourceEndpointAssignment.ProviderDefault
+                : ResourceEndpointAssignment.Manual;
+            LocalPort = tdsEndpoint?.Port;
+            SelectedNetworkResourceId = tdsEndpoint?.NetworkResourceId;
+            ManualEndpointHost = tdsEndpoint?.Host;
+            SelectedGroupId = ResourceManager.GetGroupForResource(Application.Id)?.Id ?? string.Empty;
+        }
+
+        if (Configuration is not null &&
+            !ReferenceEquals(Configuration, RegisteredConfiguration))
+        {
+            Configuration.SetApplyHandler(ApplyAsync);
+            RegisteredConfiguration = Configuration;
+        }
+    }
+
+    private async Task<ResourceProcedureResult> ApplyAsync(CancellationToken cancellationToken)
+    {
+        if (IsReadOnly)
+        {
+            return ResourceManagerUiState.ReadOnlyResult();
+        }
+
+        if (Application is null)
+        {
+            return ResourceProcedureResult.Completed("SQL Server resource is unavailable.");
+        }
+
+        if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(Image))
+        {
+            return ResourceProcedureResult.Completed("Name and SQL Server image are required.");
+        }
+
+        if (EndpointAssignment == ResourceEndpointAssignment.Manual && LocalPort is null)
+        {
+            return ResourceProcedureResult.Completed("Manual TDS endpoint assignment requires a local port.");
+        }
+
+        if (GetRuntimeHostValidationError() is { } runtimeHostError)
+        {
+            return ResourceProcedureResult.Completed(runtimeHostError);
+        }
+
+        var definition = Application with
+        {
+            Name = Name.Trim(),
+            ContainerImage = Image.Trim(),
+            ContainerHostId = NormalizeNullable(SelectedHostId),
+            EndpointPorts = [BuildTdsEndpoint()],
+            EnvironmentVariables = BuildEnvironmentVariables()
+        };
+
+        var restartRequired =
+            ApplicationProvider.IsRunning(Application.Id) &&
+            IsRuntimeSensitiveChange(Application, definition);
+
+        await ApplicationProvider.UpdateApplicationAsync(
+            definition,
+            SelectedGroupId,
+            Registrations,
+            cancellationToken);
+
+        return restartRequired
+            ? ResourceProcedureResult.CompletedWithRestartRequired(
+                "SQL Server configuration updated.",
+                Application.Id,
+                "The resource is running. Restart it now to apply runtime configuration changes.")
+            : ResourceProcedureResult.Completed("SQL Server configuration updated.");
+    }
+
+    private ServicePort BuildTdsEndpoint()
+    {
+        var existing = GetTdsEndpoint(Application!);
+        return new ServicePort(
+            "tds",
+            existing?.TargetPort ?? 1433,
+            EndpointAssignment == ResourceEndpointAssignment.Manual ? LocalPort : null,
+            existing?.Protocol ?? "tcp",
+            existing?.Exposure ?? ResourceExposureScope.Local,
+            EndpointAssignment,
+            NormalizeNullable(SelectedNetworkResourceId),
+            NormalizeNullable(ManualEndpointHost));
+    }
+
+    private IReadOnlyList<EnvironmentVariableAssignment> BuildEnvironmentVariables()
+    {
+        if (string.IsNullOrWhiteSpace(Password))
+        {
+            return Application!.EnvironmentVariables;
+        }
+
+        var updated = Application!.EnvironmentVariables
+            .Where(variable => !string.Equals(
+                variable.Name,
+                AdministratorPasswordEnvironmentVariable,
+                StringComparison.OrdinalIgnoreCase))
+            .Append(new EnvironmentVariableAssignment(
+                AdministratorPasswordEnvironmentVariable,
+                Password.Trim()))
+            .ToArray();
+
+        return updated;
+    }
+
+    private static bool IsRuntimeSensitiveChange(
+        ApplicationResourceDefinition existing,
+        ApplicationResourceDefinition updated) =>
+        !string.Equals(existing.ContainerImage, updated.ContainerImage, StringComparison.Ordinal) ||
+        !string.Equals(existing.ContainerHostId, updated.ContainerHostId, StringComparison.Ordinal) ||
+        !existing.EndpointPorts.SequenceEqual(updated.EndpointPorts) ||
+        !existing.EnvironmentVariables.SequenceEqual(updated.EnvironmentVariables);
+
+    private string? GetRuntimeHostValidationError()
+    {
+        var hosts = GetRuntimeHosts();
+        if (!string.IsNullOrWhiteSpace(SelectedHostId))
+        {
+            return hosts.Any(host => string.Equals(host.Id, SelectedHostId, StringComparison.OrdinalIgnoreCase))
+                ? null
+                : $"Runtime host '{SelectedHostId}' is not registered.";
+        }
+
+        return hosts.Any(host => host.IsDefault)
+            ? null
+            : "A default runtime host is required unless this resource selects an explicit host.";
+    }
+
+    private bool HasImplicitRuntimeHost() =>
+        GetRuntimeHosts().Any(host => host.IsDefault);
+
+    private IReadOnlyList<ContainerHostDescriptor> GetRuntimeHosts()
+    {
+        var configuredHosts = ContainerHostProviders
+            .Select(provider => provider.GetDefaultHost())
+            .Where(host => !string.IsNullOrWhiteSpace(host.Id));
+        var resourceHosts = ResourceManager
+            .GetResources()
+            .Select(TryReadRuntimeHost)
+            .Where(host => host is not null)
+            .Select(host => host!);
+
+        return configuredHosts
+            .Concat(resourceHosts)
+            .GroupBy(host => host.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .OrderByDescending(host => host.IsDefault)
+            .ThenBy(host => host.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private ContainerHostDescriptor? TryReadRuntimeHost(Resource resource)
+    {
+        var provider = DescriptorProviders.FirstOrDefault(provider => provider.CanDescribe(resource));
+        if (provider is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var descriptor = provider.DescribeAsync(
+                    resource,
+                    new ResourceOrchestrationDescriptorContext(
+                        Registrations.GetRegistration(resource.Id),
+                        ResourceManager.GetGroupForResource(resource.Id),
+                        ResourceManager))
+                .GetAwaiter()
+                .GetResult();
+            if (!descriptor.ResourceType.Equals(ContainerHostResourceTypes.ContainerHost, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return descriptor.Configuration.Deserialize<ContainerHostDescriptor>(
+                new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private IReadOnlyList<Resource> GetNetworkCandidates() =>
+        ResourceManager.GetResources()
+            .Where(resource => resource.ResourceClass == ResourceClass.Network)
+            .Where(resource => IsInSelectedGroup(resource.Id))
+            .OrderBy(resource => resource.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    private bool IsInSelectedGroup(string resourceId)
+    {
+        var group = ResourceManager.GetGroupForResource(resourceId);
+        return string.IsNullOrWhiteSpace(SelectedGroupId)
+            ? group is null
+            : string.Equals(group?.Id, SelectedGroupId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static ServicePort? GetTdsEndpoint(ApplicationResourceDefinition application) =>
+        application.EndpointPorts.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Name, "tds", StringComparison.OrdinalIgnoreCase)) ??
+        application.EndpointPorts.FirstOrDefault(endpoint =>
+            string.Equals(endpoint.Protocol, "tcp", StringComparison.OrdinalIgnoreCase)) ??
+        application.EndpointPorts.FirstOrDefault();
+
+    private static string? NormalizeNullable(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
